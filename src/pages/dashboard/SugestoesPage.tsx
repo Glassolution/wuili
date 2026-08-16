@@ -278,7 +278,7 @@ export default function SugestoesPage() {
               ...categoryOptions.map(([value, label]) => ({ value, label })),
             ]}
           />
-          <SelectShell label="Ordenar sugestões" value={sort} onChange={(value) => setSort(value as typeof sort)} options={sortOptions} />
+          <SelectShell label="Ordenar sugestões" value={sort} onChange={(value) => setSort(value as typeof sort)} options={[...sortOptions]} />
         </div>
       </div>
 

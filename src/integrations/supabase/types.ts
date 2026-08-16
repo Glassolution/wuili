@@ -586,34 +586,58 @@ export type Database = {
         Row: {
           completion_tokens: number
           created_at: string
+          duracao_ms: number | null
+          erro: string | null
+          etapa: string | null
           id: string
           message_chars: number
           model: string | null
+          modelo: string | null
           origem: string
           prompt_tokens: number
           step: number | null
+          tokens_cache: number | null
+          tokens_entrada: number | null
+          tokens_saida: number | null
+          tokens_total: number | null
           user_id: string | null
         }
         Insert: {
           completion_tokens?: number
           created_at?: string
+          duracao_ms?: number | null
+          erro?: string | null
+          etapa?: string | null
           id?: string
           message_chars?: number
           model?: string | null
+          modelo?: string | null
           origem: string
           prompt_tokens?: number
           step?: number | null
+          tokens_cache?: number | null
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          tokens_total?: number | null
           user_id?: string | null
         }
         Update: {
           completion_tokens?: number
           created_at?: string
+          duracao_ms?: number | null
+          erro?: string | null
+          etapa?: string | null
           id?: string
           message_chars?: number
           model?: string | null
+          modelo?: string | null
           origem?: string
           prompt_tokens?: number
           step?: number | null
+          tokens_cache?: number | null
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          tokens_total?: number | null
           user_id?: string | null
         }
         Relationships: []
@@ -866,57 +890,36 @@ export type Database = {
       }
       feature_suggestions: {
         Row: {
-          category:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
+          category: string
           comments_count: number
           created_at: string
           description: string
           id: string
-          status: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          status: string
           title: string
           updated_at: string
           user_id: string
           votes_count: number
         }
         Insert: {
-          category?:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
+          category?: string
           comments_count?: number
           created_at?: string
           description: string
           id?: string
-          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          status?: string
           title: string
           updated_at?: string
           user_id: string
           votes_count?: number
         }
         Update: {
-          category?:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
+          category?: string
           comments_count?: number
           created_at?: string
           description?: string
           id?: string
-          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
+          status?: string
           title?: string
           updated_at?: string
           user_id?: string
@@ -3372,6 +3375,7 @@ export type Database = {
           cost_price: number
           demand_score: number
           ease_score: number
+          external_sales: number
           id: string
           image: string
           images: Json
@@ -3386,6 +3390,11 @@ export type Database = {
           suggested_price: number
           title: string
           total_count: number
+          velo_orders_count: number
+          velo_publications_count: number
+          velo_recent_orders: number
+          velo_revenue: number
+          velo_units_sold: number
           viral_score: number
         }[]
       }
@@ -3523,6 +3532,23 @@ export type Database = {
         }[]
       }
       rpc_affiliate_withdrawal_summary: { Args: never; Returns: Json }
+      rpc_atlas_usage_summary: {
+        Args: { p_days?: number }
+        Returns: {
+          dia: string
+          duracao_media_ms: number
+          etapa: string
+          modelo: string
+          origem: string
+          respostas: number
+          tokens_cache: number
+          tokens_entrada: number
+          tokens_medio_por_resposta: number
+          tokens_saida: number
+          tokens_total: number
+          usuarios: number
+        }[]
+      }
       rpc_record_affiliate_visit: {
         Args: {
           p_affiliate_code: string
@@ -3541,6 +3567,7 @@ export type Database = {
         Args: { target_user: string }
         Returns: boolean
       }
+      user_has_base_plan: { Args: { check_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"

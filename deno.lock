@@ -37,6 +37,8 @@
         "npm:@fontsource-variable/inter@^5.2.8",
         "npm:@hookform/resolvers@^3.10.0",
         "npm:@lovable.dev/cloud-auth-js@^1.1.2",
+        "npm:@lovable.dev/vite-plugin-dev-server-bridge@^1.0.2",
+        "npm:@lovable.dev/vite-plugin-hmr-gate@^1.7.0",
         "npm:@phosphor-icons/react@^2.1.10",
         "npm:@playwright/test@^1.57.0",
         "npm:@radix-ui/react-accordion@^1.2.11",

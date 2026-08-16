@@ -24,11 +24,13 @@ import {
   Store,
   Tag,
   ShoppingCart,
+  UploadCloud,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +69,12 @@ type TrendingProduct = {
   ease_score: number | null;
   viral_score: number | null;
   score: number | null;
+  velo_orders_count?: number | null;
+  velo_units_sold?: number | null;
+  velo_revenue?: number | null;
+  velo_publications_count?: number | null;
+  velo_recent_orders?: number | null;
+  external_sales?: number | null;
   total_count: number | null;
 };
 
@@ -105,8 +113,8 @@ const emptyFilterRanges: FilterRanges = {
 };
 
 const sortOptions: Array<{ label: string; value: SortBy }> = [
+  { label: "Mais vendidos", value: "demand" },
   { label: "Ranking Velo", value: "score" },
-  { label: "Mais vendido", value: "demand" },
   { label: "Maior margem", value: "margin" },
   { label: "Melhor avaliação", value: "rating" },
   { label: "Mais recente", value: "recent" },
@@ -180,8 +188,8 @@ const ProductSparkline = ({ seed }: { seed: string }) => {
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0" fill="none" aria-hidden="true">
-      <polyline points={points} stroke="#111111" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill="#111111" />
+      <polyline points={points} stroke="#2563EB" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="#2563EB" />
     </svg>
   );
 };
@@ -384,7 +392,7 @@ const TrendingProductsPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const [products, setProducts] = useState<TrendingProduct[]>([]);
-  const [niche, setNiche] = useState<string | null>("Eletrônicos");
+  const [niche, setNiche] = useState<string | null>(null);
   const period: Period = "week";
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
@@ -397,7 +405,7 @@ const TrendingProductsPage = () => {
   const [selectedFilterCategories, setSelectedFilterCategories] = useState<string[]>(() =>
     filterCategories.map((category) => category.value),
   );
-  const [sortBy, setSortBy] = useState<SortBy>("score");
+  const [sortBy, setSortBy] = useState<SortBy>("demand");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -583,6 +591,24 @@ const TrendingProductsPage = () => {
     navigate("/onboarding/preparando-produto", { state: { product: flowProduct, products: [flowProduct] } });
   };
 
+  const [mlProduct, setMlProduct] = useState<CatalogProduct | null>(null);
+
+  const handlePublishToMl = (product: TrendingProduct) => {
+    setMlProduct({
+      id: product.id,
+      title: product.title,
+      description: null,
+      images: product.images,
+      cost_price: Number(product.cost_price ?? 0),
+      suggested_price: Number(product.suggested_price ?? product.original_price ?? 0),
+      margin_percent: Number(product.margin_percent ?? 0),
+      category: product.category,
+      source: "velo",
+      stock_quantity: product.stock_quantity,
+      brand: product.brand,
+    });
+  };
+
   const handleCreateStore = (product: TrendingProduct) => {
     const activeStore = getActiveStore();
     if (activeStore) {
@@ -679,28 +705,25 @@ const TrendingProductsPage = () => {
           ) : null}
 
           <div className="flex min-h-[62px] flex-col gap-3 border-b border-black/[0.06] px-7 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-1">
-              <span className="relative flex h-8 w-9 shrink-0 items-center justify-center">
-                <img
-                  src="/assets/produtos-em-alta-icon.png?v=10"
-                  alt=""
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[46px] w-[69px] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain [filter:drop-shadow(0_5px_9px_rgba(15,23,42,0.16))_drop-shadow(0_1px_2px_rgba(15,23,42,0.10))]"
-                />
-              </span>
-              <div className="flex h-8 min-w-0 items-center">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <h1 className="shrink-0 text-[14px] font-semibold leading-none text-[#1F2430]">Produtos em Alta</h1>
-                  <p className="truncate text-[14px] font-medium leading-none text-[#687184]">
-                    Ranking de produtos vencedores com demanda, margem e avaliação.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="inline-flex h-10 shrink-0 overflow-hidden rounded-[9px] border border-black/[0.07] bg-white text-[12px] shadow-[0_6px_18px_rgba(15,23,42,0.045)]">
+            <header className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                Produtos em Alta
+              </h1>
+            </header>
+            <div className="inline-flex h-9 shrink-0 overflow-hidden rounded-full border border-black/[0.08] bg-white text-[12px] shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
               <span className="flex items-center border-r border-black/[0.06] px-4 font-semibold text-[#667085]">Produtos listados</span>
               <span className="flex items-center px-4 font-semibold text-emerald-600">{formatNumber(totalCount)}</span>
             </div>
           </div>
+
 
           <div className="flex min-h-[56px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 lg:flex-row lg:items-center lg:justify-between">
             <form
@@ -717,12 +740,12 @@ const TrendingProductsPage = () => {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   aria-label="Buscar produtos"
                   placeholder="Buscar produtos..."
-                  className="h-9 w-full rounded-[9px] border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
+                  className="h-9 w-full rounded-full border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
                 />
               </div>
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-[9px] bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
               >
                 Buscar
               </button>
@@ -730,7 +753,7 @@ const TrendingProductsPage = () => {
                 type="button"
                 onClick={() => setFiltersOpen((current) => !current)}
                 aria-expanded={filtersOpen}
-                className={`inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
+                className={`inline-flex h-9 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
                   filtersOpen ? "border-black bg-black text-white shadow-[0_10px_22px_rgba(0,0,0,0.14)]" : "border-black/[0.07] bg-white text-[#111111] hover:bg-[#FAFAF9]"
                 }`}
               >
@@ -743,7 +766,7 @@ const TrendingProductsPage = () => {
               <button
                 type="button"
                 onClick={() => setPresetsOpen((current) => !current)}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
                 aria-label="Importar ou criar presets de filtros"
                 title="Importar ou criar presets de filtros"
               >
@@ -763,7 +786,7 @@ const TrendingProductsPage = () => {
                       value={presetName}
                       onChange={(event) => setPresetName(event.target.value)}
                       placeholder="Nome do preset"
-                      className="h-9 min-w-0 flex-1 rounded-[9px] border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
+                      className="h-9 min-w-0 flex-1 rounded-full border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
                     />
                     <button
                       type="button"
@@ -944,7 +967,7 @@ const TrendingProductsPage = () => {
 
           <div className="flex min-h-[54px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <label className="group relative flex h-9 items-center gap-2 rounded-[9px] border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <label className="group relative flex h-9 items-center gap-2 rounded-full border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
                 <span className="text-[12px] font-medium text-[#8A93A3]">Ordenar por</span>
                 <select
                   value={sortBy}
@@ -965,7 +988,7 @@ const TrendingProductsPage = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-              <div className="flex items-center gap-1 rounded-[9px] border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <div className="flex items-center gap-1 rounded-full border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
                 <button type="button" className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-[#F1F3F7] text-[#111111]" aria-label="Visualização em lista">
                   <List size={15} strokeWidth={1.7} />
                 </button>
@@ -1142,7 +1165,11 @@ const TrendingProductsPage = () => {
                 </thead>
                 <tbody>
                   {visibleProducts.map((product) => {
-                    const demand = Number(product.orders_count ?? product.demand_score ?? 0);
+                    const veloSales = Number(product.velo_units_sold ?? 0);
+                    const veloOrders = Number(product.velo_orders_count ?? 0);
+                    const veloStores = Number(product.velo_publications_count ?? 0);
+                    const marketSales = Number(product.external_sales ?? 0);
+                    const demand = veloSales > 0 ? veloSales : Number(product.orders_count ?? marketSales ?? 0);
                     const rating = Number(product.rating ?? 0);
                     const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
                     const cost = Number(product.cost_price ?? 0);
@@ -1215,7 +1242,16 @@ const TrendingProductsPage = () => {
                           </td>
                           <td className="px-3 py-4 text-center align-middle">
                             <p className="whitespace-nowrap text-[14px] font-semibold text-[#2B2F3A]">{formatBRL(monthlyRevenue)}</p>
-                            <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#111827]">{formatNumber(demand)} vendas</p>
+                            {veloSales > 0 ? (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-semibold text-[#111827]">
+                                {formatNumber(veloSales)} vendas na Velo
+                                <span className="ml-1 font-medium text-[#7E8798]">({formatNumber(veloOrders)} pedidos)</span>
+                              </p>
+                            ) : (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#7E8798]">
+                                ~{formatNumber(marketSales)} vendas no Mercado Livre
+                              </p>
+                            )}
                           </td>
                           <td className="px-3 py-4 align-middle">
                             <div className="mx-auto flex w-full max-w-[245px] min-w-0 items-center justify-start gap-3">
@@ -1253,17 +1289,15 @@ const TrendingProductsPage = () => {
                                   <FilePlus2 size={15} strokeWidth={1.8} />
                                 )}
                               </button>
-                              {isAdmin ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCreateStore(product)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition hover:bg-[#222222]"
-                                  aria-label="Criar loja com este produto"
-                                  title="Criar loja com este produto"
-                                >
-                                  <Store size={15} strokeWidth={1.8} />
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8]"
+                                aria-label="Publicar no Mercado Livre"
+                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Publicar no Mercado Livre"}
+                              >
+                                {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={15} strokeWidth={1.8} />}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1310,7 +1344,9 @@ const TrendingProductsPage = () => {
                                       { label: "Receita mensal", value: formatBRL(monthlyRevenue), hint: "preço x vendas" },
                                       { label: "Estoque", value: stock === null ? "Sem dado" : formatNumber(stock), hint: "risco de ruptura" },
                                       { label: "Avaliação", value: rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "Sem nota", hint: "prova de satisfação" },
-                                      { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
+                                       { label: "Vendas na Velo", value: formatNumber(veloSales), hint: `${formatNumber(veloOrders)} pedidos reais` },
+                                       { label: "Lojas vendendo", value: formatNumber(veloStores), hint: "usuários que publicaram" },
+                                       { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
                                     ].map((metric) => (
                                       <div key={metric.label} className="rounded-[8px] border border-black/[0.06] bg-white p-3">
                                         <p className="text-[11px] font-semibold text-[#7E8798]">{metric.label}</p>
@@ -1335,7 +1371,7 @@ const TrendingProductsPage = () => {
                                               <span>{signal.hint}</span>
                                             </div>
                                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#ECEEF2]">
-                                              <div className="h-full rounded-full bg-black" style={{ width: `${signalValue}%` }} />
+                                              <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${signalValue}%` }} />
                                             </div>
                                           </div>
                                         );
@@ -1352,11 +1388,11 @@ const TrendingProductsPage = () => {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateStore(product))}
-                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222222]"
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
                                       >
-                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <Store size={14} strokeWidth={1.8} />}
-                                        {isFreePlan ? "Disponível no plano pago" : "Importar para loja"}
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Publicar no Mercado Livre"}
                                       </button>
                                     </div>
                                   </div>
@@ -1387,6 +1423,8 @@ const TrendingProductsPage = () => {
         preselectedProductIds={wizardProduct ? [wizardProduct.id] : []}
         onCreated={handleProjectCreated}
       />
+
+      <ImportProductModal open={!!mlProduct} onClose={() => setMlProduct(null)} product={mlProduct} />
     </div>
   );
 };

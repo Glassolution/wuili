@@ -1370,10 +1370,11 @@ button[class*="bg-[#1"]:hover:not(:disabled) {
   filter: brightness(1.05);
 }
 
-/* Exceções: editor, vitrine e catálogo voltam ao botão chapado. */
+/* Exceções: editor, vitrine, catálogo e o chat do Atlas voltam ao botão chapado. */
 [data-canvas-ui] button,
 [data-editor-ignore] button,
 .store-editor-preview button,
+[data-atlas-chat] button,
 [data-velo-flat-buttons] button.bg-black,
 [data-velo-flat-buttons] button.bg-neutral-900,
 [data-velo-flat-buttons] button[class*="bg-[#0"],
@@ -1385,6 +1386,7 @@ button[class*="bg-[#1"]:hover:not(:disabled) {
 [data-canvas-ui] button:hover,
 [data-editor-ignore] button:hover,
 .store-editor-preview button:hover,
+[data-atlas-chat] button:hover,
 [data-velo-flat-buttons] button:hover {
   transform: none;
 }

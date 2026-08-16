@@ -47,8 +47,8 @@ const AtlasDockPanel = () => {
   const { user } = useAuth();
   const reduzirMovimento = useReducedMotion();
   const {
-    aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId,
-    fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
+    aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, quota,
+    fechar, novaConversa, enviar, abrirConversa, aoApagarConversa, abrirVitrine,
   } = useAtlasChat();
   const navegarPeloAtlas = useAtlasNavegacao();
 
@@ -69,7 +69,9 @@ const AtlasDockPanel = () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      await startMercadoLivreOAuth();
+      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
+      await startMercadoLivreOAuth({ novaAba: true });
+      setConectandoMl(false);
     } catch (e) {
       setConectandoMl(false);
       veloToast.error(e instanceof Error ? e.message : "Não foi possível abrir a conexão com o Mercado Livre");
@@ -107,7 +109,7 @@ const AtlasDockPanel = () => {
               <button
                 key={`nav-${acao.route}-${i}`}
                 type="button"
-                onClick={() => navegarPeloAtlas(acao.route)}
+                onClick={() => void navegarPeloAtlas(acao.route)}
                 className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border !border-[#E4E7EC] bg-white px-3 py-1.5 text-left text-[12px] font-semibold text-[#353535] transition-colors hover:bg-[#F7F8FA]"
               >
                 <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" strokeWidth={2.2} />
@@ -130,7 +132,24 @@ const AtlasDockPanel = () => {
             );
           }
 
+          // Reabre a vitrine do guia (ela também abre sozinha ao chegar a
+          // resposta, mas o botão fica para quem fechou o modal sem escolher).
+          if (acao.type === "open_showcase") {
+            return (
+              <button
+                key={`vitrine-${i}`}
+                type="button"
+                onClick={() => abrirVitrine(acao.niche ?? null)}
+                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+              >
+                <PackageSearch className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
+                <span className="truncate">{acao.label}</span>
+              </button>
+            );
+          }
+
           const produto = acao.product;
+
           const rota = produto?.route ?? `/dashboard/catalogo/${acao.product_id}`;
           const preco = formatPrice(produto?.suggested_price);
 
@@ -160,7 +179,7 @@ const AtlasDockPanel = () => {
               <button
                 type="button"
                 onClick={() => navigate(rota)}
-                className="shrink-0 rounded-full bg-[#0A0A0A] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#2B2B2B]"
+                className="shrink-0 rounded-full bg-[#2563EB] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
               >
                 Ver
               </button>
@@ -174,7 +193,7 @@ const AtlasDockPanel = () => {
               <button
                 key={`atalho-${acao.route}-${i}`}
                 type="button"
-                onClick={() => navegarPeloAtlas(acao.route)}
+                onClick={() => void navegarPeloAtlas(acao.route)}
                 className="inline-flex max-w-full items-center gap-1.5 rounded-full border !border-[#D8E4FB] bg-[#F0F5FF] px-2.5 py-[6px] text-[12px] font-medium tracking-[-0.01em] text-[#1D4ED8] transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:!border-[#B9CFF8] hover:bg-[#E4EDFF]"
               >
                 <ArrowUpRight className="h-3 w-3 shrink-0 text-[#2563EB]/70" strokeWidth={2.2} aria-hidden />
@@ -233,6 +252,7 @@ const AtlasDockPanel = () => {
             clipPath: { duration: reduzirMovimento ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] },
             opacity: { duration: reduzirMovimento ? 0 : 0.24, ease: "easeOut" },
           }}
+          data-atlas-chat
           style={
             lateral
               ? {
@@ -244,7 +264,9 @@ const AtlasDockPanel = () => {
           }
           className={
             lateral
-              ? "absolute inset-y-0 right-0 z-[55] flex shrink-0 flex-col overflow-hidden border-l border-black/[0.07] bg-white shadow-[-18px_0_48px_rgba(15,23,42,0.04)]"
+              // Lateral é irmão do <main> no flex: ocupa a própria coluna e
+                // encolhe o conteúdo em vez de cobrir os produtos.
+                ? "relative z-[55] flex h-full shrink-0 flex-col overflow-hidden border-l border-black/[0.07] bg-white shadow-[-18px_0_48px_rgba(15,23,42,0.04)]"
               : // Centralizado cobre a área de conteúdo, como era antes de existir o
                 // painel lateral. Sobrepõe em vez de empurrar para não redimensionar a
                 // página que está atrás.
@@ -373,7 +395,7 @@ const AtlasDockPanel = () => {
           <button
             type="submit"
             disabled={!texto.trim() || enviando}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0A0A0A] text-white transition-colors hover:bg-[#2B2B2B] disabled:bg-[#EFEFEF] disabled:text-black/20"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2563EB] text-white transition-colors hover:bg-[#1D4ED8] disabled:bg-[#EFEFEF] disabled:text-black/20"
             aria-label="Enviar"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4">
@@ -381,6 +403,28 @@ const AtlasDockPanel = () => {
             </svg>
           </button>
         </form>
+
+        {/* Saldo do dia. Só aparece quando existe teto e já sabemos o número —
+            avisar "restam N" antes da primeira resposta seria ruído. */}
+        {quota && quota.limite !== null && quota.restantes !== null && (
+          <p
+            className={`mt-2 text-center text-[11px] ${quota.restantes === 0 ? "text-rose-600" : "text-[#8A8A8A]"}`}
+            aria-live="polite"
+          >
+            {quota.restantes === 0
+              ? "Você usou todas as mensagens de hoje."
+              : `Restam ${quota.restantes} de ${quota.limite} mensagens hoje.`}
+            {quota.plano === "gratis" && (
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/planos")}
+                className="ml-1 font-medium text-[#2563EB] hover:underline"
+              >
+                Ver planos
+              </button>
+            )}
+          </p>
+        )}
       </div>
         </motion.aside>
       )}

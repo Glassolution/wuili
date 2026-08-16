@@ -42,7 +42,7 @@ type NavGroup = {
 
 const SIDEBAR_GROUPS_STORAGE_KEY = "velo:admin-sidebar-open-groups";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "velo:admin-sidebar-collapsed";
-const DEFAULT_OPEN_GROUPS = ["overview", "operation"];
+const DEFAULT_OPEN_GROUPS: NavGroup["id"][] = ["overview", "operation"];
 
 const getStoredCollapsed = () => {
   if (typeof window === "undefined") return false;

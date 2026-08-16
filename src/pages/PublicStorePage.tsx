@@ -7,6 +7,7 @@ import {
   getProjectAccent,
   getProjectCopyVariant,
   getProjectAiDescription,
+  getProjectDescription,
   getProjectFont,
   getProjectHeroCtaUrl,
   getProjectHeroImage,

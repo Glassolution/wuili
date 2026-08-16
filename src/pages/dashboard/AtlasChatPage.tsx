@@ -6,6 +6,7 @@ import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
 import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAtlasNavegacao } from "@/contexts/AtlasChatContext";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -107,6 +108,9 @@ const AtlasAvatar = ({ size = 28 }: { size?: number }) => (
 const AtlasChatPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  // Botões de "ir para a página": preservam a conversa no painel lateral e
+  // disparam a pergunta automática da tela de destino.
+  const navegarPeloAtlas = useAtlasNavegacao();
   const params = useParams<{ threadId?: string }>();
   const threadId = params.threadId ?? null;
   const queryClient = useQueryClient();
@@ -118,7 +122,9 @@ const AtlasChatPage = () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      await startMercadoLivreOAuth();
+      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
+      await startMercadoLivreOAuth({ novaAba: true });
+      setConectandoMl(false);
     } catch (erro) {
       setConectandoMl(false);
       veloToast.error(erro instanceof Error ? erro.message : "Não foi possível abrir a conexão com o Mercado Livre");
@@ -347,7 +353,7 @@ const AtlasChatPage = () => {
               <button
                 key={`${action.type}-${action.route}-${index}`}
                 type="button"
-                onClick={() => navigate(action.route)}
+                onClick={() => void navegarPeloAtlas(action.route)}
                 className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3 py-1.5 text-left text-[12px] font-semibold text-neutral-700 shadow-[0_4px_14px_rgba(0,0,0,0.04)] transition-colors hover:bg-neutral-50"
               >
                 <ArrowRight className="h-3.5 w-3.5 text-[#351078]" />
@@ -399,7 +405,7 @@ const AtlasChatPage = () => {
               <button
                 type="button"
                 onClick={() => navigate(route)}
-                className="shrink-0 rounded-full bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-neutral-700"
+                className="shrink-0 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1D4ED8]"
               >
                 Ver produto
               </button>
@@ -413,7 +419,7 @@ const AtlasChatPage = () => {
               <button
                 key={`atalho-${action.route}-${index}`}
                 type="button"
-                onClick={() => navigate(action.route)}
+                onClick={() => void navegarPeloAtlas(action.route)}
                 className="inline-flex max-w-full items-center gap-1.5 rounded-full border !border-[#D8E4FB] bg-[#F0F5FF] px-2.5 py-[6px] text-[12px] font-medium tracking-[-0.01em] text-[#1D4ED8] transition-[background-color,border-color,transform] duration-200 hover:-translate-y-px hover:!border-[#B9CFF8] hover:bg-[#E4EDFF]"
               >
                 <ArrowUpRight className="h-3 w-3 shrink-0 text-[#2563EB]/70" strokeWidth={2.2} aria-hidden />
@@ -444,6 +450,7 @@ const AtlasChatPage = () => {
 
   return (
     <main
+      data-atlas-chat
       className="min-h-full w-full bg-[#f4f4f4] text-[#111111] flex"
       style={fontStyle}
     >
@@ -452,7 +459,7 @@ const AtlasChatPage = () => {
         <div className="p-3 border-b border-black/[0.06]">
           <button
             onClick={handleNewThread}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#111111] text-white text-[13px] font-semibold py-2.5 hover:opacity-90 transition-opacity"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] text-white text-[13px] font-semibold py-2.5 hover:bg-[#1D4ED8] transition-opacity"
           >
             <Plus className="h-4 w-4" /> Nova conversa
           </button>
@@ -579,7 +586,7 @@ const AtlasChatPage = () => {
             <button
               type="submit"
               disabled={!input.trim() || isThinking}
-              className="h-9 w-9 rounded-xl bg-neutral-900 text-white grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neutral-800 transition-colors"
+              className="h-9 w-9 rounded-xl bg-[#2563EB] text-white grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1D4ED8] transition-colors"
               aria-label="Enviar"
             >
               <ArrowUp className="h-4 w-4" />

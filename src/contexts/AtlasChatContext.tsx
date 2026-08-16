@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -6,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
+import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
+
 
 /**
  * Estado do chat do Atlas, um nível acima das páginas.
@@ -47,15 +49,44 @@ export type AtlasProductCardAction = {
 };
 
 export type AtlasQuickReplyAction = { type: "quick_reply"; label: string; message: string };
+/** Nicho confirmado na conversa, usado para filtrar a vitrine. */
+export type NichoDaVitrine = { id: string; label: string; catalogTerms: string[] };
+/** Abre a vitrine de produtos do guia, já filtrada pelo nicho confirmado. */
+export type AtlasOpenShowcaseAction = { type: "open_showcase"; label: string; niche?: NichoDaVitrine };
 export type AtlasConnectMlAction = { type: "connect_ml"; label: string };
 
 export type AtlasAction =
   | AtlasNavigationAction
   | AtlasProductCardAction
   | AtlasQuickReplyAction
-  | AtlasConnectMlAction;
+  | AtlasConnectMlAction
+  | AtlasOpenShowcaseAction;
 
-type AtlasFunctionResponse = { message?: string; error?: string; actions?: AtlasAction[] };
+/**
+ * Saldo diário de mensagens do Atlas, devolvido pela função em toda resposta.
+ * `limite: null` = plano sem teto (Business).
+ */
+export type AtlasQuota = {
+  plano: string;
+  limite: number | null;
+  usadas: number;
+  restantes: number | null;
+  permitido: boolean;
+};
+
+type AtlasFunctionResponse = {
+  message?: string;
+  error?: string;
+  actions?: AtlasAction[];
+  quota?: AtlasQuota;
+  quotaExcedida?: boolean;
+};
+
+const isAtlasQuota = (value: unknown): value is AtlasQuota => {
+  if (!value || typeof value !== "object") return false;
+  const q = value as Record<string, unknown>;
+  return typeof q.plano === "string" && typeof q.usadas === "number";
+};
 
 const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (!action || typeof action !== "object") return false;
@@ -64,6 +95,7 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (c.type === "product_card") return typeof c.product_id === "string";
   if (c.type === "quick_reply") return typeof c.label === "string" && typeof c.message === "string";
   if (c.type === "connect_ml") return typeof c.label === "string";
+  if (c.type === "open_showcase") return typeof c.label === "string";
   return false;
 };
 
@@ -117,10 +149,10 @@ const descreverPagina = (pathname: string): { rota: string; nome: string } => {
   return { rota: pathname, nome: encontrado?.[1] ?? "uma tela do painel" };
 };
 
-/** O guia se identifica pelo marcador "Passo N de 4" na última fala do Atlas. */
+/** O guia se identifica pelo marcador "Passo N de 5" na última fala do Atlas. */
 export const guiaEstaAtivo = (mensagens: AtlasMessage[]) => {
   const ultimaDoAtlas = [...mensagens].reverse().find((m) => m.role === "assistant");
-  return /passo\s*[1-4]\s*de\s*4/i.test(ultimaDoAtlas?.content ?? "");
+  return /passo\s*[1-5]\s*de\s*5/i.test(ultimaDoAtlas?.content ?? "");
 };
 
 /**
@@ -152,6 +184,8 @@ type AtlasChatContextValue = {
   threadId: string | null;
   guiaAtivo: boolean;
   paginaAtual: { rota: string; nome: string };
+  /** Saldo de mensagens do dia; null enquanto nenhuma resposta chegou ainda. */
+  quota: AtlasQuota | null;
   produtoSelecionado: ProdutoDoGuia | null;
   selecionarProduto: (produto: ProdutoDoGuia) => Promise<void>;
   /**
@@ -160,23 +194,114 @@ type AtlasChatContextValue = {
    * grade inteira do catálogo.
    */
   vitrineAberta: boolean;
-  abrirVitrine: () => void;
+  /** Nicho confirmado no guia; a vitrine cruza ele com o perfil do cadastro. */
+  nichoDaVitrine: NichoDaVitrine | null;
+  abrirVitrine: (nicho?: NichoDaVitrine | null) => void;
   fecharVitrine: () => void;
   abrir: () => void;
   abrirLateral: () => void;
   fechar: () => void;
   novaConversa: () => void;
-  enviar: (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => Promise<void>;
+  enviar: (
+    texto: string,
+    produtoDoCatalogo?: ProdutoDoGuia,
+    contextoDaPagina?: { rota: string; nome: string; proximoPasso?: string | null },
+  ) => Promise<void>;
   abrirConversa: (threadId: string) => Promise<void>;
+  /** Navegação por link interno (#catalogo etc.) preservando a conversa. */
+  navegarPorLink: (rota: string) => Promise<void>;
   aoApagarConversa: (threadId: string) => void;
 };
 
 const AtlasChatContext = createContext<AtlasChatContextValue | null>(null);
 
+/** Easter egg: menção à Andrya no chat. Ignora acento, caixa e pontuação. */
+const ehEasterEggAndrya = (texto: string) =>
+  /\bandry?a\b/.test(
+    texto
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase(),
+  );
+
+const MENSAGEM_ANDRYA =
+  "Andrya 💚\n\nTem nome que muda o clima da conversa — esse é um deles. Alguém aí gosta MUITO dela, e dá pra sentir daqui.\n\nEntão vai um pouquinho de festa por conta da casa: Andrya, você é especial. 🎆";
+
+
+/**
+ * Próximo passo concreto de cada tela.
+ *
+ * Vai junto do `pageContext` para a IA responder algo específico da página em
+ * que a pessoa acabou de chegar, em vez de um texto genérico reaproveitado.
+ */
+const PROXIMO_PASSO: Array<[RegExp, string]> = [
+  [/^\/dashboard\/catalogo\/[^/]+/, "Ver preço, margem e fotos do produto e clicar em Importar produto."],
+  [/^\/dashboard\/catalogo/, "Filtrar por categoria e preço, abrir um produto com boa margem e clicar em Importar produto."],
+  [/^\/dashboard\/produtos-em-alta/, "Escolher entre os produtos com mais procura agora um que combine com o público dele e importar."],
+  [/^\/dashboard\/paginas-com-ia/, "Clicar em Criar página, escolher o produto e revisar o texto de venda que a IA escreve."],
+  [/^\/dashboard\/modelos/, "Escolher um template que combine com o produto e clicar em Usar este modelo."],
+  [/^\/dashboard\/publicacoes/, "Conferir os anúncios, ver se algum está pausado e resolver o motivo apontado no card."],
+  [/^\/dashboard\/produtos-ml/, "Conferir estoque e preço dos anúncios sincronizados do Mercado Livre."],
+  [/^\/dashboard\/pedidos/, "Acompanhar as vendas e repassar cada pedido ao fornecedor pelo botão do card."],
+  [/^\/dashboard\/imagens-ia/, "Enviar a foto do produto para a IA gerar versões prontas para o anúncio."],
+  [/^\/dashboard\/tiktok/, "Criar um personagem de IA e gerar vídeos curtos para divulgar o produto."],
+  [/^\/dashboard\/integracoes/, "Clicar em Conectar no Mercado Livre para autorizar a conta."],
+  [/^\/dashboard\/pagamentos/, "Configurar como ele recebe para deixar o checkout ativo."],
+  [/^\/dashboard\/planos/, "Comparar os planos e escolher o que cabe agora."],
+  [/^\/dashboard\/saldos/, "Conferir o saldo disponível e o que ainda está a liberar."],
+  [/^\/dashboard\/transacoes/, "Conferir entradas e saídas da conta por período."],
+  [/^\/dashboard\/configuracoes/, "Ajustar dados e preferências e salvar no fim da tela."],
+  [/^\/dashboard\/chat-fornecedores/, "Falar com o fornecedor sobre estoque, prazo e envio."],
+  [/^\/dashboard\/resultados/, "Acompanhar visitas e vendas para saber onde investir mais."],
+  [/^\/dashboard\/?$/, "Escolher o próximo passo a partir do início do painel."],
+];
+
+const proximoPassoDaPagina = (rota: string) =>
+  PROXIMO_PASSO.find(([padrao]) => padrao.test(rota))?.[1] ?? null;
+
+/** Nome curto da tela, do jeito que aparece no menu, para a pergunta automática. */
+const NOME_CURTO: Array<[RegExp, string]> = [
+  [/^\/dashboard\/catalogo\/[^/]+/, "Detalhe do Produto"],
+  [/^\/dashboard\/catalogo/, "Catálogo"],
+  [/^\/dashboard\/produtos-em-alta/, "Produtos em Alta"],
+  [/^\/dashboard\/paginas-com-ia/, "Páginas com IA"],
+  [/^\/dashboard\/modelos/, "Modelos de Loja"],
+  [/^\/dashboard\/publicacoes/, "Publicações"],
+  [/^\/dashboard\/produtos-ml/, "Produtos do Mercado Livre"],
+  [/^\/dashboard\/produtos/, "Meus Produtos"],
+  [/^\/dashboard\/pedidos/, "Pedidos"],
+  [/^\/dashboard\/imagens-ia/, "Imagens com IA"],
+  [/^\/dashboard\/tiktok/, "TikTok"],
+  [/^\/dashboard\/integracoes/, "Integrações"],
+  [/^\/dashboard\/pagamentos/, "Pagamentos"],
+  [/^\/dashboard\/planos/, "Planos"],
+  [/^\/dashboard\/saldos/, "Saldos"],
+  [/^\/dashboard\/transacoes/, "Transações"],
+  [/^\/dashboard\/comissoes/, "Comissões"],
+  [/^\/dashboard\/clientes/, "Clientes"],
+  [/^\/dashboard\/minha-loja/, "Minha Loja"],
+  [/^\/dashboard\/configuracoes/, "Configurações"],
+  [/^\/dashboard\/chat-fornecedores/, "Chat com Fornecedores"],
+  [/^\/dashboard\/resultados/, "Resultados"],
+  [/^\/dashboard\/?$/, "Início"],
+];
+
+export const nomeCurtoDaPagina = (rota: string) =>
+  NOME_CURTO.find(([padrao]) => padrao.test(rota))?.[1] ?? descreverPagina(rota).nome;
+
+/**
+ * Pergunta que entra no chat como se o próprio usuário tivesse escrito, assim
+ * que ele chega numa página por um botão do Atlas.
+ */
+const perguntaDaPagina = (rota: string) => `Estou na página de ${nomeCurtoDaPagina(rota)}, e agora?`;
+
+
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
 
   const sessaoRef = useRef(0);
   const [aberto, setAberto] = useState(false);
@@ -190,7 +315,16 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [erro, setErro] = useState<string | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDoGuia | null>(null);
   const [vitrineAberta, setVitrineAberta] = useState(false);
-  const abrirVitrine = useCallback(() => setVitrineAberta(true), []);
+  const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
+  const [quota, setQuota] = useState<AtlasQuota | null>(null);
+  const [fogosAtivos, setFogosAtivos] = useState(false);
+  // Pergunta automática a enviar assim que a navegação por botão do Atlas concluir.
+  const [perguntaPendente, setPerguntaPendente] = useState<{ rota: string } | null>(null);
+
+  const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
+    if (nicho !== undefined) setNichoDaVitrine(nicho);
+    setVitrineAberta(true);
+  }, []);
   const fecharVitrine = useCallback(() => setVitrineAberta(false), []);
 
   const paginaAtual = useMemo(() => {
@@ -231,10 +365,15 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     setRotaDeAbertura(null);
     setProdutoSelecionado(null);
     setVitrineAberta(false);
+    setNichoDaVitrine(null);
   }, []);
 
   const enviar = useCallback(
-    async (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => {
+    async (
+      texto: string,
+      produtoDoCatalogo?: ProdutoDoGuia,
+      contextoDaPagina?: { rota: string; nome: string; proximoPasso?: string | null },
+    ) => {
       const mensagem = texto.trim();
       if (!mensagem || enviando) return;
       if (!user?.id) {
@@ -255,7 +394,24 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       setRotaDeAbertura((atual) => (aberto && atual ? atual : location.pathname));
       setErro(null);
       setMensagens((atual) => [...atual, otimista]);
+
+      // Easter egg: some coisas não passam pelo modelo. Responde na hora,
+      // solta os fogos por 10s e não gasta cota nem chamada de IA.
+      if (ehEasterEggAndrya(mensagem)) {
+        const resposta: AtlasMessage = {
+          id: `local-egg-${Date.now()}`,
+          role: "assistant",
+          content: MENSAGEM_ANDRYA,
+          created_at: new Date().toISOString(),
+        };
+        setMensagens((atual) => [...atual, resposta]);
+        setFogosAtivos(true);
+        window.setTimeout(() => setFogosAtivos(false), 10000);
+        return;
+      }
+
       setEnviando(true);
+
 
       try {
         let idDaThread = threadId;
@@ -284,7 +440,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
           // `pageContext` dá ao Atlas a noção de onde o usuário está agora.
           body: {
             messages: historico,
-            pageContext: paginaAtual,
+            pageContext: contextoDaPagina ?? paginaAtual,
             // Vai como dado, não como texto para o modelo interpretar: o guia
             // precisa do id/preço exatos para montar os passos seguintes.
             ...(produtoDoCatalogo ? { produtoSelecionado: produtoDoCatalogo } : {}),
@@ -292,6 +448,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
         });
 
         const corpo = resposta as AtlasFunctionResponse | null;
+        if (isAtlasQuota(corpo?.quota)) setQuota(corpo.quota);
         if (erroAtlas) {
           throw new Error(
             corpo?.error || erroAtlas.message || "Não consegui falar com o Atlas agora. Tente de novo em instantes.",
@@ -324,7 +481,18 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
           .eq("id", idDaThread);
 
         void queryClient.invalidateQueries({ queryKey: atlasThreadsQueryKey(user.id) });
-        if (sessaoRef.current === sessionId) setMensagens((atual) => [...atual, salva as AtlasMessage]);
+        if (sessaoRef.current === sessionId) {
+          setMensagens((atual) => [...atual, salva as AtlasMessage]);
+          // O guia manda abrir a vitrine ao confirmar o nicho: o modal aparece
+          // sozinho, sem depender de o usuário achar o botão na mensagem.
+          const pedidoDeVitrine = acoes.find(
+            (acao): acao is AtlasOpenShowcaseAction => acao.type === "open_showcase",
+          );
+          if (pedidoDeVitrine) {
+            setNichoDaVitrine(pedidoDeVitrine.niche ?? null);
+            setVitrineAberta(true);
+          }
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Não foi possível conversar com o Atlas";
         if (sessaoRef.current === sessionId) setErro(msg);
@@ -385,12 +553,54 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     [location.pathname, threadId, user?.id],
   );
 
+  /**
+   * Navegação disparada por link interno ou por botão "ir para a página" do
+   * Atlas.
+   *
+   * A thread é adotada pelo contexto antes de navegar (quem estava no chat em
+   * tela cheia não perde a conversa), o painel abre em modo lateral e uma
+   * pergunta entra no chat como se fosse do usuário ("Estou na página de
+   * Catálogo, e agora?"). O envio real acontece no efeito abaixo, para o Atlas
+   * responder já com o contexto da página de destino.
+   */
+  const navegarPorLink = useCallback(
+    async (rota: string) => {
+      const daPaginaCheia = location.pathname.match(/^\/dashboard\/atlas\/([^/]+)$/)?.[1] ?? null;
+      if (daPaginaCheia && daPaginaCheia !== threadId) {
+        await abrirConversa(daPaginaCheia);
+      }
+
+      setAberto(true);
+      setRotaDeAbertura("__atlas_lateral__");
+      setVitrineAberta(false);
+      navigate(rota);
+      setPerguntaPendente({ rota });
+    },
+    [abrirConversa, location.pathname, navigate, threadId],
+  );
+
+  // Dispara a pergunta automática depois da navegação, com uma closure fresca
+  // de `enviar` (histórico e thread já atualizados).
+  useEffect(() => {
+    if (!perguntaPendente || enviando || carregandoConversa) return;
+    const { rota } = perguntaPendente;
+    setPerguntaPendente(null);
+    const semQuery = rota.split("?")[0];
+    void enviar(perguntaDaPagina(semQuery), undefined, {
+      rota,
+      nome: descreverPagina(semQuery).nome,
+      proximoPasso: proximoPassoDaPagina(semQuery),
+    });
+  }, [carregandoConversa, enviando, enviar, perguntaPendente]);
+
+
   const aoApagarConversa = useCallback(
     (id: string) => {
       if (id === threadId) novaConversa();
     },
     [novaConversa, threadId],
   );
+
 
   const valor = useMemo<AtlasChatContextValue>(
     () => ({
@@ -403,10 +613,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       threadId,
       guiaAtivo,
       paginaAtual,
+      quota,
       produtoSelecionado,
       selecionarProduto,
       vitrineAberta,
+      nichoDaVitrine,
       abrirVitrine,
+
       fecharVitrine,
       abrir,
       abrirLateral,
@@ -414,16 +627,23 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       novaConversa,
       enviar,
       abrirConversa,
+      navegarPorLink,
       aoApagarConversa,
     }),
     [
-      aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual,
-      produtoSelecionado, selecionarProduto, vitrineAberta, abrirVitrine, fecharVitrine,
-      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
+      aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
+      produtoSelecionado, selecionarProduto, vitrineAberta, nichoDaVitrine, abrirVitrine, fecharVitrine,
+      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, navegarPorLink, aoApagarConversa,
     ],
   );
 
-  return <AtlasChatContext.Provider value={valor}>{children}</AtlasChatContext.Provider>;
+  return (
+    <AtlasChatContext.Provider value={valor}>
+      {children}
+      <AtlasFireworks ativo={fogosAtivos} />
+    </AtlasChatContext.Provider>
+  );
+
 };
 
 export const useAtlasChat = () => {
@@ -449,17 +669,18 @@ const ehRotaDoCatalogo = (rota: string) => /^\/dashboard\/catalogo\/?$/.test(rot
  * Fora do guia, e para qualquer outra rota, navega normalmente.
  */
 export const useAtlasNavegacao = () => {
-  const navigate = useNavigate();
-  const { guiaAtivo, abrirVitrine } = useAtlasChat();
+  const { guiaAtivo, abrirVitrine, navegarPorLink } = useAtlasChat();
 
   return useCallback(
-    (rota: string) => {
+    async (rota: string) => {
       if (guiaAtivo && ehRotaDoCatalogo(rota)) {
         abrirVitrine();
         return;
       }
-      navigate(rota);
+      // Navega preservando a conversa e já pergunta pelo usuário o que fazer
+      // na página de destino.
+      await navegarPorLink(rota);
     },
-    [abrirVitrine, guiaAtivo, navigate],
+    [abrirVitrine, guiaAtivo, navegarPorLink],
   );
 };

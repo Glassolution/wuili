@@ -2,13 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
+
   Crop,
   Download,
+  Expand,
   Loader2,
   Megaphone,
   Palette,
+  RefreshCw,
   Search,
   Sparkles,
   Tag,
@@ -18,6 +22,7 @@ import {
 } from "lucide-react";
 
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import AiImageProgress from "@/components/dashboard/AiImageProgress";
 import { useCharacterLibrary } from "@/components/dashboard/AICharacterCreator";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,25 +88,53 @@ const EXEMPLOS_DE_PROMPT = [
   "Anúncio estático de @produto com composição premium e foco no benefício",
 ];
 
-const renderPromptParts = (texto: string, subdued = false) =>
-  texto.split(/(@produto|@avatar)/g).map((parte, indice) => {
-    if (parte === "@produto") {
-      return (
-        <span
-          key={indice}
-          className="rounded-[6px] px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: `${PRODUCT_TOKEN}1A`, color: PRODUCT_TOKEN }}
-        >
-          {parte}
-        </span>
-      );
+type Ficha = { texto: string; cor: string };
+
+const escaparRegex = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Encurta o nome do item para virar uma ficha legível no prompt: nomes de
+ * catálogo são enormes e o destaque tomava a linha inteira.
+ */
+const nomeCurto = (valor: string, limite = 22) => {
+  const limpo = valor.replace(/\s+/g, " ").trim();
+  if (limpo.length <= limite) return limpo;
+  const palavras = limpo.split(" ");
+  let saida = "";
+  for (const palavra of palavras) {
+    if (!saida) {
+      saida = palavra.slice(0, limite);
+      continue;
     }
-    if (parte === "@avatar") {
+    if (`${saida} ${palavra}`.length > limite) break;
+    saida = `${saida} ${palavra}`;
+  }
+  return saida;
+};
+
+/**
+ * Pinta as fichas dentro do texto. O destaque não usa padding nem margem: o
+ * "respiro" vem de um box-shadow com spread, então as métricas do texto ficam
+ * idênticas às do textarea transparente e o cursor continua alinhado.
+ */
+const renderPromptParts = (texto: string, fichas: Ficha[], subdued = false) => {
+  const alvos = fichas.filter((f) => f.texto.trim().length > 1).sort((a, b) => b.texto.length - a.texto.length);
+  const partes = alvos.length
+    ? texto.split(new RegExp(`(${alvos.map((f) => escaparRegex(f.texto)).join("|")})`, "g"))
+    : [texto];
+
+  return partes.map((parte, indice) => {
+    const ficha = alvos.find((f) => f.texto === parte);
+    if (ficha) {
       return (
         <span
           key={indice}
-          className="rounded-[6px] px-1.5 py-0.5 font-medium"
-          style={{ backgroundColor: `${AVATAR_TOKEN}1A`, color: AVATAR_TOKEN }}
+          className="rounded-[5px]"
+          style={{
+            backgroundColor: `${ficha.cor}1A`,
+            color: ficha.cor,
+            boxShadow: `0 0 0 3px ${ficha.cor}1A`,
+          }}
         >
           {parte}
         </span>
@@ -113,6 +146,8 @@ const renderPromptParts = (texto: string, subdued = false) =>
       </span>
     );
   });
+};
+
 
 /** Caixa flutuante dos seletores da barra de ferramentas. */
 const Popover = ({
@@ -199,12 +234,17 @@ const AiImagesPage = () => {
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [resumo, setResumo] = useState<{ prompt: string; produto?: string; avatar?: string } | null>(null);
+  const [visualizando, setVisualizando] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   const avatar = useMemo(() => characters.find((c) => c.id === avatarId) ?? null, [characters, avatarId]);
   const avatarSelecionadoUrl = avatar?.image_url ? urls[avatar.image_url] : undefined;
 
   useEffect(() => {
+    // A animação de exemplo é só um convite: assim que o usuário escreve ou
+    // escolhe produto/avatar, ela para de vez.
+    if (prompt || produto || avatar) return;
     if (reduceMotion) {
       setExemploDigitado(EXEMPLOS_DE_PROMPT[exemploIndex]);
       return;
@@ -242,7 +282,7 @@ const AiImagesPage = () => {
     }, tempo);
 
     return () => window.clearTimeout(timer);
-  }, [exemploDigitado, exemploIndex, faseExemplo, reduceMotion]);
+  }, [exemploDigitado, exemploIndex, faseExemplo, reduceMotion, prompt, produto, avatar]);
 
   // Catálogo Velo — carregado quando o seletor de produto abre pela primeira vez.
   useEffect(() => {
@@ -275,23 +315,68 @@ const AiImagesPage = () => {
     };
   }, [menu, catalogo.length]);
 
+  // A ficha carrega uma versão curta do nome escolhido ("@Depilador a Laser")
+  // em vez do título inteiro do catálogo, que estourava a linha.
+  const fichaProduto = produto ? `@${nomeCurto(produto.title)}` : "@produto";
+  const fichaAvatar = avatar ? `@${nomeCurto(avatar.name)}` : "@avatar";
+
+
+  /**
+   * Coloca (ou atualiza) a ficha no prompt. Se já existia uma ficha do mesmo
+   * tipo, ela é substituída pelo novo nome em vez de duplicar.
+   */
+  const aplicarFicha = (anterior: string, nova: string, tipo: "produto" | "avatar", fichaProdutoAtual = fichaProduto) =>
+    setPrompt((atual) => {
+      if (anterior !== nova && atual.includes(anterior)) return atual.split(anterior).join(nova);
+      if (atual.includes(nova)) return atual;
+      const base = atual.trim();
+      if (base) return `${base} ${nova}`;
+      if (tipo === "avatar") return `${nova} segurando ${fichaProdutoAtual}`;
+      return `Foto profissional de ${nova} em fundo claro, com luz de estúdio`;
+    });
+
+  const removerFicha = (ficha: string) =>
+    setPrompt((atual) => atual.split(ficha).join("").replace(/\s{2,}/g, " ").trim());
+
   const escolherUpload = (arquivo: File) => {
     const leitor = new FileReader();
     leitor.onload = () => {
+      const titulo = arquivo.name.replace(/\.[^.]+$/, "");
       setProduto({
         id: "upload",
-        title: arquivo.name.replace(/\.[^.]+$/, ""),
+        title: titulo,
         image: String(leitor.result),
         origem: "upload",
       });
+      aplicarFicha(fichaProduto, `@${nomeCurto(titulo)}`, "produto");
       setMenu(null);
     };
     leitor.readAsDataURL(arquivo);
   };
 
-  /** Texto do prompt com as fichas @produto e @avatar destacadas. */
-  const promptDestacado = useMemo(() => renderPromptParts(prompt), [prompt]);
-  const exemploDestacado = useMemo(() => renderPromptParts(exemploDigitado, true), [exemploDigitado]);
+  /** Texto do prompt com as fichas do produto e do avatar destacadas. */
+  const fichasAtivas = useMemo<Ficha[]>(
+    () => [
+      { texto: fichaProduto, cor: PRODUCT_TOKEN },
+      { texto: "@produto", cor: PRODUCT_TOKEN },
+      { texto: fichaAvatar, cor: AVATAR_TOKEN },
+      { texto: "@avatar", cor: AVATAR_TOKEN },
+    ],
+    [fichaProduto, fichaAvatar],
+  );
+  const promptDestacado = useMemo(() => renderPromptParts(prompt, fichasAtivas), [prompt, fichasAtivas]);
+  const exemploDestacado = useMemo(
+    () =>
+      renderPromptParts(
+        exemploDigitado,
+        [
+          { texto: "@produto", cor: PRODUCT_TOKEN },
+          { texto: "@avatar", cor: AVATAR_TOKEN },
+        ],
+        true,
+      ),
+    [exemploDigitado],
+  );
   const catalogoFiltrado = useMemo(() => {
     const termo = catalogSearch.trim().toLowerCase();
     if (!termo) return catalogo;
@@ -312,7 +397,6 @@ const AiImagesPage = () => {
     setGerando(true);
     setResultado(null);
     const promptFinal = prompt.trim() || EXEMPLOS_DE_PROMPT[exemploIndex];
-    const aviso = veloToast.loading("Gerando a imagem...");
     try {
       const { data, error } = await supabase.functions.invoke("generate-product-image", {
         body: {
@@ -334,20 +418,160 @@ const AiImagesPage = () => {
       const imagem = resposta?.imageDataUrl;
       if (!imagem) throw new Error(resposta?.error ?? "A IA não devolveu imagem.");
       setResultado(imagem);
-      veloToast.success("Imagem pronta.", { id: aviso });
+      setResumo({
+        prompt: promptFinal,
+        produto: produto?.title ? nomeCurto(produto.title, 40) : undefined,
+        avatar: avatar?.name ? nomeCurto(avatar.name, 28) : undefined,
+      });
+      veloToast.success("Imagem pronta.");
     } catch (erro) {
       console.error("Falha ao gerar a imagem:", erro);
       veloToast.error(
         erro instanceof Error && erro.message ? erro.message : "Não foi possível gerar a imagem agora.",
-        { id: aviso },
       );
     } finally {
       setGerando(false);
     }
   };
 
+  // View dedicada de carregamento — substitui a tela de configuração
+  if (gerando) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col text-[#101114]">
+        <DashboardPageHeader title="Imagens com IA" titleClassName="!font-bold" />
+        <div className="flex flex-1 items-center justify-center overflow-hidden rounded-[20px] border border-black/[0.05] bg-gradient-to-b from-[#F7F7F9] via-[#FCFCFD] to-white px-5 py-14">
+          <AiImageProgress
+            comAvatar={Boolean(avatar)}
+            modo={modo}
+            produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // View dedicada de resultado — toolbar no topo + duas colunas fixas
+  if (resultado) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] flex-col text-[#101114]">
+        <div className="flex items-center gap-2 border-b border-black/[0.07] px-1 pb-3">
+          <button
+            type="button"
+            onClick={() => {
+              setResultado(null);
+              setResumo(null);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-black/60 transition hover:bg-black/[0.05] hover:text-[#101114]"
+            aria-label="Voltar para a configuração"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <p className="text-[15px] font-bold tracking-[-0.02em]">Imagem gerada</p>
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVisualizando(true)}
+              className="flex h-9 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 text-[13px] font-semibold transition hover:bg-black/[0.04]"
+            >
+              <Expand size={14} /> Visualizar
+            </button>
+            <a
+              href={resultado}
+              download={`${produto?.title ?? "produto"}.png`}
+              className="flex h-9 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 text-[13px] font-semibold transition hover:bg-black/[0.04]"
+            >
+              <Download size={14} /> Baixar
+            </a>
+            <button
+              type="button"
+              onClick={() => void gerar()}
+              className="flex h-9 items-center gap-2 rounded-full bg-[#101114] px-3.5 text-[13px] font-semibold text-white transition hover:bg-black"
+            >
+              <RefreshCw size={14} /> Regenerar
+            </button>
+          </div>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 pt-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+          {/* Coluna esquerda: detalhes da imagem atual */}
+          <div className="min-h-0 overflow-y-auto rounded-[16px] border border-black/[0.07] bg-white p-4">
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-black/40">Detalhes</p>
+            <dl className="mt-3 space-y-2.5">
+              {resumo?.produto ? (
+                <div className="flex items-start gap-2 text-[13px]">
+                  <dt className="w-[62px] shrink-0 text-black/45">Produto</dt>
+                  <dd className="min-w-0 flex-1 font-medium text-[#101114]">{resumo.produto}</dd>
+                </div>
+              ) : null}
+              {resumo?.avatar ? (
+                <div className="flex items-start gap-2 text-[13px]">
+                  <dt className="w-[62px] shrink-0 text-black/45">Avatar</dt>
+                  <dd className="min-w-0 flex-1 font-medium text-[#101114]">{resumo.avatar}</dd>
+                </div>
+              ) : null}
+              <div className="flex items-start gap-2 text-[13px]">
+                <dt className="w-[62px] shrink-0 text-black/45">Estilo</dt>
+                <dd className="min-w-0 flex-1 font-medium text-[#101114]">{estilo}</dd>
+              </div>
+            </dl>
+
+            {resumo?.prompt ? (
+              <div className="mt-3 rounded-[12px] border border-black/[0.06] bg-[#F7F7F9] p-3">
+                <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-black/40">Prompt</p>
+                <p className="mt-1 text-[13px] leading-[1.55] text-black/70">{resumo.prompt}</p>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Coluna direita: imagem em destaque */}
+          <button
+            type="button"
+            onClick={() => setVisualizando(true)}
+            className="flex min-h-0 items-center justify-center overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-3 outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+            aria-label="Abrir imagem em tamanho maior"
+          >
+            <img
+              src={resultado}
+              alt="Imagem de produto gerada por IA"
+              className="max-h-full w-auto max-w-full rounded-[12px] object-contain"
+            />
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {visualizando ? (
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setVisualizando(false)}
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6"
+            >
+              <img
+                src={resultado}
+                alt="Imagem gerada em tamanho maior"
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[90vh] max-w-[90vw] rounded-[16px] object-contain"
+              />
+              <button
+                type="button"
+                onClick={() => setVisualizando(false)}
+                className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#101114] transition hover:bg-white"
+                aria-label="Fechar visualização"
+              >
+                <X size={18} />
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col text-[#101114]">
+
       <DashboardPageHeader title="Imagens com IA" titleClassName="!font-bold" />
 
       {/* Moldura como na referência: contorno fino definindo a forma, painel um
@@ -437,12 +661,39 @@ const AiImagesPage = () => {
             <div className="flex flex-wrap items-center gap-1.5 border-t border-black/[0.06] px-3 py-2.5 lg:flex-nowrap">
               {/* Produto */}
               <div className="relative">
-                <ToolButton
-                  icon={Tag}
-                  label={produto ? produto.title : "Produto"}
-                  ativo={Boolean(produto)}
-                  onClick={() => setMenu(menu === "produto" ? null : "produto")}
-                />
+                {produto ? (
+                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-2 pr-1.5 text-[#101114]">
+                    <button
+                      type="button"
+                      onClick={() => setMenu(menu === "produto" ? null : "produto")}
+                      className="flex min-w-0 items-center gap-1.5 rounded-full pr-1 outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                      aria-label={`Produto selecionado: ${produto.title}`}
+                    >
+                      <Tag size={15} strokeWidth={1.9} className="shrink-0 text-black/55" />
+                      <span className="max-w-[150px] truncate text-[12.5px] font-semibold">
+                        {nomeCurto(produto.title)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProduto(null);
+                        removerFicha(fichaProduto);
+                      }}
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-black/70 transition hover:bg-black/[0.06] hover:text-black"
+                      aria-label="Remover produto"
+                    >
+                      <X size={14} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ) : (
+                  <ToolButton
+                    icon={Tag}
+                    label="Produto"
+                    onClick={() => setMenu(menu === "produto" ? null : "produto")}
+                  />
+                )}
+
                 <input
                   ref={uploadRef}
                   type="file"
@@ -459,7 +710,7 @@ const AiImagesPage = () => {
               {/* Avatar */}
               <div className="relative">
                 {avatar ? (
-                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-1.5 pr-1.5 text-[#101114] shadow-[0_8px_20px_rgba(10,10,10,0.08)]">
+                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-1.5 pr-1.5 text-[#101114]">
                     <button
                       type="button"
                       onClick={() => setMenu(menu === "avatar" ? null : "avatar")}
@@ -477,11 +728,17 @@ const AiImagesPage = () => {
                           <UserRound size={14} className="text-black/50" />
                         </span>
                       )}
-                      <span className="text-[12.5px] font-semibold">Avatar</span>
+                      <span className="max-w-[130px] truncate text-[12.5px] font-semibold">
+                        {nomeCurto(avatar.name)}
+                      </span>
+
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAvatarId(null)}
+                      onClick={() => {
+                        setAvatarId(null);
+                        removerFicha(fichaAvatar);
+                      }}
                       className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-black/70 transition hover:bg-black/[0.06] hover:text-black"
                       aria-label="Remover avatar"
                     >
@@ -587,40 +844,8 @@ const AiImagesPage = () => {
             </div>
           </div>
 
-          {/* Resultado */}
-          <AnimatePresence>
-            {resultado ? (
-              <motion.div
-                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                className="mt-8 w-full max-w-[820px] overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-4 shadow-[0_2px_10px_rgba(10,10,10,0.05)]"
-              >
-                <div className="flex items-center justify-between gap-3 pb-3">
-                  <p className="text-[14px] font-semibold">Imagem gerada</p>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={resultado}
-                      download={`${produto?.title ?? "produto"}.png`}
-                      className="flex h-9 items-center gap-2 rounded-full border border-black/[0.08] px-3.5 text-[13px] font-semibold transition hover:bg-black/[0.04]"
-                    >
-                      <Download size={14} /> Baixar
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => setResultado(null)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-black/45 transition hover:bg-black/[0.05] hover:text-[#101114]"
-                      aria-label="Descartar imagem"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-                <img src={resultado} alt="Imagem de produto gerada por IA" className="w-full rounded-[12px]" />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+
+
 
           {/* Contagem do plano, no lugar das duas descrições que ficavam aqui.
               O número vem do consumo real registrado a cada geração. */}
@@ -652,6 +877,7 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onSelect={(item) => {
           setProduto(item);
+          aplicarFicha(fichaProduto, `@${nomeCurto(item.title)}`, "produto", `@${nomeCurto(item.title)}`);
           setMenu(null);
         }}
       />
@@ -664,10 +890,13 @@ const AiImagesPage = () => {
         onClose={() => setMenu(null)}
         onClear={() => {
           setAvatarId(null);
+          removerFicha(fichaAvatar);
           setMenu(null);
         }}
         onSelect={(id) => {
           setAvatarId(id);
+          const nome = characters.find((c) => c.id === id)?.name;
+          if (nome) aplicarFicha(fichaAvatar, `@${nomeCurto(nome)}`, "avatar");
           setMenu(null);
         }}
         onCreate={() => {
