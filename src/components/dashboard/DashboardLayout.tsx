@@ -829,7 +829,7 @@ const DashboardLayoutInner = () => {
           }}
         >
           <MobileDashboardChrome>
-            <Outlet />
+              <PageOutlet />
           </MobileDashboardChrome>
         </div>
         <NotificationBannerStack />
@@ -895,7 +895,7 @@ const DashboardLayoutInner = () => {
               }}
             >
               <PageErrorBoundary>
-                <Outlet />
+                <PageOutlet />
               </PageErrorBoundary>
             </main>
 
