@@ -202,7 +202,11 @@ type AtlasChatContextValue = {
   abrirLateral: () => void;
   fechar: () => void;
   novaConversa: () => void;
-  enviar: (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => Promise<void>;
+  enviar: (
+    texto: string,
+    produtoDoCatalogo?: ProdutoDoGuia,
+    contextoDaPagina?: { rota: string; nome: string; proximoPasso?: string | null },
+  ) => Promise<void>;
   abrirConversa: (threadId: string) => Promise<void>;
   /** Navegação por link interno (#catalogo etc.) preservando a conversa. */
   navegarPorLink: (rota: string) => Promise<void>;
