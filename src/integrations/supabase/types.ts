@@ -864,66 +864,6 @@ export type Database = {
         }
         Relationships: []
       }
-      feature_suggestions: {
-        Row: {
-          category:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
-          comments_count: number
-          created_at: string
-          description: string
-          id: string
-          status: "pending" | "approved" | "ongoing" | "completed" | "rejected"
-          title: string
-          updated_at: string
-          user_id: string
-          votes_count: number
-        }
-        Insert: {
-          category?:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
-          comments_count?: number
-          created_at?: string
-          description: string
-          id?: string
-          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
-          title: string
-          updated_at?: string
-          user_id: string
-          votes_count?: number
-        }
-        Update: {
-          category?:
-            | "geral"
-            | "catalogo"
-            | "paginas_ia"
-            | "integracoes"
-            | "atlas"
-            | "checkout"
-            | "templates"
-          comments_count?: number
-          created_at?: string
-          description?: string
-          id?: string
-          status?: "pending" | "approved" | "ongoing" | "completed" | "rejected"
-          title?: string
-          updated_at?: string
-          user_id?: string
-          votes_count?: number
-        }
-        Relationships: []
-      }
       generated_sales_pages: {
         Row: {
           benefits: Json
