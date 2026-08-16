@@ -1701,6 +1701,11 @@ serve(async (req) => {
       produtoDoCatalogo,
     );
     if (beginnerGuideResponse) {
+      // Log de auditoria: permite conferir no log qual texto exato o guia
+      // devolveu (sem depender de teste manual, que pode pegar thread antiga).
+      console.log(
+        `[atlas-chat][guia] build=${GUIA_BUILD} etapa=${etapaDaRespostaDoGuia(beginnerGuideResponse)} texto=${JSON.stringify(beginnerGuideResponse.message.slice(0, 400))}`,
+      );
       registrarUso({
         userId: authenticatedUserId,
         origem: "codigo",
