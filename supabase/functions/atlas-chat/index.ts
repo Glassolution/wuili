@@ -78,7 +78,25 @@ type ConnectMlAction = {
   label: string;
 };
 
-type AtlasAction = NavigationAction | ProductCardAction | QuickReplyAction | ConnectMlAction;
+/**
+ * Abre a vitrine de produtos do guia (modal do frontend).
+ *
+ * O nicho vai junto para a vitrine cruzar o que o usuário acabou de escolher na
+ * conversa com o perfil respondido no cadastro, em vez de mostrar só o perfil.
+ */
+type OpenShowcaseAction = {
+  type: "open_showcase";
+  label: string;
+  niche?: { id: string; label: string; catalogTerms: string[] };
+};
+
+type AtlasAction =
+  | NavigationAction
+  | ProductCardAction
+  | QuickReplyAction
+  | ConnectMlAction
+  | OpenShowcaseAction;
+
 
 type AtlasResponse = {
   message: string;
