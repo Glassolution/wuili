@@ -204,6 +204,8 @@ type AtlasChatContextValue = {
   novaConversa: () => void;
   enviar: (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => Promise<void>;
   abrirConversa: (threadId: string) => Promise<void>;
+  /** Navegação por link interno (#catalogo etc.) preservando a conversa. */
+  navegarPorLink: (rota: string) => Promise<void>;
   aoApagarConversa: (threadId: string) => void;
 };
 
@@ -585,12 +587,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       novaConversa,
       enviar,
       abrirConversa,
+      navegarPorLink,
       aoApagarConversa,
     }),
     [
       aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
       produtoSelecionado, selecionarProduto, vitrineAberta, nichoDaVitrine, abrirVitrine, fecharVitrine,
-      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
+      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, navegarPorLink, aoApagarConversa,
     ],
   );
 
