@@ -283,40 +283,67 @@ const AiImagesPage = () => {
     };
   }, [menu, catalogo.length]);
 
+  // A ficha carrega o nome real do que foi escolhido: "@Depilador a Laser…"
+  // em vez do genérico "@produto".
+  const fichaProduto = produto ? `@${produto.title}` : "@produto";
+  const fichaAvatar = avatar ? `@${avatar.name}` : "@avatar";
+
   /**
-   * Ao escolher produto/avatar a ficha correspondente entra no prompt, para o
-   * usuário ver claramente o que já está marcado (e a animação de exemplo para).
+   * Coloca (ou atualiza) a ficha no prompt. Se já existia uma ficha do mesmo
+   * tipo, ela é substituída pelo novo nome em vez de duplicar.
    */
-  const inserirFicha = (ficha: "@produto" | "@avatar", temProduto = Boolean(produto)) =>
+  const aplicarFicha = (anterior: string, nova: string, tipo: "produto" | "avatar", fichaProdutoAtual = fichaProduto) =>
     setPrompt((atual) => {
-      if (atual.includes(ficha)) return atual;
+      if (anterior !== nova && atual.includes(anterior)) return atual.split(anterior).join(nova);
+      if (atual.includes(nova)) return atual;
       const base = atual.trim();
-      if (base) return `${base} ${ficha}`;
-      if (ficha === "@avatar") return temProduto ? "@avatar segurando @produto" : "@avatar";
-      return "Foto profissional de @produto em fundo claro, com luz de estúdio";
+      if (base) return `${base} ${nova}`;
+      if (tipo === "avatar") return `${nova} segurando ${fichaProdutoAtual}`;
+      return `Foto profissional de ${nova} em fundo claro, com luz de estúdio`;
     });
 
-  const removerFicha = (ficha: "@produto" | "@avatar") =>
+  const removerFicha = (ficha: string) =>
     setPrompt((atual) => atual.split(ficha).join("").replace(/\s{2,}/g, " ").trim());
 
   const escolherUpload = (arquivo: File) => {
     const leitor = new FileReader();
     leitor.onload = () => {
+      const titulo = arquivo.name.replace(/\.[^.]+$/, "");
       setProduto({
         id: "upload",
-        title: arquivo.name.replace(/\.[^.]+$/, ""),
+        title: titulo,
         image: String(leitor.result),
         origem: "upload",
       });
-      inserirFicha("@produto");
+      aplicarFicha(fichaProduto, `@${titulo}`, "produto");
       setMenu(null);
     };
     leitor.readAsDataURL(arquivo);
   };
 
-  /** Texto do prompt com as fichas @produto e @avatar destacadas. */
-  const promptDestacado = useMemo(() => renderPromptParts(prompt), [prompt]);
-  const exemploDestacado = useMemo(() => renderPromptParts(exemploDigitado, true), [exemploDigitado]);
+  /** Texto do prompt com as fichas do produto e do avatar destacadas. */
+  const fichasAtivas = useMemo<Ficha[]>(
+    () => [
+      { texto: fichaProduto, cor: PRODUCT_TOKEN },
+      { texto: "@produto", cor: PRODUCT_TOKEN },
+      { texto: fichaAvatar, cor: AVATAR_TOKEN },
+      { texto: "@avatar", cor: AVATAR_TOKEN },
+    ],
+    [fichaProduto, fichaAvatar],
+  );
+  const promptDestacado = useMemo(() => renderPromptParts(prompt, fichasAtivas), [prompt, fichasAtivas]);
+  const exemploDestacado = useMemo(
+    () =>
+      renderPromptParts(
+        exemploDigitado,
+        [
+          { texto: "@produto", cor: PRODUCT_TOKEN },
+          { texto: "@avatar", cor: AVATAR_TOKEN },
+        ],
+        true,
+      ),
+    [exemploDigitado],
+  );
   const catalogoFiltrado = useMemo(() => {
     const termo = catalogSearch.trim().toLowerCase();
     if (!termo) return catalogo;
