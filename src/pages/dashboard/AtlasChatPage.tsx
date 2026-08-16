@@ -450,6 +450,7 @@ const AtlasChatPage = () => {
 
   return (
     <main
+      data-atlas-chat
       className="min-h-full w-full bg-[#f4f4f4] text-[#111111] flex"
       style={fontStyle}
     >
