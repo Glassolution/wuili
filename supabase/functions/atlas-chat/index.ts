@@ -1029,16 +1029,38 @@ const showProductsForNiche = async (
   };
 };
 
+/**
+ * Passo 2: escolha do produto na vitrine.
+ *
+ * Assim que o nicho é confirmado, o guia abre a vitrine que já existe no
+ * frontend em vez de despejar cards de texto no chat. A vitrine cruza o nicho
+ * confirmado aqui com o perfil respondido no cadastro, e o produto escolhido
+ * segue amarrado ao resto do guia até a publicação.
+ */
+const guideOpenShowcaseStep = async (
+  supabase: ServiceClient,
+  niche: ValidatedNiche,
+): Promise<AtlasResponse> => {
+  const products = await searchCatalogProductsForNiche(supabase, niche);
 
-// --- Passo 2: onde vender ---------------------------------------------------
-// PENDÊNCIA: loja própria via Shopify está em planejamento e NÃO deve ser
-// oferecida como se existisse. Quando a integração for lançada, este passo passa
-// a apresentar as duas opções e a pergunta vira uma escolha de verdade.
-const askSalesChannelStep = (niche: ValidatedNiche): AtlasResponse => ({
-  message:
-    `Boa, **${niche.label}** fechado! Passo 1 concluído.\n\n**Passo 3 de 5: onde vender**\n\nVocê vai vender no **Mercado Livre**. É o caminho mais curto até a sua primeira venda.\n\nO Mercado Livre é um marketplace, ou seja, um site que já tem milhões de pessoas comprando todo dia. Você entra onde a procura já existe. Não precisa criar site, pagar anúncio nem convencer ninguém a visitar uma loja nova.\n\nMais pra frente a gente conecta a sua conta de vendedor, e eu te acompanho nessa hora.\n\nAgora vamos escolher o seu produto.`,
-  actions: [quickReply("Vamos escolher o produto", "Sim, quero vender pelo Mercado Livre")],
-});
+  // Sem produto no nicho a vitrine abriria vazia: melhor trocar de nicho aqui.
+  if (products.length === 0) return showProductsForNiche(supabase, niche);
+
+  return {
+    message:
+      `Nicho fechado! **${niche.label}** é o nosso ponto de partida. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nAbri aqui uma seleção do catálogo da Velo feita para você. Cruzei o nicho que você acabou de escolher com o que você respondeu no cadastro, e deixei de fora o que está sem estoque.\n\nPasse pelos cards, olhe as fotos e o preço, e escolha um. É esse produto que vai comigo até a publicação no Mercado Livre.`,
+    actions: [
+      {
+        type: "open_showcase",
+        label: "Escolher meu produto",
+        niche: { id: niche.id, label: niche.label, catalogTerms: niche.catalogTerms },
+      },
+      quickReply("Ver o catálogo completo", "Quero ver o catálogo completo"),
+      quickReply("Quero outro nicho", "Quero ver outros nichos"),
+    ],
+  };
+};
+
 
 // --- Passo 3: potencial de divulgação orgânica -------------------------------
 // Sem API de TikTok/Instagram: o sinal é uma leitura do produto (o quanto ele é
