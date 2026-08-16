@@ -442,6 +442,8 @@ const AiImagesPage = () => {
           na referência, em vez de terminar logo depois do último texto. */}
       <div className="flex flex-1 flex-col overflow-hidden rounded-[20px] border border-black/[0.05] bg-gradient-to-b from-[#F7F7F9] via-[#FCFCFD] to-white">
         <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col items-center px-5 py-14 sm:py-20">
+          {!gerando ? (
+          <>
           <motion.span
             initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
