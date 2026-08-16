@@ -904,9 +904,13 @@ const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string
  * Primeiro nome do usuário, usado para o Atlas falar com uma pessoa e não com
  * "o usuário". Volta null quando o perfil não tem nome utilizável.
  */
+/** Nomes-placeholder do cadastro: chamar alguém de "Usuario" é pior que não chamar. */
+const NOMES_GENERICOS = new Set(["usuario", "usuária", "usuaria", "user", "teste", "test", "admin", "cliente", "velo"]);
+
 const limparPrimeiroNome = (completo: string): string | null => {
   const primeiro = String(completo ?? "").trim().split(/[\s._\-]+/)[0] ?? "";
   if (primeiro.length < 2 || primeiro.length > 20 || /[^\p{L}]/u.test(primeiro)) return null;
+  if (NOMES_GENERICOS.has(primeiro.toLowerCase())) return null;
   return primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
 };
 
