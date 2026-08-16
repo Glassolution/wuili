@@ -55,7 +55,31 @@ export type AtlasAction =
   | AtlasQuickReplyAction
   | AtlasConnectMlAction;
 
-type AtlasFunctionResponse = { message?: string; error?: string; actions?: AtlasAction[] };
+/**
+ * Saldo diário de mensagens do Atlas, devolvido pela função em toda resposta.
+ * `limite: null` = plano sem teto (Business).
+ */
+export type AtlasQuota = {
+  plano: string;
+  limite: number | null;
+  usadas: number;
+  restantes: number | null;
+  permitido: boolean;
+};
+
+type AtlasFunctionResponse = {
+  message?: string;
+  error?: string;
+  actions?: AtlasAction[];
+  quota?: AtlasQuota;
+  quotaExcedida?: boolean;
+};
+
+const isAtlasQuota = (value: unknown): value is AtlasQuota => {
+  if (!value || typeof value !== "object") return false;
+  const q = value as Record<string, unknown>;
+  return typeof q.plano === "string" && typeof q.usadas === "number";
+};
 
 const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (!action || typeof action !== "object") return false;
@@ -152,6 +176,8 @@ type AtlasChatContextValue = {
   threadId: string | null;
   guiaAtivo: boolean;
   paginaAtual: { rota: string; nome: string };
+  /** Saldo de mensagens do dia; null enquanto nenhuma resposta chegou ainda. */
+  quota: AtlasQuota | null;
   produtoSelecionado: ProdutoDoGuia | null;
   selecionarProduto: (produto: ProdutoDoGuia) => Promise<void>;
   /**
@@ -190,6 +216,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [erro, setErro] = useState<string | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDoGuia | null>(null);
   const [vitrineAberta, setVitrineAberta] = useState(false);
+  const [quota, setQuota] = useState<AtlasQuota | null>(null);
   const abrirVitrine = useCallback(() => setVitrineAberta(true), []);
   const fecharVitrine = useCallback(() => setVitrineAberta(false), []);
 
@@ -292,6 +319,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
         });
 
         const corpo = resposta as AtlasFunctionResponse | null;
+        if (isAtlasQuota(corpo?.quota)) setQuota(corpo.quota);
         if (erroAtlas) {
           throw new Error(
             corpo?.error || erroAtlas.message || "Não consegui falar com o Atlas agora. Tente de novo em instantes.",
@@ -403,6 +431,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       threadId,
       guiaAtivo,
       paginaAtual,
+      quota,
       produtoSelecionado,
       selecionarProduto,
       vitrineAberta,
@@ -417,7 +446,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       aoApagarConversa,
     }),
     [
-      aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual,
+      aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
       produtoSelecionado, selecionarProduto, vitrineAberta, abrirVitrine, fecharVitrine,
       abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
     ],

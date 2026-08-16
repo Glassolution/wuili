@@ -15,6 +15,10 @@ import {
   type ValidatedNiche,
 } from "../_shared/atlas-beginner-guide.ts";
 import { atlasRouteTagPromptSection } from "../_shared/atlas-route-tags.ts";
+import { resolveAtlasFaq } from "../_shared/atlas-faq.ts";
+import { checarQuotaAtlas, mensagemDeQuotaEsgotada, ATLAS_ETAPA_RESUMO } from "../_shared/atlas-quota.ts";
+import { montarJanelaDeContexto, MODELO_RESUMO, LIMITE_PARA_RESUMIR } from "../_shared/atlas-context.ts";
+import { escolherModeloDoAtlas } from "../_shared/atlas-router.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -517,8 +521,18 @@ const createServiceClient = () => {
  * Lido de forma defensiva: se o gateway parar de mandar algum campo, o registro
  * entra com null em vez de derrubar a resposta do chat.
  */
-/** Um lugar só para o nome do modelo, para o log nunca divergir da chamada. */
+/** Modelo padrão quando a heurística de roteamento não escolhe outro. */
 const MODELO_DO_ATLAS = "google/gemini-2.5-flash";
+
+/**
+ * System prompt congelado.
+ *
+ * Montado uma única vez por instância e reutilizado byte a byte em todo request:
+ * é isso que permite ao provedor reconhecer o prefixo e cobrar cache em vez de
+ * entrada nova. Nada variável (página atual, produto, resumo) entra aqui — vai
+ * em mensagens posteriores, depois do bloco fixo.
+ */
+const ATLAS_SYSTEM_PROMPT = buildAtlasSystemPrompt();
 
 type UsoDoModelo = {
   entrada: number | null;
@@ -1516,17 +1530,36 @@ serve(async (req) => {
     }));
     const lastUserMessage = getLastUserMessage(normalizedMessages);
 
+    const serviceClient = createServiceClient();
+    const quota = await checarQuotaAtlas(serviceClient, authenticatedUserId);
+    // Toda resposta leva o saldo do dia junto: é o que a UI mostra em
+    // "restam X mensagens hoje" sem precisar de uma segunda chamada.
+    const responder = (body: Record<string, unknown>, status = 200) =>
+      jsonResponse({ ...body, quota }, status);
+
     if (isUnsafeRequest(lastUserMessage)) {
       registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "recusa" });
-      return jsonResponse(refusalResponse());
+      return responder(refusalResponse());
     }
 
     // Conversa normal não deve passar pelo roteador determinístico nem pelo modelo
     // com o preset antigo no histórico, senão "oi atlas" vira menu operacional.
     if (isConversationalAside(lastUserMessage)) {
       registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "conversa_solta" });
-      return jsonResponse(conversationalAsideResponse());
+      return responder(conversationalAsideResponse());
     }
+
+    // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
+    // Só entra quando não há guia em andamento, para não cortar um passo no meio.
+    const guiaEmAndamento = /passo \d de 4/i.test(getLastAssistantMessage(normalizedMessages)?.content ?? "");
+    if (!guiaEmAndamento) {
+      const faq = resolveAtlasFaq(lastUserMessage);
+      if (faq) {
+        registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: `faq_${faq.id}` });
+        return responder({ message: faq.message, actions: faq.actions ?? [] });
+      }
+    }
+
 
     const produtoDoCatalogo =
       produtoSelecionado && typeof produtoSelecionado === "object" && typeof produtoSelecionado.id === "string"
@@ -1550,7 +1583,7 @@ serve(async (req) => {
         origem: "codigo",
         etapa: etapaDaRespostaDoGuia(beginnerGuideResponse),
       });
-      return jsonResponse(beginnerGuideResponse);
+      return responder(beginnerGuideResponse);
     }
 
     const safeMessagesForModel = sanitizeUnsafeHistory(normalizedMessages);
@@ -1574,11 +1607,43 @@ serve(async (req) => {
         erro: "LOVABLE_API_KEY ausente",
       });
       const fallback = fallbackReply(lastUserMessage);
-      return jsonResponse({
+      return responder({
         ...fallback,
         actions: mergeActions(fallback.actions, [navAction, productAction]),
       });
     }
+
+    // Daqui para baixo a resposta custa modelo. É o único ponto que consome cota.
+    if (!quota.permitido) {
+      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "quota_esgotada" });
+      return responder({
+        message: mensagemDeQuotaEsgotada(quota),
+        actions: quota.plano === "gratis"
+          ? [{ type: "navigation", label: "Ver Planos", route: "/dashboard/planos", variant: "primary" }]
+          : [],
+        quotaExcedida: true,
+      });
+    }
+
+    // Conversa longa: mantém as últimas cruas e resume o excedente uma vez.
+    const janela = await montarJanelaDeContexto(safeMessagesForModel, {
+      apiKey: LOVABLE_API_KEY,
+      onUso: ({ data, duracaoMs, erro }) =>
+        registrarUso({
+          userId: authenticatedUserId,
+          origem: "modelo",
+          etapa: ATLAS_ETAPA_RESUMO,
+          modelo: MODELO_RESUMO,
+          uso: lerUsoDoModelo(data),
+          duracaoMs,
+          erro: erro ?? null,
+        }),
+    });
+
+    const rota = escolherModeloDoAtlas(lastUserMessage, {
+      temNavegacao: Boolean(navAction),
+      historicoLongo: safeMessagesForModel.length > LIMITE_PARA_RESUMIR,
+    });
 
     const inicioDaChamada = Date.now();
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -1588,11 +1653,16 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODELO_DO_ATLAS,
+        model: rota.modelo,
         messages: [
-          { role: "system", content: buildAtlasSystemPrompt() },
+          // Bloco fixo primeiro e sempre idêntico: é o prefixo que o cache do
+          // provedor reconhece. Tudo que varia vem depois dele.
+          { role: "system", content: ATLAS_SYSTEM_PROMPT },
+          ...(janela.resumo
+            ? [{ role: "system" as const, content: `Resumo do que já foi conversado antes:\n${janela.resumo}` }]
+            : []),
           ...(pageContextMessage ? [{ role: "system" as const, content: pageContextMessage }] : []),
-          ...safeMessagesForModel,
+          ...janela.mensagens,
         ],
         temperature: 0.35,
         max_tokens: 1100,
@@ -1606,12 +1676,12 @@ serve(async (req) => {
         userId: authenticatedUserId,
         origem: "codigo",
         etapa: "fallback_gateway",
-        modelo: MODELO_DO_ATLAS,
+        modelo: rota.modelo,
         duracaoMs: Date.now() - inicioDaChamada,
         erro: `gateway ${resp.status}`,
       });
       const fallback = fallbackReply(lastUserMessage);
-      return jsonResponse({
+      return responder({
         ...fallback,
         actions: mergeActions(fallback.actions, [navAction, productAction]),
       });
@@ -1622,8 +1692,8 @@ serve(async (req) => {
     registrarUso({
       userId: authenticatedUserId,
       origem: "modelo",
-      etapa: "pergunta_livre",
-      modelo: MODELO_DO_ATLAS,
+      etapa: `pergunta_livre_${rota.rota}`,
+      modelo: rota.modelo,
       uso: lerUsoDoModelo(data),
       duracaoMs: Date.now() - inicioDaChamada,
     });
@@ -1633,10 +1703,17 @@ serve(async (req) => {
       "Desculpe, não consegui processar agora. Tente reformular sua pergunta.";
     const parsed = parseAtlasModelResponse(rawMessage);
 
+    // A resposta acabou de consumir uma mensagem: a UI recebe o saldo já atualizado.
+    const quotaDepois = quota.limite === null
+      ? quota
+      : { ...quota, usadas: quota.usadas + 1, restantes: Math.max(0, quota.limite - quota.usadas - 1) };
+
     return jsonResponse({
       ...parsed,
       actions: mergeActions(parsed.actions, [navAction, productAction]),
+      quota: quotaDepois,
     });
+
   } catch (err) {
     console.error("atlas-chat error", err);
     registrarUso({
