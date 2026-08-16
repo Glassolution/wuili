@@ -416,6 +416,11 @@ const AiImagesPage = () => {
       const imagem = resposta?.imageDataUrl;
       if (!imagem) throw new Error(resposta?.error ?? "A IA não devolveu imagem.");
       setResultado(imagem);
+      setResumo({
+        prompt: promptFinal,
+        produto: produto?.title ? nomeCurto(produto.title, 40) : undefined,
+        avatar: avatar?.name ? nomeCurto(avatar.name, 28) : undefined,
+      });
       veloToast.success("Imagem pronta.");
     } catch (erro) {
       console.error("Falha ao gerar a imagem:", erro);
