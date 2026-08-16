@@ -216,6 +216,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [erro, setErro] = useState<string | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDoGuia | null>(null);
   const [vitrineAberta, setVitrineAberta] = useState(false);
+  const [quota, setQuota] = useState<AtlasQuota | null>(null);
   const abrirVitrine = useCallback(() => setVitrineAberta(true), []);
   const fecharVitrine = useCallback(() => setVitrineAberta(false), []);
 
