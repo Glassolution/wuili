@@ -510,7 +510,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     ],
   );
 
-  return <AtlasChatContext.Provider value={valor}>{children}</AtlasChatContext.Provider>;
+  return (
+    <AtlasChatContext.Provider value={valor}>
+      {children}
+      <AtlasFireworks ativo={fogosAtivos} />
+    </AtlasChatContext.Provider>
+  );
+
 };
 
 export const useAtlasChat = () => {
