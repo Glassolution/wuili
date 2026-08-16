@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -314,6 +314,8 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
   const [quota, setQuota] = useState<AtlasQuota | null>(null);
   const [fogosAtivos, setFogosAtivos] = useState(false);
+  // Pergunta automática a enviar assim que a navegação por botão do Atlas concluir.
+  const [perguntaPendente, setPerguntaPendente] = useState<{ rota: string } | null>(null);
 
   const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
     if (nicho !== undefined) setNichoDaVitrine(nicho);
