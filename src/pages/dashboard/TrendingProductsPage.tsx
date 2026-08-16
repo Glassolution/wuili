@@ -705,28 +705,25 @@ const TrendingProductsPage = () => {
           ) : null}
 
           <div className="flex min-h-[62px] flex-col gap-3 border-b border-black/[0.06] px-7 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-1">
-              <span className="relative flex h-8 w-9 shrink-0 items-center justify-center">
-                <img
-                  src="/assets/produtos-em-alta-icon.png?v=10"
-                  alt=""
-                  className="pointer-events-none absolute left-1/2 top-1/2 h-[46px] w-[69px] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain [filter:drop-shadow(0_5px_9px_rgba(15,23,42,0.16))_drop-shadow(0_1px_2px_rgba(15,23,42,0.10))]"
-                />
-              </span>
-              <div className="flex h-8 min-w-0 items-center">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <h1 className="shrink-0 text-[14px] font-semibold leading-none text-[#1F2430]">Produtos em Alta</h1>
-                  <p className="truncate text-[14px] font-medium leading-none text-[#687184]">
-                    Ranking de produtos vencedores com demanda, margem e avaliação.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="inline-flex h-10 shrink-0 overflow-hidden rounded-[9px] border border-black/[0.07] bg-white text-[12px] shadow-[0_6px_18px_rgba(15,23,42,0.045)]">
+            <header className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                Produtos em Alta
+              </h1>
+            </header>
+            <div className="inline-flex h-9 shrink-0 overflow-hidden rounded-full border border-black/[0.08] bg-white text-[12px] shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
               <span className="flex items-center border-r border-black/[0.06] px-4 font-semibold text-[#667085]">Produtos listados</span>
               <span className="flex items-center px-4 font-semibold text-emerald-600">{formatNumber(totalCount)}</span>
             </div>
           </div>
+
 
           <div className="flex min-h-[56px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 lg:flex-row lg:items-center lg:justify-between">
             <form
@@ -743,12 +740,12 @@ const TrendingProductsPage = () => {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   aria-label="Buscar produtos"
                   placeholder="Buscar produtos..."
-                  className="h-9 w-full rounded-[9px] border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
+                  className="h-9 w-full rounded-full border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
                 />
               </div>
               <button
                 type="submit"
-                className="inline-flex h-9 items-center justify-center rounded-[9px] bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
               >
                 Buscar
               </button>
@@ -756,7 +753,7 @@ const TrendingProductsPage = () => {
                 type="button"
                 onClick={() => setFiltersOpen((current) => !current)}
                 aria-expanded={filtersOpen}
-                className={`inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
+                className={`inline-flex h-9 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
                   filtersOpen ? "border-black bg-black text-white shadow-[0_10px_22px_rgba(0,0,0,0.14)]" : "border-black/[0.07] bg-white text-[#111111] hover:bg-[#FAFAF9]"
                 }`}
               >
@@ -769,7 +766,7 @@ const TrendingProductsPage = () => {
               <button
                 type="button"
                 onClick={() => setPresetsOpen((current) => !current)}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
                 aria-label="Importar ou criar presets de filtros"
                 title="Importar ou criar presets de filtros"
               >
@@ -789,7 +786,7 @@ const TrendingProductsPage = () => {
                       value={presetName}
                       onChange={(event) => setPresetName(event.target.value)}
                       placeholder="Nome do preset"
-                      className="h-9 min-w-0 flex-1 rounded-[9px] border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
+                      className="h-9 min-w-0 flex-1 rounded-full border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
                     />
                     <button
                       type="button"
@@ -970,7 +967,7 @@ const TrendingProductsPage = () => {
 
           <div className="flex min-h-[54px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <label className="group relative flex h-9 items-center gap-2 rounded-[9px] border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <label className="group relative flex h-9 items-center gap-2 rounded-full border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
                 <span className="text-[12px] font-medium text-[#8A93A3]">Ordenar por</span>
                 <select
                   value={sortBy}
@@ -991,7 +988,7 @@ const TrendingProductsPage = () => {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
-              <div className="flex items-center gap-1 rounded-[9px] border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+              <div className="flex items-center gap-1 rounded-full border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
                 <button type="button" className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-[#F1F3F7] text-[#111111]" aria-label="Visualização em lista">
                   <List size={15} strokeWidth={1.7} />
                 </button>
