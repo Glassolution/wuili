@@ -1012,7 +1012,7 @@ const validateNicheStep = async (
 
   return {
     message:
-      `Boa escolha${nome ? `, ${nome}` : ""}! Deixa eu te contar o que eu vi.\n\n**Passo 1 de 5: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\n**Demanda:** ${demandText}, ou seja, é assim que anda a procura por esses produtos.\n\n**Concorrência:** ${competitionText}, é o tanto de vendedor disputando essa procura.\n\n**Margem:** o que sobra pra você depois do custo, da tarifa do marketplace e do frete. É ela, junto com fotos boas, que decide o seu resultado.\n\n${signal.note}\n\nÉ com esse nicho que a gente vai trabalhar. Vamos aos produtos.`,
+      `Boa escolha${nome ? `, ${nome}` : ""}!\n\n**Passo 1 de 5: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\n**Demanda:** ${demandText}\n**Concorrência:** ${competitionText}\n\n${signal.note}\n\nFechado esse nicho. Vamos aos produtos.`,
     actions: [
       quickReply(`Vamos aos produtos`, `Sim, buscar produtos de ${niche.label}`),
       quickReply("Quero outro nicho", "Quero ver outros nichos"),
