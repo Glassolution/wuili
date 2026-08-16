@@ -17,7 +17,7 @@ import {
 import { atlasRouteTagPromptSection } from "../_shared/atlas-route-tags.ts";
 import { resolveAtlasFaq } from "../_shared/atlas-faq.ts";
 import { checarQuotaAtlas, mensagemDeQuotaEsgotada, ATLAS_ETAPA_RESUMO } from "../_shared/atlas-quota.ts";
-import { montarJanelaDeContexto, MODELO_RESUMO } from "../_shared/atlas-context.ts";
+import { montarJanelaDeContexto, MODELO_RESUMO, LIMITE_PARA_RESUMIR } from "../_shared/atlas-context.ts";
 import { escolherModeloDoAtlas } from "../_shared/atlas-router.ts";
 
 const corsHeaders = {
@@ -1642,7 +1642,7 @@ serve(async (req) => {
 
     const rota = escolherModeloDoAtlas(lastUserMessage, {
       temNavegacao: Boolean(navAction),
-      historicoLongo: safeMessagesForModel.length > JANELA_LONGA,
+      historicoLongo: safeMessagesForModel.length > LIMITE_PARA_RESUMIR,
     });
 
     const inicioDaChamada = Date.now();
