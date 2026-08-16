@@ -6,6 +6,7 @@ import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
 import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAtlasNavegacao } from "@/contexts/AtlasChatContext";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { veloToast } from "@/components/ui/velo-toast";
