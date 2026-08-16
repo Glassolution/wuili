@@ -1322,10 +1322,13 @@ const maybeHandleBeginnerGuide = async (
   produtoDoCatalogo?: { id: string; nome: string; categoria: string; preco: number; imagem?: string | null } | null,
 ): Promise<AtlasResponse | null> => {
   const supabase = createServiceClient();
+  // Nome do usuário buscado uma vez por requisição: o guia inteiro fala com ele
+  // pelo primeiro nome, em vez de soar como manual.
+  const nome = await buscarPrimeiroNome(supabase, userId);
 
   // Escolha no catálogo tem prioridade: é uma ação explícita do usuário e define
   // o produto de todos os passos seguintes.
-  if (produtoDoCatalogo?.id) return guideProductChosenStep(supabase, userId, produtoDoCatalogo);
+  if (produtoDoCatalogo?.id) return guideProductChosenStep(supabase, userId, produtoDoCatalogo, nome);
 
   const lastUserMessage = getLastUserMessage(messages);
   const userMessageCount = messages.filter((message) => message.role !== "assistant").length;
@@ -1347,7 +1350,7 @@ const maybeHandleBeginnerGuide = async (
   }
 
   if (wantsChangeNiche(lastUserMessage) || (guideWasActive && wantsNoNicheHelp(lastUserMessage))) {
-    return askBeginnerNiche(supabase);
+    return askBeginnerNiche(supabase, nome);
   }
 
   const emPasso = (n: number) => guideWasActive && lastAssistantText.includes(`passo ${n} de 5`);
@@ -1357,14 +1360,14 @@ const maybeHandleBeginnerGuide = async (
   // e 4 — preso só ao passo 2, os outros dois caíam fora do guia.
   if (guideWasActive && lastProductCards.length > 0 && wantsOtherOptions(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return showProductsForNiche(supabase, niche, lastProductCards.map((product) => product.product_id));
-    return askBeginnerNiche(supabase);
+    if (niche) return showProductsForNiche(supabase, niche, lastProductCards.map((product) => product.product_id), nome);
+    return askBeginnerNiche(supabase, nome);
   }
 
   // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
   if (emPasso(4) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    return guidePublicationStep(supabase, userId, lastProductCards[0], niche);
+    return guidePublicationStep(supabase, userId, lastProductCards[0], niche, nome);
   }
 
   // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
@@ -1384,18 +1387,19 @@ const maybeHandleBeginnerGuide = async (
     if (!wantsToConnectLater(lastUserMessage)) {
       const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
       if (!mlStatus.connected || !mlStatus.tokenValid) {
-        return guideConnectMlStep(lastProductCards[0], saidConnectedMl(lastUserMessage));
+        return guideConnectMlStep(lastProductCards[0], saidConnectedMl(lastUserMessage), nome);
       }
       if (saidConnectedMl(lastUserMessage)) {
         return validateSocialPotentialStep(
           lastProductCards[0],
           niche,
-          "Conta conectada, deu tudo certo! 🎉 Essa era a parte mais chata de todas, e já ficou para trás.",
+          `Conta conectada${nome ? `, ${nome}` : ""}! 🎉 Essa era a parte mais chata de todas, e já ficou pra trás.`,
+          nome,
         );
       }
     }
 
-    return validateSocialPotentialStep(lastProductCards[0], niche);
+    return validateSocialPotentialStep(lastProductCards[0], niche, undefined, nome);
   }
 
   // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
@@ -1408,7 +1412,7 @@ const maybeHandleBeginnerGuide = async (
       categoria: inferNicheFromConversation(messages, lastUserMessage)?.label ?? "catálogo Velo",
       preco: escolhido.product?.suggested_price ?? Number.NaN,
       imagem: escolhido.product?.image_url ?? null,
-    });
+    }, nome);
   }
 
   // Quem prefere garimpar sozinho sai da vitrine para a grade inteira, sem
@@ -1416,7 +1420,7 @@ const maybeHandleBeginnerGuide = async (
   if (emPasso(2) && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
     return {
       message:
-        "Fechado, vamos pelo catálogo completo. 😉\n\n**Passo 2 de 5: escolha do produto**\n\nAbra o catálogo, use os filtros e escolha o produto que mais te agradar. Quando clicar em escolher, eu sigo o guia com ele daqui.",
+        `Fechado${nome ? `, ${nome}` : ""}, vamos pelo catálogo completo.\n\n**Passo 2 de 5: escolha do produto**\n\nAbre o catálogo, usa os filtros e escolhe o produto que mais te agradar.\n\nQuando você clicar em escolher, eu sigo o guia com ele daqui.`,
       actions: [
         { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo", variant: "primary" },
         quickReply("Prefiro a seleção do Atlas", "Ver outras opções de produto"),
@@ -1428,7 +1432,7 @@ const maybeHandleBeginnerGuide = async (
   // usuário pede de volta e o guia reabre em vez de travar.
   if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return guideOpenShowcaseStep(supabase, niche);
+    if (niche) return guideOpenShowcaseStep(supabase, niche, nome);
   }
 
   // Passo 5: usuário avisa que conectou o Mercado Livre.
@@ -1438,7 +1442,7 @@ const maybeHandleBeginnerGuide = async (
     );
     return {
       message:
-        "Conta conectada, deu tudo certo! 🎉\n\n**Passo 5 de 5: revisão final**\n\nAgora abra o produto escolhido, revise o título, a descrição, o preço e a margem, e publique.\n\nDois cuidados que evitam a maior parte dos problemas. Coloque no título as palavras que o comprador digita na busca. E deixe o prazo de entrega realista, porque atraso vira reclamação e reclamação derruba a sua nota de vendedor.\n\nDepois de publicar, o status aparece em #publicacoes e as suas vendas em #pedidos. Qualquer dúvida no caminho, é só me chamar.",
+        `Conta conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nAbre o produto escolhido, revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\n**Prazo de entrega:** deixe realista, porque atraso vira reclamação e reclamação derruba sua nota.\n\nDepois de publicar, o status fica em #publicacoes e as vendas em #pedidos.\n\nAbre o produto e coloca ele no ar.`,
       actions: [
         ...(productNav ? [productNav] : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
@@ -1459,14 +1463,14 @@ const maybeHandleBeginnerGuide = async (
   // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
   if (previousValidatedNiche && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return guideOpenShowcaseStep(supabase, niche);
+    if (niche) return guideOpenShowcaseStep(supabase, niche, nome);
   }
 
 
   if (previousAskedForNiche || isBeginnerTrigger(lastUserMessage, userMessageCount)) {
     const niche = findValidatedNiche(lastUserMessage);
-    if (niche) return validateNicheStep(supabase, niche);
-    return askBeginnerNiche(supabase);
+    if (niche) return validateNicheStep(supabase, niche, nome);
+    return askBeginnerNiche(supabase, nome);
   }
 
   return null;
