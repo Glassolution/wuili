@@ -471,12 +471,59 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     [location.pathname, threadId, user?.id],
   );
 
+  /**
+   * Navegação disparada por link interno (#catalogo e afins) dentro de uma
+   * mensagem do Atlas.
+   *
+   * Antes o link só chamava `navigate`: quem estava no chat em tela cheia
+   * perdia a conversa, porque a página tem estado próprio e o painel lateral
+   * (que vive no layout) subia vazio. Aqui a thread é adotada pelo contexto
+   * antes de navegar, o painel abre em modo lateral e o Atlas manda uma
+   * mensagem de continuidade reconhecendo a página nova.
+   */
+  const navegarPorLink = useCallback(
+    async (rota: string) => {
+      const daPaginaCheia = location.pathname.match(/^\/dashboard\/atlas\/([^/]+)$/)?.[1] ?? null;
+      if (daPaginaCheia && daPaginaCheia !== threadId) {
+        await abrirConversa(daPaginaCheia);
+      }
+      const idAtual = daPaginaCheia ?? threadId;
+
+      setAberto(true);
+      setRotaDeAbertura("__atlas_lateral__");
+      setVitrineAberta(false);
+      navigate(rota);
+
+      const texto = mensagemDeContinuidade(rota);
+      const continuidade: AtlasMessage = {
+        id: `local-nav-${Date.now()}`,
+        role: "assistant",
+        content: texto,
+        created_at: new Date().toISOString(),
+      };
+      setMensagens((atual) => {
+        const ultima = atual[atual.length - 1];
+        if (ultima?.role === "assistant" && ultima.content === texto) return atual;
+        return [...atual, continuidade];
+      });
+
+      if (idAtual && user?.id) {
+        await supabase
+          .from("atlas_messages")
+          .insert({ thread_id: idAtual, user_id: user.id, role: "assistant", content: texto });
+        await supabase.from("atlas_threads").update({ updated_at: new Date().toISOString() }).eq("id", idAtual);
+      }
+    },
+    [abrirConversa, location.pathname, navigate, threadId, user?.id],
+  );
+
   const aoApagarConversa = useCallback(
     (id: string) => {
       if (id === threadId) novaConversa();
     },
     [novaConversa, threadId],
   );
+
 
   const valor = useMemo<AtlasChatContextValue>(
     () => ({
