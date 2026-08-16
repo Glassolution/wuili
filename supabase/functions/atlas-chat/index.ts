@@ -1331,26 +1331,26 @@ const maybeHandleBeginnerGuide = async (
     return askBeginnerNiche(supabase);
   }
 
-  // Passo 3 confirmado -> Passo 4 (resumo + publicação).
-  if (emPasso(3) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
+  // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
+  if (emPasso(4) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
     return guidePublicationStep(supabase, userId, lastProductCards[0], niche);
   }
 
-  // Produto escolhido na lista -> conectar o Mercado Livre e, com a conta no
-  // lugar, seguir para o passo 3 (potencial de divulgação).
+  // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
+  // 4 (potencial de divulgação).
   if (
-    emPasso(2) &&
+    emPasso(3) &&
     lastProductCards.length > 0 &&
     (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
   ) {
     // Nicho pode não existir: quem escolheu o produto direto no catálogo nunca
     // passou pela etapa de nicho. Antes isso voltava o usuário ao passo 1 e
-    // reiniciava o guia; agora o passo 3 segue com o produto que já foi escolhido.
+    // reiniciava o guia; agora o passo 4 segue com o produto que já foi escolhido.
     const niche = inferNicheFromConversation(messages, lastUserMessage);
 
     // Quem pediu para deixar a conexão para depois não fica preso nela: o guia
-    // segue, e o passo 4 cobra a conta de novo antes de publicar.
+    // segue, e o passo 5 cobra a conta de novo antes de publicar.
     if (!wantsToConnectLater(lastUserMessage)) {
       const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
       if (!mlStatus.connected || !mlStatus.tokenValid) {
@@ -1368,14 +1368,28 @@ const maybeHandleBeginnerGuide = async (
     return validateSocialPotentialStep(lastProductCards[0], niche);
   }
 
-  // Passo 2 (canal) confirmado -> lista de produtos do nicho.
-  if (emPasso(2) && lastProductCards.length === 0 && isConfirmText(lastUserMessage)) {
-    const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return showProductsForNiche(supabase, niche);
+  // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
+  // confirmado -> passo 3, já amarrado ao produto escolhido.
+  if (emPasso(2) && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
+    const escolhido = lastProductCards[0];
+    return guideProductChosenStep(supabase, userId, {
+      id: escolhido.product_id,
+      nome: escolhido.product?.title ?? "o produto escolhido",
+      categoria: inferNicheFromConversation(messages, lastUserMessage)?.label ?? "catálogo Velo",
+      preco: escolhido.product?.suggested_price ?? Number.NaN,
+      imagem: escolhido.product?.image_url ?? null,
+    });
   }
 
-  // Passo 4: usuário avisa que conectou o Mercado Livre.
-  if (emPasso(4) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
+  // Passo 2 sem cards: a vitrine é o caminho. Se ela foi fechada sem escolha, o
+  // usuário pede de volta e o guia reabre em vez de travar.
+  if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
+    const niche = inferNicheFromConversation(messages, lastUserMessage);
+    if (niche) return guideOpenShowcaseStep(supabase, niche);
+  }
+
+  // Passo 5: usuário avisa que conectou o Mercado Livre.
+  if (emPasso(5) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
     const productNav = lastActions.find(
       (action): action is NavigationAction => action.type === "navigation" && action.route.includes("/dashboard/catalogo/"),
     );
@@ -1393,13 +1407,18 @@ const maybeHandleBeginnerGuide = async (
     guideWasActive &&
     (lastAssistantText.includes("passo 1 de 5") ||
       lastAssistantText.includes("outro nicho que voce ja tenha em mente"));
-  const previousValidatedNiche = guideWasActive && lastAssistantText.includes("confirma esse nicho");
+  // O passo 1 fecha com "é com esse nicho que a gente vai trabalhar". Antes isso
+  // procurava por "confirma esse nicho", texto que não existe mais em lugar
+  // nenhum, e a confirmação do nicho caía fora do guia.
+  const previousValidatedNiche =
+    guideWasActive && lastAssistantText.includes("com esse nicho que a gente vai trabalhar");
 
-  // Passo 1 confirmado -> Passo 2 (canal de venda).
+  // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
   if (previousValidatedNiche && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    if (niche) return askSalesChannelStep(niche);
+    if (niche) return guideOpenShowcaseStep(supabase, niche);
   }
+
 
   if (previousAskedForNiche || isBeginnerTrigger(lastUserMessage, userMessageCount)) {
     const niche = findValidatedNiche(lastUserMessage);
