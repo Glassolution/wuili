@@ -47,7 +47,7 @@ const AtlasDockPanel = () => {
   const { user } = useAuth();
   const reduzirMovimento = useReducedMotion();
   const {
-    aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId,
+    aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, quota,
     fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
   } = useAtlasChat();
   const navegarPeloAtlas = useAtlasNavegacao();
