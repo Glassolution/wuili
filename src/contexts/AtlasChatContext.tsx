@@ -427,6 +427,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       threadId,
       guiaAtivo,
       paginaAtual,
+      quota,
       produtoSelecionado,
       selecionarProduto,
       vitrineAberta,
@@ -441,7 +442,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       aoApagarConversa,
     }),
     [
-      aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual,
+      aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
       produtoSelecionado, selecionarProduto, vitrineAberta, abrirVitrine, fecharVitrine,
       abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
     ],
