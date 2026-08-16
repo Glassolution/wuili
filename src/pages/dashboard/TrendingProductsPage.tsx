@@ -111,8 +111,8 @@ const emptyFilterRanges: FilterRanges = {
 };
 
 const sortOptions: Array<{ label: string; value: SortBy }> = [
+  { label: "Mais vendidos", value: "demand" },
   { label: "Ranking Velo", value: "score" },
-  { label: "Mais vendido", value: "demand" },
   { label: "Maior margem", value: "margin" },
   { label: "Melhor avaliação", value: "rating" },
   { label: "Mais recente", value: "recent" },
@@ -186,8 +186,8 @@ const ProductSparkline = ({ seed }: { seed: string }) => {
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0" fill="none" aria-hidden="true">
-      <polyline points={points} stroke="#111111" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill="#111111" />
+      <polyline points={points} stroke="#2563EB" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="#2563EB" />
     </svg>
   );
 };
@@ -403,7 +403,7 @@ const TrendingProductsPage = () => {
   const [selectedFilterCategories, setSelectedFilterCategories] = useState<string[]>(() =>
     filterCategories.map((category) => category.value),
   );
-  const [sortBy, setSortBy] = useState<SortBy>("score");
+  const [sortBy, setSortBy] = useState<SortBy>("demand");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1232,7 +1232,7 @@ const TrendingProductsPage = () => {
                               </p>
                             ) : (
                               <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#7E8798]">
-                                ~{formatNumber(marketSales)} vendas no mercado
+                                ~{formatNumber(marketSales)} vendas no Mercado Livre
                               </p>
                             )}
                           </td>
@@ -1356,7 +1356,7 @@ const TrendingProductsPage = () => {
                                               <span>{signal.hint}</span>
                                             </div>
                                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#ECEEF2]">
-                                              <div className="h-full rounded-full bg-black" style={{ width: `${signalValue}%` }} />
+                                              <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${signalValue}%` }} />
                                             </div>
                                           </div>
                                         );
