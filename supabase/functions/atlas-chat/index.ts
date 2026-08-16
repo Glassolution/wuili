@@ -960,7 +960,7 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
     }
     return {
       message:
-        `Bora, ${nome ? `${nome}` : "vamos juntos"}! 🎉 Eu te acompanho até o seu primeiro anúncio no ar.\n\n**Passo 1 de 5: seu nicho**\n\n**Nicho** é o tipo de produto que você escolhe pra vender, tipo pets, beleza ou casa.\n\nSeparei as categorias que mais saem aqui, pra você não garimpar o catálogo inteiro.\n\nEscolhe uma abaixo e eu te levo direto aos produtos dela.`,
+        `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nSeparei as categorias que mais saem hoje. Escolhe uma abaixo e eu te levo direto aos produtos dela.`,
       actions: [
         ...destaques.map((categoria) => ({
           type: "navigation" as const,
