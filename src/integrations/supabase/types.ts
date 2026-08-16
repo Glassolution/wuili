@@ -586,34 +586,58 @@ export type Database = {
         Row: {
           completion_tokens: number
           created_at: string
+          duracao_ms: number | null
+          erro: string | null
+          etapa: string | null
           id: string
           message_chars: number
           model: string | null
+          modelo: string | null
           origem: string
           prompt_tokens: number
           step: number | null
+          tokens_cache: number | null
+          tokens_entrada: number | null
+          tokens_saida: number | null
+          tokens_total: number | null
           user_id: string | null
         }
         Insert: {
           completion_tokens?: number
           created_at?: string
+          duracao_ms?: number | null
+          erro?: string | null
+          etapa?: string | null
           id?: string
           message_chars?: number
           model?: string | null
+          modelo?: string | null
           origem: string
           prompt_tokens?: number
           step?: number | null
+          tokens_cache?: number | null
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          tokens_total?: number | null
           user_id?: string | null
         }
         Update: {
           completion_tokens?: number
           created_at?: string
+          duracao_ms?: number | null
+          erro?: string | null
+          etapa?: string | null
           id?: string
           message_chars?: number
           model?: string | null
+          modelo?: string | null
           origem?: string
           prompt_tokens?: number
           step?: number | null
+          tokens_cache?: number | null
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          tokens_total?: number | null
           user_id?: string | null
         }
         Relationships: []
@@ -861,6 +885,45 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      feature_suggestions: {
+        Row: {
+          category: string
+          comments_count: number
+          created_at: string
+          description: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          votes_count: number
+        }
+        Insert: {
+          category?: string
+          comments_count?: number
+          created_at?: string
+          description: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          votes_count?: number
+        }
+        Update: {
+          category?: string
+          comments_count?: number
+          created_at?: string
+          description?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          votes_count?: number
         }
         Relationships: []
       }
@@ -3463,6 +3526,23 @@ export type Database = {
         }[]
       }
       rpc_affiliate_withdrawal_summary: { Args: never; Returns: Json }
+      rpc_atlas_usage_summary: {
+        Args: { p_days?: number }
+        Returns: {
+          dia: string
+          duracao_media_ms: number
+          etapa: string
+          modelo: string
+          origem: string
+          respostas: number
+          tokens_cache: number
+          tokens_entrada: number
+          tokens_medio_por_resposta: number
+          tokens_saida: number
+          tokens_total: number
+          usuarios: number
+        }[]
+      }
       rpc_record_affiliate_visit: {
         Args: {
           p_affiliate_code: string
@@ -3481,6 +3561,7 @@ export type Database = {
         Args: { target_user: string }
         Returns: boolean
       }
+      user_has_base_plan: { Args: { check_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "influencer"

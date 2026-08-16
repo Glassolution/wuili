@@ -784,7 +784,7 @@ const PLAN_DATA = [
 const PlanTab = () => {
   const upgradeModal = useUpgradeModal();
   const { plan } = usePlan();
-  const normalizedPlan = plan === "plus" ? "pro" : plan;
+  const normalizedPlan = plan;
   const paidPlans = PLAN_DATA.filter((p) => p.id === "base" || p.id === "pro" || p.id === "business");
 
   const openUpgrade = (planId: string) => {
@@ -831,7 +831,7 @@ const PlanTab = () => {
                 <div>
                   {/* Mesmo selo do modal de planos, importado de lá para os dois
                       não divergirem. */}
-                  <PlanBadgeIcon variant={p.id} />
+                  <PlanBadgeIcon variant={p.id as "base" | "pro" | "business"} />
                   <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.02em] text-[#111113] dark:text-white">
                     {p.name}
                   </h3>

@@ -3728,7 +3728,7 @@ const GeneratedStoreEditorPage = () => {
             <>
               <div
                 className="pointer-events-none absolute flex items-center text-white/30"
-                style={{ left: editorMainCanvasWidth + 26, top: 430, width: 74 }}
+                style={{ left: `calc(${typeof editorMainCanvasWidth === "number" ? `${editorMainCanvasWidth}px` : editorMainCanvasWidth} + 26px)`, top: 430, width: 74 }}
               >
                 <div className="h-px flex-1 bg-white/20" />
                 <ArrowRight size={28} strokeWidth={1.8} />
@@ -3736,7 +3736,7 @@ const GeneratedStoreEditorPage = () => {
 
               <div
                 className="pointer-events-none absolute top-0"
-                style={{ left: editorMainCanvasWidth + 120, width: editorCartPreviewWidth }}
+                style={{ left: `calc(${typeof editorMainCanvasWidth === "number" ? `${editorMainCanvasWidth}px` : editorMainCanvasWidth} + 120px)`, width: editorCartPreviewWidth }}
               >
                 <div className="mb-4 flex h-10 items-center gap-2.5 text-[18px] font-semibold tracking-[-0.015em] text-white/78">
                   <Monitor size={20} strokeWidth={1.8} />

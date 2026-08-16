@@ -885,7 +885,7 @@ const AdminPainelPage = () => {
       ...activityRows,
     ];
     const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";"))
+      .map((row) => row.map((cell) => `"${String(cell).split('"').join('""')}"`).join(";"))
       .join("\n");
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
