@@ -1264,7 +1264,7 @@ const maybeHandleBeginnerGuide = async (
   const lastActions = getLastAssistantActions(messages);
   const lastProductCards = lastActions.filter((action): action is ProductCardAction => action.type === "product_card");
 
-  // O guia se identifica pelo marcador "passo N de 4", presente em toda etapa.
+  // O guia se identifica pelo marcador "passo N de 5", presente em toda etapa.
   // Antes isso dependia do título "Guia de Iniciante"; qualquer mudança de texto
   // quebrava a continuidade e o fluxo caía no modelo genérico no meio do caminho.
   const guideWasActive = /passo \d de 5/.test(lastAssistantText);
