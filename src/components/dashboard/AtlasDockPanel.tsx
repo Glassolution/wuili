@@ -140,7 +140,7 @@ const AtlasDockPanel = () => {
                 key={`vitrine-${i}`}
                 type="button"
                 onClick={() => abrirVitrine(acao.niche ?? null)}
-                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-[#111111] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#2A2A2A]"
+                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
               >
                 <PackageSearch className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
                 <span className="truncate">{acao.label}</span>
@@ -179,7 +179,7 @@ const AtlasDockPanel = () => {
               <button
                 type="button"
                 onClick={() => navigate(rota)}
-                className="shrink-0 rounded-full bg-[#0A0A0A] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#2B2B2B]"
+                className="shrink-0 rounded-full bg-[#2563EB] px-2.5 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
               >
                 Ver
               </button>
@@ -252,6 +252,7 @@ const AtlasDockPanel = () => {
             clipPath: { duration: reduzirMovimento ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] },
             opacity: { duration: reduzirMovimento ? 0 : 0.24, ease: "easeOut" },
           }}
+          data-atlas-chat
           style={
             lateral
               ? {
@@ -394,7 +395,7 @@ const AtlasDockPanel = () => {
           <button
             type="submit"
             disabled={!texto.trim() || enviando}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0A0A0A] text-white transition-colors hover:bg-[#2B2B2B] disabled:bg-[#EFEFEF] disabled:text-black/20"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2563EB] text-white transition-colors hover:bg-[#1D4ED8] disabled:bg-[#EFEFEF] disabled:text-black/20"
             aria-label="Enviar"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4">

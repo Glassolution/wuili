@@ -405,7 +405,7 @@ const AtlasChatPage = () => {
               <button
                 type="button"
                 onClick={() => navigate(route)}
-                className="shrink-0 rounded-full bg-neutral-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-neutral-700"
+                className="shrink-0 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#1D4ED8]"
               >
                 Ver produto
               </button>
@@ -450,6 +450,7 @@ const AtlasChatPage = () => {
 
   return (
     <main
+      data-atlas-chat
       className="min-h-full w-full bg-[#f4f4f4] text-[#111111] flex"
       style={fontStyle}
     >
@@ -458,7 +459,7 @@ const AtlasChatPage = () => {
         <div className="p-3 border-b border-black/[0.06]">
           <button
             onClick={handleNewThread}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#111111] text-white text-[13px] font-semibold py-2.5 hover:opacity-90 transition-opacity"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] text-white text-[13px] font-semibold py-2.5 hover:bg-[#1D4ED8] transition-opacity"
           >
             <Plus className="h-4 w-4" /> Nova conversa
           </button>
@@ -585,7 +586,7 @@ const AtlasChatPage = () => {
             <button
               type="submit"
               disabled={!input.trim() || isThinking}
-              className="h-9 w-9 rounded-xl bg-neutral-900 text-white grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-neutral-800 transition-colors"
+              className="h-9 w-9 rounded-xl bg-[#2563EB] text-white grid place-items-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1D4ED8] transition-colors"
               aria-label="Enviar"
             >
               <ArrowUp className="h-4 w-4" />
