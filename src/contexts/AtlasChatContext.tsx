@@ -363,7 +363,11 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const enviar = useCallback(
-    async (texto: string, produtoDoCatalogo?: ProdutoDoGuia) => {
+    async (
+      texto: string,
+      produtoDoCatalogo?: ProdutoDoGuia,
+      contextoDaPagina?: { rota: string; nome: string; proximoPasso?: string | null },
+    ) => {
       const mensagem = texto.trim();
       if (!mensagem || enviando) return;
       if (!user?.id) {
