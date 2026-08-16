@@ -482,11 +482,13 @@ const LoginPage = () => {
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
-      <aside className="hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-12 py-14 lg:flex">
+      <aside className="hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-6 py-10 lg:flex">
         {/* Sem moldura: os próprios prints já vêm com card e canto arredondado.
             Altura fixa para os dois slides porque as proporções são diferentes
             (um em pé, outro deitado) — assim a legenda não pula de lugar. */}
-        <div className="relative flex h-[52vh] w-full items-center justify-center">
+        {/* -mx-6 cancela o respiro lateral do aside só nesta faixa: o print
+            aproveita a largura inteira do painel; a legenda continua recuada. */}
+        <div className="relative -mx-6 flex h-[70vh] w-[calc(100%+48px)] items-center justify-center">
           {/* Sem `mode="wait"`: os dois prints coexistem durante a troca, um
               saindo para a esquerda enquanto o outro entra pela direita. Com
               wait, a imagem ficava meio segundo atrás da legenda. */}
@@ -506,7 +508,7 @@ const LoginPage = () => {
           </AnimatePresence>
         </div>
 
-        <div className="mt-10 shrink-0 text-center">
+        <div className="mt-8 shrink-0 text-center">
           {/* Sem AnimatePresence na legenda de propósito: com `mode="wait"` ela
               sumia por um instante entre um slide e outro. */}
           <motion.div
