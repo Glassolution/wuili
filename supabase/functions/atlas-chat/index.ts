@@ -904,6 +904,16 @@ const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string
  * Primeiro nome do usuário, usado para o Atlas falar com uma pessoa e não com
  * "o usuário". Volta null quando o perfil não tem nome utilizável.
  */
+/** Nomes-placeholder do cadastro: chamar alguém de "Usuario" é pior que não chamar. */
+const NOMES_GENERICOS = new Set(["usuario", "usuária", "usuaria", "user", "teste", "test", "admin", "cliente", "velo"]);
+
+const limparPrimeiroNome = (completo: string): string | null => {
+  const primeiro = String(completo ?? "").trim().split(/[\s._\-]+/)[0] ?? "";
+  if (primeiro.length < 2 || primeiro.length > 20 || /[^\p{L}]/u.test(primeiro)) return null;
+  if (NOMES_GENERICOS.has(primeiro.toLowerCase())) return null;
+  return primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
+};
+
 const buscarPrimeiroNome = async (supabase: ServiceClient, userId: string): Promise<string | null> => {
   if (!supabase) return null;
   const { data } = await supabase
@@ -911,11 +921,20 @@ const buscarPrimeiroNome = async (supabase: ServiceClient, userId: string): Prom
     .select("display_name")
     .eq("user_id", userId)
     .maybeSingle();
-  const completo = String((data as { display_name?: string } | null)?.display_name ?? "").trim();
-  const primeiro = completo.split(/[\s._\-]+/)[0] ?? "";
-  if (primeiro.length < 2 || primeiro.length > 20 || /[^\p{L}]/u.test(primeiro)) return null;
-  return primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
+  const doPerfil = limparPrimeiroNome(String((data as { display_name?: string } | null)?.display_name ?? ""));
+  if (doPerfil) return doPerfil;
+
+  // Perfil sem nome utilizável (ex.: "Usuario"): tenta o nome do cadastro.
+  try {
+    const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+    const meta = (authUser?.user?.user_metadata ?? {}) as Record<string, unknown>;
+    const candidato = String(meta.full_name ?? meta.name ?? "");
+    return limparPrimeiroNome(candidato);
+  } catch {
+    return null;
+  }
 };
+
 
 /** "Ana, " quando há nome; string vazia quando não há. Evita saudação genérica. */
 const vocativo = (nome: string | null, sufixo = ", ") => (nome ? `${nome}${sufixo}` : "");
@@ -1648,12 +1667,10 @@ serve(async (req) => {
       return responder(refusalResponse());
     }
 
-    // Conversa normal não deve passar pelo roteador determinístico nem pelo modelo
-    // com o preset antigo no histórico, senão "oi atlas" vira menu operacional.
-    if (isConversationalAside(lastUserMessage)) {
-      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "conversa_solta" });
-      return responder(conversationalAsideResponse(await buscarPrimeiroNome(serviceClient, authenticatedUserId)));
-    }
+    // Conversa livre ("oi, tudo bem?", "como você está?") vai para o modelo.
+    // Antes caía numa resposta fixa aqui, então toda mensagem solta recebia
+    // exatamente o mesmo texto — o Atlas parecia um robô de menu.
+
 
     // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
     // Só entra quando não há guia em andamento, para não cortar um passo no meio.
