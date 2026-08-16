@@ -132,7 +132,32 @@ const FlatButtonsOnCatalog = () => {
   return null;
 };
 
-const RouteFallback = () => <VeloLoadingScreen message="Carregando..." />;
+// A tela cheia de "Carregando..." só faz sentido no primeiro carregamento do app.
+// Nas trocas de página seguintes usamos um fallback invisível: o conteúdo antigo
+// some e o novo entra com uma animação suave, sem loader piscando.
+let appJaCarregou = false;
+
+const RouteFallback = () => {
+  if (appJaCarregou) return <div aria-hidden className="min-h-[1px] w-full" />;
+  return <VeloLoadingScreen message="Carregando..." />;
+};
+
+const MarcarAppCarregado = () => {
+  useEffect(() => {
+    appJaCarregou = true;
+  }, []);
+  return null;
+};
+
+/** Anima a entrada do conteúdo a cada troca de rota. */
+const RouteTransition = ({ children }: { children: React.ReactNode }) => {
+  const { pathname } = useLocation();
+  return (
+    <div key={pathname} className="animate-fade-in">
+      {children}
+    </div>
+  );
+};
 
 const DashboardShell = () => (
   <ProfileProvider>
