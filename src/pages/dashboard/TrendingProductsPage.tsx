@@ -1225,7 +1225,16 @@ const TrendingProductsPage = () => {
                           </td>
                           <td className="px-3 py-4 text-center align-middle">
                             <p className="whitespace-nowrap text-[14px] font-semibold text-[#2B2F3A]">{formatBRL(monthlyRevenue)}</p>
-                            <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#111827]">{formatNumber(demand)} vendas</p>
+                            {veloSales > 0 ? (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-semibold text-[#111827]">
+                                {formatNumber(veloSales)} vendas na Velo
+                                <span className="ml-1 font-medium text-[#7E8798]">({formatNumber(veloOrders)} pedidos)</span>
+                              </p>
+                            ) : (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#7E8798]">
+                                ~{formatNumber(marketSales)} vendas no mercado
+                              </p>
+                            )}
                           </td>
                           <td className="px-3 py-4 align-middle">
                             <div className="mx-auto flex w-full max-w-[245px] min-w-0 items-center justify-start gap-3">
