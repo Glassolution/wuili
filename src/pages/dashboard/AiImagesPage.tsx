@@ -515,12 +515,39 @@ const AiImagesPage = () => {
             <div className="flex flex-wrap items-center gap-1.5 border-t border-black/[0.06] px-3 py-2.5 lg:flex-nowrap">
               {/* Produto */}
               <div className="relative">
-                <ToolButton
-                  icon={Tag}
-                  label={produto ? produto.title : "Produto"}
-                  ativo={Boolean(produto)}
-                  onClick={() => setMenu(menu === "produto" ? null : "produto")}
-                />
+                {produto ? (
+                  <div className="flex h-8 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white py-0.5 pl-2 pr-1.5 text-[#101114]">
+                    <button
+                      type="button"
+                      onClick={() => setMenu(menu === "produto" ? null : "produto")}
+                      className="flex min-w-0 items-center gap-1.5 rounded-full pr-1 outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+                      aria-label={`Produto selecionado: ${produto.title}`}
+                    >
+                      <Tag size={15} strokeWidth={1.9} className="shrink-0 text-black/55" />
+                      <span className="max-w-[150px] truncate text-[12.5px] font-semibold">
+                        {nomeCurto(produto.title)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProduto(null);
+                        removerFicha(fichaProduto);
+                      }}
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-black/70 transition hover:bg-black/[0.06] hover:text-black"
+                      aria-label="Remover produto"
+                    >
+                      <X size={14} strokeWidth={2.4} />
+                    </button>
+                  </div>
+                ) : (
+                  <ToolButton
+                    icon={Tag}
+                    label="Produto"
+                    onClick={() => setMenu(menu === "produto" ? null : "produto")}
+                  />
+                )}
+
                 <input
                   ref={uploadRef}
                   type="file"
