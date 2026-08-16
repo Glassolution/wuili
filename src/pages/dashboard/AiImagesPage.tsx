@@ -435,7 +435,144 @@ const AiImagesPage = () => {
   };
 
   return (
+  // View dedicada de carregamento — substitui a tela de configuração
+  if (gerando) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col text-[#101114]">
+        <DashboardPageHeader title="Imagens com IA" titleClassName="!font-bold" />
+        <div className="flex flex-1 items-center justify-center overflow-hidden rounded-[20px] border border-black/[0.05] bg-gradient-to-b from-[#F7F7F9] via-[#FCFCFD] to-white px-5 py-14">
+          <AiImageProgress
+            comAvatar={Boolean(avatar)}
+            modo={modo}
+            produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // View dedicada de resultado — toolbar no topo + duas colunas fixas
+  if (resultado) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] flex-col text-[#101114]">
+        <div className="flex items-center gap-2 border-b border-black/[0.07] px-1 pb-3">
+          <button
+            type="button"
+            onClick={() => {
+              setResultado(null);
+              setResumo(null);
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-black/60 transition hover:bg-black/[0.05] hover:text-[#101114]"
+            aria-label="Voltar para a configuração"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <p className="text-[15px] font-bold tracking-[-0.02em]">Imagem gerada</p>
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setVisualizando(true)}
+              className="flex h-9 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 text-[13px] font-semibold transition hover:bg-black/[0.04]"
+            >
+              <Expand size={14} /> Visualizar
+            </button>
+            <a
+              href={resultado}
+              download={`${produto?.title ?? "produto"}.png`}
+              className="flex h-9 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-3.5 text-[13px] font-semibold transition hover:bg-black/[0.04]"
+            >
+              <Download size={14} /> Baixar
+            </a>
+            <button
+              type="button"
+              onClick={() => void gerar()}
+              className="flex h-9 items-center gap-2 rounded-full bg-[#101114] px-3.5 text-[13px] font-semibold text-white transition hover:bg-black"
+            >
+              <RefreshCw size={14} /> Regenerar
+            </button>
+          </div>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 pt-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+          {/* Coluna esquerda: detalhes da imagem atual */}
+          <div className="min-h-0 overflow-y-auto rounded-[16px] border border-black/[0.07] bg-white p-4">
+            <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-black/40">Detalhes</p>
+            <dl className="mt-3 space-y-2.5">
+              {resumo?.produto ? (
+                <div className="flex items-start gap-2 text-[13px]">
+                  <dt className="w-[62px] shrink-0 text-black/45">Produto</dt>
+                  <dd className="min-w-0 flex-1 font-medium text-[#101114]">{resumo.produto}</dd>
+                </div>
+              ) : null}
+              {resumo?.avatar ? (
+                <div className="flex items-start gap-2 text-[13px]">
+                  <dt className="w-[62px] shrink-0 text-black/45">Avatar</dt>
+                  <dd className="min-w-0 flex-1 font-medium text-[#101114]">{resumo.avatar}</dd>
+                </div>
+              ) : null}
+              <div className="flex items-start gap-2 text-[13px]">
+                <dt className="w-[62px] shrink-0 text-black/45">Estilo</dt>
+                <dd className="min-w-0 flex-1 font-medium text-[#101114]">{estilo}</dd>
+              </div>
+            </dl>
+
+            {resumo?.prompt ? (
+              <div className="mt-3 rounded-[12px] border border-black/[0.06] bg-[#F7F7F9] p-3">
+                <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] text-black/40">Prompt</p>
+                <p className="mt-1 text-[13px] leading-[1.55] text-black/70">{resumo.prompt}</p>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Coluna direita: imagem em destaque */}
+          <button
+            type="button"
+            onClick={() => setVisualizando(true)}
+            className="flex min-h-0 items-center justify-center overflow-hidden rounded-[16px] border border-black/[0.07] bg-white p-3 outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+            aria-label="Abrir imagem em tamanho maior"
+          >
+            <img
+              src={resultado}
+              alt="Imagem de produto gerada por IA"
+              className="max-h-full w-auto max-w-full rounded-[12px] object-contain"
+            />
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {visualizando ? (
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setVisualizando(false)}
+              className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6"
+            >
+              <img
+                src={resultado}
+                alt="Imagem gerada em tamanho maior"
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[90vh] max-w-[90vw] rounded-[16px] object-contain"
+              />
+              <button
+                type="button"
+                onClick={() => setVisualizando(false)}
+                className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-[#101114] transition hover:bg-white"
+                aria-label="Fechar visualização"
+              >
+                <X size={18} />
+              </button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col text-[#101114]">
+
       <DashboardPageHeader title="Imagens com IA" titleClassName="!font-bold" />
 
       {/* Moldura como na referência: contorno fino definindo a forma, painel um
