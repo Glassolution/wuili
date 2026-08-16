@@ -24,11 +24,13 @@ import {
   Store,
   Tag,
   ShoppingCart,
+  UploadCloud,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,8 +113,8 @@ const emptyFilterRanges: FilterRanges = {
 };
 
 const sortOptions: Array<{ label: string; value: SortBy }> = [
+  { label: "Mais vendidos", value: "demand" },
   { label: "Ranking Velo", value: "score" },
-  { label: "Mais vendido", value: "demand" },
   { label: "Maior margem", value: "margin" },
   { label: "Melhor avaliação", value: "rating" },
   { label: "Mais recente", value: "recent" },
@@ -186,8 +188,8 @@ const ProductSparkline = ({ seed }: { seed: string }) => {
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0" fill="none" aria-hidden="true">
-      <polyline points={points} stroke="#111111" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill="#111111" />
+      <polyline points={points} stroke="#2563EB" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="#2563EB" />
     </svg>
   );
 };
@@ -403,7 +405,7 @@ const TrendingProductsPage = () => {
   const [selectedFilterCategories, setSelectedFilterCategories] = useState<string[]>(() =>
     filterCategories.map((category) => category.value),
   );
-  const [sortBy, setSortBy] = useState<SortBy>("score");
+  const [sortBy, setSortBy] = useState<SortBy>("demand");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -587,6 +589,24 @@ const TrendingProductsPage = () => {
   const goToOnboardingWithProduct = (product: TrendingProduct) => {
     const flowProduct = primeFirstStoreOnboarding(product);
     navigate("/onboarding/preparando-produto", { state: { product: flowProduct, products: [flowProduct] } });
+  };
+
+  const [mlProduct, setMlProduct] = useState<CatalogProduct | null>(null);
+
+  const handlePublishToMl = (product: TrendingProduct) => {
+    setMlProduct({
+      id: product.id,
+      title: product.title,
+      description: null,
+      images: product.images,
+      cost_price: Number(product.cost_price ?? 0),
+      suggested_price: Number(product.suggested_price ?? product.original_price ?? 0),
+      margin_percent: Number(product.margin_percent ?? 0),
+      category: product.category,
+      source: "velo",
+      stock_quantity: product.stock_quantity,
+      brand: product.brand,
+    });
   };
 
   const handleCreateStore = (product: TrendingProduct) => {
@@ -1232,7 +1252,7 @@ const TrendingProductsPage = () => {
                               </p>
                             ) : (
                               <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#7E8798]">
-                                ~{formatNumber(marketSales)} vendas no mercado
+                                ~{formatNumber(marketSales)} vendas no Mercado Livre
                               </p>
                             )}
                           </td>
@@ -1272,17 +1292,15 @@ const TrendingProductsPage = () => {
                                   <FilePlus2 size={15} strokeWidth={1.8} />
                                 )}
                               </button>
-                              {isAdmin ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCreateStore(product)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-white transition hover:bg-[#222222]"
-                                  aria-label="Criar loja com este produto"
-                                  title="Criar loja com este produto"
-                                >
-                                  <Store size={15} strokeWidth={1.8} />
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8]"
+                                aria-label="Publicar no Mercado Livre"
+                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Publicar no Mercado Livre"}
+                              >
+                                {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={15} strokeWidth={1.8} />}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1356,7 +1374,7 @@ const TrendingProductsPage = () => {
                                               <span>{signal.hint}</span>
                                             </div>
                                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#ECEEF2]">
-                                              <div className="h-full rounded-full bg-black" style={{ width: `${signalValue}%` }} />
+                                              <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${signalValue}%` }} />
                                             </div>
                                           </div>
                                         );
@@ -1373,11 +1391,11 @@ const TrendingProductsPage = () => {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateStore(product))}
-                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222222]"
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
                                       >
-                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <Store size={14} strokeWidth={1.8} />}
-                                        {isFreePlan ? "Disponível no plano pago" : "Importar para loja"}
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Publicar no Mercado Livre"}
                                       </button>
                                     </div>
                                   </div>
@@ -1408,6 +1426,8 @@ const TrendingProductsPage = () => {
         preselectedProductIds={wizardProduct ? [wizardProduct.id] : []}
         onCreated={handleProjectCreated}
       />
+
+      <ImportProductModal open={!!mlProduct} onClose={() => setMlProduct(null)} product={mlProduct} />
     </div>
   );
 };
