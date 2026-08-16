@@ -582,7 +582,10 @@ const AiImagesPage = () => {
                           <UserRound size={14} className="text-black/50" />
                         </span>
                       )}
-                      <span className="text-[12.5px] font-semibold">Avatar</span>
+                      <span className="max-w-[130px] truncate text-[12.5px] font-semibold">
+                        {nomeCurto(avatar.name)}
+                      </span>
+
                     </button>
                     <button
                       type="button"
