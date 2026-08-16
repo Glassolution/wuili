@@ -1,5 +1,4 @@
 import type { AnchorHTMLAttributes } from "react";
-import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
 import { linkifyAtlasRouteTags, resolveAtlasRouteTag } from "@/lib/atlasRouteTags";
@@ -17,7 +16,6 @@ import { useAtlasChat } from "@/contexts/AtlasChatContext";
  * ambos, slug fora do mapa de rotas vira texto comum em vez de link quebrado.
  */
 const AtlasMessageText = ({ content, className = "" }: { content: string; className?: string }) => {
-  const navigate = useNavigate();
   const { navegarPorLink } = useAtlasChat();
 
   const AtlasLink = ({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) => {
