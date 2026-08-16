@@ -319,6 +319,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
         });
 
         const corpo = resposta as AtlasFunctionResponse | null;
+        if (isAtlasQuota(corpo?.quota)) setQuota(corpo.quota);
         if (erroAtlas) {
           throw new Error(
             corpo?.error || erroAtlas.message || "Não consegui falar com o Atlas agora. Tente de novo em instantes.",
