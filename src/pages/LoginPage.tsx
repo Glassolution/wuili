@@ -482,13 +482,16 @@ const LoginPage = () => {
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
-      <aside className="hidden w-1/2 flex-col items-center justify-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-6 py-10 lg:flex">
+      <aside className="hidden w-1/2 flex-col items-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-4 pb-10 pt-6 lg:flex">
         {/* Sem moldura: os próprios prints já vêm com card e canto arredondado.
             Altura fixa para os dois slides porque as proporções são diferentes
             (um em pé, outro deitado) — assim a legenda não pula de lugar. */}
-        {/* -mx-6 cancela o respiro lateral do aside só nesta faixa: o print
-            aproveita a largura inteira do painel; a legenda continua recuada. */}
-        <div className="relative -mx-6 flex h-[70vh] w-[calc(100%+48px)] items-center justify-center">
+        {/* -mx-4 cancela o respiro lateral do aside só nesta faixa: o print
+            aproveita a largura inteira do painel; a legenda continua recuada.
+            `flex-1` em vez de altura fixa: o print fica com todo o espaço que
+            sobra depois da legenda, em qualquer altura de tela. `items-end`
+            ancora a imagem embaixo, encostando na legenda. */}
+        <div className="relative -mx-4 flex min-h-0 w-[calc(100%+32px)] flex-1 items-end justify-center">
           {/* Sem `mode="wait"`: os dois prints coexistem durante a troca, um
               saindo para a esquerda enquanto o outro entra pela direita. Com
               wait, a imagem ficava meio segundo atrás da legenda. */}
@@ -503,7 +506,7 @@ const LoginPage = () => {
               transition={{ duration: 0.5, ease }}
               // `contain` porque os prints têm proporções diferentes — com
               // `cover` o print deitado perderia metade da tabela no corte.
-              className="absolute max-h-full max-w-full object-contain"
+              className="absolute bottom-0 max-h-full max-w-full object-contain"
             />
           </AnimatePresence>
         </div>
