@@ -707,16 +707,19 @@ const AiImagesPage = () => {
               </button>
             </div>
           </div>
+          </>
+          ) : null}
 
-          {/* Carregamento com etapas — substitui o antigo toast "Gerando a imagem..." */}
+          {/* Carregamento com etapas — ocupa o centro da tela no lugar do formulário */}
           <AnimatePresence>
             {gerando ? (
-              <AiImageProgress
-                key="progresso"
-                comAvatar={Boolean(avatar)}
-                modo={modo}
-                produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
-              />
+              <div key="progresso" className="flex w-full flex-1 items-center justify-center">
+                <AiImageProgress
+                  comAvatar={Boolean(avatar)}
+                  modo={modo}
+                  produtoTitulo={produto ? nomeCurto(produto.title, 28) : undefined}
+                />
+              </div>
             ) : null}
           </AnimatePresence>
 
