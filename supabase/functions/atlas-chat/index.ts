@@ -1648,12 +1648,10 @@ serve(async (req) => {
       return responder(refusalResponse());
     }
 
-    // Conversa normal não deve passar pelo roteador determinístico nem pelo modelo
-    // com o preset antigo no histórico, senão "oi atlas" vira menu operacional.
-    if (isConversationalAside(lastUserMessage)) {
-      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "conversa_solta" });
-      return responder(conversationalAsideResponse(await buscarPrimeiroNome(serviceClient, authenticatedUserId)));
-    }
+    // Conversa livre ("oi, tudo bem?", "como você está?") vai para o modelo.
+    // Antes caía numa resposta fixa aqui, então toda mensagem solta recebia
+    // exatamente o mesmo texto — o Atlas parecia um robô de menu.
+
 
     // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
     // Só entra quando não há guia em andamento, para não cortar um passo no meio.
