@@ -207,6 +207,19 @@ type AtlasChatContextValue = {
 
 const AtlasChatContext = createContext<AtlasChatContextValue | null>(null);
 
+/** Easter egg: menção à Andrya no chat. Ignora acento, caixa e pontuação. */
+const ehEasterEggAndrya = (texto: string) =>
+  /\bandry?a\b/.test(
+    texto
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase(),
+  );
+
+const MENSAGEM_ANDRYA =
+  "Andrya 💚\n\nTem nome que muda o clima da conversa — esse é um deles. Alguém aí gosta MUITO dela, e dá pra sentir daqui.\n\nEntão vai um pouquinho de festa por conta da casa: Andrya, você é especial. 🎆";
+
+
 export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const location = useLocation();
