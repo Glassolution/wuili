@@ -239,6 +239,8 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [vitrineAberta, setVitrineAberta] = useState(false);
   const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
   const [quota, setQuota] = useState<AtlasQuota | null>(null);
+  const [fogosAtivos, setFogosAtivos] = useState(false);
+
   const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
     if (nicho !== undefined) setNichoDaVitrine(nicho);
     setVitrineAberta(true);
