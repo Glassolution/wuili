@@ -67,6 +67,12 @@ type TrendingProduct = {
   ease_score: number | null;
   viral_score: number | null;
   score: number | null;
+  velo_orders_count?: number | null;
+  velo_units_sold?: number | null;
+  velo_revenue?: number | null;
+  velo_publications_count?: number | null;
+  velo_recent_orders?: number | null;
+  external_sales?: number | null;
   total_count: number | null;
 };
 
