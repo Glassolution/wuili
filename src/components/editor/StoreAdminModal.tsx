@@ -661,7 +661,49 @@ export default function StoreAdminModal({
                     </ul>
                   </div>
                 ) : null}
+
+                {/* MARKETING — Meta Pixel */}
+                {tab === "marketing" ? (
+                  <div className="max-w-[560px] space-y-4">
+                    <section className="rounded-2xl bg-white/[0.03] p-5">
+                      <label htmlFor="meta-pixel-id" className="block text-[13px] font-semibold text-white">
+                        Meta Pixel ID (Facebook Ads)
+                      </label>
+                      <input
+                        id="meta-pixel-id"
+                        value={metaPixelId}
+                        onChange={(e) => {
+                          setMetaPixelId(normalizePixelId(e.target.value));
+                          setPixelError(null);
+                        }}
+                        inputMode="numeric"
+                        placeholder="Ex: 1234567890123456"
+                        className="mt-3 w-full rounded-lg bg-black/40 px-3 py-2.5 text-[12.5px] text-white placeholder:text-white/30 outline-none ring-1 ring-white/[0.06] focus:ring-white/25"
+                      />
+                      {pixelError ? (
+                        <p className="mt-2 text-[11.5px] text-red-400">{pixelError}</p>
+                      ) : null}
+                      <p className="mt-2 text-[11.5px] leading-relaxed text-white/50">
+                        Cole aqui o ID do seu Pixel da Meta para rastrear visitas e vendas da sua loja em campanhas no
+                        Facebook e Instagram Ads. Não sabe como criar?{" "}
+                        <a
+                          href="https://www.facebook.com/business/help/952192354843755"
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="text-white underline underline-offset-2"
+                        >
+                          Ver como criar seu Pixel
+                        </a>
+                        .
+                      </p>
+                    </section>
+                    <p className="text-[11px] text-white/40">
+                      Eventos enviados automaticamente na sua loja: PageView, ViewContent, InitiateCheckout e Purchase.
+                    </p>
+                  </div>
+                ) : null}
               </div>
+
 
               <footer className="flex items-center justify-end gap-2 border-t border-white/[0.05] px-7 py-4">
                 <button
