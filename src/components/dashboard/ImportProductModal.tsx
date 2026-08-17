@@ -269,7 +269,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   // Translation
   const [translating, setTranslating] = useState(false);
-  const [translatingDescription, setTranslatingDescription] = useState(false);
   const [translated, setTranslated] = useState(false);
 
   // Platforms (review step)
@@ -392,42 +391,9 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     ...(requiresStickerAttrs ? [saleFormatAttribute] : []),
   ];
 
-  useEffect(() => {
-    if (!open || !product?.description) return;
-
-    let cancelled = false;
-
-    const translateDescription = async () => {
-      setTranslatingDescription(true);
-      try {
-        const { data, error } = await supabase.functions.invoke("chat", {
-          body: {
-            messages: [{
-              role: "user",
-              content: `Você é um tradutor especialista em e-commerce brasileiro. Traduza a descrição deste produto para português do Brasil, mantendo o sentido original e adaptando termos naturais de venda. Não invente características novas. Responda APENAS com a descrição traduzida, sem introdução, sem comentários.\n\nDescrição original:\n${product.description}`
-            }]
-          },
-        });
-
-        if (error) throw error;
-        const text = data?.response || data?.choices?.[0]?.message?.content || "";
-
-        if (!cancelled && typeof text === "string" && text.trim()) {
-          setDescription(text.trim());
-        }
-      } catch {
-        if (!cancelled) setDescription(product.description ?? "");
-      } finally {
-        if (!cancelled) setTranslatingDescription(false);
-      }
-    };
-
-    void translateDescription();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [open, product?.id, product?.description]);
+  // A descrição não é mais pré-preenchida com a descrição original do produto
+  // (que vinha com HTML cru do fornecedor). O usuário gera uma descrição limpa
+  // pelo botão "Gerar descrição com IA".
 
   const handleClose = () => {
     if (publishing) return;
@@ -514,7 +480,16 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           }]
         },
       });
-      if (error) throw error;
+      if (error) {
+        // Loga o motivo real só para nós (nunca expõe detalhe interno ao cliente)
+        try {
+          const body = await (error as { context?: Response }).context?.json?.();
+          console.warn("[gerar-descricao] falha:", body?.error ?? error);
+        } catch {
+          console.warn("[gerar-descricao] falha:", error);
+        }
+        throw new Error("Erro ao gerar descrição. Tente novamente em instantes.");
+      }
       const text = data?.response || data?.choices?.[0]?.message?.content || "";
       if (typeof text === "string" && text.trim()) {
         setDescription(text.trim());
@@ -522,8 +497,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       } else {
         veloToast.error("Não foi possível gerar a descrição", { id: toastId });
       }
-    } catch {
-      veloToast.error("Erro ao gerar descrição", { id: toastId });
+    } catch (e) {
+      veloToast.error(e instanceof Error ? e.message : "Erro ao gerar descrição", { id: toastId });
     } finally {
       setGeneratingDesc(false);
     }
@@ -1322,9 +1297,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             <div>
               <p className="text-[10.5px] font-medium text-gray-400 uppercase tracking-wide mb-2">Descrição</p>
               <p className="text-[12px] text-gray-600 leading-relaxed line-clamp-6">
-                {translatingDescription
-                  ? "Traduzindo descrição para PT-BR..."
-                  : description || "A descrição aparecerá aqui quando for gerada ou escrita."}
+                {description || "A descrição aparecerá aqui quando for gerada ou escrita."}
               </p>
             </div>
           </div>

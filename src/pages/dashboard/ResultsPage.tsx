@@ -98,17 +98,28 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
   if (ordersResult.status === "fulfilled" && !ordersResult.value.error) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows: any[] = ordersResult.value.data ?? [];
-    const revenue = rows.reduce((sum, order) => {
+    // Pedidos cancelados/reembolsados/devolvidos não são venda concluída — não
+    // entram na receita nem na contagem de pedidos concluídos.
+    const isVoidedStatus = (status: string | null | undefined) =>
+      ["cancelled", "canceled", "refunded", "returned"].includes(String(status ?? "").toLowerCase());
+    const validRows = rows.filter((order) => !isVoidedStatus(order.status));
+    // Receita confirmada: apenas pedidos válidos.
+    const revenue = validRows.reduce((sum, order) => {
+      const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
+      return sum + Number(rowTotal || 0);
+    }, 0);
+    // Receita bruta (todos os pedidos) — usada só no detalhamento de vendas.
+    const grossRevenue = rows.reduce((sum, order) => {
       const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
       return sum + Number(rowTotal || 0);
     }, 0);
     const returnedRevenue = rows
-      .filter((order) => ["cancelled", "canceled", "refunded", "returned"].includes(String(order.status).toLowerCase()))
+      .filter((order) => isVoidedStatus(order.status))
       .reduce((sum, order) => {
         const rowTotal = order.total_amount ?? order.sale_price * order.quantity;
         return sum + Number(rowTotal || 0);
       }, 0);
-    const fulfilledOrders = rows.filter((order) =>
+    const fulfilledOrders = validRows.filter((order) =>
       ["fulfilled", "delivered", "shipped", "paid", "completed"].includes(
         String(order.fulfillment_status || order.status).toLowerCase(),
       ),
@@ -124,7 +135,7 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
       const month = new Date();
       month.setMonth(month.getMonth() - (5 - index));
 
-      return rows.reduce((sum, order) => {
+      return validRows.reduce((sum, order) => {
         const dateValue = order.ordered_at || order.created_at;
         if (!dateValue) return sum;
 
@@ -157,14 +168,14 @@ const loadCollectionKpis = async (userId: string): Promise<CollectionKpis> => {
     nextKpis.orderCount = rows.length;
     nextKpis.fulfilledOrders = formatInteger(fulfilledOrders);
     nextKpis.returningCustomerRate = buyerTotal > 0 ? `${((returningBuyers / buyerTotal) * 100).toFixed(2)}%` : "0%";
-    nextKpis.averageOrderValue = rows.length > 0 ? formatCurrency(revenue / rows.length) : formatCurrency(0);
+    nextKpis.averageOrderValue = validRows.length > 0 ? formatCurrency(revenue / validRows.length) : formatCurrency(0);
     nextKpis.monthlySales = monthlySales;
     nextKpis.monthlyOrders = monthlyOrders;
     nextKpis.salesBreakdown = [
-      { label: "Vendas brutas", value: formatCurrency(revenue), trend: salesTrend },
+      { label: "Vendas brutas", value: formatCurrency(grossRevenue), trend: salesTrend },
       { label: "Descontos", value: formatCurrency(0), trend: "—" },
       { label: "Devoluções", value: `-${formatCurrency(returnedRevenue)}`, trend: returnedRevenue > 0 ? "↘ 39%" : "—" },
-      { label: "Vendas líquidas", value: formatCurrency(Math.max(revenue - returnedRevenue, 0)), trend: salesTrend },
+      { label: "Vendas líquidas", value: formatCurrency(Math.max(grossRevenue - returnedRevenue, 0)), trend: salesTrend },
       { label: "Frete cobrado", value: formatCurrency(0), trend: "—" },
       { label: "Taxas de devolução", value: formatCurrency(0), trend: "—" },
       { label: "Impostos", value: formatCurrency(0), trend: "—" },
@@ -326,21 +337,51 @@ const ResultsPage = () => {
 
   useEffect(() => {
     if (!user?.id) return;
+    const userId = user.id;
+    let active = true;
 
-    let isMounted = true;
-    void loadCollectionKpis(user.id).then((nextKpis) => {
-      if (isMounted) setKpis(nextKpis);
-    });
-    void loadSoldProducts(user.id)
-      .then((products) => {
-        if (isMounted) setSoldProducts(products);
-      })
-      .catch(() => {
-        if (isMounted) setSoldProducts([]);
+    const reload = () => {
+      void loadCollectionKpis(userId).then((nextKpis) => {
+        if (active) setKpis(nextKpis);
       });
+      void loadSoldProducts(userId)
+        .then((products) => {
+          if (active) setSoldProducts(products);
+        })
+        .catch(() => {
+          if (active) setSoldProducts([]);
+        });
+    };
+
+    reload();
+
+    // Realtime: recarrega os KPIs quando os pedidos do usuário mudam (mesmo
+    // padrão da OrdersPage), para os números atualizarem sem reabrir a página.
+    // Debounce curto coalesce rajadas de eventos (ex.: sync em lote).
+    let debounce: number | undefined;
+    const scheduleReload = () => {
+      if (debounce) window.clearTimeout(debounce);
+      debounce = window.setTimeout(reload, 400);
+    };
+
+    const channel = supabase
+      .channel(`results-realtime-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${userId}` },
+        scheduleReload,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "store_orders", filter: `user_id=eq.${userId}` },
+        scheduleReload,
+      )
+      .subscribe();
 
     return () => {
-      isMounted = false;
+      active = false;
+      if (debounce) window.clearTimeout(debounce);
+      supabase.removeChannel(channel);
     };
   }, [user?.id]);
 
