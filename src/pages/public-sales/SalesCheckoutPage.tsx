@@ -57,7 +57,15 @@ const SalesCheckoutPage = () => {
     if (!data?.metaPixelId || checkoutTracked.current || total <= 0) return;
     checkoutTracked.current = true;
     initMetaPixel(data.metaPixelId);
-    trackPixel("InitiateCheckout", { value: total, currency: "BRL" });
+    const sku = data.productId;
+    trackPixel("InitiateCheckout", {
+      value: total,
+      currency: "BRL",
+      contents: sku ? [{ id: sku, quantity: qty }] : [],
+      content_ids: sku ? [sku] : [],
+      content_type: "product",
+      num_items: qty,
+    });
   }, [data, total]);
 
   const handleSubmit = async () => {
