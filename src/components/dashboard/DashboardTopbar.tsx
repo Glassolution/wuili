@@ -48,7 +48,7 @@ const DashboardTopbar = () => {
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const [plano, setPlano] = useState<string>("gratis");
   const menuRef = useRef<HTMLDivElement>(null);
-  const { nome, foto } = useProfile();
+  const { nome, nomeCurto, foto } = useProfile();
   const { signOut, user } = useAuth();
   // Iniciais para o fallback do avatar quando não há foto enviada — evita
   // depender de uma imagem padrão externa que pode não resolver.
@@ -157,7 +157,7 @@ const DashboardTopbar = () => {
                     {foto ? <img src={foto} alt="avatar" className="h-full w-full object-cover" /> : iniciais}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{nome || "Usuário"}</p>
+                    <p className="truncate text-sm font-semibold text-foreground">{nomeCurto}</p>
                     <p className="text-xs text-muted-foreground">{planLabel[plano] ?? plano}</p>
                   </div>
                   <ChevronRight size={14} className="shrink-0 text-muted-foreground" />

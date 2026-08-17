@@ -14,6 +14,7 @@ import SearchPalette from "@/components/dashboard/SearchPalette";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 
 type NavItem = {
   id: string;
@@ -932,7 +933,11 @@ const DashboardSidebar = () => {
   const [hasAffiliateApplication, setHasAffiliateApplication] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const profileName = nome || user?.user_metadata?.full_name || user?.email || "Usuario";
+  // Exibição usa só os dois primeiros nomes; o valor completo continua salvo.
+  const profileName = nomeDeExibicao(
+    nome || (user?.user_metadata?.full_name as string | undefined),
+    user?.email,
+  );
   const profileEmail = user?.email || "conta@velo.app";
   const initials = getInitials(profileName, user?.email);
   const metadataRole =
