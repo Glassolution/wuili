@@ -78,7 +78,7 @@ const SHOWCASE = [
     description: "Acompanhe as vendas do mês, o status de cada anúncio e publique de novo em um clique.",
   },
 ];
-const SLIDE_INTERVAL = 6000;
+const SLIDE_INTERVAL = 3800;
 
 const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
   if (resetMode) {

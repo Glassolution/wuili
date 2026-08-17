@@ -194,6 +194,34 @@ const ProductSparkline = ({ seed }: { seed: string }) => {
   );
 };
 
+/*
+  Barra de volume da tabela desbloqueada.
+
+  Deliberadamente NÃO é o `ProductSparkline`: aquela linha é gerada por semente
+  pseudo-aleatória (ver comentário acima) e sempre termina subindo — no card
+  borrado passa como textura, mas ao lado de preço e vendas reais viraria um
+  gráfico de tendência inventado para todo produto. Não existe série histórica
+  no `get_trending_products` para desenhar a linha de verdade.
+
+  Esta barra usa o dado real que existe: faturamento mensal do produto medido
+  contra o maior da página.
+*/
+const SalesVolumeBar = ({ value, max }: { value: number; max: number }) => {
+  if (!Number.isFinite(value) || value <= 0 || max <= 0) return null;
+
+  const percent = Math.max(4, Math.min(100, (value / max) * 100));
+
+  return (
+    <div
+      className="mx-auto mt-2 h-1.5 w-[92px] overflow-hidden rounded-full bg-[#E8EDF7]"
+      role="img"
+      aria-label={`Faturamento mensal equivalente a ${Math.round(percent)}% do maior desta página`}
+    >
+      <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${percent}%` }} />
+    </div>
+  );
+};
+
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "Sem data";
 
@@ -379,7 +407,7 @@ const SalesPageSoonModal = ({ product, onClose }: { product: TrendingProduct; on
         <button
           type="button"
           onClick={onClose}
-          className="mt-6 h-11 w-full rounded-[14px] bg-black text-[14px] font-semibold text-white transition hover:bg-[#1E1E1E]"
+          className="mt-6 h-11 w-full rounded-[14px] bg-[#2563EB] text-[14px] font-semibold text-white transition hover:bg-[#1D4ED8]"
         >
           Entendi
         </button>
@@ -429,6 +457,22 @@ const TrendingProductsPage = () => {
         .some((value) => value.toLocaleLowerCase("pt-BR").includes(normalizedSearchQuery)),
     );
   }, [normalizedSearchQuery, products]);
+  /*
+    Maior faturamento mensal entre os produtos visíveis. É a régua da barra de
+    vendas da tabela: cada produto aparece em proporção ao líder da página.
+    Vem de dado real (preço × vendas), não de série gerada.
+  */
+  const maiorFaturamentoDaPagina = useMemo(
+    () =>
+      visibleProducts.reduce((maior, product) => {
+        const preco = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
+        const vendas = Number(product.velo_units_sold ?? 0) > 0
+          ? Number(product.velo_units_sold ?? 0)
+          : Number(product.orders_count ?? product.external_sales ?? 0);
+        return Math.max(maior, preco * vendas);
+      }, 0),
+    [visibleProducts],
+  );
   const totalCount = products[0]?.total_count ?? products.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const displayedCount = loading ? PAGE_SIZE : visibleProducts.length;
@@ -754,7 +798,7 @@ const TrendingProductsPage = () => {
                 onClick={() => setFiltersOpen((current) => !current)}
                 aria-expanded={filtersOpen}
                 className={`inline-flex h-9 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
-                  filtersOpen ? "border-black bg-black text-white shadow-[0_10px_22px_rgba(0,0,0,0.14)]" : "border-black/[0.07] bg-white text-[#111111] hover:bg-[#FAFAF9]"
+                  filtersOpen ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_10px_22px_rgba(37,99,235,0.22)]" : "border-black/[0.07] bg-white text-[#111111] hover:bg-[#FAFAF9]"
                 }`}
               >
                 <SlidersHorizontal size={14} strokeWidth={1.7} className={`transition-transform duration-300 ${filtersOpen ? "rotate-90" : ""}`} />
@@ -791,7 +835,7 @@ const TrendingProductsPage = () => {
                     <button
                       type="button"
                       onClick={saveCurrentPreset}
-                      className="h-9 rounded-[9px] bg-black px-3 text-[12px] font-semibold text-white transition hover:bg-[#222222]"
+                      className="h-9 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
                     >
                       Salvar
                     </button>
@@ -900,7 +944,7 @@ const TrendingProductsPage = () => {
                     >
                       <span
                         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition ${
-                          allFilterCategoriesSelected ? "border-black bg-black text-white" : "border-[#C7CEDA] bg-white text-transparent"
+                          allFilterCategoriesSelected ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-[#C7CEDA] bg-white text-transparent"
                         }`}
                       >
                         <Check size={12} strokeWidth={2.2} />
@@ -921,7 +965,7 @@ const TrendingProductsPage = () => {
                         >
                           <span
                             className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition ${
-                              checked ? "border-black bg-black text-white" : "border-[#C7CEDA] bg-white text-transparent"
+                              checked ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-[#C7CEDA] bg-white text-transparent"
                             }`}
                           >
                             <Check size={12} strokeWidth={2.2} />
@@ -957,7 +1001,7 @@ const TrendingProductsPage = () => {
                 <button
                   type="button"
                   onClick={applyFilters}
-                  className="h-9 rounded-[9px] bg-black px-5 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(0,0,0,0.16)] transition hover:bg-[#222222]"
+                  className="h-9 rounded-[9px] bg-[#2563EB] px-5 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
                 >
                   Buscar
                 </button>
@@ -1047,7 +1091,7 @@ const TrendingProductsPage = () => {
               <button
                 type="button"
                 onClick={refresh}
-                className="mt-5 inline-flex h-10 items-center justify-center rounded-[13px] bg-black px-4 text-[13px] font-semibold text-white"
+                className="mt-5 inline-flex h-10 items-center justify-center rounded-[13px] bg-[#2563EB] px-4 text-[13px] font-semibold text-white"
               >
                 Tentar novamente
               </button>
@@ -1228,7 +1272,7 @@ const TrendingProductsPage = () => {
                                   >
                                     {product.title}
                                   </span>
-                                  <ChartNoAxesColumnIncreasing size={14} strokeWidth={1.8} className="shrink-0 text-[#111827]" />
+                                  <ChartNoAxesColumnIncreasing size={14} strokeWidth={1.8} className="shrink-0 text-[#2563EB]" />
                                 </div>
                                 <div className="mt-1 flex min-w-0 items-center gap-4 text-[12px] font-medium text-[#111827]">
                                   <span>{imageCount || 1} {imageCount === 1 ? "imagem" : "imagens"}</span>
@@ -1242,6 +1286,7 @@ const TrendingProductsPage = () => {
                           </td>
                           <td className="px-3 py-4 text-center align-middle">
                             <p className="whitespace-nowrap text-[14px] font-semibold text-[#2B2F3A]">{formatBRL(monthlyRevenue)}</p>
+                            <SalesVolumeBar value={monthlyRevenue} max={maiorFaturamentoDaPagina} />
                             {veloSales > 0 ? (
                               <p className="mt-1 whitespace-nowrap text-[12px] font-semibold text-[#111827]">
                                 {formatNumber(veloSales)} vendas na Velo
