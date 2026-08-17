@@ -1602,6 +1602,11 @@ Deno.serve(async (req) => {
       const mapped = itemResponse.ok
         ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
         : mapMLError(itemData)
+      if (/anatel|homologa/i.test(causeMessages(itemData))) {
+        mapped.message = 'O Mercado Livre exige o número de homologação Anatel para este produto e não encontramos uma ficha de catálogo compatível. Escolha outro produto ou publique manualmente pelo Mercado Livre.'
+        mapped.code = 'ANATEL_REQUIRED'
+      }
+
       await notifyUser(supabase, {
         user_id,
         type: 'publication_error',
