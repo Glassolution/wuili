@@ -1,17 +1,7 @@
-import { CSSProperties, FormEvent, ImgHTMLAttributes, useEffect, useRef, useState } from "react";
+import { CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-
-const operationLogos = [
-  { name: "Mercado Livre", label: "Mercado Livre", src: "/brand/mercado-livre.svg" },
-  { name: "C7Drop", label: "C7Drop" },
-  { name: "Mercado Pago", label: "Mercado Pago" },
-  { name: "Correios", label: "Correios" },
-  { name: "Shopee", label: "Shopee", src: "/brand/shopee.svg" },
-];
-
-const marqueeLogos = [...operationLogos, ...operationLogos];
 
 /*
   Cada item aponta para uma seção que existe nesta página. Não há "Preços" aqui: a landing
@@ -36,47 +26,12 @@ const navItems = [
       { title: "Publicações e pedidos", text: "Veja o que foi publicado em cada canal e acompanhe os pedidos." },
     ],
   },
-  {
-    label: "Integrações",
-    target: "integracoes",
-    panel: [
-      { title: "Mercado Livre", text: "Conecte sua conta e publique seus anúncios pela Velo." },
-      { title: "Shopee", text: "Leve o mesmo catálogo para o segundo canal sem refazer tudo." },
-      { title: "Mercado Pago", text: "Pagamentos do ecossistema Mercado Livre na sua operação." },
-      { title: "Correios", text: "Prazo e custo de envio considerados no cálculo da sua margem." },
-      { title: "C7Drop", text: "Fornecedor que alimenta o catálogo com produtos já validados." },
-    ],
-  },
+  /*
+    "Integrações" saiu junto com a faixa de logos: o item apontava para a seção
+    #integracoes, que não existe mais. Sem a seção, o clique não levaria a lugar
+    nenhum. O conteúdo das integrações segue descrito no FAQ.
+  */
   { label: "Perguntas frequentes", target: "perguntas-frequentes" },
-];
-
-const processCards = [
-  {
-    title: "Encontre produtos com potencial",
-    text: "Veja oportunidades com sinais de demanda, margem e aderência aos marketplaces brasileiros.",
-    visual: "product",
-  },
-  {
-    title: "Organize sua operação",
-    text: "Centralize fornecedores, custos, catálogo e publicação em uma rotina simples para começar melhor.",
-    visual: "workflow",
-  },
-  {
-    title: "Venda com mais clareza",
-    text: "Acompanhe produto, preço, pedidos e canais conectados sem transformar tudo em planilhas soltas.",
-    visual: "uptime",
-  },
-];
-
-const statsCards = [
-  {
-    value: "Milhares",
-    text: "de produtos analisados para encontrar oportunidades com mais contexto.",
-  },
-  {
-    value: "5 canais",
-    text: "para conectar catálogo, fornecedor, pagamento, envio e marketplace.",
-  },
 ];
 
 const supportItems = [
@@ -113,7 +68,7 @@ const faqItems = [
   },
   {
     question: "Consigo vender no Mercado Livre?",
-    answer: "Sim. A Velo foi desenhada para apoiar operações conectadas ao Mercado Livre e outros canais relevantes no Brasil.",
+    answer: "Sim. O Mercado Livre é o canal onde a Velo publica hoje: você conecta sua conta e o anúncio sai da plataforma com título, descrição e fotos já montados.",
   },
   {
     question: "A plataforma é para iniciantes?",
@@ -155,45 +110,39 @@ const HERO_SLIDES = [
 const HERO_PLACEHOLDER = "/hero-pasted-image-2.png";
 
 /*
-  Seção de contraste: prova visual do produto em uso.
+  Seção de prova visual, logo abaixo do hero.
 
-  Os três arquivos abaixo AINDA NÃO EXISTEM. São prints reais da aplicação, e os
-  três estados só existem atrás do login (o dashboard redireciona para /login) —
-  o terceiro depende ainda de uma conta do Mercado Livre conectada e de um anúncio
-  de fato publicado. Não gerei mockup no lugar de propósito.
+  Os nomes dos arquivos têm espaço, então o caminho vai com %20 — sem isso o
+  Vite serve o index.html de fallback no lugar do PNG e a imagem quebra.
 
-  Enquanto os arquivos não estiverem em public/, a seção NÃO é renderizada: melhor
-  ausente do que com moldura vazia na landing. Assim que os três forem colocados
-  com estes nomes, ela aparece pronta, sem mais nenhuma alteração de código.
+  Como na referência, as duas imagens ocupam exatamente o mesmo tamanho e ficam
+  alinhadas pelo topo. Os arquivos não têm a mesma proporção (1409x1117 = 1,261
+  e 1448x1086 = 1,333), então a moldura impõe uma proporção comum e o object-cover
+  acerta o resto. O valor abaixo é a média das duas: assim o corte se divide entre
+  elas (~3% na altura da primeira, ~2,5% na largura da segunda) em vez de recair
+  todo sobre uma. Trocar por 1/1 ou 16/9 cortaria conteúdo de verdade.
 */
+const PROPORCAO_PROVA = "1.297";
+
+/*
+  Tipografia das headlines de seção, igual à referência: Inter em peso leve,
+  tamanho grande e tracking negativo. Peso 300 (não 200) porque estas seções são
+  sobre fundo claro — fino demais no branco fica lavado. Sobre o fundo azul do
+  Atlas o mesmo 300 aparenta um pouco mais grosso, o que é o efeito esperado.
+
+  Está num só lugar para as seções não divergirem entre si com o tempo.
+*/
+const HEADLINE = "font-light leading-[1.12] tracking-[-0.03em] antialiased [font-family:Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]";
+const HEADLINE_TAMANHO = "text-[clamp(1.75rem,3.2vw,3rem)]";
+
 const PROVA_VISUAL = [
   {
-    src: "/prova-atlas.png",
-    alt: "Chat do Atlas sugerindo um produto do catálogo da Velo",
-    titulo: "O Atlas indica o que testar",
-    texto: "A IA lê o catálogo e responde com o produto, o motivo e o próximo passo.",
-    // Assimetria: cada print tem proporção e deslocamento próprios.
-    proporcao: "4 / 5",
-    coluna: "lg:col-span-5",
-    deslocamento: "lg:mt-0",
+    src: "/barra%2001.png",
+    alt: "Conversa com a IA da Velo recomendando produtos com preço e loja",
   },
   {
-    src: "/prova-catalogo.png",
-    alt: "Produto no catálogo da Velo com custo, preço sugerido e margem",
-    titulo: "Custo e margem à vista",
-    texto: "Preço do fornecedor, preço sugerido e lucro por venda no mesmo lugar.",
-    proporcao: "1 / 1",
-    coluna: "lg:col-span-3",
-    deslocamento: "lg:mt-16",
-  },
-  {
-    src: "/prova-anuncio-ml.png",
-    alt: "Anúncio publicado no Mercado Livre a partir da Velo",
-    titulo: "No ar no Mercado Livre",
-    texto: "O anúncio publicado pela Velo, com título e fotos já montados.",
-    proporcao: "3 / 4",
-    coluna: "lg:col-span-4",
-    deslocamento: "lg:mt-8",
+    src: "/barra%2002.png",
+    alt: "Loja da Velo com produtos selecionados e marketplaces conectados",
   },
 ];
 
@@ -316,63 +265,42 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
 }
 
 /*
-  Só renderiza depois que os três prints carregarem. Sem eles a seção fica fora da
-  página — nada de moldura vazia nem imagem inventada para preencher o espaço.
+  Mesma estrutura da referência: headline de duas linhas em dois tons, seguida de
+  uma grade assimétrica de imagens sem legenda.
+
+  A referência é sobre fundo escuro; aqui é branco. Isso não é só trocar a cor:
+  peso fino sobre fundo claro parece mais fino do que sobre escuro (o fundo
+  "invade" a letra no escuro e engorda o traço). Por isso o peso sobe de 200 para
+  300 — no branco, 200 ficaria lavado e quebradiço no tamanho grande.
 */
 function SecaoProvaVisual() {
-  const [prontos, setProntos] = useState(false);
-
-  useEffect(() => {
-    let cancelado = false;
-
-    Promise.all(
-      PROVA_VISUAL.map(
-        (item) =>
-          new Promise<boolean>((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = item.src;
-          }),
-      ),
-    ).then((resultados) => {
-      if (!cancelado) setProntos(resultados.every(Boolean));
-    });
-
-    return () => {
-      cancelado = true;
-    };
-  }, []);
-
-  if (!prontos) return null;
-
   return (
-    <section className="bg-[#0B1B3D] px-6 py-28 sm:px-10 lg:px-12 lg:py-40">
+    <section id="como-funciona" className="scroll-mt-20 bg-white px-6 py-28 sm:px-10 lg:px-12 lg:py-40">
       <div className="mx-auto w-full max-w-[1200px]">
-        {/*
-          Entrada própria (whileInView) em vez do [data-reveal] global: o observer
-          da página roda uma vez na montagem e esta seção só aparece depois, quando
-          os prints carregam — os elementos nunca seriam observados e ficariam
-          invisíveis para sempre.
-        */}
         <motion.h2
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="max-w-[1000px] text-[clamp(1.75rem,3.4vw,3rem)] font-extralight leading-[1.18] tracking-[-0.03em] antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]"
+          /*
+            Cada frase precisa caber em UMA linha, como na referência. Com o
+            Mercado Livre sozinho, a linha 1 passou a ser a mais longa (~23x o
+            tamanho da fonte): a 3rem ela pede ~1107px e o container dá 1200px.
+            Mexer no tamanho sem refazer essa conta faz a frase quebrar em duas.
+          */
+          className={`${HEADLINE_TAMANHO} ${HEADLINE} leading-[1.18]`}
         >
           <span className="block">
-            <span className="text-white">Do produto ao anúncio pronto.</span>{" "}
-            <span className="text-white/45">Sem digitar uma linha.</span>
+            <span className="text-[#0B1B3D]">Do produto ao anúncio pronto.</span>{" "}
+            <span className="text-[#0B1B3D]/40">Sem digitar uma linha.</span>
           </span>
           <span className="block">
-            <span className="text-white">Publicado no Mercado Livre e na Shopee.</span>{" "}
-            <span className="text-white/45">Em poucos minutos.</span>
+            <span className="text-[#0B1B3D]">Publicado no Mercado Livre.</span>{" "}
+            <span className="text-[#0B1B3D]/40">Em poucos minutos.</span>
           </span>
         </motion.h2>
 
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:mt-20 lg:grid-cols-12 lg:items-start lg:gap-7">
+        <div className="mt-16 grid gap-6 sm:grid-cols-2 sm:items-start lg:mt-20 lg:gap-7">
           {PROVA_VISUAL.map((item, indice) => (
             <motion.figure
               key={item.src}
@@ -380,18 +308,19 @@ function SecaoProvaVisual() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.2 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: indice * 0.1 }}
-              className={`${item.coluna} ${item.deslocamento} sm:last:col-span-2 lg:last:col-span-4`}
             >
               <div
-                className="overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.04]"
-                style={{ aspectRatio: item.proporcao }}
+                className="overflow-hidden rounded-[20px] border border-[#E9EEF8] bg-[#FBFCFF]"
+                style={{ aspectRatio: PROPORCAO_PROVA }}
               >
-                <img src={item.src} alt={item.alt} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                <img
+                  src={item.src}
+                  alt={item.alt}
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-full w-full object-cover"
+                />
               </div>
-              <figcaption className="mt-5">
-                <p className="text-[17px] font-semibold tracking-[-0.02em] text-white">{item.titulo}</p>
-                <p className="mt-1.5 text-[15px] leading-[1.5] text-white/55">{item.texto}</p>
-              </figcaption>
             </motion.figure>
           ))}
         </div>
@@ -405,151 +334,6 @@ function VeloLogo({ tone = "dark" }: { tone?: "dark" | "light" }) {
     <div className={`flex items-center gap-2.5 transition-colors duration-200 ${tone === "light" ? "text-white" : "text-[#0B1B3D]"}`}>
       <img src="/logo.png" alt="Velo" className="block h-9 w-9 shrink-0 object-contain" />
       <span className="text-[26px] font-bold leading-none tracking-[-0.06em]">Velo</span>
-    </div>
-  );
-}
-
-function PremiumImage({ className = "", ...props }: ImgHTMLAttributes<HTMLImageElement>) {
-  const [failed, setFailed] = useState(false);
-
-  return (
-    <div className="relative h-full w-full overflow-hidden bg-[linear-gradient(135deg,#E8EFFD,#F8FAFF)]">
-      {!failed && (
-        <img
-          {...props}
-          className={`h-full w-full object-cover opacity-0 transition-opacity duration-500 ${className}`}
-          onError={() => setFailed(true)}
-          onLoad={(event) => {
-            event.currentTarget.style.opacity = "1";
-          }}
-        />
-      )}
-      {failed && <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(37,99,235,0.12),transparent_38%),linear-gradient(135deg,#EDF2FD,#FBFCFF)]" />}
-    </div>
-  );
-}
-
-function OperationLogo({ logo }: { logo: (typeof operationLogos)[number] }) {
-  return (
-    <div className="flex h-full items-center justify-center">
-      {"src" in logo && logo.src ? (
-        <img
-          src={logo.src}
-          alt={logo.name}
-          className="max-h-7 max-w-[140px] object-contain opacity-45 grayscale transition duration-300 hover:opacity-70 sm:max-h-8 sm:max-w-[160px]"
-        />
-      ) : (
-        <span className="text-[20px] font-bold leading-none tracking-[-0.045em] text-[#0B1B3D]/40 sm:text-[24px]">{logo.label}</span>
-      )}
-    </div>
-  );
-}
-
-function ProcessVisual({ type }: { type: string }) {
-  const shell =
-    "relative h-[236px] overflow-hidden rounded-[20px] border border-[#E6ECF9] bg-[linear-gradient(180deg,#FBFCFF,#EFF4FF)] sm:h-[268px]";
-
-  if (type === "workflow") {
-    return (
-      <div className={shell}>
-        <div className="absolute left-6 top-8 z-10 w-[152px] rounded-[16px] border border-[#EAEFF9] bg-white p-2.5 shadow-[0_16px_36px_rgba(15,35,95,0.08)] sm:w-[172px] sm:p-3">
-          <div className="h-[96px] overflow-hidden rounded-[12px] bg-[#EDF2FD] sm:h-[112px]">
-            <PremiumImage src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=520&q=85" alt="Produto encontrado" />
-          </div>
-          <div className="mt-3 h-2 w-20 rounded-full bg-[#0B1B3D]/10" />
-          <div className="mt-2 h-2 w-28 rounded-full bg-[#0B1B3D]/[0.06]" />
-        </div>
-
-        <div className="absolute right-5 top-12 z-20 w-[150px] rounded-[16px] border border-[#E6ECF9] bg-white/95 p-3.5 shadow-[0_16px_36px_rgba(15,35,95,0.09)] backdrop-blur-sm sm:right-7 sm:w-[164px]">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#8A97B1]">Publicação</div>
-          <div className="mt-3 space-y-2">
-            {["Mercado Livre", "Shopee", "Catálogo"].map((item, index) => (
-              <div
-                key={item}
-                className="flex items-center justify-between rounded-full bg-[#F4F7FE] px-3 py-1.5 text-[11px] text-[#41506E] sm:text-[12px]"
-              >
-                <span>{item}</span>
-                <span className={index === 0 ? "font-semibold text-[#2563EB]" : "text-[#9AA6BE]"}>{index === 0 ? "ativo" : "ok"}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="absolute bottom-7 left-1/2 h-2 w-44 -translate-x-1/2 rounded-full bg-[#0B1B3D]/[0.07]" />
-        <div className="absolute bottom-7 left-[calc(50%-88px)] h-2 w-28 rounded-full bg-[#2563EB]" />
-      </div>
-    );
-  }
-
-  if (type === "uptime") {
-    return (
-      <div className={shell}>
-        <div className="absolute inset-x-8 top-9 h-[112px] rounded-full border border-[#E1E9F8]" />
-
-        <div className="absolute left-1/2 top-8 h-[128px] w-[128px] -translate-x-1/2 sm:h-[144px] sm:w-[144px]">
-          <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120" aria-hidden="true">
-            <circle cx="60" cy="60" r="48" fill="none" stroke="#DEE7F8" strokeWidth="9" />
-            <circle
-              cx="60"
-              cy="60"
-              r="48"
-              fill="none"
-              stroke="#2563EB"
-              strokeLinecap="round"
-              strokeWidth="9"
-              strokeDasharray="246 302"
-            />
-          </svg>
-
-          <div className="absolute inset-0 grid place-items-center text-center">
-            <div>
-              <div className="text-[30px] font-semibold leading-none tracking-[-0.045em] text-[#0B1B3D] sm:text-[34px]">99,9%</div>
-              <div className="mt-2 text-[12px] tracking-[-0.01em] text-[#7B8AA6]">operação estável</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 gap-2">
-          {["ML", "C7", "MP"].map((item) => (
-            <span key={item} className="rounded-full border border-[#E6ECF9] bg-white px-3.5 py-1.5 text-[11px] font-medium text-[#5B6B8C] shadow-[0_4px_12px_rgba(15,35,95,0.04)]">
-              {item}
-            </span>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={shell}>
-      <div className="absolute left-1/2 top-7 w-[236px] -translate-x-1/2 rounded-[18px] border border-[#EAEFF9] bg-white p-4 shadow-[0_18px_44px_rgba(15,35,95,0.09)]">
-        <div className="flex items-center gap-3.5">
-          <div className="h-14 w-14 overflow-hidden rounded-[14px] bg-[#EDF2FD]">
-            <PremiumImage src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=260&q=85" alt="Produto com potencial" />
-          </div>
-          <div>
-            <div className="text-[13px] font-semibold tracking-[-0.02em] text-[#0B1B3D]">Smartwatch compacto</div>
-            <div className="mt-1 text-[11px] text-[#8A97B1]">Demanda em alta</div>
-          </div>
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <div className="rounded-[12px] bg-[#F4F7FE] px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.12em] text-[#94A1B9]">Margem</div>
-            <div className="mt-1 text-[17px] font-semibold tracking-[-0.035em] text-[#0B1B3D]">42%</div>
-          </div>
-          <div className="rounded-[12px] bg-[#F4F7FE] px-3 py-2">
-            <div className="text-[10px] uppercase tracking-[0.12em] text-[#94A1B9]">Score</div>
-            <div className="mt-1 text-[17px] font-semibold tracking-[-0.035em] text-[#2563EB]">87</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute bottom-6 left-6 rounded-full border border-[#E6ECF9] bg-white px-4 py-2 text-[12px] text-[#5B6B8C] shadow-[0_6px_16px_rgba(15,35,95,0.05)]">
-        Produto validado
-      </div>
-      <div className="absolute bottom-6 right-6 rounded-full bg-[#2563EB] px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.28)]">
-        pronto para testar
-      </div>
     </div>
   );
 }
@@ -892,7 +676,7 @@ export default function Index() {
           </h1>
 
           <p className="mt-6 max-w-[420px] text-[16px] leading-[1.55] tracking-[-0.01em] text-white/70 sm:text-[18px]">
-            A Velo encontra oportunidades de produto, ajuda a montar o anúncio e a publicar no Mercado Livre e na Shopee.
+            A Velo encontra oportunidades de produto, ajuda a montar o anúncio e a publicar no Mercado Livre.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -928,82 +712,43 @@ export default function Index() {
 
       <SecaoProvaVisual />
 
-      <section id="integracoes" className="scroll-mt-20 border-y border-[#EDF1F9] bg-[#FBFCFF]">
-        <div className="mx-auto w-full max-w-[1200px] px-6 py-12 sm:px-8 sm:py-14">
-          <p data-reveal className="text-center text-[13px] font-medium uppercase tracking-[0.14em] text-[#8A97B1]">
-            Integrado com as maiores plataformas do Brasil
-          </p>
-
-          <div className="relative mt-8 overflow-hidden">
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-[#FBFCFF] to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-[#FBFCFF] to-transparent" />
-            <div className="flex w-max items-center gap-14 [animation:velo-logo-marquee_22s_linear_infinite] sm:gap-20">
-              {marqueeLogos.map((brand, index) => (
-                <div
-                  key={`${brand.name}-${index}`}
-                  aria-label={brand.name}
-                  className="flex h-[40px] min-w-[160px] shrink-0 items-center justify-center whitespace-nowrap sm:h-[44px] sm:min-w-[190px]"
-                >
-                  <OperationLogo logo={brand} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="como-funciona" className="scroll-mt-20 bg-white px-6 py-24 sm:px-8 lg:py-32">
-        <div className="mx-auto max-w-[1200px]">
-          <div data-reveal className="mx-auto max-w-[720px] text-center">
-            <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.035em] text-[#0B1B3D] sm:text-[44px] lg:text-[50px]">
-              Um processo de vendas mais inteligente começa aqui
+      {/*
+        Headline à esquerda e texto de apoio à direita, como na referência, com o
+        print ocupando a largura inteira logo abaixo. O print é real (a tela de
+        produto do catálogo), não um mockup ilustrativo.
+      */}
+      <section className="bg-white px-6 py-24 sm:px-10 lg:px-12 lg:py-32">
+        <div className="mx-auto w-full max-w-[1200px]">
+          <div className="grid gap-8 lg:grid-cols-2 lg:items-end lg:gap-16">
+            <h2 data-reveal className={`${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
+              Você vê o lucro antes de vender
             </h2>
-            <p className="mx-auto mt-5 max-w-[560px] text-[17px] leading-[1.6] text-[#5B6B8C] sm:text-[18px]">
-              Da descoberta do produto até a publicação nos marketplaces, tudo em um fluxo único e simples de seguir.
+            <p data-reveal className="max-w-[520px] text-[17px] leading-[1.6] text-[#5B6B8C] sm:text-[18px]">
+              Cada produto do catálogo mostra quanto você paga ao fornecedor, por quanto pode vender e
+              quanto sobra por venda. Você decide com o número na frente, não no chute.
             </p>
           </div>
 
-          <div className="mt-16 grid gap-6 lg:grid-cols-3">
-            {processCards.map((card) => (
-              <article
-                data-reveal
-                key={card.title}
-                className="group rounded-[24px] border border-[#EAEFF9] bg-white p-5 transition duration-300 hover:-translate-y-1 hover:border-[#D9E3F8] hover:shadow-[0_24px_60px_rgba(15,35,95,0.08)]"
-              >
-                <ProcessVisual type={card.visual} />
-                <h3 className="mt-7 text-[20px] font-semibold leading-[1.25] tracking-[-0.02em] text-[#0B1B3D] sm:text-[22px]">{card.title}</h3>
-                <p className="mt-3 text-[15px] leading-[1.6] text-[#5B6B8C] sm:text-[16px]">{card.text}</p>
-              </article>
-            ))}
+          <div
+            data-reveal
+            className="mt-14 overflow-hidden rounded-[24px] border border-[#E9EEF8] bg-[#FBFCFF] shadow-[0_28px_70px_rgba(15,35,95,0.08)] lg:mt-20"
+          >
+            <img
+              src="/prova-catalogo.png"
+              alt="Tela de produto no catálogo da Velo: preço sugerido de R$ 44,00, margem de 100%, custo de R$ 22,00 ao fornecedor e lucro de R$ 22,00 por venda"
+              loading="lazy"
+              decoding="async"
+              className="block h-auto w-full"
+            />
           </div>
         </div>
       </section>
 
-      <section className="bg-[#FBFCFF] px-6 py-24 sm:px-8 lg:py-28">
-        <div className="mx-auto max-w-[1200px]">
-          <div data-reveal className="rounded-[28px] border border-[#E6ECF9] bg-white px-8 py-12 text-center shadow-[0_20px_50px_rgba(15,35,95,0.05)] sm:px-14 sm:py-16">
-            <blockquote className="mx-auto max-w-[860px] text-[24px] font-semibold leading-[1.28] tracking-[-0.03em] text-[#0B1B3D] sm:text-[32px]">
-              “A melhor operação começa quando você entende o produto, o canal e o próximo passo com clareza.”
-            </blockquote>
-            <div className="mt-7 text-[15px] font-semibold text-[#2563EB]">Velo</div>
-            <div className="mt-1 text-[14px] text-[#8A97B1]">Plataforma para encontrar produtos e vender online</div>
-          </div>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            {statsCards.map((stat) => (
-              <div data-reveal key={stat.value} className="rounded-[22px] border border-[#EAEFF9] bg-white px-8 py-9">
-                <div className="text-[36px] font-semibold leading-none tracking-[-0.04em] text-[#2563EB] md:text-[42px]">{stat.value}</div>
-                <p className="mt-4 max-w-[460px] text-[16px] leading-[1.6] text-[#5B6B8C]">{stat.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section id="recursos" className="scroll-mt-20 bg-white px-6 py-24 sm:px-8 lg:py-32">
         <div className="mx-auto max-w-[1200px]">
           <div data-reveal className="max-w-[680px]">
-            <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.035em] text-[#0B1B3D] sm:text-[44px] lg:text-[50px]">
+            <h2 className={`${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
               A plataforma para começar no ecommerce
             </h2>
             <p className="mt-5 max-w-[560px] text-[17px] leading-[1.6] text-[#5B6B8C] sm:text-[18px]">
@@ -1029,9 +774,62 @@ export default function Index() {
         </div>
       </section>
 
+      {/*
+        Bloco colorido da referência, no azul da marca em vez do roxo. É a única
+        seção escura da página depois do hero: serve de respiro antes do FAQ e
+        destaca o Atlas, que é o diferencial do produto.
+
+        Aqui o peso 300 fica sobre fundo escuro, então a headline aparenta um
+        pouco mais grossa que nas seções brancas — é o mesmo efeito óptico que
+        levou o restante da página a usar 300 em vez de 200.
+      */}
+      <section className="bg-white px-6 py-16 sm:px-10 lg:px-12 lg:py-20">
+        <div className="mx-auto w-full max-w-[1200px] overflow-hidden rounded-[32px] bg-[linear-gradient(160deg,#1E3A8A,#0B1B3D)] px-6 py-20 sm:px-12 lg:px-16 lg:py-28">
+          <h2 data-reveal className={`max-w-[900px] ${HEADLINE_TAMANHO} ${HEADLINE} text-white`}>
+            Conheça o Atlas, seu agente de vendas
+          </h2>
+          <p data-reveal className="mt-6 max-w-[620px] text-[17px] leading-[1.65] text-white/60 sm:text-[18px]">
+            Diga o nicho que você quer explorar. O Atlas indica um produto do catálogo, explica por que
+            ele faz sentido e já abre o próximo passo para colocar o anúncio no ar.
+          </p>
+
+          <div className="mt-14 grid gap-6 lg:mt-16 lg:grid-cols-12 lg:items-start lg:gap-7">
+            <div data-reveal className="lg:col-span-7">
+              <div className="overflow-hidden rounded-[20px] border border-white/10 bg-white">
+                <img
+                  src="/prova-atlas.png"
+                  alt="Conversa com o Atlas: o usuário pede um produto do nicho de beleza e o Atlas indica um kit de pincéis, explica o motivo e oferece abrir o catálogo"
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-auto w-full"
+                />
+              </div>
+            </div>
+
+            <div data-reveal className="lg:col-span-5 lg:pt-4">
+              <h3 className="text-[21px] font-semibold leading-[1.25] tracking-[-0.02em] text-white">
+                Uma recomendação, não uma lista
+              </h3>
+              <p className="mt-4 text-[16px] leading-[1.65] text-white/60">
+                Em vez de devolver centenas de produtos para você filtrar, o Atlas aponta um item
+                específico e diz o motivo. Quem está começando trava justamente na primeira escolha.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => navigate(authTarget)}
+                className="mt-8 inline-flex h-[52px] items-center rounded-full bg-white px-7 text-[15px] font-semibold text-[#0B1B3D] transition hover:bg-white/90"
+              >
+                {ctaLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="perguntas-frequentes" className="scroll-mt-20 bg-[#FBFCFF] px-6 py-24 sm:px-8 lg:py-28">
         <div className="mx-auto max-w-[900px]">
-          <h2 data-reveal className="text-center text-[34px] font-semibold leading-[1.1] tracking-[-0.035em] text-[#0B1B3D] sm:text-[44px]">
+          <h2 data-reveal className={`text-center ${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
             Perguntas frequentes
           </h2>
 
@@ -1074,7 +872,7 @@ export default function Index() {
           <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,99,235,0.12),transparent_60%)]" />
 
           <div className="relative">
-            <h2 className="mx-auto max-w-[720px] text-[32px] font-semibold leading-[1.12] tracking-[-0.035em] text-[#0B1B3D] sm:text-[44px]">
+            <h2 className={`mx-auto max-w-[720px] ${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
               A plataforma é nossa, mas as oportunidades são suas.
             </h2>
 
