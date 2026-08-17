@@ -562,7 +562,8 @@ const AtlasChatPage = () => {
           </div>
         </div>
 
-        <div className="border-t border-black/[0.06] bg-white px-4 sm:px-8 py-4">
+        {/* Sem borda superior: a barra do chat encosta na conversa sem risco separando. */}
+        <div className="bg-white px-4 sm:px-8 py-4">
           <form
             onSubmit={handleSubmit}
             className="mx-auto max-w-[760px] flex items-end gap-2 bg-white border border-neutral-200 rounded-2xl p-2.5 pl-4 shadow-[0_4px_16px_rgba(0,0,0,0.03)] focus-within:border-neutral-400 transition-colors"
