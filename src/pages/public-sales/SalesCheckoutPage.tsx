@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Copy, Check, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, useSalesPageData } from "./salesPageData";
+import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
 
 /**
  * Tela 3 — Checkout
@@ -50,6 +51,15 @@ const SalesCheckoutPage = () => {
 
   const total = useMemo(() => (data ? data.price * qty : 0), [data, qty]);
 
+  // Meta Pixel do seller: base + InitiateCheckout uma única vez por visita.
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (!data?.metaPixelId || checkoutTracked.current || total <= 0) return;
+    checkoutTracked.current = true;
+    initMetaPixel(data.metaPixelId);
+    trackPixel("InitiateCheckout", { value: total, currency: "BRL" });
+  }, [data, total]);
+
   const handleSubmit = async () => {
     if (!data) return;
     setFormError(null);
@@ -90,7 +100,7 @@ const SalesCheckoutPage = () => {
       const r = resp as { order_id: string; status: string; pix_qr_code?: string | null; pix_qr_code_base64?: string | null };
       setResult({ orderId: r.order_id, status: r.status, pixQr: r.pix_qr_code, pixQrBase64: r.pix_qr_code_base64 });
       if (r.status === "approved") {
-        navigate(`/loja/${slug}/obrigado?order=${r.order_id}`);
+        navigate(`/loja/${slug}/obrigado?order=${r.order_id}&total=${total}${data.productId ? `&sku=${encodeURIComponent(data.productId)}` : ""}`);
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Falha ao processar pagamento");
