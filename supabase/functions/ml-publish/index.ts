@@ -1561,7 +1561,43 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Última tentativa: se o ML recusou por exigência de catálogo/Anatel em
+    // uma categoria que não estava no mapa catalog-only, tenta casar com a
+    // ficha do catálogo (mesmo caminho da publicação de celulares).
+    if ((!itemResponse.ok || !itemData?.id) && !requiresCatalogListing) {
+      const msg = causeMessages(itemData)
+      if (/anatel|catalog_listing|catalog_product|homologa/i.test(msg)) {
+        const lateCatalogId = await findCatalogProductId()
+        if (lateCatalogId) {
+          const latePayload = {
+            catalog_product_id: lateCatalogId,
+            catalog_listing: true,
+            category_id: categoryId,
+            price: product.price,
+            currency_id: 'BRL',
+            available_quantity: product.available_quantity || 10,
+            buying_mode: 'buy_it_now',
+            condition: 'new',
+            listing_type_id: 'gold_special',
+            shipping: mlPayload.shipping,
+          }
+          console.warn('[ml-publish] Retry via ficha de catálogo após recusa do ML.')
+          itemResponse = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(latePayload),
+          })
+          itemData = await itemResponse.json()
+          console.log('Item criado (retry catálogo):', JSON.stringify(itemData).substring(0, 800))
+        }
+      }
+    }
+
     if (!itemResponse.ok || !itemData?.id) {
+
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
       const mapped = itemResponse.ok
         ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
