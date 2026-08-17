@@ -2993,6 +2993,7 @@ export type Database = {
           created_at: string
           id: string
           last_edited_at: string
+          meta_pixel_id: string | null
           metadata: Json
           nome: string
           preview_storage_path: string | null
@@ -3009,6 +3010,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_edited_at?: string
+          meta_pixel_id?: string | null
           metadata?: Json
           nome?: string
           preview_storage_path?: string | null
@@ -3025,6 +3027,7 @@ export type Database = {
           created_at?: string
           id?: string
           last_edited_at?: string
+          meta_pixel_id?: string | null
           metadata?: Json
           nome?: string
           preview_storage_path?: string | null
@@ -3316,6 +3319,7 @@ export type Database = {
           created_at: string
           id: string
           last_edited_at: string
+          meta_pixel_id: string | null
           metadata: Json
           nome: string
           preview_storage_path: string | null
@@ -3404,6 +3408,7 @@ export type Database = {
           created_at: string
           id: string
           last_edited_at: string
+          meta_pixel_id: string | null
           metadata: Json
           nome: string
           preview_storage_path: string | null

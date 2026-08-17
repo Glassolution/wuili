@@ -1,0 +1,2 @@
+ALTER TABLE public.user_projects ADD COLUMN IF NOT EXISTS meta_pixel_id text;
+ALTER TABLE public.user_projects ADD CONSTRAINT user_projects_meta_pixel_id_format CHECK (meta_pixel_id IS NULL OR meta_pixel_id ~ '^[0-9]{10,20}$') NOT VALID;
