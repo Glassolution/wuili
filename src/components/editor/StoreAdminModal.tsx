@@ -130,6 +130,8 @@ export default function StoreAdminModal({
     setFlow(s.flow);
     setCustomProducts(s.customProducts);
     setEditingId(null);
+    setMetaPixelId(project?.meta_pixel_id ?? "");
+    setPixelError(null);
   }, [open, project]);
 
   useEffect(() => {
