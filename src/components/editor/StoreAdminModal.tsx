@@ -57,7 +57,7 @@ export type CustomProduct = {
   category?: string;
 };
 
-type Tab = "clientes" | "produtos" | "fluxo";
+type Tab = "clientes" | "produtos" | "fluxo" | "marketing";
 
 type StoreOrderRow = {
   id: string;
