@@ -1,10 +1,30 @@
+import { useEffect, useRef } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
+import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
+import { useSalesPageData } from "./salesPageData";
 
 const SalesThankYouPage = () => {
   const { slug = "" } = useParams();
   const [sp] = useSearchParams();
   const orderId = sp.get("order");
+  const { data } = useSalesPageData(slug);
+
+  // Meta Pixel do seller: Purchase disparado uma vez na confirmação do pedido.
+  const purchaseTracked = useRef(false);
+  useEffect(() => {
+    if (!data?.metaPixelId || !orderId || purchaseTracked.current) return;
+    const total = Number(sp.get("total")) || data.price;
+    const sku = sp.get("sku") || data.productId;
+    purchaseTracked.current = true;
+    initMetaPixel(data.metaPixelId);
+    trackPixel("Purchase", {
+      value: total,
+      currency: "BRL",
+      content_ids: sku ? [sku] : [],
+      content_type: "product",
+    });
+  }, [data, orderId, sp]);
 
   return (
     <div className="grid min-h-screen place-items-center bg-[#F3F3F1] p-6" style={{ fontFamily: '"Geist", system-ui, sans-serif' }}>

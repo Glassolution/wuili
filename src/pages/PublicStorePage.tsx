@@ -21,6 +21,7 @@ import {
   type UserProject,
 } from "@/lib/userProjects";
 import { applyOverridesToRoot } from "@/lib/storeOverrides";
+import { initMetaPixel } from "@/lib/metaPixel";
 import { renderStoreIcon } from "@/lib/storeIcons";
 import { AI_DESCRIPTION_PLACEHOLDER, resolveProductTemplate } from "@/components/store-templates/productTemplateRegistry";
 import StorefrontLojaTemplate from "@/components/store-templates/StorefrontLojaTemplate";
@@ -285,6 +286,11 @@ const PublicStorePage = () => {
       active = false;
     };
   }, [slug]);
+
+  // Pixel do seller (se configurado): script base assíncrono + PageView.
+  useEffect(() => {
+    initMetaPixel(project?.meta_pixel_id);
+  }, [project]);
 
   if (!resolved) {
     return (
