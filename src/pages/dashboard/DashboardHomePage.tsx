@@ -122,6 +122,14 @@ const INTRO = {
   bandDelays: [1.4, 1.68, 1.96],
 };
 
+// Todo o layout desta tela é dimensionado em cqw (relativo à largura do
+// container), então sem um teto ele cresce junto com o monitor e no desktop
+// fica desproporcional. Travamos a largura do canvas: acima disso o conteúdo
+// para de inflar e apenas ganha margem lateral (do mesmo #F5F4F1 do fundo).
+// Abaixo desse valor o comportamento responsivo continua exatamente o mesmo.
+// Este é o único número a mexer para calibrar a escala geral da página.
+const MAX_CANVAS_WIDTH = 1280;
+
 const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
 const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
 const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
@@ -505,7 +513,10 @@ const DashboardHomePage = () => {
     <main
       className="shrink-0 overflow-auto bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
     >
-      <div className="relative w-full text-[#101114]" style={{ containerType: "inline-size" }}>
+      <div
+        className="relative mx-auto w-full text-[#101114]"
+        style={{ containerType: "inline-size", maxWidth: MAX_CANVAS_WIDTH }}
+      >
         <img
           src={dashboardHomeBase}
           alt="Tela inicial da Velo"
