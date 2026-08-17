@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { updateProjectMetadata, type UserProject } from "@/lib/userProjects";
 import { formatPriceBRL } from "@/lib/priceFormat";
+import { isValidPixelId, normalizePixelId } from "@/lib/metaPixel";
 
 export type FlowStepId =
   | "home"
