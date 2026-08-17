@@ -107,7 +107,16 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.5s ease-out forwards",
+        /*
+          Sem `forwards` de propósito. Com ele, o estado final `transform: translateY(0)`
+          ficava aplicado para sempre — e transform diferente de `none` transforma o
+          elemento em containing block de descendentes `position: fixed`. Era isso que
+          fazia os modais das páginas do dashboard (ex.: afiliados) se posicionarem
+          dentro da área de conteúdo em vez da viewport, deixando cabeçalho e sidebar
+          fora do overlay. Sem o fill, o transform volta a `none` ao fim da animação e
+          o `fixed` volta a se referir à viewport.
+        */
+        "fade-in": "fade-in 0.5s ease-out",
       },
     },
   },

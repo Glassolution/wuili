@@ -244,7 +244,12 @@ const brandPanelStyle: CSSProperties = {
   background: ELECTRIC_BLUE,
 };
 
-const ONBOARDING_MARK_SRC = "/onboarding-velo-mark.png";
+/*
+  Marca atual em versão branca com o "C" vazado — o painel do onboarding é azul sólido,
+  e a logo padrão (bolha azul) sumiria nele. Gerada a partir de public/logo.png; para
+  atualizar, basta regerar mantendo o vazado.
+*/
+const ONBOARDING_MARK_SRC = "/velo-mark-branco.png";
 
 const OnboardingBrandLogo = ({ size = "md", variant = "light" }: { size?: "sm" | "md"; variant?: "light" | "dark" }) => {
   const isLight = variant === "light";
@@ -323,22 +328,16 @@ const optionCardStyle = (selected: boolean): CSSProperties =>
         boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
       };
 
-const OPTION_ACCENTS = [
-  { bg: "#EAF2FF", color: "#005EFE" },
-  { bg: "#EEFDF6", color: "#059669" },
-  { bg: "#FFF7ED", color: "#EA580C" },
-  { bg: "#F5F3FF", color: "#7C3AED" },
-  { bg: "#ECFEFF", color: "#0891B2" },
-  { bg: "#FFF1F2", color: "#E11D48" },
-] as const;
+// Container quadrado do ícone à esquerda do card. Sem a antiga paleta rotativa
+// (azul/verde/laranja/roxo): o ícone é preto sobre cinza neutro, e a cor fica
+// reservada ao estado selecionado.
+const ICON_CHIP_BG = "#F1F3F7";
+const ICON_CHIP_FG = "#0A0A0A";
 
-// Container quadrado colorido do ícone à esquerda do card.
-const iconChipStyle = (selected: boolean, index: number): CSSProperties => {
-  const accent = OPTION_ACCENTS[index % OPTION_ACCENTS.length];
-  return selected
+const iconChipStyle = (selected: boolean): CSSProperties =>
+  selected
     ? { background: ELECTRIC_BLUE, border: `1.5px solid ${ELECTRIC_BLUE}`, color: "#FFFFFF" }
-    : { background: accent.bg, border: `1.5px solid ${accent.bg}`, color: accent.color };
-};
+    : { background: ICON_CHIP_BG, border: `1.5px solid ${ICON_CHIP_BG}`, color: ICON_CHIP_FG };
 
 // ── Fluxo linear: uma pergunta por tela ──────────────────────────────────────
 // As 3 macro-etapas do stepper continuam sendo o agrupamento visual/lógico, mas
@@ -591,7 +590,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                     >
                       <span
                         className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] transition-colors duration-200"
-                        style={iconChipStyle(selected, optionIndex)}
+                        style={iconChipStyle(selected)}
                       >
                         <Icon size={19} strokeWidth={selected ? 2 : 1.85} />
                       </span>

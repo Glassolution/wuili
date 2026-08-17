@@ -775,9 +775,9 @@ const styles = {
   } satisfies CSSProperties,
 };
 
-// Logo oficial da Velo (public/logo.png): a cesta azul no badge arredondado, com
-// fundo transparente e já recortado na borda do badge — por isso ele preenche a
-// caixa inteira (object-contain) em vez de flutuar numa margem vazia.
+// Logo oficial da Velo (public/logo.png): a bolha azul com o "C", com fundo
+// transparente e já recortada na borda da marca — por isso ela preenche a caixa
+// inteira (object-contain) em vez de flutuar numa margem vazia.
 const VeloIconOnly = () => (
   <img
     aria-hidden="true"

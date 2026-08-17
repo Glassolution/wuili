@@ -123,10 +123,10 @@ export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
   };
 
   const s = sizes[size];
-  // Logo oficial (public/logo.png): a cesta azul no badge arredondado, com fundo
-  // transparente e já recortado na borda do badge — por isso a imagem entra inteira
-  // (object-contain) e preenche a caixa. O texto "Velo" muda de cor conforme a
-  // variante; o badge é o mesmo em qualquer fundo.
+  // Logo oficial (public/logo.png): a bolha azul com o "C", com fundo transparente e já
+  // recortada na borda da marca — por isso a imagem entra inteira (object-contain) e
+  // preenche a caixa. O texto "Velo" muda de cor conforme a variante; a marca é a mesma
+  // em qualquer fundo.
   const isDark = variant === "dark";
   const textColor = isDark ? "#0A0A0A" : "#FFFFFF";
 

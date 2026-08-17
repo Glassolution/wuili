@@ -22,11 +22,26 @@ async function checkEmailExists(email: string): Promise<boolean> {
 
 const ease = [0.22, 1, 0.36, 1] as const;
 const slideDown = {
-  initial: { opacity: 0, y: -8, height: 0 },
-  animate: { opacity: 1, y: 0, height: "auto" },
-  exit: { opacity: 0, y: -8, height: 0 },
-  transition: { duration: 0.34, ease },
+  initial: { opacity: 0, y: -10, height: 0, filter: "blur(3px)" },
+  animate: { opacity: 1, y: 0, height: "auto", filter: "blur(0px)" },
+  exit: { opacity: 0, y: -10, height: 0, filter: "blur(3px)" },
+  transition: { duration: 0.38, ease },
 };
+
+/*
+  Entrada da coluna do formulário: os blocos sobem em cascata em vez de a tela inteira
+  aparecer de uma vez. `staggerChildren` cuida do encadeamento; cada bloco só precisa
+  declarar `variants={fadeUp}`.
+*/
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease } },
+};
+const semMovimento = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.2 } } };
 
 /* ─── Google SVG ──────────────────────────────────────────────────────────── */
 const GoogleIcon = () => (
@@ -75,7 +90,7 @@ const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
   if (step === "signup") {
     return {
       title: "Crie sua conta Velo",
-      subtitle: "Só falta o essencial para começar a vender sem estoque.",
+      subtitle: "Leva menos de um minuto para começar a vender sem estoque.",
     };
   }
   if (step === "login") {
@@ -97,6 +112,7 @@ const LoginPage = () => {
   const reduceMotion = useReducedMotion();
 
   const [step, setStep]                   = useState<"initial" | "login" | "signup">("initial");
+  const [emailLocked, setEmailLocked]     = useState(false);
   const [email, setEmail]                 = useState("");
   const [password, setPassword]           = useState("");
   const [nome, setNome]                   = useState("");
@@ -162,6 +178,8 @@ const LoginPage = () => {
 
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
+    // No cadastro direto o e-mail não passou pela validação da etapa inicial.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { veloToast.error("Digite um e-mail válido."); return; }
     if (nome.trim().length < 2) { veloToast.error("Informe seu nome."); return; }
     if (password.length < 8)    { veloToast.error("Senha precisa ter pelo menos 8 caracteres."); return; }
     if (!acceptTerms)   { veloToast.error("Você precisa aceitar os Termos de Uso."); return; }
@@ -220,7 +238,23 @@ const LoginPage = () => {
     setCheckingEmail(true);
     const exists = await checkEmailExists(clean);
     setCheckingEmail(false);
+    // Veio pela detecção de e-mail: o campo já está resolvido, então trava para não confundir.
+    setEmailLocked(true);
     setStep(exists ? "login" : "signup");
+  };
+
+  // Cadastro escolhido de propósito, sem passar pela detecção: o e-mail continua editável.
+  const irParaCadastro = () => {
+    setEmailLocked(false);
+    setPassword("");
+    setStep("signup");
+  };
+
+  const voltarParaInicio = () => {
+    setEmailLocked(false);
+    setPassword("");
+    setNome("");
+    setStep("initial");
   };
 
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
@@ -238,6 +272,9 @@ const LoginPage = () => {
   if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
 
   const copy = getCopy(step, resetMode);
+  // Cadastro alcançado pelo link, e não pela detecção de e-mail.
+  const cadastroDireto = step === "signup" && !emailLocked;
+  const mostraSocial = step === "initial" || cadastroDireto;
   const inputCls =
     "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
   const primaryBtnCls =
@@ -254,19 +291,47 @@ const LoginPage = () => {
     >
       {/* ── Coluna do formulário ─────────────────────────────────────────── */}
       <div className="flex w-full flex-col px-6 py-10 sm:px-12 lg:w-1/2 lg:px-16 lg:py-12">
-        <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
-          <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
-        </Link>
+        <motion.div
+          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease }}
+          className="w-fit"
+        >
+          <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
+            <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
+          </Link>
+        </motion.div>
 
         <div className="flex flex-1 items-center py-12">
-          <div className="mx-auto w-full max-w-[420px]">
-            <h1 className="text-[26px] font-bold leading-[1.2] tracking-[-0.025em] text-[#0F172A]">
-              {copy.title}
-            </h1>
-            <p className="mt-2 text-[14px] leading-[1.55] text-[#64748B]">{copy.subtitle}</p>
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            animate="show"
+            className="mx-auto w-full max-w-[420px]"
+          >
+            {/*
+              A dupla título+subtítulo troca junto com a etapa: `key` no copy faz o texto
+              antigo sair e o novo entrar, em vez de mudar de conteúdo no mesmo lugar.
+            */}
+            <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={copy.title}
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                  transition={{ duration: 0.26, ease }}
+                >
+                  <h1 className="text-[26px] font-bold leading-[1.2] tracking-[-0.025em] text-[#0F172A]">
+                    {copy.title}
+                  </h1>
+                  <p className="mt-2 text-[14px] leading-[1.55] text-[#64748B]">{copy.subtitle}</p>
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
 
-            {!resetMode && step === "initial" && (
-              <>
+            {!resetMode && mostraSocial && (
+              <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
@@ -274,17 +339,20 @@ const LoginPage = () => {
                   className="mt-7 inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60"
                 >
                   <GoogleIcon />
-                  {googleLoading ? "Conectando..." : "Continuar com Google"}
+                  {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
                 </button>
 
                 <div className="my-6 flex items-center gap-4">
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
-                  <span className="text-[13px] text-[#94A3B8]">ou entre com e-mail</span>
+                  <span className="text-[13px] text-[#94A3B8]">
+                    {cadastroDireto ? "ou cadastre-se com e-mail" : "ou entre com e-mail"}
+                  </span>
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
                 </div>
-              </>
+              </motion.div>
             )}
 
+            <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
             {resetMode ? (
               <form onSubmit={handleReset} className="mt-7 space-y-4">
                 <input
@@ -314,6 +382,9 @@ const LoginPage = () => {
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (step === "initial") void handleEmailContinue();
+                    // No cadastro direto o e-mail fica fora do <form> do cadastro:
+                    // sem isto, dar Enter no campo não faria nada.
+                    else if (cadastroDireto) void handleSignUp(e);
                   }}
                   className="space-y-4"
                 >
@@ -322,8 +393,10 @@ const LoginPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Endereço de e-mail"
-                    readOnly={step !== "initial"}
-                    className={`${inputCls} ${step !== "initial" ? "cursor-default bg-[#F8FAFC] text-[#64748B]" : ""}`}
+                    readOnly={emailLocked}
+                    // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
+                    // não pela ordem das classes na string.
+                    className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F5F9] text-[#64748B]" : ""}`}
                   />
 
                   {step === "initial" && (
@@ -454,28 +527,49 @@ const LoginPage = () => {
                 </AnimatePresence>
 
                 <p className="pt-2 text-center text-[14px] text-[#64748B]">
-                  {step === "initial" ? (
-                    <>Ainda não tem conta? É só continuar com seu e-mail.</>
-                  ) : (
+                  {step === "initial" && (
                     <>
-                      {step === "login" ? "Não é você?" : "Já tem uma conta?"}{" "}
+                      Ainda não tem conta?{" "}
                       <button
                         type="button"
-                        onClick={() => {
-                          setStep("initial");
-                          setPassword("");
-                          setNome("");
-                        }}
+                        onClick={irParaCadastro}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                      >
+                        Criar conta grátis
+                      </button>
+                    </>
+                  )}
+
+                  {step === "login" && (
+                    <>
+                      Não é você?{" "}
+                      <button
+                        type="button"
+                        onClick={voltarParaInicio}
                         className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                       >
                         Trocar e-mail
                       </button>
                     </>
                   )}
+
+                  {step === "signup" && (
+                    <>
+                      Já tem uma conta?{" "}
+                      <button
+                        type="button"
+                        onClick={voltarParaInicio}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                      >
+                        Entrar
+                      </button>
+                    </>
+                  )}
                 </p>
               </div>
             )}
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
 
         <p className="text-center text-[12.5px] text-[#94A3B8] lg:text-left">
@@ -492,7 +586,12 @@ const LoginPage = () => {
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
-      <aside className="hidden w-1/2 flex-col items-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-4 pb-10 pt-6 lg:flex">
+      <motion.aside
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6, ease, delay: 0.1 }}
+        className="hidden w-1/2 flex-col items-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-4 pb-10 pt-6 lg:flex"
+      >
         {/* Sem moldura: os próprios prints já vêm com card e canto arredondado.
             Altura fixa para os dois slides porque as proporções são diferentes
             (um em pé, outro deitado) — assim a legenda não pula de lugar. */}
@@ -555,7 +654,7 @@ const LoginPage = () => {
             ))}
           </div>
         </div>
-      </aside>
+      </motion.aside>
     </main>
   );
 };

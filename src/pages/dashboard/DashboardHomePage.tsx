@@ -108,15 +108,18 @@ const INTRO = {
   // Desaceleração suave, sem a cauda longa do ease-out exponencial.
   travelEase: [0.32, 0.72, 0, 1] as const,
   revealEase: [0.22, 1, 0.36, 1] as const,
-  titleFade: 0.52,
+  titleFade: 0.66,
   titleTravelDelay: 0.56,
-  titleTravel: 0.9,
-  revealDuration: 0.66,
+  titleTravel: 1.05,
+  revealDuration: 0.9,
   promoDelay: 1,
-  supportDelay: 1.08,
-  chatDelay: 1.16,
-  bandDuration: 0.66,
-  bandDelays: [1.3, 1.4, 1.5],
+  supportDelay: 1.14,
+  chatDelay: 1.28,
+  // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
+  // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
+  // em vez de quase juntas.
+  bandDuration: 1,
+  bandDelays: [1.4, 1.68, 1.96],
 };
 
 const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
