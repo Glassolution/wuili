@@ -113,6 +113,8 @@ export default function StoreAdminModal({
   const [customProducts, setCustomProducts] = useState<CustomProduct[]>(initial.customProducts);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [metaPixelId, setMetaPixelId] = useState<string>(project?.meta_pixel_id ?? "");
+  const [pixelError, setPixelError] = useState<string | null>(null);
   const [draft, setDraft] = useState<CustomProduct>({
     id: "",
     title: "",
