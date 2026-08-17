@@ -38,6 +38,8 @@ export type SalesPageData = {
   brand: string;
   storeLogoUrl?: string | null;
   storeDescription?: string | null;
+  /** Meta Pixel do dono da loja (só usado para renderizar a storefront dele). */
+  metaPixelId?: string | null;
   tipoProjeto?: "loja_completa" | "pagina_venda";
 };
 
@@ -115,6 +117,7 @@ export function useSalesPageData(slug: string | undefined) {
           price: editedPrice ?? basePrice,
           accent: getProjectAccent(project),
           brand: getProjectStoreName(project) || project.nome,
+          metaPixelId: project.meta_pixel_id ?? null,
           tipoProjeto: (project.tipo_projeto as "loja_completa" | "pagina_venda") ?? undefined,
         });
 
