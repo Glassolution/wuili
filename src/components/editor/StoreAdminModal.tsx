@@ -12,6 +12,7 @@ import {
   Users,
   Package,
   ListOrdered,
+  BarChart3,
   X,
   Settings2,
   ImageIcon,
@@ -228,6 +229,7 @@ export default function StoreAdminModal({
     { id: "clientes", label: "Clientes", icon: Users, hint: "Pedidos & contatos" },
     { id: "produtos", label: "Produtos", icon: Package, hint: "Catálogo próprio" },
     { id: "fluxo", label: "Fluxo do cliente", icon: ListOrdered, hint: "Jornada de compra" },
+    { id: "marketing", label: "Marketing", icon: BarChart3, hint: "Meta Pixel & anúncios" },
   ];
 
   return (
@@ -297,11 +299,13 @@ export default function StoreAdminModal({
                     {tab === "clientes" && "Clientes"}
                     {tab === "produtos" && "Produtos"}
                     {tab === "fluxo" && "Fluxo do cliente"}
+                    {tab === "marketing" && "Marketing"}
                   </h2>
                   <p className="mt-0.5 text-[12px] text-white/50">
                     {tab === "clientes" && "Pedidos e contatos recebidos pela sua loja."}
                     {tab === "produtos" && "Adicione, edite, organize e categorize seus produtos."}
                     {tab === "fluxo" && "Defina a sequência de telas que o cliente percorre."}
+                    {tab === "marketing" && "Rastreie visitas e vendas da sua loja nos anúncios da Meta."}
                   </p>
                 </div>
                 <button
