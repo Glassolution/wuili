@@ -1258,17 +1258,114 @@ Deno.serve(async (req) => {
 
     console.log('Payload:', JSON.stringify(mlPayload))
     let effectivePayload = mlPayload
-    let itemResponse = await fetch('https://api.mercadolibre.com/items', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(mlPayload),
-    })
 
-    let itemData = await itemResponse.json()
-    console.log('Item criado:', JSON.stringify(itemData).substring(0, 800))
+    // === PUBLICAÇÃO VIA CATÁLOGO DO ML ===
+    // Categorias como Celulares (MLB1055 / domínio MLB-CELLPHONES) são
+    // "catalog-only": o ML exige atributos que não temos como preencher
+    // (número de homologação Anatel, MODEL de lista fechada, CARRIER,
+    // IS_DUAL_SIM...). Nessas categorias o caminho correto é casar o produto
+    // com uma ficha do catálogo do ML (`catalog_product_id`) — os atributos
+    // passam a vir da própria ficha e o anúncio é aceito.
+    const CATALOG_ONLY_CATEGORIES = new Set(['MLB1055'])
+    const requiresCatalogListing =
+      CATALOG_ONLY_CATEGORIES.has(categoryId) ||
+      categoryAttrs.some(a => /ANATEL/i.test(cleanText(a.id)))
+
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ')
+
+    const findCatalogProductId = async (): Promise<string | null> => {
+      const query = normalize(title).split(/\s+/).filter(Boolean).slice(0, 8).join(' ')
+      if (!query) return null
+      const url = `https://api.mercadolibre.com/products/search?status=active&site_id=MLB&q=${encodeURIComponent(query)}`
+      try {
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } })
+        const data = await res.json()
+        if (!res.ok) {
+          console.warn('[ml-publish] Busca no catálogo do ML falhou:', JSON.stringify(data).substring(0, 400))
+          return null
+        }
+        const results = arrayFromUnknown((data as Record<string, unknown>)?.results) as Array<Record<string, unknown>>
+        if (results.length === 0) {
+          console.warn('[ml-publish] Nenhuma ficha de catálogo encontrada para:', query)
+          return null
+        }
+        // Escolhe a ficha com maior sobreposição de tokens com o título.
+        const titleTokens = new Set(normalize(title).split(/\s+/).filter(t => t.length > 2))
+        let best: { id: string; score: number; name: string } | null = null
+        for (const r of results) {
+          const id = cleanText(r.id)
+          const name = cleanText(r.name)
+          if (!id) continue
+          const tokens = normalize(name).split(/\s+/).filter(t => t.length > 2)
+          const score = tokens.filter(t => titleTokens.has(t)).length
+          if (!best || score > best.score) best = { id, score, name }
+        }
+        if (!best || best.score < 2) {
+          console.warn('[ml-publish] Ficha de catálogo pouco confiável — ignorando.', JSON.stringify(best))
+          return null
+        }
+        console.log(`[ml-publish] Ficha de catálogo escolhida: ${best.id} (${best.name}) score=${best.score}`)
+        return best.id
+      } catch (err) {
+        console.error('[ml-publish] Erro na busca de catálogo:', err)
+        return null
+      }
+    }
+
+    let itemResponse: Response | null = null
+    let itemData: any = null
+
+    if (requiresCatalogListing) {
+      console.log('[ml-publish] Categoria catalog-only detectada:', categoryId, '— tentando publicar via ficha de catálogo.')
+      const mlCatalogProductId = await findCatalogProductId()
+      if (mlCatalogProductId) {
+        const catalogPayload = {
+          catalog_product_id: mlCatalogProductId,
+          catalog_listing: true,
+          category_id: categoryId,
+          price: product.price,
+          currency_id: 'BRL',
+          available_quantity: product.available_quantity || 10,
+          buying_mode: 'buy_it_now',
+          condition: 'new',
+          listing_type_id: 'gold_special',
+          shipping: mlPayload.shipping,
+        }
+        console.log('Payload (catálogo):', JSON.stringify(catalogPayload))
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(catalogPayload),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (catálogo):', JSON.stringify(itemData).substring(0, 800))
+        if (itemResponse.ok && itemData?.id) {
+          effectivePayload = catalogPayload as unknown as typeof mlPayload
+        } else {
+          console.warn('[ml-publish] Publicação por catálogo falhou — voltando ao fluxo normal.')
+          itemResponse = null
+          itemData = null
+        }
+      }
+    }
+
+    if (!itemResponse) {
+      itemResponse = await fetch('https://api.mercadolibre.com/items', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(mlPayload),
+      })
+      itemData = await itemResponse.json()
+      console.log('Item criado:', JSON.stringify(itemData).substring(0, 800))
+    }
+
 
     // Detecção de causas conhecidas retornadas pelo ML.
     const causeMessages = (data: any): string => {
@@ -1464,11 +1561,52 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Última tentativa: se o ML recusou por exigência de catálogo/Anatel em
+    // uma categoria que não estava no mapa catalog-only, tenta casar com a
+    // ficha do catálogo (mesmo caminho da publicação de celulares).
+    if ((!itemResponse.ok || !itemData?.id) && !requiresCatalogListing) {
+      const msg = causeMessages(itemData)
+      if (/anatel|catalog_listing|catalog_product|homologa/i.test(msg)) {
+        const lateCatalogId = await findCatalogProductId()
+        if (lateCatalogId) {
+          const latePayload = {
+            catalog_product_id: lateCatalogId,
+            catalog_listing: true,
+            category_id: categoryId,
+            price: product.price,
+            currency_id: 'BRL',
+            available_quantity: product.available_quantity || 10,
+            buying_mode: 'buy_it_now',
+            condition: 'new',
+            listing_type_id: 'gold_special',
+            shipping: mlPayload.shipping,
+          }
+          console.warn('[ml-publish] Retry via ficha de catálogo após recusa do ML.')
+          itemResponse = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(latePayload),
+          })
+          itemData = await itemResponse.json()
+          console.log('Item criado (retry catálogo):', JSON.stringify(itemData).substring(0, 800))
+        }
+      }
+    }
+
     if (!itemResponse.ok || !itemData?.id) {
+
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
       const mapped = itemResponse.ok
         ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
         : mapMLError(itemData)
+      if (/anatel|homologa/i.test(causeMessages(itemData))) {
+        mapped.message = 'O Mercado Livre exige o número de homologação Anatel para este produto e não encontramos uma ficha de catálogo compatível. Escolha outro produto ou publique manualmente pelo Mercado Livre.'
+        mapped.code = 'ANATEL_REQUIRED'
+      }
+
       await notifyUser(supabase, {
         user_id,
         type: 'publication_error',
