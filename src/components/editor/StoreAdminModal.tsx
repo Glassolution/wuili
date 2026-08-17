@@ -190,13 +190,25 @@ export default function StoreAdminModal({
 
   const persist = async () => {
     if (!project) return;
+    // Pixel: vazio limpa o campo; qualquer valor precisa ter 10–20 dígitos.
+    const pixel = normalizePixelId(metaPixelId);
+    if (pixel && !isValidPixelId(pixel)) {
+      setTab("marketing");
+      setPixelError("O Pixel ID deve conter apenas números, entre 10 e 20 dígitos.");
+      return;
+    }
+    setPixelError(null);
     setSaving(true);
     try {
       const updated = await updateProjectMetadata(project, {
         customerFlow: flow,
         customProducts,
       });
-      onProjectUpdated(updated);
+      const nextPixel = pixel || null;
+      if (nextPixel !== (project.meta_pixel_id ?? null)) {
+        await supabase.from("user_projects").update({ meta_pixel_id: nextPixel }).eq("id", project.id);
+      }
+      onProjectUpdated({ ...updated, meta_pixel_id: nextPixel });
       onClose();
     } finally {
       setSaving(false);
