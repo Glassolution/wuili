@@ -154,6 +154,49 @@ const HERO_SLIDES = [
 */
 const HERO_PLACEHOLDER = "/hero-pasted-image-2.png";
 
+/*
+  Seção de contraste: prova visual do produto em uso.
+
+  Os três arquivos abaixo AINDA NÃO EXISTEM. São prints reais da aplicação, e os
+  três estados só existem atrás do login (o dashboard redireciona para /login) —
+  o terceiro depende ainda de uma conta do Mercado Livre conectada e de um anúncio
+  de fato publicado. Não gerei mockup no lugar de propósito.
+
+  Enquanto os arquivos não estiverem em public/, a seção NÃO é renderizada: melhor
+  ausente do que com moldura vazia na landing. Assim que os três forem colocados
+  com estes nomes, ela aparece pronta, sem mais nenhuma alteração de código.
+*/
+const PROVA_VISUAL = [
+  {
+    src: "/prova-atlas.png",
+    alt: "Chat do Atlas sugerindo um produto do catálogo da Velo",
+    titulo: "O Atlas indica o que testar",
+    texto: "A IA lê o catálogo e responde com o produto, o motivo e o próximo passo.",
+    // Assimetria: cada print tem proporção e deslocamento próprios.
+    proporcao: "4 / 5",
+    coluna: "lg:col-span-5",
+    deslocamento: "lg:mt-0",
+  },
+  {
+    src: "/prova-catalogo.png",
+    alt: "Produto no catálogo da Velo com custo, preço sugerido e margem",
+    titulo: "Custo e margem à vista",
+    texto: "Preço do fornecedor, preço sugerido e lucro por venda no mesmo lugar.",
+    proporcao: "1 / 1",
+    coluna: "lg:col-span-3",
+    deslocamento: "lg:mt-16",
+  },
+  {
+    src: "/prova-anuncio-ml.png",
+    alt: "Anúncio publicado no Mercado Livre a partir da Velo",
+    titulo: "No ar no Mercado Livre",
+    texto: "O anúncio publicado pela Velo, com título e fotos já montados.",
+    proporcao: "3 / 4",
+    coluna: "lg:col-span-4",
+    deslocamento: "lg:mt-8",
+  },
+];
+
 const HERO_SLIDE_INTERVAL = 6000;
 
 const TYPE_DELETE_MS = 26;
@@ -269,6 +312,91 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
         />
       ))}
     </>
+  );
+}
+
+/*
+  Só renderiza depois que os três prints carregarem. Sem eles a seção fica fora da
+  página — nada de moldura vazia nem imagem inventada para preencher o espaço.
+*/
+function SecaoProvaVisual() {
+  const [prontos, setProntos] = useState(false);
+
+  useEffect(() => {
+    let cancelado = false;
+
+    Promise.all(
+      PROVA_VISUAL.map(
+        (item) =>
+          new Promise<boolean>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = item.src;
+          }),
+      ),
+    ).then((resultados) => {
+      if (!cancelado) setProntos(resultados.every(Boolean));
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  if (!prontos) return null;
+
+  return (
+    <section className="bg-[#0B1B3D] px-6 py-28 sm:px-10 lg:px-12 lg:py-40">
+      <div className="mx-auto w-full max-w-[1200px]">
+        {/*
+          Entrada própria (whileInView) em vez do [data-reveal] global: o observer
+          da página roda uma vez na montagem e esta seção só aparece depois, quando
+          os prints carregam — os elementos nunca seriam observados e ficariam
+          invisíveis para sempre.
+        */}
+        <motion.h2
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="max-w-[1000px] text-[clamp(1.75rem,3.4vw,3rem)] font-extralight leading-[1.18] tracking-[-0.03em] antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]"
+        >
+          <span className="block">
+            <span className="text-white">Do produto ao anúncio pronto.</span>{" "}
+            <span className="text-white/45">Sem digitar uma linha.</span>
+          </span>
+          <span className="block">
+            <span className="text-white">Publicado no Mercado Livre e na Shopee.</span>{" "}
+            <span className="text-white/45">Em poucos minutos.</span>
+          </span>
+        </motion.h2>
+
+        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:mt-20 lg:grid-cols-12 lg:items-start lg:gap-7">
+          {PROVA_VISUAL.map((item, indice) => (
+            <motion.figure
+              key={item.src}
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: indice * 0.1 }}
+              className={`${item.coluna} ${item.deslocamento} sm:last:col-span-2 lg:last:col-span-4`}
+            >
+              <div
+                className="overflow-hidden rounded-[20px] border border-white/10 bg-white/[0.04]"
+                style={{ aspectRatio: item.proporcao }}
+              >
+                <img src={item.src} alt={item.alt} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              </div>
+              <figcaption className="mt-5">
+                <p className="text-[17px] font-semibold tracking-[-0.02em] text-white">{item.titulo}</p>
+                <p className="mt-1.5 text-[15px] leading-[1.5] text-white/55">{item.texto}</p>
+              </figcaption>
+            </motion.figure>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -797,6 +925,8 @@ export default function Index() {
           </svg>
         </button>
       </section>
+
+      <SecaoProvaVisual />
 
       <section id="integracoes" className="scroll-mt-20 border-y border-[#EDF1F9] bg-[#FBFCFF]">
         <div className="mx-auto w-full max-w-[1200px] px-6 py-12 sm:px-8 sm:py-14">
