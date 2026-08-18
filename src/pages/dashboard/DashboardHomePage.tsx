@@ -16,6 +16,7 @@ import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
 import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
 import MobileHome from "@/components/dashboard/MobileHome";
+import ReferralRewardModal from "@/components/dashboard/ReferralRewardModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type AtlasMessage = {
@@ -261,6 +262,7 @@ const DashboardHomePage = () => {
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [conectandoMl, setConectandoMl] = useState(false);
+  const [referralInfoOpen, setReferralInfoOpen] = useState(false);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
   // Inicia o OAuth do Mercado Livre a partir do próprio chat. O helper só
   // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
@@ -594,7 +596,7 @@ const DashboardHomePage = () => {
             </span>
             <button
               type="button"
-              onClick={go("/dashboard/planos")}
+              onClick={() => setReferralInfoOpen(true)}
               style={{
                 width: fs(96),
                 height: fs(40),

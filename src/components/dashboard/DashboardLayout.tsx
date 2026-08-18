@@ -267,6 +267,13 @@ const MobileAccountPage = ({
   isAdmin: boolean;
 }) => {
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Permite abrir o modal de convite a partir de qualquer tela do dashboard.
+  useEffect(() => {
+    const open = () => setInviteOpen(true);
+    window.addEventListener("velo:open-invite-modal", open);
+    return () => window.removeEventListener("velo:open-invite-modal", open);
+  }, []);
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
