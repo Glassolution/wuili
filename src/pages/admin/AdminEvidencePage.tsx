@@ -75,8 +75,8 @@ const duration = (seconds = 0) => {
 };
 
 const Card = ({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 print:border-neutral-300 print:bg-white">
-    <header className="mb-4 flex items-center gap-2 text-white/70 print:text-black">
+  <section className="rounded-2xl border border-[#eeeeeb] bg-white p-5">
+    <header className="mb-4 flex items-center gap-2 text-[#777772]">
       <Icon size={16} strokeWidth={1.5} />
       <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em]">{title}</h2>
     </header>
@@ -85,9 +85,9 @@ const Card = ({ icon: Icon, title, children }: { icon: LucideIcon; title: string
 );
 
 const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex items-start justify-between gap-4 border-b border-white/[0.05] py-2 text-[13px] last:border-0 print:border-neutral-200">
-    <span className="text-white/45 print:text-neutral-600">{label}</span>
-    <span className="text-right font-medium text-white print:text-black">{value ?? "—"}</span>
+  <div className="flex items-start justify-between gap-4 border-b border-[#f1f1ee] py-2 text-[13px] last:border-0">
+    <span className="text-[#8c8c87]">{label}</span>
+    <span className="text-right font-medium text-[#171715]">{value ?? "—"}</span>
   </div>
 );
 
@@ -116,7 +116,7 @@ const AdminEvidencePage = () => {
 
   return (
     <AdminShell
-      active="refunds"
+      active="evidence"
       userId={user?.id ?? ""}
       title="Evidências"
       subtitle="Dossiê do usuário para disputas MED/chargeback: criação da conta, logins, assinatura e ações realizadas."
@@ -125,7 +125,7 @@ const AdminEvidencePage = () => {
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-white/[0.1] print:hidden"
+            className="inline-flex items-center gap-2 rounded-full border border-[#e3e3df] bg-white px-4 py-2 text-[13px] font-medium text-[#171715] transition hover:bg-[#f6f6f4] print:hidden"
           >
             <Printer size={15} strokeWidth={1.5} /> Exportar PDF
           </button>
@@ -140,18 +140,18 @@ const AdminEvidencePage = () => {
         }}
       >
         <div className="relative flex-1">
-          <Search size={16} strokeWidth={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/35" />
+          <Search size={16} strokeWidth={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a19c]" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="E-mail, CPF ou ID do usuário"
-            className="h-11 w-full rounded-full border border-white/10 bg-white/[0.03] pl-11 pr-4 text-[14px] text-white placeholder:text-white/30 outline-none focus:border-white/25"
+            className="h-11 w-full rounded-full border border-[#e3e3df] bg-white pl-11 pr-4 text-[14px] text-[#171715] placeholder:text-[#a1a19c] outline-none focus:border-[#171715]"
           />
         </div>
         <button
           type="submit"
           disabled={search.isPending}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-6 text-[13px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171715] px-6 text-[13px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
         >
           {search.isPending ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} strokeWidth={1.5} />}
           Gerar dossiê
@@ -160,7 +160,7 @@ const AdminEvidencePage = () => {
 
       {data?.found && data.user ? (
         <div className="space-y-4 print:space-y-3">
-          <p className="text-[11px] text-white/35 print:text-neutral-500">
+          <p className="text-[11px] text-[#a1a19c] print:text-neutral-500">
             Dossiê gerado em {fmt(data.generated_at)} (horário de Brasília) · Velo · ID interno {data.user.id}
           </p>
 
@@ -207,35 +207,35 @@ const AdminEvidencePage = () => {
                   />
                 ))
               ) : (
-                <p className="text-[13px] text-white/40 print:text-neutral-600">Nenhuma integração conectada.</p>
+                <p className="text-[13px] text-[#777772]">Nenhuma integração conectada.</p>
               )}
             </Card>
           </div>
 
           <Card icon={FileText} title="Histórico de logins (sessões)">
             {data.sessions?.length ? (
-              <div className="overflow-hidden rounded-xl border border-white/[0.06] print:border-neutral-300">
+              <div className="overflow-hidden rounded-xl border border-[#eeeeeb]">
                 <table className="w-full text-left text-[12.5px]">
-                  <thead className="bg-white/[0.03] text-white/45 print:bg-neutral-100 print:text-neutral-600">
+                  <thead className="bg-[#f7f7f5] text-[#777772]">
                     <tr>
                       <th className="px-3 py-2 font-medium">Início</th>
                       <th className="px-3 py-2 font-medium">Última atividade</th>
                       <th className="px-3 py-2 font-medium">Dispositivo</th>
                     </tr>
                   </thead>
-                  <tbody className="text-white/80 print:text-black">
+                  <tbody className="text-[#3a3a37]">
                     {data.sessions.map((session) => (
-                      <tr key={session.started_at} className="border-t border-white/[0.05] print:border-neutral-200">
+                      <tr key={session.started_at} className="border-t border-[#f1f1ee]">
                         <td className="px-3 py-2">{fmt(session.started_at)}</td>
                         <td className="px-3 py-2">{fmt(session.last_seen_at)}</td>
-                        <td className="max-w-[380px] truncate px-3 py-2 text-white/45 print:text-neutral-600">{session.user_agent ?? "—"}</td>
+                        <td className="max-w-[380px] truncate px-3 py-2 text-[#8c8c87]">{session.user_agent ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p className="text-[13px] text-white/40 print:text-neutral-600">Sem sessões registradas.</p>
+              <p className="text-[13px] text-[#777772]">Sem sessões registradas.</p>
             )}
           </Card>
 
@@ -244,26 +244,26 @@ const AdminEvidencePage = () => {
               <ol className="space-y-3">
                 {timeline.map((item, index) => (
                   <li key={`${item.at}-${index}`} className="flex gap-3 text-[13px]">
-                    <span className="mt-[6px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-white/40 print:bg-black" />
+                    <span className="mt-[6px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#c9c9c4]" />
                     <div className="min-w-0">
-                      <p className="text-white print:text-black">
-                        <span className="text-white/45 print:text-neutral-600">{fmt(item.at)}</span> · {item.label}
+                      <p className="text-[#171715]">
+                        <span className="text-[#8c8c87]">{fmt(item.at)}</span> · {item.label}
                       </p>
-                      {item.detail ? <p className="truncate text-[12px] text-white/40 print:text-neutral-600">{item.detail}</p> : null}
+                      {item.detail ? <p className="truncate text-[12px] text-[#8c8c87]">{item.detail}</p> : null}
                     </div>
                   </li>
                 ))}
               </ol>
             ) : (
-              <p className="text-[13px] text-white/40 print:text-neutral-600">Sem eventos registrados.</p>
+              <p className="text-[13px] text-[#777772]">Sem eventos registrados.</p>
             )}
           </Card>
 
           {data.payments?.length ? (
             <Card icon={CreditCard} title="Eventos de pagamento">
-              <div className="overflow-hidden rounded-xl border border-white/[0.06] print:border-neutral-300">
+              <div className="overflow-hidden rounded-xl border border-[#eeeeeb]">
                 <table className="w-full text-left text-[12.5px]">
-                  <thead className="bg-white/[0.03] text-white/45 print:bg-neutral-100 print:text-neutral-600">
+                  <thead className="bg-[#f7f7f5] text-[#777772]">
                     <tr>
                       <th className="px-3 py-2 font-medium">Data</th>
                       <th className="px-3 py-2 font-medium">Evento</th>
@@ -272,14 +272,14 @@ const AdminEvidencePage = () => {
                       <th className="px-3 py-2 font-medium">Cobrança</th>
                     </tr>
                   </thead>
-                  <tbody className="text-white/80 print:text-black">
+                  <tbody className="text-[#3a3a37]">
                     {data.payments.map((payment) => (
-                      <tr key={String(payment.id)} className="border-t border-white/[0.05] print:border-neutral-200">
+                      <tr key={String(payment.id)} className="border-t border-[#f1f1ee]">
                         <td className="px-3 py-2">{fmt(payment.created_at as string)}</td>
                         <td className="px-3 py-2">{String(payment.event ?? "—")}</td>
                         <td className="px-3 py-2">{String(payment.status ?? "—")}</td>
                         <td className="px-3 py-2">{payment.amount ? brl(payment.amount) : "—"}</td>
-                        <td className="px-3 py-2 text-white/45 print:text-neutral-600">{String(payment.charge_id ?? "—")}</td>
+                        <td className="px-3 py-2 text-[#8c8c87]">{String(payment.charge_id ?? "—")}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -289,7 +289,7 @@ const AdminEvidencePage = () => {
           ) : null}
         </div>
       ) : (
-        <p className="text-[13px] text-white/40 print:hidden">
+        <p className="text-[13px] text-[#777772] print:hidden">
           Busque por e-mail, CPF ou ID para montar o dossiê de evidências.
         </p>
       )}
