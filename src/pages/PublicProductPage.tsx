@@ -31,6 +31,8 @@ import {
 } from "@/lib/userProjects";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
+import StoreReviews from "@/components/store-templates/StoreReviews";
+import { EMPTY_REVIEW_SUMMARY, fetchStoreReviews, summarizeReviews } from "@/lib/storeReviews";
 
 const BENEFITS = [
   { icon: Leaf, label: "Ingredientes selecionados na sua forma natural" },
@@ -55,6 +57,7 @@ const PublicProductPage = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
+  const [reviewSummary, setReviewSummary] = useState(EMPTY_REVIEW_SUMMARY);
 
   useEffect(() => {
     if (!slug || !productId) return;
@@ -102,6 +105,23 @@ const PublicProductPage = () => {
       currency: "BRL",
     });
   }, [project, product]);
+
+  // Resumo das avaliações reais (store_reviews) usado no cabeçalho do produto.
+  useEffect(() => {
+    if (!project?.id) return;
+    let active = true;
+    void (async () => {
+      try {
+        const list = await fetchStoreReviews(project.id);
+        if (active) setReviewSummary(summarizeReviews(list));
+      } catch {
+        if (active) setReviewSummary(EMPTY_REVIEW_SUMMARY);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [project?.id]);
 
   const images = useMemo(() => {
     if (!product) return [] as string[];
