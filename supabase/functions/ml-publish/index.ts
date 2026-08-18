@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,11 +29,26 @@ type SellerStatusBlock = {
 // checkout/landing: base = 50, pro = 200, business = ilimitado. 'go' é um plano
 // legado (não vendido mais) — tratado como base para não bloquear quem o tenha.
 const PRODUCT_LIMITS: Record<PlanName, number | null> = {
-  gratis: 0,
-  go: 50,
-  base: 50,
-  pro: 200,
-  business: null,
+  gratis: PLAN_LIMITS.gratis.mlActiveListings,
+  go: PLAN_LIMITS.base.mlActiveListings,
+  base: PLAN_LIMITS.base.mlActiveListings,
+  pro: PLAN_LIMITS.pro.mlActiveListings,
+  business: PLAN_LIMITS.business.mlActiveListings,
+}
+
+// Publicações novas por mês: separa quem opera em volume (Pro/Business) de quem
+// só mantém uma vitrine enxuta (Base).
+const MONTHLY_PUBLISH_LIMITS: Record<PlanName, number | null> = {
+  gratis: PLAN_LIMITS.gratis.mlPublicationsPerMonth,
+  go: PLAN_LIMITS.base.mlPublicationsPerMonth,
+  base: PLAN_LIMITS.base.mlPublicationsPerMonth,
+  pro: PLAN_LIMITS.pro.mlPublicationsPerMonth,
+  business: PLAN_LIMITS.business.mlPublicationsPerMonth,
+}
+
+const startOfMonthISO = () => {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
 }
 
 function normalizePlanName(plan: unknown): PlanName {
@@ -651,7 +667,23 @@ Deno.serve(async (req) => {
       }
 
       if (publishedProducts >= productLimit) {
-        return json({ error: `Você atingiu o limite de ${productLimit} produtos do seu plano. Faça upgrade para publicar mais.` }, 403)
+        return json({ error: `Você atingiu o limite de ${productLimit} anúncios ativos do seu plano. Faça upgrade para publicar mais.` }, 403)
+      }
+    }
+
+    // Teto de publicações novas no mês corrente.
+    const monthlyLimit = MONTHLY_PUBLISH_LIMITS[userPlan]
+    if (typeof monthlyLimit === 'number' && monthlyLimit > 0) {
+      const monthlyQuery = await supabase
+        .from('user_publications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user_id)
+        .gte('created_at', startOfMonthISO())
+
+      if (!monthlyQuery.error && (monthlyQuery.count ?? 0) >= monthlyLimit) {
+        return json({
+          error: `Você já publicou ${monthlyLimit} anúncios no Mercado Livre neste mês (limite do plano ${userPlan}). Faça upgrade para continuar publicando.`,
+        }, 403)
       }
     }
 
