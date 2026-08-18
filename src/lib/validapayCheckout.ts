@@ -1,13 +1,17 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getReferralCode } from "@/lib/affiliateFunnel";
 
 export type VelloPlanId = "base" | "pro" | "business";
 export type VelloBillingCycle = "monthly" | "annual";
 
 /**
- * Leva o usuário para o CHECKOUT TRANSPARENTE da Velo (`/assinar/:plan`).
- * O pagamento (Pix e cartão) é processado pela ValidaPay via API dentro do
- * nosso domínio — sem redirecionamento para o checkout hospedado, para que a
- * marca e a interface sejam totalmente nossas.
+ * Cria uma sessão de checkout na ValidaPay (Pix + cartão) para o usuário logado
+ * e redireciona a própria aba para a URL hospedada.
+ *
+ * O checkout transparente foi revertido: a API de charges da ValidaPay retornou
+ * a cobrança já como "PAID" sem pagamento real, o que ativava a assinatura
+ * indevidamente. Enquanto o gateway não devolver Pix/cartão de forma confiável,
+ * o checkout hospedado continua sendo o único fluxo válido.
  */
 export type VelloCheckoutCustomer = {
   name?: string;
@@ -20,15 +24,46 @@ export const startValidaPayCheckout = async (
   plan: VelloPlanId,
   cycle: VelloBillingCycle = "monthly",
   coupon?: string | null,
-  _customer?: VelloCheckoutCustomer,
+  customer?: VelloCheckoutCustomer,
 ): Promise<{ ok: boolean; error?: string }> => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {
     return { ok: false, error: "Sua sessão expirou. Entre novamente na Velo para assinar." };
   }
 
-  const params = new URLSearchParams({ cycle });
-  if (coupon) params.set("coupon", coupon);
-  window.location.href = `/assinar/${plan}?${params.toString()}`;
-  return { ok: true };
+  // Indicação é opcional: sem cookie/localStorage de afiliado nada é enviado.
+  const affiliateCode = getReferralCode();
+
+  const { data, error: invokeError } = await supabase.functions.invoke("validapay-checkout", {
+    body: {
+      plan,
+      cycle,
+      ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
+      ...(coupon ? { coupon } : {}),
+      ...(customer ? { customer } : {}),
+    },
+  });
+
+  if (invokeError || typeof data?.url !== "string") {
+    let message = invokeError?.message ?? "Não foi possível iniciar o checkout.";
+    const context = (invokeError as unknown as { context?: Response })?.context;
+    if (context && typeof context.json === "function") {
+      try {
+        const body = await context.json();
+        if (body?.error) message = String(body.error);
+      } catch {
+        // A resposta pode não ser JSON.
+      }
+    }
+    return { ok: false, error: message };
+  }
+
+  try {
+    const checkoutUrl = new URL(data.url);
+    if (checkoutUrl.protocol !== "https:") throw new Error("invalid_protocol");
+    window.location.href = checkoutUrl.toString();
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "A ValidaPay retornou um endereço de checkout inválido. Tente novamente." };
+  }
 };
