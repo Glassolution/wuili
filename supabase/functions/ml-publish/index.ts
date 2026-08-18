@@ -1330,6 +1330,9 @@ Deno.serve(async (req) => {
           buying_mode: 'buy_it_now',
           condition: 'new',
           listing_type_id: 'gold_special',
+          // Celulares só são elegíveis a anúncio de catálogo quando declarados
+          // desbloqueados (erro `cellphone_not_unlocked` sem este atributo).
+          attributes: [{ id: 'CARRIER', value_name: 'Desbloqueado' }],
           shipping: mlPayload.shipping,
         }
         console.log('Payload (catálogo):', JSON.stringify(catalogPayload))
