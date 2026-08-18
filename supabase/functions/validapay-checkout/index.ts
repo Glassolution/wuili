@@ -51,7 +51,13 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const email = claimsData.claims.email as string | undefined;
 
-    let body: { plan?: string; cycle?: string; affiliate_code?: string; coupon?: string } = {};
+    let body: {
+      plan?: string;
+      cycle?: string;
+      affiliate_code?: string;
+      coupon?: string;
+      customer?: { name?: string; document?: string; phone?: string; method?: string };
+    } = {};
     try {
       body = await req.json();
     } catch {
@@ -119,10 +125,27 @@ Deno.serve(async (req) => {
       "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v3.png";
 
 
+    // Dados coletados na tela de checkout da Velo. A ValidaPay quebra (500)
+    // quando `customer` chega sem documentNumber, então só enviamos o objeto
+    // quando temos CPF/CNPJ válido — assim o formulário já vem preenchido.
+    const rawDoc = String(body.customer?.document ?? "").replace(/\D/g, "");
+    const customerPayload =
+      rawDoc.length === 11 || rawDoc.length === 14
+        ? {
+            customer: {
+              name: String(body.customer?.name ?? "").trim() || undefined,
+              email,
+              documentNumber: rawDoc,
+              phone: String(body.customer?.phone ?? "").replace(/\D/g, "") || undefined,
+            },
+          }
+        : {};
+    const preferredMethod = body.customer?.method === "credit_card" ? "CREDIT_CARD" : "PIX";
+
     const basePayload: Record<string, unknown> = {
       priceId,
-      // A ValidaPay quebra (500) quando `customer` é enviado sem documentNumber.
-      // Sem CPF, omitimos o objeto e o cliente preenche os dados no checkout.
+      ...customerPayload,
+      paymentMethod: preferredMethod,
       items: [{ priceId, quantity: 1 }],
       companyName: "Velo",
       logoUrl,

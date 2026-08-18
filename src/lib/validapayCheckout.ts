@@ -8,10 +8,18 @@ export type VelloBillingCycle = "monthly" | "annual";
  * Cria uma sessão de checkout na ValidaPay (Pix Automático) para o usuário logado
  * e redireciona a própria aba para a URL hospedada.
  */
+export type VelloCheckoutCustomer = {
+  name?: string;
+  document?: string;
+  phone?: string;
+  method?: "pix" | "credit_card";
+};
+
 export const startValidaPayCheckout = async (
   plan: VelloPlanId,
   cycle: VelloBillingCycle = "monthly",
   coupon?: string | null,
+  customer?: VelloCheckoutCustomer,
 ): Promise<{ ok: boolean; error?: string }> => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {
@@ -27,6 +35,7 @@ export const startValidaPayCheckout = async (
       cycle,
       ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
       ...(coupon ? { coupon } : {}),
+      ...(customer ? { customer } : {}),
     },
   });
 
