@@ -1830,6 +1830,62 @@ export type Database = {
           },
         ]
       }
+      referral_rewards: {
+        Row: {
+          applied_at: string | null
+          applied_subscription_id: string | null
+          created_at: string
+          id: string
+          invited_user_id: string | null
+          inviter_id: string
+          months: number
+          new_period_end: string | null
+          payment_ref: string
+          previous_period_end: string | null
+          referral_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_subscription_id?: string | null
+          created_at?: string
+          id?: string
+          invited_user_id?: string | null
+          inviter_id: string
+          months?: number
+          new_period_end?: string | null
+          payment_ref: string
+          previous_period_end?: string | null
+          referral_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_subscription_id?: string | null
+          created_at?: string
+          id?: string
+          invited_user_id?: string | null
+          inviter_id?: string
+          months?: number
+          new_period_end?: string | null
+          payment_ref?: string
+          previous_period_end?: string | null
+          referral_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_rewards_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           created_at: string
@@ -3279,6 +3335,10 @@ export type Database = {
     }
     Functions: {
       affiliate_generate_code: { Args: { p_user_id: string }; Returns: string }
+      apply_pending_referral_rewards: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       claim_project_invites: { Args: never; Returns: number }
       close_stale_support_tickets: { Args: never; Returns: number }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
@@ -3427,6 +3487,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      grant_referral_inviter_months: {
+        Args: {
+          p_months?: number
+          p_payment_ref: string
+          p_referral_id: string
+        }
+        Returns: Json
       }
       invite_project_member: {
         Args: { p_email: string; p_project: string; p_role?: string }
