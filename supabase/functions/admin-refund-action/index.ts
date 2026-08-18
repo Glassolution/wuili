@@ -57,22 +57,44 @@ Deno.serve(async (req) => {
 
     // approve
     const { data: sub } = await admin.from("subscriptions").select("*").eq("id", refund.subscription_id).maybeSingle();
-    let providerResponse: unknown = null;
+    let providerResponse: Record<string, unknown> | null = null;
     let refundOk = true;
-    const MP = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
-    if (MP && sub?.mp_payment_id) {
-      const r = await fetch(`https://api.mercadopago.com/v1/payments/${sub.mp_payment_id}/refunds`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${MP}`, "Content-Type": "application/json", "X-Idempotency-Key": `refund-${sub.id}-${Date.now()}` },
-        body: JSON.stringify({}),
-      });
-      providerResponse = await r.json();
-      refundOk = r.ok;
+    let refundProcessing = false;
+
+    if (sub?.validapay_charge_id) {
+      // Estorno de cartão/Pix na ValidaPay (POST /v1/wallet/refunds)
+      try {
+        const result = await refundCharge(
+          sub.validapay_charge_id,
+          Number(refund.refund_amount ?? sub.amount),
+          "CUSTOMER_REQUEST",
+        ) as Record<string, unknown>;
+        const st = String(result?.status ?? "").toUpperCase();
+        refundProcessing = st === "PROCESSING";
+        refundOk = st === "CONFIRMED" || st === "COMPLETED" || st === "SUCCESS" || refundProcessing || result?.success === true;
+        providerResponse = { provider: "validapay", ...result };
+      } catch (e) {
+        const err = e as ValidaPayError;
+        refundOk = false;
+        providerResponse = { provider: "validapay", error: err.message, details: err.details ?? null };
+        console.error("refund_logs", JSON.stringify({ origin: "admin-refund-action", outcome: "error", message: err.message }));
+      }
+    } else {
+      const MP = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+      if (MP && sub?.mp_payment_id) {
+        const r = await fetch(`https://api.mercadopago.com/v1/payments/${sub.mp_payment_id}/refunds`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${MP}`, "Content-Type": "application/json", "X-Idempotency-Key": `refund-${sub.id}-${Date.now()}` },
+          body: JSON.stringify({}),
+        });
+        providerResponse = await r.json();
+        refundOk = r.ok;
+      }
     }
 
     await admin.from("refund_requests").update({
       status: refundOk ? "processed" : "rejected",
-      provider_response: providerResponse as Record<string, unknown> | null,
+      provider_response: providerResponse,
       processed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", refund_id);
