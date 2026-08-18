@@ -46,23 +46,26 @@ export const usePlan = (): PlanState => {
       // cuja linha ficou em "paid"/"approved"/"trialing" cairia no fallback e
       // seria tratado como "gratis" — perdendo o direito de publicar a loja.
       // Mesmo conjunto usado em DashboardSidebar/PreviewPage/Admin.
-      const { data: sub } = await supabase
+      // Pode haver mais de uma assinatura ativa (upgrade, cobrança recriada,
+      // migração). Vale sempre o MAIOR plano ativo — pegar a mais recente
+      // rebaixava quem tinha Pro ativo com uma linha Base criada depois.
+      const { data: subs } = await supabase
         .from("subscriptions")
         .select("plan, status")
         .eq("user_id", user.id)
-        .in("status", ["active", "paid", "approved", "trialing"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .in("status", ["active", "paid", "approved", "trialing"]);
 
       if (cancelled) return;
 
-      if (sub) {
-        setState({
-          plan: NORMALIZE[sub.plan] ?? "gratis",
-          status: "active",
-          loading: false,
-        });
+      const RANK: Record<PlanName, number> = {
+        gratis: 0, base: 1, go: 1, pro: 2, business: 3,
+      };
+      const best = (subs ?? [])
+        .map((s) => NORMALIZE[s.plan] ?? "gratis")
+        .sort((a, b) => RANK[b] - RANK[a])[0];
+
+      if (best && best !== "gratis") {
+        setState({ plan: best, status: "active", loading: false });
         return;
       }
 
