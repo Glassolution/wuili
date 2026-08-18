@@ -697,10 +697,18 @@ const CheckoutPage = () => {
               </p>
               <button
                 type="button"
+                disabled={checkingOutPlanId === "pro"}
                 onClick={() => startCheckout("pro")}
-                className="h-9 shrink-0 rounded-[10px] border border-black/15 bg-white px-5 text-[12px] font-semibold text-black transition hover:border-black/40 hover:bg-black/[0.03] sm:ml-2"
+                className="h-9 shrink-0 rounded-[10px] border border-black/15 bg-white px-5 text-[12px] font-semibold text-black transition hover:border-black/40 hover:bg-black/[0.03] disabled:cursor-not-allowed disabled:opacity-70 sm:ml-2"
               >
-                Continuar com Pro
+                {checkingOutPlanId === "pro" ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Loader2 size={14} className="animate-spin" />
+                    Redirecionando...
+                  </span>
+                ) : (
+                  "Continuar com Pro"
+                )}
               </button>
             </div>
           </section>
