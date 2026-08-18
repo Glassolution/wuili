@@ -3,6 +3,10 @@ import {
   sendSubscriptionConfirmationEmailOnce,
   type SubscriptionEmailInput,
 } from "../_shared/transactional-email-templates.ts";
+import {
+  applyPendingReferralRewards,
+  grantInviterMonthsForPaidInvitee,
+} from "../_shared/referral-rewards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -360,8 +364,19 @@ Deno.serve(async (req) => {
             invited_rewarded: true,
             inviter_rewarded: rewardInviter,
           }).eq("id", appliedReferralId);
+
+          // Convidado pagou → quem convidou ganha 3 meses grátis (cumulativo,
+          // sem teto e idempotente por pagamento).
+          await grantInviterMonthsForPaidInvitee(adminClient, {
+            invitedUserId: userId,
+            paymentRef: String(mpData.id),
+            referralId: appliedReferralId,
+          });
         }
       }
+
+      // Recompensas pendentes do próprio usuário (ele convidou alguém antes de assinar).
+      await applyPendingReferralRewards(adminClient, userId);
 
       if (!isTrial && subscriptionRow) {
         const emailResult = await sendSubscriptionConfirmationEmailOnce({

@@ -11,6 +11,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCharge, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
+import {
+  applyPendingReferralRewards,
+  grantInviterMonthsForPaidInvitee,
+} from "../_shared/referral-rewards.ts";
 
 
 const corsHeaders = {
@@ -300,6 +304,17 @@ Deno.serve(async (req) => {
           providerSubscriptionId: payload.subscriptionId ?? null,
         });
         console.log("validapay-webhook: comissão", event, commission);
+
+        // Indicação: se este assinante veio de um convite, quem convidou ganha
+        // 3 meses grátis (idempotente por pagamento). Também aplicamos aqui
+        // eventuais recompensas pendentes do próprio assinante.
+        if (paymentKey) {
+          await grantInviterMonthsForPaidInvitee(admin, {
+            invitedUserId: subscription.user_id,
+            paymentRef: String(paymentKey),
+          });
+        }
+        await applyPendingReferralRewards(admin, subscription.user_id);
         break;
       }
       case "payment.failed":

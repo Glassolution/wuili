@@ -3,6 +3,10 @@ import {
   sendSubscriptionConfirmationEmailOnce,
   type SubscriptionEmailInput,
 } from "../_shared/transactional-email-templates.ts";
+import {
+  applyPendingReferralRewards,
+  grantInviterMonthsForPaidInvitee,
+} from "../_shared/referral-rewards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -250,6 +254,13 @@ Deno.serve(async (req) => {
       if (profileError) {
         console.error("Active subscription profile sync failed:", JSON.stringify({ user_id: userId, plan: normalizedPlan, error: profileError }));
       }
+      // Indicação: primeiro pagamento confirmado do convidado → +3 meses para quem convidou.
+      await grantInviterMonthsForPaidInvitee(adminClient, {
+        invitedUserId: String(userId),
+        paymentRef: String(paymentId),
+      });
+      await applyPendingReferralRewards(adminClient, String(userId));
+
       if (subscriptionForEmail) {
         const emailResult = await sendSubscriptionConfirmationEmailOnce({
           adminClient,
