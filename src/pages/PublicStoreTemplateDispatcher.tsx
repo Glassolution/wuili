@@ -11,6 +11,10 @@ const ProductT1 = lazy(() => import("./PublicProductPage"));
 const ProductT2 = lazy(() => import("./PublicProductPage2"));
 const AccountT1 = lazy(() => import("./PublicStoreAccountPage"));
 const AccountT2 = lazy(() => import("./PublicStoreAccountPage2"));
+// Projetos de página de venda (template "produto-*") não têm loja: a rota de
+// produto precisa renderizar o MESMO template do editor, senão a página
+// publicada caía no produto genérico da loja (o "template antigo").
+const PublishedSalesPage = lazy(() => import("./PublicStorePage"));
 
 const Loading = () => (
   <div className="grid min-h-screen place-items-center bg-white">
