@@ -18,14 +18,16 @@ type Client = {
   from: (table: string) => any;
 } | null;
 
+import { PLAN_LIMITS, normalizePlanKey } from "./plan-limits.ts";
+
 export const ATLAS_ETAPA_RESUMO = "resumo_contexto";
 
 /** Ponto de partida. Vamos calibrar com dados reais de atlas_usage_logs. */
 export const ATLAS_QUOTAS: Record<string, number | null> = {
-  gratis: 15,
-  base: 60,
-  pro: 200,
-  business: null, // ilimitado, com alerta interno
+  gratis: PLAN_LIMITS.gratis.atlasMessagesPerDay,
+  base: PLAN_LIMITS.base.atlasMessagesPerDay,
+  pro: PLAN_LIMITS.pro.atlasMessagesPerDay,
+  business: PLAN_LIMITS.business.atlasMessagesPerDay,
 };
 
 /** Acima disso um usuário business vira log de alerta para revisarmos. */
@@ -59,10 +61,7 @@ const inicioDoDiaBrasilia = () => {
   return new Date(meiaNoiteBrasilia + OFFSET_BRASILIA_MS).toISOString();
 };
 
-const normalizarPlano = (valor: unknown) => {
-  const plano = typeof valor === "string" ? valor.trim().toLowerCase() : "";
-  return plano in ATLAS_QUOTAS ? plano : "gratis";
-};
+const normalizarPlano = (valor: unknown): string => normalizePlanKey(valor);
 
 /**
  * Estado da cota do usuário agora.
@@ -129,4 +128,4 @@ export const checarQuotaAtlas = async (supabase: Client, userId: string): Promis
 export const mensagemDeQuotaEsgotada = (quota: AtlasQuota) =>
   quota.plano === "gratis"
     ? `Você já usou as ${quota.limite} mensagens de hoje com o Atlas. 😄\n\nElas voltam amanhã. Se quiser conversar sem esse limite apertado, os planos pagos liberam bem mais mensagens por dia.`
-    : `Você chegou ao limite de ${quota.limite} mensagens do Atlas por hoje. Elas voltam amanhã.\n\nEnquanto isso, dá para seguir publicando e acompanhando seus anúncios normalmente.`;
+    : `Você chegou ao limite de ${quota.limite} mensagens do Atlas por hoje no plano ${quota.plano}. Elas voltam amanhã.\n\nSe precisa conversar mais, o plano superior amplia esse limite — enquanto isso dá para seguir publicando e acompanhando seus anúncios normalmente.`;

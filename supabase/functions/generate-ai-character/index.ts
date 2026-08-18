@@ -143,9 +143,8 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
 
     // Limite de influencers por plano
-    const PLAN_CHARACTER_LIMITS: Record<string, number | null> = {
-      gratis: 1, free: 1, go: 1, base: 3, plus: 5, pro: 5, business: null,
-    };
+    // Limites vindos da matriz única de planos (inclusive teto no Business:
+    // cada personagem custa geração de imagem).
     const { data: sub } = await admin
       .from("subscriptions")
       .select("plan, status")
