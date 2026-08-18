@@ -49,11 +49,18 @@ export const usePlan = (): PlanState => {
       // Pode haver mais de uma assinatura ativa (upgrade, cobrança recriada,
       // migração). Vale sempre o MAIOR plano ativo — pegar a mais recente
       // rebaixava quem tinha Pro ativo com uma linha Base criada depois.
-      const { data: subs } = await supabase
+      const { data: subs, error: subsError } = await supabase
         .from("subscriptions")
         .select("plan, status")
         .eq("user_id", user.id)
         .in("status", ["active", "paid", "approved", "trialing"]);
+
+      if (subsError) {
+        // Erro aqui antes caía direto no fallback de "profiles" sem nenhum
+        // aviso — uma falha transitória de rede fazia um assinante pago
+        // parecer "gratis" silenciosamente.
+        console.warn("[usePlan] failed to load subscriptions", subsError);
+      }
 
       if (cancelled) return;
 
@@ -70,11 +77,15 @@ export const usePlan = (): PlanState => {
       }
 
       // 2. Fall back to profile plano field
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("plano")
         .eq("user_id", user.id)
         .maybeSingle();
+
+      if (profileError) {
+        console.warn("[usePlan] failed to load profile plano", profileError);
+      }
 
       if (cancelled) return;
 
