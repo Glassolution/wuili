@@ -658,26 +658,44 @@ const MobileAliVeloHome = ({
 
         {products.length > 0 && (
           <section ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
-            <div className="mb-5 grid grid-cols-4 gap-0.5 pb-1">
-              {mobileVeloActionItems.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => navigate(item.to)}
-                  className="flex min-w-0 flex-col items-center text-center"
-                >
-                  <span className="flex h-[58px] w-[58px] items-center justify-center overflow-hidden">
-                    <img
-                      src={item.image}
-                      alt=""
-                      className="h-full w-full object-contain object-center"
-                    />
-                  </span>
-                  <span className="line-clamp-1 max-w-full text-[10px] font-bold leading-tight tracking-[-0.02em] text-[#4A4A4A]">
-                    {item.label}
-                  </span>
-                </button>
-              ))}
+            <div className="mb-4 grid grid-cols-4 gap-1 pb-1">
+              {mobileVeloActionItems.map((item) => {
+                const ItemIcon = item.icon;
+
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => navigate(item.to)}
+                    className="flex min-w-0 flex-col items-center gap-1.5 text-center transition-transform active:scale-95"
+                  >
+                    <span
+                      className={`flex h-[52px] w-[52px] items-center justify-center rounded-[18px] bg-gradient-to-br ${item.tint} text-white shadow-[0_8px_18px_rgba(37,99,235,0.28)]`}
+                    >
+                      <ItemIcon className="h-[24px] w-[24px]" strokeWidth={2.2} />
+                    </span>
+                    <span className="line-clamp-2 max-w-full text-[10px] font-bold leading-tight tracking-[-0.02em] text-[#334155]">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mb-5 flex items-center gap-2.5 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#2563EB] text-white">
+                <Truck className="h-[17px] w-[17px]" strokeWidth={2.3} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-black tracking-[-0.03em] text-[#1E3A8A]">Envio nacional</p>
+                <p className="text-[11px] font-semibold leading-tight text-[#475569]">
+                  Fornecedores no Brasil, entrega mais rápida para o seu cliente
+                </p>
+              </div>
+              <span className="ml-auto flex shrink-0 items-center gap-1 rounded-full bg-[#FACC15] px-2 py-1 text-[10px] font-black text-[#1E3A8A]">
+                <BadgePercent className="h-[12px] w-[12px]" strokeWidth={2.6} />
+                Margem
+              </span>
             </div>
 
             <div className="mb-3 flex items-end justify-between gap-3">
