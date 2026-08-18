@@ -111,8 +111,9 @@ Deno.serve(async (req) => {
 
     const origin = req.headers.get("origin") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
 
-    // A ValidaPay mantém este caminho como a marca fixa do checkout. O arquivo
-    // é uma composição branca com a logo atual, sobrepondo a arte antiga.
+    // Atenção: a logo do checkout hospedado NÃO vem daqui. A ValidaPay usa a
+    // imagem da própria conta (pathLogo = customer-logo/<accountNumber>), que só
+    // muda no painel da ValidaPay. Enviamos a URL apenas por compatibilidade.
     const logoUrl =
       "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo.png";
 
