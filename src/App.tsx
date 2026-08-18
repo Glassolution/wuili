@@ -325,6 +325,8 @@ const App = () => (
                 <Route index element={<DashboardHomePage />} />
               </Route>
               <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/assinar/:plan" element={<AssinaturaCheckoutPage />} />
+
               <Route path="/ref/:code" element={<RefCapturePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
