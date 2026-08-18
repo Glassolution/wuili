@@ -669,10 +669,8 @@ const MobileAliVeloHome = ({
                     onClick={() => navigate(item.to)}
                     className="flex min-w-0 flex-col items-center gap-1.5 text-center transition-transform active:scale-95"
                   >
-                    <span
-                      className={`flex h-[52px] w-[52px] items-center justify-center rounded-[18px] bg-gradient-to-br ${item.tint} text-white shadow-[0_8px_18px_rgba(37,99,235,0.28)]`}
-                    >
-                      <ItemIcon className="h-[24px] w-[24px]" strokeWidth={2.2} />
+                    <span className="flex h-[52px] w-[52px] items-center justify-center rounded-[18px] border border-[#DBEAFE] bg-[#EFF6FF] text-[#2563EB]">
+                      <ItemIcon className="h-[24px] w-[24px]" strokeWidth={2} />
                     </span>
                     <span className="line-clamp-2 max-w-full text-[10px] font-bold leading-tight tracking-[-0.02em] text-[#334155]">
                       {item.label}
