@@ -279,17 +279,30 @@ const PublicProductPage = () => {
 
         {/* INFO */}
         <div>
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-[#1a1a1a]">
-            <div className="flex items-center">
-              {Array.from({ length: 5 }).map((_, idx) => (
-                <Star key={idx} size={14} strokeWidth={0} className="fill-[#1a3c2a] text-[#1a3c2a]" />
-              ))}
+          {reviewSummary.average !== null ? (
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-[#1a1a1a]">
+              <div className="flex items-center">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <Star
+                    key={idx}
+                    size={14}
+                    strokeWidth={idx < Math.round(reviewSummary.average ?? 0) ? 0 : 1.5}
+                    className={
+                      idx < Math.round(reviewSummary.average ?? 0)
+                        ? "fill-[#1a3c2a] text-[#1a3c2a]"
+                        : "text-[#1a3c2a]/35"
+                    }
+                  />
+                ))}
+              </div>
+              <span>{reviewSummary.average.toFixed(1)}/5</span>
+              <span className="text-[#1a1a1a]/55">
+                baseado em <strong className="font-bold">{reviewSummary.count}</strong>{" "}
+                {reviewSummary.count === 1 ? "avaliação" : "avaliações"}
+              </span>
             </div>
-            <span>4.9/5</span>
-            <span className="text-[#1a1a1a]/55">
-              baseado em <strong className="font-bold">1.031</strong> clientes felizes
-            </span>
-          </div>
+          ) : null}
+
 
           <h1
             className="mt-4 font-semibold leading-[1.05] tracking-[-0.015em] text-[#1a1a1a]"
