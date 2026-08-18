@@ -515,7 +515,11 @@ const CheckoutPage = () => {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <VeloMark size={34} />
+                <img
+                  src="/logo.png"
+                  alt="Velo"
+                  className="h-9 w-auto object-contain"
+                />
               </div>
 
               <div className="flex items-center gap-2" role="presentation">
@@ -607,9 +611,11 @@ const CheckoutPage = () => {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-4">
-                      {/* Marca da Velo com tratamento tonal por plano: o plano em
-                          destaque vem sólido, os demais em cinza claro. */}
-                      <VeloMark size={44} tone={isFeatured ? "solid" : "soft"} />
+                      <img
+                        src="/logo.png"
+                        alt="Velo"
+                        className={`h-11 w-auto object-contain transition-opacity ${isFeatured ? "opacity-100" : "opacity-60"}`}
+                      />
                       {currentPlan.badge && (
                         <span
                           className={`rounded-[6px] px-2 py-[3px] text-[11px] font-semibold leading-[16px] ${
