@@ -49,8 +49,9 @@ const plans: Plan[] = [
     cta: "Assinar Base",
     ctaStyle: "outlined",
     features: [
-      { icon: Zap, text: "Importação automática de até 50 produtos por mês pro Mercado Livre — nacionais e internacionais, já com preço e margem calculados" },
-      { icon: Sparkles, text: "1 página de vendas gerada por IA por mês" },
+      { icon: Zap, text: "Até 50 anúncios ativos no Mercado Livre (50 publicações por mês), já com preço e margem calculados" },
+      { icon: Sparkles, text: "1 página de vendas gerada por IA por mês · 20 imagens com IA por mês" },
+      { icon: RefreshCw, text: "Publicação uma a uma — sem lote, variações ou sincronização automática de estoque" },
       { icon: Store, text: "Loja completa: não incluída neste plano" },
       { icon: Layers, text: "Acesso completo ao catálogo validado da Velo" },
       { icon: Globe, text: "Subdomínio grátis (seunome.velo.store)" },
@@ -66,8 +67,8 @@ const plans: Plan[] = [
     cta: "Assinar Pro",
     ctaStyle: "filled",
     features: [
-      { icon: Zap, text: "Importação automática de até 200 produtos por mês pro Mercado Livre" },
-      { icon: Sparkles, text: "5 páginas de vendas geradas por IA por mês" },
+      { icon: Zap, text: "Até 300 anúncios ativos no Mercado Livre, com publicação em lote e variações" },
+      { icon: Sparkles, text: "10 páginas de vendas por IA · 100 imagens e 10 vídeos com IA por mês" },
       { icon: Store, text: "3 lojas completas geradas por IA — dá pra separar por nicho, se quiser" },
       { icon: Globe, text: "Domínio próprio grátis" },
       { icon: RefreshCw, text: "Atualização automática de preço e estoque nos produtos publicados" },
@@ -86,8 +87,8 @@ const plans: Plan[] = [
     cta: "Assinar Business",
     ctaStyle: "filled",
     features: [
-      { icon: Zap, text: "Importação ilimitada de produtos pro Mercado Livre" },
-      { icon: Sparkles, text: "Páginas de vendas ilimitadas" },
+      { icon: Zap, text: "Anúncios ilimitados no Mercado Livre, sem teto mensal de publicação" },
+      { icon: Sparkles, text: "Páginas de vendas ilimitadas · 300 imagens e 30 vídeos com IA por mês" },
       { icon: Store, text: "Lojas completas ilimitadas" },
       { icon: Globe, text: "Domínio próprio grátis em todas as lojas" },
       { icon: Headphones, text: "Suporte prioritário com atendimento dedicado" },
