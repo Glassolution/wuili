@@ -274,7 +274,7 @@ const CheckoutPage = () => {
       return;
     }
     redirectedRef.current = true;
-    setCheckoutState("loading");
+    setCheckingOutPlanId(planId);
     void (async () => {
       const res = await startValidaPayCheckout(
         planId as VelloPlanId,
@@ -284,8 +284,8 @@ const CheckoutPage = () => {
         return;
       }
       redirectedRef.current = false;
+      setCheckingOutPlanId(null);
       toast.error(res.error ?? "Não foi possível gerar o pagamento.");
-      setCheckoutState("idle");
       setShowPaymentStep(false);
     })();
   }, [showPaymentStep, session, planId, billingCycle, navigate]);
