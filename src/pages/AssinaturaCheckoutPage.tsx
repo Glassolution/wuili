@@ -80,7 +80,7 @@ export default function AssinaturaCheckoutPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (!active) return;
       if (!data.user) {
-        navigate("/entrar?next=" + encodeURIComponent(`/assinar/${plan}?cycle=${cycle}`));
+        navigate("/login?next=" + encodeURIComponent(`/assinar/${plan}?cycle=${cycle}`));
         return;
       }
       setEmail(data.user.email ?? "");
