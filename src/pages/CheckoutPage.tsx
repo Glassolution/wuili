@@ -275,18 +275,16 @@ const CheckoutPage = () => {
     }
     redirectedRef.current = true;
     setCheckoutState("loading");
-    const toastId = toast.loading("Abrindo checkout seguro...");
     void (async () => {
       const res = await startValidaPayCheckout(
         planId as VelloPlanId,
         billingCycle === "annual" ? "annual" : "monthly",
       );
       if (res.ok) {
-        toast.success("Redirecionando para o pagamento...", { id: toastId });
         return;
       }
       redirectedRef.current = false;
-      toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.");
       setCheckoutState("idle");
       setShowPaymentStep(false);
     })();
