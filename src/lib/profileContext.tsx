@@ -1,9 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 
 type ProfileContextType = {
+  /** Nome completo, como está salvo. Use em formulários de edição. */
   nome: string;
+  /** Dois primeiros nomes (ou o e-mail). Use para exibir na interface. */
+  nomeCurto: string;
   foto: string | null;
   setNome: (v: string) => void;
   setFoto: (v: string | null) => void;
@@ -11,6 +15,7 @@ type ProfileContextType = {
 
 const ProfileContext = createContext<ProfileContextType>({
   nome: "Usuario",
+  nomeCurto: "Usuario",
   foto: null,
   setNome: () => {},
   setFoto: () => {},
@@ -74,7 +79,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     };
   }, [user]);
 
-  const value = useMemo(() => ({ nome, foto, setNome, setFoto }), [nome, foto]);
+  const value = useMemo(
+    () => ({ nome, nomeCurto: nomeDeExibicao(nome, user?.email), foto, setNome, setFoto }),
+    [nome, foto, user?.email],
+  );
 
   return (
     <ProfileContext.Provider value={value}>

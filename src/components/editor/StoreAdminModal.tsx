@@ -12,6 +12,7 @@ import {
   Users,
   Package,
   ListOrdered,
+  BarChart3,
   X,
   Settings2,
   ImageIcon,
@@ -19,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { updateProjectMetadata, type UserProject } from "@/lib/userProjects";
 import { formatPriceBRL } from "@/lib/priceFormat";
+import { isValidPixelId, normalizePixelId } from "@/lib/metaPixel";
 
 export type FlowStepId =
   | "home"
@@ -57,7 +59,7 @@ export type CustomProduct = {
   category?: string;
 };
 
-type Tab = "clientes" | "produtos" | "fluxo";
+type Tab = "clientes" | "produtos" | "fluxo" | "marketing";
 
 type StoreOrderRow = {
   id: string;
@@ -112,6 +114,8 @@ export default function StoreAdminModal({
   const [customProducts, setCustomProducts] = useState<CustomProduct[]>(initial.customProducts);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [metaPixelId, setMetaPixelId] = useState<string>(project?.meta_pixel_id ?? "");
+  const [pixelError, setPixelError] = useState<string | null>(null);
   const [draft, setDraft] = useState<CustomProduct>({
     id: "",
     title: "",
@@ -127,6 +131,8 @@ export default function StoreAdminModal({
     setFlow(s.flow);
     setCustomProducts(s.customProducts);
     setEditingId(null);
+    setMetaPixelId(project?.meta_pixel_id ?? "");
+    setPixelError(null);
   }, [open, project]);
 
   useEffect(() => {
@@ -190,13 +196,25 @@ export default function StoreAdminModal({
 
   const persist = async () => {
     if (!project) return;
+    // Pixel: vazio limpa o campo; qualquer valor precisa ter 10–20 dígitos.
+    const pixel = normalizePixelId(metaPixelId);
+    if (pixel && !isValidPixelId(pixel)) {
+      setTab("marketing");
+      setPixelError("O Pixel ID deve conter apenas números, entre 10 e 20 dígitos.");
+      return;
+    }
+    setPixelError(null);
     setSaving(true);
     try {
       const updated = await updateProjectMetadata(project, {
         customerFlow: flow,
         customProducts,
       });
-      onProjectUpdated(updated);
+      const nextPixel = pixel || null;
+      if (nextPixel !== (project.meta_pixel_id ?? null)) {
+        await supabase.from("user_projects").update({ meta_pixel_id: nextPixel }).eq("id", project.id);
+      }
+      onProjectUpdated({ ...updated, meta_pixel_id: nextPixel });
       onClose();
     } finally {
       setSaving(false);
@@ -211,6 +229,7 @@ export default function StoreAdminModal({
     { id: "clientes", label: "Clientes", icon: Users, hint: "Pedidos & contatos" },
     { id: "produtos", label: "Produtos", icon: Package, hint: "Catálogo próprio" },
     { id: "fluxo", label: "Fluxo do cliente", icon: ListOrdered, hint: "Jornada de compra" },
+    { id: "marketing", label: "Marketing", icon: BarChart3, hint: "Meta Pixel & anúncios" },
   ];
 
   return (
@@ -280,11 +299,13 @@ export default function StoreAdminModal({
                     {tab === "clientes" && "Clientes"}
                     {tab === "produtos" && "Produtos"}
                     {tab === "fluxo" && "Fluxo do cliente"}
+                    {tab === "marketing" && "Marketing"}
                   </h2>
                   <p className="mt-0.5 text-[12px] text-white/50">
                     {tab === "clientes" && "Pedidos e contatos recebidos pela sua loja."}
                     {tab === "produtos" && "Adicione, edite, organize e categorize seus produtos."}
                     {tab === "fluxo" && "Defina a sequência de telas que o cliente percorre."}
+                    {tab === "marketing" && "Rastreie visitas e vendas da sua loja nos anúncios da Meta."}
                   </p>
                 </div>
                 <button
@@ -640,7 +661,49 @@ export default function StoreAdminModal({
                     </ul>
                   </div>
                 ) : null}
+
+                {/* MARKETING — Meta Pixel */}
+                {tab === "marketing" ? (
+                  <div className="max-w-[560px] space-y-4">
+                    <section className="rounded-2xl bg-white/[0.03] p-5">
+                      <label htmlFor="meta-pixel-id" className="block text-[13px] font-semibold text-white">
+                        Meta Pixel ID (Facebook Ads)
+                      </label>
+                      <input
+                        id="meta-pixel-id"
+                        value={metaPixelId}
+                        onChange={(e) => {
+                          setMetaPixelId(normalizePixelId(e.target.value));
+                          setPixelError(null);
+                        }}
+                        inputMode="numeric"
+                        placeholder="Ex: 1234567890123456"
+                        className="mt-3 w-full rounded-lg bg-black/40 px-3 py-2.5 text-[12.5px] text-white placeholder:text-white/30 outline-none ring-1 ring-white/[0.06] focus:ring-white/25"
+                      />
+                      {pixelError ? (
+                        <p className="mt-2 text-[11.5px] text-red-400">{pixelError}</p>
+                      ) : null}
+                      <p className="mt-2 text-[11.5px] leading-relaxed text-white/50">
+                        Cole aqui o ID do seu Pixel da Meta para rastrear visitas e vendas da sua loja em campanhas no
+                        Facebook e Instagram Ads. Não sabe como criar?{" "}
+                        <a
+                          href="https://www.facebook.com/business/help/952192354843755"
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="text-white underline underline-offset-2"
+                        >
+                          Ver como criar seu Pixel
+                        </a>
+                        .
+                      </p>
+                    </section>
+                    <p className="text-[11px] text-white/40">
+                      Eventos enviados automaticamente na sua loja: PageView, ViewContent, InitiateCheckout e Purchase.
+                    </p>
+                  </div>
+                ) : null}
               </div>
+
 
               <footer className="flex items-center justify-end gap-2 border-t border-white/[0.05] px-7 py-4">
                 <button

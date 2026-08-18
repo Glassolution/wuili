@@ -374,7 +374,8 @@ const AtlasDockPanel = () => {
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-black/[0.05] p-3 sm:px-6 sm:pb-5">
+      {/* Sem borda superior: a barra do chat encosta na conversa sem risco separando. */}
+      <div className="shrink-0 p-3 sm:px-6 sm:pb-5">
         <form
           onSubmit={submeter}
           className={`flex items-center gap-2 rounded-full border border-black/[0.09] bg-white px-3 py-1.5 transition-colors focus-within:border-[#2563EB]/35 ${lateral ? "" : "mx-auto w-full max-w-[760px] px-4 py-2.5"}`}

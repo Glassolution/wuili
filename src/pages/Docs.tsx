@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
+import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import {
   useHelpFeed,
   type HelpFeedComment,
@@ -1081,10 +1082,14 @@ export default function Docs() {
 
   const canInteract = useMemo(() => Boolean(user), [user]);
   const accountName = useMemo(() => {
-    if (nome && nome !== "Usuario") return nome;
-    const metadataName = user?.user_metadata?.full_name || user?.user_metadata?.name;
-    if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
-    return user?.email?.split("@")[0] || "Usuario";
+    const bruto =
+      nome && nome !== "Usuario"
+        ? nome
+        : (user?.user_metadata?.full_name as string | undefined) ||
+          (user?.user_metadata?.name as string | undefined) ||
+          "";
+    // Exibição: só os dois primeiros nomes.
+    return nomeDeExibicao(bruto, user?.email);
   }, [nome, user]);
   const [emailHash, setEmailHash] = useState<string | null>(null);
   useEffect(() => {

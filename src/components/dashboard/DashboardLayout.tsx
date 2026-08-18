@@ -21,16 +21,11 @@ import {
   type VeloStore,
 } from "@/components/dashboard/FirstStoreOnboarding";
 import OnboardingModal, {
-  hasPendingOnboarding,
-  isFreshSignup,
   markOnboardingSeen,
   shouldShowOnboarding,
 } from "@/components/onboarding/OnboardingModal";
 import AtlasProductShowcase from "@/components/dashboard/AtlasProductShowcase";
 import { CHAVE_RESPOSTAS_DO_QUIZ } from "@/lib/perfilDoQuiz";
-import GuidedTour from "@/components/tour/GuidedTour";
-import TourWelcomeModal from "@/components/tour/TourWelcomeModal";
-import { hasSeenTour, markTourSeen } from "@/components/tour/tourState";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -526,12 +521,6 @@ const DashboardLayoutInner = () => {
   // e não reaparece depois de concluído (flag em localStorage por usuário).
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Tour guiado: convite no primeiro acesso após o cadastro, depois do
-  // onboarding. Só no desktop — o tour destaca itens da sidebar, que não existe
-  // de forma persistente no mobile.
-  const [tourPromptOpen, setTourPromptOpen] = useState(false);
-  const [tourRunning, setTourRunning] = useState(false);
-
   useEffect(() => {
     if (!user?.id) {
       setShowOnboarding(false);
@@ -540,35 +529,7 @@ const DashboardLayoutInner = () => {
     setShowOnboarding(shouldShowOnboarding(user));
   }, [user]);
 
-  useEffect(() => {
-    if (!user?.id || isMobile) return;
-    // Só para quem acabou de se cadastrar, e uma única vez.
-    const isNewUser = hasPendingOnboarding(user.id) || isFreshSignup(user);
-    if (!isNewUser || hasSeenTour(user.id)) return;
-    // Se o onboarding ainda vai aparecer, o convite espera ele terminar
-    // (disparado no onComplete) para os dois não se sobreporem.
-    if (shouldShowOnboarding(user)) return;
-    setTourPromptOpen(true);
-  }, [user, isMobile]);
-
-  // Primeiro nome para a saudação do convite do tour. Derivado aqui porque o
-  // `displayName` do MobileDashboardChrome é de outro componente/escopo.
-  const tourFirstName =
-    (user?.user_metadata?.full_name as string | undefined)?.trim().split(" ")[0] || undefined;
-
-  const dismissTour = () => {
-    setTourPromptOpen(false);
-    setTourRunning(false);
-    if (user?.id) markTourSeen(user.id);
-  };
-
-  const startTour = () => {
-    setTourPromptOpen(false);
-    setTourRunning(true);
-  };
-
-  // Chamado ao concluir o onboarding: fecha o modal e, no desktop, encadeia o
-  // convite do tour.
+  // Chamado ao concluir o onboarding.
   const handleOnboardingComplete = (respostas: Record<string, string>) => {
     if (!user?.id) return;
     markOnboardingSeen(user.id);
@@ -583,7 +544,6 @@ const DashboardLayoutInner = () => {
       data: { velo_onboarding_pending: false, [CHAVE_RESPOSTAS_DO_QUIZ]: respostas },
     });
     setShowOnboarding(false);
-    if (!isMobile && !hasSeenTour(user.id)) setTourPromptOpen(true);
   };
 
   useEffect(() => {
@@ -904,14 +864,6 @@ const DashboardLayoutInner = () => {
         </div>
       </div>
       {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
-
-      <TourWelcomeModal
-        open={tourPromptOpen}
-        firstName={tourFirstName}
-        onStart={startTour}
-        onDismiss={dismissTour}
-      />
-      <GuidedTour open={tourRunning} onClose={dismissTour} />
       {/* Fica no layout, e não numa página: a vitrine é chamada do chat e
           precisa aparecer por cima de qualquer rota. */}
       <AtlasProductShowcase />

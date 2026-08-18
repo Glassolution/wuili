@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
@@ -786,7 +787,15 @@ export const AffiliateQuizModal = ({ open, onClose }: { open: boolean; onClose: 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, open]);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  /*
+    Portal para o <body>: o modal é montado dentro da página da rota, e qualquer
+    ancestral com transform/filter vira containing block de `position: fixed` — foi
+    exatamente esse o bug (overlay cobrindo só a área de conteúdo). No body, o
+    `fixed inset-0` sempre se refere à viewport, independente do que houver acima.
+  */
+  return createPortal(
     <AnimatePresence>
       {open ? (
         <motion.div
@@ -813,7 +822,8 @@ export const AffiliateQuizModal = ({ open, onClose }: { open: boolean; onClose: 
           </motion.div>
         </motion.div>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 

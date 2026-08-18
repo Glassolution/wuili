@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Info, Loader2, X } from "lucide-react";
 import { toast as sonnerToast, Toaster as SonnerToaster } from "sonner";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 
 type ToastId = ReturnType<typeof sonnerToast.message>;
 
@@ -61,13 +62,6 @@ const pillCircle =
   "flex h-6 w-6 items-center justify-center rounded-full bg-[#2A2A2A] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]";
 
 const LoadingIcon = () => <Loader2 size={18} strokeWidth={2} className={`${iconBase} animate-spin`} />;
-
-export const VeloLoadingPill = ({ message }: { message: string }) => (
-  <div className="flex items-center gap-3 rounded-full border border-white/10 bg-[#0A0A0A] px-5 py-3 shadow-[0_18px_48px_rgba(0,0,0,0.30)]">
-    <LoadingIcon />
-    <span className="text-[14px] font-medium leading-[18px] text-white">{message}</span>
-  </div>
-);
 
 const SuccessIcon = () => (
   <span className={pillCircle}>
@@ -211,13 +205,19 @@ export const VeloToaster = (props: ToasterProps) => {
             aria-label={activeFullscreenToast.message}
             data-velo-toast="fullscreen"
           >
+            {/*
+              Antes era a pílula preta com spinner. Agora reusa a tela de
+              carregamento da marca — mesma identidade do carregamento de rota,
+              com a logo atual vinda do componente compartilhado.
+            */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.975, y: -4 }}
-              transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+              exit={{ opacity: 0, scale: 0.99, y: -6 }}
+              transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full"
             >
-              <VeloLoadingPill message={activeFullscreenToast.message} />
+              <VeloLoadingScreen message={activeFullscreenToast.message} fill={false} />
             </motion.div>
           </motion.div>
         )}

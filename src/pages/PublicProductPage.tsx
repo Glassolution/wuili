@@ -30,6 +30,7 @@ import {
   type UserProject,
 } from "@/lib/userProjects";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
+import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
 
 const BENEFITS = [
   { icon: Leaf, label: "Ingredientes selecionados na sua forma natural" },
@@ -89,6 +90,18 @@ const PublicProductPage = () => {
       active = false;
     };
   }, [slug, productId]);
+
+  // Meta Pixel do seller: base + ViewContent do produto aberto.
+  useEffect(() => {
+    if (!project?.meta_pixel_id || !product) return;
+    initMetaPixel(project.meta_pixel_id);
+    trackPixel("ViewContent", {
+      content_ids: [product.id],
+      content_type: "product",
+      value: product.price,
+      currency: "BRL",
+    });
+  }, [project, product]);
 
   const images = useMemo(() => {
     if (!product) return [] as string[];

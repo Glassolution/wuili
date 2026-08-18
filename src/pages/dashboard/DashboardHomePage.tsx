@@ -108,16 +108,27 @@ const INTRO = {
   // Desaceleração suave, sem a cauda longa do ease-out exponencial.
   travelEase: [0.32, 0.72, 0, 1] as const,
   revealEase: [0.22, 1, 0.36, 1] as const,
-  titleFade: 0.52,
+  titleFade: 0.66,
   titleTravelDelay: 0.56,
-  titleTravel: 0.9,
-  revealDuration: 0.66,
+  titleTravel: 1.05,
+  revealDuration: 0.9,
   promoDelay: 1,
-  supportDelay: 1.08,
-  chatDelay: 1.16,
-  bandDuration: 0.66,
-  bandDelays: [1.3, 1.4, 1.5],
+  supportDelay: 1.14,
+  chatDelay: 1.28,
+  // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
+  // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
+  // em vez de quase juntas.
+  bandDuration: 1,
+  bandDelays: [1.4, 1.68, 1.96],
 };
+
+// Todo o layout desta tela é dimensionado em cqw (relativo à largura do
+// container), então sem um teto ele cresce junto com o monitor e no desktop
+// fica desproporcional. Travamos a largura do canvas: acima disso o conteúdo
+// para de inflar e apenas ganha margem lateral (do mesmo #F5F4F1 do fundo).
+// Abaixo desse valor o comportamento responsivo continua exatamente o mesmo.
+// Este é o único número a mexer para calibrar a escala geral da página.
+const MAX_CANVAS_WIDTH = 1280;
 
 const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
 const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
@@ -502,7 +513,10 @@ const DashboardHomePage = () => {
     <main
       className="shrink-0 overflow-auto bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
     >
-      <div className="relative w-full text-[#101114]" style={{ containerType: "inline-size" }}>
+      <div
+        className="relative mx-auto w-full text-[#101114]"
+        style={{ containerType: "inline-size", maxWidth: MAX_CANVAS_WIDTH }}
+      >
         <img
           src={dashboardHomeBase}
           alt="Tela inicial da Velo"
@@ -765,7 +779,7 @@ const DashboardHomePage = () => {
                     outline: 0,
                     background: "transparent",
                     color: "rgba(0,0,0,0.72)",
-                    caretColor: "#351078",
+                    caretColor: "#2563EB",
                     fontSize: fs(18),
                     fontWeight: 400,
                     lineHeight: 1,
@@ -817,7 +831,7 @@ const DashboardHomePage = () => {
                 borderRadius: "50%",
                 color: chatActive && chatInput.trim() ? "#FFFFFF" : "rgba(0,0,0,0.16)",
                 cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
-                background: chatActive && chatInput.trim() ? "#351078" : "#F0F0F0",
+                background: chatActive && chatInput.trim() ? "#2563EB" : "#F0F0F0",
                 width: fs(40),
                 height: fs(40),
                 display: "flex",
