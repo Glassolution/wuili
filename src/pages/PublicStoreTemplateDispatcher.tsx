@@ -47,8 +47,12 @@ export const PublicStoreCatalogDispatcher = () => {
 export const PublicProductDispatcher = () => {
   const { resolved, template } = useProjectTemplate();
   if (!resolved) return <Loading />;
+  if (template.startsWith("produto")) {
+    return <Suspense fallback={<Loading />}><PublishedSalesPage /></Suspense>;
+  }
   return <Suspense fallback={<Loading />}>{template === "loja-2" ? <ProductT2 /> : <ProductT1 />}</Suspense>;
 };
+
 
 export const PublicStoreAccountDispatcher = () => {
   const { resolved, template } = useProjectTemplate();
