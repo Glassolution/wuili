@@ -617,6 +617,12 @@ const DashboardHomePage = () => {
             </button>
           </motion.div>
 
+          <ReferralRewardModal
+            open={referralInfoOpen}
+            onClose={() => setReferralInfoOpen(false)}
+            onInvite={() => window.dispatchEvent(new CustomEvent("velo:open-invite-modal"))}
+          />
+
           <motion.a
             {...revealProps(INTRO.supportDelay, -10)}
             href={SUPPORT_WHATSAPP_URL}
