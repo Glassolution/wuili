@@ -68,6 +68,7 @@ const TransacoesPage = lazy(() => import("./pages/dashboard/TransacoesPage"));
 const ProductsPage = lazy(() => import("./pages/dashboard/ProductsPage"));
 const PagamentosPage = lazy(() => import("./pages/dashboard/PagamentosPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const AssinaturaCheckoutPage = lazy(() => import("./pages/AssinaturaCheckoutPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const CriarVideoPage = lazy(() => import("./pages/dashboard/CriarVideoPage"));
 const ChatFornecedoresPage = lazy(() => import("./pages/dashboard/ChatFornecedoresPage"));
