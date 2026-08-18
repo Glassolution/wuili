@@ -181,6 +181,7 @@ const CheckoutPage = () => {
   const [cardHolder, setCardHolder] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [referralDiscount, setReferralDiscount] = useState(0);
+  const [checkingOutPlanId, setCheckingOutPlanId] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
