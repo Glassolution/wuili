@@ -342,15 +342,21 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
 
   if (!open) return null;
 
-  const handleChoose = (planId: PlanId) => {
-    onClose();
-    const params = new URLSearchParams({
-      plan: planId,
-      billing_cycle: cycle,
-      step: "payment",
-    });
-    navigate(`/checkout?${params.toString()}`);
+  const handleChoose = async (planId: PlanId) => {
+    if (checkingOutPlanId) return;
+    setCheckingOutPlanId(planId);
+    try {
+      const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
+      if (res.ok) return; // redirect acontece pelo navegador
+      setCheckingOutPlanId(null);
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.");
+    } catch (e) {
+      console.error("checkout error", e);
+      setCheckingOutPlanId(null);
+      toast.error("Não foi possível gerar o pagamento.");
+    }
   };
+
 
   const skeletonCard = (index: number) => (
     <div key={index} className="rounded-[16px] border border-black/10 bg-white p-5">
