@@ -25,9 +25,9 @@ const FILTERS = [
 ] as const;
 
 const STATUS: Record<string, { label: string; className: string }> = {
-  pending: { label: "Pendente", className: "bg-amber-500/10 text-amber-300" },
-  approved: { label: "Aprovada", className: "bg-emerald-500/10 text-emerald-300" },
-  rejected: { label: "Rejeitada", className: "bg-red-500/10 text-red-300" },
+  pending: { label: "Pendente", className: "border border-[#FDE7B2] bg-[#FFF7E6] text-[#B7791F]" },
+  approved: { label: "Aprovada", className: "border border-[#BBF7D0] bg-[#ECFDF3] text-[#087443]" },
+  rejected: { label: "Rejeitada", className: "border border-red-200 bg-red-50 text-red-600" },
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -52,7 +52,9 @@ const applicantName = (row: Pick<AffiliateApplication, "full_name" | "email" | "
   row.full_name?.trim() || row.email?.trim() || (row.code ? `Afiliado ${row.code}` : "Solicitante");
 
 const Empty = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-[13px] text-white/45">{children}</div>
+  <div className="rounded-2xl border border-dashed border-[#DDE3EE] bg-[#F8FAFC] p-6 text-center text-[13px] text-[#64748B]">
+    {children}
+  </div>
 );
 
 const ApplicationDetailDrawer = ({
@@ -71,27 +73,27 @@ const ApplicationDetailDrawer = ({
   const meta = STATUS[application.status] ?? STATUS.pending;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm" onClick={onClose}>
       <aside
         onClick={(event) => event.stopPropagation()}
-        className="h-full w-full max-w-[720px] overflow-y-auto border-l border-white/[0.08] bg-[#0A0A0B] text-white shadow-[0_0_70px_rgba(0,0,0,0.65)]"
+        className="h-full w-full max-w-[720px] overflow-y-auto border-l border-[#E6EAF2] bg-white text-[#171715] shadow-[0_0_70px_rgba(15,23,42,0.18)]"
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0A0A0B]/95 px-6 py-4 backdrop-blur">
-          <button type="button" onClick={onClose} className="flex items-center gap-2 text-[12px] text-white/60 transition hover:text-white">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EEF1F6] bg-white/95 px-6 py-4 backdrop-blur">
+          <button type="button" onClick={onClose} className="flex items-center gap-2 text-[12px] font-semibold text-[#64748B] transition hover:text-[#171715]">
             <X size={14} /> Fechar
           </button>
           <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold", meta.className)}>{meta.label}</span>
         </div>
 
         <div className="space-y-6 px-6 py-6">
-          <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-[24px] font-bold tracking-[-0.03em] text-white">{applicantName(application)}</p>
-            <p className="mt-2 text-[13px] leading-relaxed text-white/45">
+          <section className="rounded-2xl border border-[#E6EAF2] bg-[#F8FAFC] p-5">
+            <p className="text-[24px] font-bold tracking-[-0.03em] text-[#171715]">{applicantName(application)}</p>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#64748B]">
               {application.email || "Sem e-mail"}
               {application.code ? (
                 <>
                   {" "}
-                  · Código <span className="font-mono text-white/70">{application.code}</span>
+                  · Código <span className="font-mono font-semibold text-[#2563EB]">{application.code}</span>
                 </>
               ) : null}{" "}
               · Enviada em {dateFmt(application.created_at)}
@@ -99,17 +101,17 @@ const ApplicationDetailDrawer = ({
           </section>
 
           <section>
-            <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.14em] text-white/45">Cadastro enviado</h2>
+            <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.14em] text-[#8A8F9B]">Cadastro enviado</h2>
             <AffiliateApplicationCard application={application} />
           </section>
 
           {application.status === "pending" ? (
-            <div className="flex flex-wrap items-center justify-end gap-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="sticky bottom-0 -mx-6 mt-2 flex flex-col gap-2 border-t border-[#EEF1F6] bg-white/95 px-6 py-4 backdrop-blur sm:flex-row sm:justify-end">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => onDecide("reject", application)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-[12px] font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+                className="inline-flex h-10 min-w-[116px] items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-4 text-[12px] font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
               >
                 <X size={13} /> Rejeitar
               </button>
@@ -117,13 +119,13 @@ const ApplicationDetailDrawer = ({
                 type="button"
                 disabled={busy}
                 onClick={() => onDecide("approve", application)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-[12px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+                className="inline-flex h-10 min-w-[116px] items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-[0_10px_22px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:opacity-50"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Aprovar
               </button>
             </div>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-[13px] text-white/45">
+            <div className="rounded-2xl border border-[#E6EAF2] bg-[#F8FAFC] p-4 text-[13px] text-[#64748B]">
               Solicitação já {application.status === "approved" ? "aprovada" : "rejeitada"} em {dateFmt(application.updated_at)}.
               {application.status === "rejected" ? " O afiliado pode reenviar o formulário." : ""}
             </div>
@@ -192,17 +194,17 @@ export const AdminAffiliateApplicationsPanel = () => {
   const busyUserId = decide.isPending ? (decide.variables?.userId ?? null) : null;
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03]">
-      <div className="border-b border-white/10 bg-white/[0.04] px-5 py-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/45">Solicitações de afiliados</p>
-        <h2 className="mt-2 text-[22px] font-bold tracking-[-0.03em] text-white">Aprovação de cadastros</h2>
-        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-white/45">
+    <section className="overflow-hidden rounded-[18px] border border-[#E6EAF2] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+      <div className="border-b border-[#EEF1F6] bg-[#F8FAFC] px-5 py-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A8F9B]">Solicitações de afiliados</p>
+        <h2 className="mt-2 text-[22px] font-bold tracking-[-0.03em] text-[#171715]">Aprovação de cadastros</h2>
+        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[#64748B]">
           Clique em um pedido para ver o formulário completo e decidir. Ao aprovar, o afiliado é liberado e a página de comissões dele destrava.
         </p>
       </div>
 
       <div className="space-y-4 p-5">
-        <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1 sm:w-fit">
+        <div className="flex flex-wrap items-center gap-1 rounded-full border border-[#DDE3EE] bg-white p-1 shadow-sm sm:w-fit">
           {FILTERS.map((f) => (
             <button
               key={f.key}
@@ -210,7 +212,7 @@ export const AdminAffiliateApplicationsPanel = () => {
               onClick={() => setFilter(f.key)}
               className={cn(
                 "rounded-full px-4 py-1.5 text-[12px] font-semibold transition",
-                filter === f.key ? "bg-white text-black" : "text-white/60 hover:text-white",
+                filter === f.key ? "bg-[#2563EB] text-white" : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]",
               )}
             >
               {f.label}
@@ -219,7 +221,7 @@ export const AdminAffiliateApplicationsPanel = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-white/50">
+          <div className="flex items-center gap-2 text-[#64748B]">
             <Loader2 size={16} className="animate-spin" /> Carregando solicitações…
           </div>
         ) : error ? (
@@ -227,9 +229,9 @@ export const AdminAffiliateApplicationsPanel = () => {
         ) : rows.length === 0 ? (
           <Empty>Nenhuma solicitação nesse filtro.</Empty>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-white/10">
+          <div className="overflow-x-auto rounded-2xl border border-[#E6EAF2]">
             <table className="w-full min-w-[720px] text-left text-[13px]">
-              <thead className="bg-white/[0.04] text-[11px] uppercase tracking-[0.14em] text-white/35">
+              <thead className="bg-[#F8FAFC] text-[11px] uppercase tracking-[0.14em] text-[#8A8F9B]">
                 <tr>
                   <th className="px-4 py-3">Solicitante</th>
                   <th className="px-4 py-3">E-mail</th>
@@ -238,7 +240,7 @@ export const AdminAffiliateApplicationsPanel = () => {
                   <th className="px-4 py-3 text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.06]">
+              <tbody className="divide-y divide-[#EEF1F6]">
                 {rows.map((row) => {
                   const meta = STATUS[row.status] ?? STATUS.pending;
                   const busy = busyUserId === row.user_id;
@@ -253,14 +255,14 @@ export const AdminAffiliateApplicationsPanel = () => {
                           setSelectedUserId(row.user_id);
                         }
                       }}
-                      className="cursor-pointer text-white/80 transition hover:bg-white/[0.04] focus:bg-white/[0.05] focus:outline-none"
+                      className="cursor-pointer text-[#64748B] transition hover:bg-[#F8FAFC] focus:bg-[#F8FAFC] focus:outline-none"
                     >
                       <td className="px-4 py-3">
-                        <p className="font-medium text-white">{applicantName(row)}</p>
-                        {row.code ? <p className="font-mono text-[12px] text-white/40">{row.code}</p> : null}
+                        <p className="font-medium text-[#171715]">{applicantName(row)}</p>
+                        {row.code ? <p className="font-mono text-[12px] text-[#8A8F9B]">{row.code}</p> : null}
                       </td>
-                      <td className="px-4 py-3 text-white/60">{row.email || "—"}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-white/55">{dateFmt(row.created_at)}</td>
+                      <td className="px-4 py-3 text-[#64748B]">{row.email || "—"}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-[#64748B]">{dateFmt(row.created_at)}</td>
                       <td className="px-4 py-3">
                         <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold", meta.className)}>{meta.label}</span>
                       </td>
@@ -274,7 +276,7 @@ export const AdminAffiliateApplicationsPanel = () => {
                                 event.stopPropagation();
                                 run("reject", row);
                               }}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
                             >
                               <X size={13} /> Rejeitar
                             </button>
@@ -285,13 +287,13 @@ export const AdminAffiliateApplicationsPanel = () => {
                                 event.stopPropagation();
                                 run("approve", row);
                               }}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8] disabled:opacity-50"
                             >
                               {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Aprovar
                             </button>
                           </div>
                         ) : (
-                          <span className="text-[12px] text-white/35">{dateFmt(row.updated_at)}</span>
+                          <span className="text-[12px] text-[#8A8F9B]">{dateFmt(row.updated_at)}</span>
                         )}
                       </td>
                     </tr>

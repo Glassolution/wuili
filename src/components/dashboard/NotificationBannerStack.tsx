@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, BarChart3, Bell, MessageSquare, PackageCheck, PauseCircle, PlayCircle, ShoppingCart, Truck, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,7 +67,6 @@ const isPaymentNotification = (item: NotificationRow) => {
 
 const NotificationBannerStack = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [items, setItems] = useState<BannerNotification[]>([]);
   const preferencesRef = useRef<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
@@ -175,16 +173,6 @@ const NotificationBannerStack = () => {
     }
   };
 
-  const openNotification = async (item: BannerNotification) => {
-    await dismiss(item.id);
-    if (!item.action_url) return;
-    if (item.action_url.startsWith("/")) {
-      navigate(item.action_url);
-      return;
-    }
-    window.open(item.action_url, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <div className="pointer-events-none fixed right-3 top-20 z-[95] flex w-[min(calc(100vw-24px),360px)] justify-end sm:right-5 sm:top-6">
       <div className="flex w-full flex-col gap-2">
@@ -216,11 +204,7 @@ const NotificationBannerStack = () => {
                   >
                     {payment ? <VeloMark size={24} tone="solid" /> : <Icon size={17} strokeWidth={2} />}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => void openNotification(item)}
-                    className="min-w-0 flex-1 text-left"
-                  >
+                  <div className="min-w-0 flex-1 text-left">
                     <div className="flex min-w-0 items-center gap-2">
                       <p className="min-w-0 flex-1 truncate text-[13px] font-semibold leading-5">
                         {item.title}
@@ -232,7 +216,7 @@ const NotificationBannerStack = () => {
                     <p className="line-clamp-2 text-[12px] font-medium leading-4 text-[#777771]">
                       {item.message}
                     </p>
-                  </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => void dismiss(item.id)}

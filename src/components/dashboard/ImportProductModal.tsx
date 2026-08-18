@@ -53,7 +53,7 @@ type Props = {
 };
 
 const MAX_TITLE_LENGTH = 60;
-const ACCENT = "#0A0A0A"; // black
+const ACCENT = "#2563EB";
 
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -70,7 +70,7 @@ const getImage = (images: any): string | null => {
 const STEPS = [
   { num: 1, label: "Detalhes" },
   { num: 2, label: "Revisão" },
-  { num: 3, label: "Trial" },
+  { num: 3, label: "Plano" },
 ];
 
 const normalizeText = (value: string) =>
@@ -714,7 +714,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     >
       {/* Overlay */}
       <div
-        className={`absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity duration-150 ${
+        className={`absolute inset-0 bg-[#0F172A]/35 backdrop-blur-[2px] transition-opacity duration-150 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
         onClick={handleClose}
@@ -722,16 +722,16 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       {/* Drawer */}
       <div
-        className={`relative flex h-full w-full max-w-[1040px] overflow-hidden bg-white shadow-[-20px_0_60px_-15px_rgba(0,0,0,0.2)] transition-transform duration-150 ease-out ${
+        className={`relative flex h-full w-full max-w-[1080px] overflow-hidden border-l border-[#DBEAFE] bg-white shadow-[-24px_0_70px_-24px_rgba(37,99,235,0.35)] transition-transform duration-150 ease-out md:rounded-l-[28px] ${
           visible ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* ============== LEFT — MAIN ============== */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Header */}
-          <div className="flex items-start justify-between px-4 pb-4 pt-4 sm:px-6 md:px-8 md:pb-5 md:pt-7">
+          <div className="flex items-start justify-between border-b border-[#E5EDFF] bg-[#F8FBFF] px-4 pb-4 pt-4 sm:px-6 md:px-8 md:pb-5 md:pt-7">
             <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50">
+              <div className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#EFF6FF] text-[#2563EB] ring-1 ring-[#DBEAFE]">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                   <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
@@ -739,20 +739,20 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                 </svg>
               </div>
               <div>
-                <h2 className="text-[15px] font-semibold text-[#0A0A0A] leading-tight">Importar Produto</h2>
-                <p className="text-[12.5px] text-gray-500 mt-0.5">Publique facilmente no Mercado Livre.</p>
+                <h2 className="text-[15px] font-semibold text-[#0F172A] leading-tight">Importar produto</h2>
+                <p className="text-[12.5px] text-[#64748B] mt-0.5">Revise, precifique e publique com o fluxo atual da Velo.</p>
               </div>
             </div>
             <button
               onClick={handleClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] transition-colors hover:bg-white hover:text-[#0F172A]"
             >
               <X size={16} />
             </button>
           </div>
 
           {/* Stepper */}
-          <div className="mobile-hide-scrollbar overflow-x-auto px-4 pb-4 sm:px-6 md:overflow-visible md:px-8 md:pb-6">
+          <div className="mobile-hide-scrollbar overflow-x-auto border-b border-[#E5EDFF] bg-[#F8FBFF] px-4 pb-4 pt-1 sm:px-6 md:overflow-visible md:px-8 md:pb-5">
             <div className="flex min-w-max items-center md:min-w-0">
               {STEPS.map((s, i) => {
                 const active = step === s.num;
@@ -767,10 +767,10 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold transition-all duration-300 ${
                           active
-                            ? "text-white shadow-[0_0_0_4px_rgba(249,115,22,0.15)]"
+                            ? "text-white shadow-[0_0_0_4px_rgba(37,99,235,0.16)]"
                             : done
-                            ? "bg-[#0A0A0A] text-white"
-                            : "bg-gray-100 text-gray-400"
+                            ? "bg-[#2563EB] text-white"
+                            : "bg-white text-[#94A3B8] ring-1 ring-[#E2E8F0]"
                         }`}
                         style={active ? { background: ACCENT } : undefined}
                       >
@@ -778,16 +778,16 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                       </span>
                       <span
                         className={`text-[13px] font-medium transition-colors ${
-                          active ? "text-[#0A0A0A]" : done ? "text-[#0A0A0A]" : "text-gray-400"
+                          active ? "text-[#0F172A]" : done ? "text-[#0F172A]" : "text-[#94A3B8]"
                         }`}
                       >
                         {s.label}
                       </span>
                     </button>
                     {i < STEPS.length - 1 && (
-                      <div className="relative mx-2 h-px w-8 overflow-hidden bg-gray-200 md:mx-3 md:w-auto md:flex-1">
+                      <div className="relative mx-2 h-px w-8 overflow-hidden bg-[#DDE7FB] md:mx-3 md:w-auto md:flex-1">
                         <div
-                          className="absolute inset-y-0 left-0 bg-[#0A0A0A] transition-all duration-500 ease-out"
+                          className="absolute inset-y-0 left-0 bg-[#2563EB] transition-all duration-500 ease-out"
                           style={{ width: step > s.num ? "100%" : "0%" }}
                         />
                       </div>
@@ -817,7 +817,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     </div>
                     <button
                       onClick={handleConnectML}
-                      className="rounded-lg bg-[#0A0A0A] px-3.5 py-1.5 text-[11.5px] font-semibold text-white hover:bg-[#1a1a1a] transition-colors"
+                      className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                     >
                       Conectar
                     </button>
@@ -849,7 +849,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     value={title}
                     onChange={(e) => { if (e.target.value.length <= MAX_TITLE_LENGTH) setTitle(e.target.value); }}
                     maxLength={MAX_TITLE_LENGTH}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors placeholder:text-gray-400"
+                    className="w-full rounded-xl border border-[#DCE7FA] bg-white px-4 py-2.5 text-[13px] text-[#0F172A] transition-colors placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10"
                     placeholder="Digite o título"
                   />
                   <p className="text-[10.5px] text-gray-400 text-right mt-1.5">{titleLength}/{MAX_TITLE_LENGTH}</p>
@@ -859,12 +859,12 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                 <div className="space-y-3">
                   <p className="text-[12px] font-medium text-gray-600">Precificação</p>
 
-                  <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
+                  <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
                     <Row label="Custo do produto" value={formatBRL(costPrice)} />
                   </div>
 
                   {/* Multiplier */}
-                  <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="rounded-xl border border-[#DCE7FA] p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-[12px] font-medium text-gray-600">Multiplicador</span>
                       <span className="text-[13px] font-semibold text-[#0A0A0A]">{multiplier.toFixed(1)}x</span>
@@ -917,15 +917,15 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                         min="0"
                         value={sellPrice || ""}
                         onChange={(e) => handlePriceChange(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 focus:bg-white"
+                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
                       />
                     </div>
                   </div>
 
                   {/* Profit single line */}
-                  <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                    <span className="text-[12px] text-gray-500">Lucro por venda</span>
-                    <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0A0A0A]" : "text-red-500"}`}>
+                  <div className="flex items-center justify-between rounded-xl bg-[#F4F8FF] px-4 py-3">
+                    <span className="text-[12px] text-[#64748B]">Lucro por venda</span>
+                    <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0F172A]" : "text-red-500"}`}>
                       {formatBRL(profit)} <span className="text-[11px] font-medium text-gray-400 ml-1">· {profitMargin}%</span>
                     </span>
                   </div>
@@ -973,7 +973,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   {!isConnectedToML && (
                     <button
                       onClick={handleConnectML}
-                      className="mt-2.5 text-[11.5px] font-medium text-[#0A0A0A] underline hover:no-underline"
+                    className="mt-2.5 text-[11.5px] font-medium text-[#2563EB] underline hover:no-underline"
                     >
                       Conectar Mercado Livre
                     </button>
@@ -981,7 +981,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                 </div>
 
                 {/* Summary */}
-                <div className="rounded-xl border border-gray-200 divide-y divide-gray-100">
+                <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
                   <Row label="Título" value={title} />
                   <Row label="Plataforma" value="Mercado Livre" />
                   <Row label="Preço" value={formatBRL(sellPrice)} />
@@ -1000,13 +1000,13 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                       value={brand}
                       onChange={(e) => setBrand(e.target.value)}
                       placeholder="Marca"
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 placeholder:text-gray-400"
+                      className="w-full rounded-xl border border-[#DCE7FA] bg-white px-4 py-2.5 text-[13px] text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 placeholder:text-[#94A3B8]"
                     />
                     <input
                       value={model}
                       onChange={(e) => setModel(e.target.value)}
                       placeholder="Modelo (opcional)"
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 placeholder:text-gray-400"
+                      className="w-full rounded-xl border border-[#DCE7FA] bg-white px-4 py-2.5 text-[13px] text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 placeholder:text-[#94A3B8]"
                     />
                   </div>
                   {requiresStickerAttrs && (
@@ -1015,12 +1015,12 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                         value={albumName}
                         onChange={(e) => setAlbumName(e.target.value)}
                         placeholder="Nome do álbum"
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400 placeholder:text-gray-400"
+                        className="w-full rounded-xl border border-[#DCE7FA] bg-white px-4 py-2.5 text-[13px] text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10 placeholder:text-[#94A3B8]"
                       />
                       <select
                         value={saleFormat}
                         onChange={(e) => setSaleFormat(e.target.value === "kit" ? "kit" : "unit")}
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[13px] text-[#0A0A0A] outline-none transition-colors hover:border-gray-300 focus:border-gray-400"
+                        className="w-full rounded-xl border border-[#DCE7FA] bg-white px-4 py-2.5 text-[13px] text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10"
                       >
                         <option value="unit">Unidade</option>
                         <option value="kit">Kit</option>
@@ -1099,7 +1099,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Clique em 'Gerar com IA' ou escreva manualmente…"
                     rows={5}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-[13px] text-[#0A0A0A] focus:outline-none focus:border-gray-400 transition-colors placeholder:text-gray-400 resize-none"
+                    className="w-full resize-none rounded-xl border border-[#DCE7FA] bg-white px-4 py-3 text-[13px] text-[#0F172A] transition-colors placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10"
                   />
                 </div>
               </div>
@@ -1110,7 +1110,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               <div key="s3-plan" className="step-fade pb-6">
                 <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_60px_-44px_rgba(0,0,0,0.45)]">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0A0A0A] text-white">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#2563EB] text-white">
                       <ShieldCheck size={22} strokeWidth={1.5} />
                     </div>
                     <div className="min-w-0">
@@ -1149,7 +1149,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   <button
                     type="button"
                     onClick={() => upgradeModal.open({ defaultPlan: "base" })}
-                    className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#0A0A0A] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1A1A1A]"
+                    className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#2563EB] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                   >
                     Assinar Base — R$ 39,90/mês
                   </button>
@@ -1159,7 +1159,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   <button
                     type="button"
                     onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
-                    className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#0A0A0A]"
+                    className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#2563EB]"
                   >
                     Prefere começar direto no Pro (R$ 79,80/mês) com automações completas?
                   </button>
@@ -1179,7 +1179,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                   href={publishResult.permalink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-primary btn-primary--md mt-6"
+                  className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
                 >
                   <ExternalLink size={13} />
                   Abrir no Mercado Livre
@@ -1190,12 +1190,9 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
           {/* Footer */}
           <div
-            className="flex shrink-0 items-center justify-end border-t border-gray-100 bg-white px-4 py-3 sm:px-6 md:justify-between md:px-8 md:py-4"
+            className="flex shrink-0 items-center justify-end border-t border-[#E5EDFF] bg-[#F8FBFF] px-4 py-3 sm:px-6 md:px-8 md:py-4"
             style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
           >
-            <p className="hidden text-[11.5px] text-gray-400 md:block">
-              Saiba mais sobre <span className="text-[#0A0A0A] underline cursor-pointer">Importar Produto</span>
-            </p>
             <div className="flex w-full items-center justify-end gap-2 md:w-auto">
               {step < 4 && (
                 <button
@@ -1217,7 +1214,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                 <button
                   onClick={() => { if (canAdvance) setStep(step + 1); else veloToast.error("Conecte a conta, confira o estoque, título e preço"); }}
                   disabled={!canAdvance}
-                  className="btn-primary btn-primary--md"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Próximo
                   <ArrowRight size={13} />
@@ -1227,7 +1224,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                 <button
                   onClick={() => void handleContinueFromReview()}
                   disabled={checkingSeller || publishing}
-                  className="btn-primary btn-primary--md"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {checkingSeller
                     ? "Verificando conta..."
@@ -1240,7 +1237,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               {step === 4 && (
                 <button
                   onClick={handleClose}
-                  className="btn-primary btn-primary--md"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
                 >
                   Concluir
                 </button>
@@ -1250,7 +1247,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         </div>
 
         {/* ============== RIGHT — PRODUCT DETAIL ============== */}
-        <div className="hidden w-[300px] shrink-0 flex-col border-l border-gray-100 bg-gray-50/40 md:flex">
+        <div className="hidden w-[300px] shrink-0 flex-col border-l border-[#E5EDFF] bg-[#F8FBFF] md:flex">
           <div className="flex items-center justify-between px-6 pt-7 pb-4">
             <h3 className="text-[13px] font-semibold text-[#0A0A0A]">Detalhes do produto</h3>
           </div>
@@ -1371,18 +1368,18 @@ const PlatformCard = ({
     disabled={disabled}
     className={`relative rounded-xl border p-3 text-center transition-all ${
       selected
-        ? "border-[#0A0A0A] bg-[#0A0A0A]/[0.02]"
+        ? "border-[#2563EB] bg-[#EFF6FF]"
         : disabled
         ? "border-gray-200 opacity-50 cursor-not-allowed"
-        : "border-gray-200 hover:border-gray-400"
+        : "border-gray-200 hover:border-[#93C5FD]"
     }`}
   >
     {selected && (
-      <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#0A0A0A]">
+      <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#2563EB]">
         <Check size={9} strokeWidth={3} className="text-white" />
       </span>
     )}
-    <p className={`text-[12.5px] font-semibold ${selected ? "text-[#0A0A0A]" : disabled ? "text-gray-500" : "text-[#0A0A0A]"}`}>
+    <p className={`text-[12.5px] font-semibold ${selected ? "text-[#2563EB]" : disabled ? "text-gray-500" : "text-[#0A0A0A]"}`}>
       {name}
     </p>
     <p className="text-[10.5px] text-gray-400 mt-0.5">{status}</p>

@@ -159,3 +159,24 @@ export function extractAttribute(
   }
   return null;
 }
+
+/**
+ * Mínimo de fotos distintas exigido para um produto aparecer no catálogo.
+ * O Mercado Livre recusa anúncios com menos de 3 imagens, então produtos com
+ * galeria incompleta são bloqueados na origem (também há trigger no banco).
+ */
+export const MIN_PRODUCT_IMAGES = 3;
+
+export function countDistinctImages(images: unknown): number {
+  if (!Array.isArray(images)) return 0;
+  const set = new Set<string>();
+  for (const img of images) {
+    const url = typeof img === "string" ? img.trim() : "";
+    if (url) set.add(url);
+  }
+  return set.size;
+}
+
+export function hasEnoughImages(images: unknown): boolean {
+  return countDistinctImages(images) >= MIN_PRODUCT_IMAGES;
+}

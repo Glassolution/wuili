@@ -25,6 +25,7 @@ import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
+import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import { proxyImageList } from "@/lib/imageProxy";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
@@ -97,6 +98,7 @@ function mapProduct(p: CatalogProductRow): DetailedProduct {
   const imgs = extractImages(p.images);
   const cost = p.cost_price || 0;
   const suggested = p.suggested_price || (cost ? cost * 2 : 0);
+  const storedOrdersCount = typeof p.orders_count === "number" ? p.orders_count : 0;
   const supplierLabel =
     p.source === "aliexpress"
       ? "AliExpress"
@@ -117,9 +119,9 @@ function mapProduct(p: CatalogProductRow): DetailedProduct {
     product_url: p.product_url ?? null,
     supplier_name: supplierLabel,
     description: p.description ?? null,
-    rating: typeof p.rating === "number" ? p.rating : null,
+    rating: displayRatingFor(p.id),
     stockQuantity: typeof p.stock_quantity === "number" ? p.stock_quantity : null,
-    ordersCount: typeof p.orders_count === "number" ? p.orders_count : null,
+    ordersCount: Math.max(storedOrdersCount, displayOrdersCountFor(p.id)),
     marginPercent: typeof p.margin_percent === "number" ? p.margin_percent : 0,
     weight: typeof p.weight === "number" ? p.weight : null,
     brand: p.brand ?? null,

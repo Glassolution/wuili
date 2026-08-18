@@ -12,9 +12,11 @@ import {
   Pencil,
   Search,
   Trash2,
+  Wallet,
   WandSparkles,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import PixKeyModal from "@/components/dashboard/PixKeyModal";
 import { veloToast } from "@/components/ui/velo-toast";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
@@ -185,7 +187,15 @@ const formatCurrency = (value: number) =>
     currency: "BRL",
   }).format(value);
 
-const PageHeader = ({ onCreate, onTutorial }: { onCreate: () => void; onTutorial: () => void }) => (
+const PageHeader = ({
+  onAddPix,
+  onCreate,
+  onTutorial,
+}: {
+  onAddPix: () => void;
+  onCreate: () => void;
+  onTutorial: () => void;
+}) => (
   <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <div className="flex min-w-0 items-center gap-2.5">
       <button
@@ -209,6 +219,15 @@ const PageHeader = ({ onCreate, onTutorial }: { onCreate: () => void; onTutorial
       >
         <GraduationCap size={17} strokeWidth={2.1} aria-hidden="true" />
         Ver tutorial
+      </button>
+
+      <button
+        type="button"
+        onClick={onAddPix}
+        className="inline-flex h-9 items-center gap-2 rounded-[8px] border border-[#C7D7FE] bg-[#EFF6FF] px-3.5 text-[13px] font-black tracking-[-0.015em] text-[#2563EB] shadow-[0_1px_3px_rgba(37,99,235,0.10)] transition duration-150 hover:border-[#9DB8FD] hover:bg-[#E7F0FF] hover:shadow-[0_2px_5px_rgba(37,99,235,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/25"
+      >
+        <Wallet size={16} strokeWidth={2.05} aria-hidden="true" />
+        Adicionar Pix
       </button>
 
       <button
@@ -940,6 +959,7 @@ const AiProductPagesPage = () => {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const { user } = useAuth();
+  const [pixModalOpen, setPixModalOpen] = useState(false);
   const [pages, setPages] = useState<AiProjectListItem[]>([]);
   const [loadingPages, setLoadingPages] = useState(true);
   const [pagesError, setPagesError] = useState<string | null>(null);
@@ -1093,9 +1113,12 @@ const AiProductPagesPage = () => {
       data-testid="ai-pages-list"
     >
       <PageHeader
+        onAddPix={() => setPixModalOpen(true)}
         onCreate={() => navigate("/dashboard/paginas-com-ia/criar")}
         onTutorial={() => veloToast.info("Tutorial das páginas com IA em breve.")}
       />
+
+      <PixKeyModal open={pixModalOpen} onClose={() => setPixModalOpen(false)} />
 
       <AiPreviewsSection />
 

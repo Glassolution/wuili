@@ -78,7 +78,7 @@ const SettingsPage = () => {
 
         {/* Abas de configuração (estilo sublinhado) */}
         <div className="mb-6 border-b border-[#EDEDED] dark:border-white/10">
-          <div className="flex items-center gap-6 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+          <div className="flex w-full items-center justify-between gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
             {NAV.map((item) => {
               const active = tab === item.id;
               return (
@@ -86,7 +86,7 @@ const SettingsPage = () => {
                   key={item.id}
                   ref={(node) => { mobileTabRefs.current[item.id] = node; }}
                   onClick={() => setTab(item.id)}
-                  className={`relative shrink-0 whitespace-nowrap pb-2 pt-1 text-[12.5px] transition-colors ${
+                  className={`relative min-w-max flex-1 whitespace-nowrap px-1 pb-2 pt-1 text-center text-[12.5px] transition-colors ${
                     active
                       ? "font-semibold text-[#111113] dark:text-white"
                       : "font-normal text-[#9A9A9A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"

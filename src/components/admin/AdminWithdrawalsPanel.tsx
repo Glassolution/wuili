@@ -44,11 +44,11 @@ const dateFmt = (s: string | null | undefined) =>
     : "—";
 
 const STATUS: Record<string, { label: string; className: string }> = {
-  pending: { label: "Em análise", className: "bg-amber-500/10 text-amber-300" },
-  approved: { label: "Aprovado", className: "bg-blue-500/10 text-blue-300" },
-  paid: { label: "Pago", className: "bg-emerald-500/10 text-emerald-300" },
-  rejected: { label: "Rejeitado", className: "bg-red-500/10 text-red-300" },
-  cancelled: { label: "Cancelado", className: "bg-white/[0.06] text-white/50" },
+  pending: { label: "Em análise", className: "border border-[#FDE7B2] bg-[#FFF7E6] text-[#B7791F]" },
+  approved: { label: "Aprovado", className: "border border-[#D9E4FF] bg-[#EFF6FF] text-[#2563EB]" },
+  paid: { label: "Pago", className: "border border-[#BBF7D0] bg-[#ECFDF3] text-[#087443]" },
+  rejected: { label: "Rejeitado", className: "border border-red-200 bg-red-50 text-red-600" },
+  cancelled: { label: "Cancelado", className: "border border-[#DDE3EE] bg-[#F8FAFC] text-[#64748B]" },
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -107,132 +107,142 @@ export const AdminWithdrawalsPanel = () => {
   const rows = data ?? [];
 
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] p-1 sm:w-fit">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-[12px] font-semibold transition",
-              filter === f.key ? "bg-white text-black" : "text-white/60 hover:text-white",
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+    <section className="overflow-hidden rounded-[18px] border border-[#E6EAF2] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+      <div className="border-b border-[#EEF1F6] bg-[#F8FAFC] px-5 py-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A8F9B]">Solicitações de saque</p>
+        <h2 className="mt-2 text-[22px] font-bold tracking-[-0.03em] text-[#171715]">Repasses de afiliados</h2>
+        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[#64748B]">
+          Aprove pedidos, marque pagamentos Pix como concluídos e acompanhe o histórico de cada solicitação.
+        </p>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center gap-2 text-white/50">
-          <Loader2 size={16} className="animate-spin" /> Carregando solicitações…
+      <div className="space-y-4 p-5">
+        <div className="flex flex-wrap items-center gap-1 rounded-full border border-[#DDE3EE] bg-white p-1 shadow-sm sm:w-fit">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className={cn(
+                "rounded-full px-4 py-1.5 text-[12px] font-semibold transition",
+                filter === f.key ? "bg-[#2563EB] text-white" : "text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#2563EB]",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-[13px] text-white/45">
-          Não foi possível carregar as solicitações de saque.
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 text-center text-[13px] text-white/45">
-          Nenhuma solicitação nesse filtro.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((row) => {
-            const meta = STATUS[row.status] ?? STATUS.pending;
-            const busy = busyId === row.id;
-            return (
-              <div key={row.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[15px] font-semibold text-white">
-                        {row.display_name || row.email || row.affiliate_code}
-                      </p>
-                      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", meta.className)}>
-                        {meta.label}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[12px] text-white/45">
-                      {row.email || "—"} · Código <span className="font-mono text-white/70">{row.affiliate_code}</span> ·{" "}
-                      {row.items_count} comissão(ões)
-                    </p>
-                    <p className="mt-1 text-[12px] text-white/45">
-                      Solicitado em {dateFmt(row.requested_at)}
-                      {row.decided_at ? ` · Decidido em ${dateFmt(row.decided_at)}` : ""}
-                      {row.paid_at ? ` · Pago em ${dateFmt(row.paid_at)}` : ""}
-                    </p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-white/60">
-                      <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1">
-                        Pix ({row.pix_key_type || "chave"}): <span className="font-mono">{row.pix_key || "—"}</span>
-                      </span>
-                      {row.pix_key ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void navigator.clipboard.writeText(row.pix_key ?? "");
-                            toast({ title: "Chave Pix copiada." });
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-white/60 transition hover:text-white"
-                        >
-                          <Copy size={12} /> Copiar
-                        </button>
-                      ) : null}
-                    </div>
-                    {row.admin_note ? <p className="mt-2 text-[12px] text-white/40">Nota: {row.admin_note}</p> : null}
-                  </div>
 
-                  <div className="flex flex-col items-end gap-3">
-                    <p className="text-[22px] font-bold leading-none tracking-[-0.03em] text-white">{money(row.amount)}</p>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      {row.status === "pending" ? (
-                        <>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-[#64748B]">
+            <Loader2 size={16} className="animate-spin" /> Carregando solicitações…
+          </div>
+        ) : error ? (
+          <div className="rounded-2xl border border-dashed border-[#DDE3EE] bg-[#F8FAFC] p-6 text-center text-[13px] text-[#64748B]">
+            Não foi possível carregar as solicitações de saque.
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#DDE3EE] bg-[#F8FAFC] p-6 text-center text-[13px] text-[#64748B]">
+            Nenhuma solicitação nesse filtro.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {rows.map((row) => {
+              const meta = STATUS[row.status] ?? STATUS.pending;
+              const busy = busyId === row.id;
+              return (
+                <div key={row.id} className="rounded-2xl border border-[#E6EAF2] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[15px] font-semibold text-[#171715]">
+                          {row.display_name || row.email || row.affiliate_code}
+                        </p>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", meta.className)}>
+                          {meta.label}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[12px] text-[#64748B]">
+                        {row.email || "—"} · Código <span className="font-mono font-semibold text-[#2563EB]">{row.affiliate_code}</span> ·{" "}
+                        {row.items_count} comissão(ões)
+                      </p>
+                      <p className="mt-1 text-[12px] text-[#64748B]">
+                        Solicitado em {dateFmt(row.requested_at)}
+                        {row.decided_at ? ` · Decidido em ${dateFmt(row.decided_at)}` : ""}
+                        {row.paid_at ? ` · Pago em ${dateFmt(row.paid_at)}` : ""}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-[#64748B]">
+                        <span className="rounded-lg border border-[#DDE3EE] bg-[#F8FAFC] px-2 py-1">
+                          Pix ({row.pix_key_type || "chave"}): <span className="font-mono text-[#273449]">{row.pix_key || "—"}</span>
+                        </span>
+                        {row.pix_key ? (
                           <button
                             type="button"
-                            disabled={busy}
-                            onClick={() => run(row.id, "approve")}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-[12px] font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(row.pix_key ?? "");
+                              toast({ title: "Chave Pix copiada." });
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#DDE3EE] bg-white px-2 py-1 text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
                           >
-                            {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Aprovar
+                            <Copy size={12} /> Copiar
                           </button>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => run(row.id, "reject", "Rejeitar esta solicitação de saque?")}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-[12px] font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
-                          >
-                            <X size={13} /> Rejeitar
-                          </button>
-                        </>
-                      ) : null}
-                      {row.status === "approved" ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => run(row.id, "pay", `Confirmar pagamento de ${money(row.amount)}?`)}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-400 px-4 py-2 text-[12px] font-semibold text-black transition hover:bg-emerald-300 disabled:opacity-50"
-                          >
-                            {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Marcar como pago
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => run(row.id, "reject", "Rejeitar esta solicitação já aprovada?")}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-[12px] font-semibold text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
-                          >
-                            <X size={13} /> Rejeitar
-                          </button>
-                        </>
-                      ) : null}
+                        ) : null}
+                      </div>
+                      {row.admin_note ? <p className="mt-2 text-[12px] text-[#8A8F9B]">Nota: {row.admin_note}</p> : null}
+                    </div>
+
+                    <div className="flex flex-col items-end gap-3">
+                      <p className="text-[22px] font-bold leading-none tracking-[-0.03em] text-[#171715]">{money(row.amount)}</p>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {row.status === "pending" ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => run(row.id, "approve")}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8] disabled:opacity-50"
+                            >
+                              {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Aprovar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => run(row.id, "reject", "Rejeitar esta solicitação de saque?")}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                            >
+                              <X size={13} /> Rejeitar
+                            </button>
+                          </>
+                        ) : null}
+                        {row.status === "approved" ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => run(row.id, "pay", `Confirmar pagamento de ${money(row.amount)}?`)}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-[#087443] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#066137] disabled:opacity-50"
+                            >
+                              {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Marcar como pago
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => run(row.id, "reject", "Rejeitar esta solicitação já aprovada?")}
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                            >
+                              <X size={13} /> Rejeitar
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 };

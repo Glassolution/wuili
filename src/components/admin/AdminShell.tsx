@@ -29,7 +29,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   sales: "Vendas",
   revenue: "Receita",
   plans: "Planos",
-  commissions: "Comissões",
+  commissions: "Afiliados",
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",

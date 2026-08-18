@@ -28,6 +28,7 @@ import {
   inferCategory,
   isBlocked,
   isFakeAdProduct,
+  hasEnoughImages,
 } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
@@ -177,7 +178,8 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
 
   const images = normalizeImages(detail, listItem?.image ?? null);
   const price = extractDropshippingPrice(detail);
-  const blockedFlag = isBlocked(title);
+  // ML exige no mínimo 3 fotos: produto com galeria incompleta fica bloqueado.
+  const blockedFlag = isBlocked(title) || !hasEnoughImages(images);
   const stock = toNumber(detail.stock ?? listItem?.stock) ?? 0;
   const compareAt = toNumber(detail.compareAtPrice ?? listItem?.compareAtPrice ?? null);
 

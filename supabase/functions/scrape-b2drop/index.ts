@@ -3,6 +3,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-b2drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { hasEnoughImages } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -141,14 +142,16 @@ Deno.serve(async (req) => {
 
     // Upsert em lotes
     const rows = scraped.map((p) => {
-      const blockedFlag = isBlocked(p.title);
+      const images = [p.image_url].filter(Boolean);
+      // ML exige no mínimo 3 fotos.
+      const blockedFlag = isBlocked(p.title) || !hasEnoughImages(images);
       if (blockedFlag) blocked++;
       return {
         source: SOURCE,
         external_id: p.external_id,
         title: p.title,
         description: null,
-        images: [p.image_url].filter(Boolean),
+        images,
         cost_price: p.price,
         suggested_price: Math.round(p.price * 2 * 100) / 100,
         margin_percent: 100,

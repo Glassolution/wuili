@@ -5,11 +5,13 @@ import {
   Calendar,
   ChevronRight,
   ExternalLink,
+  MapPin,
   Package,
   ShoppingBag,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -65,6 +67,58 @@ const clean = (value: string | number | null | undefined) => {
   if (value === null || value === undefined) return "—";
   const text = String(value).trim();
   return text.length > 0 ? text : "—";
+};
+
+type ShippingAddress = {
+  zip?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+};
+
+const jsonText = (value: Json | undefined): string | null => {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+};
+
+const normalizeShippingAddress = (value: Json | null | undefined): ShippingAddress | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, Json | undefined>;
+  return {
+    zip: jsonText(row.zip ?? row.cep ?? row.postal_code),
+    street: jsonText(row.street ?? row.address ?? row.rua),
+    number: jsonText(row.number ?? row.numero),
+    complement: jsonText(row.complement ?? row.complemento),
+    neighborhood: jsonText(row.neighborhood ?? row.bairro),
+    city: jsonText(row.city ?? row.cidade),
+    state: jsonText(row.state ?? row.uf ?? row.estado),
+  };
+};
+
+const addressLines = (address: ShippingAddress | null) => {
+  if (!address) return [];
+  const street = [address.street, address.number].filter(Boolean).join(", ");
+  const cityState = [address.city, address.state].filter(Boolean).join(" - ");
+  return [street, address.complement, address.neighborhood, cityState, address.zip ? `CEP ${address.zip}` : null]
+    .map((line) => line?.trim())
+    .filter((line): line is string => Boolean(line));
+};
+
+const addressEntries = (address: ShippingAddress | null) => {
+  if (!address) return [];
+  const street = [address.street, address.number].filter(Boolean).join(", ");
+  const entries = [
+    { label: "Rua", value: street },
+    { label: "Bairro", value: address.neighborhood },
+    { label: "Cidade", value: [address.city, address.state].filter(Boolean).join(" - ") },
+    { label: "CEP", value: address.zip },
+    { label: "Complemento", value: address.complement },
+  ];
+  return entries.filter((entry) => entry.value?.trim());
 };
 
 const getStatusLabel = (status: string | null | undefined) => {
@@ -287,15 +341,17 @@ type StoreOrderRow = {
   created_at: string;
   catalog_product_id: string | null;
   supplier_url: string | null;
+  shipping_address: Json | null;
 };
 
 const StoreOrdersList = ({ userId }: { userId: string }) => {
+  const [addressOrder, setAddressOrder] = useState<StoreOrderRow | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["store-orders", userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_orders")
-        .select("id,product_title,product_image_url,buyer_name,buyer_email,buyer_phone,quantity,total,payment_method,payment_status,created_at,catalog_product_id")
+        .select("id,product_title,product_image_url,buyer_name,buyer_email,buyer_phone,quantity,total,payment_method,payment_status,created_at,catalog_product_id,shipping_address")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -330,40 +386,117 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
-      <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
-        <span>Produto</span>
-        <span>Comprador</span>
-        <span>Qtd.</span>
-        <span>Total</span>
-        <span>Pagamento</span>
-        <span>Data</span>
-        <span>Fornecedor</span>
-      </div>
-      {data.map((order) => (
-        <div key={order.id} className="grid gap-2 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.6fr)_minmax(140px,0.9fr)_80px_110px_130px_120px_200px] md:items-center">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
-              {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-contain p-1 mix-blend-multiply" /> : <Package size={20} className="text-[#A3A3A3]" />}
-            </div>
-            <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{order.product_title}</p>
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>
-            <p className="truncate text-[11px] text-[#737373]">{order.buyer_email}</p>
-            {order.buyer_phone ? <p className="truncate text-[11px] text-[#737373]">{order.buyer_phone}</p> : null}
-          </div>
-          <p className="text-[13px] text-[#525252]">{order.quantity}</p>
-          <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total)}</p>
-          <span className={`inline-flex h-7 w-fit items-center rounded-full px-2.5 text-[12px] font-semibold ${order.payment_status === "approved" ? "bg-[#C8F7DF] text-[#137443]" : order.payment_status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#F5F5F5] text-[#404040]"}`}>
-            {order.payment_method === "pix" ? "Pix" : "Cartão"} · {order.payment_status === "approved" ? "Pago" : order.payment_status === "rejected" ? "Rejeitado" : "Pendente"}
-          </span>
-          <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
-          <div className="md:justify-self-end">
-            <SupplierButton url={order.supplier_url} compact />
-          </div>
+    <>
+      <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+        <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(140px,0.9fr)_64px_104px_124px_112px_190px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
+          <span>Produto</span>
+          <span>Comprador</span>
+          <span>Qtd.</span>
+          <span>Total</span>
+          <span>Pagamento</span>
+          <span>Data</span>
+          <span className="text-right">Ações</span>
         </div>
-      ))}
+        {data.map((order) => {
+          const hasAddress = addressLines(normalizeShippingAddress(order.shipping_address)).length > 0;
+          return (
+            <div key={order.id} className="grid gap-3 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.45fr)_minmax(140px,0.9fr)_64px_104px_124px_112px_190px] md:items-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+                  {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-contain p-1 mix-blend-multiply" /> : <Package size={20} className="text-[#A3A3A3]" />}
+                </div>
+                <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{order.product_title}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>
+                <p className="truncate text-[11px] text-[#737373]">{order.buyer_email}</p>
+                {order.buyer_phone ? <p className="truncate text-[11px] text-[#737373]">{order.buyer_phone}</p> : null}
+                <button
+                  type="button"
+                  onClick={() => setAddressOrder(order)}
+                  disabled={!hasAddress}
+                  className="mt-2 inline-flex h-7 items-center justify-center gap-1.5 rounded-full border border-[#C7D7FE] bg-[#EFF6FF] px-2.5 text-[11px] font-semibold text-[#2563EB] transition hover:border-[#9DB8FD] hover:bg-[#E7F0FF] disabled:cursor-not-allowed disabled:border-[#E5E7EB] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]"
+                >
+                  <MapPin size={13} strokeWidth={1.8} />
+                  Endereço
+                </button>
+              </div>
+              <p className="text-[13px] text-[#525252]">{order.quantity}</p>
+              <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total)}</p>
+              <span className={`inline-flex h-7 w-fit items-center rounded-full px-2.5 text-[12px] font-semibold ${order.payment_status === "approved" ? "bg-[#C8F7DF] text-[#137443]" : order.payment_status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#F5F5F5] text-[#404040]"}`}>
+                {order.payment_method === "pix" ? "Pix" : "Cartão"} · {order.payment_status === "approved" ? "Pago" : order.payment_status === "rejected" ? "Rejeitado" : "Pendente"}
+              </span>
+              <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
+              <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                <SupplierButton url={order.supplier_url} compact />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <StoreOrderAddressModal order={addressOrder} onClose={() => setAddressOrder(null)} />
+    </>
+  );
+};
+
+const StoreOrderAddressModal = ({ order, onClose }: { order: StoreOrderRow | null; onClose: () => void }) => {
+  if (!order) return null;
+
+  const address = normalizeShippingAddress(order.shipping_address);
+  const entries = addressEntries(address);
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 backdrop-blur-[3px]">
+      <div className="w-full max-w-lg overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+        <div className="h-1.5 bg-[#2563EB]" />
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#2563EB] text-white shadow-[0_10px_24px_rgba(37,99,235,0.28)]">
+                <MapPin size={17} strokeWidth={1.9} />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-[18px] font-black tracking-[-0.035em] text-[#020817]">Endereço de entrega</h2>
+                <p className="mt-0.5 truncate text-[12px] font-medium text-[#64748B]">{order.product_title}</p>
+              </div>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#64748B]">Comprador</p>
+            <p className="mt-2 text-[14px] font-black tracking-[-0.02em] text-[#020817]">{order.buyer_name}</p>
+            <p className="mt-1 text-[12px] font-medium text-[#64748B]">{order.buyer_email}</p>
+            {order.buyer_phone ? <p className="mt-1 text-[12px] font-medium text-[#64748B]">{order.buyer_phone}</p> : null}
+          </div>
+
+          <div className="mt-4 rounded-[18px] border border-[#D8E3F8] bg-white p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Entrega</p>
+            <div className="mt-3 space-y-2.5">
+              {entries.length > 0 ? (
+                entries.map((entry) => (
+                  <div key={entry.label} className="grid grid-cols-[86px_minmax(0,1fr)] gap-3 text-[13px] leading-snug">
+                    <span className="font-black uppercase tracking-[0.08em] text-[#94A3B8]">{entry.label}</span>
+                    <span className="font-semibold text-[#020817]">{entry.value}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[14px] font-semibold text-[#020817]">Endereço não informado.</p>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-5 flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -20,8 +20,8 @@ export type ApplicationRow = {
 
 const Field = ({ label, value }: { label: string; value?: string | null }) => (
   <div>
-    <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">{label}</p>
-    <p className="mt-1 break-words text-[13px] text-white/85">{value?.trim() ? value : "—"}</p>
+    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A8F9B]">{label}</p>
+    <p className="mt-1 break-words text-[13px] font-medium text-[#273449]">{value?.trim() ? value : "—"}</p>
   </div>
 );
 
@@ -59,7 +59,7 @@ const AffiliateApplicationCard = ({
 
   if (!application && query.isLoading) {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-[13px] text-white/50">
+      <div className="flex items-center gap-2 rounded-2xl border border-[#E6EAF2] bg-[#F8FAFC] p-4 text-[13px] text-[#64748B]">
         <Loader2 size={14} className="animate-spin" /> Carregando cadastro…
       </div>
     );
@@ -69,7 +69,7 @@ const AffiliateApplicationCard = ({
 
   if (!app) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-[13px] text-white/45">
+      <div className="rounded-2xl border border-[#E6EAF2] bg-[#F8FAFC] p-4 text-[13px] text-[#64748B]">
         Este afiliado ainda não enviou o formulário de cadastro.
       </div>
     );
@@ -79,7 +79,7 @@ const AffiliateApplicationCard = ({
   const pixKeys = Array.isArray(app.pix_keys) ? app.pix_keys : [];
 
   return (
-    <div className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className="space-y-5 rounded-2xl border border-[#E6EAF2] bg-[#F8FAFC] p-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nome completo" value={app.full_name} />
         <Field label="E-mail" value={app.email} />
@@ -90,21 +90,21 @@ const AffiliateApplicationCard = ({
       </div>
 
       <div>
-        <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Canais de divulgação</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A8F9B]">Canais de divulgação</p>
         {socials.length === 0 ? (
-          <p className="mt-1 text-[13px] text-white/45">—</p>
+          <p className="mt-1 text-[13px] text-[#64748B]">—</p>
         ) : (
           <ul className="mt-2 space-y-1.5">
             {socials.map((item, index) => (
               <li key={`${item.url}-${index}`} className="flex flex-wrap items-center gap-2 text-[13px]">
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] text-white/60">
+                <span className="rounded-full border border-[#DDE7FF] bg-[#EFF6FF] px-2 py-0.5 text-[11px] font-semibold text-[#2563EB]">
                   {item.platform ?? "Rede"}
                 </span>
                 <a
                   href={item.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="break-all text-white/80 underline-offset-2 hover:underline"
+                  className="break-all font-medium text-[#2563EB] underline-offset-2 hover:underline"
                 >
                   {item.url}
                 </a>
@@ -115,17 +115,17 @@ const AffiliateApplicationCard = ({
       </div>
 
       <div>
-        <p className="text-[11px] uppercase tracking-[0.12em] text-white/35">Chaves Pix</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A8F9B]">Chaves Pix</p>
         {pixKeys.length === 0 ? (
-          <p className="mt-1 text-[13px] text-white/45">—</p>
+          <p className="mt-1 text-[13px] text-[#64748B]">—</p>
         ) : (
           <ul className="mt-2 space-y-1.5">
             {pixKeys.map((item, index) => (
               <li key={`${item.value}-${index}`} className="flex flex-wrap items-center gap-2 text-[13px]">
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] text-white/60">
+                <span className="rounded-full border border-[#DDE7FF] bg-[#EFF6FF] px-2 py-0.5 text-[11px] font-semibold text-[#2563EB]">
                   {item.type ?? "Pix"}
                 </span>
-                <span className="break-all font-mono text-white/80">{item.value}</span>
+                <span className="break-all font-mono text-[#273449]">{item.value}</span>
               </li>
             ))}
           </ul>

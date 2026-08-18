@@ -268,7 +268,7 @@ const RefundSection = () => {
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-5 flex gap-3 dark:bg-amber-500/10 dark:border-amber-500/30">
                   <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-[13px] text-amber-900 dark:text-amber-200">
-                    Ao confirmar, sua solicitação será analisada em até <strong>48 horas</strong>. Se aprovada, o valor de <strong>{fmtMoney(active.amount)}</strong> será creditado em até 7 dias úteis e suas publicações no Mercado Livre serão removidas.
+                    Ao confirmar, sua solicitação será analisada em até <strong>48 horas</strong>. Se aprovada, o valor de <strong>{fmtMoney(active.amount)}</strong> será estornado no cartão e pode levar até <strong>30 dias</strong> para aparecer na fatura (prazo do banco emissor). Suas publicações no Mercado Livre serão removidas.
                   </div>
                 </div>
                 <div className="flex flex-col gap-2.5">
