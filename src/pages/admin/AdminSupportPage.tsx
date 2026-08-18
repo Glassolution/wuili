@@ -277,9 +277,14 @@ const AdminSupportPage = () => {
 
       if (needsFallback.length > 0) {
         try {
-          const { data: adminData } = await supabase.functions.invoke("admin-users", {
-            body: { user_ids: needsFallback },
-          });
+          // Nunca deixa a lista de tickets travar caso a função demore.
+          const adminData = await Promise.race([
+            supabase.functions
+              .invoke("admin-users", { body: { user_ids: needsFallback } })
+              .then((res) => res.data),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]);
+
           const responseUsers =
             adminData && typeof adminData === "object" && "users" in adminData
               ? (adminData as { users?: unknown }).users
