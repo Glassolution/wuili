@@ -509,11 +509,20 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
 
                 <PremiumActionButton
                   type="button"
-                  onClick={() => handleChoose(plan.id)}
-                  className="-mx-1 mt-5 h-9 w-[calc(100%+0.5rem)] rounded-[7px] px-5 text-[14px]"
+                  onClick={() => void handleChoose(plan.id)}
+                  disabled={checkingOutPlanId !== null}
+                  className="-mx-1 mt-5 h-9 w-[calc(100%+0.5rem)] rounded-[7px] px-5 text-[14px] disabled:opacity-80"
                 >
-                  Assinar {plan.name.replace("Plano ", "")}
+                  {checkingOutPlanId === plan.id ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Redirecionando...
+                    </span>
+                  ) : (
+                    <>Assinar {plan.name.replace("Plano ", "")}</>
+                  )}
                 </PremiumActionButton>
+
 
                 <p className="mb-3 mt-6 border-t border-black/[0.08] pt-5 text-[14px] font-semibold text-black">O que está incluído:</p>
                 <ul className="space-y-2.5">
