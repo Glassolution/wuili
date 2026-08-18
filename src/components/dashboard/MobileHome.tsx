@@ -118,10 +118,10 @@ const mobileTabs = [
 ];
 
 const mobileVeloActionItems = [
-  { label: "Comunidade", image: "/assets/mobile-action-comunidade.png", to: "/docs" },
-  { label: "Coleções", image: "/assets/mobile-action-colecoes.png", to: "/colecoes" },
-  { label: "Publicações", image: "/assets/mobile-action-publicacoes.png", to: "/dashboard/publicacoes" },
-  { label: "Imagens com IA", image: "/assets/mobile-action-relatorios.png", to: "/dashboard/imagens-ia" },
+  { label: "Comunidade", icon: Users, to: "/docs", tint: "from-[#1E3A8A] to-[#2563EB]" },
+  { label: "Coleções", icon: Layers, to: "/colecoes", tint: "from-[#2563EB] to-[#3B82F6]" },
+  { label: "Publicações", icon: Megaphone, to: "/dashboard/publicacoes", tint: "from-[#1D4ED8] to-[#60A5FA]" },
+  { label: "Imagens com IA", icon: Sparkles, to: "/dashboard/imagens-ia", tint: "from-[#3B82F6] to-[#93C5FD]" },
 ] as const;
 
 const MOBILE_HOME_CATEGORY_OPTIONS = [
