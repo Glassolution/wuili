@@ -490,7 +490,7 @@ const CheckoutPage = () => {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate("/")}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
                   aria-label="Voltar"
                 >
