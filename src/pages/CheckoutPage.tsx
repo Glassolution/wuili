@@ -181,6 +181,7 @@ const CheckoutPage = () => {
   const [cardHolder, setCardHolder] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [referralDiscount, setReferralDiscount] = useState(0);
+  const [checkingOutPlanId, setCheckingOutPlanId] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -274,18 +275,16 @@ const CheckoutPage = () => {
     }
     redirectedRef.current = true;
     setCheckoutState("loading");
-    const toastId = toast.loading("Abrindo checkout seguro...");
     void (async () => {
       const res = await startValidaPayCheckout(
         planId as VelloPlanId,
         billingCycle === "annual" ? "annual" : "monthly",
       );
       if (res.ok) {
-        toast.success("Redirecionando para o pagamento...", { id: toastId });
         return;
       }
       redirectedRef.current = false;
-      toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.");
       setCheckoutState("idle");
       setShowPaymentStep(false);
     })();
@@ -451,7 +450,8 @@ const CheckoutPage = () => {
   };
 
   // Vai direto para o checkout hospedado da ValidaPay, sem tela intermediária:
-  // a página de planos continua visível até o redirect acontecer.
+  // a página de planos continua visível até o redirect acontecer. O botão do
+  // plano escolhido exibe animação de carregamento em vez de toast.
   const startCheckout = async (nextPlanId = selectedPlanId) => {
     setSelectedPlanId(nextPlanId);
     if (!session) {
@@ -461,17 +461,17 @@ const CheckoutPage = () => {
     }
     if (redirectedRef.current) return;
     redirectedRef.current = true;
-    const toastId = toast.loading("Abrindo checkout seguro...");
+    setCheckingOutPlanId(nextPlanId);
     const res = await startValidaPayCheckout(
       nextPlanId as VelloPlanId,
       billingCycle === "annual" ? "annual" : "monthly",
     );
     if (res.ok) {
-      toast.success("Redirecionando para o pagamento...", { id: toastId });
       return;
     }
     redirectedRef.current = false;
-    toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+    setCheckingOutPlanId(null);
+    toast.error(res.error ?? "Não foi possível gerar o pagamento.");
   };
 
 
@@ -661,10 +661,18 @@ const CheckoutPage = () => {
                     {/* CTA acima da lista de recursos. */}
                     <button
                       type="button"
+                      disabled={checkingOutPlanId === id}
                       onClick={() => startCheckout(id)}
-                      className="mt-5 h-11 w-full rounded-[10px] border border-[#0A0A0A] bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#242424]"
+                      className="mt-5 h-11 w-full rounded-[10px] border border-[#0A0A0A] bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#242424] disabled:cursor-not-allowed disabled:opacity-80"
                     >
-                      Assinar {currentPlan.name}
+                      {checkingOutPlanId === id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Redirecionando...
+                        </span>
+                      ) : (
+                        `Assinar ${currentPlan.name}`
+                      )}
                     </button>
 
                     <p className="mb-3 mt-6 text-[13px] font-semibold text-black">O que está incluído:</p>
@@ -689,10 +697,18 @@ const CheckoutPage = () => {
               </p>
               <button
                 type="button"
+                disabled={checkingOutPlanId === "pro"}
                 onClick={() => startCheckout("pro")}
-                className="h-9 shrink-0 rounded-[10px] border border-black/15 bg-white px-5 text-[12px] font-semibold text-black transition hover:border-black/40 hover:bg-black/[0.03] sm:ml-2"
+                className="h-9 shrink-0 rounded-[10px] border border-black/15 bg-white px-5 text-[12px] font-semibold text-black transition hover:border-black/40 hover:bg-black/[0.03] disabled:cursor-not-allowed disabled:opacity-70 sm:ml-2"
               >
-                Continuar com Pro
+                {checkingOutPlanId === "pro" ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Loader2 size={14} className="animate-spin" />
+                    Redirecionando...
+                  </span>
+                ) : (
+                  "Continuar com Pro"
+                )}
               </button>
             </div>
           </section>
