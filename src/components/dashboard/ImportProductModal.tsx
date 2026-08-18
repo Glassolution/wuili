@@ -571,7 +571,6 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
           size_grid_id: override?.sizeGridId,
         },
       };
-      console.log("[ml-publish] request body:", JSON.stringify(publishBody, null, 2));
 
       // Trocamos supabase.functions.invoke por fetch direto: o invoke consome
       // o body internamente em respostas não-2xx (FunctionsHttpError com
@@ -604,7 +603,6 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         setPublishing(false);
         return;
       }
-      console.log("[ml-publish] response:", { status, body });
 
       if (status < 200 || status >= 300 || body?.error) {
         const code: string | undefined = body?.code;
