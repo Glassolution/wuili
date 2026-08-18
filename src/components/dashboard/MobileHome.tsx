@@ -438,7 +438,7 @@ const MobileAliVeloHome = ({
   return (
     <section className="md:hidden animate-fade-in">
       <div className="min-h-screen w-full overflow-x-hidden bg-white pb-6 text-[#111111]">
-        <div className="bg-gradient-to-b from-[#1E3A8A] to-[#2563EB] px-4 pt-4 text-white">
+        <div className="bg-[linear-gradient(180deg,#1E3A8A_0%,#1D4ED8_60%,#2563EB_100%)] px-4 pt-4 text-white">
           <div className="flex items-center gap-3">
             <button
               type="button"
