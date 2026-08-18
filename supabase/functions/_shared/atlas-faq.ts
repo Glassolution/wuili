@@ -80,14 +80,14 @@ export const ATLAS_FAQ: AtlasFaqEntry[] = [
     requires: /\b(assinatura|plano|conta)\b/,
     message:
       "Para cancelar: **Pagamentos > Minha assinatura > Cancelar**.\n\nSeu acesso continua até o fim do ciclo já pago, e os anúncios que você publicou seguem no Mercado Livre normalmente.",
-    actions: [nav("Abrir Pagamentos", "/dashboard/pagamentos")],
+    actions: [nav("Abrir Suporte", "/dashboard/configuracoes?tab=Suporte")],
   },
   {
     id: "reembolso",
     pattern: /\b(reembolso|estorno|devolver o dinheiro|quero meu dinheiro)\b/,
     message:
-      "O pedido de reembolso é feito em **Pagamentos > Solicitar reembolso**. A análise leva até 48h úteis e, se aprovado, o valor volta no meio de pagamento original em 5 a 10 dias úteis.",
-    actions: [nav("Abrir Pagamentos", "/dashboard/pagamentos")],
+      "O pedido de reembolso é feito pelo **Suporte > Abrir ticket**. A análise leva até 48h úteis e, se aprovado, o valor volta no meio de pagamento original em 5 a 10 dias úteis.",
+    actions: [nav("Abrir Suporte", "/dashboard/configuracoes?tab=Suporte")],
   },
   {
     id: "pagina_de_vendas",
