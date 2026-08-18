@@ -261,6 +261,36 @@ const CheckoutPage = () => {
     );
   }, [billingCycle, isTrial, planId, session?.user?.id, showPaymentStep]);
 
+  // O pagamento acontece no checkout hospedado da ValidaPay (Pix + cartão em
+  // até 12x). Assim que o usuário escolhe o plano, redirecionamos direto para
+  // lá — não usamos mais o formulário de cartão local.
+  const redirectedRef = useRef(false);
+  useEffect(() => {
+    if (!showPaymentStep || redirectedRef.current) return;
+    if (!session) {
+      toast.error("Você precisa estar logado");
+      navigate("/login");
+      return;
+    }
+    redirectedRef.current = true;
+    setCheckoutState("loading");
+    const toastId = toast.loading("Abrindo checkout seguro...");
+    void (async () => {
+      const res = await startValidaPayCheckout(
+        planId as VelloPlanId,
+        billingCycle === "annual" ? "annual" : "monthly",
+      );
+      if (res.ok) {
+        toast.success("Redirecionando para o pagamento...", { id: toastId });
+        return;
+      }
+      redirectedRef.current = false;
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+      setCheckoutState("idle");
+      setShowPaymentStep(false);
+    })();
+  }, [showPaymentStep, session, planId, billingCycle, navigate]);
+
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
     if (checkoutState !== "pix_pending" || !session) return;
