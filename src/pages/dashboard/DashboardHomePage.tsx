@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
 import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
+import MobileHome from "@/components/dashboard/MobileHome";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type AtlasMessage = {
   id: string;
