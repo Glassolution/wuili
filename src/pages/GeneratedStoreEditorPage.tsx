@@ -2012,6 +2012,7 @@ const GeneratedStoreEditorPage = () => {
   const handlePreviewTestClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    if (target.closest("[data-editor-preview-action], form, input, textarea, select")) return;
     const action = target.closest("button, a");
     if (!(action instanceof HTMLElement)) return;
     const text = (action.textContent || "").trim().toLowerCase();
@@ -3482,9 +3483,12 @@ const GeneratedStoreEditorPage = () => {
                 image={featuredProduct?.imageUrl || heroImage}
                 images={featuredProduct?.imageUrls}
                 productId={featuredProduct?.id}
+                projectId={currentProject?.id}
                 accent={accent}
                 mobile={mobilePreview}
                 relatedProducts={relatedProductsForTemplate}
+                editorPreview={editorEnabled}
+                editorProductPreview={!editorEnabled}
               />
             ) : activeTemplate.id === "loja-2" ? (
               <StorefrontLojaTemplate2

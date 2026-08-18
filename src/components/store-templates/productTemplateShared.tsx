@@ -56,6 +56,8 @@ export type ProductTemplateProps = {
   variants?: ProductVariantOption[];
   /** Outros produtos do mesmo projeto. Vazio esconde a seção de recomendados. */
   relatedProducts?: RelatedProduct[];
+  editorPreview?: boolean;
+  editorProductPreview?: boolean;
 };
 
 // --- Cor de destaque --------------------------------------------------------

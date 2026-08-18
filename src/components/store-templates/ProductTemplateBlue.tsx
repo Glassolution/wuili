@@ -1,6 +1,5 @@
-import { useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import {
-  AlertCircle,
   BadgeCheck,
   Check,
   ChevronDown,
@@ -9,17 +8,20 @@ import {
   Clock,
   Feather,
   Heart,
+  Loader2,
   PackageOpen,
   RotateCcw,
   Ruler,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
+  Star,
   Truck,
   X,
   Zap,
 } from "lucide-react";
 
+import { createStoreReview, type StoreReview } from "@/lib/storeReviews";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import {
   buildGallery,
@@ -76,6 +78,8 @@ const ProductTemplateBlue = ({
   mobile = false,
   variants = [],
   relatedProducts = [],
+  editorPreview = false,
+  editorProductPreview = false,
 }: ProductTemplateProps) => {
   const tone = resolveTone(accent);
   const gallery = buildGallery(images, image);
@@ -84,43 +88,59 @@ const ProductTemplateBlue = ({
   const twoColumns = mobile ? "" : "lg:grid-cols-2";
   // O selo "#1 mais vendido de [ano]" precisa do ano corrente, não de um número
   // fixo que envelhece na página do lojista.
-  const anoAtual = new Date().getFullYear();
-
-  const { reviews, count: reviewCount, average, distribution } = useStoreReviewSummary(projectId);
-
-  const percentOf = (value: number) => (reviewCount > 0 ? (value / reviewCount) * 100 : null);
+  const { reviews } = useStoreReviewSummary(projectId);
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [reviewName, setReviewName] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewNotice, setReviewNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [createdReviews, setCreatedReviews] = useState<StoreReview[]>([]);
+  const [localPreviewReviews, setLocalPreviewReviews] = useState<StoreReview[]>([]);
+  const visibleReviews = [...(editorProductPreview ? localPreviewReviews : createdReviews), ...reviews];
+  const effectiveReviewCount = visibleReviews.length;
+  const effectiveAverage =
+    effectiveReviewCount > 0
+      ? visibleReviews.reduce((total, review) => total + review.rating, 0) / effectiveReviewCount
+      : 0;
+  const effectiveDistribution = visibleReviews.reduce<Record<1 | 2 | 3 | 4 | 5, number>>(
+    (current, review) => {
+      const rating = Math.min(5, Math.max(1, Math.round(review.rating))) as 1 | 2 | 3 | 4 | 5;
+      current[rating] += 1;
+      return current;
+    },
+    { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  );
+  const percentOf = (value: number) => (effectiveReviewCount > 0 ? (value / effectiveReviewCount) * 100 : null);
   const stats: Array<{ percent: number | null; label: string }> = [
-    { percent: percentOf(distribution[5]), label: "Avaliaram com 5 estrelas" },
-    { percent: percentOf(distribution[4] + distribution[5]), label: "Recomendam o produto" },
-    { percent: average === null ? null : (average / 5) * 100, label: "Nota média da loja" },
+    { percent: percentOf(effectiveDistribution[5]), label: "Avaliaram com 5 estrelas" },
+    { percent: percentOf(effectiveDistribution[4] + effectiveDistribution[5]), label: "Recomendam o produto" },
+    { percent: effectiveReviewCount === 0 ? null : (effectiveAverage / 5) * 100, label: "Nota média da loja" },
     {
-      percent: percentOf(reviews.filter((review) => review.comment.trim().length > 0).length),
+      percent: percentOf(visibleReviews.filter((review) => review.comment.trim().length > 0).length),
       label: "Deixaram um comentário",
     },
   ];
-
-  // Depoimentos: avaliação real ganha do placeholder. Os placeholders existem
-  // para o bloco não sumir numa loja nova — o lojista troca o texto no canvas.
-  const depoimentos =
-    reviews.length > 0
-      ? reviews.slice(0, 8).map((review) => ({
-          id: review.id,
-          authorName: review.authorName,
-          rating: review.rating,
-          comment: review.comment,
-        }))
-      : [1, 2, 3].map((indice) => ({
-          id: `placeholder-${indice}`,
-          authorName: "Nome do cliente",
-          rating: 5,
-          comment:
-            "Escreva aqui o depoimento de um cliente real da sua loja — o que ele resolveu com o produto.",
-        }));
-
   const featuredTrack = useRef<HTMLDivElement>(null);
   const reviewsTrack = useRef<HTMLDivElement>(null);
   const relatedTrack = useRef<HTMLDivElement>(null);
-
+  const showingExampleReviews = editorPreview && visibleReviews.length === 0;
+  const editorReviewExamples = [1, 2, 3].map((index) => ({
+    id: `editor-example-${index}`,
+    authorName: "Cliente exemplo",
+    rating: 5,
+    comment: "Exemplo visual de comentario. Ele aparece so no editor e nao sera publicado.",
+  }));
+  const bestReviews = visibleReviews
+    .filter((review) => review.comment.trim().length > 0)
+    .sort((a, b) => b.rating - a.rating || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 8);
+  const reviewDepoimentos = (bestReviews.length > 0 ? bestReviews : showingExampleReviews ? editorReviewExamples : []).map((review) => ({
+      id: review.id,
+      authorName: review.authorName,
+      rating: review.rating,
+      comment: review.comment,
+    }));
   const galleryVars = { "--velo-tone": tone } as CSSProperties;
 
   const Seta = ({ onClick, label, direcao }: { onClick: () => void; label: string; direcao: "prev" | "next" }) => (
@@ -136,6 +156,74 @@ const ProductTemplateBlue = ({
       {direcao === "prev" ? <ChevronLeft size={19} /> : <ChevronRight size={19} />}
     </button>
   );
+
+  useEffect(() => {
+    if (reviewDepoimentos.length <= 1) return;
+    const timer = window.setInterval(() => {
+      [featuredTrack.current, reviewsTrack.current].forEach((track) => {
+        if (!track) return;
+        const reachedEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 8;
+        if (reachedEnd) {
+          track.scrollTo({ left: 0, behavior: "smooth" });
+          return;
+        }
+        scrollCarousel(track, 1);
+      });
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [reviewDepoimentos.length]);
+
+  const handleReviewSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (reviewSubmitting) return;
+
+    const authorName = reviewName.trim();
+    const comment = reviewComment.trim();
+    if (authorName.length < 2) {
+      setReviewNotice({ tone: "error", text: "Digite seu nome." });
+      return;
+    }
+    if (comment.length < 3) {
+      setReviewNotice({ tone: "error", text: "Escreva seu comentário." });
+      return;
+    }
+    if (editorProductPreview) {
+      const previewReview: StoreReview = {
+        id: `preview-${Date.now()}`,
+        authorName,
+        rating: reviewRating,
+        comment,
+        createdAt: new Date().toISOString(),
+      };
+      setLocalPreviewReviews((current) => [previewReview, ...current]);
+      setReviewName("");
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewFormOpen(false);
+      setReviewNotice({ tone: "ok", text: "Comentario adicionado apenas neste modo Produto." });
+      return;
+    }
+    if (!projectId) {
+      setReviewNotice({ tone: "ok", text: "Preview: o comentário seria enviado na página publicada." });
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewNotice(null);
+    try {
+      const created = await createStoreReview({ projectId, productId, authorName, rating: reviewRating, comment });
+      setCreatedReviews((current) => [created, ...current]);
+      setReviewName("");
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewFormOpen(false);
+      setReviewNotice({ tone: "ok", text: "Obrigado! Seu comentário foi publicado." });
+    } catch {
+      setReviewNotice({ tone: "error", text: "Não foi possível enviar o comentário agora." });
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   return (
     <div className="bg-white text-[#111114]" style={galleryVars}>
@@ -247,40 +335,22 @@ const ProductTemplateBlue = ({
 
           {/* Coluna de compra */}
           <div className="flex flex-col">
-            {/* Selo de destaque com o ano corrente. */}
-            <div
-              className="flex w-fit items-center gap-3 rounded-[10px] px-3 py-2.5 text-white"
-              style={{ backgroundColor: tone }}
-            >
-              <span data-editor-type="text" className="rounded-[6px] bg-white/20 px-2 py-1 text-[13px] font-bold">
-                #1
-              </span>
-              <span className="min-w-0">
-                <span data-editor-type="text" className="block text-[13px] font-bold uppercase tracking-[0.04em]">
-                  Mais vendido de {anoAtual}
-                </span>
-                <span data-editor-type="text" className="block text-[12px] italic text-white/75">
-                  Escolhido por quem já comprou na loja
-                </span>
-              </span>
-            </div>
-
             <h1
               data-editor-type="text"
-              className="mt-4 text-[34px] font-bold leading-[1.05] tracking-[-0.03em] md:text-[42px]"
+              className="text-[34px] font-bold leading-[1.05] tracking-[-0.03em] md:text-[42px]"
             >
               {title}
             </h1>
 
             {/* Nota da loja: real quando há avaliação, editável enquanto não há. */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Stars value={average ?? 5} size={18} color={tone} />
+              <Stars value={effectiveAverage} size={18} color={tone} />
               <span data-editor-type="text" className="text-[14.5px] text-black/70">
                 Nota{" "}
                 <strong className="font-bold text-[#111114]">
-                  {average !== null ? `${average.toFixed(1).replace(".", ",")}/5` : "5,0/5"}
+                  {`${effectiveAverage.toFixed(1).replace(".", ",")}/5`}
                 </strong>
-                {reviewCount > 0 ? ` · ${reviewCount} ${reviewCount === 1 ? "avaliação" : "avaliações"}` : " · avaliações da loja"}
+                {` · ${effectiveReviewCount} ${effectiveReviewCount === 1 ? "avaliação" : "avaliações"}`}
               </span>
             </div>
 
@@ -436,13 +506,14 @@ const ProductTemplateBlue = ({
             </div>
 
             {/* Depoimento em destaque */}
+            {reviewDepoimentos.length > 0 ? (
             <div className="relative mt-5">
               <div
                 ref={featuredTrack}
                 className="velo-blue-track flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth rounded-[12px] border-2"
                 style={{ borderColor: tint(tone, 0.35) }}
               >
-                {depoimentos.map((item, index) => (
+                {reviewDepoimentos.map((item, index) => (
                   <figure key={item.id} className="w-full shrink-0 snap-start p-5" style={{ backgroundColor: MIST }}>
                     <div className="flex justify-center">
                       <Stars value={item.rating} size={16} color={tone} />
@@ -462,13 +533,13 @@ const ProductTemplateBlue = ({
                       </span>
                       <BadgeCheck size={15} style={{ color: tone }} />
                       <span className="text-[11.5px] font-semibold text-black/35">
-                        {index + 1}/{depoimentos.length}
+                        {index + 1}/{reviewDepoimentos.length}
                       </span>
                     </figcaption>
                   </figure>
                 ))}
               </div>
-              {depoimentos.length > 1 ? (
+              {reviewDepoimentos.length > 1 ? (
                 <div className="mt-2.5 flex justify-end gap-2">
                   <button
                     type="button"
@@ -489,20 +560,7 @@ const ProductTemplateBlue = ({
                 </div>
               ) : null}
             </div>
-
-            {/* 2. Aviso de urgência — texto editável pelo lojista. */}
-            <div className="mt-5 rounded-[10px] border border-dashed p-4" style={{ borderColor: ALERT }}>
-              <span className="flex items-center gap-2">
-                <AlertCircle size={17} style={{ color: ALERT }} />
-                <span data-editor-type="text" className="text-[14.5px] font-bold" style={{ color: ALERT }}>
-                  Estoque limitado
-                </span>
-              </span>
-              <p data-editor-type="text" className="mt-2 text-[13.5px] leading-[1.6] text-black/70">
-                Escreva aqui o aviso de urgência da sua loja — quantas vezes o produto esgotou, o prazo da oferta ou o
-                que for verdade no seu estoque.
-              </p>
-            </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -564,11 +622,9 @@ const ProductTemplateBlue = ({
               <span data-editor-type="text">Quero o meu</span>
             </button>
             <div className="mt-4 flex items-center gap-2">
-              <Stars value={average ?? 5} size={16} color={tone} />
+              <Stars value={effectiveAverage} size={16} color={tone} />
               <span data-editor-type="text" className="text-[13.5px] text-black/65">
-                {reviewCount > 0
-                  ? `Nota ${(average as number).toFixed(1).replace(".", ",")}/5 em ${reviewCount} avaliações`
-                  : "As avaliações da loja aparecem aqui"}
+                {`Nota ${effectiveAverage.toFixed(1).replace(".", ",")}/5 em ${effectiveReviewCount} ${effectiveReviewCount === 1 ? "avaliação" : "avaliações"}`}
               </span>
             </div>
           </div>
@@ -683,26 +739,111 @@ const ProductTemplateBlue = ({
               className="flex items-center gap-2 rounded-full border px-4 py-2"
               style={{ borderColor: tint(tone, 0.35), backgroundColor: MIST }}
             >
-              <Stars value={average ?? 5} size={15} color={tone} />
+              <Stars value={effectiveAverage} size={15} color={tone} />
               <span data-editor-type="text" className="text-[13px] font-semibold">
-                {reviewCount > 0
-                  ? `Nota ${(average as number).toFixed(1).replace(".", ",")}/5 · ${reviewCount} avaliações`
-                  : "Avaliações da sua loja aparecem aqui"}
+                {`Nota ${effectiveAverage.toFixed(1).replace(".", ",")}/5 · ${effectiveReviewCount} ${effectiveReviewCount === 1 ? "avaliação" : "avaliações"}`}
               </span>
             </span>
             <h2 data-editor-type="text" className="mt-4 text-[32px] font-bold tracking-[-0.03em] md:text-[38px]">
               Clientes satisfeitos
             </h2>
             <p data-editor-type="text" className="mt-3 max-w-[720px] text-[15px] text-black/60">
-              Nada nos deixa mais felizes que cliente satisfeito — leia as histórias de quem já comprou.
+              {visibleReviews.length > 0
+                ? "Leia as historias de quem ja comprou."
+                : editorPreview
+                  ? "Comentarios de exemplo para visualizar o bloco no editor."
+                  : "Este produto ainda nao tem comentarios. Seja o primeiro a comentar."}
             </p>
+            {showingExampleReviews ? (
+              <p className="mt-3 rounded-full border px-4 py-2 text-[12px] font-bold text-black/55" style={{ borderColor: tint(tone, 0.3), backgroundColor: MIST }}>
+                Apenas para visualizar como os comentarios vao ficar. Estes exemplos nao aparecem na pagina publicada.
+              </p>
+            ) : null}
           </div>
 
+          {!editorPreview ? (
+            <div className="mx-auto mt-7 flex max-w-[760px] flex-col items-center">
+              <button
+                type="button"
+                data-editor-preview-action="comment"
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setReviewFormOpen((open) => !open);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setReviewFormOpen((open) => !open);
+                }}
+                className="h-12 rounded-[10px] px-7 text-[14px] font-bold uppercase text-white transition hover:brightness-110"
+                style={{ backgroundColor: tone }}
+              >
+                {reviewFormOpen ? "Fechar comentário" : "Comentar"}
+              </button>
+
+              {reviewFormOpen ? (
+                <form onSubmit={handleReviewSubmit} className="mt-5 w-full rounded-[16px] border border-black/[0.08] bg-white p-5 text-left">
+                  <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-black/50">Sua nota</p>
+                  <div className="mt-2 flex items-center gap-1" style={{ color: tone }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        aria-label={`${star} estrela${star === 1 ? "" : "s"}`}
+                        className="transition hover:scale-110"
+                      >
+                        <Star size={25} fill={star <= reviewRating ? "currentColor" : "none"} strokeWidth={star <= reviewRating ? 0 : 1.7} />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <input
+                      value={reviewName}
+                      onChange={(event) => setReviewName(event.target.value)}
+                      placeholder="Seu nome"
+                      maxLength={60}
+                      className="h-11 w-full rounded-[10px] border border-black/10 bg-white px-3 text-[14px] font-semibold outline-none focus:border-black/35"
+                    />
+                    <input
+                      value={reviewComment}
+                      onChange={(event) => setReviewComment(event.target.value)}
+                      placeholder="O que você achou do produto?"
+                      maxLength={1000}
+                      className="h-11 w-full rounded-[10px] border border-black/10 bg-white px-3 text-[14px] font-semibold outline-none focus:border-black/35"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="mt-4 flex h-11 items-center justify-center gap-2 rounded-[10px] px-6 text-[13px] font-bold uppercase text-white transition hover:brightness-110 disabled:opacity-60"
+                    style={{ backgroundColor: tone }}
+                  >
+                    {reviewSubmitting ? <Loader2 size={15} className="animate-spin" /> : null}
+                    {reviewSubmitting ? "Enviando" : "Publicar comentário"}
+                  </button>
+                </form>
+              ) : null}
+
+              {reviewNotice ? (
+                <p className={`mt-3 text-[13px] font-bold ${reviewNotice.tone === "ok" ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+                  {reviewNotice.text}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {reviewDepoimentos.length > 0 ? (
           <div className="relative mt-10">
             <Seta direcao="prev" label="Anterior" onClick={() => scrollCarousel(reviewsTrack.current, -1)} />
             <Seta direcao="next" label="Próximo" onClick={() => scrollCarousel(reviewsTrack.current, 1)} />
             <div ref={reviewsTrack} className="velo-blue-track flex gap-5 overflow-x-auto scroll-smooth pb-2">
-              {depoimentos.map((item) => (
+              {reviewDepoimentos.map((item) => (
                 <article
                   key={`carrossel-${item.id}`}
                   className="w-[280px] shrink-0 rounded-[16px] border border-black/[0.07] bg-white p-5"
@@ -726,6 +867,7 @@ const ProductTemplateBlue = ({
               ))}
             </div>
           </div>
+          ) : null}
         </div>
       </section>
 
@@ -763,7 +905,7 @@ const ProductTemplateBlue = ({
             O que os clientes relatam
           </h2>
           <p data-editor-type="text" className="mx-auto mt-3 max-w-[720px] text-center text-[14.5px] text-black/60">
-            {reviewCount > 0
+            {effectiveReviewCount > 0
               ? "Números calculados a partir das avaliações reais da sua loja."
               : "Os números aparecem sozinhos assim que os primeiros clientes avaliarem."}
           </p>

@@ -1,10 +1,11 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties, type FormEvent } from "react";
 import {
   BadgeCheck,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   HandHeart,
+  Loader2,
   Package,
   ShieldCheck,
   ShoppingCart,
@@ -13,6 +14,7 @@ import {
   Trophy,
 } from "lucide-react";
 
+import { createStoreReview, type StoreReview } from "@/lib/storeReviews";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import {
   buildGallery,
@@ -203,12 +205,14 @@ const ProductTemplateBlack = ({
   mobile = false,
   variants = [],
   relatedProducts = [],
+  editorPreview = false,
+  editorProductPreview = false,
 }: ProductTemplateProps) => {
   const tone = resolveTone(accent);
   const gallery = buildGallery(images, image);
   const hasDiscount = Boolean(originalPrice && originalPrice > price);
   const discount = hasDiscount ? Math.round((1 - price / (originalPrice as number)) * 100) : 0;
-  const { reviews, count: reviewCount, average } = useStoreReviewSummary(projectId);
+  const { reviews } = useStoreReviewSummary(projectId);
   const relatedTrack = useRef<HTMLDivElement>(null);
 
   const gridColumns = mobile ? "" : "lg:grid-cols-[minmax(0,1.72fr)_minmax(340px,0.9fr)]";
@@ -221,12 +225,78 @@ const ProductTemplateBlack = ({
   const productFaqs = buildProductFaqs(title, variants);
   const productFoldContent = buildProductFoldContent(title, description, variants);
   const templatePreviewOnly = !productId;
-  const showReviewSection = reviews.length > 0 || templatePreviewOnly;
+  const [reviewFormOpen, setReviewFormOpen] = useState(false);
+  const [reviewName, setReviewName] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewNotice, setReviewNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [createdReviews, setCreatedReviews] = useState<StoreReview[]>([]);
+  const [localPreviewReviews, setLocalPreviewReviews] = useState<StoreReview[]>([]);
+  const visibleReviews = [...(editorProductPreview ? localPreviewReviews : createdReviews), ...reviews];
+  const effectiveReviewCount = visibleReviews.length;
+  const effectiveAverage =
+    effectiveReviewCount > 0
+      ? visibleReviews.reduce((total, review) => total + review.rating, 0) / effectiveReviewCount
+      : 0;
+  const showingExampleReviews = editorPreview && visibleReviews.length === 0;
+  const reviewCards: Array<StoreReview | number> = visibleReviews.length > 0 ? visibleReviews.slice(0, 4) : showingExampleReviews ? [1, 2, 3, 4] : [];
 
-  const socialLine =
-    reviewCount > 0
-      ? `Mais de ${reviewCount.toLocaleString("pt-BR")} cliente${reviewCount === 1 ? "" : "s"} verificado${reviewCount === 1 ? "" : "s"}`
-      : "Mais de 10.000 clientes satisfeitos";
+  const socialLine = `Nota ${effectiveAverage.toFixed(1).replace(".", ",")}/5 · ${effectiveReviewCount} ${
+    effectiveReviewCount === 1 ? "avaliação" : "avaliações"
+  }`;
+
+  const handleReviewSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (reviewSubmitting) return;
+
+    const authorName = reviewName.trim();
+    const comment = reviewComment.trim();
+    if (authorName.length < 2) {
+      setReviewNotice({ tone: "error", text: "Digite seu nome." });
+      return;
+    }
+    if (comment.length < 3) {
+      setReviewNotice({ tone: "error", text: "Escreva seu comentário." });
+      return;
+    }
+    if (editorProductPreview) {
+      const previewReview: StoreReview = {
+        id: `preview-${Date.now()}`,
+        authorName,
+        rating: reviewRating,
+        comment,
+        createdAt: new Date().toISOString(),
+      };
+      setLocalPreviewReviews((current) => [previewReview, ...current]);
+      setReviewName("");
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewFormOpen(false);
+      setReviewNotice({ tone: "ok", text: "Comentario adicionado apenas neste modo Produto." });
+      return;
+    }
+    if (!projectId) {
+      setReviewNotice({ tone: "ok", text: "Preview: o comentário seria enviado na página publicada." });
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewNotice(null);
+    try {
+      const created = await createStoreReview({ projectId, productId, authorName, rating: reviewRating, comment });
+      setCreatedReviews((current) => [created, ...current]);
+      setReviewName("");
+      setReviewComment("");
+      setReviewRating(5);
+      setReviewFormOpen(false);
+      setReviewNotice({ tone: "ok", text: "Obrigado! Seu comentário foi publicado." });
+    } catch {
+      setReviewNotice({ tone: "error", text: "Não foi possível enviar o comentário agora." });
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const HeroArrow = ({ direction, onClick }: { direction: "left" | "right"; onClick: () => void }) => (
     <button
@@ -340,15 +410,19 @@ const ProductTemplateBlack = ({
         </div>
 
         <aside className="flex flex-col">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex overflow-hidden">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-0.5 text-[#FFC400]">
               {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className="grid h-5 w-5 place-items-center border-r border-white bg-[#00B67A] text-white last:border-r-0">
-                  <Star size={12} fill="currentColor" strokeWidth={0} />
-                </span>
+                <Star
+                  key={star}
+                  size={17}
+                  fill={star <= Math.round(effectiveAverage) ? "currentColor" : "none"}
+                  strokeWidth={star <= Math.round(effectiveAverage) ? 0 : 1.7}
+                  className={star <= Math.round(effectiveAverage) ? "" : "text-[#D4D4D4]"}
+                />
               ))}
             </span>
-            <span data-editor-type="text" className="text-[15px] font-bold text-[#3A3A3A]">
+            <span data-editor-type="text" className="text-[15px] font-medium text-[#111114]">
               {socialLine}
             </span>
           </div>
@@ -463,14 +537,6 @@ const ProductTemplateBlack = ({
             ))}
           </div>
 
-          <div className="mt-4 flex items-center gap-3 bg-[#EFEFEF] px-4 py-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-[#E88BCE] bg-[#FFE2F6] text-[14px] font-black text-[#343434]">
-              K
-            </span>
-            <p data-editor-type="text" className="text-[15px] font-black italic leading-tight">
-              Clientes reais ja escolheram [{title}] para facilitar o dia a dia.
-            </p>
-          </div>
         </aside>
       </section>
 
@@ -525,8 +591,7 @@ const ProductTemplateBlack = ({
         </div>
       </section>
 
-      {showReviewSection ? (
-        <section className="px-5 py-14 text-center">
+      <section className="px-5 py-14 text-center">
           <div className="flex justify-center gap-2 text-[#FFC400]">
             {[1, 2, 3, 4, 5].map((star) => (
               <Star key={star} size={29} fill="currentColor" strokeWidth={0} />
@@ -536,10 +601,82 @@ const ProductTemplateBlack = ({
             O que os clientes dizem
           </h2>
           <p data-editor-type="text" className="mx-auto mt-4 max-w-[820px] text-[19px] font-medium text-[#777]">
-            {reviews.length > 0 ? "Avaliacoes de clientes que ja compraram nesta loja." : "Bloco de exemplo do template. Troque por avaliacoes reais antes de publicar."}
+            {visibleReviews.length > 0
+              ? "Avaliações de clientes que já compraram nesta loja."
+              : editorPreview
+                ? "Comentários de exemplo para montar o template no editor."
+                : "Este produto ainda não tem comentários. Seja o primeiro a comentar."}
           </p>
+          {showingExampleReviews ? (
+            <p className="mx-auto mt-3 max-w-[640px] rounded-full border border-[#D7D7D7] bg-[#F7F7F7] px-4 py-2 text-[12px] font-bold text-[#666]">
+              Apenas para visualizar como os comentários vão ficar. Estes exemplos não aparecem na página publicada.
+            </p>
+          ) : null}
+
+          {!editorPreview ? (
+            <div className="mx-auto mt-7 max-w-[720px] text-left">
+              <button
+                type="button"
+                onClick={() => setReviewFormOpen((open) => !open)}
+                className="mx-auto flex h-12 items-center justify-center bg-[#111111] px-7 text-[14px] font-black uppercase text-white transition hover:bg-[#2a2a2a]"
+              >
+                {reviewFormOpen ? "Fechar comentário" : "Comentar"}
+              </button>
+
+              {reviewFormOpen ? (
+                <form onSubmit={handleReviewSubmit} className="mt-5 border-2 border-[#E1E1E1] bg-white p-5">
+                  <p className="text-[12px] font-black uppercase tracking-[0.08em] text-[#777]">Sua nota</p>
+                  <div className="mt-2 flex items-center gap-1 text-[#FFC400]">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setReviewRating(star)}
+                        aria-label={`${star} estrela${star === 1 ? "" : "s"}`}
+                        className="transition hover:scale-110"
+                      >
+                        <Star size={25} fill={star <= reviewRating ? "currentColor" : "none"} strokeWidth={star <= reviewRating ? 0 : 1.7} />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <input
+                      value={reviewName}
+                      onChange={(event) => setReviewName(event.target.value)}
+                      placeholder="Seu nome"
+                      maxLength={60}
+                      className="h-11 w-full border border-[#D7D7D7] bg-white px-3 text-[14px] font-bold outline-none focus:border-[#111111]"
+                    />
+                    <input
+                      value={reviewComment}
+                      onChange={(event) => setReviewComment(event.target.value)}
+                      placeholder="O que você achou do produto?"
+                      maxLength={1000}
+                      className="h-11 w-full border border-[#D7D7D7] bg-white px-3 text-[14px] font-bold outline-none focus:border-[#111111]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="mt-4 flex h-11 items-center justify-center gap-2 bg-[#111111] px-6 text-[13px] font-black uppercase text-white transition hover:bg-[#2a2a2a] disabled:opacity-60"
+                  >
+                    {reviewSubmitting ? <Loader2 size={15} className="animate-spin" /> : null}
+                    {reviewSubmitting ? "Enviando" : "Publicar comentário"}
+                  </button>
+                </form>
+              ) : null}
+
+              {reviewNotice ? (
+                <p className={`mt-3 text-center text-[13px] font-bold ${reviewNotice.tone === "ok" ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+                  {reviewNotice.text}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {reviewCards.length > 0 ? (
           <div className="mt-10 grid gap-6 md:grid-cols-4">
-            {(reviews.length > 0 ? reviews.slice(0, 4) : [1, 2, 3, 4]).map((item, index) => {
+            {reviewCards.map((item, index) => {
               const review = typeof item === "number" ? null : item;
               return (
                 <article key={review?.id ?? index} className="border-2 border-[#E1E1E1] p-4 text-left">
@@ -564,8 +701,8 @@ const ProductTemplateBlack = ({
               );
             })}
           </div>
+          ) : null}
         </section>
-      ) : null}
 
       {templatePreviewOnly ? (
         <section className="overflow-hidden px-5 py-14 text-center">
