@@ -10,7 +10,7 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, Star, Truck } from "lucide-react";
+import { ArrowUpRight, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, ShieldCheck, Star, Truck, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
