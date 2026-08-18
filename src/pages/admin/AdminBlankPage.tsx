@@ -351,22 +351,44 @@ const fetchAllValidaPayEvents = async () => {
   return { rows, available: true };
 };
 
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } catch {
+    return fallback;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
 const fetchWalletData = async (): Promise<WalletData> => {
   const [subscriptions, profiles, refunds, adminUsers, validapay] = await Promise.all([
-    fetchAllSubscriptions(),
-    fetchAllProfiles(),
-    supabase
-      .from("refund_requests")
-      .select("payment_id,refund_amount,processed_at,status")
-      .limit(1000),
-    supabase.functions.invoke("admin-users") as Promise<{
-      data: AdminUserIdentity[] | null;
-      error: unknown;
-    }>,
-    fetchAllValidaPayEvents(),
+    withTimeout(fetchAllSubscriptions(), 20_000, [] as SubscriptionRow[]),
+    withTimeout(fetchAllProfiles(), 20_000, [] as ProfileRow[]),
+    withTimeout(
+      supabase
+        .from("refund_requests")
+        .select("payment_id,refund_amount,processed_at,status")
+        .limit(1000)
+        .then((result) => result),
+      20_000,
+      { data: [] as RefundRow[], error: null } as { data: RefundRow[] | null; error: unknown },
+    ),
+    // admin-users é pesado (lista todos os usuários do auth); nunca deve travar a carteira
+    withTimeout(
+      supabase.functions.invoke("admin-users") as Promise<{
+        data: AdminUserIdentity[] | null;
+        error: unknown;
+      }>,
+      8_000,
+      { data: null, error: null },
+    ),
+    withTimeout(fetchAllValidaPayEvents(), 20_000, { rows: [] as ValidaPayEventRow[], available: false }),
   ]);
-
-  if (refunds.error) throw refunds.error;
 
   return {
     subscriptions,
@@ -377,6 +399,7 @@ const fetchWalletData = async (): Promise<WalletData> => {
     validapayAvailable: validapay.available,
   };
 };
+
 
 const fetchFinanceData = async (period: Period): Promise<FinanceData> => {
   const { data, error } = await supabase.functions.invoke("admin-wallet-finance", {
@@ -537,6 +560,7 @@ const AdminPainelPage = () => {
     queryKey: ["admin-wallet-v8-validapay-only"],
     queryFn: fetchWalletData,
     refetchInterval: 30_000,
+    retry: 1,
   });
   const {
     data: providerFinance,
@@ -547,6 +571,7 @@ const AdminPainelPage = () => {
     queryKey: ["admin-wallet-finance-v2-validapay-only", period],
     queryFn: () => fetchFinanceData(period),
     refetchInterval: 60_000,
+    retry: 1,
   });
 
   useEffect(() => {
