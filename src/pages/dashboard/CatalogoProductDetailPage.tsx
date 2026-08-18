@@ -854,7 +854,7 @@ const CatalogoProductDetailPage = () => {
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-[#71717A]">
                           {relatedMetrics.rating !== null && (
                             <>
-                              <Star size={11} className="fill-[#111] text-[#111]" />
+                              <Star size={11} className="fill-[#2563EB] text-[#2563EB]" />
                               <span>{relatedMetrics.rating.toFixed(1)}</span>
                             </>
                           )}
