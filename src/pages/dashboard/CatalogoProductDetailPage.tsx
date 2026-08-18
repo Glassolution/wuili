@@ -527,7 +527,7 @@ const CatalogoProductDetailPage = () => {
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[13px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]"
               >
                 <PackagePlus size={17} strokeWidth={1.8} />
-                Importar e publicar
+                Publicar produto
               </button>
               <button
                 type="button"
@@ -686,7 +686,7 @@ const CatalogoProductDetailPage = () => {
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[14px] font-semibold text-white transition hover:brightness-105"
                 >
                   <PackagePlus size={17} strokeWidth={1.9} />
-                  Importar e publicar
+                  Publicar produto
                 </button>
                 <button
                   type="button"
