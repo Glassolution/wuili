@@ -776,15 +776,16 @@ const styles = {
   } satisfies CSSProperties,
 };
 
-// Logo oficial da Velo (public/logo.png): a bolha azul com o "C", com fundo
-// transparente e já recortada na borda da marca — por isso ela preenche a caixa
-// inteira (object-contain) em vez de flutuar numa margem vazia.
+// Logo oficial da Velo (public/logo.png): a cesta azul com o "C", gerada a partir
+// de "public/logo original.png" com o fundo branco removido e recortada na borda da
+// arte — por isso ela preenche a caixa inteira (object-contain) em vez de flutuar
+// numa margem vazia.
 const VeloIconOnly = () => (
   <img
     aria-hidden="true"
     src="/logo.png"
     alt=""
-    // 38px mantém a presença do app badge sem deixar o topo mais pesado que a referência.
+    // 38px mantém a presença da marca sem deixar o topo mais pesado que a referência.
     style={{ width: 38, height: 38, objectFit: "contain", flexShrink: 0, display: "block" }}
   />
 );
