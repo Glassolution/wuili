@@ -5,6 +5,7 @@
 // funciona sem depender de bucket nem de tabela nova — quando fizer sentido
 // guardar histórico, é só adicionar o upload aqui.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { PLAN_LIMITS, normalizePlanKey } from "../_shared/plan-limits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -167,7 +168,9 @@ Deno.serve(async (req) => {
     if (!cota.ilimitado && cota.restantes !== null && cota.restantes <= 0) {
       return json(
         {
-          error: `Você já usou as ${LIMITE_MENSAL_GRATUITO} imagens do plano gratuito neste mês. Faça upgrade para continuar gerando.`,
+          error: cota.plano === "gratis"
+            ? `Você já usou as ${cota.limite} imagens gratuitas deste mês. Assine um plano para continuar gerando.`
+            : `Você atingiu o limite de ${cota.limite} imagens com IA do plano ${cota.plano} neste mês. Faça upgrade para liberar mais.`,
           quota: cota,
         },
         429,
