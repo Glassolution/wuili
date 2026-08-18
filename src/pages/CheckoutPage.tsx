@@ -449,9 +449,8 @@ const CheckoutPage = () => {
     }
   };
 
-  // Leva para o checkout da própria Velo (/assinar/:plan), onde o cliente
-  // confere o plano e informa os dados. O pagamento continua sendo feito na
-  // ValidaPay, disparado a partir de lá.
+  // Fluxo Velo v1: segue direto para o checkout hospedado da ValidaPay.
+  // A página de planos permanece visível enquanto o botão mostra o carregamento.
   const startCheckout = async (nextPlanId = selectedPlanId) => {
     setSelectedPlanId(nextPlanId);
     if (!session) {
@@ -459,8 +458,17 @@ const CheckoutPage = () => {
       navigate("/login");
       return;
     }
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
     setCheckingOutPlanId(nextPlanId);
-    navigate(`/assinar/${nextPlanId}?cycle=${billingCycle === "annual" ? "annual" : "monthly"}`);
+    const res = await startValidaPayCheckout(
+      nextPlanId as VelloPlanId,
+      billingCycle === "annual" ? "annual" : "monthly",
+    );
+    if (res.ok) return;
+    redirectedRef.current = false;
+    setCheckingOutPlanId(null);
+    toast.error(res.error ?? "Não foi possível gerar o pagamento.");
   };
 
 

@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
@@ -332,7 +331,6 @@ type ModalProps = {
 };
 
 const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
-  const navigate = useNavigate();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
@@ -347,14 +345,20 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
 
   if (!open) return null;
 
-  // Leva para o checkout da própria Velo (logo e layout sob nosso controle).
-  // O pagamento em si continua na ValidaPay, disparado de lá.
+  // Fluxo Velo v1: cria a sessão e segue direto para o checkout hospedado da ValidaPay.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
     setCheckingOutPlanId(planId);
-    navigate(`/assinar/${planId}?cycle=${cycle}`);
-    onClose();
-    setCheckingOutPlanId(null);
+    try {
+      const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
+      if (res.ok) return;
+      setCheckingOutPlanId(null);
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.");
+    } catch (error) {
+      console.error("checkout error", error);
+      setCheckingOutPlanId(null);
+      toast.error("Não foi possível gerar o pagamento.");
+    }
   };
 
 
