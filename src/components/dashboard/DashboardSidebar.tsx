@@ -54,7 +54,7 @@ const baseNavItems: NavItem[] = [
   { id: "pedidos", label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { id: "imagens-ia", label: "Imagens com IA", icon: ImageIcon, to: "/dashboard/imagens-ia" },
   { id: "tiktok", label: "TikTok", icon: TikTokIcon, to: "/dashboard/tiktok" },
-  { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
+  // { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
 
 // "Lojas": conectar/gerenciar lojas (Shopify, Mercado Livre) — leva à tela de
