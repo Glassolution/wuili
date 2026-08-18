@@ -24,6 +24,7 @@ Deno.serve(async (req) => {
       priceId,
       items: [{ priceId, quantity: 1 }],
       companyName: "Velo",
+      pathLogo: url.searchParams.get("pathLogo") ?? logoUrl,
       logoUrl,
       companyLogoUrl: logoUrl,
       logo: logoUrl,
