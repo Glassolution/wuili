@@ -435,23 +435,20 @@ const MobileAliVeloHome = ({
   }
 
   return (
-    <section className="md:hidden">
+    <section className="md:hidden animate-fade-in">
       <div className="min-h-screen w-full overflow-x-hidden bg-white pb-6 text-[#111111]">
-        <div className="bg-[#050505] px-4 pt-4 text-white">
+        <div className="bg-gradient-to-b from-[#1E3A8A] to-[#2563EB] px-4 pt-4 text-white">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#101010] text-white"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-[0_4px_12px_rgba(0,0,0,0.18)] transition-transform active:scale-95"
               aria-label="Velo"
             >
-              <svg aria-hidden="true" viewBox="0 0 72 72" className="h-7 w-7" fill="none">
-                <path d="M49.5 24 A18 18 0 1 0 49.5 48" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
-                <path d="M46 42 L52 48 L58 42" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <img src="/logo.png" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
             </button>
-            <div className="flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-3.5 text-left text-[#1F2933] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.75),0_8px_18px_rgba(0,0,0,0.2)]">
-              <Search className="h-[18px] w-[18px] shrink-0 text-[#3E454D]" strokeWidth={2.2} />
+            <div className="flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-3.5 text-left text-[#1F2933] shadow-[0_8px_18px_rgba(30,58,138,0.25)]">
+              <Search className="h-[18px] w-[18px] shrink-0 text-[#2563EB]" strokeWidth={2.2} />
               <input
                 type="search"
                 value={mobileSearchQuery}
@@ -462,7 +459,7 @@ const MobileAliVeloHome = ({
               <button
                 type="button"
                 onClick={() => navigate("/dashboard/catalogo")}
-                className="shrink-0 text-[#111111]"
+                className="shrink-0 text-[#2563EB] transition-transform active:scale-90"
                 aria-label="Buscar por imagem"
               >
                 <Camera className="h-[19px] w-[19px]" strokeWidth={2.25} />
@@ -485,25 +482,30 @@ const MobileAliVeloHome = ({
                     setMobileCategoryFilter(tab.value);
                     setOpenMobileFilter(null);
                   }}
-                  className={`relative shrink-0 pb-2 transition-colors ${isActive ? "text-white" : "text-white/62"}`}
+                  className={`relative shrink-0 pb-2 transition-colors duration-200 ${isActive ? "text-white" : "text-white/65"}`}
                 >
                   {tab.label}
-                  {isActive && <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-white" />}
+                  {isActive && <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-white animate-fade-in" />}
                 </button>
               );
             })}
           </nav>
         </div>
 
-        <section className="bg-[#050505] px-4 pb-3 pt-2">
-          <button type="button" onClick={() => navigate("/dashboard/catalogo")} className="block w-full">
+        <section className="bg-gradient-to-b from-[#2563EB] to-[#1E40AF] px-4 pb-4 pt-2">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/catalogo")}
+            className="block w-full overflow-hidden rounded-[14px] shadow-[0_10px_24px_rgba(30,58,138,0.35)] transition-transform active:scale-[0.98]"
+          >
             <img
               src="/assets/velo_banner_sem_botao.png"
               alt="Velo - Produtos para revender"
-              className="block aspect-[2.55/1] w-full rounded-[10px] object-cover"
+              className="block w-full rounded-[14px] object-cover"
             />
           </button>
         </section>
+
 
         <section className="hidden">
           <div className="relative min-h-[112px] overflow-hidden">
