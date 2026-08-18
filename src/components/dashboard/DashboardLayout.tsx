@@ -774,7 +774,6 @@ const DashboardLayoutInner = () => {
         }}
       >
         <StartModeBanner isStartMode={isStartMode} />
-        <FreePlanBanner isVisible={showFreePlanBanner} />
         <div
           className="flex min-h-0 w-full flex-1 overflow-hidden"
           style={{
