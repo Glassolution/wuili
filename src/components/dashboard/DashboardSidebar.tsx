@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronRight, GraduationCap, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, Lightbulb, LogOut, MoreVertical, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, Lightbulb, LogOut, MoreVertical, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
 import TikTokIcon from "@/components/dashboard/TikTokIcon";
 import { useAuth } from "@/contexts/AuthContext";
