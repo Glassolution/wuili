@@ -51,7 +51,13 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const email = claimsData.claims.email as string | undefined;
 
-    let body: { plan?: string; cycle?: string; affiliate_code?: string; coupon?: string } = {};
+    let body: {
+      plan?: string;
+      cycle?: string;
+      affiliate_code?: string;
+      coupon?: string;
+      customer?: { name?: string; document?: string; phone?: string; method?: string };
+    } = {};
     try {
       body = await req.json();
     } catch {
