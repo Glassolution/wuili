@@ -496,15 +496,52 @@ const MobileAliVeloHome = ({
           <button
             type="button"
             onClick={() => navigate("/dashboard/catalogo")}
-            className="block w-full overflow-hidden rounded-[14px] shadow-[0_10px_24px_rgba(30,58,138,0.35)] transition-transform active:scale-[0.98]"
+            className="block w-full overflow-hidden rounded-[14px] bg-gradient-to-br from-[#1D4ED8] via-[#2563EB] to-[#3B82F6] p-3 text-left shadow-[0_10px_24px_rgba(30,58,138,0.35)] transition-transform active:scale-[0.98]"
           >
-            <img
-              src="/assets/velo_banner_sem_botao.png"
-              alt="Velo - Produtos para revender"
-              className="block w-full rounded-[14px] object-cover"
-            />
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[11px] font-bold tracking-[-0.01em] text-white/85">
+                Curadoria Velo • estoque nacional
+              </p>
+              <span className="rounded-[6px] bg-white px-2 py-0.5 text-[11px] font-black text-[#1D4ED8]">
+                Até 80% OFF
+              </span>
+            </div>
+
+            <p className="mt-1.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.05em] text-white">
+              Promo de
+              <br />
+              <span className="text-[#FACC15]">grandes marcas</span>
+            </p>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="rounded-[10px] bg-white px-2 py-2 text-center">
+                <p className="text-[15px] font-black leading-none tracking-[-0.04em] text-[#1D4ED8]">R$ 1.685</p>
+                <p className="mt-1 text-[9px] font-bold text-[#6B7280]">em cupons</p>
+                <span className="mt-1.5 inline-flex h-6 w-full items-center justify-center rounded-full bg-[#2563EB] text-[9px] font-black text-white">
+                  Ganhar agora
+                </span>
+              </div>
+              {[firstProduct, secondProduct].map((item, index) =>
+                item?.image ? (
+                  <div key={item.id ?? index} className="relative overflow-hidden rounded-[10px] bg-white/15">
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="h-full min-h-[68px] w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#0F172A]/75 px-2 py-0.5 text-[9px] font-black text-white">
+                      {formatCurrency(item.price)}
+                    </span>
+                  </div>
+                ) : (
+                  <div key={index} className="min-h-[68px] rounded-[10px] bg-white/15" />
+                ),
+              )}
+            </div>
           </button>
         </section>
+
 
 
         <section className="hidden">
