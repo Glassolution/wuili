@@ -198,7 +198,25 @@ export async function refundCardCharge(
   reason = "CUSTOMER_REQUEST",
   charge?: ValidaPayCharge,
 ): Promise<ValidaPayRefund> {
-  const body = { chargeId, amount, reason };
+  // A doc exige `amount` no corpo — se não veio, buscamos o valor da cobrança.
+  let finalAmount = amount ?? charge?.amount;
+  if (finalAmount == null) {
+    try {
+      const fetched = await getCharge(chargeId);
+      finalAmount = fetched?.amount;
+      charge = charge ?? fetched;
+    } catch (_e) { /* segue sem amount -> erro tratado abaixo */ }
+  }
+  if (finalAmount == null || Number.isNaN(Number(finalAmount)) || Number(finalAmount) <= 0) {
+    throw new ValidaPayError(
+      "CARD_REFUND_FAILED: valor do estorno indisponível para esta cobrança.",
+      400,
+      { chargeId },
+    );
+  }
+
+  const body = { chargeId, amount: Number(Number(finalAmount).toFixed(2)), reason };
+  amount = body.amount;
 
   try {
     const result = await validaPayFetch<ValidaPayRefund>("/v1/wallet/refunds", {
