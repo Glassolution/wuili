@@ -181,10 +181,10 @@ const MobileBottomItem = ({
 }) => {
   const className =
     "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-semibold transition";
-  const style = active ? { color: "#111111", backgroundColor: "#F1F1F1" } : { color: "rgba(17,17,17,0.66)" };
+  const style = active ? { color: "#2563EB", backgroundColor: "#EFF4FF" } : { color: "rgba(17,17,17,0.6)" };
   const content = (
     <>
-      <Icon size={19} strokeWidth={active ? 2 : 1.8} />
+      <Icon size={19} strokeWidth={active ? 2.4 : 1.9} />
       <span className="max-w-full truncate">{label}</span>
     </>
   );
