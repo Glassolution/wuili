@@ -15,6 +15,8 @@ Deno.serve(async (req) => {
       logoUrl,
       companyLogoUrl: logoUrl,
       logo: logoUrl,
+      pathLogo: logoUrl,
+      logoPath: logoUrl,
       allowedPaymentMethods: ["pix", "creditcard"],
     });
     const html = await (await fetch(session.url)).text();
