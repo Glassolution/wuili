@@ -88,30 +88,58 @@ Deno.serve(async (req) => {
       return json({ error: "Acesso restrito a admins" }, 403);
     }
 
-    const authUsers = [];
-    const perPage = 1000;
-    for (let page = 1; ; page += 1) {
-      const { data, error: authError } = await adminClient.auth.admin.listUsers({ page, perPage });
-      if (authError) throw authError;
-      authUsers.push(...data.users);
-      if (data.users.length < perPage) break;
+    // Quando o cliente pede apenas alguns usuários (ex.: fallback do suporte),
+    // evitamos varrer os milhares de usuários do projeto.
+    let requestedIds: string[] = [];
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (Array.isArray(body?.user_ids)) {
+          requestedIds = body.user_ids.filter((id: unknown) => typeof id === "string");
+        }
+      } catch {
+        /* corpo vazio */
+      }
+    }
+
+    // deno-lint-ignore no-explicit-any -- usuários do auth têm shape heterogêneo
+    const authUsers: any[] = [];
+    if (requestedIds.length > 0) {
+      const found = await Promise.all(
+        requestedIds.map(async (id) => {
+          const { data } = await adminClient.auth.admin.getUserById(id);
+          return data?.user ?? null;
+        })
+      );
+      authUsers.push(...found.filter(Boolean));
+    } else {
+      const perPage = 1000;
+      for (let page = 1; ; page += 1) {
+        const { data, error: authError } = await adminClient.auth.admin.listUsers({ page, perPage });
+        if (authError) throw authError;
+        authUsers.push(...data.users);
+        if (data.users.length < perPage) break;
+      }
     }
 
     const userIds = authUsers.map((u) => u.id).filter(Boolean);
 
     // A URL do PostgREST estoura (Invalid URL) com milhares de ids em .in().
-    // Buscamos em lotes e concatenamos os resultados.
+    // Buscamos em lotes paralelos e concatenamos os resultados.
     const CHUNK = 150;
     // deno-lint-ignore no-explicit-any -- retornos heterogêneos das tabelas
     const fetchChunked = async (build: (ids: string[]) => any): Promise<any[]> => {
+      const slices: string[][] = [];
+      for (let i = 0; i < userIds.length; i += CHUNK) slices.push(userIds.slice(i, i + CHUNK));
+      const results = await Promise.all(slices.map((ids) => build(ids)));
       const rows: any[] = [];
-      for (let i = 0; i < userIds.length; i += CHUNK) {
-        const { data, error } = await build(userIds.slice(i, i + CHUNK));
+      for (const { data, error } of results) {
         if (error) throw error;
         rows.push(...(data ?? []));
       }
       return rows;
     };
+
 
     const [profilesRows, subsRows, integrationsRows, ordersRows] = await Promise.all([
       fetchChunked((ids) =>
