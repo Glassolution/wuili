@@ -81,6 +81,13 @@ function toNotif(n: DBNotif): Notif {
   };
 }
 
+const hasExternalAction = (actionUrl: string | null) =>
+  !!actionUrl && /^https?:\/\//i.test(actionUrl) && !/\/dashboard\/produtos(?:\/|$|\?)/i.test(actionUrl);
+
+const openExternalAction = (actionUrl: string) => {
+  window.open(actionUrl, "_blank", "noopener,noreferrer");
+};
+
 // ── Icon / style maps ─────────────────────────────────────────────────────────
 
 const icones: Record<NotifType, typeof Bell> = {
@@ -284,12 +291,12 @@ const NotificacoesPopover = () => {
                       {n.descricao}
                     </p>
                     <p className="text-[10px] text-muted-foreground/60 mt-1">{n.tempo}</p>
-                    {n.actionUrl && (
+                    {hasExternalAction(n.actionUrl) && (
                       <button
                         type="button"
                         onClick={() => {
                           markRead.mutate(n.id);
-                          window.open(n.actionUrl!, "_blank", "noopener,noreferrer");
+                          openExternalAction(n.actionUrl!);
                         }}
                         className="mt-2 text-[11px] font-bold text-foreground underline underline-offset-2"
                       >

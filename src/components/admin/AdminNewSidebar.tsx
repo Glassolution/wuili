@@ -381,7 +381,7 @@ export const AdminNewSidebar = () => {
           <button
             type="button"
             onClick={() => void handleSignOut()}
-            className="flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-[12px] font-medium text-[#686863] hover:bg-white hover:text-[#22221f]"
+            className="flex h-10 w-full items-center gap-3 rounded-[9px] px-3 text-[12px] font-semibold text-[#DC2626] transition hover:bg-[#FEF2F2] hover:text-[#B91C1C]"
           >
             <LogOut size={15} strokeWidth={1.7} /> Sair
           </button>

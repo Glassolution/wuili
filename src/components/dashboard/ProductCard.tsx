@@ -60,7 +60,7 @@ export const ProductFavoriteButton = ({
 }) => (
   <button
     type="button"
-    aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+    aria-label={isFavorited ? "Produto favoritado" : "Favoritar produto"}
     aria-pressed={isFavorited}
     onClick={(event) => {
       event.preventDefault();
@@ -211,14 +211,14 @@ export const ProductCard = ({
             type="button"
             onClick={onToggleFavorite}
             className="inline-flex h-[30px] flex-1 items-center justify-center gap-1.5 rounded-[9px] border border-black/[0.1] bg-white px-2.5 text-[10.5px] font-semibold text-[#111111] transition-colors hover:bg-[#F4F4F1]"
-            aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+            aria-label={isFavorited ? "Produto favoritado" : "Favoritar produto"}
           >
             <Heart
               size={12}
               strokeWidth={2}
               className={isFavorited ? "fill-red-500 text-red-500" : ""}
             />
-            Salvar
+            Favoritar
           </button>
           <Link
             to={`/dashboard/catalogo/${product.id}`}

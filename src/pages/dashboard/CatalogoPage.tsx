@@ -15,6 +15,7 @@ import {
   Eye,
   Percent,
   Star,
+  Heart,
   CheckCircle,
   AlertTriangle,
   Info,
@@ -39,6 +40,13 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { proxyImageList } from "@/lib/imageProxy";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
+import {
+  displayOrdersCountFor,
+  displayRatingFor,
+  isRatingFilterNoop,
+  matchesDisplayRating,
+  type RatingOption,
+} from "@/lib/catalogFilters";
 import {
   addProductToCollection,
   getCollectionProductIds,
@@ -794,7 +802,7 @@ const rotuloDaCategoria = (valor: CategoryKey) => {
 type CategoriaDoBanco = { valor: string; total: number };
 
 const PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
-const RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
+const RATING_OPTIONS: RatingOption[] = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
 const getPriceRangeBounds = (range: string): { min?: number; max?: number } => {
   if (range === "Até R$ 50") return { max: 50 };
@@ -818,7 +826,7 @@ const productMatchesSelectedFilters = (
   const ratingMinimum = getRatingMinimum(ratingRange);
   if (typeof priceBounds.min === "number" && product.preco < priceBounds.min) return false;
   if (typeof priceBounds.max === "number" && product.preco > priceBounds.max) return false;
-  if (ratingMinimum !== null && (typeof product.rating !== "number" || product.rating < ratingMinimum)) return false;
+  if (ratingMinimum !== null && !matchesDisplayRating(product.id, ratingRange as RatingOption)) return false;
   return true;
 };
 
@@ -928,7 +936,7 @@ const CatalogoPage = () => {
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("Todos os preços");
-  const [selectedRating, setSelectedRating] = useState("Todas");
+  const [selectedRating, setSelectedRating] = useState<RatingOption>("Todas");
   const [openDropdown, setOpenDropdown] = useState<"category" | "price" | "rating" | null>(null);
   const filterBarRef = useRef<HTMLDivElement | null>(null);
 
@@ -1081,6 +1089,9 @@ const CatalogoPage = () => {
       p.source === "aliexpress"
         ? "AliExpress"
         : p.supplier_name ?? (p.source === "c7drop" ? "C7 Drop" : null);
+    const displayRating = displayRatingFor(p.id);
+    const displayOrdersCount = Math.max(toNumber(p.orders_count), displayOrdersCountFor(p.id));
+
     return {
       id: p.id,
       nome: p.title || "Produto sem nome",
@@ -1089,8 +1100,8 @@ const CatalogoPage = () => {
       image_url: imgUrls[0],
       images: imgUrls,
       product_url: p.product_url,
-      rating: p.rating,
-      ordersCount: p.orders_count,
+      rating: displayRating,
+      ordersCount: displayOrdersCount,
       reviewsCount: p.reviews_count,
       supplierLabel,
     };
@@ -1166,7 +1177,6 @@ const CatalogoPage = () => {
         const applyCommonFilters = (query: any) => {
           let q = query.eq("is_blocked", false).gt("stock_quantity", 0);
           const priceBounds = getPriceRangeBounds(selectedPriceRange);
-          const ratingMinimum = getRatingMinimum(selectedRating);
           if (activeCategory !== CATEGORIA_TODOS && activeCategory !== CATEGORIA_FAVORITOS) {
             // O valor já é o do banco; ilike só para não depender de caixa.
             q = q.ilike("category", activeCategory);
@@ -1180,14 +1190,30 @@ const CatalogoPage = () => {
           if (typeof priceBounds.max === "number") {
             q = q.lte("cost_price", priceBounds.max);
           }
-          if (ratingMinimum !== null) {
-            q = q.gte("rating", ratingMinimum);
-          }
           return q;
         };
 
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE - 1;
+        if (!isRatingFilterNoop(selectedRating)) {
+          const { data, error: fetchError } = await withFreshSupabaseSession(() =>
+            applyCommonFilters(supabase.from("catalog_products").select("*"))
+              .eq("source", "c7drop")
+              .order("orders_count", { ascending: false, nullsFirst: false })
+              .order("created_at", { ascending: false })
+              .order("id", { ascending: false })
+              .limit(1200),
+          );
+          if (fetchError) throw fetchError;
+
+          const filtered = (data || [])
+            .map(mapProduct)
+            .filter((p) => productMatchesSelectedFilters(p, selectedPriceRange, selectedRating));
+          setProducts(filtered.slice(start, end + 1));
+          setTotalCount(filtered.length);
+          return;
+        }
+
         const { data, count, error: fetchError } = await withFreshSupabaseSession(() =>
           applyCommonFilters(supabase.from("catalog_products").select("*", { count: "exact" }))
             .eq("source", "c7drop")
@@ -1430,11 +1456,40 @@ const CatalogoPage = () => {
                 onToggle={() => setOpenDropdown((current) => (current === "rating" ? null : "rating"))}
                 options={RATING_OPTIONS}
                 onSelect={(option) => {
-                  setSelectedRating(option);
+                  setSelectedRating(option as RatingOption);
                   setCurrentPage(1);
                   setOpenDropdown(null);
                 }}
               />
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleCategoryChange(activeCategory === CATEGORIA_FAVORITOS ? CATEGORIA_TODOS : CATEGORIA_FAVORITOS)
+                }
+                aria-pressed={activeCategory === CATEGORIA_FAVORITOS}
+                className={`inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border px-3.5 text-[12px] font-semibold shadow-[0_8px_18px_rgba(17,17,17,0.035)] transition-all duration-200 ${
+                  activeCategory === CATEGORIA_FAVORITOS
+                    ? "border-[#2563EB] bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+                    : "border-black/[0.08] bg-white text-[#151515] hover:border-black/15 hover:bg-[#F7F7F4]"
+                }`}
+              >
+                <Heart
+                  size={14}
+                  strokeWidth={2}
+                  className={activeCategory === CATEGORIA_FAVORITOS ? "fill-current" : ""}
+                />
+                Favoritos
+                {favoritedIds.length > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none ${
+                      activeCategory === CATEGORIA_FAVORITOS ? "bg-white/20 text-white" : "bg-[#EFF6FF] text-[#2563EB]"
+                    }`}
+                  >
+                    {favoritedIds.length}
+                  </span>
+                )}
+              </button>
 
               <div className="hidden xl:block xl:flex-1" />
 

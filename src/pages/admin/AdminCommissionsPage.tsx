@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, UserPlus, UsersRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
+import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +51,30 @@ type AffiliateDetails = {
   }>;
 };
 
+type AffiliateAdminTab = "applications" | "withdrawals" | "approved";
+
+const AFFILIATE_TABS: Array<{
+  key: AffiliateAdminTab;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: "applications",
+    label: "Solicitações de afiliados",
+    description: "Aprove ou recuse novos cadastros.",
+  },
+  {
+    key: "withdrawals",
+    label: "Solicitações de saque",
+    description: "Acompanhe aprovações e pagamentos Pix.",
+  },
+  {
+    key: "approved",
+    label: "Afiliados aprovados",
+    description: "Veja funil, links e comissões por afiliado.",
+  },
+];
+
 const money = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const date = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString("pt-BR") : "-");
 const isMissingRpcError = (error: unknown) =>
@@ -57,12 +83,29 @@ const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefin
 const normalizeAffiliateCode = (value?: string | null) =>
   String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
 const buildAffiliateUrl = (code: string) => `${PUBLIC_APP_URL}/ref/${normalizeAffiliateCode(code)}`;
+const asAffiliateRows = (value: unknown): AffiliateRow[] => {
+  if (Array.isArray(value)) return value as AffiliateRow[];
+  if (!value || typeof value !== "object") return [];
+  const data = value as { affiliates?: unknown; rows?: unknown; data?: unknown };
+  if (Array.isArray(data.affiliates)) return data.affiliates as AffiliateRow[];
+  if (Array.isArray(data.rows)) return data.rows as AffiliateRow[];
+  if (Array.isArray(data.data)) return data.data as AffiliateRow[];
+  return [];
+};
 const canonicalizeAffiliateRow = (row: AffiliateRow): AffiliateRow => {
   const code = normalizeAffiliateCode(row.code);
   return { ...row, code, link: buildAffiliateUrl(code) };
 };
-const canonicalizeAffiliateDetails = (data: AffiliateDetails): AffiliateDetails => {
-  if (!data?.affiliate) return data;
+const canonicalizeAffiliateDetails = (data: AffiliateDetails | null | undefined): AffiliateDetails => {
+  const empty: AffiliateDetails = { affiliate: null, clicks: [], conversions: [] };
+  if (!data || typeof data !== "object") return empty;
+  if (!data.affiliate) {
+    return {
+      affiliate: null,
+      clicks: Array.isArray(data.clicks) ? data.clicks : [],
+      conversions: Array.isArray(data.conversions) ? data.conversions : [],
+    };
+  }
   const code = normalizeAffiliateCode(data.affiliate.code);
   return {
     ...data,
@@ -71,6 +114,8 @@ const canonicalizeAffiliateDetails = (data: AffiliateDetails): AffiliateDetails 
       code,
       link: buildAffiliateUrl(code),
     },
+    clicks: Array.isArray(data.clicks) ? data.clicks : [],
+    conversions: Array.isArray(data.conversions) ? data.conversions : [],
   };
 };
 
@@ -79,6 +124,7 @@ const AdminCommissionsPage = () => {
   const ADMIN_EMAILS = useMemo(() => new Set(["xavierluisfelipe12@gmail.com"]), []);
   const isAdmin = role === "admin" || (!!user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<AffiliateAdminTab>("approved");
 
   const { data: affiliates = [], isLoading, error } = useQuery({
     queryKey: ["admin-affiliate-commissions"],
@@ -87,7 +133,7 @@ const AdminCommissionsPage = () => {
       try {
         const { data, error } = await (supabase as any).rpc("rpc_admin_affiliates_summary");
         if (error) throw error;
-        return ((data ?? []) as AffiliateRow[]).map(canonicalizeAffiliateRow);
+        return asAffiliateRows(data).map(canonicalizeAffiliateRow);
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
@@ -182,7 +228,7 @@ const AdminCommissionsPage = () => {
           p_affiliate_code: selectedCode,
         });
         if (error) throw error;
-        return canonicalizeAffiliateDetails(data as AffiliateDetails);
+        return canonicalizeAffiliateDetails(data as AffiliateDetails | null | undefined);
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
@@ -265,36 +311,94 @@ const AdminCommissionsPage = () => {
     <AdminShell
       active="commissions"
       userId={user.id}
-      title="Comissões"
-      subtitle="Rastreie o funil completo por afiliado (visitas, cadastros e pagamentos)."
+      title="Afiliados"
+      subtitle="Rastreie cliques, cadastros, pagamentos e comissões de cada afiliado."
     >
-      <div className="min-h-full bg-transparent text-white">
-        <section className="grid grid-cols-2 border-b border-white/[0.08] md:grid-cols-4 xl:grid-cols-7">
-          <MetricCard label="Total de afiliados" value={String(totals.totalAffiliates)} className="py-6 pr-4 pl-0" />
-          <MetricCard label="Cliques" value={String(totals.clicks)} className="py-6 px-4 border-l border-white/[0.08]" />
-          <MetricCard label="Cadastros" value={String(totals.signups)} className="py-6 px-4 border-l border-white/[0.08]" />
-          <MetricCard label="No pagamento" value={String(totals.reachedPayment)} className="py-6 px-4 border-l border-white/[0.08]" />
-          <MetricCard label="Pagantes" value={String(totals.payers)} className="py-6 px-4 border-l border-white/[0.08]" />
-          <MetricCard label="Comissão pendente" value={money(totals.commissionPending)} highlight="amber" className="py-6 px-4 border-l border-white/[0.08]" />
-          <MetricCard label="Comissão paga" value={money(totals.commissionPaid)} highlight="emerald" className="py-6 pl-4 pr-0 border-l border-white/[0.08]" />
-        </section>
+      <div className="space-y-5 text-[#171715]">
+        <nav className="grid gap-2 rounded-[18px] border border-[#E6EAF2] bg-white p-2 shadow-[0_14px_35px_rgba(15,23,42,0.04)] lg:grid-cols-3">
+          {AFFILIATE_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "rounded-[14px] border px-4 py-3 text-left transition",
+                activeTab === tab.key
+                  ? "border-[#C7D7FE] bg-[#EFF6FF] shadow-[0_10px_22px_rgba(37,99,235,0.08)]"
+                  : "border-transparent bg-white hover:border-[#E6EAF2] hover:bg-[#F8FAFC]",
+              )}
+            >
+              <span className={cn("text-[13px] font-semibold", activeTab === tab.key ? "text-[#2563EB]" : "text-[#171715]")}>
+                {tab.label}
+              </span>
+              <span className="mt-1 block text-[11px] leading-4 text-[#777772]">{tab.description}</span>
+            </button>
+          ))}
+        </nav>
 
-        <section className="mt-8">
-          <div className="flex items-center justify-between pb-4">
-            <h2 className="text-[14px] text-[#8A8A8E] font-normal uppercase tracking-[0.10em]">Afiliados</h2>
-            {error && <p className="text-[13px] text-red-400">Erro ao carregar: {String((error as any)?.message ?? error)}</p>}
+        {activeTab === "applications" ? <AdminAffiliateApplicationsPanel /> : null}
+        {activeTab === "withdrawals" ? <AdminWithdrawalsPanel /> : null}
+        {activeTab === "approved" ? (
+          <>
+            <section className="overflow-hidden rounded-[18px] border border-[#E3E8F4] bg-[#F7FAFF] shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+              <div className="flex flex-col gap-4 border-b border-[#E3E8F4] bg-white px-5 py-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#2563EB] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)]">
+                    <UsersRound size={18} strokeWidth={1.9} />
+                  </span>
+                  <div>
+                    <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-[#171715]">Afiliados aprovados</h2>
+                    <p className="mt-1 text-[12px] text-[#777772]">Resumo do funil e repasses pendentes por código.</p>
+                  </div>
+                </div>
+                <span className="inline-flex h-8 items-center gap-2 rounded-full border border-[#D9E4FF] bg-[#EFF6FF] px-3 text-[11px] font-semibold text-[#2563EB]">
+                  <CheckCircle2 size={13} />
+                  Links canônicos da Velo
+                </span>
+              </div>
+
+              <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
+                <MetricCard label="Afiliados" value={String(totals.totalAffiliates)} icon={<UsersRound size={16} />} />
+                <MetricCard label="Cliques" value={String(totals.clicks)} icon={<MousePointerClick size={16} />} />
+                <MetricCard label="Cadastros" value={String(totals.signups)} icon={<UserPlus size={16} />} />
+                <MetricCard label="No pagamento" value={String(totals.reachedPayment)} icon={<CreditCard size={16} />} />
+                <MetricCard label="Pagantes" value={String(totals.payers)} icon={<CheckCircle2 size={16} />} />
+                <MetricCard label="Pendente" value={money(totals.commissionPending)} icon={<Banknote size={16} />} highlight="amber" />
+                <MetricCard label="Pago" value={money(totals.commissionPaid)} icon={<Banknote size={16} />} highlight="emerald" />
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-[18px] border border-[#E6EAF2] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+          <div className="flex flex-col gap-2 border-b border-[#EEF1F6] bg-[#F8FAFC] px-5 py-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#171715]">Afiliados</h2>
+              <p className="mt-1 text-[11px] text-[#8A8F9B]">
+                {affiliates.length} afiliado(s) encontrados
+              </p>
+            </div>
+            {error ? (
+              <p className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-600">
+                Erro ao carregar: {String((error as any)?.message ?? error)}
+              </p>
+            ) : null}
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-7 w-7 animate-spin text-white/60" />
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-7 w-7 animate-spin text-[#2563EB]" />
             </div>
           ) : affiliates.length === 0 ? (
-            <div className="py-10 text-[14px] text-[#8A8A8E]">Nenhum afiliado encontrado.</div>
+            <div className="px-6 py-16 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
+                <UsersRound size={20} />
+              </div>
+              <p className="mt-4 text-[14px] font-semibold text-[#171715]">Nenhum afiliado encontrado</p>
+              <p className="mt-1 text-[12px] text-[#777772]">Quando alguém ativar um link de indicação, o funil aparecerá aqui.</p>
+            </div>
           ) : (
             <div className="overflow-auto">
               <table className="w-full min-w-[1220px] text-left text-[13px]">
-                <thead className="border-b border-white/[0.08] text-[11px] font-medium uppercase tracking-[0.12em] text-[#8A8A8E]">
+                <thead className="bg-white text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#8A8F9B]">
                   <tr>
                     <Th>Afiliado</Th>
                     <Th>Email</Th>
@@ -310,35 +414,39 @@ const AdminCommissionsPage = () => {
                     <Th>Ações</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.08]">
+                <tbody className="divide-y divide-[#EEF1F6]">
                   {affiliates.map((row) => (
-                    <tr key={row.code} className="hover:bg-white/[0.01]">
-                      <Td className="font-medium text-white">{row.affiliate_name ?? row.affiliate_user_id}</Td>
-                      <Td className="text-[#8A8A8E]">{row.affiliate_email ?? "-"}</Td>
-                      <Td className="font-mono text-[12px] font-semibold text-white">{row.code}</Td>
+                    <tr key={row.code} className="transition hover:bg-[#F8FAFC]">
+                      <Td className="font-semibold text-[#171715]">{row.affiliate_name ?? row.affiliate_user_id}</Td>
+                      <Td className="text-[#64748B]">{row.affiliate_email ?? "-"}</Td>
+                      <Td>
+                        <span className="rounded-[8px] border border-[#DDE7FF] bg-[#EFF6FF] px-2 py-1 font-mono text-[11px] font-semibold text-[#2563EB]">
+                          {row.code}
+                        </span>
+                      </Td>
                       <Td>
                         <a
                           href={row.link}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 text-white/70 hover:text-white"
+                          className="inline-flex items-center gap-1.5 text-[#2563EB] transition hover:text-[#1D4ED8]"
                         >
                           <span className="max-w-[260px] truncate">{row.link}</span>
                           <ExternalLink size={14} strokeWidth={1.5} />
                         </a>
                       </Td>
-                      <Td className="text-right text-white">{row.clicks ?? 0}</Td>
-                      <Td className="text-right text-white">{row.signups ?? 0}</Td>
-                      <Td className="text-right text-white">{row.reached_payment ?? 0}</Td>
-                      <Td className="text-right text-white">{row.payers ?? 0}</Td>
-                      <Td className="text-right font-semibold text-amber-300">{money(Number(row.commission_pending ?? 0))}</Td>
-                      <Td className="text-right font-semibold text-white">{money(Number(row.commission_paid ?? 0))}</Td>
-                      <Td className="text-[#8A8A8E]">{date(row.created_at)}</Td>
+                      <Td className="text-right font-medium text-[#171715]">{row.clicks ?? 0}</Td>
+                      <Td className="text-right font-medium text-[#171715]">{row.signups ?? 0}</Td>
+                      <Td className="text-right font-medium text-[#171715]">{row.reached_payment ?? 0}</Td>
+                      <Td className="text-right font-medium text-[#171715]">{row.payers ?? 0}</Td>
+                      <Td className="text-right font-semibold text-[#B7791F]">{money(Number(row.commission_pending ?? 0))}</Td>
+                      <Td className="text-right font-semibold text-[#087443]">{money(Number(row.commission_paid ?? 0))}</Td>
+                      <Td className="text-[#64748B]">{date(row.created_at)}</Td>
                       <Td>
                         <button
                           type="button"
                           onClick={() => setSelectedCode(row.code)}
-                          className="rounded-lg border border-white/[0.08] bg-[#161617] px-3 py-2 text-[12px] font-semibold text-[#8A8A8E] hover:text-white transition"
+                          className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
                         >
                           Ver detalhes
                         </button>
@@ -349,50 +457,52 @@ const AdminCommissionsPage = () => {
               </table>
             </div>
           )}
-        </section>
+            </section>
+          </>
+        ) : null}
 
         <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-          <SheetContent side="right" className="w-[min(540px,90vw)] border-white/[0.08] bg-[#161617] text-white">
+          <SheetContent side="right" className="w-[min(560px,90vw)] border-[#E6EAF2] bg-white text-[#171715]">
             <SheetHeader>
-              <SheetTitle className="text-white text-[16px] font-semibold">Detalhes do afiliado</SheetTitle>
+              <SheetTitle className="text-[18px] font-semibold text-[#171715]">Detalhes do afiliado</SheetTitle>
             </SheetHeader>
 
             <div className="mt-5">
               {loadingDetails ? (
                 <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+                  <Loader2 className="h-6 w-6 animate-spin text-[#2563EB]" />
                 </div>
               ) : !details?.affiliate ? (
-                <p className="text-[14px] text-[#8A8A8E]">Não foi possível carregar os detalhes.</p>
+                <p className="text-[14px] text-[#777772]">Não foi possível carregar os detalhes.</p>
               ) : (
                 <div className="space-y-6">
-                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4">
-                    <p className="text-[12px] text-[#8A8A8E]">Código</p>
-                    <p className="mt-1 font-mono text-[16px] font-semibold text-white">{details.affiliate.code}</p>
-                    <p className="mt-3 text-[12px] text-[#8A8A8E]">Link</p>
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-[#F8FAFC] p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">Código</p>
+                    <p className="mt-1 font-mono text-[16px] font-semibold text-[#171715]">{details.affiliate.code}</p>
+                    <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">Link</p>
                     <a
                       href={details.affiliate.link}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-2 text-[13px] text-white/80 hover:text-white"
+                      className="mt-1 inline-flex max-w-full items-center gap-2 text-[13px] font-medium text-[#2563EB] hover:text-[#1D4ED8]"
                     >
                       <span className="truncate">{details.affiliate.link}</span>
                       <ExternalLink size={14} strokeWidth={1.5} />
                     </a>
-                    <p className="mt-3 text-[12px] text-[#8A8A8E]">Criado em</p>
-                    <p className="mt-1 text-[13px] text-[#8A8A8E]">{date(details.affiliate.created_at)}</p>
+                    <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">Criado em</p>
+                    <p className="mt-1 text-[13px] text-[#64748B]">{date(details.affiliate.created_at)}</p>
                   </div>
 
-                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4">
-                    <p className="text-[14px] font-semibold text-white">Indicados</p>
-                    <p className="mt-1 text-[12px] text-[#8A8A8E]">
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
+                    <p className="text-[14px] font-semibold text-[#171715]">Indicados</p>
+                    <p className="mt-1 text-[12px] text-[#777772]">
                       {details.conversions.length} registro(s) — status do funil e comissão gerada.
                     </p>
 
                     <div className="mt-4 overflow-auto">
                       <table className="w-full min-w-[460px] text-left text-[12px]">
                         <thead>
-                          <tr className="text-[#8A8A8E] border-b border-white/[0.08]">
+                          <tr className="border-b border-[#EEF1F6] text-[#8A8F9B]">
                             <Th className="py-2 pl-0">Indicado</Th>
                             <Th className="py-2">Status</Th>
                             <Th className="py-2 text-right">Valor pago</Th>
@@ -400,13 +510,13 @@ const AdminCommissionsPage = () => {
                             <Th className="py-2 pr-0">Payout</Th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/[0.08]">
+                        <tbody className="divide-y divide-[#EEF1F6]">
                           {details.conversions.map((c) => (
-                            <tr key={c.id} className="text-white hover:bg-white/[0.01]">
+                            <tr key={c.id} className="text-[#171715] hover:bg-[#F8FAFC]">
                               <Td className="py-3 pl-0">
                                 <div className="min-w-0">
-                                  <p className="truncate font-medium text-white">{c.subscriber_name ?? c.subscriber_email ?? c.subscriber_user_id}</p>
-                                  <p className="truncate text-[11px] text-[#8A8A8E]">{c.subscriber_email ?? "-"}</p>
+                                  <p className="truncate font-semibold text-[#171715]">{c.subscriber_name ?? c.subscriber_email ?? c.subscriber_user_id}</p>
+                                  <p className="truncate text-[11px] text-[#8A8F9B]">{c.subscriber_email ?? "-"}</p>
                                 </div>
                               </Td>
                               <Td className="py-3">
@@ -414,10 +524,10 @@ const AdminCommissionsPage = () => {
                                   className={cn(
                                     "inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
                                     c.status === "paid"
-                                      ? "border-white/15 bg-white/[0.06] text-white"
+                                      ? "border-[#BBF7D0] bg-[#ECFDF3] text-[#087443]"
                                       : c.status === "reached_payment"
-                                        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
-                                        : "border-white/10 bg-white/[0.03] text-white/70",
+                                        ? "border-[#FDE7B2] bg-[#FFF7E6] text-[#B7791F]"
+                                        : "border-[#DDE3EE] bg-[#F8FAFC] text-[#64748B]",
                                   )}
                                 >
                                   {c.status}
@@ -430,8 +540,8 @@ const AdminCommissionsPage = () => {
                                   className={cn(
                                     "inline-flex rounded-lg border px-2 py-0.5 text-[11px] font-semibold",
                                     String(c.payout_status) === "paid"
-                                      ? "border-white/15 bg-white/[0.06] text-white"
-                                      : "border-amber-500/30 bg-amber-500/10 text-amber-300",
+                                      ? "border-[#BBF7D0] bg-[#ECFDF3] text-[#087443]"
+                                      : "border-[#FDE7B2] bg-[#FFF7E6] text-[#B7791F]",
                                   )}
                                 >
                                   {c.payout_status}
@@ -444,9 +554,9 @@ const AdminCommissionsPage = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-4">
-                    <p className="text-[14px] font-semibold text-white">Visitas</p>
-                    <p className="mt-1 text-[12px] text-[#8A8A8E]">{details.clicks.length} registro(s) (últimos 200).</p>
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-[#F8FAFC] p-4">
+                    <p className="text-[14px] font-semibold text-[#171715]">Visitas</p>
+                    <p className="mt-1 text-[12px] text-[#777772]">{details.clicks.length} registro(s) (últimos 200).</p>
                   </div>
                 </div>
               )}
@@ -461,25 +571,38 @@ const AdminCommissionsPage = () => {
 const MetricCard = ({
   label,
   value,
+  icon,
   highlight,
-  className,
 }: {
   label: string;
   value: string;
+  icon: React.ReactNode;
   highlight?: "amber" | "emerald";
-  className?: string;
 }) => (
-  <div className={cn("flex flex-col justify-between", className)}>
-    <p className="text-[12px] font-normal uppercase tracking-[0.10em] text-[#8A8A8E]">{label}</p>
-    <p
-      className={cn(
-        "mt-3 text-[26px] font-semibold tracking-[-0.02em] text-white leading-none",
-        highlight === "amber" && "text-amber-300",
-        highlight === "emerald" && "text-white",
-      )}
-    >
-      {value}
-    </p>
+  <div
+    className={cn(
+      "rounded-[14px] border bg-white p-4",
+      highlight === "amber" && "border-[#FDE7B2] bg-[#FFFDF7]",
+      highlight === "emerald" && "border-[#BBF7D0] bg-[#F7FEFA]",
+      !highlight && "border-[#E6EAF2]",
+    )}
+  >
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">{label}</p>
+        <p className="mt-2 text-[21px] font-semibold tracking-[-0.04em] text-[#171715]">{value}</p>
+      </div>
+      <span
+        className={cn(
+          "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]",
+          highlight === "amber" && "bg-[#FFF7E6] text-[#B7791F]",
+          highlight === "emerald" && "bg-[#ECFDF3] text-[#087443]",
+          !highlight && "bg-[#EFF6FF] text-[#2563EB]",
+        )}
+      >
+        {icon}
+      </span>
+    </div>
   </div>
 );
 

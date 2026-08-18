@@ -223,9 +223,9 @@ const leadTemperature = (u: AdminUserRow): LeadTemp => {
 
 const tempLabel: Record<LeadTemp, string> = { hot: "Ativo", warm: "Engajado", cold: "Frio" };
 const tempStyle: Record<LeadTemp, string> = {
-  hot: "bg-white/15 text-white border border-white/20",
-  warm: "bg-[#F59E0B]/15 text-[#FBBF24] border border-[#F59E0B]/20",
-  cold: "bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/20",
+  hot: "bg-[#ECFDF3] text-[#087443] border border-[#BBF7D0]",
+  warm: "bg-[#FFF7E6] text-[#B7791F] border border-[#FDE7B2]",
+  cold: "bg-[#EEF6FF] text-[#2563EB] border border-[#CFE0FF]",
 };
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -274,6 +274,15 @@ const AdminUsersPage = () => {
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const stats = useMemo(
+    () => [
+      { label: "Total", value: users.length },
+      { label: "Online", value: users.filter((item) => isOnline(item.last_seen_at)).length },
+      { label: "Ativos", value: users.filter((item) => isActiveStatus(item.subscription_status)).length },
+      { label: "Gratuitos", value: users.filter((item) => isFreePlan(item.plan)).length },
+    ],
+    [users],
+  );
 
   if (loading) {
     return <VeloLoadingScreen message="Carregando usuários..." />;
@@ -289,7 +298,7 @@ const AdminUsersPage = () => {
       actions={
         <>
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8F9B]" />
             <input
               value={search}
               onChange={(e) => {
@@ -297,29 +306,38 @@ const AdminUsersPage = () => {
                 setPage(1);
               }}
               placeholder="Buscar"
-              className="h-9 w-64 rounded-full border border-white/10 bg-[#161617] pl-9 pr-4 text-[13px] text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none"
+              className="h-9 w-64 rounded-full border border-[#DDE3EE] bg-white pl-9 pr-4 text-[13px] text-[#171715] shadow-[0_8px_20px_rgba(15,23,42,0.04)] outline-none placeholder:text-[#A0A7B4] focus:border-[#2563EB] focus:ring-2 focus:ring-[#DCE7FF]"
             />
           </div>
-          <button className="relative rounded-full border border-white/10 bg-[#161617] p-2 text-white/60 hover:text-white">
+          <button className="relative rounded-full border border-[#DDE3EE] bg-white p-2 text-[#64748B] shadow-[0_8px_20px_rgba(15,23,42,0.04)] transition hover:text-[#2563EB]" aria-label="Notificações">
             <Bell size={16} />
             <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#EF4444]" />
           </button>
         </>
       }
     >
-      <div className="min-h-full bg-transparent text-white">
-        <div>
-          <section className="border-0 bg-transparent">
+      <div className="space-y-5 text-[#171715]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((item) => (
+            <div key={item.label} className="rounded-[16px] border border-[#E6EAF2] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.035)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">{item.label}</p>
+              <p className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-[#171715]">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <section className="overflow-hidden rounded-[18px] border border-[#E6EAF2] bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+          <div className="border-b border-[#EEF1F6] bg-[#F8FAFC] px-5 py-4">
             {/* Toolbar */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex rounded-lg border border-white/[0.08] bg-[#161617] p-0.5 text-[12px]">
+              <div className="flex rounded-[10px] border border-[#DDE3EE] bg-white p-0.5 text-[12px]">
                 {(["list", "grid"] as const).map((v) => (
                   <button
                     key={v}
                     onClick={() => setView(v)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 transition",
-                      view === v ? "bg-white/[0.06] text-white" : "text-[#8A8A8E] hover:text-white"
+                      view === v ? "bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.18)]" : "text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
                     )}
                   >
                     {v === "list" ? <List size={13} strokeWidth={1.5} /> : <Grid3x3 size={13} strokeWidth={1.5} />}
@@ -329,7 +347,7 @@ const AdminUsersPage = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-lg border border-white/[0.08] bg-[#161617] p-0.5 text-[11px]">
+                <div className="flex rounded-[10px] border border-[#DDE3EE] bg-white p-0.5 text-[11px]">
                   {statusFilters.map((s) => (
                     <button
                       key={s.key}
@@ -339,47 +357,48 @@ const AdminUsersPage = () => {
                       }}
                       className={cn(
                         "rounded-md px-3 py-1.5 transition",
-                        filter === s.key ? "bg-white/[0.06] text-white" : "text-[#8A8A8E] hover:text-white"
+                        filter === s.key ? "bg-[#111827] text-white" : "text-[#6B7280] hover:bg-[#F1F5F9] hover:text-[#171715]"
                       )}
                     >
                       {s.label}
                     </button>
                   ))}
                 </div>
-                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#161617] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
+                <button className="flex items-center gap-2 rounded-[10px] border border-[#DDE3EE] bg-white px-4 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]">
                   <Filter size={13} strokeWidth={1.5} />
                   Filtrar
                 </button>
-                <button className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#161617] px-4 py-2 text-[12px] text-[#8A8A8E] hover:text-white transition">
+                <button className="flex items-center gap-2 rounded-[10px] border border-[#DDE3EE] bg-white px-4 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]">
                   <Download size={13} strokeWidth={1.5} />
                   Exportar
                 </button>
-                <button className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-[12px] font-medium text-black hover:bg-[#E5E5E7] transition">
+                <button className="flex items-center gap-2 rounded-[10px] bg-[#2563EB] px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_20px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]">
                   <Plus size={13} strokeWidth={2.5} />
                   Novo usuário
                 </button>
               </div>
             </div>
+          </div>
 
             {/* Content */}
             {isLoading ? (
               <div className="flex min-h-[420px] items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-white/60" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#2563EB]" />
               </div>
             ) : isError ? (
               <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
                 <div>
-                  <p className="text-[15px] font-semibold">Não foi possível carregar usuários.</p>
-                  <p className="mt-2 max-w-md text-[12px] leading-6 text-white/50">
+                  <p className="text-[15px] font-semibold text-[#171715]">Não foi possível carregar usuários.</p>
+                  <p className="mt-2 max-w-md text-[12px] leading-6 text-[#777772]">
                     {error instanceof Error ? error.message : "Confira a Edge Function admin-users."}
                   </p>
                 </div>
               </div>
             ) : view === "list" ? (
-              <div className="mt-5 overflow-x-auto">
+              <div className="overflow-x-auto px-5 pt-2">
                 <table className="w-full min-w-[880px] text-left text-[13px]">
                   <thead>
-                    <tr className="text-[11px] font-medium uppercase tracking-[0.12em] text-white/40">
+                    <tr className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-[#8A8F9B]">
                       <Th first>Usuário</Th>
                       <Th>Email</Th>
                       <Th>Atividade</Th>
@@ -388,10 +407,10 @@ const AdminUsersPage = () => {
                       <Th>Origem</Th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/[0.05]">
+                  <tbody className="divide-y divide-[#EEF1F6]">
                     {pagedUsers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-16 text-center text-[13px] text-white/40">
+                        <td colSpan={6} className="py-16 text-center text-[13px] text-[#8A8F9B]">
                           Nenhum usuário encontrado.
                         </td>
                       </tr>
@@ -404,7 +423,7 @@ const AdminUsersPage = () => {
                 </table>
               </div>
             ) : (
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {pagedUsers.map((u) => (
                   <UserCard key={u.user_id} user={u} onClick={() => setSelectedUserId(u.user_id)} />
                 ))}
@@ -412,8 +431,8 @@ const AdminUsersPage = () => {
             )}
 
             {/* Pagination */}
-            <div className="mt-5 flex flex-col gap-3 border-t border-white/[0.05] pt-5 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-2 text-[12px] text-white/50">
+            <div className="mt-5 flex flex-col gap-3 border-t border-[#EEF1F6] px-5 py-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 text-[12px] text-[#64748B]">
                 <span>Mostrar</span>
                 <div className="relative">
                   <select
@@ -422,23 +441,22 @@ const AdminUsersPage = () => {
                       setPageSize(Number(e.target.value));
                       setPage(1);
                     }}
-                    className="appearance-none rounded-full border border-white/10 bg-[#161617] py-1.5 pl-3 pr-7 text-[12px] text-white focus:border-white/20 focus:outline-none"
+                    className="appearance-none rounded-full border border-[#DDE3EE] bg-white py-1.5 pl-3 pr-7 text-[12px] text-[#171715] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DCE7FF]"
                   >
                     {PAGE_SIZE_OPTIONS.map((n) => (
-                      <option key={n} value={n} className="bg-[#161617]">
+                      <option key={n} value={n}>
                         {n}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/50" />
+                  <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#8A8F9B]" />
                 </div>
                 <span>por página</span>
               </div>
 
               <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
             </div>
-          </section>
-        </div>
+        </section>
       </div>
       <AdminUserDetailModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
     </AdminShell>
@@ -449,7 +467,7 @@ const Th = ({ children, first }: { children: React.ReactNode; first?: boolean })
   <th className={cn("py-3 font-medium", first ? "pl-2 pr-4" : "px-4")}>
     <span className="inline-flex items-center gap-1">
       {children}
-      <ChevronDown size={11} className="text-white/30" />
+      <ChevronDown size={11} className="text-[#A0A7B4]" />
     </span>
   </th>
 );
@@ -458,33 +476,33 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
   const temp = leadTemperature(user);
   const online = isOnline(user.last_seen_at);
   return (
-    <tr onClick={onClick} className="group cursor-pointer transition hover:bg-white/[0.02]">
+    <tr onClick={onClick} className="group cursor-pointer border-t border-[#EEF1F6] transition hover:bg-[#F8FAFC]">
       <td className="py-3.5 pl-2 pr-4">
         <div className="flex items-center gap-3">
           <Avatar user={user} online={online} />
-          <span className="truncate font-medium text-white">{user.name || "Sem nome"}</span>
+          <span className="truncate font-semibold text-[#171715]">{user.name || "Sem nome"}</span>
         </div>
       </td>
-      <td className="px-4 py-3.5 text-white/70">{user.email || "—"}</td>
-      <td className="px-4 py-3.5 text-white/60">
+      <td className="px-4 py-3.5 text-[#64748B]">{user.email || "—"}</td>
+      <td className="px-4 py-3.5 text-[#64748B]">
         {online ? (
-          <span className="inline-flex items-center gap-1.5 text-white">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-[#087443]">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#22C55E]" />
             </span>
             Online agora
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5">
-            <Store size={12} className="text-white/40" />
+            <Store size={12} className="text-[#A0A7B4]" />
             {user.last_seen_at ? relativeTime(user.last_seen_at) : "—"}
           </span>
         )}
       </td>
       <td className="px-4 py-3.5">
         {online ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#BBF7D0] bg-[#ECFDF3] px-2.5 py-1 text-[11px] font-semibold text-[#087443]">
             Online
           </span>
         ) : (
@@ -493,7 +511,7 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
           </span>
         )}
       </td>
-      <td className="px-4 py-3.5 text-white/55">{relativeTime(user.created_at)}</td>
+      <td className="px-4 py-3.5 text-[#64748B]">{relativeTime(user.created_at)}</td>
       <td className="px-4 py-3.5">
         <SourceBadge user={user} />
       </td>
@@ -505,27 +523,27 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
   const temp = leadTemperature(user);
   const online = isOnline(user.last_seen_at);
   return (
-    <div onClick={onClick} className="cursor-pointer border border-white/[0.08] bg-transparent p-4 transition hover:bg-white/[0.02] rounded-lg">
+    <div onClick={onClick} className="cursor-pointer rounded-[14px] border border-[#E6EAF2] bg-white p-4 transition hover:-translate-y-0.5 hover:border-[#C7D7FE] hover:shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
       <div className="flex items-center gap-3">
         <Avatar user={user} online={online} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium">{user.name || "Sem nome"}</p>
-          <p className="truncate text-[11px] text-white/45">{user.email || user.user_id.slice(0, 8)}</p>
+          <p className="truncate text-[13px] font-semibold text-[#171715]">{user.name || "Sem nome"}</p>
+          <p className="truncate text-[11px] text-[#8A8F9B]">{user.email || user.user_id.slice(0, 8)}</p>
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
         {online ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white">
-            <span className="h-1.5 w-1.5 rounded-full bg-white" /> Online
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#BBF7D0] bg-[#ECFDF3] px-2.5 py-1 text-[11px] font-semibold text-[#087443]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" /> Online
           </span>
         ) : (
           <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
             {tempLabel[temp]}
           </span>
         )}
-        <span className="text-[11px] text-white/45">{relativeTime(user.created_at)}</span>
+        <span className="text-[11px] text-[#8A8F9B]">{relativeTime(user.created_at)}</span>
       </div>
-      <div className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[11px] text-white/50">
+      <div className="mt-3 flex items-center justify-between border-t border-[#EEF1F6] pt-3 text-[11px] text-[#64748B]">
         <span>{formatPlan(user.plan)}</span>
         <SourceBadge user={user} compact />
       </div>
@@ -534,26 +552,26 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
 };
 
 const Avatar = ({ user, online }: { user: AdminUserRow; online?: boolean }) => (
-  <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/[0.08] text-[11px] font-semibold text-white/80">
+  <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#EEF4FF] text-[11px] font-semibold text-[#2563EB] ring-1 ring-[#DDE7FF]">
     {user.avatar_url ? (
       <img src={user.avatar_url} alt={user.name ?? "Usuário"} className="h-full w-full object-cover" />
     ) : (
       getInitials(user.name, user.email)
     )}
     {online ? (
-      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#0A0A0B] bg-white" />
+      <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#22C55E]" />
     ) : null}
   </span>
 );
 
 const SourceBadge = ({ user, compact }: { user: AdminUserRow; compact?: boolean }) => {
   const source = user.ml_connected ? "Mercado Livre" : "Direto";
-  const dot = user.ml_connected ? "bg-[#FBBF24]" : "bg-white/40";
+  const dot = user.ml_connected ? "bg-[#F59E0B]" : "bg-[#94A3B8]";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#161617] px-2.5 py-1 text-[11px] text-white/70",
-        compact && "border-transparent bg-transparent px-0 py-0"
+        "inline-flex items-center gap-1.5 rounded-full border border-[#DDE3EE] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-medium text-[#475569]",
+        compact && "border-transparent bg-transparent px-0 py-0 text-[#64748B]"
       )}
     >
       <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />
@@ -587,13 +605,13 @@ const Pagination = ({
       <button
         onClick={() => onChange(Math.max(1, page - 1))}
         disabled={page === 1}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#161617] text-white/60 transition hover:text-white disabled:opacity-30"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-[#DDE3EE] bg-white text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB] disabled:opacity-30"
       >
         <ChevronLeft size={14} />
       </button>
       {pages.map((p, i) =>
         p === "…" ? (
-          <span key={`e-${i}`} className="px-1.5 text-[12px] text-white/40">
+          <span key={`e-${i}`} className="px-1.5 text-[12px] text-[#A0A7B4]">
             …
           </span>
         ) : (
@@ -603,8 +621,8 @@ const Pagination = ({
             className={cn(
               "h-8 min-w-8 rounded-full px-2 text-[12px] transition",
               p === page
-                ? "bg-white text-black"
-                : "border border-white/10 bg-[#161617] text-white/70 hover:text-white"
+                ? "bg-[#2563EB] text-white shadow-[0_8px_16px_rgba(37,99,235,0.18)]"
+                : "border border-[#DDE3EE] bg-white text-[#64748B] hover:border-[#C7D7FE] hover:text-[#2563EB]"
             )}
           >
             {p}
@@ -614,7 +632,7 @@ const Pagination = ({
       <button
         onClick={() => onChange(Math.min(totalPages, page + 1))}
         disabled={page === totalPages}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#161617] text-white/60 transition hover:text-white disabled:opacity-30"
+        className="flex h-8 w-8 items-center justify-center rounded-full border border-[#DDE3EE] bg-white text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB] disabled:opacity-30"
       >
         <ChevronRight size={14} />
       </button>
