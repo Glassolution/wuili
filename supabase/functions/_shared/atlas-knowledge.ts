@@ -176,11 +176,12 @@ NAVEGAÇÃO DO APP
 ${navigationLines}
 
 PLANOS E LIMITES OPERACIONAIS CONFIRMADOS
-- Grátis: 0 produtos publicados, 1 marketplace, 0 agentes de IA, 0 automações, 0 páginas de venda, 0 lojas, sem analytics/monitoramento/respostas automáticas/relatórios avançados/suporte prioritário/API.
-- Go: mesmos limites operacionais do Grátis.
-- Base: 50 produtos, 1 marketplace, 0 agentes de IA, 0 automações, 1 página de venda, 0 lojas, analytics básico, monitoramento básico, sem respostas automáticas, sem relatórios avançados, sem suporte prioritário, sem API.
-- Pro: 200 produtos, 2 marketplaces, 3 agentes de IA, 3 automações, 5 páginas de venda, 3 lojas, analytics básico, monitoramento básico, respostas automáticas limitadas, relatórios avançados e suporte prioritário.
-- Business: produtos, marketplaces, agentes, automações, páginas e lojas ilimitados; analytics premium; monitoramento premium; respostas automáticas ilimitadas; relatórios avançados, suporte prioritário, suporte dedicado e acesso API.
+- Grátis: 0 publicações no Mercado Livre, 1 marketplace, 3 imagens com IA por mês, 1 influencer de IA, 10 mensagens do Atlas por dia, 0 páginas de venda, 0 lojas.
+- Go: plano legado, tratado como Base.
+- Base (R$ 39,90/mês): até 50 anúncios ativos e 50 publicações por mês no Mercado Livre (uma a uma, sem publicação em lote, sem variações e sem sincronização automática de preço/estoque), 1 marketplace, 1 página de venda, 0 lojas, 20 imagens com IA por mês, sem vídeos com IA, 3 influencers de IA, 40 mensagens do Atlas por dia, analytics básico, suporte por e-mail.
+- Pro (R$ 79,80/mês, plano mais escolhido): até 300 anúncios ativos e 300 publicações por mês no Mercado Livre, publicação em lote, anúncios com variações e sincronização automática de preço e estoque, 2 marketplaces, 10 páginas de venda, 3 lojas, 100 imagens e 10 vídeos com IA por mês, 10 influencers de IA, 150 mensagens do Atlas por dia, relatórios avançados e suporte prioritário.
+- Business (R$ 159,60/mês): anúncios e publicações no Mercado Livre ilimitados, marketplaces ilimitados, páginas de venda e lojas ilimitadas, 300 imagens e 30 vídeos com IA por mês, 30 influencers de IA, 400 mensagens do Atlas por dia, analytics premium, suporte dedicado e acesso API.
+- Mesmo no Business as features de IA (imagens, vídeos, influencers, Atlas) têm teto, porque cada geração custa processamento.
 - "Plus" é tratado como Pro no código. Para preços atuais, sempre mande o usuário ver Planos dentro do painel, pois valores podem mudar.
 
 AJUDA E SUPORTE DOCUMENTADOS
