@@ -260,10 +260,11 @@ const MobileProductCard = ({
             <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
               {rating !== null && (
                 <>
-                  <Star className="h-3 w-3 fill-[#111111] text-[#111111]" strokeWidth={1.8} />
-                  <span className="text-[#111111]">{rating.toFixed(1)}</span>
+                  <Star className="h-3 w-3 fill-[#2563EB] text-[#2563EB]" strokeWidth={1.8} />
+                  <span className="text-[#2563EB]">{rating.toFixed(1)}</span>
                 </>
               )}
+
               {rating !== null && ordersCount !== null && <span>·</span>}
               {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
             </div>
