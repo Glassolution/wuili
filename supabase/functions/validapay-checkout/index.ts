@@ -111,11 +111,12 @@ Deno.serve(async (req) => {
 
     const origin = req.headers.get("origin") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
 
-    // Logo da Velo. Atenção: o checkout hospedado da ValidaPay NÃO usa estes
-    // campos — ele renderiza sempre a logo salva na conta ("customer-logo"),
-    // que só pode ser trocada no painel da ValidaPay. Mantemos por compatibilidade.
+    // Logo atual da Velo (cesta azul em fundo branco). Enviamos em todos os
+    // nomes de campo aceitos/possíveis da API. Se o checkout hospedado ainda
+    // renderizar a logo antiga, ela vem das configurações da conta ValidaPay
+    // ("customer-logo") e precisa ser trocada no painel do provedor.
     const logoUrl =
-      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v2.png";
+      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v3.png";
 
 
     const basePayload: Record<string, unknown> = {
@@ -126,6 +127,9 @@ Deno.serve(async (req) => {
       companyName: "Velo",
       logoUrl,
       companyLogoUrl: logoUrl,
+      customerLogoUrl: logoUrl,
+      brandLogoUrl: logoUrl,
+      imageUrl: logoUrl,
       logo: logoUrl,
       // Identidade Velo: botão preto, mas textos escuros para manter a leitura nítida.
       primaryColor: "#000000",
