@@ -245,11 +245,11 @@ const brandPanelStyle: CSSProperties = {
 };
 
 /*
-  Marca atual em versão branca com o "C" vazado — o painel do onboarding é azul sólido,
-  e a logo padrão (bolha azul) sumiria nele. Gerada a partir de public/logo.png; para
+  Marca em versão branca com o "C" vazado — o painel do onboarding é azul sólido,
+  e a cesta azul padrão sumiria nele. Gerada a partir de public/logo.png; para
   atualizar, basta regerar mantendo o vazado.
 */
-const ONBOARDING_MARK_SRC = "/velo-mark-branco.png";
+const ONBOARDING_MARK_SRC = "/onboarding-velo-mark.png";
 
 const OnboardingBrandLogo = ({ size = "md", variant = "light" }: { size?: "sm" | "md"; variant?: "light" | "dark" }) => {
   const isLight = variant === "light";
