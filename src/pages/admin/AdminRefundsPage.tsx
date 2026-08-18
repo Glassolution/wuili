@@ -472,6 +472,11 @@ const RefundsTable = ({
                     >
                       {r.status}
                     </span>
+                    {variant === "approved" && (
+                      <p className="mt-1 text-[11px] leading-4 text-[#8A8A8E]">
+                        Em processo no banco emissor — prazo de até 30 dias para aparecer na fatura do cliente.
+                      </p>
+                    )}
                   </td>
                 )}
               </tr>

@@ -11,8 +11,9 @@ const corsHeaders = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-// Depois desse prazo, paramos de reconsultar e sinalizamos revisão manual.
-const MAX_DAYS_PROCESSING = 5;
+// Estorno de cartão pode levar até 30 dias (prazo do emissor). Depois disso,
+// paramos de reconsultar e sinalizamos revisão manual.
+const MAX_DAYS_PROCESSING = 30;
 
 type ProviderResponse = Record<string, unknown> & {
   refundId?: string;
@@ -147,7 +148,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Ainda processando (ou erro de consulta): checa o limite de 5 dias.
+      // Ainda processando (ou erro de consulta): checa o limite de 30 dias.
       if (daysElapsed > MAX_DAYS_PROCESSING) {
         await admin.from("refund_requests").update({
           status: "pending",
