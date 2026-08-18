@@ -450,11 +450,30 @@ const CheckoutPage = () => {
     }
   };
 
-  const startCheckout = (nextPlanId = selectedPlanId) => {
+  // Vai direto para o checkout hospedado da ValidaPay, sem tela intermediária:
+  // a página de planos continua visível até o redirect acontecer.
+  const startCheckout = async (nextPlanId = selectedPlanId) => {
     setSelectedPlanId(nextPlanId);
-    setShowPaymentStep(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!session) {
+      toast.error("Você precisa estar logado");
+      navigate("/login");
+      return;
+    }
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    const toastId = toast.loading("Abrindo checkout seguro...");
+    const res = await startValidaPayCheckout(
+      nextPlanId as VelloPlanId,
+      billingCycle === "annual" ? "annual" : "monthly",
+    );
+    if (res.ok) {
+      toast.success("Redirecionando para o pagamento...", { id: toastId });
+      return;
+    }
+    redirectedRef.current = false;
+    toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
   };
+
 
   if (checkoutState === "success") {
     return (
@@ -676,28 +695,9 @@ const CheckoutPage = () => {
     );
   }
 
-  // Etapa de pagamento: o usuário é levado ao checkout hospedado da ValidaPay.
-  return (
-    <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center px-4 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#0A0A0A]">
-      <div className="w-full max-w-md rounded-2xl bg-white p-10 text-center shadow-sm">
-        <div className="mx-auto mb-6 flex justify-center">
-          <VeloMark size={40} tone="dark" />
-        </div>
-        <div className="mx-auto mb-6 h-8 w-8 animate-spin rounded-full border-2 border-black/15 border-t-black" />
-        <h2 className="text-xl font-semibold">Abrindo o checkout seguro</h2>
-        <p className="mt-2 text-sm text-[#6B6B67]">
-          Estamos te levando ao pagamento do plano {plan.name} (Pix ou cartão em até 12x).
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="mt-8 text-sm font-semibold text-[#6B6B67] underline underline-offset-4 hover:text-black"
-        >
-          Voltar para o início
-        </button>
-      </div>
-    </div>
-  );
+  // Etapa de pagamento: redirect direto para a ValidaPay, sem tela intermediária.
+  return null;
+
 
   // eslint-disable-next-line no-unreachable
   const summaryIconTone = planId === "business" ? "dark" : planId === "pro" ? "violet" : "solid";
