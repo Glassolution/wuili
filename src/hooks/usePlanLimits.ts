@@ -59,6 +59,10 @@ export const usePlanLimits = () => {
           .in("status", ["active", "published"]),
       ]);
 
+      if (integrationsResult.error) {
+        console.warn("[usePlanLimits] failed to load user_integrations", integrationsResult.error);
+      }
+
       const connectedPlatforms = new Set(
         (integrationsResult.data ?? [])
           .filter((integration) => !!integration.access_token)
@@ -80,6 +84,11 @@ export const usePlanLimits = () => {
         aiAgents: 0,
         automations: 0,
       });
+    } catch (err) {
+      // Sem isto, uma falha aqui virava uma promise rejeitada sem handler
+      // (o efeito chama fetchUsage com `void`) — o uso ficava travado no
+      // valor inicial (zeros) sem nenhum aviso no console.
+      console.error("[usePlanLimits] failed to load usage", err);
     } finally {
       setUsageLoading(false);
     }
