@@ -128,7 +128,7 @@ const AiPagePreviewPage = () => {
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-[#0A0A0A]">Esta página ainda não está publicada</p>
           <p className="mt-0.5 text-[12.5px] leading-[1.5] text-[#6B6B6B]">
-            É uma prévia salva na Velo, visível só para você. Nada foi enviado para a Shopify nem para qualquer
+            É uma prévia salva na Velo, visível só para você. Nada foi enviado para loja externa nem para qualquer
             loja externa. A publicação entra numa próxima fase.
           </p>
         </div>
@@ -147,7 +147,7 @@ const AiPagePreviewPage = () => {
           <div>
             <p className="text-[13px] font-semibold text-[#8C2C22]">A geração falhou</p>
             <p className="mt-0.5 text-[12.5px] text-[#8C2C22]">
-              {page.error_message ?? "O PagePilot não conseguiu gerar essa página."}
+              {page.error_message ?? "A IA da Velo não conseguiu gerar essa página."}
             </p>
           </div>
         </div>

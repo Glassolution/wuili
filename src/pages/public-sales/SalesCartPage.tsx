@@ -6,7 +6,7 @@ import { formatBRL, useSalesPageData } from "./salesPageData";
 /**
  * Tela · Carrinho
  * Layout inspirado no template "E-Markets" (breadcrumb + stepper +
- * lista + cupom + resumo), adaptado ao design system AERO STEP
+ * lista + resumo), adaptado ao design system AERO STEP
  * (creme #f5f2ea, verde musgo #1a3c2a/#3d4a2a, dourado #c8a24a).
  */
 const SalesCartPage = () => {
@@ -17,7 +17,6 @@ const SalesCartPage = () => {
   const [delivery, setDelivery] = useState<"delivery" | "pickup">("delivery");
   const [tip, setTip] = useState<number>(4);
   const [useCredits, setUseCredits] = useState(true);
-  const [coupon, setCoupon] = useState("");
 
   if (loading) {
     return (
@@ -173,23 +172,6 @@ const SalesCartPage = () => {
 
           {/* Sidebar */}
           <div className="space-y-5">
-            {/* Cupons */}
-            <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
-              <h3 className="text-[15px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>Cupons</h3>
-              <div className="mt-4 flex overflow-hidden rounded-md" style={{ border: `1px solid ${t.border}`, backgroundColor: "#fff" }}>
-                <input
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="Código do cupom"
-                  className="flex-1 bg-transparent px-3 py-2 text-[13px] outline-none"
-                  style={{ color: t.text }}
-                />
-                <button type="button" className="px-4 text-[11px] font-bold uppercase tracking-wider" style={{ backgroundColor: t.accentDark, color: t.accentText }}>
-                  Aplicar
-                </button>
-              </div>
-            </section>
-
             {/* Seu Pedido */}
             <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
               <h3 className="text-[15px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>Seu pedido</h3>

@@ -76,6 +76,13 @@ const normalizeAffiliateCode = (value?: string | null) =>
 
 const buildAffiliateUrl = (code: string) => `${REFERRAL_BASE_URL}/${normalizeAffiliateCode(code)}`;
 
+const validateCustomAffiliateCode = (value: string) => {
+  const code = normalizeAffiliateCode(value);
+  if (code.length < 4) throw new Error("Use pelo menos 4 letras ou números no link.");
+  if (code.length > 10) throw new Error("O código do link pode ter no máximo 10 caracteres.");
+  return code;
+};
+
 const buildAffiliateCode = (currentUser: { id: string; email?: string | null }) => {
   const emailPrefix = normalizeAffiliateCode(currentUser.email?.split("@")[0] ?? "").slice(0, 4);
   const userSuffix = normalizeAffiliateCode(currentUser.id.replace(/-/g, "")).slice(0, 4);
@@ -325,6 +332,45 @@ const CommissionsPage = () => {
     },
   });
 
+  const customizeAffiliateLink = useMutation({
+    mutationFn: async (value: string) => {
+      if (!user?.id) throw new Error("Entre na sua conta para personalizar o link.");
+      if (!isApproved) throw new Error("Seu cadastro de afiliado ainda não foi aprovado.");
+
+      const code = validateCustomAffiliateCode(value);
+      const link = buildAffiliateUrl(code);
+      const { data, error } = await affiliateDb
+        .from("affiliates")
+        .update({ code, ref: code, link, commission_rate: COMMISSION_RATE })
+        .eq("user_id", user.id)
+        .select("code, link, commission_rate, is_active")
+        .maybeSingle();
+
+      if (error) {
+        if (isDuplicateAffiliateCodeError(error)) {
+          throw new Error("Esse link já está em uso. Tente outro código.");
+        }
+        console.error("[CommissionsPage] affiliate link update failed", error);
+        throw new Error("Não foi possível personalizar seu link.");
+      }
+
+      return {
+        code: normalizeAffiliateCode(data?.code ?? code),
+        link: buildAffiliateUrl(data?.code ?? code),
+        commissionRate: Number(data?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+        isActive: data?.is_active === true,
+      } satisfies AffiliateLinkResponse;
+    },
+    onSuccess: (updatedLink) => {
+      queryClient.setQueryData(["affiliate-link", user?.id], updatedLink);
+      void queryClient.invalidateQueries({ queryKey: ["affiliate-sales", user?.id] });
+      veloToast.success("Link personalizado com sucesso!");
+    },
+    onError: (error) => {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível personalizar seu link.");
+    },
+  });
+
   // Fetch affiliate sales for the logged-in influencer
   const { data: initialCommissions = EMPTY_COMMISSIONS, isLoading } = useQuery({
     queryKey: ["affiliate-sales", user?.id, affiliateLink?.code],
@@ -519,6 +565,8 @@ const CommissionsPage = () => {
       onCopyLink={handleCopyLink}
       onCreateLink={() => createAffiliateLink.mutate()}
       creatingLink={createAffiliateLink.isPending}
+      onCustomizeLink={(code) => customizeAffiliateLink.mutate(code)}
+      customizingLink={customizeAffiliateLink.isPending}
       onExport={handleExport}
     />
   );

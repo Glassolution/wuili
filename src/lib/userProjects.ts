@@ -134,8 +134,8 @@ export async function saveProjectDraft(
   if (error) throw error;
 }
 
-export async function publishProject(project: UserProject): Promise<UserProject> {
-  const metadata = readMetadata(project);
+export async function publishProject(project: UserProject, metadataPatch: Record<string, unknown> = {}): Promise<UserProject> {
+  const metadata = { ...readMetadata(project), ...metadataPatch };
   let slug = typeof metadata.slug === "string" ? metadata.slug : "";
   if (!slug) {
     slug = await ensureUniqueSlug(slugify(project.nome) || "loja");
