@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Check, X } from "lucide-react";
+import { ArrowLeft, Check, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { VeloLogo } from "@/components/VeloLogo";
+import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
+
 
 
 type BillingCycle = "monthly" | "annual";
@@ -332,6 +335,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
   const navigate = useNavigate();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loadingPlans, setLoadingPlans] = useState(false);
+  const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
+
 
   useEffect(() => {
     if (!open) return;
@@ -342,15 +347,21 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
 
   if (!open) return null;
 
-  const handleChoose = (planId: PlanId) => {
-    onClose();
-    const params = new URLSearchParams({
-      plan: planId,
-      billing_cycle: cycle,
-      step: "payment",
-    });
-    navigate(`/checkout?${params.toString()}`);
+  const handleChoose = async (planId: PlanId) => {
+    if (checkingOutPlanId) return;
+    setCheckingOutPlanId(planId);
+    try {
+      const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
+      if (res.ok) return; // redirect acontece pelo navegador
+      setCheckingOutPlanId(null);
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.");
+    } catch (e) {
+      console.error("checkout error", e);
+      setCheckingOutPlanId(null);
+      toast.error("Não foi possível gerar o pagamento.");
+    }
   };
+
 
   const skeletonCard = (index: number) => (
     <div key={index} className="rounded-[16px] border border-black/10 bg-white p-5">
@@ -498,11 +509,20 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
 
                 <PremiumActionButton
                   type="button"
-                  onClick={() => handleChoose(plan.id)}
-                  className="-mx-1 mt-5 h-9 w-[calc(100%+0.5rem)] rounded-[7px] px-5 text-[14px]"
+                  onClick={() => void handleChoose(plan.id)}
+                  disabled={checkingOutPlanId !== null}
+                  className="-mx-1 mt-5 h-9 w-[calc(100%+0.5rem)] rounded-[7px] px-5 text-[14px] disabled:opacity-80"
                 >
-                  Assinar {plan.name.replace("Plano ", "")}
+                  {checkingOutPlanId === plan.id ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Redirecionando...
+                    </span>
+                  ) : (
+                    <>Assinar {plan.name.replace("Plano ", "")}</>
+                  )}
                 </PremiumActionButton>
+
 
                 <p className="mb-3 mt-6 border-t border-black/[0.08] pt-5 text-[14px] font-semibold text-black">O que está incluído:</p>
                 <ul className="space-y-2.5">
