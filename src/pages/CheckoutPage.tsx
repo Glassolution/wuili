@@ -661,10 +661,18 @@ const CheckoutPage = () => {
                     {/* CTA acima da lista de recursos. */}
                     <button
                       type="button"
+                      disabled={checkingOutPlanId === id}
                       onClick={() => startCheckout(id)}
-                      className="mt-5 h-11 w-full rounded-[10px] border border-[#0A0A0A] bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#242424]"
+                      className="mt-5 h-11 w-full rounded-[10px] border border-[#0A0A0A] bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#242424] disabled:cursor-not-allowed disabled:opacity-80"
                     >
-                      Assinar {currentPlan.name}
+                      {checkingOutPlanId === id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          Redirecionando...
+                        </span>
+                      ) : (
+                        `Assinar ${currentPlan.name}`
+                      )}
                     </button>
 
                     <p className="mb-3 mt-6 text-[13px] font-semibold text-black">O que está incluído:</p>
