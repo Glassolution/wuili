@@ -515,7 +515,11 @@ const CheckoutPage = () => {
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <VeloMark size={34} />
+                <img
+                  src="/logo.png"
+                  alt="Velo"
+                  className="h-9 w-auto object-contain"
+                />
               </div>
 
               <div className="flex items-center gap-2" role="presentation">
