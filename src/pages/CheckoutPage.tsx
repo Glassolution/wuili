@@ -495,8 +495,11 @@ const CheckoutPage = () => {
     );
   }
 
-  if (!showPaymentStep) {
+  // A página de planos fica sempre visível — mesmo durante o redirect para a
+  // ValidaPay — evitando qualquer tela branca intermediária.
+  {
     const plans = Object.entries(PLANS_DATA);
+
 
     return (
       <div className="min-h-screen overflow-hidden bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
