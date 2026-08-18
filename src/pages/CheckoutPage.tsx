@@ -261,6 +261,36 @@ const CheckoutPage = () => {
     );
   }, [billingCycle, isTrial, planId, session?.user?.id, showPaymentStep]);
 
+  // O pagamento acontece no checkout hospedado da ValidaPay (Pix + cartão em
+  // até 12x). Assim que o usuário escolhe o plano, redirecionamos direto para
+  // lá — não usamos mais o formulário de cartão local.
+  const redirectedRef = useRef(false);
+  useEffect(() => {
+    if (!showPaymentStep || redirectedRef.current) return;
+    if (!session) {
+      toast.error("Você precisa estar logado");
+      navigate("/login");
+      return;
+    }
+    redirectedRef.current = true;
+    setCheckoutState("loading");
+    const toastId = toast.loading("Abrindo checkout seguro...");
+    void (async () => {
+      const res = await startValidaPayCheckout(
+        planId as VelloPlanId,
+        billingCycle === "annual" ? "annual" : "monthly",
+      );
+      if (res.ok) {
+        toast.success("Redirecionando para o pagamento...", { id: toastId });
+        return;
+      }
+      redirectedRef.current = false;
+      toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+      setCheckoutState("idle");
+      setShowPaymentStep(false);
+    })();
+  }, [showPaymentStep, session, planId, billingCycle, navigate]);
+
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
     if (checkoutState !== "pix_pending" || !session) return;
@@ -460,7 +490,7 @@ const CheckoutPage = () => {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate("/")}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F3F3F2] text-black transition hover:bg-[#E9E9E7]"
                   aria-label="Voltar"
                 >
@@ -646,6 +676,30 @@ const CheckoutPage = () => {
     );
   }
 
+  // Etapa de pagamento: o usuário é levado ao checkout hospedado da ValidaPay.
+  return (
+    <div className="min-h-screen bg-[#F7F7F5] flex items-center justify-center px-4 font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#0A0A0A]">
+      <div className="w-full max-w-md rounded-2xl bg-white p-10 text-center shadow-sm">
+        <div className="mx-auto mb-6 flex justify-center">
+          <VeloMark size={40} tone="dark" />
+        </div>
+        <div className="mx-auto mb-6 h-8 w-8 animate-spin rounded-full border-2 border-black/15 border-t-black" />
+        <h2 className="text-xl font-semibold">Abrindo o checkout seguro</h2>
+        <p className="mt-2 text-sm text-[#6B6B67]">
+          Estamos te levando ao pagamento do plano {plan.name} (Pix ou cartão em até 12x).
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="mt-8 text-sm font-semibold text-[#6B6B67] underline underline-offset-4 hover:text-black"
+        >
+          Voltar para o início
+        </button>
+      </div>
+    </div>
+  );
+
+  // eslint-disable-next-line no-unreachable
   const summaryIconTone = planId === "business" ? "dark" : planId === "pro" ? "violet" : "solid";
 
   return (
