@@ -1,28 +1,19 @@
-// Diagnóstico temporário: inspeciona de onde o checkout hospedado da ValidaPay
-// puxa a logo exibida no topo da página.
-import { createCheckoutSession } from "../_shared/validapay.ts";
+// Diagnóstico temporário: procura endpoint de conta para trocar a logo.
+import { VALIDAPAY_API_URL } from "../_shared/validapay.ts";
+import { getToken } from "../_shared/validapay.ts";
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204 });
+Deno.serve(async () => {
   try {
-    const priceId = Deno.env.get("VALIDAPAY_PRICE_BASE")!;
-    const logoUrl =
-      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v2.png";
-    const session = await createCheckoutSession({
-      priceId,
-      items: [{ priceId, quantity: 1 }],
-      companyName: "Velo",
-      logoUrl,
-      companyLogoUrl: logoUrl,
-      logo: logoUrl,
-      pathLogo: logoUrl,
-      logoPath: logoUrl,
-      allowedPaymentMethods: ["pix", "creditcard"],
-    });
-    const html = await (await fetch(session.url)).text();
-    const imgs = Array.from(html.matchAll(/<img[^>]*>/g)).map((m) => m[0]).slice(0, 20);
-    const logoMentions = Array.from(html.matchAll(/[^"']*logo[^"']*/gi)).map((m) => m[0]).slice(0, 40);
-    return Response.json({ url: session.url, imgs, logoMentions, len: html.length });
+    const token = await getToken();
+    const paths = ["/customers/me", "/me", "/account", "/customer", "/customers", "/settings", "/company"];
+    const out: Record<string, unknown> = {};
+    for (const path of paths) {
+      const r = await fetch(`${VALIDAPAY_API_URL}${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      out[path] = { status: r.status, body: (await r.text()).slice(0, 300) };
+    }
+    return Response.json(out);
   } catch (err) {
     return Response.json({ error: String(err) }, { status: 500 });
   }
