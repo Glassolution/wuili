@@ -503,3 +503,60 @@ export function safeEqual(a: string, b: string): boolean {
   for (let i = 0; i < ab.length; i++) diff |= ab[i] ^ bb[i];
   return diff === 0;
 }
+
+/**
+ * CHECKOUT TRANSPARENTE (assinaturas da Velo).
+ * POST /v1/charges com o priceId da assinatura — o cliente informa os dados na
+ * NOSSA página (velods.com.br), sem redirecionar para o checkout hospedado.
+ * Doc: docs.validapay.com.br → Checkout Transparente (Pix e Cartão).
+ */
+export type TransparentChargeResult = {
+  chargeId: string;
+  status: string;
+  success: boolean;
+  pix: { emv: string | null; qrCodeImage: string | null } | null;
+  raw: unknown;
+};
+
+export async function createTransparentCharge(
+  payload: Record<string, unknown>,
+): Promise<TransparentChargeResult> {
+  let raw: Record<string, unknown>;
+  try {
+    raw = await validaPayFetch<Record<string, unknown>>("/v1/charges", {
+      method: "POST",
+      scope: "checkouts/write pix.cob/write pix.cob/read",
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    // 409 = mesmo externalId: reaproveita a cobrança original.
+    // deno-lint-ignore no-explicit-any -- details do gateway não é tipado
+    const d = err instanceof ValidaPayError ? (err.details as any) : null;
+    const dupId = d?.error?.details?.chargeId ?? d?.details?.chargeId ?? d?.chargeId;
+    if (err instanceof ValidaPayError && err.status === 409 && dupId) {
+      raw = await validaPayFetch<Record<string, unknown>>(
+        `/v1/charges/${encodeURIComponent(String(dupId))}`,
+        { method: "GET", scope: "pix.cob/read" },
+      );
+    } else {
+      throw err;
+    }
+  }
+
+  // deno-lint-ignore no-explicit-any -- payload do gateway não é tipado
+  const r = (raw ?? {}) as any;
+  const node = r?.data ?? r;
+  const pixNode = node?.pix ?? null;
+  const emv = pixNode?.emv ?? pixNode?.qrCode ?? pixNode?.brCode ?? pixNode?.copyPaste ?? null;
+  const image = pixNode?.qrCode && String(pixNode.qrCode).startsWith("data:image")
+    ? pixNode.qrCode
+    : pixNode?.qrCodeImage ?? pixNode?.qrCodeBase64 ?? null;
+
+  return {
+    chargeId: String(node?.chargeId ?? node?.id ?? ""),
+    status: String(node?.status ?? (node?.success ? "PAID" : "PENDING")).toUpperCase(),
+    success: node?.success !== false,
+    pix: emv || image ? { emv: emv ? String(emv) : null, qrCodeImage: image ? String(image) : null } : null,
+    raw,
+  };
+}

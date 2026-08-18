@@ -79,6 +79,7 @@ const IntegracoesPage = lazy(() => import("./pages/dashboard/IntegracoesPage"));
 const AdicionarLojaShopifyPage = lazy(() => import("./pages/dashboard/AdicionarLojaShopifyPage"));
 const Docs = lazy(() => import("./pages/Docs"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
+const AssinaturaCheckoutPage = lazy(() => import("./pages/AssinaturaCheckoutPage"));
 const AssinaturaConfirmadaPage = lazy(() => import("./pages/AssinaturaConfirmadaPage"));
 const TemplatePreviewPage = lazy(() => import("./pages/TemplatePreviewPage"));
 const TikTokPage = lazy(() => import("./pages/dashboard/TikTokPage"));
@@ -232,6 +233,8 @@ const App = () => (
               <Route path="/termos" element={<TermsPage />} />
               {/* Retorno da ValidaPay após pagamento aprovado. Pública: o
                   usuário volta do checkout externo, podendo não estar logado. */}
+              {/* Checkout transparente: o pagamento acontece no nosso domínio. */}
+              <Route path="/assinar/:plan" element={<AssinaturaCheckoutPage />} />
               <Route path="/assinatura/confirmada" element={<AssinaturaConfirmadaPage />} />
               {/* Só em dev: usada pelo script que gera as miniaturas dos modelos. */}
               {import.meta.env.DEV ? (
