@@ -29,8 +29,8 @@ import {
 /**
  * Wizard de 3 etapas para gerar uma página de produto com IA.
  *
- * IMPORTANTE: este fluxo termina em PRÉVIA. Nada aqui publica em Shopify nem em
- * qualquer loja externa — a página gerada fica salva na Velo para revisão.
+ * IMPORTANTE: este fluxo termina em PRÉVIA. Nada aqui publica automaticamente:
+ * a página gerada fica salva na Velo para revisão.
  */
 
 const INK = "#0A0A0A";
@@ -177,7 +177,7 @@ const AiPageGeneratorPage = () => {
           setGenerating(false);
           setFailure({
             code: result.errorCode ?? "provider_error",
-            message: result.message ?? "O PagePilot não conseguiu gerar essa página.",
+            message: result.message ?? "A IA da Velo não conseguiu gerar essa página.",
           });
           return;
         }
@@ -392,7 +392,7 @@ const AiPageGeneratorPage = () => {
             <div className="mt-5 flex items-start gap-2.5 rounded-[10px] border border-[#F0E4C3] bg-[#FDF9EF] px-3.5 py-3">
               <Clock size={16} className="mt-0.5 shrink-0 text-[#9A7B1F]" />
               <p className="text-[12.5px] leading-[1.5] text-[#7A6216]">
-                Você acabou de gerar uma página. O PagePilot libera uma geração por minuto —{" "}
+                Você acabou de gerar uma página. A Velo libera uma geração por minuto —{" "}
                 <strong className="font-semibold">faltam {cooldown}s</strong>.
               </p>
             </div>
@@ -446,7 +446,7 @@ const AiPageGeneratorPage = () => {
                 {failure.code === "rate_limited"
                   ? "Aguarde um instante"
                   : failure.code === "plan_required"
-                    ? "Plano insuficiente no PagePilot"
+                    ? "Plano insuficiente para gerar páginas"
                     : "Não deu para gerar agora"}
               </h2>
               <p className="mx-auto mt-1.5 max-w-[460px] text-[13px] leading-[1.5] text-[#8A8A8A]">{failure.message}</p>

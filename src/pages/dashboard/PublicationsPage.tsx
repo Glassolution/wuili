@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
-  Search, ChevronDown, Grid3x3, List, Package, ExternalLink, ArrowUpRight, MoreHorizontal,
+  Search, ChevronDown, Grid3x3, List, Package, ExternalLink, ArrowUpRight, MoreHorizontal, Pencil, Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import { veloToast } from "@/components/ui/velo-toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Publication = {
@@ -21,6 +22,9 @@ type Publication = {
   user_id: string;
   published_at: string | null;
   created_at: string;
+  catalog_product_id: string | null;
+  cj_product_url: string | null;
+  supplier_url: string | null;
 };
 
 type TabFilter = "all" | "active" | "draft" | "archived";
@@ -29,6 +33,25 @@ type TabFilter = "all" | "active" | "draft" | "archived";
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+const normalizeExternalUrl = (value: string | null | undefined) => {
+  const url = value?.trim();
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return null;
+  return `https://${url}`;
+};
+
+const openExternal = (url: string | null, missingMessage: string) => {
+  if (!url) {
+    veloToast.info(missingMessage);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const PublicationsPage = () => {
   const { user } = useAuth();
@@ -36,21 +59,76 @@ const PublicationsPage = () => {
   const [tab, setTab] = useState<TabFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
 
   // ── Query ──────────────────────────────────────────────────────────────────
-  const { data: publications, isLoading } = useQuery({
+  const { data: publications, isLoading, refetch } = useQuery({
     queryKey: ["user-publications", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_publications" as any)
+        .from("user_publications")
         .select("*")
         .eq("user_id", user!.id)
         .order("published_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Publication[];
+
+      const rows = (data ?? []) as Omit<Publication, "supplier_url">[];
+      const catalogIds = Array.from(new Set(rows.map((row) => row.catalog_product_id).filter((value): value is string => Boolean(value))));
+      const supplierMap = new Map<string, string | null>();
+
+      const uuidIds = catalogIds.filter(isUuid);
+      if (uuidIds.length > 0) {
+        const { data: products } = await supabase
+          .from("catalog_products")
+          .select("id,external_id,product_url")
+          .in("id", uuidIds);
+        (products ?? []).forEach((product) => {
+          supplierMap.set(product.id, product.product_url ?? null);
+          supplierMap.set(product.external_id, product.product_url ?? null);
+        });
+      }
+
+      if (catalogIds.length > 0) {
+        const { data: productsByExternalId } = await supabase
+          .from("catalog_products")
+          .select("id,external_id,product_url")
+          .in("external_id", catalogIds);
+        (productsByExternalId ?? []).forEach((product) => {
+          supplierMap.set(product.id, product.product_url ?? null);
+          supplierMap.set(product.external_id, product.product_url ?? null);
+        });
+      }
+
+      return rows.map((row) => ({
+        ...row,
+        supplier_url: row.catalog_product_id ? supplierMap.get(row.catalog_product_id) ?? row.cj_product_url ?? null : row.cj_product_url ?? null,
+      })) as Publication[];
     },
   });
+
+  const handleDeletePublication = async (pub: Publication) => {
+    if (!user?.id || deletingId) return;
+    const confirmed = window.confirm(`Excluir "${pub.title}" da sua lista de publicações?`);
+    if (!confirmed) return;
+
+    setDeletingId(pub.id);
+    const { error } = await supabase
+      .from("user_publications")
+      .delete()
+      .eq("id", pub.id)
+      .eq("user_id", user.id);
+    setDeletingId(null);
+
+    if (error) {
+      veloToast.error("Não foi possível excluir a publicação.");
+      return;
+    }
+
+    veloToast.success("Publicação excluída.");
+    void refetch();
+  };
 
   const all = publications ?? [];
   const activeCount = all.filter((p) => p.status === "active").length;
@@ -180,12 +258,13 @@ const PublicationsPage = () => {
             const status = pub.status || "pending";
             const preset = statusPresets[status] ?? statusPresets.pending;
             const retailPrice = pub.price ?? 0;
+            const mlHref = normalizeExternalUrl(pub.permalink);
 
             return (
               <button
                 key={pub.id}
                 type="button"
-                onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                onClick={() => openExternal(mlHref, "O anúncio do Mercado Livre ainda não possui link disponível.")}
                 data-dashboard-tour={index === 0 ? "publicacoes-card" : undefined}
                 className="group grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[#EFEFEB] p-3 text-left transition-colors last:border-b-0 hover:bg-[#F7F7F8]"
               >
@@ -221,6 +300,9 @@ const PublicationsPage = () => {
             const preset = statusPresets[status] ?? statusPresets.pending;
             const retailPrice = pub.price ?? 0;
             const wholesalePrice = pub.cost_price ?? 0;
+            const mlHref = normalizeExternalUrl(pub.permalink);
+            const supplierUrl = normalizeExternalUrl(pub.supplier_url ?? pub.cj_product_url);
+            const deleting = deletingId === pub.id;
 
             return (
               <article
@@ -255,11 +337,39 @@ const PublicationsPage = () => {
                   </span>
                   <button
                     type="button"
-                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_4px_12px_rgba(17,24,39,0.12)] backdrop-blur-sm transition-transform active:scale-90"
+                    onClick={() => setOpenActionId((current) => current === pub.id ? null : pub.id)}
+                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_4px_12px_rgba(17,24,39,0.12)] backdrop-blur-sm transition-transform hover:text-[#2563EB] active:scale-90"
                     aria-label="Mais ações"
                   >
                     <MoreHorizontal size={15} strokeWidth={2} />
                   </button>
+                  {openActionId === pub.id ? (
+                    <div className="absolute right-2 top-11 z-20 w-32 overflow-hidden rounded-xl border border-black/10 bg-white py-1 text-[#111111] shadow-[0_12px_30px_rgba(17,24,39,0.16)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          navigate(`/dashboard/publicacoes/${pub.id}`);
+                        }}
+                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[11px] font-semibold transition hover:bg-[#F7F7F8]"
+                      >
+                        <Pencil size={13} strokeWidth={1.9} />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          void handleDeletePublication(pub);
+                        }}
+                        disabled={deleting}
+                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[11px] font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <Trash2 size={13} strokeWidth={1.9} />
+                        {deleting ? "Excluindo" : "Excluir"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="pt-3">
@@ -292,17 +402,18 @@ const PublicationsPage = () => {
                   <div className="mt-3 flex items-center gap-1.5">
                     <button
                       type="button"
+                      onClick={() => openExternal(mlHref, "O anúncio do Mercado Livre ainda não possui link disponível.")}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111111] transition-colors hover:bg-[#F4F4F1]"
-                      aria-label="Mais ações"
+                      aria-label="Abrir anúncio no Mercado Livre"
                     >
                       <ExternalLink size={13} strokeWidth={1.9} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                      onClick={() => openExternal(supplierUrl, "Este produto ainda não possui link de fornecedor.")}
                       className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#2563EB] px-2.5 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                     >
-                      Ver publicação
+                      Ver no fornecedor
                       <ArrowUpRight size={12} strokeWidth={2} />
                     </button>
                   </div>

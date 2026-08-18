@@ -302,7 +302,7 @@ const OrderDetailPage = () => {
                 href={supplier}
                 target="_blank"
                 rel="noreferrer"
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#0A0A0A] text-[15px] font-semibold text-white active:scale-[0.99]"
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#2563EB] text-[15px] font-semibold text-white transition hover:bg-[#1D4ED8] active:scale-[0.99]"
               >
                 <ShoppingBag size={17} strokeWidth={1.8} />
                 Comprar no Fornecedor
@@ -409,7 +409,7 @@ const OrderDetailPage = () => {
                 href={supplier}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#0A0A0A] px-4 text-[13px] font-semibold text-white transition hover:bg-black/90"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1D4ED8]"
               >
                 <ShoppingBag size={15} strokeWidth={1.7} />
                 Ver no Fornecedor

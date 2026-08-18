@@ -8,15 +8,19 @@ import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
 import { Eye, EyeOff } from "lucide-react";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
-async function checkEmailExists(email: string): Promise<boolean> {
+async function checkEmailExists(email: string): Promise<boolean | null> {
   try {
-    const { data, error } = await supabase.functions.invoke("auth-email-exists", {
-      body: { email: email.toLowerCase().trim() },
-    });
-    if (error) return false;
-    return data?.exists ?? false;
+    // Nunca deixar a tela presa em "Verificando...": limite de 6s.
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+    const request = supabase.functions
+      .invoke("auth-email-exists", { body: { email: email.toLowerCase().trim() } })
+      .then((res) => res);
+
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error) return null;
+    return result.data?.exists ?? false;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -196,7 +200,13 @@ const LoginPage = () => {
     veloToast.dismiss(toastId);
     if (error) {
       setLoading(false);
-      veloToast.error(error.message === "User already registered" ? "Este e-mail já possui conta." : error.message);
+      if (error.message === "User already registered") {
+        veloToast.info("Este e-mail ja possui conta. Entre com sua senha.");
+        setStep("login");
+        window.setTimeout(() => passwordRef.current?.focus(), 120);
+        return;
+      }
+      veloToast.error(error.message);
       return;
     }
     if (data.user) {
@@ -240,6 +250,11 @@ const LoginPage = () => {
     setCheckingEmail(false);
     // Veio pela detecção de e-mail: o campo já está resolvido, então trava para não confundir.
     setEmailLocked(true);
+    if (exists === null) {
+      veloToast.info("Não consegui confirmar o cadastro agora. Se você já tem conta, entre com sua senha.");
+      setStep("login");
+      return;
+    }
     setStep(exists ? "login" : "signup");
   };
 

@@ -1,13 +1,11 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Loader2, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { ChevronLeft, Loader2, Search, ShoppingBag, X } from "lucide-react";
 import { useState } from "react";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 
 /**
  * Tela · Carrinho
- * Layout inspirado no template "E-Markets" (breadcrumb + stepper +
- * lista + cupom + resumo), adaptado ao design system AERO STEP
- * (creme #f5f2ea, verde musgo #1a3c2a/#3d4a2a, dourado #c8a24a).
+ * Layout de carrinho no padrão visual da Velo.
  */
 const SalesCartPage = () => {
   const { slug = "" } = useParams();
@@ -17,18 +15,17 @@ const SalesCartPage = () => {
   const [delivery, setDelivery] = useState<"delivery" | "pickup">("delivery");
   const [tip, setTip] = useState<number>(4);
   const [useCredits, setUseCredits] = useState(true);
-  const [coupon, setCoupon] = useState("");
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f5f2ea]">
-        <Loader2 className="animate-spin text-[#3d4a2a]" />
+      <div className="grid min-h-screen place-items-center bg-[#F6F9FF]">
+        <Loader2 className="animate-spin text-[#2563EB]" />
       </div>
     );
   }
   if (error || !data) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f5f2ea] p-6 text-center">
+      <div className="grid min-h-screen place-items-center bg-[#F6F9FF] p-6 text-center">
         <div>
           <p className="text-lg font-semibold text-[#1a1a1a]">Página não encontrada</p>
           <p className="mt-2 text-sm text-[#1a1a1a]/60">{error ?? "Tente novamente mais tarde."}</p>
@@ -45,27 +42,22 @@ const SalesCartPage = () => {
   const tax = 3.5;
   const credits = useCredits ? 5 : 0;
   const total = Math.max(0, subtotal + deliveryFee + serviceFee + tax + tip - credits);
-
-  // Somente lojas (loja_completa) usam o design personalizado AERO STEP.
-  // Páginas de vendas (pagina_venda) usam um layout branco/neutro padrão.
-  const isStore = data.tipoProjeto === "loja_completa";
-  const t = isStore
-    ? {
-        bg: "#f5f2ea", surface: "rgba(255,255,255,0.8)", border: "rgba(26,26,26,0.08)",
-        text: "#1a1a1a", muted: "rgba(26,26,26,0.6)", accent: "#3d4a2a", accentDark: "#1a3c2a",
-        accentText: "#f5f2ea", gold: "#c8a24a", cta: "#c8442a", ctaHover: "#a83820",
-        thumbBg: "#e8ecd6",
-        bodyFont: '"Inter", system-ui, sans-serif',
-        displayFont: '"Fraunces", "Playfair Display", serif',
-      }
-    : {
-        bg: "#ffffff", surface: "#ffffff", border: "rgba(15,23,42,0.10)",
-        text: "#0f172a", muted: "rgba(15,23,42,0.55)", accent: "#0f172a", accentDark: "#0f172a",
-        accentText: "#ffffff", gold: "#0f172a", cta: "#0f172a", ctaHover: "#1e293b",
-        thumbBg: "#f1f5f9",
-        bodyFont: 'Inter, system-ui, -apple-system, sans-serif',
-        displayFont: 'Inter, system-ui, -apple-system, sans-serif',
-      };
+  const t = {
+    bg: "#F6F9FF",
+    surface: "#FFFFFF",
+    border: "rgba(30,58,138,0.12)",
+    text: "#020817",
+    muted: "rgba(15,23,42,0.58)",
+    accent: "#2563EB",
+    accentDark: "#1E3A8A",
+    accentText: "#FFFFFF",
+    gold: "#2563EB",
+    cta: "#2563EB",
+    ctaHover: "#1D4ED8",
+    thumbBg: "#EFF6FF",
+    bodyFont: "Inter, system-ui, -apple-system, sans-serif",
+    displayFont: "Inter, system-ui, -apple-system, sans-serif",
+  };
 
   const Step = ({ label, active }: { label: string; active?: boolean }) => (
     <span className="text-[12px] tracking-[0.24em] uppercase" style={{ color: active ? t.text : t.muted, fontWeight: active ? 600 : 400 }}>{label}</span>
@@ -74,7 +66,7 @@ const SalesCartPage = () => {
   return (
     <div className="min-h-screen" style={{ backgroundColor: t.bg, color: t.text, fontFamily: t.bodyFont }}>
       {/* Topbar */}
-      <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-5 md:px-10" style={{ borderBottom: `1px solid ${t.border}` }}>
+      <header className="flex flex-wrap items-center justify-between gap-4 bg-white px-6 py-5 shadow-[0_1px_0_rgba(30,58,138,0.10)] md:px-10">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold" style={{ backgroundColor: t.accent, color: t.accentText }}>
             {(data.brand || "L").slice(0, 1).toUpperCase()}
@@ -83,20 +75,13 @@ const SalesCartPage = () => {
             {(data.brand || "loja").toLowerCase()}
           </Link>
         </div>
-        <nav className="hidden items-center gap-8 text-[13px] font-medium md:flex" style={{ color: t.muted }}>
-          <Link to={`/loja/${slug}`}>Loja</Link>
-          <Link to={`/loja/${slug}/catalogo`}>Catálogo</Link>
-          <a href="#">Sobre</a>
-          <a href="#">Contato</a>
-        </nav>
         <div className="flex items-center gap-3" style={{ color: t.muted }}>
           <button aria-label="Buscar"><Search size={18} /></button>
           <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-semibold" style={{ backgroundColor: t.accent, color: t.accentText }}>
             <ShoppingBag size={14} strokeWidth={2} />
             Carrinho
-            <span className="ml-0.5 rounded-full px-1.5 text-[10px] font-bold" style={{ backgroundColor: t.gold, color: t.accent }}>{qty}</span>
+            <span className="ml-0.5 rounded-full px-1.5 text-[10px] font-bold" style={{ backgroundColor: "#FFFFFF", color: t.accentDark }}>{qty}</span>
           </span>
-          <button aria-label="Menu" className="md:hidden"><Menu size={20} /></button>
         </div>
       </header>
 
@@ -124,7 +109,7 @@ const SalesCartPage = () => {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
           {/* Itens */}
-          <section className="rounded-2xl p-6 sm:p-8" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
+          <section className="rounded-2xl p-6 sm:p-8" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: "0 18px 50px rgba(37,99,235,0.08)" }}>
             <div className="flex items-baseline justify-between pb-4" style={{ borderBottom: `1px solid ${t.border}` }}>
               <h2 className="text-[18px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>
                 Meu carrinho ({qty})
@@ -151,7 +136,7 @@ const SalesCartPage = () => {
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-[12px] line-through" style={{ color: t.muted }}>{formatBRL(oldPrice)}</span>
                   <span className="text-[16px] font-bold" style={{ color: t.text, fontFamily: t.displayFont }}>{formatBRL(unitPrice)}</span>
-                  <span className="text-[11px] font-bold" style={{ color: isStore ? "#c8442a" : "#dc2626" }}>20% OFF</span>
+                  <span className="text-[11px] font-bold text-[#DC2626]">20% OFF</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-3">
@@ -173,25 +158,8 @@ const SalesCartPage = () => {
 
           {/* Sidebar */}
           <div className="space-y-5">
-            {/* Cupons */}
-            <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
-              <h3 className="text-[15px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>Cupons</h3>
-              <div className="mt-4 flex overflow-hidden rounded-md" style={{ border: `1px solid ${t.border}`, backgroundColor: "#fff" }}>
-                <input
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="Código do cupom"
-                  className="flex-1 bg-transparent px-3 py-2 text-[13px] outline-none"
-                  style={{ color: t.text }}
-                />
-                <button type="button" className="px-4 text-[11px] font-bold uppercase tracking-wider" style={{ backgroundColor: t.accentDark, color: t.accentText }}>
-                  Aplicar
-                </button>
-              </div>
-            </section>
-
             {/* Seu Pedido */}
-            <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: isStore ? "0 20px 60px -40px rgba(26,60,42,0.25)" : "0 1px 2px rgba(15,23,42,0.04)" }}>
+            <section className="rounded-2xl p-6" style={{ backgroundColor: t.surface, border: `1px solid ${t.border}`, boxShadow: "0 18px 50px rgba(37,99,235,0.08)" }}>
               <h3 className="text-[15px] font-semibold" style={{ color: t.text, fontFamily: t.displayFont }}>Seu pedido</h3>
 
               <div className="mt-4 flex justify-between text-[13px]">
@@ -224,7 +192,7 @@ const SalesCartPage = () => {
                     onClick={() => setTip(v)}
                     className="flex-1 rounded-md px-2 py-2 font-semibold transition"
                     style={tip === v
-                      ? { border: `1px solid ${t.gold}`, backgroundColor: isStore ? "rgba(200,162,74,0.15)" : "rgba(15,23,42,0.06)", color: t.accentDark }
+                      ? { border: `1px solid ${t.gold}`, backgroundColor: "rgba(37,99,235,0.10)", color: t.accentDark }
                       : { border: `1px solid ${t.border}`, backgroundColor: "#fff", color: t.muted }}
                   >
                     {formatBRL(v)}

@@ -45,6 +45,8 @@ type AffiliateFinanceDashboardProps = {
   onCopyLink: (link: string) => void;
   onCreateLink: () => void;
   creatingLink: boolean;
+  onCustomizeLink: (code: string) => void;
+  customizingLink: boolean;
   onExport: () => void;
 };
 
@@ -73,12 +75,16 @@ const AffiliateFinanceDashboard = ({
   onCopyLink,
   onCreateLink,
   creatingLink,
+  onCustomizeLink,
+  customizingLink,
   onExport,
 }: AffiliateFinanceDashboardProps) => {
   const navigate = useNavigate();
   const [chartMetric, setChartMetric] = useState<ChartMetric>("commissions");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Todas" | "Pagas" | "Pendentes">("Todas");
+  const [customizingCode, setCustomizingCode] = useState(false);
+  const [customCode, setCustomCode] = useState("");
 
   const analytics = useMemo(() => {
     const paid = commissions.reduce((total, item) => total + (item.status === "paid" ? item.value : 0), 0);
@@ -139,6 +145,7 @@ const AffiliateFinanceDashboard = ({
 
   const hasActivity = commissions.length > 0;
   const hasLink = Boolean(affiliateLink?.link);
+  const normalizedCustomCode = customCode.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
   const planTotal = analytics.plans.reduce((total, item) => total + item.value, 0);
   const initials = displayName
     .split(/\s+/)
@@ -174,7 +181,7 @@ const AffiliateFinanceDashboard = ({
     },
     {
       title: "Sua comissão",
-      description: "Sobre o primeiro pagamento",
+      description: "Primeira venda; 20% nas renovações",
       value: "30%",
       icon: TrendingUp,
       accent: "bg-[#F1ECFF] text-[#6841C6]",
@@ -220,7 +227,7 @@ const AffiliateFinanceDashboard = ({
                 Seu próximo cliente pode começar com um único link.
               </h2>
               <p className="mt-4 max-w-[520px] text-[13px] leading-6 text-white/72">
-                Compartilhe sua indicação. Quando o cliente fizer o primeiro pagamento, 30% da venda é registrado como sua comissão.
+                Compartilhe sua indicação. Você recebe 30% no primeiro pagamento e 20% nas renovações desse cliente.
               </p>
               <div className="mt-7 flex flex-wrap gap-5 text-[11px] text-white/80">
                 <span className="inline-flex items-center gap-2"><Check size={14} className="text-[#76D7A5]" /> Link exclusivo</span>
@@ -264,13 +271,58 @@ const AffiliateFinanceDashboard = ({
                   </div>
                   <p className="mt-2 font-mono text-[10px] text-[#9A9A94]">Código {affiliateLink?.code}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => affiliateLink?.link && onCopyLink(affiliateLink.link)}
-                  className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#171714] px-5 text-[12px] font-semibold text-white transition hover:bg-black dark:bg-white dark:text-black"
-                >
-                  <Copy size={14} /> Copiar meu link
-                </button>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => affiliateLink?.link && onCopyLink(affiliateLink.link)}
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#171714] px-5 text-[12px] font-semibold text-white transition hover:bg-black dark:bg-white dark:text-black"
+                  >
+                    <Copy size={14} /> Copiar meu link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomCode(affiliateLink?.code ?? "");
+                      setCustomizingCode((open) => !open);
+                    }}
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#2563EB] px-5 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+                  >
+                    <Link2 size={14} /> Personalizar link
+                  </button>
+                </div>
+                {customizingCode ? (
+                  <form
+                    className="mt-3 rounded-[18px] border border-[#2563EB]/15 bg-white p-3 shadow-sm dark:border-[#2563EB]/25 dark:bg-zinc-950"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (normalizedCustomCode.length < 4) return;
+                      onCustomizeLink(normalizedCustomCode);
+                    }}
+                  >
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8A8A84]" htmlFor="affiliate-custom-code">
+                      Novo final do link
+                    </label>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        id="affiliate-custom-code"
+                        value={customCode}
+                        onChange={(event) => setCustomCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                        placeholder="SEUCODIGO"
+                        className="h-10 min-w-0 flex-1 rounded-full border border-black/10 bg-[#FAFAF7] px-4 font-mono text-[12px] font-semibold uppercase text-[#22221F] outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/15 dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+                      />
+                      <button
+                        type="submit"
+                        disabled={customizingLink || normalizedCustomCode.length < 4 || normalizedCustomCode === affiliateLink?.code}
+                        className="h-10 shrink-0 rounded-full bg-[#2563EB] px-4 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {customizingLink ? "Salvando..." : "Salvar"}
+                      </button>
+                    </div>
+                    <p className="mt-2 truncate text-[10px] text-[#8A8A84]">
+                      Prévia: {affiliateLink?.link?.replace(/\/ref\/[^/]+$/i, `/ref/${normalizedCustomCode || "SEUCODIGO"}`)}
+                    </p>
+                  </form>
+                ) : null}
               </div>
             ) : (
               <div className="mt-7">
@@ -412,8 +464,8 @@ const AffiliateFinanceDashboard = ({
 
               <article className="rounded-[22px] border border-black/[0.08] bg-white p-5 dark:border-white/10 dark:bg-zinc-950">
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#989890]">Regra da comissão</p>
-                <div className="mt-4 flex items-end gap-2"><span className="text-[43px] font-semibold leading-none tracking-[-0.055em] text-[#171714] dark:text-white">30%</span><span className="pb-1 text-[10px] font-medium text-[#85857E]">na primeira venda</span></div>
-                <p className="mt-4 text-[11px] leading-5 text-[#85857E]">O cliente é identificado pelo seu link e a comissão é calculada sobre o primeiro pagamento confirmado.</p>
+                <div className="mt-4 flex flex-wrap items-end gap-x-2 gap-y-1"><span className="text-[43px] font-semibold leading-none tracking-[-0.055em] text-[#171714] dark:text-white">30%</span><span className="pb-1 text-[10px] font-medium text-[#85857E]">na primeira venda</span><span className="pb-1 text-[10px] font-semibold text-[#2563EB]">20% nas renovações</span></div>
+                <p className="mt-4 text-[11px] leading-5 text-[#85857E]">O cliente é identificado pelo seu link. A comissão é calculada como 30% no primeiro pagamento confirmado e 20% em cada renovação.</p>
                 <div className="mt-4 rounded-[14px] bg-[#F1ECFF] px-4 py-3 text-[10px] font-medium text-[#6841C6]">Volume de vendas atribuído: {formatMoney(analytics.totalSales)}</div>
               </article>
             </div>

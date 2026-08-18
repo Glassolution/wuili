@@ -1290,14 +1290,29 @@ Deno.serve(async (req) => {
           console.warn('[ml-publish] Nenhuma ficha de catálogo encontrada para:', query)
           return null
         }
-        // Escolhe a ficha com maior sobreposição de tokens com o título.
-        const titleTokens = new Set(normalize(title).split(/\s+/).filter(t => t.length > 2))
+        // Escolhe a ficha com maior sobreposição, mas nunca troca o modelo do
+        // aparelho (ex.: Redmi A5 não pode casar com Redmi A3x). Tokens curtos
+        // com números são relevantes para modelos e não podem ser descartados.
+        const relevantTokens = (value: string) =>
+          normalize(value).split(/\s+/).filter(t => t.length > 2 || /\d/.test(t))
+        const titleTokens = new Set(relevantTokens(title))
+        const extractRedmiModel = (value: string): string | null => {
+          const match = normalize(value).match(
+            /\b(?:xiaomi\s+)?redmi\s+((?:[a-z]+\s*)?\d+(?:\s*[a-z]+)?)\b/i,
+          )
+          return match?.[1]?.replace(/\s+/g, '') ?? null
+        }
+        const requiredModel = extractRedmiModel(title)
         let best: { id: string; score: number; name: string } | null = null
         for (const r of results) {
           const id = cleanText(r.id)
           const name = cleanText(r.name)
           if (!id) continue
-          const tokens = normalize(name).split(/\s+/).filter(t => t.length > 2)
+          if (requiredModel) {
+            const candidateModel = extractRedmiModel(name)
+            if (candidateModel !== requiredModel) continue
+          }
+          const tokens = relevantTokens(name)
           const score = tokens.filter(t => titleTokens.has(t)).length
           if (!best || score > best.score) best = { id, score, name }
         }
@@ -1321,6 +1336,8 @@ Deno.serve(async (req) => {
       const mlCatalogProductId = await findCatalogProductId()
       if (mlCatalogProductId) {
         const catalogPayload = {
+          title,
+          family_name: title,
           catalog_product_id: mlCatalogProductId,
           catalog_listing: true,
           category_id: categoryId,
@@ -1573,6 +1590,8 @@ Deno.serve(async (req) => {
         const lateCatalogId = await findCatalogProductId()
         if (lateCatalogId) {
           const latePayload = {
+            title,
+            family_name: title,
             catalog_product_id: lateCatalogId,
             catalog_listing: true,
             category_id: categoryId,

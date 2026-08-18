@@ -382,6 +382,9 @@ const GeneratedStoreEditorPage = () => {
   const [replacingProductPath, setReplacingProductPath] = useState<string | null>(null);
   const [editMode, setEditMode] = useState<EditMode>("select");
   const [canvasToolbarMode, setCanvasToolbarMode] = useState<CanvasToolbarMode>("select");
+  const [editorEnabled, setEditorEnabled] = useState(true);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<"Salvo" | "Erro" | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [elementOverrides, setElementOverrides] = useState<Record<string, ElementOverride>>({});
   // Preço editado no canvas. Vai para metadata.price e é o valor que carrinho e
@@ -579,6 +582,27 @@ const GeneratedStoreEditorPage = () => {
     setWeightMenuOpen(false);
     setButtonToolbarPanel(null);
     setFillPickerOpen(false);
+  };
+
+  const stopInlineEditing = () => {
+    const root = previewRef.current;
+    if (!root) return;
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && root.contains(activeElement) && activeElement.getAttribute("contenteditable") === "true") {
+      activeElement.blur();
+    }
+
+    root.querySelectorAll<HTMLElement>('[contenteditable="true"]').forEach((element) => {
+      element.blur();
+      element.removeAttribute("contenteditable");
+      element.style.outline = "";
+      element.style.outlineOffset = "";
+      element.style.cursor = "";
+    });
+
+    const selection = window.getSelection();
+    if (selection?.anchorNode && root.contains(selection.anchorNode)) selection.removeAllRanges();
   };
 
   const selectElement = (element: EditableDomElement, options?: { openMedia?: boolean }) => {
@@ -1109,6 +1133,7 @@ const GeneratedStoreEditorPage = () => {
   }, [elementOverrides]);
 
   const handlePreviewClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editorEnabled) return;
     if (!previewRef.current) return;
     if (suppressPreviewClickRef.current) {
       suppressPreviewClickRef.current = false;
@@ -1167,6 +1192,7 @@ const GeneratedStoreEditorPage = () => {
   };
 
   const handlePreviewDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!editorEnabled) return;
     if (canvasToolbarMode === "pan") return;
     const target = event.target;
     if (!(target instanceof Element) || target.closest("[data-editor-ignore]")) return;
@@ -1730,6 +1756,45 @@ const GeneratedStoreEditorPage = () => {
   // criaria um eco infinito entre as duas telas. Este flag pula exatamente o
   // autosave provocado por essa reaplicação remota.
   const skipNextAutosaveRef = useRef(false);
+  const buildProjectDraftPatch = useCallback(() => ({
+    storeName,
+    template: activeTemplate.id,
+    ...(aiDescription ? { aiDescription } : {}),
+    accent,
+    font,
+    columns,
+    heroImage,
+    logoImage,
+    heroCtaUrl,
+    copyVariant,
+    elementOverrides,
+    ...(editedPrice !== null ? { price: editedPrice } : {}),
+  }), [storeName, activeTemplate.id, aiDescription, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, editedPrice]);
+
+  const handleManualSave = useCallback(async () => {
+    if (!currentProject?.id || manualSaving) return;
+    const patch = buildProjectDraftPatch();
+    setManualSaving(true);
+    setSaveFeedback(null);
+    try {
+      await saveProjectDraft(currentProject.id, patch);
+      setCurrentProject((previous) => {
+        if (!previous || previous.id !== currentProject.id) return previous;
+        const baseMetadata =
+          previous.metadata && typeof previous.metadata === "object" && !Array.isArray(previous.metadata)
+            ? (previous.metadata as Record<string, unknown>)
+            : {};
+        return { ...previous, metadata: { ...baseMetadata, ...patch } as Json };
+      });
+      setSaveFeedback("Salvo");
+    } catch (error) {
+      console.error("[GeneratedStoreEditorPage] manual save failed", error);
+      setSaveFeedback("Erro");
+    } finally {
+      setManualSaving(false);
+      window.setTimeout(() => setSaveFeedback(null), 1800);
+    }
+  }, [currentProject?.id, buildProjectDraftPatch, manualSaving]);
   useEffect(() => {
     if (!currentProject?.id) return;
     if (!autosaveReadyRef.current) {
@@ -1938,11 +2003,30 @@ const GeneratedStoreEditorPage = () => {
     return "";
   }, [currentProject]);
 
-  // URL pública fica no domínio Velo com o slug da loja no caminho:
-  // Ex.: https://velods.com.br/loja/pedra
-  const publicUrl = projectSlug
-    ? `https://velods.com.br/loja/${projectSlug}`
-    : "";
+  // URL pública fica na MESMA origem em que o app está rodando (PUBLIC_APP_URL).
+  // Fixar "velods.com.br" fazia o botão de publicar abrir um deploy antigo, que
+  // ainda renderiza o template de loja velho em vez do template do editor.
+  const publicUrl = projectSlug ? `${PUBLIC_APP_URL}/loja/${projectSlug}` : "";
+
+
+  const handlePreviewTestClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest("[data-editor-preview-action], form, input, textarea, select")) return;
+    const action = target.closest("button, a");
+    if (!(action instanceof HTMLElement)) return;
+    const text = (action.textContent || "").trim().toLowerCase();
+    const aria = (action.getAttribute("aria-label") || "").toLowerCase();
+    if (!/adicionar ao carrinho|add to cart|comprar|carrinho/.test(`${text} ${aria}`)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (!projectSlug) {
+      setContextNotice("Salve ou publique a loja para testar o carrinho.");
+      return;
+    }
+    navigate(`/loja/${projectSlug}/carrinho?preview=1`);
+  };
 
 
   // Ordem das telas definida pelo dono da loja em Administração > Fluxo do cliente.
@@ -1980,7 +2064,7 @@ const GeneratedStoreEditorPage = () => {
     }
     setPublishing(true);
     try {
-      const updated = await publishProject(currentProject);
+      const updated = await publishProject(currentProject, buildProjectDraftPatch());
       setCurrentProject(updated);
     } catch {
       setContextNotice("Não foi possível publicar agora. Tente novamente.");
@@ -2543,11 +2627,27 @@ const GeneratedStoreEditorPage = () => {
     canvasZoomRef.current = nextZoom;
     setCanvasZoom(nextZoom);
   };
+  const handleSelectEditorMode = () => {
+    setEditorEnabled(true);
+    setCanvasToolbarMode("select");
+    setEditMode("select");
+  };
+  const handleSelectProductMode = () => {
+    stopInlineEditing();
+    clearSelection();
+    setSelectionMarquee(null);
+    selectionDragRef.current = null;
+    setContextDrawer(null);
+    setEditorEnabled(false);
+    setCanvasToolbarMode("pan");
+    setEditMode(null);
+  };
   nativePinchZoomRef.current = (event) => {
     const target = event.target;
     if (target instanceof Element && target.closest("[data-canvas-ui]")) return;
   };
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!editorEnabled) return;
     if (event.button !== 0) return;
     const target = event.target;
     // Toolbars flutuantes (data-editor-ignore) e a UI do canvas (data-canvas-ui)
@@ -2568,6 +2668,7 @@ const GeneratedStoreEditorPage = () => {
     }
   };
   const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!editorEnabled) return;
     const selection = selectionDragRef.current;
     if (selection) {
       const workspaceRect = event.currentTarget.getBoundingClientRect();
@@ -2805,8 +2906,12 @@ const GeneratedStoreEditorPage = () => {
         </div>
 
         <div className="pointer-events-auto hidden min-w-0 items-center justify-center gap-1 rounded-[12px] bg-white p-1 shadow-[0_5px_16px_rgba(15,23,42,0.10)] ring-1 ring-[#d9e4f5] lg:flex">
-          <button type="button" onClick={() => setEditMode("edit")} className="flex h-7 items-center gap-1.5 rounded-[9px] border border-[#b9d2ff] bg-white px-2.5 text-[12px] font-bold tracking-[-0.02em] text-[#2457d6] shadow-[0_1px_5px_rgba(37,99,235,0.12)] transition hover:bg-[#f7faff]" aria-label="Editar produto">
-            <Tag size={15} strokeWidth={2} /> Edit Product
+          <button type="button" onClick={handleSelectEditorMode} className={`flex h-7 items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2.5 text-[12px] font-bold tracking-[-0.02em] transition ${editorEnabled ? "text-[#2563EB]" : "text-[#717b8d] hover:text-[#2457d6]"}`} aria-label="Editor">
+            <Pencil size={15} strokeWidth={2} />
+            Editor
+          </button>
+          <button type="button" onClick={handleSelectProductMode} className={`flex h-7 items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2.5 text-[12px] font-bold tracking-[-0.02em] transition ${!editorEnabled ? "text-[#2563EB]" : "text-[#717b8d] hover:text-[#2457d6]"}`} aria-label="Visualizar produto">
+            <Tag size={15} strokeWidth={2} /> Produto
           </button>
           <button type="button" onClick={() => { setMobilePreview(false); canvasZoomRef.current = 0.52; setCanvasZoom(0.52); }} className={`grid h-8 w-10 place-items-center rounded-[9px] transition ${!mobilePreview ? "bg-white text-[#111827] shadow-[0_3px_9px_rgba(15,23,42,0.14)] ring-1 ring-[#e6ebf3]" : "text-[#717b8d] hover:text-[#334155]"}`} aria-label="Preview desktop">
             <Monitor size={17} strokeWidth={2} />
@@ -2821,8 +2926,9 @@ const GeneratedStoreEditorPage = () => {
 
         <div className="pointer-events-auto flex shrink-0 items-center justify-end">
           <div className="flex items-center gap-2 rounded-[12px] bg-white p-1 shadow-[0_5px_16px_rgba(15,23,42,0.10)] ring-1 ring-[#d9e4f5]">
-          <button type="button" className="hidden h-8 items-center gap-1.5 rounded-[8px] border border-[#c8ccd4] bg-[#969ba5] px-3 text-[12px] font-bold tracking-[-0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_2px_7px_rgba(15,23,42,0.18)] transition hover:bg-[#8a909b] sm:flex" aria-label="Salvar projeto">
-            <Save size={15} strokeWidth={2.05} /> Save
+          <button type="button" onClick={() => void handleManualSave()} disabled={!currentProject?.id || manualSaving} className={`hidden h-8 items-center gap-1.5 rounded-[8px] border px-3 text-[12px] font-bold tracking-[-0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_2px_7px_rgba(15,23,42,0.18)] transition sm:flex ${currentProject?.id && !manualSaving ? "border-[#1D4ED8] bg-[#2563EB] hover:bg-[#1D4ED8]" : "cursor-not-allowed border-[#c8ccd4] bg-[#969ba5]"}`} aria-label="Salvar projeto">
+            {manualSaving ? <Loader2 size={15} strokeWidth={2.05} className="animate-spin" /> : <Save size={15} strokeWidth={2.05} />}
+            {manualSaving ? "Salvando" : saveFeedback ?? "Salvar"}
           </button>
           <button type="button" onClick={handleOpenPublish} className="hidden h-8 items-center justify-center gap-1.5 rounded-[8px] border border-[#087c45] bg-gradient-to-b from-[#17b86d] to-[#049452] px-3.5 text-[12px] font-bold tracking-[-0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_11px_rgba(4,148,82,0.24)] transition duration-200 hover:from-[#19c476] hover:to-[#058949] active:scale-[0.98] md:flex">
             <ShoppingBag size={15} strokeWidth={2.05} />
@@ -3356,12 +3462,12 @@ const GeneratedStoreEditorPage = () => {
 
         <div
           className="relative z-20 min-h-full pt-[72px]"
-          style={{ width: mobilePreview ? "calc(100vw - 282px)" : editorMainCanvasWidth }}
+          style={{ width: editorEnabled ? (mobilePreview ? "calc(100vw - 282px)" : editorMainCanvasWidth) : "100vw" }}
         >
           {/* `overflow-clip` (e não `hidden`): recorta igual, mas não vira
               contexto de rolagem — com `hidden`, o sticky da galeria dentro do
               template nunca gruda no canvas do editor. */}
-          <div ref={previewRef} onClickCapture={handlePreviewClick} onDoubleClickCapture={handlePreviewDoubleClick} className={`store-editor-preview relative min-h-[calc(100vh-72px)] overflow-clip bg-white text-[#111] transition-[width] duration-300 ${pageSelected ? "ring-2 ring-[#2563eb] ring-inset" : ""} ${editMode && canvasToolbarMode !== "pan"?"editor-mode-active":""}`} style={{ width: mobilePreview ? editorMainCanvasWidth : "100%", margin: mobilePreview ? "0 auto" : 0, fontFamily: selectedFontStack, cursor: canvasToolbarMode === "appearance" ? "copy" : canvasToolbarMode === "edit" ? "text" : "default" }}>
+          <div ref={previewRef} onClickCapture={editorEnabled ? handlePreviewClick : handlePreviewTestClick} onDoubleClickCapture={editorEnabled ? handlePreviewDoubleClick : undefined} className={`store-editor-preview relative min-h-[calc(100vh-72px)] overflow-clip bg-white text-[#111] transition-[width] duration-300 ${editorEnabled && pageSelected ? "ring-2 ring-[#2563eb] ring-inset" : ""} ${editorEnabled && editMode && canvasToolbarMode !== "pan"?"editor-mode-active":""}`} style={{ width: mobilePreview ? editorMainCanvasWidth : "100%", margin: mobilePreview ? "0 auto" : 0, fontFamily: selectedFontStack, cursor: editorEnabled ? (canvasToolbarMode === "appearance" ? "copy" : canvasToolbarMode === "edit" ? "text" : "default") : "default" }}>
             {!templateReady ? (
               <div className="grid h-[720px] w-full place-items-center bg-white">
                 <Loader2 size={22} className="animate-spin text-black/25" />
@@ -3377,9 +3483,12 @@ const GeneratedStoreEditorPage = () => {
                 image={featuredProduct?.imageUrl || heroImage}
                 images={featuredProduct?.imageUrls}
                 productId={featuredProduct?.id}
+                projectId={currentProject?.id}
                 accent={accent}
                 mobile={mobilePreview}
                 relatedProducts={relatedProductsForTemplate}
+                editorPreview={editorEnabled}
+                editorProductPreview={!editorEnabled}
               />
             ) : activeTemplate.id === "loja-2" ? (
               <StorefrontLojaTemplate2
@@ -4146,7 +4255,7 @@ const GeneratedStoreEditorPage = () => {
         <aside
           data-canvas-ui
           aria-label="Painel de customização do template"
-          className="fixed bottom-0 right-0 top-[72px] z-40 hidden w-[292px] overflow-y-auto border-l border-black/[0.07] bg-white px-4 py-4 text-[#0A0A0A] shadow-[-10px_0_28px_rgba(10,10,10,0.04)] xl:block"
+          className={`fixed bottom-0 right-0 top-[72px] z-40 w-[292px] overflow-y-auto border-l border-black/[0.07] bg-white px-4 py-4 text-[#0A0A0A] shadow-[-10px_0_28px_rgba(10,10,10,0.04)] ${editorEnabled ? "hidden xl:block" : "hidden"}`}
         >
           {/* Cabeçalho: identifica o painel e guarda a ação de enquadrar o canvas
               (antes era um ícone solto, sem rótulo nem contexto). */}

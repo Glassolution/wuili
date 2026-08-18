@@ -119,100 +119,100 @@ const SalesCheckoutPage = () => {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-white">
-        <Loader2 className="animate-spin text-black/40" />
+      <div className="grid min-h-screen place-items-center bg-[#F6F9FF]">
+        <Loader2 className="animate-spin text-[#2563EB]" />
       </div>
     );
   }
   if (error || !data) {
     return (
-      <div className="grid min-h-screen place-items-center bg-white p-6 text-center">
-        <p className="text-lg font-semibold text-black">Página não encontrada</p>
+      <div className="grid min-h-screen place-items-center bg-[#F6F9FF] p-6 text-center">
+        <p className="text-lg font-semibold text-[#020817]">Página não encontrada</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white" style={{ fontFamily: '"Geist", system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-[#F6F9FF] text-[#020817]" style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif" }}>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-8">
-        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-[13px] font-medium text-black/70 hover:text-black">
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-[13px] font-medium text-[#1E3A8A] transition hover:text-[#2563EB]">
           <ArrowLeft size={16} /> Configure seu pedido
         </button>
 
         <div className="mt-4 flex items-center gap-3">
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-black text-white text-xs font-bold">V</div>
+          <img src="/logo.png" alt="Velo" className="h-10 w-10 object-contain" />
         </div>
 
-        <h1 className="mt-2 text-[28px] font-medium tracking-tight text-black">Finalizar compra</h1>
+        <h1 className="mt-2 text-[28px] font-semibold tracking-tight text-[#020817]">Finalizar compra</h1>
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_400px]">
           {/* Coluna esquerda - formulário */}
           <div className="space-y-8">
             <section>
-              <h2 className="text-[18px] font-semibold text-black">Seus dados</h2>
+              <h2 className="text-[18px] font-semibold text-[#020817]">Seus dados</h2>
               <div className="mt-4 space-y-3">
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome completo" className="h-14 w-full rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
+                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome completo" className="h-14 w-full rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="E-mail" type="email" className="h-14 w-full rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
-                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Telefone (WhatsApp)" className="h-14 w-full rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
+                  <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="E-mail" type="email" className="h-14 w-full rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
+                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Telefone (WhatsApp)" className="h-14 w-full rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
                 </div>
-                <input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} placeholder="CPF" className="h-14 w-full rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
+                <input value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} placeholder="CPF" className="h-14 w-full rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
               </div>
             </section>
 
             <section>
-              <h2 className="text-[18px] font-semibold text-black">Endereço de entrega</h2>
+              <h2 className="text-[18px] font-semibold text-[#020817]">Endereço de entrega</h2>
               <div className="mt-4 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
-                  <input value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })} placeholder="CEP" className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
-                  <input value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="Rua" className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
+                  <input value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })} placeholder="CEP" className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
+                  <input value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} placeholder="Rua" className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="Número" className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
-                  <input value={form.complement} onChange={(e) => setForm({ ...form, complement: e.target.value })} placeholder="Complemento" className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
-                  <input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} placeholder="Bairro" className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
+                  <input value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} placeholder="Número" className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
+                  <input value={form.complement} onChange={(e) => setForm({ ...form, complement: e.target.value })} placeholder="Complemento" className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
+                  <input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} placeholder="Bairro" className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-                  <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Cidade" className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
-                  <input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="UF" maxLength={2} className="h-14 rounded-2xl bg-[#F5F5F3] px-4 text-[14px] text-black outline-none focus:ring-2 focus:ring-black/20" />
+                  <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Cidade" className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
+                  <input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="UF" maxLength={2} className="h-14 rounded-xl border border-[#D8E3F8] bg-white px-4 text-[14px] text-[#020817] outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10" />
                 </div>
               </div>
             </section>
           </div>
 
           {/* Coluna direita - resumo */}
-          <aside className="h-fit rounded-3xl border border-black/[0.08] p-7">
-            <h2 className="text-[22px] font-medium text-black">Resumo</h2>
+          <aside className="h-fit rounded-2xl border border-[#D8E3F8] bg-white p-7 shadow-[0_18px_50px_rgba(37,99,235,0.08)]">
+            <h2 className="text-[22px] font-semibold text-[#020817]">Resumo</h2>
 
-            <div className="mt-6 flex items-start gap-3 border-b border-black/[0.06] pb-6">
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#F0F0EC]">
+            <div className="mt-6 flex items-start gap-3 border-b border-[#D8E3F8] pb-6">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#EFF6FF]">
                 {data.productImage ? <img src={data.productImage} alt="" className="h-full w-full object-cover" /> : null}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-[13px] font-semibold text-black">{data.productTitle}</p>
-                <p className="text-[11px] text-black/50">Qtd. {qty}</p>
+                <p className="line-clamp-2 text-[13px] font-semibold text-[#020817]">{data.productTitle}</p>
+                <p className="text-[11px] text-[#64748B]">Qtd. {qty}</p>
               </div>
-              <p className="text-[13px] font-semibold text-black">{formatBRL(total)}</p>
+              <p className="text-[13px] font-semibold text-[#020817]">{formatBRL(total)}</p>
             </div>
 
             <dl className="mt-4 space-y-2 text-[13px]">
-              <div className="flex justify-between text-black/60">
+              <div className="flex justify-between text-[#64748B]">
                 <dt>Subtotal</dt>
                 <dd>{formatBRL(total)}</dd>
               </div>
-              <div className="flex justify-between text-black/60">
+              <div className="flex justify-between text-[#64748B]">
                 <dt>Frete</dt>
                 <dd>Grátis</dd>
               </div>
-              <div className="mt-2 flex justify-between border-t border-black/[0.06] pt-3 text-[16px] font-semibold text-black">
+              <div className="mt-2 flex justify-between border-t border-[#D8E3F8] pt-3 text-[16px] font-semibold text-[#020817]">
                 <dt>Total</dt>
                 <dd>{formatBRL(total)}</dd>
               </div>
             </dl>
 
             {result?.pixQrBase64 ? (
-              <div className="mt-6 rounded-2xl bg-[#F7F7F5] p-4 text-center">
-                <p className="text-[12px] font-semibold uppercase tracking-wide text-black/70">Pague com Pix</p>
+              <div className="mt-6 rounded-xl bg-[#EFF6FF] p-4 text-center">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-[#1E3A8A]">Pague com Pix</p>
                 <img src={`data:image/png;base64,${result.pixQrBase64}`} alt="QR Code Pix" className="mx-auto mt-3 h-40 w-40 rounded-xl bg-white p-2" />
                 <button
                   type="button"
@@ -223,25 +223,25 @@ const SalesCheckoutPage = () => {
                       setTimeout(() => setCopied(false), 1600);
                     }
                   }}
-                  className="mx-auto mt-3 inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-[12px] font-semibold text-white"
+                  className="mx-auto mt-3 inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-[12px] font-semibold text-white"
                 >
                   {copied ? <><Check size={14} /> Copiado</> : <><Copy size={14} /> Copiar código Pix</>}
                 </button>
-                <p className="mt-2 text-[11px] text-black/50">O pedido é confirmado assim que o pagamento cai.</p>
+                <p className="mt-2 text-[11px] text-[#64748B]">O pedido é confirmado assim que o pagamento cai.</p>
               </div>
             ) : (
               <button
                 type="button"
                 disabled={submitting}
                 onClick={handleSubmit}
-                className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-full bg-black text-[14px] font-semibold text-white transition hover:bg-black/90 disabled:opacity-60"
+                className="mt-6 inline-flex h-14 w-full items-center justify-center rounded-xl bg-[#2563EB] text-[14px] font-semibold text-white transition hover:bg-[#1D4ED8] disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="animate-spin" size={18} /> : "Pagar agora"}
               </button>
             )}
 
             {formError && <p className="mt-3 text-center text-[12px] text-red-500">{formError}</p>}
-            <p className="mt-4 text-center text-[10px] leading-relaxed text-black/45">
+            <p className="mt-4 text-center text-[10px] leading-relaxed text-[#64748B]">
               Ao concluir você concorda com os termos de uso. Pagamento processado pelo Mercado Pago.
             </p>
           </aside>

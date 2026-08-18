@@ -876,7 +876,7 @@ export const AiProductPageCreatePendingPage = () => {
 };
 
 /**
- * Prévias geradas pelo fluxo novo (motor PagePilot). Ficam separadas das páginas
+ * Prévias geradas pelo fluxo novo da Velo. Ficam separadas das páginas
  * do editor porque não são a mesma coisa: estas ainda não viraram projeto e,
  * principalmente, não estão publicadas em lugar nenhum.
  */
