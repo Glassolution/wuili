@@ -163,10 +163,19 @@ const CatalogoProductDetailPage = () => {
   const [descOverflows, setDescOverflows] = useState(false);
   const descRef = useRef<HTMLDivElement>(null);
 
+  // O Atlas manda o usuário para cá com ?publicar=1 no fim do guia de iniciante:
+  // o modal de publicação abre sozinho para ele não ter que procurar o botão.
+  useEffect(() => {
+    if (!rawProduct) return;
+    const querPublicar = new URLSearchParams(window.location.search).get("publicar");
+    if (querPublicar === "1") setIsImportModalOpen(true);
+  }, [rawProduct]);
+
   // Ao trocar de produto, volta a descrição para o estado recolhido.
   useEffect(() => {
     setDescExpanded(false);
   }, [product?.description]);
+
 
   // Decide se o botão "Expandir descrição" precisa aparecer. scrollHeight reflete a
   // altura real do conteúdo mesmo com o clamp de max-height aplicado. Medimos de forma
