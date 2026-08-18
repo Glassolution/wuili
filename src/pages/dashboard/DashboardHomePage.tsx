@@ -1529,4 +1529,14 @@ const DashboardHomePage = () => {
   );
 };
 
-export default DashboardHomePage;
+// No celular a home volta ao estilo marketplace (busca, categorias e grade de
+// produtos), mais simples e direto do que o painel de onboarding do desktop.
+const DashboardHomeRoute = () => {
+  const isMobile = useIsMobile();
+
+  if (isMobile) return <MobileHome />;
+
+  return <DashboardHomePage />;
+};
+
+export default DashboardHomeRoute;
