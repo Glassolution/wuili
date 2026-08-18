@@ -450,7 +450,8 @@ const CheckoutPage = () => {
   };
 
   // Vai direto para o checkout hospedado da ValidaPay, sem tela intermediária:
-  // a página de planos continua visível até o redirect acontecer.
+  // a página de planos continua visível até o redirect acontecer. O botão do
+  // plano escolhido exibe animação de carregamento em vez de toast.
   const startCheckout = async (nextPlanId = selectedPlanId) => {
     setSelectedPlanId(nextPlanId);
     if (!session) {
@@ -460,17 +461,17 @@ const CheckoutPage = () => {
     }
     if (redirectedRef.current) return;
     redirectedRef.current = true;
-    const toastId = toast.loading("Abrindo checkout seguro...");
+    setCheckingOutPlanId(nextPlanId);
     const res = await startValidaPayCheckout(
       nextPlanId as VelloPlanId,
       billingCycle === "annual" ? "annual" : "monthly",
     );
     if (res.ok) {
-      toast.success("Redirecionando para o pagamento...", { id: toastId });
       return;
     }
     redirectedRef.current = false;
-    toast.error(res.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+    setCheckingOutPlanId(null);
+    toast.error(res.error ?? "Não foi possível gerar o pagamento.");
   };
 
 
