@@ -347,19 +347,14 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
 
   if (!open) return null;
 
+  // Leva para o checkout da própria Velo (logo e layout sob nosso controle).
+  // O pagamento em si continua na ValidaPay, disparado de lá.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
     setCheckingOutPlanId(planId);
-    try {
-      const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
-      if (res.ok) return; // redirect acontece pelo navegador
-      setCheckingOutPlanId(null);
-      toast.error(res.error ?? "Não foi possível gerar o pagamento.");
-    } catch (e) {
-      console.error("checkout error", e);
-      setCheckingOutPlanId(null);
-      toast.error("Não foi possível gerar o pagamento.");
-    }
+    navigate(`/assinar/${planId}?cycle=${cycle}`);
+    onClose();
+    setCheckingOutPlanId(null);
   };
 
 
