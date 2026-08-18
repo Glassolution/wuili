@@ -335,6 +335,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
   const navigate = useNavigate();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loadingPlans, setLoadingPlans] = useState(false);
+  const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
+
 
   useEffect(() => {
     if (!open) return;
