@@ -15,14 +15,16 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
         position: "relative",
         flexShrink: 0,
         width: "100%",
-        height: isVisible ? "48px" : "0",
+        minHeight: isVisible ? "48px" : "0",
+        height: isVisible ? "auto" : "0",
         background: "linear-gradient(90deg, #4F7FFF 0%, #1D4ED8 100%)",
         color: "#FFFFFF",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: "14px",
-        padding: "0 32px",
+        gap: "10px",
+        flexWrap: "wrap",
+        padding: isVisible ? "8px 16px" : "0 16px",
         boxSizing: "border-box",
         fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         WebkitFontSmoothing: "antialiased",
@@ -35,11 +37,11 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
     >
       <span
         style={{
-          fontSize: "14px",
+          fontSize: "clamp(11px, 3.2vw, 14px)",
           fontWeight: 600,
           letterSpacing: "-0.01em",
           textAlign: "center",
-          whiteSpace: "nowrap",
+          whiteSpace: "normal",
         }}
       >
         Você está no Plano Gratuito. Faça upgrade agora para desbloquear todos os recursos
