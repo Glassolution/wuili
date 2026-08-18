@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
 
     // Logo da Velo no checkout hospedado (precisa ser URL pública e absoluta).
     const logoUrl =
-      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo.png";
+      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v2.png";
 
     const basePayload: Record<string, unknown> = {
       priceId,

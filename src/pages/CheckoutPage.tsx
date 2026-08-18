@@ -274,7 +274,7 @@ const CheckoutPage = () => {
       return;
     }
     redirectedRef.current = true;
-    setCheckoutState("loading");
+    setCheckingOutPlanId(planId);
     void (async () => {
       const res = await startValidaPayCheckout(
         planId as VelloPlanId,
@@ -284,8 +284,8 @@ const CheckoutPage = () => {
         return;
       }
       redirectedRef.current = false;
+      setCheckingOutPlanId(null);
       toast.error(res.error ?? "Não foi possível gerar o pagamento.");
-      setCheckoutState("idle");
       setShowPaymentStep(false);
     })();
   }, [showPaymentStep, session, planId, billingCycle, navigate]);
@@ -495,8 +495,11 @@ const CheckoutPage = () => {
     );
   }
 
-  if (!showPaymentStep) {
+  // A página de planos fica sempre visível — mesmo durante o redirect para a
+  // ValidaPay — evitando qualquer tela branca intermediária.
+  {
     const plans = Object.entries(PLANS_DATA);
+
 
     return (
       <div className="min-h-screen overflow-hidden bg-white font-['Inter',ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',sans-serif] text-[#111111]">
