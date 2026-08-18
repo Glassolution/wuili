@@ -3,10 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-/** Espelha `LIMITE_MENSAL_GRATUITO` da edge function `generate-product-image`. */
-export const LIMITE_MENSAL_GRATUITO = 3;
+import { PLAN_LIMITS, normalizePlanName } from "@/lib/planLimits";
 
-const PLANOS_PAGOS = new Set(["base", "pro", "plus", "business"]);
+/** Espelha o teto do plano grátis na edge function `generate-product-image`. */
+export const LIMITE_MENSAL_GRATUITO = PLAN_LIMITS.gratis.aiImagesPerMonth ?? 3;
 
 export type AiImageQuota = {
   /** null quando o plano não tem teto. */
@@ -59,14 +59,14 @@ export const useAiImageQuota = () => {
         .gte("created_at", inicioDoMesISO()),
     ]);
 
-    const plano = String(assinatura.data?.plan ?? perfil.data?.plano ?? "gratis").toLowerCase();
-    const ilimitado = PLANOS_PAGOS.has(plano);
+    const plano = normalizePlanName(assinatura.data?.plan ?? perfil.data?.plano);
+    const limite = PLAN_LIMITS[plano].aiImagesPerMonth;
     const usadas = consumo.count ?? 0;
 
     setQuota({
-      ilimitado,
+      ilimitado: limite === null,
       usadas,
-      restantes: ilimitado ? null : Math.max(0, LIMITE_MENSAL_GRATUITO - usadas),
+      restantes: limite === null ? null : Math.max(0, limite - usadas),
       carregando: false,
     });
   }, [user?.id]);

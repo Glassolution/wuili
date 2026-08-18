@@ -1,6 +1,7 @@
 // Gera a imagem de um personagem/influencer de IA e salva na biblioteca do
 // usuário (tabela ai_characters + bucket privado ai-characters).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { PLAN_LIMITS, normalizePlanKey } from "../_shared/plan-limits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -143,9 +144,8 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
 
     // Limite de influencers por plano
-    const PLAN_CHARACTER_LIMITS: Record<string, number | null> = {
-      gratis: 1, free: 1, go: 1, base: 3, plus: 5, pro: 5, business: null,
-    };
+    // Limites vindos da matriz única de planos (inclusive teto no Business:
+    // cada personagem custa geração de imagem).
     const { data: sub } = await admin
       .from("subscriptions")
       .select("plan, status")
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       planKey = String(profile?.plano ?? "gratis").toLowerCase();
     }
-    const characterLimit = planKey in PLAN_CHARACTER_LIMITS ? PLAN_CHARACTER_LIMITS[planKey] : 1;
+    const characterLimit = PLAN_LIMITS[normalizePlanKey(planKey)].aiCharacters;
     if (characterLimit !== null) {
       const { count } = await admin
         .from("ai_characters")

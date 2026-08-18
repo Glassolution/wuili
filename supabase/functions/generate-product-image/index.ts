@@ -5,6 +5,7 @@
 // funciona sem depender de bucket nem de tabela nova — quando fizer sentido
 // guardar histórico, é só adicionar o upload aqui.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { PLAN_LIMITS, normalizePlanKey } from "../_shared/plan-limits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -92,9 +93,11 @@ async function urlParaDataUrl(url: string): Promise<string | undefined> {
 }
 
 
-/** Planos que não têm teto mensal de imagens. */
-const PLANOS_PAGOS = new Set(["base", "pro", "plus", "business"]);
-export const LIMITE_MENSAL_GRATUITO = 3;
+/**
+ * Cada plano tem teto mensal de imagens — inclusive o Business, porque cada
+ * geração custa crédito de IA. Números na matriz compartilhada.
+ */
+export const LIMITE_MENSAL_GRATUITO = PLAN_LIMITS.gratis.aiImagesPerMonth ?? 3;
 
 const inicioDoMes = () => {
   const agora = new Date();
@@ -119,8 +122,8 @@ async function lerCota(admin: ReturnType<typeof createClient>, userId: string) {
     admin.from("profiles").select("plano").eq("user_id", userId).maybeSingle(),
   ]);
 
-  const plano = String(assinatura.data?.plan ?? perfil.data?.plano ?? "gratis").toLowerCase();
-  const ilimitado = PLANOS_PAGOS.has(plano);
+  const plano = normalizePlanKey(assinatura.data?.plan ?? perfil.data?.plano);
+  const limite = PLAN_LIMITS[plano].aiImagesPerMonth;
 
   const { count } = await admin
     .from("ai_image_generations")
@@ -131,10 +134,10 @@ async function lerCota(admin: ReturnType<typeof createClient>, userId: string) {
   const usadas = count ?? 0;
   return {
     plano,
-    ilimitado,
-    limite: ilimitado ? null : LIMITE_MENSAL_GRATUITO,
+    ilimitado: limite === null,
+    limite,
     usadas,
-    restantes: ilimitado ? null : Math.max(0, LIMITE_MENSAL_GRATUITO - usadas),
+    restantes: limite === null ? null : Math.max(0, limite - usadas),
   };
 }
 
@@ -165,7 +168,9 @@ Deno.serve(async (req) => {
     if (!cota.ilimitado && cota.restantes !== null && cota.restantes <= 0) {
       return json(
         {
-          error: `Você já usou as ${LIMITE_MENSAL_GRATUITO} imagens do plano gratuito neste mês. Faça upgrade para continuar gerando.`,
+          error: cota.plano === "gratis"
+            ? `Você já usou as ${cota.limite} imagens gratuitas deste mês. Assine um plano para continuar gerando.`
+            : `Você atingiu o limite de ${cota.limite} imagens com IA do plano ${cota.plano} neste mês. Faça upgrade para liberar mais.`,
           quota: cota,
         },
         429,
