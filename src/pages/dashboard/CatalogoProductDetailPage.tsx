@@ -163,10 +163,19 @@ const CatalogoProductDetailPage = () => {
   const [descOverflows, setDescOverflows] = useState(false);
   const descRef = useRef<HTMLDivElement>(null);
 
+  // O Atlas manda o usuário para cá com ?publicar=1 no fim do guia de iniciante:
+  // o modal de publicação abre sozinho para ele não ter que procurar o botão.
+  useEffect(() => {
+    if (!rawProduct) return;
+    const querPublicar = new URLSearchParams(window.location.search).get("publicar");
+    if (querPublicar === "1") setIsImportModalOpen(true);
+  }, [rawProduct]);
+
   // Ao trocar de produto, volta a descrição para o estado recolhido.
   useEffect(() => {
     setDescExpanded(false);
   }, [product?.description]);
+
 
   // Decide se o botão "Expandir descrição" precisa aparecer. scrollHeight reflete a
   // altura real do conteúdo mesmo com o clamp de max-height aplicado. Medimos de forma
@@ -518,7 +527,7 @@ const CatalogoProductDetailPage = () => {
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[13px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]"
               >
                 <PackagePlus size={17} strokeWidth={1.8} />
-                Importar para minha loja
+                Importar e publicar
               </button>
               <button
                 type="button"
@@ -677,7 +686,7 @@ const CatalogoProductDetailPage = () => {
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[14px] font-semibold text-white transition hover:brightness-105"
                 >
                   <PackagePlus size={17} strokeWidth={1.9} />
-                  Importar para minha loja
+                  Importar e publicar
                 </button>
                 <button
                   type="button"
