@@ -1192,6 +1192,12 @@ const validateSocialPotentialStep = (
   };
 };
 
+/**
+ * Rota do produto com o modal de publicação já aberto (?publicar=1).
+ * É o que transforma "abrir o produto" em "publicar de verdade".
+ */
+const rotaDePublicacao = (route: string) => (route.includes("?") ? `${route}&publicar=1` : `${route}?publicar=1`);
+
 const guidePublicationStep = async (
   supabase: ServiceClient,
   userId: string,
@@ -1225,6 +1231,10 @@ const guidePublicationStep = async (
     message:
       `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nReta final: revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nAbre o produto escolhido e coloca ele no ar.`,
     actions: [
+      // Botão que realmente publica: abre o produto já com o modal de publicação
+      // no Mercado Livre aberto. Antes o guia só mandava "abrir o produto" e o
+      // iniciante não achava onde publicar.
+      { type: "navigation", label: "Publicar no Mercado Livre", route: rotaDePublicacao(productRoute), variant: "primary" },
       { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       { type: "navigation", label: "Ver Pedidos", route: "/dashboard/pedidos" },
@@ -1471,15 +1481,35 @@ const maybeHandleBeginnerGuide = async (
   }
 
   // Passo 5: usuário avisa que conectou o Mercado Livre.
+  // A confirmação é checada no banco antes de comemorar: dizer "conectado" sem
+  // conferir levava o usuário até a publicação e o erro só aparecia lá.
   if (emPasso(5) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
     const productNav = lastActions.find(
-      (action): action is NavigationAction => action.type === "navigation" && action.route.includes("/dashboard/catalogo/"),
+      (action): action is NavigationAction =>
+        action.type === "navigation" && action.route.includes("/dashboard/catalogo/") && !action.route.includes("publicar=1"),
     );
+    const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
+
+    if (!mlStatus.connected || !mlStatus.tokenValid) {
+      return {
+        message:
+          `**Passo 5 de 5: conectar antes de publicar**\n\n${nome ? `${nome}, a` : "A"}inda não estou enxergando a sua conta do Mercado Livre conectada${mlStatus.connected ? " (a autorização expirou e precisa ser refeita)" : ""}.\n\nQuase sempre é uma destas três:\n\n1. A janela do Mercado Livre fechou antes do clique em **Permitir**.\n2. O login foi numa conta diferente da que você usa pra vender.\n3. A autorização ainda está processando — espera alguns segundos e me chama.\n\nToca em conectar e me avisa quando voltar.`,
+        actions: [
+          { type: "connect_ml", label: "Conectar Mercado Livre" },
+          { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
+          ...(productNav ? [productNav] : []),
+          quickReply("Já conectei", "Já conectei o Mercado Livre"),
+        ],
+      };
+    }
+
     return {
       message:
-        `Conta conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nDepois acompanha em #publicacoes e #pedidos.`,
+        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre** que eu abro o produto já na tela de publicação.`,
       actions: [
-        ...(productNav ? [productNav] : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
+        ...(productNav
+          ? [{ type: "navigation" as const, label: "Publicar no Mercado Livre", route: rotaDePublicacao(productNav.route), variant: "primary" as const }, productNav]
+          : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       ],
     };
