@@ -380,7 +380,7 @@ const CatalogoProductDetailPage = () => {
         {/* SEÇÃO PRINCIPAL (duas colunas) */}
         <div className="-mx-5 -mt-6 pb-10 lg:hidden">
           <section className="bg-white">
-            <div className="relative h-[394px] overflow-hidden bg-white">
+            <div className="relative h-[290px] overflow-hidden bg-white">
               <div className="absolute right-4 top-4 z-10 flex items-center">
                 <button
                   type="button"
@@ -442,12 +442,12 @@ const CatalogoProductDetailPage = () => {
             </div>
           </section>
 
-          <section className="px-5 pt-5">
+          <section className="px-5 pt-4">
             <span className="mb-3 inline-flex rounded-full bg-[#F3F3F2] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#52525B]">
               {categoryLabel}
             </span>
 
-            <h1 className="max-w-[340px] text-[18px] font-medium leading-[1.18] tracking-[-0.015em] text-[#111111]">
+            <h1 className="max-w-[340px] text-[15px] font-semibold leading-[1.2] tracking-[-0.015em] text-[#111111]">
               {product.title}
             </h1>
 
@@ -459,16 +459,16 @@ const CatalogoProductDetailPage = () => {
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
-                          size={13}
+                          size={12}
                           className={
                             i < Math.round(catalogMetrics.rating)
-                              ? "fill-[#111] text-[#111]"
+                              ? "fill-[#2563EB] text-[#2563EB]"
                               : "fill-[#E5E7EB] text-[#E5E7EB]"
                           }
                         />
                       ))}
                     </div>
-                    <span className="font-semibold text-[#111111]">{catalogMetrics.rating.toFixed(1)}</span>
+                    <span className="font-semibold text-[#2563EB]">{catalogMetrics.rating.toFixed(1)}</span>
                   </>
                 )}
                 {socialProofCount !== null && (
@@ -482,9 +482,9 @@ const CatalogoProductDetailPage = () => {
                 Por quanto você pode vender
               </p>
               <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
-                <span className="text-[34px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">
+                <span className="text-[26px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">
                   {suggestedPriceMain}
-                  <sup className="ml-0.5 align-super text-[17px] font-semibold leading-none tracking-[-0.02em]">
+                  <sup className="ml-0.5 align-super text-[14px] font-semibold leading-none tracking-[-0.02em]">
                     {suggestedPriceCents}
                   </sup>
                 </span>
@@ -515,7 +515,7 @@ const CatalogoProductDetailPage = () => {
                 onClick={() => setIsImportModalOpen(true)}
                 data-dashboard-tour="produto-importar"
                 style={PRODUCT_IMPORT_BUTTON_STYLE}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[13px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[13px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]"
               >
                 <PackagePlus size={17} strokeWidth={1.8} />
                 Importar para minha loja
@@ -524,7 +524,7 @@ const CatalogoProductDetailPage = () => {
                 type="button"
                 onClick={handleCreateSalesPage}
                 data-dashboard-tour="produto-criar-pagina"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111] transition-colors hover:bg-[#F7F7F6]"
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111] transition-colors hover:bg-[#F7F7F6]"
               >
                 <FilePlus2 size={16} strokeWidth={1.8} />
                 Criar página de vendas
@@ -534,7 +534,7 @@ const CatalogoProductDetailPage = () => {
                   href={product.product_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
                 >
                   Ver no fornecedor
                   <ExternalLink size={16} strokeWidth={1.8} />
@@ -543,7 +543,7 @@ const CatalogoProductDetailPage = () => {
                 <button
                   type="button"
                   onClick={() => veloToast.info("O fornecedor não disponibilizou um link para este produto.")}
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
                 >
                   Ver no fornecedor
                   <ExternalLink size={16} strokeWidth={1.8} />
@@ -623,7 +623,7 @@ const CatalogoProductDetailPage = () => {
                       <Star
                         key={i}
                         size={13}
-                        className={i < Math.round(catalogMetrics.rating) ? "fill-[#111] text-[#111]" : "fill-[#E5E7EB] text-[#E5E7EB]"}
+                        className={i < Math.round(catalogMetrics.rating) ? "fill-[#2563EB] text-[#2563EB]" : "fill-[#E5E7EB] text-[#E5E7EB]"}
                       />
                     ))}
                   </div>
@@ -854,7 +854,7 @@ const CatalogoProductDetailPage = () => {
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-[#71717A]">
                           {relatedMetrics.rating !== null && (
                             <>
-                              <Star size={11} className="fill-[#111] text-[#111]" />
+                              <Star size={11} className="fill-[#2563EB] text-[#2563EB]" />
                               <span>{relatedMetrics.rating.toFixed(1)}</span>
                             </>
                           )}
