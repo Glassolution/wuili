@@ -10,7 +10,7 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, Star, Truck } from "lucide-react";
+import { ArrowUpRight, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, ShieldCheck, Star, Truck, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -438,7 +438,7 @@ const MobileAliVeloHome = ({
   return (
     <section className="md:hidden animate-fade-in">
       <div className="min-h-screen w-full overflow-x-hidden bg-white pb-6 text-[#111111]">
-        <div className="bg-gradient-to-b from-[#1E3A8A] to-[#2563EB] px-4 pt-4 text-white">
+        <div className="bg-[linear-gradient(180deg,#1E3A8A_0%,#1D4ED8_60%,#2563EB_100%)] px-4 pt-4 text-white">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -493,33 +493,47 @@ const MobileAliVeloHome = ({
           </nav>
         </div>
 
-        <section className="bg-gradient-to-b from-[#2563EB] to-[#1E40AF] px-4 pb-4 pt-2">
+        <section className="bg-[linear-gradient(180deg,#2563EB_0%,#3B82F6_55%,#EFF4FF_100%)] px-4 pb-4 pt-3">
           <button
             type="button"
             onClick={() => navigate("/dashboard/catalogo")}
-            className="block w-full overflow-hidden rounded-[14px] bg-gradient-to-br from-[#1D4ED8] via-[#2563EB] to-[#3B82F6] p-3 text-left shadow-[0_10px_24px_rgba(30,58,138,0.35)] transition-transform active:scale-[0.98]"
+            className="block w-full overflow-hidden rounded-[16px] bg-[linear-gradient(135deg,#1E3A8A_0%,#1D4ED8_55%,#3B82F6_100%)] p-3 text-left shadow-[0_12px_28px_rgba(30,58,138,0.35)] transition-transform active:scale-[0.98]"
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[11px] font-bold tracking-[-0.01em] text-white/85">
+              <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[-0.01em] text-white/90">
+                <ShieldCheck className="h-[14px] w-[14px]" strokeWidth={2.4} />
                 Curadoria Velo • estoque nacional
               </p>
-              <span className="rounded-[6px] bg-white px-2 py-0.5 text-[11px] font-black text-[#1D4ED8]">
-                Até 80% OFF
+              <span className="rounded-[6px] bg-[#FACC15] px-2 py-0.5 text-[10px] font-black text-[#1E3A8A]">
+                Margem até 3x
               </span>
             </div>
 
             <p className="mt-1.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.05em] text-white">
-              Promo de
+              Produtos prontos
               <br />
-              <span className="text-[#FACC15]">grandes marcas</span>
+              <span className="text-[#FACC15]">para vender hoje</span>
             </p>
 
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-white/85">
+              <span className="flex items-center gap-1">
+                <Truck className="h-[13px] w-[13px]" strokeWidth={2.4} /> Envio nacional
+              </span>
+              <span className="flex items-center gap-1">
+                <Zap className="h-[13px] w-[13px]" strokeWidth={2.4} /> Publica em 1 clique
+              </span>
+            </div>
+
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="rounded-[10px] bg-white px-2 py-2 text-center">
-                <p className="text-[15px] font-black leading-none tracking-[-0.04em] text-[#1D4ED8]">R$ 1.685</p>
-                <p className="mt-1 text-[9px] font-bold text-[#6B7280]">em cupons</p>
+              <div className="flex flex-col justify-between rounded-[10px] bg-white px-2 py-2 text-center">
+                <div>
+                  <p className="text-[15px] font-black leading-none tracking-[-0.04em] text-[#1D4ED8]">
+                    {products.length > 0 ? `${products.length}+` : "Novos"}
+                  </p>
+                  <p className="mt-1 text-[9px] font-bold text-[#6B7280]">produtos no catálogo</p>
+                </div>
                 <span className="mt-1.5 inline-flex h-6 w-full items-center justify-center rounded-full bg-[#2563EB] text-[9px] font-black text-white">
-                  Ganhar agora
+                  Explorar
                 </span>
               </div>
               {[firstProduct, secondProduct].map((item, index) =>
@@ -531,7 +545,7 @@ const MobileAliVeloHome = ({
                       className="h-full min-h-[68px] w-full object-cover"
                       referrerPolicy="no-referrer"
                     />
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#0F172A]/75 px-2 py-0.5 text-[9px] font-black text-white">
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#1E3A8A]/85 px-2 py-0.5 text-[9px] font-black text-white">
                       {formatCurrency(item.price)}
                     </span>
                   </div>
