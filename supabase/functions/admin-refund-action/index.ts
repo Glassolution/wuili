@@ -137,12 +137,12 @@ Deno.serve(async (req) => {
       user_id: refund.user_id,
       title: refundOk ? "Reembolso aprovado" : "Falha ao processar reembolso",
       message: refundOk
-        ? "Seu reembolso foi aprovado e o valor será creditado em até 7 dias úteis."
+        ? "Seu reembolso foi aprovado. O estorno foi enviado ao banco emissor do cartão e pode levar até 30 dias para aparecer na sua fatura (normalmente entra na próxima fatura)."
         : "Não foi possível processar o reembolso. Entre em contato com o suporte.",
       type: "refund",
     });
 
-    return json({ success: refundOk, providerResponse });
+    return json({ success: refundOk, processing: refundProcessing, providerResponse });
   } catch (err) {
     console.error("admin-refund-action:", err);
     return json({ error: "Erro interno", message: String(err) }, 500);
