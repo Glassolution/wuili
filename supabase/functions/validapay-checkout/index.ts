@@ -140,7 +140,8 @@ Deno.serve(async (req) => {
             },
           }
         : {};
-    const preferredMethod = body.customer?.method === "credit_card" ? "CREDIT_CARD" : "PIX";
+    // A API aceita apenas: 'pix' | 'creditcard' | 'boleto' | 'pix_automatico' (minúsculo).
+    const preferredMethod = body.customer?.method === "credit_card" ? "creditcard" : "pix";
 
     const basePayload: Record<string, unknown> = {
       priceId,
