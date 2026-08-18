@@ -632,16 +632,26 @@ Deno.serve(async (req) => {
     }
 
     // === PLAN LIMITS ===
-    const { data: subscription } = await supabase
+    // Um usuário pode ter várias assinaturas ativas ao mesmo tempo (upgrade,
+    // cobrança recriada, migração). Pegar só a mais recente rebaixava quem
+    // tinha Pro ativo mas uma linha Base criada depois. Vale sempre o MAIOR
+    // plano ativo.
+    const { data: activeSubs } = await supabase
       .from('subscriptions')
       .select('plan, status')
       .eq('user_id', user_id)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .in('status', ['active', 'paid', 'approved', 'trialing'])
 
-    const userPlan = normalizePlanName(subscription?.plan ?? profileCd?.plano)
+    const PLAN_RANK: Record<string, number> = { gratis: 0, base: 1, go: 1, plus: 2, pro: 2, business: 3 }
+    const bestSubPlan = (activeSubs ?? [])
+      .map((s) => normalizePlanName(s.plan))
+      .sort((a, b) => (PLAN_RANK[b] ?? 0) - (PLAN_RANK[a] ?? 0))[0]
+
+    const profilePlan = normalizePlanName(profileCd?.plano)
+    const userPlan =
+      (PLAN_RANK[profilePlan] ?? 0) > (PLAN_RANK[bestSubPlan ?? 'gratis'] ?? 0)
+        ? profilePlan
+        : (bestSubPlan ?? profilePlan)
     const productLimit = PRODUCT_LIMITS[userPlan]
 
     if (productLimit === 0) {
