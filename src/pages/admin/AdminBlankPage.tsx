@@ -560,6 +560,7 @@ const AdminPainelPage = () => {
     queryKey: ["admin-wallet-v8-validapay-only"],
     queryFn: fetchWalletData,
     refetchInterval: 30_000,
+    retry: 1,
   });
   const {
     data: providerFinance,
@@ -570,6 +571,7 @@ const AdminPainelPage = () => {
     queryKey: ["admin-wallet-finance-v2-validapay-only", period],
     queryFn: () => fetchFinanceData(period),
     refetchInterval: 60_000,
+    retry: 1,
   });
 
   useEffect(() => {
