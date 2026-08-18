@@ -111,9 +111,10 @@ Deno.serve(async (req) => {
 
     const origin = req.headers.get("origin") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
 
-    // Mesmo payload da Velo v1, alterando somente a imagem para a logo atual.
+    // A ValidaPay mantém este caminho como a marca fixa do checkout. O arquivo
+    // é uma composição branca com a logo atual, sobrepondo a arte antiga.
     const logoUrl =
-      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v3.png";
+      "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo.png";
 
     const basePayload: Record<string, unknown> = {
       priceId,
