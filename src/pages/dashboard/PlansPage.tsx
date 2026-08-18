@@ -6,6 +6,7 @@ import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-r
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
+import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
 
 const PLANS = [
   {
@@ -133,8 +134,19 @@ const PlansPage = () => {
     }
 
     setCheckoutState("loading");
-    const toastId = toast.loading(selectedMethod === "pix" ? "Gerando pagamento Pix..." : "Processando pagamento...");
+    const toastId = toast.loading("Abrindo checkout seguro...");
 
+    // Gateway atual: ValidaPay (checkout hospedado, Pix + cartão).
+    const validapay = await startValidaPayCheckout(plan as VelloPlanId, "monthly");
+    if (validapay.ok) {
+      toast.success("Redirecionando para o pagamento...", { id: toastId });
+      return;
+    }
+    toast.error(validapay.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+    setCheckoutState("idle");
+    return;
+
+    // eslint-disable-next-line no-unreachable
     try {
       const payload: Record<string, unknown> = {
         plan,

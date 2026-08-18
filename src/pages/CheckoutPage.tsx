@@ -11,6 +11,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
+import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
 
 
 type PaymentMethod = "pix" | "credit_card";
@@ -324,8 +325,24 @@ const CheckoutPage = () => {
     }
 
     setCheckoutState("loading");
-    const toastId = toast.loading(selectedMethod === "pix" ? "Gerando pagamento Pix..." : "Processando pagamento...");
+    const toastId = toast.loading("Abrindo checkout seguro...");
 
+    // Gateway atual da Velo: ValidaPay (Pix + cartão em até 12x) no checkout
+    // hospedado. O antigo mp-checkout ficou com token inválido e derrubava o
+    // pagamento antes mesmo de gerar a cobrança.
+    const validapay = await startValidaPayCheckout(
+      planId as VelloPlanId,
+      billingCycle === "annual" ? "annual" : "monthly",
+    );
+    if (validapay.ok) {
+      toast.success("Redirecionando para o pagamento...", { id: toastId });
+      return;
+    }
+    toast.error(validapay.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+    setCheckoutState("idle");
+    return;
+
+    // eslint-disable-next-line no-unreachable
     try {
       const payload: Record<string, unknown> = {
         plan: planId,
