@@ -14,6 +14,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
+import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
 
 type AtlasMessage = {
   id: string;
@@ -1214,7 +1215,7 @@ const DashboardHomePage = () => {
                   background: "transparent",
                 }}
               >
-                <img src="/brand/mercado-livre-handshake.svg" alt="" style={{ width: fs(43), height: fs(35), objectFit: "contain" }} />
+                <img src={mercadoLivreLogo.url} alt="" style={{ width: fs(43), height: fs(35), objectFit: "contain" }} />
               </span>
               <h3
                 id="ml-card-title"
