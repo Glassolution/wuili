@@ -1938,11 +1938,11 @@ const GeneratedStoreEditorPage = () => {
     return "";
   }, [currentProject]);
 
-  // URL pública fica no domínio Velo com o slug da loja no caminho:
-  // Ex.: https://velods.com.br/loja/pedra
-  const publicUrl = projectSlug
-    ? `https://velods.com.br/loja/${projectSlug}`
-    : "";
+  // URL pública fica na MESMA origem em que o app está rodando (PUBLIC_APP_URL).
+  // Fixar "velods.com.br" fazia o botão de publicar abrir um deploy antigo, que
+  // ainda renderiza o template de loja velho em vez do template do editor.
+  const publicUrl = projectSlug ? `${PUBLIC_APP_URL}/loja/${projectSlug}` : "";
+
 
 
   // Ordem das telas definida pelo dono da loja em Administração > Fluxo do cliente.
