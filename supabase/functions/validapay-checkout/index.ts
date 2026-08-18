@@ -51,13 +51,7 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const email = claimsData.claims.email as string | undefined;
 
-    let body: {
-      plan?: string;
-      cycle?: string;
-      affiliate_code?: string;
-      coupon?: string;
-      customer?: { name?: string; document?: string; phone?: string; method?: string };
-    } = {};
+    let body: { plan?: string; cycle?: string; affiliate_code?: string; coupon?: string } = {};
     try {
       body = await req.json();
     } catch {
@@ -117,43 +111,17 @@ Deno.serve(async (req) => {
 
     const origin = req.headers.get("origin") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
 
-    // Logo atual da Velo (cesta azul em fundo branco). Enviamos em todos os
-    // nomes de campo aceitos/possíveis da API. Se o checkout hospedado ainda
-    // renderizar a logo antiga, ela vem das configurações da conta ValidaPay
-    // ("customer-logo") e precisa ser trocada no painel do provedor.
+    // Mesmo payload da Velo v1, alterando somente a imagem para a logo atual.
     const logoUrl =
       "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo-v3.png";
 
-
-    // Dados coletados na tela de checkout da Velo. A ValidaPay quebra (500)
-    // quando `customer` chega sem documentNumber, então só enviamos o objeto
-    // quando temos CPF/CNPJ válido — assim o formulário já vem preenchido.
-    const rawDoc = String(body.customer?.document ?? "").replace(/\D/g, "");
-    const customerPayload =
-      rawDoc.length === 11 || rawDoc.length === 14
-        ? {
-            customer: {
-              name: String(body.customer?.name ?? "").trim() || undefined,
-              email,
-              documentNumber: rawDoc,
-              phone: String(body.customer?.phone ?? "").replace(/\D/g, "") || undefined,
-            },
-          }
-        : {};
-    // A API aceita apenas: 'pix' | 'creditcard' | 'boleto' | 'pix_automatico' (minúsculo).
-    const preferredMethod = body.customer?.method === "credit_card" ? "creditcard" : "pix";
-
     const basePayload: Record<string, unknown> = {
       priceId,
-      ...customerPayload,
-      paymentMethod: preferredMethod,
+      // A ValidaPay coleta os dados pessoais e a forma de pagamento uma única vez.
       items: [{ priceId, quantity: 1 }],
       companyName: "Velo",
       logoUrl,
       companyLogoUrl: logoUrl,
-      customerLogoUrl: logoUrl,
-      brandLogoUrl: logoUrl,
-      imageUrl: logoUrl,
       logo: logoUrl,
       // Identidade Velo: botão preto, mas textos escuros para manter a leitura nítida.
       primaryColor: "#000000",
