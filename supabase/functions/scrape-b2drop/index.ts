@@ -141,14 +141,16 @@ Deno.serve(async (req) => {
 
     // Upsert em lotes
     const rows = scraped.map((p) => {
-      const blockedFlag = isBlocked(p.title);
+      const images = [p.image_url].filter(Boolean);
+      // ML exige no mínimo 3 fotos.
+      const blockedFlag = isBlocked(p.title) || !hasEnoughImages(images);
       if (blockedFlag) blocked++;
       return {
         source: SOURCE,
         external_id: p.external_id,
         title: p.title,
         description: null,
-        images: [p.image_url].filter(Boolean),
+        images,
         cost_price: p.price,
         suggested_price: Math.round(p.price * 2 * 100) / 100,
         margin_percent: 100,
