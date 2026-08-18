@@ -254,6 +254,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
+  const [checkingSeller, setCheckingSeller] = useState(false);
   // Estado do modal manual de categoria removido a pedido do usuário.
 
   // Pricing engine
@@ -305,28 +306,22 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   // Cadastro de vendedor no Mercado Livre (modo vendedor + Mercado Envios +
   // endereço de retirada) é obrigatório para TODA conta antes de publicar.
-  // Consultamos a fonte da verdade (ML /users/me via edge function) para saber
-  // se a conta já está apta. Só abrimos o tutorial quando a conta NÃO está.
-  // Quando o usuário volta para a Velo após configurar, a nova checagem
-  // retorna canList=true e o modal não abre mais.
-  const checkSellerStatus = useCallback(async () => {
-    if (!user) return;
+  // Consultamos a fonte da verdade (ML /users/me via edge function), mas esta
+  // função apenas informa: quem decide abrir o tutorial é o clique em publicar.
+  // Abrir sozinho (ao montar, ou de novo ao fechar) prendia o usuário num laço
+  // em que o modal reaparecia toda vez que ele clicava no X.
+  // Retorna null quando a checagem não foi possível — aí vale o que o backend
+  // sinalizou na última publicação (prop mlAccountNeedsVerification).
+  const fetchSellerReady = useCallback(async (): Promise<boolean | null> => {
+    if (!user) return null;
     try {
       const { data } = await supabase.functions.invoke("ml-seller-status");
-      if (data?.connected && data?.canList === false) {
-        setMlVerifyModalOpen(true);
-      } else {
-        setMlVerifyModalOpen(false);
-      }
+      if (data?.connected && data?.canList === false) return false;
+      return true;
     } catch {
-      // silencioso — não travar o fluxo se a checagem falhar
+      return null;
     }
   }, [user]);
-
-  useEffect(() => {
-    if (!open) return;
-    void checkSellerStatus();
-  }, [open, checkSellerStatus]);
 
   // Reset on product change
   const [lastProductId, setLastProductId] = useState<string | null>(null);
@@ -685,7 +680,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     }
   };
 
-  const handleContinueFromReview = () => {
+  const handleContinueFromReview = async () => {
     if (planLimits.loading) {
       veloToast.info("Verificando seu plano...");
       return;
@@ -696,14 +691,18 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       return;
     }
 
-    // Se o backend sinalizar que a conta ML precisa ser verificada / posta em
-    // modo vendedor, abrimos o tutorial em vez de tentar publicar.
-    if (mlAccountNeedsVerification) {
-      setMlVerifyModalOpen(true);
-      return;
-    }
-
     if (planLimits.canPublishProducts) {
+      // Único ponto em que o tutorial pode abrir: o usuário pediu para publicar.
+      // Revalidamos com o ML na hora, porque ele pode ter ajustado a conta desde
+      // a última tentativa. Só liberamos a publicação com a conta apta.
+      setCheckingSeller(true);
+      const live = await fetchSellerReady();
+      setCheckingSeller(false);
+      const ready = live ?? !mlAccountNeedsVerification;
+      if (!ready) {
+        setMlVerifyModalOpen(true);
+        return;
+      }
       void handlePublish();
       return;
     }
@@ -1253,10 +1252,15 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
               )}
               {step === 2 && (
                 <button
-                  onClick={handleContinueFromReview}
+                  onClick={() => void handleContinueFromReview()}
+                  disabled={checkingSeller || publishing}
                   className="btn-primary btn-primary--md"
                 >
-                  {planLimits.canPublishProducts ? "Publicar produto" : "Continuar"}
+                  {checkingSeller
+                    ? "Verificando conta..."
+                    : planLimits.canPublishProducts
+                      ? "Publicar produto"
+                      : "Continuar"}
                   <ArrowRight size={13} />
                 </button>
               )}
@@ -1344,16 +1348,10 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
 
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
-        onClose={() => {
-          setMlVerifyModalOpen(false);
-          // Ao fechar (usuário pode ter concluído o cadastro no ML), revalidamos
-          // via /users/me. Se a conta já estiver apta, o modal não abre de novo.
-          void checkSellerStatus();
-        }}
-        onFinish={() => {
-          setMlVerifyModalOpen(false);
-          void checkSellerStatus();
-        }}
+        onClose={() => setMlVerifyModalOpen(false)}
+        // Fechar e concluir apenas fecham. A conta é revalidada no próximo clique
+        // em "Publicar produto" — rechecar aqui reabria o modal na sequência.
+        onFinish={() => setMlVerifyModalOpen(false)}
       />
 
       {/* ManualCategoryDialog removido: não exibir seletor de categoria manual. */}
