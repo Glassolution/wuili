@@ -1293,20 +1293,23 @@ Deno.serve(async (req) => {
         // Escolhe a ficha com maior sobreposição, mas nunca troca o modelo do
         // aparelho (ex.: Redmi A5 não pode casar com Redmi A3x). Tokens curtos
         // com números são relevantes para modelos e não podem ser descartados.
-        const normalizedTitle = normalize(title)
         const relevantTokens = (value: string) =>
           normalize(value).split(/\s+/).filter(t => t.length > 2 || /\d/.test(t))
         const titleTokens = new Set(relevantTokens(title))
-        const modelMatch = normalizedTitle.match(/\b(?:xiaomi\s+)?redmi\s+([a-z]*\d+[a-z]*)\b/i)
-        const requiredModel = modelMatch?.[1] ?? null
+        const extractRedmiModel = (value: string): string | null => {
+          const match = normalize(value).match(
+            /\b(?:xiaomi\s+)?redmi\s+((?:[a-z]+\s*)?\d+(?:\s*[a-z]+)?)\b/i,
+          )
+          return match?.[1]?.replace(/\s+/g, '') ?? null
+        }
+        const requiredModel = extractRedmiModel(title)
         let best: { id: string; score: number; name: string } | null = null
         for (const r of results) {
           const id = cleanText(r.id)
           const name = cleanText(r.name)
           if (!id) continue
-          const normalizedName = normalize(name)
           if (requiredModel) {
-            const candidateModel = normalizedName.match(/\b(?:xiaomi\s+)?redmi\s+([a-z]*\d+[a-z]*)\b/i)?.[1]
+            const candidateModel = extractRedmiModel(name)
             if (candidateModel !== requiredModel) continue
           }
           const tokens = relevantTokens(name)
