@@ -227,7 +227,7 @@ const MobileProductCard = ({
 
   return (
     <article className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      <span className="absolute left-2 top-2 z-10 max-w-[70%] truncate rounded-[4px] bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
+      <span className="absolute left-2 top-2 z-10 max-w-[70%] truncate rounded-[4px] bg-[#2563EB]/90 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
         {getSourceLabel(product.source)}
       </span>
       <button
