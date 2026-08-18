@@ -1,10 +1,10 @@
 // Diagnóstico temporário: procura endpoint de conta para trocar a logo.
 import { VALIDAPAY_API_URL } from "../_shared/validapay.ts";
-import { getToken } from "../_shared/validapay.ts";
+import { getValidaPayToken } from "../_shared/validapay.ts";
 
 Deno.serve(async () => {
   try {
-    const token = await getToken();
+    const token = await getValidaPayToken();
     const paths = ["/customers/me", "/me", "/account", "/customer", "/customers", "/settings", "/company"];
     const out: Record<string, unknown> = {};
     for (const path of paths) {
