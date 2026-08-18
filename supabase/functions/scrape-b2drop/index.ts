@@ -3,6 +3,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-b2drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { hasEnoughImages } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
