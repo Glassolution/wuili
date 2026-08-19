@@ -69,8 +69,13 @@ const AtlasDockPanel = () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
-      await startMercadoLivreOAuth({ novaAba: true });
+      // Mesma aba: ao voltar, o Atlas reabre a conversa exatamente onde parou.
+      salvarRetornoMl({
+        origem: "atlas",
+        rota: `${window.location.pathname}${window.location.search}`,
+        threadId,
+      });
+      await startMercadoLivreOAuth({ novaAba: false });
       setConectandoMl(false);
     } catch (e) {
       setConectandoMl(false);
