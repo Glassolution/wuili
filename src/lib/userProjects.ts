@@ -491,7 +491,24 @@ export async function updateProjectMetadata(
   project: UserProject,
   patch: Record<string, unknown>,
 ): Promise<UserProject> {
-  const nextMetadata = { ...readMetadata(project), ...patch } as Json;
+  // Relê o metadata do banco em vez de partir do `project` em memória (mesmo
+  // padrão de saveProjectDraft): o editor autosalva em segundo plano enquanto
+  // modais como StoreAdminModal/ProjectSettingsOverlay ficam abertos com um
+  // snapshot antigo — mesclar sobre esse snapshot descartaria silenciosamente
+  // o que o autosave já tiver gravado nesse meio-tempo.
+  const { data: current, error: readError } = await supabase
+    .from("user_projects")
+    .select("metadata")
+    .eq("id", project.id)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const base =
+    current?.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata)
+      ? (current.metadata as Record<string, unknown>)
+      : {};
+
+  const nextMetadata = { ...base, ...patch } as Json;
   const { data, error } = await supabase
     .from("user_projects")
     .update({ metadata: nextMetadata })
