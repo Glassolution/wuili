@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
+import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
 import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
 
 
@@ -600,6 +601,47 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     },
     [novaConversa, threadId],
   );
+
+  /**
+   * Volta do OAuth do Mercado Livre feito a partir do chat.
+   *
+   * A conexão acontece na mesma aba, então o estado em memória se perde: aqui
+   * reabrimos a mesma conversa, voltamos para a rota de origem e avisamos o
+   * Atlas de que a conta já está conectada, para o guia seguir do ponto certo.
+   */
+  const [retornoDoMl, setRetornoDoMl] = useState<{ threadId?: string | null; conectado: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const retorno = lerRetornoMl();
+    if (!retorno || retorno.origem !== "atlas") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const conectado = params.get("ml_connected") === "true";
+    const falhou = Boolean(params.get("ml_error"));
+    if (!conectado && !falhou) return;
+
+    limparRetornoMl();
+    void (async () => {
+      if (retorno.threadId) await abrirConversa(retorno.threadId);
+      setAberto(true);
+      setRotaDeAbertura("__atlas_lateral__");
+      if (retorno.rota) navigate(retorno.rota, { replace: true });
+      if (!conectado) {
+        veloToast.error("Não deu certo conectar o Mercado Livre. Tente de novo pelo botão do chat.");
+        return;
+      }
+      setRetornoDoMl({ threadId: retorno.threadId, conectado: true });
+    })();
+    // Só na volta do OAuth (uma vez por carregamento).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!retornoDoMl?.conectado || enviando || carregandoConversa) return;
+    setRetornoDoMl(null);
+    void enviar("Conectei minha conta do Mercado Livre. Podemos continuar?");
+  }, [retornoDoMl, enviando, carregandoConversa, enviar]);
 
 
   const valor = useMemo<AtlasChatContextValue>(
