@@ -25,12 +25,6 @@ import ugcM320 from "@/assets/models/ugc-m-image-320.png.asset.json";
 import ugcM321 from "@/assets/models/ugc-m-image-321.png.asset.json";
 import ugcM322 from "@/assets/models/ugc-m-image-322.png.asset.json";
 import ugcM323 from "@/assets/models/ugc-m-image-323.png.asset.json";
-import ugcM318t from "@/assets/models/ugc-m-image-318-thumb.jpg.asset.json";
-import ugcM319t from "@/assets/models/ugc-m-image-319-thumb.jpg.asset.json";
-import ugcM320t from "@/assets/models/ugc-m-image-320-thumb.jpg.asset.json";
-import ugcM321t from "@/assets/models/ugc-m-image-321-thumb.jpg.asset.json";
-import ugcM322t from "@/assets/models/ugc-m-image-322-thumb.jpg.asset.json";
-import ugcM323t from "@/assets/models/ugc-m-image-323-thumb.jpg.asset.json";
 import card_u1 from "@/assets/models/u1-card.jpg.asset.json";
 import card_u2 from "@/assets/models/u2-card.jpg.asset.json";
 import card_u3 from "@/assets/models/u3-card.jpg.asset.json";
@@ -51,22 +45,6 @@ import card_um3 from "@/assets/models/um3-card.jpg.asset.json";
 import card_um4 from "@/assets/models/um4-card.jpg.asset.json";
 import card_um5 from "@/assets/models/um5-card.jpg.asset.json";
 import card_um6 from "@/assets/models/um6-card.jpg.asset.json";
-// Miniaturas leves (JPEG ~20KB) usadas só na grade — a geração continua usando a imagem original.
-import model297t from "@/assets/models/model-297w-thumb.jpg.asset.json";
-import model298t from "@/assets/models/model-298w-thumb.jpg.asset.json";
-import model299t from "@/assets/models/model-299w-thumb.jpg.asset.json";
-import model300t from "@/assets/models/model-300w-thumb.jpg.asset.json";
-import model301t from "@/assets/models/model-301w-thumb.jpg.asset.json";
-import model302t from "@/assets/models/model-302w-thumb.jpg.asset.json";
-import model303t from "@/assets/models/model-303w-thumb.jpg.asset.json";
-import model304t from "@/assets/models/model-304w-thumb.jpg.asset.json";
-import ugc307t from "@/assets/models/ugc-image-307-thumb.jpg.asset.json";
-import ugc308t from "@/assets/models/ugc-image-308-thumb.jpg.asset.json";
-import ugc309t from "@/assets/models/ugc-image-309-thumb.jpg.asset.json";
-import ugc311t from "@/assets/models/ugc-image-311-thumb.jpg.asset.json";
-import ugcBlondet from "@/assets/models/ugc-blonde-thumb.jpg.asset.json";
-import ugcBrunettet from "@/assets/models/ugc-brunette-thumb.jpg.asset.json";
-
 // kind: "produtos" = estilo UGC segurando/apresentando produtos (tablet, liquidificador...)
 //       "roupas"   = modelos de catálogo para vestir peças de roupa
 type ModelKind = "produtos" | "roupas";
