@@ -20,7 +20,9 @@ const readUrl = (value: unknown) => (typeof value === "string" && value.trim() ?
  * navegador trata como popup e bloqueia.
  */
 export const startMercadoLivreOAuth = async (options?: { novaAba?: boolean }) => {
-  const aba = options?.novaAba ? window.open("about:blank", "_blank") : null;
+  // Padrão: nova aba. Assim o usuário nunca perde a página (chat do Atlas, catálogo, etc.).
+  const novaAba = options?.novaAba ?? true;
+  const aba = novaAba ? window.open("about:blank", "_blank") : null;
   if (aba) aba.opener = null;
 
   try {

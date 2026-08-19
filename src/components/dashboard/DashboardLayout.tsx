@@ -744,6 +744,14 @@ const DashboardLayoutInner = () => {
       veloToast.success("Mercado Livre conectado com sucesso!", {
         action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes") },
       });
+      // A conexão costuma acontecer em outra aba: avisa a aba original (chat do Atlas, catálogo...).
+      try {
+        const canal = new BroadcastChannel("velo-ml");
+        canal.postMessage({ tipo: "ml-conectado" });
+        canal.close();
+      } catch {
+        /* navegador sem BroadcastChannel: apenas ignora */
+      }
       navigate(location.pathname, { replace: true });
     }
 
@@ -758,6 +766,23 @@ const DashboardLayoutInner = () => {
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
+
+  // Aba original: recebe o aviso da aba que concluiu o OAuth do Mercado Livre.
+  useEffect(() => {
+    let canal: BroadcastChannel | null = null;
+    try {
+      canal = new BroadcastChannel("velo-ml");
+    } catch {
+      return;
+    }
+    canal.onmessage = (evento) => {
+      if (evento.data?.tipo !== "ml-conectado") return;
+      veloToast.success("Mercado Livre conectado! Pode continuar por aqui.");
+      window.dispatchEvent(new CustomEvent("velo:ml-conectado"));
+    };
+    return () => canal?.close();
+  }, []);
+
 
   if (loading) {
     return (
