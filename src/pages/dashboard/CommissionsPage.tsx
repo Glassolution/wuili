@@ -167,7 +167,7 @@ const CommissionsPage = () => {
 
       const { data: existing, error: readError } = await affiliateDb
         .from("affiliates")
-        .select("code, ref, link, commission_rate, is_active")
+        .select("code, ref, link, is_active")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -179,10 +179,10 @@ const CommissionsPage = () => {
       if (existing?.code) {
         const code = normalizeAffiliateCode(existing.code);
         const canonicalLink = buildAffiliateUrl(code);
-        if (existing.ref !== code || existing.link !== canonicalLink || Number(existing.commission_rate) !== COMMISSION_RATE) {
+        if (existing.ref !== code || existing.link !== canonicalLink) {
           const { error: syncError } = await affiliateDb
             .from("affiliates")
-            .update({ ref: code, link: canonicalLink, commission_rate: COMMISSION_RATE })
+            .update({ ref: code, link: canonicalLink })
             .eq("user_id", user.id);
 
           if (syncError) {
@@ -253,7 +253,7 @@ const CommissionsPage = () => {
 
       const { data: existing, error: readError } = await affiliateDb
         .from("affiliates")
-        .select("code, link, commission_rate, is_active")
+        .select("code, link, is_active")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -264,7 +264,7 @@ const CommissionsPage = () => {
         return {
           code: existingCode,
           link: buildAffiliateUrl(existingCode),
-          commissionRate: Number(existing.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+          commissionRate: COMMISSION_RATE,
           isActive: existing.is_active === true,
         } satisfies AffiliateLinkResponse;
       }
@@ -275,13 +275,12 @@ const CommissionsPage = () => {
         code,
         ref: code,
         link: buildAffiliateUrl(code),
-        commission_rate: COMMISSION_RATE,
       };
 
       const { data: inserted, error: insertError } = await affiliateDb
         .from("affiliates")
         .insert(payload)
-        .select("code, link, commission_rate, is_active")
+        .select("code, link, is_active")
         .maybeSingle();
 
       if (insertError && isDuplicateAffiliateCodeError(insertError)) {
@@ -294,7 +293,7 @@ const CommissionsPage = () => {
             ref: fallbackCode,
             link: buildAffiliateUrl(fallbackCode),
           })
-          .select("code, link, commission_rate, is_active")
+          .select("code, link, is_active")
           .maybeSingle();
 
         if (fallbackError) {
@@ -305,7 +304,7 @@ const CommissionsPage = () => {
         return {
           code: normalizeAffiliateCode(fallbackInserted?.code ?? fallbackCode),
           link: buildAffiliateUrl(fallbackInserted?.code ?? fallbackCode),
-          commissionRate: Number(fallbackInserted?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+          commissionRate: COMMISSION_RATE,
           isActive: fallbackInserted?.is_active === true,
         } satisfies AffiliateLinkResponse;
       }
@@ -318,7 +317,7 @@ const CommissionsPage = () => {
       return {
         code: normalizeAffiliateCode(inserted?.code ?? code),
         link: buildAffiliateUrl(inserted?.code ?? code),
-        commissionRate: Number(inserted?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+        commissionRate: COMMISSION_RATE,
         isActive: inserted?.is_active === true,
       } satisfies AffiliateLinkResponse;
     },
@@ -341,9 +340,9 @@ const CommissionsPage = () => {
       const link = buildAffiliateUrl(code);
       const { data, error } = await affiliateDb
         .from("affiliates")
-        .update({ code, ref: code, link, commission_rate: COMMISSION_RATE })
+        .update({ code, ref: code, link })
         .eq("user_id", user.id)
-        .select("code, link, commission_rate, is_active")
+        .select("code, link, is_active")
         .maybeSingle();
 
       if (error) {
@@ -357,7 +356,7 @@ const CommissionsPage = () => {
       return {
         code: normalizeAffiliateCode(data?.code ?? code),
         link: buildAffiliateUrl(data?.code ?? code),
-        commissionRate: Number(data?.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE,
+        commissionRate: COMMISSION_RATE,
         isActive: data?.is_active === true,
       } satisfies AffiliateLinkResponse;
     },
