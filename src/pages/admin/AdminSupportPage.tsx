@@ -669,10 +669,23 @@ const AdminSupportPage = () => {
         },
       });
       if (error || (data && data.error)) {
-        throw new Error((data && data.error) || error?.message || "Não foi possível processar o reembolso.");
+        // supabase-js esconde o corpo do erro atrás de "non-2xx status code";
+        // aqui lemos a resposta real para mostrar o motivo ao admin.
+        let detail = (data && data.error) || "";
+        const response = (error as { context?: Response } | null)?.context;
+        if (!detail && response && typeof response.json === "function") {
+          try {
+            const body = await response.clone().json();
+            detail = body?.error || body?.message || "";
+          } catch {
+            /* corpo não é JSON */
+          }
+        }
+        throw new Error(detail || error?.message || "Não foi possível processar o reembolso.");
       }
       return data;
     },
+
     onSuccess: () => {
       toast.success("Reembolso enviado para processamento.");
       void qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
