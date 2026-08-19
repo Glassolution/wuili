@@ -32,9 +32,78 @@ Deno.serve(async (req) => {
       .from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
     if (!roleRow) return json({ error: "Acesso restrito a administradores" }, 403);
 
-    const { refund_id, action } = await req.json();
-    if (!refund_id || !["approve", "reject"].includes(action)) {
-      return json({ error: "refund_id e action (approve|reject) obrigatórios" }, 400);
+    const body = await req.json().catch(() => ({}));
+    let { refund_id } = body as { refund_id?: string | null };
+    const { action, user_id, reason, reason_details } = body as {
+      action?: string;
+      user_id?: string | null;
+      reason?: string | null;
+      reason_details?: string | null;
+    };
+    if (!["approve", "reject"].includes(String(action))) {
+      return json({ error: "action (approve|reject) obrigatório" }, 400);
+    }
+
+    if (!refund_id && action === "approve" && user_id) {
+      const directUserId = String(user_id).trim();
+      const REJECTED_STATUSES = ["rejected", "denied", "cancelled", "canceled"];
+      const { data: previousRequests } = await admin
+        .from("refund_requests")
+        .select("*")
+        .eq("user_id", directUserId)
+        .order("requested_at", { ascending: false })
+        .limit(20);
+      const previous = previousRequests ?? [];
+      const pending = previous.find((row) => String(row.status ?? "").toLowerCase() === "pending");
+      const blocking = previous.find((row) => {
+        const status = String(row.status ?? "").toLowerCase();
+        return status !== "pending" && !REJECTED_STATUSES.includes(status);
+      });
+
+      if (blocking) {
+        return json({ error: "Este cliente já possui um reembolso em processo ou concluído." }, 409);
+      }
+
+      if (pending) {
+        refund_id = pending.id;
+      } else {
+        const { data: subscription } = await admin
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", directUserId)
+          .in("status", ["active", "paid", "approved", "authorized"])
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!subscription) return json({ error: "Nenhuma assinatura ativa encontrada para este cliente." }, 404);
+
+        const now = new Date().toISOString();
+        const { data: created, error: createErr } = await admin
+          .from("refund_requests")
+          .insert({
+            user_id: directUserId,
+            subscription_id: subscription.id,
+            payment_id: subscription.mp_payment_id,
+            charge_id: subscription.validapay_charge_id,
+            reason: reason || "Reembolso direto pelo suporte",
+            reason_details:
+              reason_details ||
+              "Reembolso direto aprovado pelo suporte administrativo após confirmação manual.",
+            status: "pending",
+            refund_amount: Number(subscription.amount ?? 0),
+            requested_at: now,
+            automated: true,
+            refund_kind: "admin_direct",
+          })
+          .select("*")
+          .single();
+        if (createErr) return json({ error: createErr.message }, 500);
+        refund_id = created.id;
+      }
+    }
+
+    if (!refund_id) {
+      return json({ error: "refund_id ou user_id são obrigatórios para aprovar reembolso" }, 400);
     }
 
     const { data: refund } = await admin.from("refund_requests").select("*").eq("id", refund_id).maybeSingle();

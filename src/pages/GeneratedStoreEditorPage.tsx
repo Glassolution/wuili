@@ -2910,8 +2910,8 @@ const GeneratedStoreEditorPage = () => {
             <Pencil size={15} strokeWidth={2} />
             Editor
           </button>
-          <button type="button" onClick={handleSelectProductMode} className={`flex h-7 items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2.5 text-[12px] font-bold tracking-[-0.02em] transition ${!editorEnabled ? "text-[#2563EB]" : "text-[#717b8d] hover:text-[#2457d6]"}`} aria-label="Visualizar produto">
-            <Tag size={15} strokeWidth={2} /> Produto
+          <button type="button" onClick={handleSelectProductMode} className={`flex h-7 items-center gap-1.5 rounded-[9px] border border-transparent bg-transparent px-2.5 text-[12px] font-bold tracking-[-0.02em] transition ${!editorEnabled ? "text-[#2563EB]" : "text-[#717b8d] hover:text-[#2457d6]"}`} aria-label="Visualizar preview">
+            <Tag size={15} strokeWidth={2} /> Preview
           </button>
           <button type="button" onClick={() => { setMobilePreview(false); canvasZoomRef.current = 0.52; setCanvasZoom(0.52); }} className={`grid h-8 w-10 place-items-center rounded-[9px] transition ${!mobilePreview ? "bg-white text-[#111827] shadow-[0_3px_9px_rgba(15,23,42,0.14)] ring-1 ring-[#e6ebf3]" : "text-[#717b8d] hover:text-[#334155]"}`} aria-label="Preview desktop">
             <Monitor size={17} strokeWidth={2} />
