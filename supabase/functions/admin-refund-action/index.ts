@@ -30,7 +30,10 @@ Deno.serve(async (req) => {
     );
     const { data: roleRow } = await admin
       .from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
-    if (!roleRow) return json({ error: "Acesso restrito a administradores" }, 403);
+    if (!roleRow) {
+      console.error("admin-refund-action: caller sem papel admin", callerId);
+      return json({ error: "Acesso restrito a administradores" }, 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     let { refund_id } = body as { refund_id?: string | null };
@@ -61,7 +64,13 @@ Deno.serve(async (req) => {
       });
 
       if (blocking) {
-        return json({ error: "Este cliente já possui um reembolso em processo ou concluído." }, 409);
+        console.error("admin-refund-action: reembolso bloqueado", { directUserId, status: blocking.status });
+        return json(
+          {
+            error: `Este cliente já possui um reembolso ${String(blocking.status).toLowerCase() === "processed" ? "concluído" : "em processo"} (solicitado em ${new Date(blocking.requested_at ?? blocking.created_at).toLocaleDateString("pt-BR")}). Não é possível reembolsar novamente.`,
+          },
+          409,
+        );
       }
 
       if (pending) {
@@ -75,7 +84,10 @@ Deno.serve(async (req) => {
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (!subscription) return json({ error: "Nenhuma assinatura ativa encontrada para este cliente." }, 404);
+        if (!subscription) {
+          console.error("admin-refund-action: sem assinatura ativa", directUserId);
+          return json({ error: "Nenhuma assinatura ativa encontrada para este cliente." }, 404);
+        }
 
         const now = new Date().toISOString();
         const { data: created, error: createErr } = await admin
