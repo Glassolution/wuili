@@ -240,3 +240,108 @@ dd49603d chore: remove unused thumbnail asset imports from AICharacterCreator
 5d12e796 chore: remove dead store-onboarding block and unused locals from DashboardLayout
 ```
 Todos em cima de `5a672a68` (estado no início desta rodada).
+
+---
+
+# 4ª rodada — 2026-08-19
+
+Escopo desta rodada, definido pelo Maestro: continuar imports/código morto não investigado, componentes grandes, duplicação de UI — E/OU investigar chamadas Supabase diretas em `components/`/`pages/` atrás do mesmo padrão de condição de corrida que o Banco achou 2x (salvar por cima de snapshot em memória) ou erro engolido sem aviso, já que o Banco terminou de cobrir toda a camada de apoio (hooks/lib/contexts). Prioridade do usuário: menos gambiarra, código organizado, pode refatorar com cuidado.
+
+Estado inicial: `54be6bf6` (inclui o 2º fix de condição de corrida do Banco, em `publishProject`). `git log`/`git status` bateram com o esperado (repo limpo, só `.DS_Store` e `.md` de relatório não rastreados). Estado final: `e08aa37f`.
+
+## 1. Investigação das duas frentes
+
+### 1.1 Continuação do `tsc --noUnusedLocals` (arquivos ainda não revisados)
+Fui arquivo por arquivo nos itens que ainda não tinham sido tocados. Pulei de propósito: `GeneratedStoreEditorPage.tsx`/`CatalogoPage.tsx`/`CheckoutPage.tsx`/`redesign/Sidebar.tsx`/`DashboardTopbar.tsx`/`landing/*` (já na sua lista de aprovação ou em disputa com trabalho de terceiro) e `financial.preservation.test.ts` (um dos 2 testes obsoletos já aguardando sua confirmação pra apagar).
+
+### 1.2 Chamadas Supabase diretas em `components/`/`pages/`
+Levantei os 18 arquivos fora de `hooks/lib/contexts` que chamam `.update(` no Supabase e conferi cada um: a grande maioria já usa patches parciais de campo único (`{ read: true }`, `{ status: "closed" }` etc.) — padrão seguro, não vulnerável ao bug do Banco. Os dois candidatos que pareciam gravar um objeto inteiro (`OwnProductFormModal.tsx`, `SettingsPage.tsx`) são formulários de vida curta (abre → edita → salva, sem sessão longa concorrente) e só incluem os próprios campos editáveis — não é o mesmo padrão do bug do Banco (que envolvia edição de longa duração com escritor concorrente em segundo plano). Já `StoreAdminModal.tsx` delega pra `updateProjectMetadata`, a função que o Banco já corrigiu — segura por herança.
+
+Também varri por `catch` vazio/silencioso em todo `components/`/`pages/` — a maioria é de componentes já órfãos/desconectados (fora de alcance do usuário real, não priorizei investigar a fundo), e nos templates de produto ativos (`ProductTemplateBlack/Blue.tsx`) o erro já é mostrado pro usuário via `reviewNotice`, só falta log — não mexi por ser cosmético demais pra valer commit sozinho.
+
+---
+
+## 2. Executado e commitado
+
+### 2.1 Dois erros silenciosos em telas ativas — agora logados (sem UI nova)
+Mesmo padrão que o Banco já usou em `usePlanLimits.ts`/`usePlan.ts` (2ª rodada): onde um `catch` engolia o erro por completo, sem nenhum rastro, adicionei só `console.error` — sem toast, sem mudar nada visível.
+
+- **`GeneratedStoreEditorPage.tsx` (commit `e08aa37f`)**: o autosave do editor de loja (dispara ~900ms depois de qualquer edição) tinha `catch(() => { /* autosave silencioso */ })` — vazio de verdade, nem log. Comparando com `handleManualSave` (o botão "Salvar" manual, poucas linhas acima), que já loga E mostra um indicador "Erro" na tela: se o autosave começasse a falhar (rede instável, RLS, etc.) durante uma sessão longa de edição, o usuário não teria absolutamente nenhum sinal — só descobriria se clicasse "Salvar" manualmente ou perdesse o trabalho ao recarregar. Corrigido só o log; a parte de UI (mostrar "Erro" também no autosave, reaproveitando o mesmo indicador que o save manual já usa) fica como proposta na seção 3, porque isso sim muda o que aparece na tela.
+- **`StoreProjectsPage.tsx` (commit `f7733a03`)**: o refetch de projetos disparado por evento realtime (INSERT/DELETE de `user_projects`, ex.: colaborador cria/apaga um projeto) tinha `.catch(() => {})` vazio — se falhasse, a lista ficava desatualizada sem nenhum rastro. Mesmo tratamento: só log.
+
+### 2.2 Query de contagem descartada em `useSupplierChat.ts` (commit `f1818e5b`)
+Achado no meio da varredura de chamadas Supabase diretas (este arquivo é hook, mas a query específica ligava direto ao componente de lista de conversas com fornecedor). Pra cada fornecedor listado, o código fazia uma query extra de `count: "exact"` em `chat_messages` — e o resultado (`count`) nunca era lido; `unread` já vem hardcoded como `0` duas linhas abaixo, com o comentário `// simplified — no read tracking yet`. Ou seja, uma consulta inteira ao banco, por fornecedor, sempre descartada. Removida — reduz o N+1 já registrado no seu item #12 de aprovação (não fecha o item todo, só corta uma query supérflua dentro dele). Também limpei `useState`/`useCallback` importados e nunca usados no mesmo arquivo.
+
+### 2.3 Limpeza de imports/locais mortos confirmados (commits `636fc153`, `96997666`, `a3f551e4`, `237987af`, `45b6e165`)
+- `StoreProjectsPage.tsx`: `toast` (import nunca usado) e `isFreePlan` (calculado, nunca lido — confirmei que o paywall real usa `canCreateStorePlan`/`canCreateSalesPagePlan`, que checam `currentPlan` direto, então não é bug de gating, só sobra).
+- `CatalogPage.tsx` (rota `/dashboard/produtos`, página ativa — diferente de `CatalogoPage.tsx`): import `supabase` nunca usado, ícones `Plug`/`SlidersHorizontal`, e `useQueryClient`/`queryClient` (a única mutation do arquivo é a de sincronização manual, que está desativada de propósito — ver achado 3.3 abaixo — então nunca havia nada pra invalidar).
+- `ProductImagesDownload.tsx`: componente `SkeletonCard` inteiro e a variável `allLoaded`, nenhum dos dois referenciado em lugar nenhum — sobra de uma UI de loading que nunca foi ligada.
+- `SupplierCompareModal.tsx`: tipo `SupplierProduct` importado sem uso, índice `i` de loop sem uso (já tinha `key={sp.id}`).
+- `help/guides.ts`: 5 ícones Lucide importados e nunca usados.
+
+**Validação de toda a seção 2:** `npx tsc --noEmit -p tsconfig.app.json` limpo, `npm run build` limpo (mesmos warnings pré-existentes de chunk grande), `npx vitest run` → `32 failed | 106 passed (138)`, idêntico à baseline de todas as rodadas anteriores.
+
+---
+
+## 3. Achados novos que precisam da sua decisão (investigados, NÃO executados)
+
+### 3.1 🟠 `useStartMode.ts`: o hook inteiro foi esvaziado — sempre retorna "usuário tem plano pago", ignorando o plano real
+O comentário no topo do arquivo descreve a regra de negócio: usuário grátis → Start Mode ativo automaticamente (algum tipo de modo restrito); usuário pago → Start Mode desativado. Mas o corpo da função hoje é só:
+```ts
+export const useStartMode = (): UseStartModeResult => {
+  return { isStartMode: false, hasActivePlan: true, loading: false };
+};
+```
+`git log -p` mostra que isso foi um corte deliberado: uma versão anterior (commit `efea8cbd`) calculava tudo de verdade a partir de `usePlan()` (checava `status === "active" && PAID_PLANS.has(plan)`, sincronizava com `localStorage`, disparava evento pro `DashboardLayout` reagir). No commit seguinte (`05ed70604`, cujo título fala de "sincronização de pedidos do ML e dashboard premium" — nada a ver com Start Mode), essa lógica inteira foi apagada e substituída pelos valores fixos, sem nenhuma explicação relacionada ao commit.
+
+**Alcance real, hoje:** busquei todo `src/` — só um arquivo importa esse hook (`ImportProductModal.tsx`), e nem lá ele chega a ser chamado (`useStartMode(` não aparece — só o `import`, morto). Esse mesmo arquivo já tem seu próprio `const isStartMode = false;` hardcoded na linha 246, independente do hook. Ou seja: **o Start Mode como recurso não está restringindo ninguém hoje**, em lugar nenhum do app — nem por causa desse hook (que ninguém chama de verdade), nem apesar dele.
+
+**Por que não mexi:** isso é decisão de produto, não bug técnico simples — não sei se "Start Mode restringir usuário grátis" ainda é uma regra que vocês querem ativa ou se foi desligada de propósito (talvez temporariamente, pra destravar testes, e esquecida). Removi só o import morto não — decidi nem isso, porque cortar o import sem entender a intenção pode dificultar achar esse fio depois. Fica registrado pra você decidir: (a) reativar a lógica real (reverter pro padrão do commit `efea8cbd`), (b) remover o hook e o import morto de vez, assumindo que Start Mode foi descontinuado, ou (c) me dizer que já sabia disso e não é prioridade.
+
+### 3.2 🟠 `ProductDetailPage.tsx` (rota ativa `/dashboard/publicacoes/:id`): mostra "Fikri Store" fixo no lugar do canal de venda real
+Na seção "Canal" da tela de detalhe de uma publicação (produto já publicado no Mercado Livre), o código é:
+```tsx
+const [channel, setChannel] = useState("Fikri Store");
+...
+<button ...><Store size={14} /><span>{channel}</span></button>
+<button ...>+</button>
+```
+`channel` nunca muda (`setChannel` não é chamado em lugar nenhum do arquivo — foi isso que apareceu no `tsc --noUnusedLocals`) e o botão "+" ao lado não faz nada. "Fikri Store" é claramente um nome de placeholder de template de dashboard (não é nome de nenhuma loja Velo) — sobrou de um kit de UI usado como base visual. Como essa é literalmente a página de detalhe de uma publicação no Mercado Livre (o arquivo importa `ml_item_id`, `STATUS_META` com os status do ML etc.), o valor real ali quase certamente deveria ser algo como "Mercado Livre", não um nome de loja fictício.
+
+**Por que não corrigi:** viola a regra do `CLAUDE.md` de não mostrar dado inventado na tela, mas mudar o texto exibido é mudança visível — precisa da sua aprovação. Não sei também se o botão "+" deveria abrir algo (conectar outro canal?) ou se é decoração morta — precisaria de mais contexto de produto antes de decidir o que colocar ali.
+
+### 3.3 🟡 Reforço/confirmação de um achado já na sua lista (item #4): o próprio front-end assume que existe um cron que o Banco não achou
+Em `CatalogPage.tsx` (página ativa `/dashboard/produtos`), o botão de "sincronizar catálogo" está desativado de propósito:
+```ts
+// Sincronização manual desativada — catálogo agora vem do cron C7Drop.
+const syncMutation = useMutation({
+  mutationFn: async () => {
+    throw new Error("Sincronização manual desativada. O catálogo agora é alimentado pelo cron C7Drop.");
+  },
+  ...
+});
+```
+Os dois botões que chamam esse `syncMutation` continuam visíveis e clicáveis na tela — qualquer usuário que clique recebe esse erro. Isso é evidência direta, do lado do front-end, do achado #4 do Banco (não existe nenhum agendamento automático do C7Drop configurado): o código aqui foi escrito assumindo que o cron existe e funciona, e por isso desligou deliberadamente o botão manual — só que, pelo que o Banco encontrou, esse cron nunca existiu de verdade. Não mexi (é o mesmo item #4 já pendente, só reforça a urgência).
+
+### 3.4 Duas páginas órfãs novas encontradas (mesma categoria do item #7 já aprovado — não removi)
+`tsc --noUnusedLocals` também apontou em `App.tsx` que `PreviewPage` e `ReportsPage` (além do já conhecido `ProductsPage`, item #7) são importadas com `lazy()` mas **não aparecem em nenhuma `<Route>`**. Diferente do `ProductsPage` (que era claramente descartável — só vazava debug), essas duas parecem features reais e completas, não protótipos:
+- `src/pages/PreviewPage.tsx` (260 linhas): prévia pública de uma "página de vendas gerada", com paywall (`showPaywall`), fluxo de compra e leitura direta de `generated_sales_pages` no Supabase.
+- `src/pages/dashboard/ReportsPage.tsx` (387 linhas): um sistema de "relatório de vendas com IA" completo (score geral, métricas de receita/lucro/ticket médio, seções de texto), lendo de uma tabela própria de relatórios.
+
+**Por que não mexi:** ambas parecem trabalho real e substancial que nunca foi ligado ao roteamento — mesma categoria de "pode ser feature esquecida de ligar (bug) ou trabalho futuro em andamento" dos outros itens órfãos já na sua lista. Não removi nem os imports mortos em `App.tsx`. Fica como possível item novo pra lista de aprovação, ou você pode simplesmente confirmar se são recursos abandonados/futuros.
+
+---
+
+## 4. Commits desta rodada
+
+```
+636fc153 chore: remove unused toast import and isFreePlan local from StoreProjectsPage
+f7733a03 fix: log realtime refetch failures in StoreProjectsPage instead of swallowing them
+f1818e5b perf: remove unused per-supplier message count query in useSupplierChat
+96997666 chore: remove unused imports and queryClient from CatalogPage
+a3f551e4 chore: remove dead SkeletonCard component and allLoaded local from ProductImagesDownload
+237987af chore: remove unused SupplierProduct type import and loop index in SupplierCompareModal
+45b6e165 chore: remove unused Lucide icon imports from help/guides
+e08aa37f fix: log autosave failures in GeneratedStoreEditorPage instead of swallowing them
+```
+Todos em cima de `54be6bf6` (estado no início desta rodada).
