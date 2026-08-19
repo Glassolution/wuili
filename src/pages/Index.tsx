@@ -430,7 +430,7 @@ export default function Index() {
   }, []);
 
   const authTarget = !authLoading && user ? "/dashboard" : "/auth";
-  const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar gratuitamente";
+  const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
