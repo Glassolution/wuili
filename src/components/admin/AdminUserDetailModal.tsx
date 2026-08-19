@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
-  ArrowUpRight,
   Clock,
-  ExternalLink,
   Mail,
   MapPin,
   Package,
@@ -14,7 +12,6 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 
 type Props = { userId: string | null; onClose: () => void };
 
