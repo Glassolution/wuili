@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
+import AtlasPublishMlButton from "@/components/dashboard/AtlasPublishMlButton";
 import {
   getMessageActions,
   useAtlasChat,
@@ -121,6 +122,16 @@ const AtlasDockPanel = () => {
                 <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" strokeWidth={2.2} />
                 <span className="truncate">{acao.label}</span>
               </button>
+            );
+          }
+
+          if (acao.type === "publish_ml") {
+            return (
+              <AtlasPublishMlButton
+                key={`pub-${acao.product_id}-${i}`}
+                produtoId={acao.product_id}
+                label={acao.label}
+              />
             );
           }
 

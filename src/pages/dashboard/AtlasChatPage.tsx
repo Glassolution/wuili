@@ -8,6 +8,7 @@ import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasNavegacao } from "@/contexts/AtlasChatContext";
 import { supabase } from "@/integrations/supabase/client";
+import AtlasPublishMlButton from "@/components/dashboard/AtlasPublishMlButton";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -53,8 +54,16 @@ type AtlasConnectMlAction = {
   label: string;
 };
 
+type AtlasPublishMlAction = {
+  type: "publish_ml";
+  label: string;
+  product_id: string;
+  variant?: "primary";
+};
+
 type AtlasAction =
   | AtlasNavigationAction
+  | AtlasPublishMlAction
   | AtlasProductCardAction
   | AtlasQuickReplyAction
   | AtlasConnectMlAction;
@@ -365,6 +374,16 @@ const AtlasChatPage = () => {
                 <ArrowRight className="h-3.5 w-3.5 text-[#351078]" />
                 <span className="truncate">{action.label}</span>
               </button>
+            );
+          }
+
+          if (action.type === "publish_ml") {
+            return (
+              <AtlasPublishMlButton
+                key={`publish-${action.product_id}-${index}`}
+                produtoId={action.product_id}
+                label={action.label}
+              />
             );
           }
 
