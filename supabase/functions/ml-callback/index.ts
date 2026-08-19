@@ -11,7 +11,8 @@ Deno.serve(async (req) => {
     Deno.env.get("APP_URL") ||
     "https://velods.com.br"
   ).replace(/\/+$/, "");
-  const dashboardUrl = `${appUrl}/dashboard/integracoes`;
+  // /dashboard/integracoes hoje é a página de lojas Shopify; o Mercado Livre vive em Configurações.
+  const dashboardUrl = `${appUrl}/dashboard/configuracoes`;
 
   if (!code || !state) {
     return new Response(null, {
