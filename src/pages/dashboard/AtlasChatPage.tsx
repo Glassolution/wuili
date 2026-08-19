@@ -55,6 +55,7 @@ type AtlasConnectMlAction = {
 
 type AtlasAction =
   | AtlasNavigationAction
+  | AtlasPublishMlAction
   | AtlasProductCardAction
   | AtlasQuickReplyAction
   | AtlasConnectMlAction;
@@ -365,6 +366,16 @@ const AtlasChatPage = () => {
                 <ArrowRight className="h-3.5 w-3.5 text-[#351078]" />
                 <span className="truncate">{action.label}</span>
               </button>
+            );
+          }
+
+          if (action.type === "publish_ml") {
+            return (
+              <AtlasPublishMlButton
+                key={`publish-${action.product_id}-${index}`}
+                produtoId={action.product_id}
+                label={action.label}
+              />
             );
           }
 

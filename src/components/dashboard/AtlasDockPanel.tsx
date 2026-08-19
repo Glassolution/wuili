@@ -124,6 +124,16 @@ const AtlasDockPanel = () => {
             );
           }
 
+          if (acao.type === "publish_ml") {
+            return (
+              <AtlasPublishMlButton
+                key={`pub-${acao.product_id}-${i}`}
+                produtoId={acao.product_id}
+                label={acao.label}
+              />
+            );
+          }
+
           if (acao.type === "connect_ml") {
             return (
               <button

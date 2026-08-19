@@ -55,12 +55,23 @@ export type NichoDaVitrine = { id: string; label: string; catalogTerms: string[]
 /** Abre a vitrine de produtos do guia, já filtrada pelo nicho confirmado. */
 export type AtlasOpenShowcaseAction = { type: "open_showcase"; label: string; niche?: NichoDaVitrine };
 export type AtlasConnectMlAction = { type: "connect_ml"; label: string };
+/**
+ * Publica direto do chat: o frontend abre o modal de publicação (título, preço,
+ * estoque) por cima da conversa, em vez de mandar o usuário para o catálogo.
+ */
+export type AtlasPublishMlAction = {
+  type: "publish_ml";
+  label: string;
+  product_id: string;
+  variant?: "primary";
+};
 
 export type AtlasAction =
   | AtlasNavigationAction
   | AtlasProductCardAction
   | AtlasQuickReplyAction
   | AtlasConnectMlAction
+  | AtlasPublishMlAction
   | AtlasOpenShowcaseAction;
 
 /**
