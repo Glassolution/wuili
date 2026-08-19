@@ -22,7 +22,6 @@ import ProjectSettingsOverlay from "@/components/editor/ProjectSettingsOverlay";
 import { usePlan } from "@/hooks/usePlan";
 import { canCreateSalesPage, canCreateStore } from "@/lib/planLimits";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
-import { toast } from "sonner";
 
 type ProjectCard = {
   id: string;
@@ -152,7 +151,6 @@ const StoreProjectsPage = () => {
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined);
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
-  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
   const storeCount = useMemo(
     () => projects.filter((project) => project.tipo === "loja_completa").length,
     [projects],
