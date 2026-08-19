@@ -1,28 +1,24 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
   ChevronRight,
   Search,
   Download,
-  MoreHorizontal,
   Package,
   Eye,
   MessageSquare,
   X,
   Plus,
   TrendingUp,
-  ArrowUpRight,
   ArrowDownRight,
   RefreshCw,
   ShoppingBag,
-  ExternalLink,
   MapPin,
   Mail,
   Phone,
   Calendar,
-  CheckCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -65,7 +61,6 @@ const ITEMS_PER_PAGE = 8;
 export default function ProdutosMLPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [selectedTab, setSelectedTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -169,22 +164,16 @@ export default function ProdutosMLPage() {
         const buyerZip = addr.zip_code ?? "";
 
         // Lookup publication
-        let cjVariantId = null;
-        let cjProductId = null;
-        let cjProductUrl = null;
         let costPrice = null;
 
         if (mlItemId) {
           const { data: pub } = await supabase
             .from("user_publications")
-            .select("cj_variant_id, cj_product_id, cj_product_url, cost_price")
+            .select("cost_price")
             .eq("ml_item_id", mlItemId)
             .maybeSingle();
 
           if (pub) {
-            cjVariantId = pub.cj_variant_id ?? null;
-            cjProductId = pub.cj_product_id ?? null;
-            cjProductUrl = pub.cj_product_url ?? null;
             costPrice = pub.cost_price ?? null;
           }
         }
