@@ -135,7 +135,24 @@ export async function saveProjectDraft(
 }
 
 export async function publishProject(project: UserProject, metadataPatch: Record<string, unknown> = {}): Promise<UserProject> {
-  const metadata = { ...readMetadata(project), ...metadataPatch };
+  // Relê o metadata do banco em vez de partir do `project` em memória (mesmo
+  // padrão de saveProjectDraft/updateProjectMetadata): o editor autosalva em
+  // segundo plano enquanto o botão de publicar pode estar com um snapshot
+  // antigo — mesclar sobre esse snapshot descartaria silenciosamente o que o
+  // autosave (ou um colaborador em tempo real) já tiver gravado nesse meio-tempo.
+  const { data: current, error: readError } = await supabase
+    .from("user_projects")
+    .select("metadata")
+    .eq("id", project.id)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const freshBase =
+    current?.metadata && typeof current.metadata === "object" && !Array.isArray(current.metadata)
+      ? (current.metadata as Record<string, unknown>)
+      : {};
+
+  const metadata = { ...freshBase, ...metadataPatch };
   let slug = typeof metadata.slug === "string" ? metadata.slug : "";
   if (!slug) {
     slug = await ensureUniqueSlug(slugify(project.nome) || "loja");
