@@ -427,6 +427,29 @@ function isPublishRequest(text: string) {
   return /\b(publicar|publicacao|subir anuncio|anunciar|mercado livre|vender agora|colocar a venda)\b/.test(normalized);
 }
 
+// Deriva o user_id real a partir do token da sessão — nunca confiar no
+// `user_context.id` que o client manda no corpo, que é só um dado
+// não-verificado usado antes disso para autorizar leituras de outro usuário
+// (user_integrations, user_publications). Mesmo padrão de atlas-chat/index.ts.
+async function authenticateRequest(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !anonKey) return null;
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data, error } = await authClient.auth.getUser(token);
+  if (error || !data.user?.id) return null;
+  return data.user.id;
+}
+
 async function logAction(
   supabase: SupabaseClient,
   userId: string | null | undefined,
@@ -549,12 +572,21 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const authenticatedUserId = await authenticateRequest(req);
+    if (!authenticatedUserId) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const body = await req.json().catch(() => ({}));
     const userText = typeof body?.query === "string" ? body.query.trim() : "";
     const history: ChatHistoryItem[] = Array.isArray(body?.history) ? body.history : [];
     const currentProductId: string | null = typeof body?.current_product_id === "string" ? body.current_product_id : null;
     const forceMode: "chat" | "search" | null =
       body?.force_mode === "chat" ? "chat" : body?.force_mode === "search" ? "search" : null;
+    // `userContext` só alimenta o tom da IA (nome/email) — nunca mais é usado
+    // para decidir de qual usuário buscar/gravar dados (isso agora vem de
+    // `authenticatedUserId`, derivado do token real acima).
     const userContext = readUserContext(body?.user_context);
     const conversationId = typeof body?.conversation_id === "string" ? body.conversation_id : null;
     const excludeIds = Array.isArray(body?.exclude_ids)
@@ -574,7 +606,7 @@ serve(async (req) => {
     if (!forceMode && isNavigationRequest(userText)) {
       const routeAction = matchRouteAction(userText);
       if (routeAction) {
-        await logAction(supabase, userContext.id, "navigate", {
+        await logAction(supabase, authenticatedUserId, "navigate", {
           query: userText,
           route: routeAction.payload,
         }, conversationId);
@@ -592,9 +624,9 @@ serve(async (req) => {
 
     if (!forceMode && !isPublishRequest(userText) && isDiagnosisRequest(userText)) {
       const [mlStatus, publications, recentErrors] = await Promise.all([
-        getUserMlStatus(supabase, userContext.id),
-        getUserPublishedProducts(supabase, userContext.id),
-        getRecentErrors(supabase, userContext.id, 5),
+        getUserMlStatus(supabase, authenticatedUserId),
+        getUserPublishedProducts(supabase, authenticatedUserId),
+        getRecentErrors(supabase, authenticatedUserId, 5),
       ]);
       const actions: AtlasAction[] = [];
 
@@ -614,7 +646,7 @@ serve(async (req) => {
         });
       }
 
-      await logAction(supabase, userContext.id, "diagnose", {
+      await logAction(supabase, authenticatedUserId, "diagnose", {
         query: userText,
         ml_status: mlStatus,
         publications_count: publications.length,
@@ -640,9 +672,9 @@ serve(async (req) => {
     if (!forceMode && isPublishRequest(userText) && currentProductId) {
       const product = await loadProductFull(supabase, currentProductId);
       if (product) {
-        const mlStatus = await getUserMlStatus(supabase, userContext.id);
+        const mlStatus = await getUserMlStatus(supabase, authenticatedUserId);
         const publishFlow = startPublishFlow(product as CatalogProductFull, mlStatus);
-        await logAction(supabase, userContext.id, "publish_start", {
+        await logAction(supabase, authenticatedUserId, "publish_start", {
           query: userText,
           product_id: currentProductId,
           requirements: publishFlow.requirements,
@@ -679,8 +711,8 @@ serve(async (req) => {
     // ================= MODO GENERAL (IA generalista sobre a Velo) =================
     if (intent === "general" && apiKey) {
       const [mlStatus, publications] = await Promise.all([
-        getUserMlStatus(supabase, userContext.id),
-        getUserPublishedProducts(supabase, userContext.id),
+        getUserMlStatus(supabase, authenticatedUserId),
+        getUserPublishedProducts(supabase, authenticatedUserId),
       ]);
 
       const mlLine = mlStatus.connected
@@ -921,7 +953,7 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
           fornecedor_url: topProd.product_url ?? "",
         };
 
-        const mlStatus = await getUserMlStatus(supabase, userContext.id);
+        const mlStatus = await getUserMlStatus(supabase, authenticatedUserId);
         const publishFlow = startPublishFlow(topProd as CatalogProductFull, mlStatus);
         productActions[topProd.id] = publishFlow.action;
 
@@ -984,7 +1016,7 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
           : "Não recomendado no momento.";
         mensagem = `${filters.resposta_chat} ${margemTxt} ${demandaTxt} ${viralTxt} ${facilidadeTxt} ${veredito}`;
 
-        await logAction(supabase, userContext.id, "product_search", {
+        await logAction(supabase, authenticatedUserId, "product_search", {
           query: userText,
           product_id: topProd.id,
           ids,
