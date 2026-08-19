@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useSupplierProducts, selectBestSupplier, type SupplierProduct } from "@/hooks/useSupplierEngine";
+import { useSupplierProducts, selectBestSupplier } from "@/hooks/useSupplierEngine";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Trophy, Truck, DollarSign, Star, Package, AlertTriangle } from "lucide-react";
 
@@ -41,7 +41,7 @@ export default function SupplierCompareModal({ open, onClose, productId, product
           </div>
         ) : (
           <div className="space-y-2.5 py-2">
-            {ranked.map((sp, i) => {
+            {ranked.map((sp) => {
               const isBest = best?.id === sp.id;
               const totalCost = sp.cost_price + sp.shipping_cost;
               return (
