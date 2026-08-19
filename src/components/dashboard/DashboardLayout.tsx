@@ -767,6 +767,23 @@ const DashboardLayoutInner = () => {
     }
   }, [location.search]);
 
+  // Aba original: recebe o aviso da aba que concluiu o OAuth do Mercado Livre.
+  useEffect(() => {
+    let canal: BroadcastChannel | null = null;
+    try {
+      canal = new BroadcastChannel("velo-ml");
+    } catch {
+      return;
+    }
+    canal.onmessage = (evento) => {
+      if (evento.data?.tipo !== "ml-conectado") return;
+      veloToast.success("Mercado Livre conectado! Pode continuar por aqui.");
+      window.dispatchEvent(new CustomEvent("velo:ml-conectado"));
+    };
+    return () => canal?.close();
+  }, []);
+
+
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
