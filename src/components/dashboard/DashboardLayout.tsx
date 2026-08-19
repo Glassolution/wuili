@@ -13,14 +13,6 @@ import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
 import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
-import {
-  hasCompletedStoreOnboarding,
-  markStoreOnboardingCompleted,
-  readUserStores,
-  saveUserStores,
-  STORES_CHANGED_EVENT,
-  type VeloStore,
-} from "@/components/dashboard/FirstStoreOnboarding";
 import OnboardingModal, {
   markOnboardingSeen,
   shouldShowOnboarding,
@@ -29,7 +21,6 @@ import AtlasProductShowcase from "@/components/dashboard/AtlasProductShowcase";
 import { CHAVE_RESPOSTAS_DO_QUIZ } from "@/lib/perfilDoQuiz";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { useStartMode } from "@/hooks/useStartMode";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
@@ -40,20 +31,12 @@ import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import { Image as ImageIcon,
   ArrowLeft,
-  ArrowLeftRight,
   Archive,
-  BadgeDollarSign,
-  ClipboardList,
-  Code2,
   Copy,
-  CreditCard,
-  Heart,
   Headphones,
   HelpCircle,
   Home,
-  Landmark,
   LogOut,
-  MessageSquare,
   Settings,
   Search,
   ShieldCheck,
@@ -61,7 +44,6 @@ import { Image as ImageIcon,
   TrendingUp,
   UserPlus,
   UserRound,
-  Video,
   type LucideIcon,
 } from "lucide-react";
 
@@ -157,15 +139,6 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     return this.props.children;
   }
 }
-
-const MobileVeloMark = () => (
-  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#111111] text-white shadow-[0_8px_20px_rgba(0,0,0,0.10)]">
-    <svg width="18" height="18" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-      <path d="M33 18 A11 11 0 1 0 33 30" stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none" />
-      <path d="M30 26 L34 30 L38 26" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  </span>
-);
 
 const MobileBottomItem = ({
   to,
@@ -356,8 +329,6 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const { user, role } = useAuth();
   const { plan, loading: planLoading } = usePlan();
   const { foto } = useProfile();
-  const isStartMode = false;
-  const hasActivePlan = true;
   const [showStartModeModal, setShowStartModeModal] = useState(false);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
@@ -434,7 +405,6 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   }, [user, emailAffiliateRole, emailRole, role, metadataRole]);
 
   const isAdmin = resolvedRole === "admin";
-  const canAccessCommissions = resolvedRole === "influencer" || resolvedRole === "affiliate" || resolvedRole === "admin";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
@@ -521,9 +491,6 @@ const DashboardLayoutInner = () => {
   const { user, loading } = useAuth();
   const { aberto: atlasAberto } = useAtlasChat();
   const isMobile = useIsMobile();
-  const [stores, setStores] = useState<VeloStore[]>(() => readUserStores());
-  const [storesHydrated, setStoresHydrated] = useState(false);
-  const [shouldAutoShowStoreOnboarding, setShouldAutoShowStoreOnboarding] = useState(false);
   // Exibição do novo onboarding em modal — gating próprio, independente do
   // estado de loja/perfil no Supabase. Abre no primeiro acesso após o cadastro
   // e não reaparece depois de concluído (flag em localStorage por usuário).
@@ -566,7 +533,6 @@ const DashboardLayoutInner = () => {
   const isStartMode = false;
   const { plan: currentPlan, loading: planLoading } = usePlan();
   const showFreePlanBanner = !planLoading && currentPlan === "gratis";
-  const isModelsRoute = location.pathname.startsWith("/dashboard/modelos");
   // A barra do topo (nome da tela + sino) some em quase tudo: cada página já
   // abre com o próprio título e a seta de voltar, e os dois cabeçalhos
   // empilhados só repetiam a mesma informação. Sobra nas telas de conta —
@@ -591,153 +557,6 @@ const DashboardLayoutInner = () => {
     location.pathname !== "/colecoes" &&
     !location.pathname.startsWith("/dashboard/atlas");
 
-  useEffect(() => {
-    const syncStores = () => setStores(readUserStores());
-    syncStores();
-    window.addEventListener(STORES_CHANGED_EVENT, syncStores);
-    window.addEventListener("storage", syncStores);
-    return () => {
-      window.removeEventListener(STORES_CHANGED_EVENT, syncStores);
-      window.removeEventListener("storage", syncStores);
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user) {
-      setStoresHydrated(false);
-      setShouldAutoShowStoreOnboarding(false);
-      return;
-    }
-
-    const localStores = readUserStores();
-    if (localStores.length > 0) {
-      setStores(localStores);
-      setShouldAutoShowStoreOnboarding(false);
-      setStoresHydrated(true);
-      return;
-    }
-
-    let cancelled = false;
-
-    const hydrateStoreFromProfile = async () => {
-      if (!isSupabaseEnabled) {
-        setStoresHydrated(true);
-        return;
-      }
-
-      const buildStore = (profile: {
-        store_name: string | null;
-        loja_nome: string | null;
-        display_name: string | null;
-        whatsapp: string | null;
-        onboarding_completed: boolean;
-      } | null): VeloStore | null => {
-        const storeName = String(profile?.store_name || profile?.loja_nome || "").trim();
-        const completed = Boolean(profile?.onboarding_completed || storeName);
-        if (!completed) return null;
-
-        return {
-          id: `profile-${user.id}`,
-          name: storeName || "Minha Loja",
-          ownerName: String(profile?.display_name || user.user_metadata?.full_name || user.email || "").trim(),
-          cpf: "",
-          phone: String(profile?.whatsapp || ""),
-          source: "Perfil salvo",
-          businessType: "Loja online",
-          goal: "Publicar produtos",
-          productLimit: 30,
-          publishedProducts: 0,
-          createdAt: new Date().toISOString(),
-          isActive: true,
-        };
-      };
-
-      try {
-        const byUserId = await supabase
-          .from("profiles")
-          .select("store_name,loja_nome,display_name,whatsapp,onboarding_completed")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        let profile = byUserId.data;
-
-        if (!profile) {
-          const byId = await supabase
-            .from("profiles")
-            .select("store_name,loja_nome,display_name,whatsapp,onboarding_completed")
-            .eq("id", user.id)
-            .maybeSingle();
-          profile = byId.data;
-        }
-
-        const restoredStore = buildStore(profile);
-        if (!cancelled && restoredStore) {
-          saveUserStores([restoredStore]);
-          setStores([restoredStore]);
-          markStoreOnboardingCompleted(user.id);
-          setShouldAutoShowStoreOnboarding(false);
-        } else if (!cancelled) {
-          const createdAt = new Date(user.created_at).getTime();
-          const lastSignInAt = new Date(user.last_sign_in_at || "").getTime();
-          const isFirstSignIn =
-            Number.isFinite(createdAt) &&
-            Number.isFinite(lastSignInAt) &&
-            Math.abs(lastSignInAt - createdAt) <= 10 * 60 * 1000;
-          const explicitlyPending = user.user_metadata?.velo_onboarding_pending === true;
-          const alreadyHandled = hasCompletedStoreOnboarding(user.id);
-          const shouldShow = !alreadyHandled && (explicitlyPending || isFirstSignIn);
-
-          setShouldAutoShowStoreOnboarding(shouldShow);
-          if (!shouldShow) markStoreOnboardingCompleted(user.id);
-        }
-      } catch (error) {
-        console.warn("[DashboardLayout] não foi possível restaurar a loja salva:", error);
-      } finally {
-        if (!cancelled) setStoresHydrated(true);
-      }
-    };
-
-    void hydrateStoreFromProfile();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  const persistCompletedStore = async (store: VeloStore) => {
-    if (!user || !isSupabaseEnabled) return;
-
-    const payload = {
-      store_name: store.name,
-      loja_nome: store.name,
-      display_name: store.ownerName,
-      whatsapp: store.phone,
-      onboarding_completed: true,
-    };
-
-    const updateByUserId = await supabase
-      .from("profiles")
-      .update(payload)
-      .eq("user_id", user.id);
-
-    if (updateByUserId.error) {
-      const updateById = await supabase
-        .from("profiles")
-        .update(payload)
-        .eq("id", user.id);
-
-      if (updateById.error) {
-        console.warn("[DashboardLayout] não foi possível salvar a loja no perfil:", updateById.error);
-      }
-    }
-
-    const { error: metadataError } = await supabase.auth.updateUser({
-      data: { velo_onboarding_pending: false },
-    });
-    if (metadataError) {
-      console.warn("[DashboardLayout] não foi possível concluir o primeiro acesso no Auth:", metadataError);
-    }
-  };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
 
