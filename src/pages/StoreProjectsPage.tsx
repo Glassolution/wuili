@@ -236,7 +236,9 @@ const StoreProjectsPage = () => {
               setRawProjects(list);
               setProjects(list.map((project) => mapUserProject(project, currentUserId)));
             })
-            .catch(() => {});
+            .catch((error) => {
+              console.error("[StoreProjectsPage] realtime refetch failed", error);
+            });
         },
       )
       .subscribe();
