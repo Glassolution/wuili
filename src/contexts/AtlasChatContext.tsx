@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
+import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
 import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
 
 
