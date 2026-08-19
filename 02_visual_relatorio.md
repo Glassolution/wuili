@@ -402,3 +402,47 @@ Como não houve execução nesta rodada (bloqueio de exclusão de arquivo), não
 ## 5. Resumo
 
 Nenhum commit de código nesta rodada — só a atualização deste relatório. Achado principal (seção 1, remoção de 37 arquivos mortos do kit shadcn, ~3224 linhas) está com prova completa e pronto pra execução, mas o comando de exclusão de arquivo foi bloqueado pelo classificador desta sessão (testado em lote e isolado). Duas propostas novas registradas pra sua decisão: consolidação/normalização do shell de modais + z-index (seção 2, fundo grande, não cabe numa rodada) e o bug ativo de toast silencioso em `/admin/comissoes` (seção 3, correção pequena, só precisa de aprovação por mudar o que aparece na tela).
+
+---
+
+# 6ª rodada — 2026-08-19
+
+Escopo desta rodada, por julgamento próprio: áreas de frontend ainda não cobertas em 5 rodadas — acessibilidade básica (imagens sem `alt`, botões sem rótulo, contraste), responsividade quebrada, ou padrão novo de bug visual/estrutural. Prioridade: menos gambiarra.
+
+Estado inicial: `cb0d36cc` (inclui a 6ª rodada do Banco — correção de RPC com parâmetro errado e remoção de queries mortas em `profiles.role` — já em produção). `git status --short` bateu com o esperado: os 37 arquivos de `src/components/ui/` seguem `D ` e staged, exatamente como a rodada anterior deixou, travados esperando sua decisão (item #21) — **não toquei neles**. Estado final: `b548eae0`.
+
+## 1. Investigação
+
+- **Imagens sem `alt`:** escrevi um verificador que junta todo o bloco `<img ... />` (multi-linha, já que a maioria dos atributos vem quebrada em várias linhas) em vez de checar só a primeira linha — um `grep` ingênuo por linha acusava 84 "sem alt" que eram falsos positivos. Resultado real, nos 194 `<img>` do projeto: **zero sem `alt`**. Essa frente está limpa.
+- **Botões só com ícone, sem nome acessível:** escrevi um segundo verificador que junta cada bloco `<button>...</button>`, remove o conteúdo de texto/expressões e reporta quem sobra sem `aria-label`/`aria-labelledby`/`title` e sem texto visível. Bateu ~100 candidatos; a maioria era falso positivo do meu próprio script (removi `{variavel}` que na real é o texto visível do botão, ex. `{cta}`, `{label}`). Filtrei manualmente lendo o contexto de cada um: **~20 são botões reais, ativos, só-ícone, sem nenhum nome acessível** — fechar modal (`X`), voltar (`ArrowLeft`), enviar (`Send`), anexar (`Paperclip`), excluir elemento (`Trash2`), alternar IA (`Sparkles`), entre outros, espalhados por modais de produto, o editor de loja, e os dois chats (fornecedores e Atlas). Um leitor de tela não anuncia nada útil pra nenhum desses — usuário cego não sabe que aquele botão fecha, volta ou envia.
+- **Responsividade:** revisei visualmente (leitura de código, sem browser) os breakpoints `sm:`/`md:`/`lg:` dos componentes tocados nesta rodada e de alguns dashboards grandes (`SaldosPage.tsx`, `ChatFornecedoresPage.tsx`) — não achei quebra de layout óbvia (overflow sem scroll, texto cortado sem truncate). Não é uma auditoria completa de responsividade (precisaria de browser real pra ser conclusiva), só uma primeira passada.
+- **Contraste:** não achei nenhum texto claramente ilegível (cinza muito claro sobre branco, etc.) na leitura de código — mas contraste é mais confiável medido com ferramenta de verdade (ex. axe/Lighthouse) do que lendo classes Tailwind; não tive como rodar isso nesta sessão. Fica como limitação, não como "verificado limpo".
+
+## 2. Executado e commitado (invisível pra usuário vidente, sem mudança de UI)
+
+**Por que executei sem pedir aprovação:** `aria-label` não altera nenhum pixel na tela — é o mesmo raciocínio já usado nas rodadas anteriores pra logar erros silenciosos sem aprovação (achado invisível pra quem vê a tela, mas corrige um comportamento real). Diferente de mudar texto visível ou cor, aqui não há nada pra "aprovar visualmente".
+
+Adicionei `aria-label` (em português, mesmo padrão de idioma da UI do `CLAUDE.md`) em 15 botões só-ícone, em 12 arquivos, cobrindo:
+- **Fechar modal** (ícone `X`): `ImportProductModal.tsx`, `PlatformIntegrationModal.tsx`, `SelectProductModal.tsx`, `CreateSalesPageModal.tsx`, `OwnProductFormModal.tsx`, `ProjectSettingsOverlay.tsx`, `StoreAdminModal.tsx`, e dois em `GitChatPage.tsx` (fechar histórico / novo chat — o ícone é um `X` mas a ação real, conferida pelo `onClick`, é `newChat`; rotulei pelo comportamento real, não pela forma do ícone).
+- **Voltar** (`ArrowLeft`): `chat/ChatWindow.tsx`, `ChatFornecedoresPage.tsx`.
+- **Enviar / anexar** (`Send`, `Paperclip`): `ChatFornecedoresPage.tsx`.
+- **Alternar assistente de IA** (`Sparkles`): `ChatFornecedoresPage.tsx` — rótulo dinâmico ("Ativar"/"Desativar" assistente de IA) porque o próprio botão já tem texto visível "IA" que **some em telas pequenas** (`hidden sm:inline`) — ou seja, em mobile esse botão já era ícone puro sem nome nenhum, rótulo dinâmico corrige isso em qualquer largura de tela.
+- **Editor de loja** (`GeneratedStoreEditorPage.tsx`): aumentar/diminuir tamanho do ícone selecionado, excluir elemento selecionado.
+- **Mostrar histórico / nova conversa** (`MessageSquare`, `Plus`): `GitChatPage.tsx`, `AtlasChatPage.tsx`.
+
+**Prova:** `npx tsc --noEmit -p tsconfig.app.json` limpo, `npm run build` limpo (mesmos warnings pré-existentes de chunk grande), `npx vitest run` → `32 failed | 106 passed (138)`, idêntica à baseline de todas as rodadas anteriores. `git status --short` reconferido depois do commit: os 37 arquivos travados de `src/components/ui/` continuam exatamente como estavam (só `D `, staged, intocados).
+
+Commit: `b548eae0 fix: add aria-label to icon-only buttons across dashboard/chat/editor`.
+
+## 3. Achado novo que precisa da sua decisão (investigado, NÃO executado): botões inteiros sem nenhuma função
+
+Ao investigar os botões só-ícone acima, achei 4 que, além de não teres rótulo acessível, **também não têm `onClick` nenhum** — não é só um problema de acessibilidade, é um botão morto de verdade, clicável na tela mas que não faz nada pra ninguém, vidente ou não:
+
+- `SaldosPage.tsx` (rota ativa `/dashboard/saldos`, tela financeira usada de verdade): três botões `+` idênticos, um ao lado de cada título de card — "Visão de Receita" (linha 208), "Fluxo de Caixa" (linha 394), "Próximos Pagamentos" (linha 450). Todos com hover state definido (dão a impressão visual de que fazem algo), nenhum com `onClick`.
+- `components/dashboard/chat/ChatWindow.tsx` (chat de fornecedores, painel de conversa): botão "Opções" (`MoreHorizontal`, linha 91) no cabeçalho da conversa, também sem `onClick`.
+
+**Por que não mexi:** não sei qual era a intenção original desses botões (adicionar uma meta na visão de receita? abrir um menu de opções da conversa?) — não é uma limpeza óbvia como os `console.log` ou os erros engolidos das rodadas anteriores, é um recurso que parece ter ficado pela metade. Colocar `aria-label` num botão que não faz nada seria pior que deixar sem rótulo (daria uma falsa promessa pro usuário de leitor de tela de que aquele botão tem função). Duas saídas possíveis: (a) implementar a função que falta, se vocês souberem qual era a intenção, ou (b) remover o botão morto, se for decoração esquecida. Preciso da sua orientação antes de decidir qual.
+
+## 4. Resumo
+
+Um commit nesta rodada, todo de acessibilidade e sem nenhuma mudança visível: `b548eae0`. Achado novo pra lista de aprovação: botões "+"/"Opções" sem função em `SaldosPage.tsx` e `ChatWindow.tsx` (seção 3 acima) — não sei se é bug (função esquecida) ou recurso descontinuado, preciso da sua decisão. Os 37 arquivos travados de `src/components/ui/` (item #21) seguem intocados, exatamente como a 5ª rodada deixou.
