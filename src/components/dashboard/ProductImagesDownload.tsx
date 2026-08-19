@@ -46,16 +46,6 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(href), 10_000);
 }
 
-// ── Skeleton card ──────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA]">
-    <div className="aspect-square w-full animate-pulse bg-[#EBEBEB]" />
-    <div className="p-2">
-      <div className="h-7 w-full animate-pulse rounded-lg bg-[#EBEBEB]" />
-    </div>
-  </div>
-);
-
 // ── Main component ─────────────────────────────────────────────────────────
 export default function ProductImagesDownload({ images, productTitle }: Props) {
   const slug = toSlug(productTitle);
@@ -63,8 +53,6 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
   const [errorMap, setErrorMap] = useState<Record<number, boolean>>({});
   const [downloadingIdx, setDownloadingIdx] = useState<number | null>(null);
   const [zipping, setZipping] = useState(false);
-
-  const allLoaded = images.every((_, i) => loadedMap[i] || errorMap[i]);
 
   const handleImageLoad = useCallback((i: number) => {
     setLoadedMap((prev) => ({ ...prev, [i]: true }));
