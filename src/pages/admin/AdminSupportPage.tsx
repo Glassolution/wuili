@@ -14,6 +14,7 @@ import {
   Clock3,
   CreditCard,
   Hash,
+  HandCoins,
   Inbox,
   Loader2,
   Lock,
@@ -88,6 +89,11 @@ type CustomerContextData = {
   subscription_started_at: string | null;
   customer_since: string | null;
   last_seen_at: string | null;
+};
+
+type DirectRefundTarget = {
+  ticket: AdminTicket;
+  customer: CustomerContextData;
 };
 
 const CATEGORY_META: Record<
@@ -260,6 +266,7 @@ const AdminSupportPage = () => {
   const [view, setView] = useState<TicketView>("all");
   const [statusFilter, setStatusFilter] = useState<TicketStatusFilter>("open");
   const [dateFilter, setDateFilter] = useState<TicketDateFilter>("all");
+  const [directRefundTarget, setDirectRefundTarget] = useState<DirectRefundTarget | null>(null);
 
   const fallbackAdmin = isAdminEmail(user?.email);
 
@@ -651,6 +658,47 @@ const AdminSupportPage = () => {
     onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
+  const directRefund = useMutation({
+    mutationFn: async (target: DirectRefundTarget) => {
+      const { data, error } = await supabase.functions.invoke("admin-refund-action", {
+        body: {
+          action: "approve",
+          user_id: target.ticket.user_id,
+          reason: "Reembolso direto pelo suporte",
+          reason_details: `Reembolso direto confirmado no suporte pelo admin no ticket #${target.ticket.id.slice(0, 8)} para ${target.customer.email || "cliente sem e-mail"}.`,
+        },
+      });
+      if (error || (data && data.error)) {
+        // supabase-js esconde o corpo do erro atrás de "non-2xx status code";
+        // aqui lemos a resposta real para mostrar o motivo ao admin.
+        let detail = (data && data.error) || "";
+        const response = (error as { context?: Response } | null)?.context;
+        if (!detail && response && typeof response.json === "function") {
+          try {
+            const body = await response.clone().json();
+            detail = body?.error || body?.message || "";
+          } catch {
+            /* corpo não é JSON */
+          }
+        }
+        throw new Error(detail || error?.message || "Não foi possível processar o reembolso.");
+      }
+      return data;
+    },
+
+    onSuccess: () => {
+      toast.success("Reembolso enviado para processamento.");
+      void qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
+      void qc.invalidateQueries({ queryKey: ["admin-subs-eligible"] });
+      void qc.invalidateQueries({ queryKey: ["admin-pending-counts"] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-customer-context", directRefundTarget?.ticket.user_id] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível processar o reembolso.");
+    },
+    onSettled: () => setDirectRefundTarget(null),
+  });
+
   if (loading) return <VeloLoadingScreen message="Carregando suporte..." />;
   if (!user) return <Navigate to="/login" replace />;
   if (loadingProfile) return <VeloLoadingScreen message="Carregando suporte..." />;
@@ -671,55 +719,103 @@ const AdminSupportPage = () => {
 
   return (
     <AdminShell active="support" userId={user.id} fullBleed>
-      <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] overflow-hidden bg-[#f7f7f5]">
-        <TicketInbox
-          tickets={visibleTickets}
-          allTickets={tickets}
-          loading={loadingTickets}
-          selectedId={openTicketId}
-          onSelect={setOpenTicketId}
-          search={search}
-          onSearch={setSearch}
-          view={view}
-          onView={setView}
-          statusFilter={statusFilter}
-          onStatusFilter={setStatusFilter}
-          dateFilter={dateFilter}
-          onDateFilter={setDateFilter}
-        />
+      <>
+        <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] overflow-hidden bg-[#f7f7f5]">
+          <TicketInbox
+            tickets={visibleTickets}
+            allTickets={tickets}
+            loading={loadingTickets}
+            selectedId={openTicketId}
+            onSelect={setOpenTicketId}
+            search={search}
+            onSearch={setSearch}
+            view={view}
+            onView={setView}
+            statusFilter={statusFilter}
+            onStatusFilter={setStatusFilter}
+            dateFilter={dateFilter}
+            onDateFilter={setDateFilter}
+          />
 
-        <ConversationPanel
-          ticket={openTicket}
-          messages={messages}
-          loadingMessages={loadingMessages}
-          reply={reply}
-          setReply={setReply}
-          replyImage={replyImage}
-          onReplyImage={(file) => {
-            const validationError = validateSupportImage(file);
-            if (validationError) {
-              toast.error(validationError);
-              return;
-            }
-            setReplyImage(file);
-          }}
-          onRemoveReplyImage={() => setReplyImage(null)}
-          onSend={() => sendReply.mutate()}
-          sending={sendReply.isPending}
-          onResolve={() => closeTicket.mutate()}
-          resolving={closeTicket.isPending}
-          onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
-          onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
-          messageActionPending={editMessage.isPending || deleteMessage.isPending}
-          chatEndRef={chatEndRef}
-        />
+          <ConversationPanel
+            ticket={openTicket}
+            messages={messages}
+            loadingMessages={loadingMessages}
+            reply={reply}
+            setReply={setReply}
+            replyImage={replyImage}
+            onReplyImage={(file) => {
+              const validationError = validateSupportImage(file);
+              if (validationError) {
+                toast.error(validationError);
+                return;
+              }
+              setReplyImage(file);
+            }}
+            onRemoveReplyImage={() => setReplyImage(null)}
+            onSend={() => sendReply.mutate()}
+            sending={sendReply.isPending}
+            onResolve={() => closeTicket.mutate()}
+            resolving={closeTicket.isPending}
+            onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
+            onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
+            messageActionPending={editMessage.isPending || deleteMessage.isPending}
+            chatEndRef={chatEndRef}
+          />
 
-        <CustomerContextPanel
-          ticket={openTicket}
-          customer={customerContext ?? null}
-          loading={loadingCustomerContext}
-        />
-      </div>
+          <CustomerContextPanel
+            ticket={openTicket}
+            customer={customerContext ?? null}
+            loading={loadingCustomerContext}
+            refunding={directRefund.isPending}
+            onDirectRefund={(ticket, customer) => setDirectRefundTarget({ ticket, customer })}
+          />
+        </div>
+
+        {directRefundTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/35 p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-md rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
+                  <HandCoins size={19} strokeWidth={2} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-[#171715]">Dar reembolso agora?</h2>
+                  <p className="mt-1 text-[12.5px] leading-5 text-[#667085]">
+                    Isso vai processar automaticamente o reembolso da assinatura ativa deste cliente.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-[12px] text-[#475569]">
+                <p className="font-semibold text-[#171715]">{directRefundTarget.customer.name || "Cliente sem nome"}</p>
+                <p className="mt-0.5">{directRefundTarget.customer.email || "E-mail não informado"}</p>
+                <p className="mt-2 text-[11px] text-[#64748B]">Ticket #{directRefundTarget.ticket.id.slice(0, 8)}</p>
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDirectRefundTarget(null)}
+                  disabled={directRefund.isPending}
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-[12px] font-semibold text-[#475569] transition hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => directRefund.mutate(directRefundTarget)}
+                  disabled={directRefund.isPending}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:opacity-70"
+                >
+                  {directRefund.isPending ? <Loader2 size={14} className="animate-spin" /> : <HandCoins size={14} />}
+                  Confirmar reembolso
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     </AdminShell>
   );
 };
@@ -859,10 +955,14 @@ const CustomerContextPanel = ({
   ticket,
   customer,
   loading,
+  refunding,
+  onDirectRefund,
 }: {
   ticket: AdminTicket | null;
   customer: CustomerContextData | null;
   loading: boolean;
+  refunding: boolean;
+  onDirectRefund: (ticket: AdminTicket, customer: CustomerContextData) => void;
 }) => {
   if (!ticket) {
     return (
@@ -900,8 +1000,15 @@ const CustomerContextPanel = ({
             </p>
             <p className="mt-0.5 truncate text-[9.5px] text-[#969690]">Cliente Velo</p>
           </div>
-          <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#888882] transition hover:bg-[#f2f2ef] hover:text-[#30302d]" aria-label="Mais opções do cliente">
-            <MoreHorizontal size={15} />
+          <button
+            type="button"
+            onClick={() => onDirectRefund(ticket, data)}
+            disabled={refunding || loading}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe]"
+            title="Abrir reembolsos deste cliente"
+          >
+            {refunding ? <Loader2 size={13} className="animate-spin" /> : <HandCoins size={13} strokeWidth={2.1} />}
+            Dar reembolso
           </button>
         </div>
         <div className="mt-4 flex items-center gap-2">

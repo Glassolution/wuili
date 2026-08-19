@@ -2217,6 +2217,44 @@ export type Database = {
           },
         ]
       }
+      store_reviews: {
+        Row: {
+          author_name: string
+          comment: string
+          created_at: string
+          id: string
+          product_id: string | null
+          project_id: string
+          rating: number
+        }
+        Insert: {
+          author_name: string
+          comment: string
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          project_id: string
+          rating: number
+        }
+        Update: {
+          author_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          project_id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_reviews_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_migrations: {
         Row: {
           amount: number

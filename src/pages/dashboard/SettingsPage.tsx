@@ -9,6 +9,7 @@ import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
 import { PlanBadgeIcon, useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
+import RefundSection from "@/components/dashboard/RefundSection";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -107,7 +108,12 @@ const SettingsPage = () => {
           {tab === "Plano"         && <PlanTab />}
           {tab === "Notificações"  && <NotificationsTab />}
           {tab === "Segurança"     && <SecurityTab />}
-          {tab === "Suporte"       && <SupportTab />}
+          {tab === "Suporte"       && (
+            <div className="space-y-6">
+              <SupportTab />
+              <RefundSection />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -31,6 +31,8 @@ import {
 } from "@/lib/userProjects";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
+import StoreReviews from "@/components/store-templates/StoreReviews";
+import { EMPTY_REVIEW_SUMMARY, fetchStoreReviews, summarizeReviews } from "@/lib/storeReviews";
 
 const BENEFITS = [
   { icon: Leaf, label: "Ingredientes selecionados na sua forma natural" },
@@ -55,6 +57,7 @@ const PublicProductPage = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
+  const [reviewSummary, setReviewSummary] = useState(EMPTY_REVIEW_SUMMARY);
 
   useEffect(() => {
     if (!slug || !productId) return;
@@ -102,6 +105,23 @@ const PublicProductPage = () => {
       currency: "BRL",
     });
   }, [project, product]);
+
+  // Resumo das avaliações reais (store_reviews) usado no cabeçalho do produto.
+  useEffect(() => {
+    if (!project?.id) return;
+    let active = true;
+    void (async () => {
+      try {
+        const list = await fetchStoreReviews(project.id);
+        if (active) setReviewSummary(summarizeReviews(list));
+      } catch {
+        if (active) setReviewSummary(EMPTY_REVIEW_SUMMARY);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [project?.id]);
 
   const images = useMemo(() => {
     if (!product) return [] as string[];
@@ -279,17 +299,30 @@ const PublicProductPage = () => {
 
         {/* INFO */}
         <div>
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-[#1a1a1a]">
-            <div className="flex items-center">
-              {Array.from({ length: 5 }).map((_, idx) => (
-                <Star key={idx} size={14} strokeWidth={0} className="fill-[#1a3c2a] text-[#1a3c2a]" />
-              ))}
+          {reviewSummary.average !== null ? (
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-[#1a1a1a]">
+              <div className="flex items-center">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <Star
+                    key={idx}
+                    size={14}
+                    strokeWidth={idx < Math.round(reviewSummary.average ?? 0) ? 0 : 1.5}
+                    className={
+                      idx < Math.round(reviewSummary.average ?? 0)
+                        ? "fill-[#1a3c2a] text-[#1a3c2a]"
+                        : "text-[#1a3c2a]/35"
+                    }
+                  />
+                ))}
+              </div>
+              <span>{reviewSummary.average.toFixed(1)}/5</span>
+              <span className="text-[#1a1a1a]/55">
+                baseado em <strong className="font-bold">{reviewSummary.count}</strong>{" "}
+                {reviewSummary.count === 1 ? "avaliação" : "avaliações"}
+              </span>
             </div>
-            <span>4.9/5</span>
-            <span className="text-[#1a1a1a]/55">
-              baseado em <strong className="font-bold">1.031</strong> clientes felizes
-            </span>
-          </div>
+          ) : null}
+
 
           <h1
             className="mt-4 font-semibold leading-[1.05] tracking-[-0.015em] text-[#1a1a1a]"
@@ -432,48 +465,9 @@ const PublicProductPage = () => {
         </section>
       ) : null}
 
-      {/* REVIEWS */}
-      <section className="bg-[#1a3c2a] px-6 py-16 text-[#f5f2ea] md:px-10">
-        <div className="mx-auto max-w-5xl">
-          <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#e8ecd6]">
-            Clientes reais
-          </span>
-          <h2
-            className="mt-4 font-semibold uppercase leading-[0.98] tracking-[-0.01em]"
-            style={{ fontSize: "clamp(24px,3vw,40px)" }}
-          >
-            Amado por 1.031 pessoas
-          </h2>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {[
-              {
-                name: "Ana Beatriz",
-                text: "Chegou super rápido e a qualidade superou minhas expectativas. Uso todos os dias!",
-              },
-              {
-                name: "Rafael M.",
-                text: "Ótima experiência de compra. O suporte respondeu na hora quando tive dúvidas.",
-              },
-              {
-                name: "Camila S.",
-                text: "Design lindo, acabamento premium. Recomendo demais!",
-              },
-            ].map((review) => (
-              <div key={review.name} className="rounded-[20px] bg-white/[0.06] p-6 backdrop-blur">
-                <div className="flex items-center gap-1 text-[#c8a24a]">
-                  {Array.from({ length: 5 }).map((_, idx) => (
-                    <Star key={idx} size={13} strokeWidth={0} className="fill-current" />
-                  ))}
-                </div>
-                <p className="mt-3 text-[13.5px] leading-relaxed text-[#f5f2ea]/85">"{review.text}"</p>
-                <span className="mt-4 block text-[11px] font-semibold uppercase tracking-wider text-[#e8ecd6]/80">
-                  — {review.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* REVIEWS — dados reais da tabela store_reviews */}
+      <StoreReviews projectId={project.id} productId={product.id} accent="#1a3c2a" background="#f5f2ea" />
+
 
       {/* RELACIONADOS */}
       {related.length > 0 ? (

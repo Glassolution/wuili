@@ -3,12 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 // Avaliações reais da loja publicada (tabela store_reviews). Substituem os
 // depoimentos e as notas que antes eram fixos no código dos templates.
 
-// `any` justificado: store_reviews foi criada na migration 20260718120000 e
-// ainda não existe em integrations/supabase/types.ts (arquivo gerado por
-// `supabase gen types`, que precisa de acesso ao projeto). O cast fica isolado
-// aqui; as funções exportadas abaixo devolvem tipos concretos.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const reviewsTable = () => (supabase as any).from("store_reviews");
+const reviewsTable = () => supabase.from("store_reviews");
 
 type ReviewRow = {
   id: string;
