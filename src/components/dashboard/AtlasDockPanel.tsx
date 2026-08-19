@@ -9,6 +9,7 @@ import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
 import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
 import {
   getMessageActions,

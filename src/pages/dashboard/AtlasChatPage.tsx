@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasNavegacao } from "@/contexts/AtlasChatContext";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
 
 type ThreadRow = { id: string; title: string; updated_at: string };

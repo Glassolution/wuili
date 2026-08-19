@@ -16,6 +16,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
 import {
