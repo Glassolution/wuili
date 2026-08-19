@@ -13,7 +13,6 @@ import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
 import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
 import MobileHome from "@/components/dashboard/MobileHome";
-import ReferralRewardModal from "@/components/dashboard/ReferralRewardModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type AtlasMessage = {
@@ -107,7 +106,6 @@ const INTRO = {
   titleTravelDelay: 0.56,
   titleTravel: 1.05,
   revealDuration: 0.9,
-  promoDelay: 1,
   supportDelay: 1.14,
   chatDelay: 1.28,
   // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
@@ -241,7 +239,6 @@ const DashboardHomePage = () => {
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [conectandoMl, setConectandoMl] = useState(false);
-  const [referralInfoOpen, setReferralInfoOpen] = useState(false);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
   // Inicia o OAuth do Mercado Livre a partir do próprio chat. O helper só
   // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
@@ -538,68 +535,6 @@ const DashboardHomePage = () => {
               height: y(320),
               background: "#F5F4F1",
             }}
-          />
-
-          <motion.div
-            {...revealProps(INTRO.promoDelay, -10)}
-            style={{
-              position: "absolute",
-              left: x(28),
-              top: y(24),
-              width: x(296),
-              height: y(52),
-              borderRadius: 999,
-              border: "1px solid rgba(17, 24, 39, 0.10)",
-              background: "rgba(255, 255, 255, 0.97)",
-              boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-              display: "flex",
-              alignItems: "center",
-              padding: `0 ${fs(8)} 0 ${fs(17)}`,
-              gap: fs(10),
-            }}
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(22), height: fs(22), flex: "0 0 auto" }}>
-              <path d="M12 2.8c.6 4.8 2.8 7 7.6 7.6-4.8.6-7 2.8-7.6 7.6-.6-4.8-2.8-7-7.6-7.6 4.8-.6 7-2.8 7.6-7.6Z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-              <path d="M19 3.2c.2 1.6.9 2.3 2.5 2.5-1.6.2-2.3.9-2.5 2.5-.2-1.6-.9-2.3-2.5-2.5 1.6-.2 2.3-.9 2.5-2.5Z" fill="currentColor" />
-            </svg>
-            <span
-              style={{
-                color: "rgba(0,0,0,0.72)",
-                fontSize: fs(13),
-                fontWeight: 700,
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              Ganhe 3 meses grátis
-            </span>
-            <button
-              type="button"
-              onClick={() => setReferralInfoOpen(true)}
-              style={{
-                width: fs(96),
-                height: fs(40),
-                marginLeft: "auto",
-                borderRadius: 999,
-                border: "1px solid rgba(17, 24, 39, 0.08)",
-                background: "#FFFFFF",
-                boxShadow: "0 2px 5px rgba(15, 23, 42, 0.06)",
-                color: "#101114",
-                cursor: "pointer",
-                fontSize: fs(13),
-                fontWeight: 800,
-                lineHeight: 1,
-                flex: "0 0 auto",
-              }}
-            >
-              Ver planos
-            </button>
-          </motion.div>
-
-          <ReferralRewardModal
-            open={referralInfoOpen}
-            onClose={() => setReferralInfoOpen(false)}
-            onInvite={() => window.dispatchEvent(new CustomEvent("velo:open-invite-modal"))}
           />
 
           <motion.a
