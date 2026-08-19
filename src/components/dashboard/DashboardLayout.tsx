@@ -372,15 +372,11 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
 
     const resolveRole = async () => {
       const candidates = [emailRole, emailAffiliateRole, role, metadataRole].filter(Boolean) as string[];
-      const [profileByUserId, userRole, affiliateRecord] = await Promise.allSettled([
-        (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
-        (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
-        (supabase as any).from("affiliates").select("user_id").eq("user_id", user.id).maybeSingle(),
+      const [userRole, affiliateRecord] = await Promise.allSettled([
+        supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
+        supabase.from("affiliates").select("user_id").eq("user_id", user.id).maybeSingle(),
       ]);
 
-      if (profileByUserId.status === "fulfilled" && profileByUserId.value?.data?.role) {
-        candidates.push(profileByUserId.value.data.role);
-      }
       if (userRole.status === "fulfilled" && userRole.value?.data?.role) {
         candidates.push(userRole.value.data.role);
       }

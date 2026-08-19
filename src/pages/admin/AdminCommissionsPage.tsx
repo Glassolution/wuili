@@ -131,17 +131,17 @@ const AdminCommissionsPage = () => {
     enabled: !!user?.id,
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase as any).rpc("rpc_admin_affiliates_summary");
+        const { data, error } = await supabase.rpc("rpc_admin_affiliates_summary");
         if (error) throw error;
         return asAffiliateRows(data).map(canonicalizeAffiliateRow);
       } catch (e) {
         if (!isMissingRpcError(e)) throw e;
 
         const [affRes, clicksRes, convRes, profRes] = await Promise.all([
-          (supabase as any).from("affiliates").select("code, user_id, link, created_at").order("created_at", { ascending: false }),
-          (supabase as any).from("affiliate_clicks").select("affiliate_code"),
-          (supabase as any).from("affiliate_conversions").select("*"),
-          (supabase as any).from("profiles").select("id,user_id,display_name,created_at"),
+          supabase.from("affiliates").select("code, user_id, link, created_at").order("created_at", { ascending: false }),
+          supabase.from("affiliate_clicks").select("affiliate_code"),
+          supabase.from("affiliate_conversions").select("*"),
+          supabase.from("profiles").select("id,user_id,display_name,created_at"),
         ]);
         if (affRes.error) throw affRes.error;
         if (clicksRes.error) throw clicksRes.error;
@@ -224,8 +224,8 @@ const AdminCommissionsPage = () => {
     enabled: !!selectedCode,
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase as any).rpc("rpc_admin_affiliate_details", {
-          p_affiliate_code: selectedCode,
+        const { data, error } = await supabase.rpc("rpc_admin_affiliate_details", {
+          p_query: selectedCode ?? "",
         });
         if (error) throw error;
         return canonicalizeAffiliateDetails(data as AffiliateDetails | null | undefined);
@@ -234,15 +234,15 @@ const AdminCommissionsPage = () => {
 
         const code = normalizeAffiliateCode(selectedCode);
         const [affRes, clicksRes, convRes, profRes] = await Promise.all([
-          (supabase as any).from("affiliates").select("user_id, code, link, commission_rate, created_at").eq("code", code).maybeSingle(),
-          (supabase as any).from("affiliate_clicks").select("created_at, referrer, user_agent").eq("affiliate_code", code).order("created_at", { ascending: false }).limit(200),
-          (supabase as any)
+          supabase.from("affiliates").select("user_id, code, link, commission_rate, created_at").eq("code", code).maybeSingle(),
+          supabase.from("affiliate_clicks").select("created_at, referrer, user_agent").eq("affiliate_code", code).order("created_at", { ascending: false }).limit(200),
+          supabase
             .from("affiliate_conversions")
             .select("*")
             .eq("affiliate_code", code)
             .order("created_at", { ascending: false })
             .limit(200),
-          (supabase as any).from("profiles").select("id,user_id,display_name"),
+          supabase.from("profiles").select("id,user_id,display_name"),
         ]);
         if (affRes.error) throw affRes.error;
         if (clicksRes.error) throw clicksRes.error;

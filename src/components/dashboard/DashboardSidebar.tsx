@@ -492,11 +492,9 @@ const DashboardSidebar = () => {
     let active = true;
 
     const resolveAdminRole = async () => {
-      const [hasRoleResult, profileByUserId, profileById, userRole] = await Promise.allSettled([
+      const [hasRoleResult, userRole] = await Promise.allSettled([
         supabase.rpc("is_admin", { _user_id: user.id }),
-        (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
-        (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle(),
-        (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
       ]);
 
       if (!active) return;
@@ -506,10 +504,8 @@ const DashboardSidebar = () => {
       if (hasRoleResult.status === "fulfilled" && hasRoleResult.value.data === true) {
         roleCandidates.push("admin");
       }
-      for (const result of [profileByUserId, profileById, userRole]) {
-        if (result.status === "fulfilled" && result.value?.data?.role) {
-          roleCandidates.push(String(result.value.data.role));
-        }
+      if (userRole.status === "fulfilled" && userRole.value?.data?.role) {
+        roleCandidates.push(String(userRole.value.data.role));
       }
 
       setIsAdmin(roleCandidates.includes("admin"));
@@ -537,10 +533,8 @@ const DashboardSidebar = () => {
 
     const resolveAffiliateApplication = async () => {
       const [applicationResult, affiliateResult] = await Promise.allSettled([
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase as any).from("affiliate_applications").select("agreed_terms").eq("user_id", user.id).maybeSingle(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase as any).from("affiliates").select("is_active").eq("user_id", user.id).maybeSingle(),
+        supabase.from("affiliate_applications").select("agreed_terms").eq("user_id", user.id).maybeSingle(),
+        supabase.from("affiliates").select("is_active").eq("user_id", user.id).maybeSingle(),
       ]);
 
       if (!active) return;
