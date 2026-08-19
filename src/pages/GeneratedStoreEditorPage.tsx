@@ -1607,7 +1607,11 @@ const GeneratedStoreEditorPage = () => {
         copyVariant,
         elementOverrides,
         ...(editedPrice !== null ? { price: editedPrice } : {}),
-      }).catch(() => { /* autosave silencioso */ });
+      }).catch((error) => {
+        // Autosave continua silencioso pro usuário (sem toast) para não interromper a edição,
+        // mas precisa ficar registrado — antes esse catch não logava nada em lugar nenhum.
+        console.error("[GeneratedStoreEditorPage] autosave failed", error);
+      });
     }, 900);
     return () => window.clearTimeout(timeout);
   }, [currentProject?.id, storeName, activeTemplate, accent, font, columns, heroImage, logoImage, heroCtaUrl, copyVariant, elementOverrides, editedPrice, aiDescription]);
