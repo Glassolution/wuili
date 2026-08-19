@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
+import AtlasPublishMlButton from "@/components/dashboard/AtlasPublishMlButton";
 import {
   getMessageActions,
   useAtlasChat,

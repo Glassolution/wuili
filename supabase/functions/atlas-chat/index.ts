@@ -1206,12 +1206,6 @@ const validateSocialPotentialStep = (
   };
 };
 
-/**
- * Rota do produto com o modal de publicação já aberto (?publicar=1).
- * É o que transforma "abrir o produto" em "publicar de verdade".
- */
-const rotaDePublicacao = (route: string) => (route.includes("?") ? `${route}&publicar=1` : `${route}?publicar=1`);
-
 const guidePublicationStep = async (
   supabase: ServiceClient,
   userId: string,
