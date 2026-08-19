@@ -744,6 +744,14 @@ const DashboardLayoutInner = () => {
       veloToast.success("Mercado Livre conectado com sucesso!", {
         action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes") },
       });
+      // A conexão costuma acontecer em outra aba: avisa a aba original (chat do Atlas, catálogo...).
+      try {
+        const canal = new BroadcastChannel("velo-ml");
+        canal.postMessage({ tipo: "ml-conectado" });
+        canal.close();
+      } catch {
+        /* navegador sem BroadcastChannel: apenas ignora */
+      }
       navigate(location.pathname, { replace: true });
     }
 
