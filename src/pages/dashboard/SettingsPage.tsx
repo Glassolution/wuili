@@ -599,7 +599,9 @@ const IntegrationsTab = () => {
     if (platform === "mercadolivre" && user) {
       const toastId = veloToast.loading("Conectando com o Mercado Livre...");
       try {
-        await startMercadoLivreOAuth();
+        // Nova aba: a pessoa autoriza no Mercado Livre e volta para esta tela.
+        salvarRetornoMl({ origem: "config" });
+        await startMercadoLivreOAuth({ novaAba: true });
         veloToast.dismiss(toastId);
       } catch (err) {
         veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre", { id: toastId });
