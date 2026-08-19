@@ -9,6 +9,7 @@ import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
 import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
 import {
   getMessageActions,
@@ -69,8 +70,13 @@ const AtlasDockPanel = () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
-      await startMercadoLivreOAuth({ novaAba: true });
+      // Mesma aba: ao voltar, o Atlas reabre a conversa exatamente onde parou.
+      salvarRetornoMl({
+        origem: "atlas",
+        rota: `${window.location.pathname}${window.location.search}`,
+        threadId,
+      });
+      await startMercadoLivreOAuth({ novaAba: false });
       setConectandoMl(false);
     } catch (e) {
       setConectandoMl(false);

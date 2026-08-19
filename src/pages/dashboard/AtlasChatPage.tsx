@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasNavegacao } from "@/contexts/AtlasChatContext";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
 
 type ThreadRow = { id: string; title: string; updated_at: string };
@@ -122,8 +123,13 @@ const AtlasChatPage = () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
-      await startMercadoLivreOAuth({ novaAba: true });
+      // Mesma aba: ao voltar do Mercado Livre, a conversa é reaberta no mesmo ponto.
+      salvarRetornoMl({
+        origem: "atlas",
+        rota: `${window.location.pathname}${window.location.search}`,
+        threadId,
+      });
+      await startMercadoLivreOAuth({ novaAba: false });
       setConectandoMl(false);
     } catch (erro) {
       setConectandoMl(false);

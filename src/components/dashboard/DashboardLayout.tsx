@@ -741,10 +741,16 @@ const DashboardLayoutInner = () => {
     const params = new URLSearchParams(location.search);
 
     if (params.get("ml_connected") === "true") {
+      const retorno = lerRetornoMl();
+
+      // Quem começou pelo chat do Atlas volta pela própria conversa: o
+      // AtlasChatProvider cuida da restauração, então aqui não mexemos na URL.
+      if (retorno?.origem === "atlas") return;
+
       veloToast.success("Mercado Livre conectado com sucesso!", {
         action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes") },
       });
-      // A conexão costuma acontecer em outra aba: avisa a aba original (chat do Atlas, catálogo...).
+      // Avisa a aba de origem (Configurações) que a conexão terminou.
       try {
         const canal = new BroadcastChannel("velo-ml");
         canal.postMessage({ tipo: "ml-conectado" });
@@ -752,6 +758,14 @@ const DashboardLayoutInner = () => {
       } catch {
         /* navegador sem BroadcastChannel: apenas ignora */
       }
+
+      // Veio de Configurações em outra aba: fecha esta e devolve o foco.
+      if (retorno?.origem === "config" && window.opener && window.opener !== window) {
+        limparRetornoMl();
+        window.close();
+        return;
+      }
+      limparRetornoMl();
       navigate(location.pathname, { replace: true });
     }
 
