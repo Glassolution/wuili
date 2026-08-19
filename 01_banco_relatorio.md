@@ -372,3 +372,64 @@ Nenhuma outra ocorrência de dado mockado/hardcoded sendo gravado no banco (busq
 ### 11.3. Resumo de confiança da seção 11
 - Nenhum commit de código nesta rodada — o único achado novo (11.1) é uma mudança visível (remove um botão de uma tela ativa) e grava fora do escopo de execução autônoma combinado, então virou proposta no portão de aprovação em vez de execução direta.
 - Cobertura: todas as chamadas Supabase diretas em `components`/`pages` fora de `.update(` (já coberto pelo Visual) foram revisadas nesta rodada — `.select(`/`.insert(`/`.delete(`/`.rpc(`. Tudo que afirmo vem de leitura direta do código com arquivo:linha, do `git log -S` para a origem do botão, e de um `grep` real confirmando ausência de constraint de unicidade e de outras ocorrências do mesmo padrão.
+
+---
+
+## 12. Sexta rodada do modo contínuo (2026-08-19)
+
+Antes de começar: `git status --short` confirmou os ~37 arquivos `D ` staged em `src/components/ui/` (limpeza do Visual, travada no item #21 do portão) — não são meus, não toquei, não entraram em nenhum `git add`. `git log --oneline` com meus commits anteriores intactos. Nada novo desde a 5ª rodada além do que já está documentado em `00_maestro_relatorio.md`.
+
+**Escopo desta rodada:** já que a camada de dados de apoio e as chamadas diretas em `components`/`pages` foram cobertas por completo nas 5 rodadas anteriores, olhei duas frentes novas: (1) como o client monta as ~40 chamadas a `supabase.functions.invoke(...)` do projeto (payload, tratamento de erro de rede, retry) e (2) usos de `as any`/type assertion arriscada perto de código que fala com o Supabase (126 ocorrências de `as any` em `src`, sem contar `supabase/`).
+
+### 12.1. Chamadas a Edge Functions pelo client: nada de errado encontrado
+
+Revisei as ~40 chamadas (`grep -rln "functions.invoke" src`), com atenção extra em fluxos de dinheiro (`stripeCheckout.ts`, `validapayCheckout.ts`, `CheckoutPage.tsx`, `PlansPage.tsx`, `AdminSalesPage.tsx`) e nas de OAuth (`mercadoLivreOAuth.ts`, `useTikTokShop.ts`, `ShopifyIntegrationCard.tsx`). Achados:
+- Todas tratam `error` do `invoke` (ou propagam via `throw`/`toast`), a maioria extrai a mensagem real do corpo da resposta de erro (padrão repetido em `stripeCheckout.ts`/`validapayCheckout.ts`: ler `error.context` como `Response` e fazer `.json()` porque o Supabase JS não expõe o corpo de erros 4xx/5xx por padrão).
+- `ImportProductModal.tsx:575-605` documenta com comentário claro por que usa `fetch` direto em vez de `invoke` para `ml-publish` (o `invoke` consome o body internamente em respostas não-2xx, impedindo ler o código de erro específico) — engenharia intencional, não gambiarra.
+- Não existe retry automático em nenhuma chamada de mutação (publicar, checkout, etc.) — e isso é o comportamento certo: reenviar automaticamente uma compra ou uma publicação sem confirmação do usuário seria mais perigoso que não reenviar. O único polling real é `CheckoutPage.tsx` verificando status de pagamento Pix a cada 5s, com try/catch e sem acumular chamadas.
+- Nenhum "erro engolido": nem um único `catch {}` vazio nas chamadas de edge function revisadas.
+
+Não commitei nada aqui — é confirmação de que essa frente está limpa, não achado de bug.
+
+### 12.2. Achado real: `rpc_admin_affiliate_details` era chamado com o nome de parâmetro errado, batendo sempre na função antiga por engano
+
+**Onde:** `src/pages/admin/AdminCommissionsPage.tsx` (painel `/admin/comissoes`, aba "Afiliados aprovados" → detalhe de um afiliado).
+
+**O que encontrei:** o client chamava `supabase.rpc("rpc_admin_affiliate_details", { p_affiliate_code: selectedCode })`. Só que `supabase/migrations/` mostra que essa função foi recriada com `CREATE OR REPLACE FUNCTION` **três vezes** (`20260803010334`, `20260808023000`, `20260810013805`) trocando a assinatura para `(p_query text, p_from timestamptz, p_to timestamptz)` — a versão mais nova, com busca por identidade (código, e-mail etc.), da migration mais recente relacionada (`affiliate_admin_identity_fallback`). Como `CREATE OR REPLACE` com lista de parâmetros diferente **não substitui** a função antiga no Postgres, cria uma segunda sobrecarga — a função original `rpc_admin_affiliate_details(p_affiliate_code text)`, da migration `20260521233000`, continua existindo no banco (não encontrei nenhum `DROP FUNCTION` dela em nenhuma migration).
+
+O PostgREST resolve qual sobrecarga chamar pelo nome dos parâmetros no corpo JSON. Como o client mandava `p_affiliate_code`, ele sempre batia na função **antiga**, silenciosamente — nunca dava erro (então o fallback de `isMissingRpcError`, pensado para o caso de a RPC não existir, nunca era acionado), só usava a lógica de busca mais velha em vez da lógica de identidade mais nova que as últimas 3 migrations foram construindo.
+
+**Impacto real:** baixo — é uma tela só de admin, de leitura (consulta de detalhe de comissão), não grava nada errado. Mas é uma tela usada para decisão sobre repasse de comissão, e estava rodando uma versão desatualizada da lógica de busca sem ninguém perceber, porque não dava erro nenhum.
+
+**Corrigido (`6599f50a`):** troquei `p_affiliate_code: selectedCode` por `p_query: selectedCode ?? ""`, que é o nome de parâmetro certo da função atual (confirmado contra `src/integrations/supabase/types.ts:3578-3581`, que já refletia a assinatura nova). `selectedCode` vem de `row.code`, já é o código do afiliado — mesmo valor de busca de antes, só que agora chega na função certa.
+
+### 12.3. `as any` sem justificativa em volta de chamadas Supabase: 2 padrões limpos, sem mudar comportamento
+
+Enquanto investigava o achado acima, notei que o mesmo arquivo (e outros dois) usava `(supabase as any).from(...)`/`.rpc(...)` em chamadas cujas tabelas/colunas **já estão tipadas** em `types.ts` — ou seja, o cast não tinha nenhuma justificativa real (violando a regra do `CLAUDE.md` seção 4/8: "evitar `any` sem justificativa" / "nunca usar `any` sem comentário justificando"). Confirmei comparando com outros arquivos do projeto que chamam as mesmas tabelas (`affiliates`, `affiliate_conversions`, `affiliate_clicks`, `user_roles`, `affiliate_applications`) sem cast nenhum, funcionando normalmente.
+
+Removido, sem mudar nenhum comportamento (`6599f50a`):
+- `AdminCommissionsPage.tsx`: casts em `.rpc("rpc_admin_affiliates_summary")`, `.rpc("rpc_admin_affiliate_details")` e nas 8 chamadas `.from(...)` do fallback manual.
+- `DashboardSidebar.tsx` / `DashboardLayout.tsx`: casts em `.from("user_roles")`, `.from("affiliates")` e `.from("affiliate_applications")` (dois deles vinham com `// eslint-disable-next-line @typescript-eslint/no-explicit-any` do lado, confirmando que alguém sabia que o cast era necessário só por causa de outra coisa quebrada — ver 12.4).
+
+### 12.4. Achado real, junto do anterior: duas checagens de admin faziam `profiles.select("role")`, coluna que não existe — sempre falhavam caladas
+
+**Onde:** `DashboardSidebar.tsx` (`resolveAdminRole`, duas chamadas) e `DashboardLayout.tsx` (`resolveRole`, uma chamada).
+
+**O que encontrei:** a tabela `profiles` não tem coluna `role` — tem `is_admin: boolean` (conferido em `src/integrations/supabase/types.ts`, a lista completa de colunas de `profiles`). As três chamadas `(supabase as any).from("profiles").select("role")...` (uma em `DashboardLayout.tsx`, duas em `DashboardSidebar.tsx`, buscando por `user_id` e por `id`) tentavam ler uma coluna inexistente — o Postgres rejeita a query, e como as três estavam dentro de `Promise.allSettled`, o resultado sempre caía em `status === "rejected"` e era ignorado sem log nenhum. Ou seja: três chamadas de rede a cada carregamento de página que **nunca, em nenhuma hipótese, contribuíam com nada** — só custo e ruído, mascarado pelo `as any` (que impedia o TypeScript de acusar a coluna inexistente) e pelo `allSettled` (que engolia o erro de propósito).
+
+**Por que é seguro remover sem mudar comportamento:** cada uma dessas duas funções já tem outras fontes que fazem a mesma verificação de admin de forma correta e tipada (RPC `is_admin`, tabela `user_roles.role`, e-mail/metadata) — a fonte quebrada nunca somava nada ao resultado, então tirar ela não muda quem é considerado admin hoje, só remove trabalho morto.
+
+**Corrigido (`6599f50a`):** removidas as 3 chamadas `profiles.select("role")` dead-on-arrival, junto com a limpeza de `as any` do item 12.3.
+
+### 12.5. Prova
+
+- `npx tsc --noEmit`: limpo antes e depois.
+- `npm run build`: limpo, sem novo warning.
+- `npm test -- --run`: mesmo resultado antes e depois da mudança (32 falhas pré-existentes em `financial.preservation.test.ts`, relacionadas a um snapshot de texto de `DashboardHomePage` que já falhava na baseline, sem relação com os arquivos que toquei — confirmei rodando a suíte com `git stash` na baseline antes de mexer em qualquer coisa, mesma contagem exata de falhas).
+- Commit único: `6599f50a` — `fix: correct admin role/affiliate RPC calls and drop dead any-casts`.
+
+### 12.6. Resumo de confiança da seção 12
+
+- 1 commit real (`6599f50a`), 3 arquivos, 2 achados reais (RPC batendo na função errada por nome de parâmetro trocado; três queries mortas por coluna inexistente) mais limpeza de `as any` injustificado que os dois achados deixaram exposto. Nenhum dos dois é mudança de comportamento visível pro usuário — corrigi direto, sem esperar aprovação, como as regras de sempre permitem para correção de bug/limpeza sem mudar comportamento.
+- Chamadas a edge functions (seção 12.1): revisão completa, nenhum achado — registrado para não repetir essa varredura numa rodada futura.
+- Não toquei nos 37 arquivos `D` do Visual (item #21, travado) nem em nada da lista de aprovação.
