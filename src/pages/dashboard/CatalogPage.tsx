@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Search,
   ChevronDown,
@@ -8,8 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Plug,
-  SlidersHorizontal,
   Heart,
   ShoppingBag,
   RotateCcw,
@@ -22,7 +20,7 @@ import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/
 import PlatformIntegrationModal from "@/components/dashboard/PlatformIntegrationModal";
 import SupplierCompareModal from "@/components/dashboard/SupplierCompareModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { supabase, supabaseUrl } from "@/integrations/supabase/client";
+import { supabaseUrl } from "@/integrations/supabase/client";
 import { createTimeoutSignal } from "@/lib/requestTimeout";
 
 const CATEGORIES = [
@@ -201,7 +199,6 @@ const CatalogPage = () => {
   const [compareProductTitle, setCompareProductTitle] = useState("");
   const dateDropdownRef = useRef<HTMLDivElement>(null);
   const paymentDropdownRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
   const planLimits = usePlanLimits();
   const limit = 12;
 
