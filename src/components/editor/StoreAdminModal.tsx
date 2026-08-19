@@ -310,6 +310,7 @@ export default function StoreAdminModal({
                 </div>
                 <button
                   onClick={onClose}
+                  aria-label="Fechar"
                   className="grid h-9 w-9 place-items-center rounded-full text-white/60 transition hover:bg-white/[0.06] hover:text-white"
                 >
                   <X size={16} />

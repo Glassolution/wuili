@@ -118,7 +118,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
               <p className="text-xs text-muted-foreground">Conecte suas plataformas de venda.</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} aria-label="Fechar" className="text-muted-foreground hover:text-foreground transition-colors">
             <X size={18} />
           </button>
         </div>

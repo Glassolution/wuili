@@ -259,7 +259,7 @@ const ProjectSettingsOverlay = ({ open, onClose, project, initialSection = "gera
 
             {/* Main */}
             <div className="relative flex-1 overflow-y-auto">
-              <button type="button" onClick={onClose} className="absolute right-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/55 transition hover:bg-white/10 hover:text-white md:hidden">
+              <button type="button" onClick={onClose} aria-label="Fechar" className="absolute right-5 top-5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.06] text-white/55 transition hover:bg-white/10 hover:text-white md:hidden">
                 <X size={18} />
               </button>
 

@@ -361,6 +361,7 @@ function ChatWindow({
       <div className="flex items-center gap-3 border-b border-[#EBEBEB] dark:border-zinc-800 px-4 py-3">
         {onBack && (
           <button onClick={onBack}
+            aria-label="Voltar"
             className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#525252] dark:text-zinc-300 transition hover:bg-[#F5F5F5] dark:hover:bg-zinc-800 md:hidden">
             <ArrowLeft size={17} />
           </button>
@@ -430,7 +431,7 @@ function ChatWindow({
         )}
 
         <div className="flex items-end gap-2 rounded-2xl border border-[#E5E5E5] dark:border-zinc-700 bg-[#F7F7F7] dark:bg-zinc-800 px-3 py-2 transition focus-within:border-[#D4D4D4] dark:focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-[#0A0A0A]/6 dark:focus-within:ring-white/10">
-          <button className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#A3A3A3] dark:text-zinc-400 transition hover:bg-[#EBEBEB] dark:hover:bg-zinc-700 hover:text-[#525252] dark:hover:text-zinc-200">
+          <button aria-label="Anexar arquivo" className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#A3A3A3] dark:text-zinc-400 transition hover:bg-[#EBEBEB] dark:hover:bg-zinc-700 hover:text-[#525252] dark:hover:text-zinc-200">
             <Paperclip size={15} />
           </button>
           <textarea
@@ -445,6 +446,7 @@ function ChatWindow({
           />
           <button
             onClick={() => setShowAi(v => !v)}
+            aria-label={showAi ? "Desativar assistente de IA" : "Ativar assistente de IA"}
             className={`mb-0.5 flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium transition ${showAi ? "bg-[#0A0A0A] dark:bg-white text-white dark:text-black" : "text-[#525252] dark:text-zinc-300 hover:bg-[#EBEBEB] dark:hover:bg-zinc-700"}`}>
             <Sparkles size={13} />
             <span className="hidden sm:inline">IA</span>
@@ -452,6 +454,7 @@ function ChatWindow({
           <button
             onClick={handleSend}
             disabled={!text.trim() || isPending}
+            aria-label="Enviar mensagem"
             className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0A0A0A] dark:bg-white text-white dark:text-black transition hover:bg-[#2a2a2a] dark:hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30">
             <Send size={13} />
           </button>

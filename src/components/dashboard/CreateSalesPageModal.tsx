@@ -86,6 +86,7 @@ const CreateSalesPageModal = ({ open, productTitle, onClose, onConfirm }: Props)
           <button
             onClick={onClose}
             disabled={submitting}
+            aria-label="Fechar"
             className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-40"
           >
             <X size={16} className="text-gray-500" />

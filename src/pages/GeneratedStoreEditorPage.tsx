@@ -3114,14 +3114,14 @@ const GeneratedStoreEditorPage = () => {
                                 ) : selectedElement.type === "icon" ? (
                                   <div className="flex h-8 items-center gap-2">
                                     <button type="button" onClick={()=>setIconPickerOpen(true)} className="h-8 flex-1 rounded-full bg-black/28 text-[8px] font-semibold text-white/70">Trocar ícone</button>
-                                    <button type="button" onClick={()=>applyIconSize(-2)} className="grid h-8 w-8 place-items-center rounded-full bg-black/28"><Minus size={11}/></button>
+                                    <button type="button" onClick={()=>applyIconSize(-2)} aria-label="Diminuir tamanho do ícone" className="grid h-8 w-8 place-items-center rounded-full bg-black/28"><Minus size={11}/></button>
                                     <span className="text-[8px] font-semibold text-white/66">{contextControls.iconSize}px</span>
-                                    <button type="button" onClick={()=>applyIconSize(2)} className="grid h-8 w-8 place-items-center rounded-full bg-black/28"><Plus size={11}/></button>
+                                    <button type="button" onClick={()=>applyIconSize(2)} aria-label="Aumentar tamanho do ícone" className="grid h-8 w-8 place-items-center rounded-full bg-black/28"><Plus size={11}/></button>
                                   </div>
                                 ) : (
                                   <div className="flex gap-2">
                                     <button type="button" onClick={duplicateSelectedElement} className="h-8 flex-1 rounded-full bg-black/28 text-[8px] font-semibold text-white/66">Duplicar</button>
-                                    <button type="button" onClick={deleteSelectedElement} className="grid h-8 w-8 place-items-center rounded-full bg-black/28 text-white/55"><Trash2 size={12}/></button>
+                                    <button type="button" onClick={deleteSelectedElement} aria-label="Excluir elemento" className="grid h-8 w-8 place-items-center rounded-full bg-black/28 text-white/55"><Trash2 size={12}/></button>
                                   </div>
                                 )}
                               </section> : null}

@@ -418,11 +418,11 @@ const GitChatPage = () => {
           style={{ animation: "fadeSlideIn 0.4s ease both" }}
         >
           <div className="flex items-center justify-between mb-5">
-            <button onClick={() => setShowHistory(false)} className="text-[#6B7280] hover:text-[#1a1a2e] transition-colors">
+            <button onClick={() => setShowHistory(false)} aria-label="Fechar histórico" className="text-[#6B7280] hover:text-[#1a1a2e] transition-colors">
               <X size={18} />
             </button>
             <h2 className="text-lg font-semibold text-[#1a1a2e] tracking-tight">Chat Results</h2>
-            <button onClick={newChat} className="text-[#6B7280] hover:text-[#000000] transition-colors">
+            <button onClick={newChat} aria-label="Novo chat" className="text-[#6B7280] hover:text-[#000000] transition-colors">
               <Plus size={18} />
             </button>
           </div>
@@ -468,7 +468,7 @@ const GitChatPage = () => {
           <div className="flex shrink-0 items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.5)" }}>
             <div className="flex items-center gap-3">
               {!showHistory && (
-                <button onClick={() => setShowHistory(true)} className="text-[#9CA3AF] hover:text-[#000000] transition-colors mr-1">
+                <button onClick={() => setShowHistory(true)} aria-label="Mostrar histórico" className="text-[#9CA3AF] hover:text-[#000000] transition-colors mr-1">
                   <MessageSquare size={18} />
                 </button>
               )}
@@ -476,7 +476,7 @@ const GitChatPage = () => {
                 {hasStarted ? conversationTitle : "New Chat"}
               </span>
             </div>
-            <button onClick={newChat} className="text-[#9CA3AF] hover:text-[#1a1a2e] transition-colors">
+            <button onClick={newChat} aria-label="Novo chat" className="text-[#9CA3AF] hover:text-[#1a1a2e] transition-colors">
               <X size={18} />
             </button>
           </div>

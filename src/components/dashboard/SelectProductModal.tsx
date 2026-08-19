@@ -60,7 +60,7 @@ const SelectProductModal = ({ open, onClose, onSelect }: Props) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-[#1a1c1c]">Selecionar Produto</h2>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} aria-label="Fechar" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
             <X size={18} className="text-gray-500" />
           </button>
         </div>

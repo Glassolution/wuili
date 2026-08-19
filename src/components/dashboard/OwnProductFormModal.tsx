@@ -176,7 +176,7 @@ const OwnProductFormModal = ({ open, onClose, onSaved, product }: Props) => {
               Produtos seus, fora do catálogo de fornecedores.
             </p>
           </div>
-          <button onClick={onClose} className="rounded-md p-1.5 transition-colors hover:bg-black/[0.04]">
+          <button onClick={onClose} aria-label="Fechar" className="rounded-md p-1.5 transition-colors hover:bg-black/[0.04]">
             <X size={16} strokeWidth={1.5} className="text-muted-foreground" />
           </button>
         </div>

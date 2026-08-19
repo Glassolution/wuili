@@ -539,6 +539,7 @@ const AtlasChatPage = () => {
           </div>
           <button
             onClick={handleNewThread}
+            aria-label="Nova conversa"
             className="md:hidden inline-flex items-center gap-1 text-[13px] font-semibold text-neutral-700"
           >
             <Plus className="h-4 w-4" />

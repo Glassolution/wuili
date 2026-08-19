@@ -60,6 +60,7 @@ export default function ChatWindow({ conversation, onSendMessage, onBack }: Prop
         {onBack && (
           <button
             onClick={onBack}
+            aria-label="Voltar"
             className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#525252] dark:text-zinc-300 transition hover:bg-[#F5F5F5] dark:hover:bg-zinc-800 md:hidden"
           >
             <ArrowLeft size={17} />

@@ -745,6 +745,7 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
             </div>
             <button
               onClick={handleClose}
+              aria-label="Fechar"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-[#64748B] transition-colors hover:bg-white hover:text-[#0F172A]"
             >
               <X size={16} />
