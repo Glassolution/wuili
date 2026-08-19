@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,12 +81,6 @@ export function useSupplierThreads() {
             .limit(1);
 
           const last = msgs?.[0];
-          const { count } = await (supabase as any)
-            .from("chat_messages")
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", user!.id)
-            .eq("supplier_id", sid)
-            .eq("sender", "supplier");
 
           return {
             supplier_id:   sid,
