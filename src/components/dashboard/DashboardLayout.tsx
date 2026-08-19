@@ -12,6 +12,7 @@ import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
 import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
+import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
 import {
   hasCompletedStoreOnboarding,
   markStoreOnboardingCompleted,
