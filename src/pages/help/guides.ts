@@ -2,8 +2,6 @@ import {
   AlertTriangle,
   CreditCard,
   PackageX,
-  ShieldCheck,
-  Store,
   UserCog,
   Truck,
   RefreshCcw,
@@ -12,9 +10,7 @@ import {
   Receipt,
   Ban,
   FileWarning,
-  Image as ImageIcon,
   HelpCircle,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
 
