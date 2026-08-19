@@ -161,7 +161,9 @@ async function getValidaPayToken() {
 
 async function fetchValidaPayTransactions(start: Date, end: Date) {
   const token = await getValidaPayToken();
-  if (!token) return { available: false, transactions: [] as ValidaPayTransaction[] };
+  if (!token) {
+    return { available: false, statementPath: null, transactions: [] as ValidaPayTransaction[] };
+  }
 
   const sandbox = (Deno.env.get("VALIDAPAY_ENV") ?? "production").toLowerCase() === "sandbox";
   const apiUrl = sandbox ? "https://sandbox.validapay.com.br" : "https://api.validapay.com.br";
@@ -220,10 +222,11 @@ async function fetchValidaPayTransactions(start: Date, end: Date) {
 
   if (!activePath) {
     // Nenhum endpoint de extrato disponível: degrada sem quebrar o painel.
+    // `statementPath: null` avisa o frontend para não tratar os zeros como reais.
     console.warn("[admin-wallet-finance] nenhum endpoint de extrato disponível na ValidaPay");
   }
 
-  return { available: true, transactions };
+  return { available: true, statementPath: activePath, transactions };
 }
 
 async function fetchValidaPayBalance(): Promise<ValidaPayBalance | null> {
@@ -405,6 +408,9 @@ Deno.serve(async (req) => {
       activity_source: "validapay_webhooks",
       balance: resolvedBalance,
       balance_source: balance ? "wallet_balance" : resolvedBalance ? "latest_transaction" : null,
+      statement_available: !!validaPay.statementPath,
+      statement_path: validaPay.statementPath,
+      transactions_count: validaPay.transactions.length,
       period,
       range: { start: start.toISOString(), end: end.toISOString() },
       metrics: {
