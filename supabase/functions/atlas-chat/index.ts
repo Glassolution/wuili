@@ -92,8 +92,22 @@ type OpenShowcaseAction = {
   niche?: { id: string; label: string; catalogTerms: string[] };
 };
 
+/**
+ * Publica o produto sem sair do chat: o frontend abre o modal de publicação
+ * (título, preço, estoque) por cima da conversa e chama a ml-publish de lá.
+ * Antes esse botão era só uma navegação para o catálogo, o que tirava o
+ * usuário do guia e parecia que "não acontecia nada".
+ */
+type PublishMlAction = {
+  type: "publish_ml";
+  label: string;
+  product_id: string;
+  variant?: "primary";
+};
+
 type AtlasAction =
   | NavigationAction
+  | PublishMlAction
   | ProductCardAction
   | QuickReplyAction
   | ConnectMlAction
@@ -1229,12 +1243,12 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nReta final: revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nAbre o produto escolhido e coloca ele no ar.`,
+      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nReta final: revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre**: eu abro aqui no chat a tela de título, preço e estoque e publico com você.`,
     actions: [
       // Botão que realmente publica: abre o produto já com o modal de publicação
       // no Mercado Livre aberto. Antes o guia só mandava "abrir o produto" e o
       // iniciante não achava onde publicar.
-      { type: "navigation", label: "Publicar no Mercado Livre", route: rotaDePublicacao(productRoute), variant: "primary" },
+      { type: "publish_ml", label: "Publicar no Mercado Livre", product_id: product.product_id, variant: "primary" },
       { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       { type: "navigation", label: "Ver Pedidos", route: "/dashboard/pedidos" },
@@ -1505,10 +1519,18 @@ const maybeHandleBeginnerGuide = async (
 
     return {
       message:
-        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre** que eu abro o produto já na tela de publicação.`,
+        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre** que eu abro aqui mesmo, no chat, a tela de título, preço e estoque.`,
       actions: [
         ...(productNav
-          ? [{ type: "navigation" as const, label: "Publicar no Mercado Livre", route: rotaDePublicacao(productNav.route), variant: "primary" as const }, productNav]
+          ? [
+              {
+                type: "publish_ml" as const,
+                label: "Publicar no Mercado Livre",
+                product_id: productNav.route.split("/dashboard/catalogo/")[1]?.split("?")[0] ?? "",
+                variant: "primary" as const,
+              },
+              productNav,
+            ]
           : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       ],
