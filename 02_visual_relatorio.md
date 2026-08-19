@@ -345,3 +345,60 @@ a3f551e4 chore: remove dead SkeletonCard component and allLoaded local from Prod
 e08aa37f fix: log autosave failures in GeneratedStoreEditorPage instead of swallowing them
 ```
 Todos em cima de `54be6bf6` (estado no início desta rodada).
+
+---
+
+# 5ª rodada — 2026-08-19
+
+Escopo desta rodada, definido pelo Maestro: componentes de UI compartilhados em `src/components/ui/` (kit shadcn) — customização que quebra outros lugares, ou duplicação entre eles e componentes "reinventados"; OU duplicação de lógica de formulário/validação entre modais parecidos (`ImportProductModal`, `OwnProductFormModal` etc.); OU julgamento próprio. Prioridade: menos gambiarra.
+
+Estado inicial: `dd4a7d15`. `git log`/`git status` bateram com o esperado (repo limpo, só `.DS_Store` e `.md` de relatório não rastreados).
+
+**Nota importante sobre esta rodada:** encontrei um achado grande e bem verificado (seção 1), mas o comando de remoção de arquivo (`rm`/`git rm`) foi bloqueado pelo classificador de modo automático desta sessão — tanto em lote (37 arquivos de uma vez) quanto testado depois em um único arquivo isolado, o bloqueio se manteve. Não insisti nem tentei contornar (instrução explícita da ferramenta é não tentar burlar). Resultado: **nenhum commit de execução nesta rodada** — só investigação e propostas, diferente das rodadas 1–4. O achado da seção 1 está com prova completa e pronto para execução assim que alguém com permissão de exclusão de arquivo rodar (ou eu, numa sessão sem esse bloqueio específico).
+
+## 1. Achado principal: ~37 arquivos do kit shadcn em `src/components/ui/` são código morto puro (zero import em todo o `src/`) — pronto pra remover, mas bloqueado nesta sessão
+
+Investigação: para cada um dos ~50 arquivos de `src/components/ui/`, rodei um grep programático (`grep -rl "ui/<nome>\"" src`, excluindo o próprio arquivo) contra todo `src/` (não só `import`, qualquer referência ao caminho `ui/<nome>"`), e cruzei com uma varredura separada no repo inteiro fora de `src/` (scripts, testes, config) pra garantir que não é referenciado em nenhum outro lugar (só achei um falso positivo, `ui/alert-dialog` batendo com o regex de `alert`, que não faz parte da lista — `alert-dialog.tsx` é usado de verdade e não foi tocado). Também confirmei que não há import relativo (`./`) entre os próprios arquivos de `ui/` uns aos outros — cada candidato é uma ilha isolada, sem risco de remover algo que outro arquivo do kit ainda usa internamente.
+
+**Lista completa (37 arquivos, 3224 linhas no total, confirmado por `wc -l`):**
+```
+accordion.tsx, alert.tsx, aspect-ratio.tsx, avatar.tsx, badge.tsx, breadcrumb.tsx,
+calendar.tsx, card.tsx, carousel.tsx, chart.tsx, checkbox.tsx, collapsible.tsx,
+command.tsx, context-menu.tsx, drawer.tsx, dropdown-menu.tsx, form.tsx, hover-card.tsx,
+input-otp.tsx, menubar.tsx, navigation-menu.tsx, pagination.tsx, popover.tsx,
+progress.tsx, radio-group.tsx, resizable.tsx, scroll-area.tsx, sidebar.tsx (637
+linhas — o maior de todos), slider.tsx, sonner.tsx, switch.tsx, table.tsx, tabs.tsx,
+textarea.tsx, toaster.tsx, toggle-group.tsx, use-toast.ts
+```
+
+**Por que isso é surpreendente e vale registrar:** não é só "sobrou uns componentes do template". O projeto **abandonou o kit shadcn quase inteiro** e reinventou sua própria UI na marra — confirmei contando toda ocorrência de `from "@/components/ui/<nome>"` em `src/`: de ~50 primitivos instalados, só **14 são realmente usados** (`velo-toast` 59×, `button` 15×, `skeleton` 11×, `velo-loading-screen` 8×, `dialog` 4×, `tooltip` 3×, `toast` 2× — só o tipo, via `hooks/use-toast.ts` — `sheet` 2×, `label` 2×, `input` 2×, `toggle` 1×, `separator` 1×, `select` 1×, `alert-dialog` 1×). Isso bate com o padrão que já vinha aparecendo nas rodadas anteriores (`OwnProductFormModal.tsx`, por exemplo, é 100% `<div>`/Tailwind cru, nem um import de `ui/` — ver seção 2 abaixo) e explica por que `card.tsx`, `badge.tsx`, `table.tsx`, `dropdown-menu.tsx` (componentes que normalmente seriam onipresentes num dashboard) têm **zero uso** — o dashboard inteiro foi construído com markup próprio em vez do kit.
+
+**Achado colateral confirmado nessa varredura (não é o mesmo item do #3.5 da rodada 1):** o item 3.5 da 1ª rodada falava de **dependências npm** sem import (`package.json`, fora de escopo por afetar build). Este achado aqui é diferente e está dentro do meu escopo: são os **arquivos-fonte `.tsx`/`.ts` do próprio projeto** em `src/components/ui/`, que o Vite já exclui do bundle final por tree-shaking (então não há ganho de performance), mas que continuam poluindo o repo, o autocomplete do editor e a superfície que um humano (ou eu, numa rodada futura) precisa escanear pra saber "isso é usado ou não" — exatamente a categoria "menos gambiarra" que você pediu.
+
+**Validação que já fiz, pronta pra quando puder remover:** os 37 arquivos não aparecem em nenhum `import`, não são `lazy()`, não têm import relativo entre si, não aparecem em nenhum teste (`grep` em `*.test.*` vazio). Remover é operação de zero risco de comportamento — só falta o comando de exclusão em si, bloqueado nesta sessão.
+
+**Proposta:** na próxima rodada (ou nesta mesma sessão se o bloqueio for específico de contexto), rodar `git rm` nos 37 arquivos listados acima, seguido de `npx tsc --noEmit`, `npm run build` e `npx vitest run` pra confirmar que nada quebrou (esperado: zero diferença, já que nada os importa).
+
+## 2. Modais: shell duplicado ~19× em vez do `Dialog` do shadcn — investigado, não executado (blast radius grande demais pra rodada de refatoração pura)
+
+Como pedido, comparei a lógica de formulário/validação entre os modais de produto (`ImportProductModal.tsx`, 1389 linhas, e `OwnProductFormModal.tsx`, 314 linhas). Não achei duplicação de lógica de validação real entre os dois — são fluxos genuinamente diferentes (`ImportProductModal` importa produto já pronto do catálogo de fornecedor; `OwnProductFormModal` é cadastro manual do zero, com upload de imagem própria pro Storage, o único lugar do projeto que faz esse upload — não há outro modal fazendo a mesma coisa pra consolidar). O helper de parse numérico local do `OwnProductFormModal` (`num()`, linha 94) também não tem gêmeo exato em outro modal — os parses parecidos em `CheckoutPage.tsx`/`CatalogPage.tsx`/`StoreCatalogPage.tsx` têm regras de borda sutilmente diferentes (`>= 0` vs `> 0`, regex de limpeza de moeda diferente), o mesmo tipo de risco que a rodada 2 já identificou pro `formatBRL` e decidiu não consolidar às cegas — não mexi pelo mesmo motivo.
+
+O que achei em vez disso, olhando o "shell" (moldura) dos modais em vez da lógica interna: **o kit shadcn tem um `Dialog` pronto e não-customizado em `src/components/ui/dialog.tsx`** (confirmei lendo o arquivo — é o padrão de fábrica do shadcn/Radix, sem nenhuma alteração), mas ele só é usado em 2 componentes ativos (`ManualCategoryDialog.tsx`, `SupplierCompareModal.tsx` — já coberto em rodadas anteriores) mais `TutorialModal.tsx` (órfão, já na sua lista). **Todos os outros ~19 modais do dashboard reescrevem a mesma moldura na mão**, `<div className="fixed inset-0 z-[N] flex items-center justify-center bg-black/NN ...">`, cada um com seu próprio valor de overlay/blur/animação, em vez de usar o primitivo já instalado. Levantei os valores de `z-index` usados em todo `fixed inset-0` do projeto (não só modais — inclui painéis/drawers): **encontrei pelo menos 15 valores distintos em uso** (`z-40`, `z-50`, `z-[55]`, `z-[60]`, `z-[70]`, `z-[80]`, `z-[90]`, `z-[95]`, `z-[100]`, `z-[110]`, `z-[120]`, `z-[125]`, `z-[140]`, `z-[999]`, `z-[9999]`), escolhidos arquivo por arquivo, sem nenhuma constante/token central (mesmo padrão do achado já registrado na rodada 2 sobre `strokeWidth` de ícones — decisão ad-hoc por arquivo, sem padronização). Não confirmei nenhum caso concreto de dois desses overlays abertos ao mesmo tempo colidindo na tela (não tive tempo de rastrear a árvore de renderização de cada combinação possível), então não estou afirmando um bug ativo — é um risco estrutural, não um bug comprovado.
+
+**Por que não executei nada aqui:** consolidar os 19 modais pro `Dialog` do shadcn mudaria comportamento visível de verdade (foco automático/focus trap, fechar com ESC, fechar clicando fora, animação de entrada/saída — o `Dialog` do shadcn tem tudo isso via Radix; os modais na mão têm um comportamento diferente em cada um, alguns nem fecham com ESC) — é uma mudança de UX em ~19 telas, muito além do que cabe numa rodada sem aprovação. Normalizar só o `z-index` também mexe em ordem de empilhamento visual, mesmo risco. Fica registrado como proposta de fundo pra você decidir se vale abrir como iniciativa própria (não cabe no "achado pontual" de uma rodada).
+
+## 3. Achado novo, ativo: toast de sucesso/erro que nunca aparece em `/admin/comissoes` (aprovar/rejeitar afiliado)
+
+Ao rastrear o kit `ui/toast.tsx` (que sobrevive porque `src/hooks/use-toast.ts`, fora de `components/ui/`, importa um tipo dele) descobri uma cadeia de arquivos mortos: `src/components/ui/toaster.tsx` (o componente `<Toaster />` que precisaria estar montado no `App.tsx` pra qualquer toast desse sistema aparecer na tela) **nunca é importado em lugar nenhum** — confirmei em `src/App.tsx` que só `VeloToaster` (o sistema de toast próprio, `velo-toast.tsx`) está montado, não o `<Toaster />` do shadcn.
+
+Isso importa porque `src/components/admin/AdminAffiliateApplicationsPanel.tsx` (renderizado dentro de `AdminCommissionsPage`, rota ativa `/admin/comissoes` — confirmei em `App.tsx`) usa exatamente esse sistema morto: `toast({...})` nas linhas 165 (sucesso ao aprovar/rejeitar solicitação de afiliado) e 182 (erro, incluindo mensagens específicas por código de erro do RPC). **Como o `<Toaster />` nunca é montado, nenhum desses dois toasts jamais aparece na tela** — a ação em si funciona (o RPC `rpc_admin_accept_affiliate_application`/`rpc_admin_reject_affiliate_application` roda normalmente e a lista é invalidada/atualizada no sucesso), mas o admin não recebe nenhuma confirmação visual de que funcionou, e em caso de erro específico (ex.: RPC rejeitado por alguma regra de negócio) não recebe explicação nenhuma — só percebe algo errado se ficar de olho se a linha da tabela mudou ou não.
+
+**Por que não corrigi direto:** é uma mudança de comportamento visível (um toast passaria a aparecer onde hoje não aparece nenhum) — mesma categoria de restrição das outras correções de UI. Duas formas óbvias de corrigir, ambas simples (um componente ou uma troca de import): (a) trocar o `toast` importado de `@/hooks/use-toast` por `veloToast` de `@/components/ui/velo-toast` nesse arquivo, seguindo o padrão que os outros 59 call-sites do projeto já usam; ou (b) montar `<Toaster />` no `App.tsx`. A opção (a) é mais consistente com o resto do projeto. Fica pra sua aprovação.
+
+## 4. Validação
+
+Como não houve execução nesta rodada (bloqueio de exclusão de arquivo), não há diff de código pra validar com `tsc`/`build`/`vitest`. Reconferi `git status --short` ao final: só `public/.DS_Store` (não meu) e os `.md` de relatório.
+
+## 5. Resumo
+
+Nenhum commit de código nesta rodada — só a atualização deste relatório. Achado principal (seção 1, remoção de 37 arquivos mortos do kit shadcn, ~3224 linhas) está com prova completa e pronto pra execução, mas o comando de exclusão de arquivo foi bloqueado pelo classificador desta sessão (testado em lote e isolado). Duas propostas novas registradas pra sua decisão: consolidação/normalização do shell de modais + z-index (seção 2, fundo grande, não cabe numa rodada) e o bug ativo de toast silencioso em `/admin/comissoes` (seção 3, correção pequena, só precisa de aprovação por mudar o que aparece na tela).
