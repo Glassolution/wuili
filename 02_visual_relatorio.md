@@ -446,3 +446,27 @@ Ao investigar os botões só-ícone acima, achei 4 que, além de não teres rót
 ## 4. Resumo
 
 Um commit nesta rodada, todo de acessibilidade e sem nenhuma mudança visível: `b548eae0`. Achado novo pra lista de aprovação: botões "+"/"Opções" sem função em `SaldosPage.tsx` e `ChatWindow.tsx` (seção 3 acima) — não sei se é bug (função esquecida) ou recurso descontinuado, preciso da sua decisão. Os 37 arquivos travados de `src/components/ui/` (item #21) seguem intocados, exatamente como a 5ª rodada deixou.
+
+# 7ª rodada — 2026-08-19
+
+## 1. Investigação
+
+Escopo desta rodada: performance real (memoização em listas, imagens sem lazy loading em telas com muita lista), responsividade mobile quebrada, ou padrão novo — sem repetir imports/código morto, condição de corrida, erro engolido ou acessibilidade (já cobertos nas 6 rodadas anteriores).
+
+- **Memoização em listas**: revisei as telas de catálogo/produtos mais pesadas (`TrendingProductsPage.tsx`, `StoreCatalogPage.tsx`, `CatalogPage.tsx`) — todas já usam `useMemo` corretamente pra filtro/ordenação/facetas, nada novo pra corrigir aqui.
+- **Imagens sem lazy loading**: encontrei ~60 arquivos com `<img>` sem `loading="lazy"`, mas é um padrão espalhado pelo projeto inteiro (não concentrado numa tela de lista específica) — decidi não tocar, mudar isso em massa seria uma alteração grande demais pra uma rodada de limpeza pontual, sem um bug concreto por trás.
+- **Responsividade mobile**: revisei telas ativas com tabela (`<table>`) procurando as que não têm um wrapper de rolagem horizontal — a maioria já segue o padrão certo do projeto (`overflow-x: auto` ou uma lista de cards alternativa no mobile, como em `OrdersPage.tsx`). Achei uma exceção real, descrita abaixo.
+
+## 2. Executado e commitado (bug de responsividade, sem mudança visível no desktop)
+
+### 2.1 `PagamentosPage.tsx`: tabela de pedidos ficava com colunas invisíveis em tela estreita (commit `bfa7a322`)
+
+A tela `/dashboard/pagamentos` (financeira, usada de verdade pelo usuário) tem uma tabela de 6 colunas (Pedido, Produto, Frete, Status do pagamento, Status de envio, Data). O container que envolve a tabela usava `overflow: "hidden"` e não tinha nenhuma classe responsiva (`md:`/`lg:`) nem rolagem horizontal — diferente da tela irmã `TransacoesPage.tsx`, que já envolve sua tabela com `overflowX: "auto"`, e diferente de `OrdersPage.tsx`, que troca pra uma lista de cards empilhados em telas pequenas. Resultado prático: em qualquer celular, as colunas da direita ("Status de envio", "Data") ficavam cortadas e invisíveis, sem nenhum jeito de rolar até elas — dado sumindo de verdade, não só apertado.
+
+**Correção mínima**: envolvi a `<table>` existente com um `<div style={{ overflowX: "auto" }}>`, igual ao padrão já usado em `TransacoesPage.tsx`. No desktop não muda nada (a tabela já cabia no container, então nunca precisa rolar). No mobile, em vez de perder as colunas, agora dá pra rolar a tabela pra o lado e ver tudo. Não mexi no layout, cores nem texto — só destravei o acesso ao que já existia.
+
+**Prova**: `npx tsc --noEmit -p tsconfig.app.json` limpo, `npm run build` limpo (mesmos warnings pré-existentes de chunk grande).
+
+## 3. Resumo
+
+Um commit nesta rodada, correção de responsividade mobile numa tela financeira ativa, sem mudança nenhuma no desktop: `bfa7a322`. Nenhum achado novo pra lista de aprovação — a rodada de hoje foi mais difícil de achar bug novo (esperado, como avisado, já são 6 rodadas anteriores bem cobertas), mas apareceu um caso real e concreto. Os 37 arquivos travados de `src/components/ui/` (item #21) seguem intocados, não mexi neles.
