@@ -23,7 +23,8 @@ export const startMercadoLivreOAuth = async (options?: { novaAba?: boolean }) =>
   // Padrão: nova aba. Assim o usuário nunca perde a página (chat do Atlas, catálogo, etc.).
   const novaAba = options?.novaAba ?? true;
   const aba = novaAba ? window.open("about:blank", "_blank") : null;
-  if (aba) aba.opener = null;
+  // O opener é mantido de propósito: a aba do OAuth precisa se fechar sozinha
+  // ao voltar e devolver o foco para a aba de Configurações.
 
   try {
     const { data: rawData, error } = await supabase.functions.invoke("ml-connect");
