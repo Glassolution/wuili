@@ -1,14 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, ArrowRight, BadgePercent, Check, Copy, LayoutTemplate, Maximize2, PackageSearch, Sparkles, SquarePen, ThumbsDown, ThumbsUp, X as CloseIcon } from "lucide-react";
+import { ArrowRight, BadgePercent, Check, LayoutTemplate, Sparkles } from "lucide-react";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
-import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
-import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
-import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
 import { hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,12 +65,6 @@ type AtlasAction =
   | AtlasConnectMlAction;
 
 type AtlasMessageData = {
-  actions?: AtlasAction[];
-};
-
-type AtlasFunctionResponse = {
-  message?: string;
-  error?: string;
   actions?: AtlasAction[];
 };
 
@@ -234,18 +225,6 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
 const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
   if (!Array.isArray(value)) return [];
   return value.filter(isAtlasAction).slice(0, 12);
-};
-
-const getMessageActions = (message: AtlasMessage) => normalizeAtlasActions(message.product_data?.actions);
-
-const formatMargin = (margin?: number | null) => {
-  if (typeof margin !== "number" || !Number.isFinite(margin)) return "Margem a verificar";
-  return `${Math.round(margin)}% de margem`;
-};
-
-const formatPrice = (price?: number | null) => {
-  if (typeof price !== "number" || !Number.isFinite(price)) return null;
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(price);
 };
 
 const DashboardHomePage = () => {
