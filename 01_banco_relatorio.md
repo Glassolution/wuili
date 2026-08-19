@@ -433,3 +433,56 @@ Removido, sem mudar nenhum comportamento (`6599f50a`):
 - 1 commit real (`6599f50a`), 3 arquivos, 2 achados reais (RPC batendo na função errada por nome de parâmetro trocado; três queries mortas por coluna inexistente) mais limpeza de `as any` injustificado que os dois achados deixaram exposto. Nenhum dos dois é mudança de comportamento visível pro usuário — corrigi direto, sem esperar aprovação, como as regras de sempre permitem para correção de bug/limpeza sem mudar comportamento.
 - Chamadas a edge functions (seção 12.1): revisão completa, nenhum achado — registrado para não repetir essa varredura numa rodada futura.
 - Não toquei nos 37 arquivos `D` do Visual (item #21, travado) nem em nada da lista de aprovação.
+
+---
+
+## 13. Sétima rodada do modo contínuo (2026-08-19)
+
+Antes de começar: `git status --short` confirmou de novo os ~37 arquivos `D ` staged em `src/components/ui/` (item #21, travado) — não são meus, não toquei. `git log --oneline -8` com meus commits anteriores intactos (`6599f50a` no topo do lado do Banco). Árvore limpa e sincronizada. Não repeti nada da lista de aprovação (`00_maestro_relatorio.md`, 23 itens).
+
+**Escopo desta rodada, conforme sugerido:** em vez de continuar varrendo `hooks`/`lib`/`components`/`pages` por chamadas Supabase (já esgotado nas 6 rodadas anteriores), olhei (a) migrations vs. o que o client/edge functions esperam, e (b) lógica de cálculo financeiro (comissão de afiliado, margem) por bug de arredondamento/edge case — as duas frentes que você sugeriu.
+
+### 13.1. Achado real, precisa de decisão sua: migration diz "comissão só uma vez" mas a função que paga comissão de verdade continua pagando em toda renovação, para sempre — e a tela do afiliado promete isso
+
+**Onde:** `supabase/functions/_shared/affiliateCommission.ts` (função que registra a comissão de verdade, chamada pelos webhooks de pagamento) vs. `supabase/migrations/20260814162500_affiliate_first_sale_commission_30.sql` (a migration mais recente sobre o assunto) vs. `src/components/dashboard/AffiliateFinanceDashboard.tsx` (texto mostrado pro afiliado).
+
+**O que encontrei:**
+- `affiliateCommission.ts` (linhas 1-16, 124-129) calcula a comissão por **ciclo**: ciclo 1 (primeira cobrança) = 30%, ciclo 2 em diante (toda renovação da assinatura, mês a mês, para sempre) = 20%. Isso é código ativo — roda de verdade a cada webhook de pagamento (`mp-webhook`), grava em `affiliate_conversions`.
+- `affiliateRefund.ts` (o companheiro que estorna comissão em caso de reembolso) também trabalha com esse mesmo modelo de ciclos — ou seja, o sistema de renovação não é resquício abandonado, é um fluxo completo e mantido (tem até estorno).
+- Só que a migration mais recente sobre o assunto, `20260814162500_affiliate_first_sale_commission_30.sql` (15/08, já dentro do commit "Velo v2: restaura a árvore da sessão"), diz literalmente no comentário: **"A Velo remunera o afiliado uma única vez: 30% sobre a primeira venda de cada cliente indicado."** — ou seja, o texto da migration descreve uma regra de negócio **diferente** da que o código realmente executa (ela só mexeu em `commission_rate` de duas tabelas de configuração, nenhuma das quais é lida por `affiliateCommission.ts` — confirmei com `grep -rln "affiliate_settings" supabase/functions src`, só aparece em `types.ts` gerado, nunca lido por código de verdade; e `affiliates.commission_rate` já tinha sido marcada "DESCONTINUADA - nao usar" numa migration anterior, `20260810013653`, exatamente pelo mesmo motivo).
+- A tela real que o afiliado vê (`AffiliateFinanceDashboard.tsx:230,467-468`) promete explicitamente: **"Você recebe 30% no primeiro pagamento e 20% nas renovações desse cliente"** — isso bate com o que o código realmente faz hoje (ciclo por ciclo), não com o que a migration mais recente diz que "deveria" ser.
+
+**Por que isso importa, e por que não posso decidir sozinho:** não sei qual dos dois documentos reflete a decisão de negócio atual — se a migration de 15/08 é a intenção nova (parar de pagar renovação) e a função só não foi atualizada para implementá-la (nesse caso, a Velo está pagando comissão a mais, todo mês, em toda assinatura renovada de todo afiliado, indefinidamente, sem limite — um vazamento de dinheiro recorrente, não um bug pontual); ou se a migration é que ficou desatualizada/mal escrita e o comportamento real (ciclo a ciclo) é o certo, e nesse caso está tudo certo e a UI está correta. As duas leituras têm evidência real a favor (uma tem a migration mais recente com comentário explícito; a outra tem código ativo + tela do usuário + fluxo de estorno todos consistentes entre si).
+
+**Não toquei em nada disto** — mudar `affiliateCommission.ts` é mudança em `supabase/functions/`, e mudar a promessa de comissão na tela do afiliado é copy voltada pro cliente — as duas categorias do portão de aprovação de sempre.
+
+**Proposta (não executada, portão de aprovação):** você (ou quem decide a regra de negócio de afiliados) confirmar qual é a regra vigente hoje. Se for "só a primeira venda": mudar `affiliateCommission.ts` para nunca gerar comissão em `cycle_number >= 2` (e decidir o que fazer com o texto "20% nas renovações" na tela, que teria que sair). Se for "ciclo a ciclo, como está": a migration `20260814162500` deveria ter seu comentário corrigido pra não confundir quem ler o histórico depois (ela não muda comportamento nenhum de fato, só toca colunas mortas).
+
+### 13.2. Observação (não é bug confirmado): reembolso zera custo/taxa do pedido inteiro, não só a receita
+
+Em `src/lib/financial.ts`, `getFinancialSummary` (linhas 102-114): `revenue` desconta o `total` dos pedidos reembolsados, mas `costs`/`fees` são somados só de `activeOrders` — que já exclui os reembolsados. Ou seja, quando um pedido vira `refunded`, o custo e a taxa que ele já tinha gravado somem inteiramente da conta (não é subtraído nem mantido, simplesmente para de ser somado), enquanto a receita é corretamente estornada. Se o custo do fornecedor já tinha sido pago de verdade antes do reembolso (cenário comum em dropshipping: produto já foi despachado quando o cliente pede reembolso), isso infla o lucro exibido — o prejuízo do frete/custo perdido não aparece em lugar nenhum.
+
+**Não é claramente um bug** — pode ser intencional (ex.: reembolso só acontece antes do despacho, quando o custo de fato não foi incorrido). Não mexi, é decisão de produto, e a `margin` já tem uma guarda para o caso `revenue <= 0` (retorna 0 em vez de inverter o sinal), então não há um crash/valor absurdo, só uma possível distorção silenciosa de lucro em reembolsos pós-despacho. Registrando como observação para você avaliar; não vou repetir esse achado numa rodada futura a menos que você peça pra investigar mais fundo.
+
+### 13.3. Corrigido (executado): parei de ler/gravar a coluna `affiliates.commission_rate`, já marcada como descontinuada, no client
+
+Enquanto investigava o item 13.1, notei que `CommissionsPage.tsx` (a tela do próprio afiliado) ainda lia `commission_rate` da tabela `affiliates` e comparava com a constante local `COMMISSION_RATE` — se diferente, disparava um `UPDATE` de sincronia a cada abertura da tela; também gravava esse valor em todo `insert`/`update` de criação/personalização de link. Essa coluna já tinha sido marcada `DESCONTINUADA - nao usar` pela migration `20260810013653` (a taxa real vem de `affiliate_conversions.commission_rate`, calculada por ciclo em `affiliateCommission.ts`, não de `affiliates.commission_rate`).
+
+Confirmei que o campo resultante (`affiliateLink.commissionRate`) **nunca é lido em nenhum JSX** de `CommissionsPage.tsx` nem de `AffiliateFinanceDashboard.tsx` (`grep -n "commissionRate"` nos dois arquivos — só aparece nas definições/atribuições, nunca em render; a tela mostra "30%" fixo no card "Sua comissão", não esse valor) — ou seja, era leitura+gravação 100% morta de uma coluna que o próprio backend já tinha avisado para não usar. Removido:
+- Tirei `commission_rate` de todos os `.select(...)` em `affiliates` (4 ocorrências).
+- Tirei `commission_rate: COMMISSION_RATE` de todo `.insert(...)`/`.update(...)` em `affiliates` (3 ocorrências) — inclusive o gatilho de sync automático que rodava a cada carregamento da tela quando o valor divergia.
+- Troquei os `Number(x.commission_rate ?? COMMISSION_RATE) || COMMISSION_RATE` (que liam a coluna morta) por só `COMMISSION_RATE` (a constante local, que já era o fallback de qualquer forma) nos 4 lugares que retornam `AffiliateLinkResponse`.
+
+**Prova real:**
+- `npx tsc --noEmit -p .` → sem saída, sem erros.
+- `npm run build` → `✓ built in 5.85s`, sem erros novos.
+- `npx vitest run` → `106 passed | 32 failed`, exatamente a mesma contagem de sempre (os 2 arquivos de teste obsoletos já travados no portão) — rodei antes e depois, nada mais quebrou.
+- Commit: `bb9c7ce6c3bed0df1add03911bb2c20dc26b0e61` (`git log -1 --format=%H` confirma), mensagem `chore: stop reading/writing deprecated affiliates.commission_rate from client`. Só `src/pages/dashboard/CommissionsPage.tsx` foi staged (`git add` do arquivo específico).
+- **Não é mudança de comportamento visível**: a tela sempre mostrou "30%" fixo (não vinha desse campo), e o valor de fallback (`COMMISSION_RATE = 0.3`) é idêntico ao que a coluna já tinha em 100% das linhas hoje (a migration `20260814162500` já forçou `commission_rate = 0.30` em toda `affiliates` existente) — a única diferença observável é que a tela para de fazer um `UPDATE` desnecessário nessa coluna morta a cada carregamento.
+- **Não mexi** em `src/pages/admin/AdminCommissionsPage.tsx`, que também lê (só leitura, não escreve) essa mesma coluna morta numa linha (`:237,271`) — o valor lido também nunca é renderizado ali, mas é uma tela diferente e prefiro não misturar dois arquivos numa limpeza que já tem risco (mesmo que baixo) por tocar fluxo de dinheiro; fica registrado como observação menor para uma limpeza futura, não como item novo do portão.
+
+### 13.4. Resumo de confiança da seção 13
+
+- 1 commit real (`bb9c7ce6`), limpeza de coluna morta confirmada por leitura completa dos dois arquivos que renderizam esse dado (nenhum uso em JSX) e prova de build/tsc/testes antes-e-depois idênticos.
+- 1 achado sério novo (13.1) que não pude executar por cair em duas categorias do portão ao mesmo tempo (`supabase/functions/` + copy pro cliente) — é o tipo de achado que só você pode resolver, porque as duas leituras possíveis (migration vs. código) têm evidência real a favor de cada uma. Recomendo priorizar esse item alto na lista, porque se a leitura "só deveria pagar uma vez" for a certa, isso é dinheiro saindo todo mês, não um bug estático.
+- 1 observação registrada (13.2, reembolso e custo) sem execução, por ser decisão de produto ambígua sem sinal de bug confirmado.
