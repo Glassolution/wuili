@@ -317,16 +317,23 @@ Deno.serve(async (req) => {
     // ------------------------------------------------------------------
     // Modo full: pagina a lista, busca detalhe de cada produto e upserta.
     // ------------------------------------------------------------------
-    console.log(`[scrape-c7drop] Iniciando full scrape via ${LIST_URL}`);
+    // Suporta fatiar por páginas (`?start=1&end=5`) porque o scrape inteiro
+    // estoura o limite de 150s de execução da função.
+    const startPage = Math.max(1, parseInt(url.searchParams.get("start") ?? "1", 10) || 1);
+    const endPage = Math.min(MAX_PAGES, parseInt(url.searchParams.get("end") ?? String(MAX_PAGES), 10) || MAX_PAGES);
+    console.log(`[scrape-c7drop] Iniciando full scrape via ${LIST_URL} (páginas ${startPage}..${endPage})`);
     const list: ListItem[] = [];
-    for (let page = 1; page <= MAX_PAGES; page++) {
+    let totalPagesSeen = 0;
+    for (let page = startPage; page <= endPage; page++) {
       const res = await fetchList(page);
       if (!res || !Array.isArray(res.products) || res.products.length === 0) break;
+      totalPagesSeen = res.totalPages;
       list.push(...res.products);
       console.log(`[scrape-c7drop] Página ${page}/${res.totalPages}: ${res.products.length} itens (acumulado ${list.length})`);
       if (page >= res.totalPages) break;
     }
     console.log(`[scrape-c7drop] Lista concluída: ${list.length} produtos`);
+
 
     // Detalhe em paralelo (imagens completas, variantes, peso, dimensões, categoria).
     let skippedFakeAds = 0;
@@ -383,6 +390,9 @@ Deno.serve(async (req) => {
       ok: true,
       mode: "full",
       source: SOURCE,
+      start_page: startPage,
+      end_page: endPage,
+      supplier_total_pages: totalPagesSeen,
       total_scraped: list.length,
       inserted,
       updated,
@@ -391,6 +401,7 @@ Deno.serve(async (req) => {
       no_detail: noDetail,
       ran_at: new Date().toISOString(),
     };
+
     console.log("[scrape-c7drop] Concluído:", JSON.stringify(summary));
 
     return new Response(JSON.stringify(summary), {
