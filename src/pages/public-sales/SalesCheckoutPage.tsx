@@ -102,7 +102,12 @@ const SalesCheckoutPage = () => {
       setFormError("E-mail inválido.");
       return;
     }
+    if (form.cpf.replace(/\D/g, "").length !== 11) {
+      setFormError("Informe um CPF válido (11 dígitos) para gerar o Pix.");
+      return;
+    }
     setSubmitting(true);
+
     try {
       const { data: resp, error: fnErr } = await supabase.functions.invoke("public-sales-checkout", {
         body: {
