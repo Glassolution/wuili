@@ -593,13 +593,27 @@ const AdminCommissionsPage = () => {
 
 
 
-        <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-          <SheetContent side="right" className="w-[min(680px,95vw)] overflow-y-auto border-[#E6EAF2] bg-white text-[#171715]">
-            <SheetHeader>
-              <SheetTitle className="text-[18px] font-semibold text-[#171715]">Detalhes do afiliado</SheetTitle>
-            </SheetHeader>
+        {selectedCode ? (
+          <div
+            className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm"
+            onClick={() => setSelectedCode(null)}
+          >
+            <aside
+              onClick={(event) => event.stopPropagation()}
+              className="h-full w-full max-w-[720px] overflow-y-auto border-l border-[#E6EAF2] bg-white text-[#171715] shadow-[0_0_70px_rgba(15,23,42,0.18)]"
+            >
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EEF1F6] bg-white/95 px-6 py-4 backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCode(null)}
+                  className="flex items-center gap-2 text-[12px] font-semibold text-[#64748B] transition hover:text-[#171715]"
+                >
+                  <X size={14} /> Fechar
+                </button>
+                <span className="text-[13px] font-semibold text-[#171715]">Detalhes do afiliado</span>
+              </div>
 
-            <div className="mt-5">
+            <div className="px-6 py-6">
               {loadingDetails ? (
                 <div className="flex items-center justify-center py-10">
                   <Loader2 className="h-6 w-6 animate-spin text-[#2563EB]" />
