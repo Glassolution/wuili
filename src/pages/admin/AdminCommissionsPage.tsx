@@ -38,8 +38,11 @@ type AffiliateRow = {
   commission_paid: number;
   /** Afiliado aprovado porém pausado. Removido do programa some da lista. */
   is_active?: boolean;
+  /** Status do cadastro (affiliate_applications). "pending" só aparece na aba de aprovação. */
+  application_status?: string | null;
 
 };
+
 
 type AffiliateDetails = {
   affiliate: {
