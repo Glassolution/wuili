@@ -746,8 +746,9 @@ const AdminCommissionsPage = () => {
                 </div>
               )}
             </div>
-          </SheetContent>
-        </Sheet>
+            </aside>
+          </div>
+        ) : null}
       </div>
     </AdminShell>
   );
