@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Copy, Check, ArrowLeft } from "lucide-react";
+import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
