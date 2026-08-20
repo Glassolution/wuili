@@ -2,8 +2,31 @@ import { supabase } from "@/integrations/supabase/client";
 
 const COOKIE_NAME = "velo_ref";
 const STORAGE_KEY = "velo_referral_code";
+const VISITOR_KEY = "velo_visitor_id";
 
 const processedKey = (userId: string) => `velo_referral_processed:${userId}`;
+
+/**
+ * Identificador estável do visitante (anônimo). É ele que costura
+ * clique -> cadastro -> pagamento no funil de afiliados.
+ */
+export function getVisitorId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    let id = window.localStorage.getItem(VISITOR_KEY);
+    if (!id) {
+      id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `v_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(VISITOR_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 
 function readCookie(name: string) {
   if (typeof document === "undefined") return null;
@@ -41,6 +64,7 @@ export async function recordAffiliateVisit(code: string) {
       p_affiliate_code: affiliateCode,
       p_referrer: typeof document !== "undefined" ? document.referrer : null,
       p_user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      p_visitor_id: getVisitorId(),
     });
   } catch (e) {
     console.warn("[affiliate] rpc_record_affiliate_visit failed", e);
@@ -56,14 +80,22 @@ export async function attachReferralToCurrentUser(userId: string) {
   if (already) return;
 
   try {
-    await supabase.rpc("rpc_affiliate_attach_signup", { p_affiliate_code: code });
+    await supabase.rpc("rpc_affiliate_attach_signup", {
+      p_affiliate_code: code,
+      p_visitor_id: getVisitorId(),
+    });
     window.localStorage.setItem(processedKey(userId), "1");
   } catch (e) {
     console.warn("[affiliate] rpc_affiliate_attach_signup failed", e);
   }
 }
 
-export async function markAffiliateReachedPayment(userId: string, planValue: number) {
+/**
+ * A assinatura real da função é (p_affiliate_code, p_visitor_id) — o antigo
+ * p_plan_value não existe e fazia a chamada falhar com 404, deixando o estágio
+ * "no pagamento" sempre zerado. planValue fica só para telemetria futura.
+ */
+export async function markAffiliateReachedPayment(userId: string, _planValue?: number) {
   const code = getReferralCode();
   if (!code) return;
   if (typeof window === "undefined") return;
@@ -75,10 +107,11 @@ export async function markAffiliateReachedPayment(userId: string, planValue: num
   try {
     await supabase.rpc("rpc_affiliate_mark_reached_payment", {
       p_affiliate_code: code,
-      p_plan_value: planValue,
+      p_visitor_id: getVisitorId(),
     });
   } catch (e) {
     console.warn("[affiliate] rpc_affiliate_mark_reached_payment failed", e);
   }
+
 }
 

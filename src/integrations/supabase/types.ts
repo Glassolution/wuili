@@ -302,6 +302,8 @@ export type Database = {
           is_active: boolean
           link: string | null
           ref: string | null
+          removed_at: string | null
+          removed_by: string | null
           updated_at: string | null
           user_id: string
         }
@@ -313,6 +315,8 @@ export type Database = {
           is_active?: boolean
           link?: string | null
           ref?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -324,6 +328,8 @@ export type Database = {
           is_active?: boolean
           link?: string | null
           ref?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -3585,6 +3591,10 @@ export type Database = {
       }
       rpc_admin_reject_affiliate_application: {
         Args: { p_user_id: string }
+        Returns: Json
+      }
+      rpc_admin_remove_affiliate: {
+        Args: { p_code?: string; p_user_id?: string }
         Returns: Json
       }
       rpc_admin_store_sales: {

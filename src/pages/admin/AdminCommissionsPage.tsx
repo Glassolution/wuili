@@ -1,15 +1,27 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, UserPlus, UsersRound } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+
 
 type AffiliateRow = {
   affiliate_user_id: string;
@@ -24,6 +36,9 @@ type AffiliateRow = {
   payers: number;
   commission_pending: number;
   commission_paid: number;
+  /** Afiliado aprovado porém pausado. Removido do programa some da lista. */
+  is_active?: boolean;
+
 };
 
 type AffiliateDetails = {
@@ -84,14 +99,32 @@ const normalizeAffiliateCode = (value?: string | null) =>
   String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
 const buildAffiliateUrl = (code: string) => `${PUBLIC_APP_URL}/ref/${normalizeAffiliateCode(code)}`;
 const asAffiliateRows = (value: unknown): AffiliateRow[] => {
-  if (Array.isArray(value)) return value as AffiliateRow[];
+  const normalizeRow = (raw: any): AffiliateRow => ({
+    affiliate_user_id: String(raw?.affiliate_user_id ?? raw?.user_id ?? ""),
+    affiliate_name: raw?.affiliate_name ?? raw?.display_name ?? null,
+    affiliate_email: raw?.affiliate_email ?? raw?.email ?? null,
+    code: String(raw?.code ?? raw?.affiliate_code ?? ""),
+    link: String(raw?.link ?? ""),
+    created_at: String(raw?.created_at ?? new Date().toISOString()),
+    clicks: Number(raw?.clicks ?? 0),
+    signups: Number(raw?.signups ?? 0),
+    reached_payment: Number(raw?.reached_payment ?? 0),
+    payers: Number(raw?.payers ?? 0),
+    commission_pending: Number(raw?.commission_pending ?? 0),
+    commission_paid: Number(raw?.commission_paid ?? 0),
+    is_active: raw?.is_active !== false,
+  });
+
+  if (Array.isArray(value)) return value.map(normalizeRow);
   if (!value || typeof value !== "object") return [];
-  const data = value as { affiliates?: unknown; rows?: unknown; data?: unknown };
-  if (Array.isArray(data.affiliates)) return data.affiliates as AffiliateRow[];
-  if (Array.isArray(data.rows)) return data.rows as AffiliateRow[];
-  if (Array.isArray(data.data)) return data.data as AffiliateRow[];
+  const data = value as { affiliates?: unknown; ranking?: unknown; rows?: unknown; data?: unknown };
+  // A RPC devolve { from, to, funnel, commissions, ranking, affiliates }.
+  for (const candidate of [data.affiliates, data.ranking, data.rows, data.data]) {
+    if (Array.isArray(candidate)) return candidate.map(normalizeRow);
+  }
   return [];
 };
+
 const canonicalizeAffiliateRow = (row: AffiliateRow): AffiliateRow => {
   const code = normalizeAffiliateCode(row.code);
   return { ...row, code, link: buildAffiliateUrl(code) };
@@ -125,6 +158,29 @@ const AdminCommissionsPage = () => {
   const isAdmin = role === "admin" || (!!user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AffiliateAdminTab>("approved");
+  const [rowToRemove, setRowToRemove] = useState<AffiliateRow | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleRemoveAffiliate = async () => {
+    if (!rowToRemove) return;
+    setRemoving(true);
+    try {
+      const { error } = await supabase.rpc("rpc_admin_remove_affiliate", {
+        p_user_id: rowToRemove.affiliate_user_id || null,
+        p_code: rowToRemove.code,
+      });
+      if (error) throw error;
+      toast.success(`${rowToRemove.affiliate_name ?? rowToRemove.code} foi removido do programa de afiliados.`);
+      setRowToRemove(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin-affiliate-commissions"] });
+    } catch (e) {
+      toast.error(`Não foi possível remover: ${String((e as any)?.message ?? e)}`);
+    } finally {
+      setRemoving(false);
+    }
+  };
+
 
   const { data: affiliates = [], isLoading, error } = useQuery({
     queryKey: ["admin-affiliate-commissions"],
@@ -213,6 +269,7 @@ const AdminCommissionsPage = () => {
             payers: payersByCode.get(code)?.size ?? 0,
             commission_pending: pendingByCode.get(code) ?? 0,
             commission_paid: paidByCode.get(code) ?? 0,
+            is_active: true,
           } satisfies AffiliateRow;
         });
       }
@@ -417,8 +474,16 @@ const AdminCommissionsPage = () => {
                 <tbody className="divide-y divide-[#EEF1F6]">
                   {affiliates.map((row) => (
                     <tr key={row.code} className="transition hover:bg-[#F8FAFC]">
-                      <Td className="font-semibold text-[#171715]">{row.affiliate_name ?? row.affiliate_user_id}</Td>
+                      <Td className="font-semibold text-[#171715]">
+                        <span>{row.affiliate_name ?? row.affiliate_user_id}</span>
+                        {row.is_active === false ? (
+                          <span className="ml-2 rounded-full border border-[#FDE7B2] bg-[#FFF7E6] px-2 py-0.5 text-[10px] font-semibold text-[#B7791F]">
+                            Inativo
+                          </span>
+                        ) : null}
+                      </Td>
                       <Td className="text-[#64748B]">{row.affiliate_email ?? "-"}</Td>
+
                       <Td>
                         <span className="rounded-[8px] border border-[#DDE7FF] bg-[#EFF6FF] px-2 py-1 font-mono text-[11px] font-semibold text-[#2563EB]">
                           {row.code}
@@ -443,14 +508,25 @@ const AdminCommissionsPage = () => {
                       <Td className="text-right font-semibold text-[#087443]">{money(Number(row.commission_paid ?? 0))}</Td>
                       <Td className="text-[#64748B]">{date(row.created_at)}</Td>
                       <Td>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedCode(row.code)}
-                          className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
-                        >
-                          Ver detalhes
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCode(row.code)}
+                            className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
+                          >
+                            Ver detalhes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRowToRemove(row)}
+                            title="Remover do programa de afiliados"
+                            className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#FBD5D5] bg-white px-3 py-2 text-[12px] font-semibold text-[#B42318] transition hover:bg-[#FEF3F2]"
+                          >
+                            <Trash2 size={14} /> Remover
+                          </button>
+                        </div>
                       </Td>
+
                     </tr>
                   ))}
                 </tbody>
@@ -460,6 +536,35 @@ const AdminCommissionsPage = () => {
             </section>
           </>
         ) : null}
+
+        <AlertDialog open={!!rowToRemove} onOpenChange={(open) => (!open && !removing ? setRowToRemove(null) : null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Tem certeza que deseja remover {rowToRemove?.affiliate_name ?? rowToRemove?.code} como afiliado?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                O link <strong>{rowToRemove?.code}</strong> para de registrar novos cliques, cadastros e comissões
+                imediatamente. As conversões e comissões já geradas continuam no histórico e nos relatórios.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={removing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={removing}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleRemoveAffiliate();
+                }}
+                className="bg-[#B42318] hover:bg-[#912018]"
+              >
+                {removing ? "Removendo..." : "Remover afiliado"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+
 
         <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
           <SheetContent side="right" className="w-[min(560px,90vw)] border-[#E6EAF2] bg-white text-[#171715]">
