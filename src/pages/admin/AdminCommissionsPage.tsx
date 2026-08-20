@@ -6,7 +6,6 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
 import AffiliateApplicationCard from "@/components/admin/AffiliateApplicationCard";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
