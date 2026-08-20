@@ -5,6 +5,7 @@ import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointer
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
+import AffiliateApplicationCard from "@/components/admin/AffiliateApplicationCard";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -590,7 +591,7 @@ const AdminCommissionsPage = () => {
 
 
         <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-          <SheetContent side="right" className="w-[min(560px,90vw)] border-[#E6EAF2] bg-white text-[#171715]">
+          <SheetContent side="right" className="w-[min(680px,95vw)] overflow-y-auto border-[#E6EAF2] bg-white text-[#171715]">
             <SheetHeader>
               <SheetTitle className="text-[18px] font-semibold text-[#171715]">Detalhes do afiliado</SheetTitle>
             </SheetHeader>
