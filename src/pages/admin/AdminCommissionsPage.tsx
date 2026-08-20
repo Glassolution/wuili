@@ -533,24 +533,18 @@ const AdminCommissionsPage = () => {
                       <Td className="text-right font-semibold text-[#087443]">{money(Number(row.commission_paid ?? 0))}</Td>
                       <Td className="text-[#64748B]">{date(row.created_at)}</Td>
                       <Td>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCode(row.code)}
-                            className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
-                          >
-                            Ver detalhes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRowToRemove(row)}
-                            title="Remover do programa de afiliados"
-                            className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#FBD5D5] bg-white px-3 py-2 text-[12px] font-semibold text-[#B42318] transition hover:bg-[#FEF3F2]"
-                          >
-                            <Trash2 size={14} /> Remover
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCode(row.code);
+                          }}
+                          className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
+                        >
+                          Ver detalhes
+                        </button>
                       </Td>
+
 
                     </tr>
                   ))}
