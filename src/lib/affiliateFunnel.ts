@@ -2,8 +2,31 @@ import { supabase } from "@/integrations/supabase/client";
 
 const COOKIE_NAME = "velo_ref";
 const STORAGE_KEY = "velo_referral_code";
+const VISITOR_KEY = "velo_visitor_id";
 
 const processedKey = (userId: string) => `velo_referral_processed:${userId}`;
+
+/**
+ * Identificador estável do visitante (anônimo). É ele que costura
+ * clique -> cadastro -> pagamento no funil de afiliados.
+ */
+export function getVisitorId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    let id = window.localStorage.getItem(VISITOR_KEY);
+    if (!id) {
+      id =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `v_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(VISITOR_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 
 function readCookie(name: string) {
   if (typeof document === "undefined") return null;
