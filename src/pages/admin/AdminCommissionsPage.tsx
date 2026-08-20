@@ -498,7 +498,11 @@ const AdminCommissionsPage = () => {
                 </thead>
                 <tbody className="divide-y divide-[#EEF1F6]">
                   {approvedAffiliates.map((row) => (
-                    <tr key={row.code} className="transition hover:bg-[#F8FAFC]">
+                    <tr
+                      key={row.code}
+                      onClick={() => setSelectedCode(row.code)}
+                      className="cursor-pointer transition hover:bg-[#F8FAFC]"
+                    >
                       <Td className="font-semibold text-[#171715]">
                         <span>{row.affiliate_name ?? row.affiliate_user_id}</span>
                         {row.is_active === false ? (
