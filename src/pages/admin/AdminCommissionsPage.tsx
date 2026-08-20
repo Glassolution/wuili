@@ -1,15 +1,27 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, UserPlus, UsersRound } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+
 
 type AffiliateRow = {
   affiliate_user_id: string;
