@@ -116,6 +116,8 @@ const asAffiliateRows = (value: unknown): AffiliateRow[] => {
     commission_pending: Number(raw?.commission_pending ?? 0),
     commission_paid: Number(raw?.commission_paid ?? 0),
     is_active: raw?.is_active !== false,
+    application_status: raw?.application_status ?? null,
+
   });
 
   if (Array.isArray(value)) return value.map(normalizeRow);
