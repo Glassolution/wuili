@@ -30,6 +30,36 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+/** Lê "R$ 1.299,90" em pt-BR (ponto = milhar, vírgula = decimal). */
+const parsePriceBRL = (text: string): number | null => {
+  const match = text.match(/(\d[\d.]*(?:,\d{1,2})?)/);
+  if (!match) return null;
+  const value = Number(match[1].replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(value) && value > 0 ? value : null;
+};
+
+/** Mesma prioridade de resolveProjectPrice no frontend. */
+const resolveEditedPrice = (metadata: {
+  price?: number | string;
+  elementOverrides?: Record<string, { textContent?: string }>;
+}): number | null => {
+  const raw = metadata.price;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === "string") {
+    const parsed = parsePriceBRL(raw);
+    if (parsed !== null) return parsed;
+  }
+  const found: number[] = [];
+  for (const override of Object.values(metadata.elementOverrides ?? {})) {
+    const text = override?.textContent;
+    if (typeof text !== "string" || !/R\$/i.test(text)) continue;
+    const parsed = parsePriceBRL(text);
+    if (parsed !== null) found.push(parsed);
+  }
+  return found.length ? Math.min(...found) : null;
+};
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -82,7 +112,11 @@ Deno.serve(async (req) => {
       if (project) {
         ownerId = project.user_id;
         projectId = project.id;
-        const metadata = (project.metadata ?? {}) as { productIds?: string[]; price?: number | string };
+        const metadata = (project.metadata ?? {}) as {
+          productIds?: string[];
+          price?: number | string;
+          elementOverrides?: Record<string, { textContent?: string }>;
+        };
         const productIds: string[] = Array.isArray(metadata.productIds) ? metadata.productIds : [];
         if (productIds.length > 0) {
           const { data: products } = await admin.rpc("get_public_store_products", { p_ids: productIds });
@@ -96,10 +130,15 @@ Deno.serve(async (req) => {
           }
         }
         // Preço editado pelo dono no editor tem prioridade sobre o do catálogo.
-        const edited = Number(String(metadata.price ?? "").toString().replace(",", "."));
-        if (Number.isFinite(edited) && edited > 0) unitPrice = edited;
+        // Espelha src/lib/userProjects.ts#resolveProjectPrice para o Pix sair
+        // exatamente com o "Total" mostrado no carrinho/checkout:
+        // 1) metadata.price (número gravado pelo editor atual);
+        // 2) projetos antigos: menor valor "R$ ..." nos elementOverrides.
+        const edited = resolveEditedPrice(metadata);
+        if (edited !== null) unitPrice = edited;
         if (!productTitle || productTitle === "Produto") productTitle = project.nome;
       }
+
     }
 
     if (!ownerId) return json({ error: "Página não encontrada." }, 404);
