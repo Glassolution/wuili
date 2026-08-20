@@ -341,9 +341,26 @@ const AdminCommissionsPage = () => {
     },
   });
 
+  // A lista principal mostra só quem já passou pela aprovação do admin.
+  // Cadastros "pending"/"rejected" continuam exclusivamente na aba de aprovação.
+  // Afiliados legados (criados sem formulário) não têm application_status e seguem visíveis.
+  const approvedAffiliates = useMemo(
+    () =>
+      affiliates.filter((row) => {
+        const status = String(row.application_status ?? "").toLowerCase();
+        return status !== "pending" && status !== "rejected";
+      }),
+    [affiliates],
+  );
+
+  const selectedRow = useMemo(
+    () => approvedAffiliates.find((row) => row.code === selectedCode) ?? null,
+    [approvedAffiliates, selectedCode],
+  );
+
   const totals = useMemo(() => {
     const out = {
-      totalAffiliates: affiliates.length,
+      totalAffiliates: approvedAffiliates.length,
       clicks: 0,
       signups: 0,
       reachedPayment: 0,
@@ -351,7 +368,7 @@ const AdminCommissionsPage = () => {
       commissionPending: 0,
       commissionPaid: 0,
     };
-    for (const row of affiliates) {
+    for (const row of approvedAffiliates) {
       out.clicks += Number(row.clicks ?? 0);
       out.signups += Number(row.signups ?? 0);
       out.reachedPayment += Number(row.reached_payment ?? 0);
@@ -360,7 +377,8 @@ const AdminCommissionsPage = () => {
       out.commissionPaid += Number(row.commission_paid ?? 0);
     }
     return out;
-  }, [affiliates]);
+  }, [approvedAffiliates]);
+
 
   if (loadingAuth) {
     return <VeloLoadingScreen message="Carregando afiliados..." />;
