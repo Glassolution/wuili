@@ -275,6 +275,8 @@ const AdminCommissionsPage = () => {
             commission_pending: pendingByCode.get(code) ?? 0,
             commission_paid: paidByCode.get(code) ?? 0,
             is_active: true,
+            application_status: null,
+
           } satisfies AffiliateRow;
         });
       }
