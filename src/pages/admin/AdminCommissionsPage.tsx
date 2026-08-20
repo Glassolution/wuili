@@ -473,8 +473,16 @@ const AdminCommissionsPage = () => {
                 <tbody className="divide-y divide-[#EEF1F6]">
                   {affiliates.map((row) => (
                     <tr key={row.code} className="transition hover:bg-[#F8FAFC]">
-                      <Td className="font-semibold text-[#171715]">{row.affiliate_name ?? row.affiliate_user_id}</Td>
+                      <Td className="font-semibold text-[#171715]">
+                        <span>{row.affiliate_name ?? row.affiliate_user_id}</span>
+                        {row.is_active === false ? (
+                          <span className="ml-2 rounded-full border border-[#FDE7B2] bg-[#FFF7E6] px-2 py-0.5 text-[10px] font-semibold text-[#B7791F]">
+                            Inativo
+                          </span>
+                        ) : null}
+                      </Td>
                       <Td className="text-[#64748B]">{row.affiliate_email ?? "-"}</Td>
+
                       <Td>
                         <span className="rounded-[8px] border border-[#DDE7FF] bg-[#EFF6FF] px-2 py-1 font-mono text-[11px] font-semibold text-[#2563EB]">
                           {row.code}
