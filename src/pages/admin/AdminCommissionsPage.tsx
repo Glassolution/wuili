@@ -621,6 +621,45 @@ const AdminCommissionsPage = () => {
                     <p className="mt-1 text-[13px] text-[#64748B]">{date(details.affiliate.created_at)}</p>
                   </div>
 
+                  {/* Performance do afiliado — mesmos números dos cards do topo, só deste código. */}
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
+                    <p className="text-[14px] font-semibold text-[#171715]">Performance</p>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <MetricCard label="Cliques" value={String(selectedRow?.clicks ?? 0)} icon={<MousePointerClick size={16} />} />
+                      <MetricCard label="Cadastros" value={String(selectedRow?.signups ?? 0)} icon={<UserPlus size={16} />} />
+                      <MetricCard
+                        label="Comissão pendente"
+                        value={money(Number(selectedRow?.commission_pending ?? 0))}
+                        icon={<Banknote size={16} />}
+                        highlight="amber"
+                      />
+                      <MetricCard
+                        label="Comissão paga"
+                        value={money(Number(selectedRow?.commission_paid ?? 0))}
+                        icon={<Banknote size={16} />}
+                        highlight="emerald"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mesmo formulário mostrado na aba de aprovação de cadastros. */}
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
+                    <p className="mb-3 text-[14px] font-semibold text-[#171715]">Cadastro enviado</p>
+                    <AffiliateApplicationCard
+                      userId={selectedRow?.affiliate_user_id || details.affiliate.user_id || null}
+                      code={details.affiliate.code}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => selectedRow && setRowToRemove(selectedRow)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#FBD5D5] bg-white px-4 py-3 text-[13px] font-semibold text-[#B42318] transition hover:bg-[#FEF3F2]"
+                  >
+                    <Trash2 size={15} /> Remover afiliado
+                  </button>
+
+
                   <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
                     <p className="text-[14px] font-semibold text-[#171715]">Indicados</p>
                     <p className="mt-1 text-[12px] text-[#777772]">
