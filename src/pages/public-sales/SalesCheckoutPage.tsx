@@ -210,10 +210,12 @@ const SalesCheckoutPage = () => {
               </div>
             </dl>
 
-            {result?.pixQrBase64 ? (
+            {result?.pixQr ? (
               <div className="mt-6 rounded-xl bg-[#EFF6FF] p-4 text-center">
                 <p className="text-[12px] font-semibold uppercase tracking-wide text-[#1E3A8A]">Pague com Pix</p>
-                <img src={`data:image/png;base64,${result.pixQrBase64}`} alt="QR Code Pix" className="mx-auto mt-3 h-40 w-40 rounded-xl bg-white p-2" />
+                {pixQrImage ? (
+                  <img src={pixQrImage} alt="QR Code Pix" className="mx-auto mt-3 h-40 w-40 rounded-xl bg-white p-2" />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -242,8 +244,9 @@ const SalesCheckoutPage = () => {
 
             {formError && <p className="mt-3 text-center text-[12px] text-red-500">{formError}</p>}
             <p className="mt-4 text-center text-[10px] leading-relaxed text-[#64748B]">
-              Ao concluir você concorda com os termos de uso. Pagamento processado pelo Mercado Pago.
+              Ao concluir você concorda com os termos de uso. Pagamento processado com segurança pela ValidaPay.
             </p>
+
           </aside>
         </div>
       </div>
