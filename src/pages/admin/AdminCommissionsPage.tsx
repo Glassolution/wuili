@@ -1,12 +1,11 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
 import AffiliateApplicationCard from "@/components/admin/AffiliateApplicationCard";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -345,14 +344,16 @@ const AdminCommissionsPage = () => {
     },
   });
 
-  // A lista principal mostra só quem já passou pela aprovação do admin.
-  // Cadastros "pending"/"rejected" continuam exclusivamente na aba de aprovação.
-  // Afiliados legados (criados sem formulário) não têm application_status e seguem visíveis.
+  // A lista principal mostra SÓ quem foi de fato aprovado pelo admin:
+  // cadastro com status "approved" OU afiliado ativado manualmente (legado, sem formulário).
+  // Quem nunca foi avaliado (status null/pending) ou foi rejeitado fica só na aba de aprovação.
   const approvedAffiliates = useMemo(
     () =>
       affiliates.filter((row) => {
         const status = String(row.application_status ?? "").toLowerCase();
-        return status !== "pending" && status !== "rejected";
+        if (status === "approved") return true;
+        if (status === "pending" || status === "rejected") return false;
+        return row.is_active === true;
       }),
     [affiliates],
   );
@@ -591,13 +592,27 @@ const AdminCommissionsPage = () => {
 
 
 
-        <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-          <SheetContent side="right" className="w-[min(680px,95vw)] overflow-y-auto border-[#E6EAF2] bg-white text-[#171715]">
-            <SheetHeader>
-              <SheetTitle className="text-[18px] font-semibold text-[#171715]">Detalhes do afiliado</SheetTitle>
-            </SheetHeader>
+        {selectedCode ? (
+          <div
+            className="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-sm"
+            onClick={() => setSelectedCode(null)}
+          >
+            <aside
+              onClick={(event) => event.stopPropagation()}
+              className="h-full w-full max-w-[720px] overflow-y-auto border-l border-[#E6EAF2] bg-white text-[#171715] shadow-[0_0_70px_rgba(15,23,42,0.18)]"
+            >
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EEF1F6] bg-white/95 px-6 py-4 backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCode(null)}
+                  className="flex items-center gap-2 text-[12px] font-semibold text-[#64748B] transition hover:text-[#171715]"
+                >
+                  <X size={14} /> Fechar
+                </button>
+                <span className="text-[13px] font-semibold text-[#171715]">Detalhes do afiliado</span>
+              </div>
 
-            <div className="mt-5">
+            <div className="px-6 py-6">
               {loadingDetails ? (
                 <div className="flex items-center justify-center py-10">
                   <Loader2 className="h-6 w-6 animate-spin text-[#2563EB]" />
@@ -730,8 +745,9 @@ const AdminCommissionsPage = () => {
                 </div>
               )}
             </div>
-          </SheetContent>
-        </Sheet>
+            </aside>
+          </div>
+        ) : null}
       </div>
     </AdminShell>
   );
