@@ -40,9 +40,9 @@ Deno.serve(async (req) => {
       "/v1/charges",
       {
         amount: 25.5,
-        paymentType: "PIX",
+        paymentMethod: "pix",
         description: "Produto teste Velo",
-        customer: { name: "Teste Velo", email: "teste@velods.com.br", document: "19100000000" },
+        customer: { name: "Teste Velo", email: "teste@velods.com.br", documentNumber: "19100000000" },
         metadata: { kind: "store_order_probe" },
       },
       "pix.cob/write pix.cob/read",
