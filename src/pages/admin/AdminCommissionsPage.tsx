@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
@@ -345,14 +345,16 @@ const AdminCommissionsPage = () => {
     },
   });
 
-  // A lista principal mostra só quem já passou pela aprovação do admin.
-  // Cadastros "pending"/"rejected" continuam exclusivamente na aba de aprovação.
-  // Afiliados legados (criados sem formulário) não têm application_status e seguem visíveis.
+  // A lista principal mostra SÓ quem foi de fato aprovado pelo admin:
+  // cadastro com status "approved" OU afiliado ativado manualmente (legado, sem formulário).
+  // Quem nunca foi avaliado (status null/pending) ou foi rejeitado fica só na aba de aprovação.
   const approvedAffiliates = useMemo(
     () =>
       affiliates.filter((row) => {
         const status = String(row.application_status ?? "").toLowerCase();
-        return status !== "pending" && status !== "rejected";
+        if (status === "approved") return true;
+        if (status === "pending" || status === "rejected") return false;
+        return row.is_active === true;
       }),
     [affiliates],
   );
