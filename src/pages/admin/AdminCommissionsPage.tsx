@@ -455,7 +455,7 @@ const AdminCommissionsPage = () => {
             <div>
               <h2 className="text-[15px] font-semibold text-[#171715]">Afiliados</h2>
               <p className="mt-1 text-[11px] text-[#8A8F9B]">
-                {affiliates.length} afiliado(s) encontrados
+                {approvedAffiliates.length} afiliado(s) aprovados
               </p>
             </div>
             {error ? (
@@ -469,7 +469,7 @@ const AdminCommissionsPage = () => {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-7 w-7 animate-spin text-[#2563EB]" />
             </div>
-          ) : affiliates.length === 0 ? (
+          ) : approvedAffiliates.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
                 <UsersRound size={20} />
@@ -497,7 +497,7 @@ const AdminCommissionsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEF1F6]">
-                  {affiliates.map((row) => (
+                  {approvedAffiliates.map((row) => (
                     <tr key={row.code} className="transition hover:bg-[#F8FAFC]">
                       <Td className="font-semibold text-[#171715]">
                         <span>{row.affiliate_name ?? row.affiliate_user_id}</span>
