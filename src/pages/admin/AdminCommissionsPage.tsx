@@ -179,6 +179,7 @@ const AdminCommissionsPage = () => {
       if (error) throw error;
       toast.success(`${rowToRemove.affiliate_name ?? rowToRemove.code} foi removido do programa de afiliados.`);
       setRowToRemove(null);
+      setSelectedCode(null);
       await queryClient.invalidateQueries({ queryKey: ["admin-affiliate-commissions"] });
     } catch (e) {
       toast.error(`Não foi possível remover: ${String((e as any)?.message ?? e)}`);
