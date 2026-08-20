@@ -537,6 +537,35 @@ const AdminCommissionsPage = () => {
           </>
         ) : null}
 
+        <AlertDialog open={!!rowToRemove} onOpenChange={(open) => (!open && !removing ? setRowToRemove(null) : null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Tem certeza que deseja remover {rowToRemove?.affiliate_name ?? rowToRemove?.code} como afiliado?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                O link <strong>{rowToRemove?.code}</strong> para de registrar novos cliques, cadastros e comissões
+                imediatamente. As conversões e comissões já geradas continuam no histórico e nos relatórios.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={removing}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={removing}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleRemoveAffiliate();
+                }}
+                className="bg-[#B42318] hover:bg-[#912018]"
+              >
+                {removing ? "Removendo..." : "Remover afiliado"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+
+
         <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
           <SheetContent side="right" className="w-[min(560px,90vw)] border-[#E6EAF2] bg-white text-[#171715]">
             <SheetHeader>
