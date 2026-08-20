@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader2, Copy, Check, ArrowLeft } from "lucide-react";
+import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
@@ -34,6 +35,28 @@ const SalesCheckoutPage = () => {
   }>(null);
   const [copied, setCopied] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pixQrImage, setPixQrImage] = useState<string | null>(null);
+
+  // A ValidaPay devolve apenas o "copia e cola" (EMV); o QR é gerado no cliente.
+  useEffect(() => {
+    const code = result?.pixQr;
+    if (!code) {
+      setPixQrImage(null);
+      return;
+    }
+    let active = true;
+    void QRCode.toDataURL(code, { width: 320, margin: 1 })
+      .then((url) => {
+        if (active) setPixQrImage(url);
+      })
+      .catch(() => {
+        if (active) setPixQrImage(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [result?.pixQr]);
+
 
   const [form, setForm] = useState({
     name: "",
@@ -79,7 +102,12 @@ const SalesCheckoutPage = () => {
       setFormError("E-mail inválido.");
       return;
     }
+    if (form.cpf.replace(/\D/g, "").length !== 11) {
+      setFormError("Informe um CPF válido (11 dígitos) para gerar o Pix.");
+      return;
+    }
     setSubmitting(true);
+
     try {
       const { data: resp, error: fnErr } = await supabase.functions.invoke("public-sales-checkout", {
         body: {
@@ -210,10 +238,12 @@ const SalesCheckoutPage = () => {
               </div>
             </dl>
 
-            {result?.pixQrBase64 ? (
+            {result?.pixQr ? (
               <div className="mt-6 rounded-xl bg-[#EFF6FF] p-4 text-center">
                 <p className="text-[12px] font-semibold uppercase tracking-wide text-[#1E3A8A]">Pague com Pix</p>
-                <img src={`data:image/png;base64,${result.pixQrBase64}`} alt="QR Code Pix" className="mx-auto mt-3 h-40 w-40 rounded-xl bg-white p-2" />
+                {pixQrImage ? (
+                  <img src={pixQrImage} alt="QR Code Pix" className="mx-auto mt-3 h-40 w-40 rounded-xl bg-white p-2" />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
@@ -242,8 +272,9 @@ const SalesCheckoutPage = () => {
 
             {formError && <p className="mt-3 text-center text-[12px] text-red-500">{formError}</p>}
             <p className="mt-4 text-center text-[10px] leading-relaxed text-[#64748B]">
-              Ao concluir você concorda com os termos de uso. Pagamento processado pelo Mercado Pago.
+              Ao concluir você concorda com os termos de uso. Pagamento processado com segurança pela ValidaPay.
             </p>
+
           </aside>
         </div>
       </div>
