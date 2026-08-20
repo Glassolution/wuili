@@ -13,7 +13,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { shouldUseProviderStatement } from "@/lib/walletFinanceSource";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -94,10 +93,6 @@ type FinanceData = {
   provider: "validapay";
   source: "providers" | "database";
   activity_source?: "validapay_webhooks" | "database";
-  // Nem todo ambiente da ValidaPay expõe endpoint de extrato; quando não expõe,
-  // as métricas voltam zeradas e não podem sobrepor os eventos confirmados.
-  statement_available?: boolean;
-  transactions_count?: number;
   balance?: ValidaPayBalance | null;
   metrics: {
     approved_sales: number;
@@ -748,11 +743,7 @@ const AdminPainelPage = () => {
     },
     series: { revenue: [], costs: [] },
   }), [approvedValidaPayActivities.length, data.validapayAvailable, localGrossRevenue, localRefunds, paidSubscriptionsInPeriod.length]);
-  const providerHasStatement = useMemo(
-    () => shouldUseProviderStatement(providerFinance, localFinance),
-    [localFinance, providerFinance],
-  );
-  const finance = providerHasStatement && providerFinance ? providerFinance : localFinance;
+  const finance = providerFinance ?? localFinance;
   const eventWalletBalance = useMemo(
     () => getBalanceFromValidaPayEvents(data.validapayEvents),
     [data.validapayEvents],
@@ -873,12 +864,8 @@ const AdminPainelPage = () => {
       }, 0);
     });
   }, [validapayActivities]);
-  const revenueSparklineValues = providerHasStatement && providerFinance
-    ? providerFinance.series.revenue.map((item) => item.value)
-    : localRevenueSeries;
-  const costSparklineValues = providerHasStatement && providerFinance
-    ? providerFinance.series.costs.map((item) => item.value)
-    : localCostSeries;
+  const revenueSparklineValues = providerFinance?.series.revenue.map((item) => item.value) ?? localRevenueSeries;
+  const costSparklineValues = providerFinance?.series.costs.map((item) => item.value) ?? localCostSeries;
 
   const downloadReport = () => {
     const activityRows = usePaymentActivities
@@ -955,7 +942,7 @@ const AdminPainelPage = () => {
             <h1 className="text-[19px] font-semibold tracking-[-0.035em]">Carteira</h1>
             <PeriodFilter value={period} onChange={setPeriod} />
             <span className="hidden text-[10px] font-medium text-[#999994] md:inline">
-              {providerHasStatement
+              {providerFinance?.source === "providers"
                 ? "Extrato financeiro da ValidaPay"
                 : data.validapayAvailable
                 ? "Eventos confirmados da ValidaPay"

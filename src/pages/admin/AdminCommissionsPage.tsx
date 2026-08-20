@@ -5,6 +5,7 @@ import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointer
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
+import AffiliateApplicationCard from "@/components/admin/AffiliateApplicationCard";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
@@ -38,8 +39,11 @@ type AffiliateRow = {
   commission_paid: number;
   /** Afiliado aprovado porém pausado. Removido do programa some da lista. */
   is_active?: boolean;
+  /** Status do cadastro (affiliate_applications). "pending" só aparece na aba de aprovação. */
+  application_status?: string | null;
 
 };
+
 
 type AffiliateDetails = {
   affiliate: {
@@ -113,6 +117,8 @@ const asAffiliateRows = (value: unknown): AffiliateRow[] => {
     commission_pending: Number(raw?.commission_pending ?? 0),
     commission_paid: Number(raw?.commission_paid ?? 0),
     is_active: raw?.is_active !== false,
+    application_status: raw?.application_status ?? null,
+
   });
 
   if (Array.isArray(value)) return value.map(normalizeRow);
@@ -173,6 +179,7 @@ const AdminCommissionsPage = () => {
       if (error) throw error;
       toast.success(`${rowToRemove.affiliate_name ?? rowToRemove.code} foi removido do programa de afiliados.`);
       setRowToRemove(null);
+      setSelectedCode(null);
       await queryClient.invalidateQueries({ queryKey: ["admin-affiliate-commissions"] });
     } catch (e) {
       toast.error(`Não foi possível remover: ${String((e as any)?.message ?? e)}`);
@@ -270,6 +277,8 @@ const AdminCommissionsPage = () => {
             commission_pending: pendingByCode.get(code) ?? 0,
             commission_paid: paidByCode.get(code) ?? 0,
             is_active: true,
+            application_status: null,
+
           } satisfies AffiliateRow;
         });
       }
@@ -336,9 +345,26 @@ const AdminCommissionsPage = () => {
     },
   });
 
+  // A lista principal mostra só quem já passou pela aprovação do admin.
+  // Cadastros "pending"/"rejected" continuam exclusivamente na aba de aprovação.
+  // Afiliados legados (criados sem formulário) não têm application_status e seguem visíveis.
+  const approvedAffiliates = useMemo(
+    () =>
+      affiliates.filter((row) => {
+        const status = String(row.application_status ?? "").toLowerCase();
+        return status !== "pending" && status !== "rejected";
+      }),
+    [affiliates],
+  );
+
+  const selectedRow = useMemo(
+    () => approvedAffiliates.find((row) => row.code === selectedCode) ?? null,
+    [approvedAffiliates, selectedCode],
+  );
+
   const totals = useMemo(() => {
     const out = {
-      totalAffiliates: affiliates.length,
+      totalAffiliates: approvedAffiliates.length,
       clicks: 0,
       signups: 0,
       reachedPayment: 0,
@@ -346,7 +372,7 @@ const AdminCommissionsPage = () => {
       commissionPending: 0,
       commissionPaid: 0,
     };
-    for (const row of affiliates) {
+    for (const row of approvedAffiliates) {
       out.clicks += Number(row.clicks ?? 0);
       out.signups += Number(row.signups ?? 0);
       out.reachedPayment += Number(row.reached_payment ?? 0);
@@ -355,7 +381,8 @@ const AdminCommissionsPage = () => {
       out.commissionPaid += Number(row.commission_paid ?? 0);
     }
     return out;
-  }, [affiliates]);
+  }, [approvedAffiliates]);
+
 
   if (loadingAuth) {
     return <VeloLoadingScreen message="Carregando afiliados..." />;
@@ -430,7 +457,7 @@ const AdminCommissionsPage = () => {
             <div>
               <h2 className="text-[15px] font-semibold text-[#171715]">Afiliados</h2>
               <p className="mt-1 text-[11px] text-[#8A8F9B]">
-                {affiliates.length} afiliado(s) encontrados
+                {approvedAffiliates.length} afiliado(s) aprovados
               </p>
             </div>
             {error ? (
@@ -444,7 +471,7 @@ const AdminCommissionsPage = () => {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-7 w-7 animate-spin text-[#2563EB]" />
             </div>
-          ) : affiliates.length === 0 ? (
+          ) : approvedAffiliates.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
                 <UsersRound size={20} />
@@ -472,8 +499,12 @@ const AdminCommissionsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEF1F6]">
-                  {affiliates.map((row) => (
-                    <tr key={row.code} className="transition hover:bg-[#F8FAFC]">
+                  {approvedAffiliates.map((row) => (
+                    <tr
+                      key={row.code}
+                      onClick={() => setSelectedCode(row.code)}
+                      className="cursor-pointer transition hover:bg-[#F8FAFC]"
+                    >
                       <Td className="font-semibold text-[#171715]">
                         <span>{row.affiliate_name ?? row.affiliate_user_id}</span>
                         {row.is_active === false ? (
@@ -508,24 +539,18 @@ const AdminCommissionsPage = () => {
                       <Td className="text-right font-semibold text-[#087443]">{money(Number(row.commission_paid ?? 0))}</Td>
                       <Td className="text-[#64748B]">{date(row.created_at)}</Td>
                       <Td>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedCode(row.code)}
-                            className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
-                          >
-                            Ver detalhes
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setRowToRemove(row)}
-                            title="Remover do programa de afiliados"
-                            className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#FBD5D5] bg-white px-3 py-2 text-[12px] font-semibold text-[#B42318] transition hover:bg-[#FEF3F2]"
-                          >
-                            <Trash2 size={14} /> Remover
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCode(row.code);
+                          }}
+                          className="rounded-[10px] border border-[#DDE3EE] bg-white px-3 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]"
+                        >
+                          Ver detalhes
+                        </button>
                       </Td>
+
 
                     </tr>
                   ))}
@@ -567,7 +592,7 @@ const AdminCommissionsPage = () => {
 
 
         <Sheet open={!!selectedCode} onOpenChange={(open) => (!open ? setSelectedCode(null) : null)}>
-          <SheetContent side="right" className="w-[min(560px,90vw)] border-[#E6EAF2] bg-white text-[#171715]">
+          <SheetContent side="right" className="w-[min(680px,95vw)] overflow-y-auto border-[#E6EAF2] bg-white text-[#171715]">
             <SheetHeader>
               <SheetTitle className="text-[18px] font-semibold text-[#171715]">Detalhes do afiliado</SheetTitle>
             </SheetHeader>
@@ -597,6 +622,45 @@ const AdminCommissionsPage = () => {
                     <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">Criado em</p>
                     <p className="mt-1 text-[13px] text-[#64748B]">{date(details.affiliate.created_at)}</p>
                   </div>
+
+                  {/* Performance do afiliado — mesmos números dos cards do topo, só deste código. */}
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
+                    <p className="text-[14px] font-semibold text-[#171715]">Performance</p>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <MetricCard label="Cliques" value={String(selectedRow?.clicks ?? 0)} icon={<MousePointerClick size={16} />} />
+                      <MetricCard label="Cadastros" value={String(selectedRow?.signups ?? 0)} icon={<UserPlus size={16} />} />
+                      <MetricCard
+                        label="Comissão pendente"
+                        value={money(Number(selectedRow?.commission_pending ?? 0))}
+                        icon={<Banknote size={16} />}
+                        highlight="amber"
+                      />
+                      <MetricCard
+                        label="Comissão paga"
+                        value={money(Number(selectedRow?.commission_paid ?? 0))}
+                        icon={<Banknote size={16} />}
+                        highlight="emerald"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mesmo formulário mostrado na aba de aprovação de cadastros. */}
+                  <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
+                    <p className="mb-3 text-[14px] font-semibold text-[#171715]">Cadastro enviado</p>
+                    <AffiliateApplicationCard
+                      userId={selectedRow?.affiliate_user_id || details.affiliate.user_id || null}
+                      code={details.affiliate.code}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => selectedRow && setRowToRemove(selectedRow)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#FBD5D5] bg-white px-4 py-3 text-[13px] font-semibold text-[#B42318] transition hover:bg-[#FEF3F2]"
+                  >
+                    <Trash2 size={15} /> Remover afiliado
+                  </button>
+
 
                   <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
                     <p className="text-[14px] font-semibold text-[#171715]">Indicados</p>
