@@ -82,7 +82,11 @@ Deno.serve(async (req) => {
       if (project) {
         ownerId = project.user_id;
         projectId = project.id;
-        const metadata = (project.metadata ?? {}) as { productIds?: string[]; price?: number | string };
+        const metadata = (project.metadata ?? {}) as {
+          productIds?: string[];
+          price?: number | string;
+          elementOverrides?: Record<string, { textContent?: string }>;
+        };
         const productIds: string[] = Array.isArray(metadata.productIds) ? metadata.productIds : [];
         if (productIds.length > 0) {
           const { data: products } = await admin.rpc("get_public_store_products", { p_ids: productIds });
@@ -96,10 +100,15 @@ Deno.serve(async (req) => {
           }
         }
         // Preço editado pelo dono no editor tem prioridade sobre o do catálogo.
-        const edited = Number(String(metadata.price ?? "").toString().replace(",", "."));
-        if (Number.isFinite(edited) && edited > 0) unitPrice = edited;
+        // Espelha src/lib/userProjects.ts#resolveProjectPrice para o Pix sair
+        // exatamente com o "Total" mostrado no carrinho/checkout:
+        // 1) metadata.price (número gravado pelo editor atual);
+        // 2) projetos antigos: menor valor "R$ ..." nos elementOverrides.
+        const edited = resolveEditedPrice(metadata);
+        if (edited !== null) unitPrice = edited;
         if (!productTitle || productTitle === "Produto") productTitle = project.nome;
       }
+
     }
 
     if (!ownerId) return json({ error: "Página não encontrada." }, 404);
