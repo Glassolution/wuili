@@ -84,14 +84,32 @@ const normalizeAffiliateCode = (value?: string | null) =>
   String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
 const buildAffiliateUrl = (code: string) => `${PUBLIC_APP_URL}/ref/${normalizeAffiliateCode(code)}`;
 const asAffiliateRows = (value: unknown): AffiliateRow[] => {
-  if (Array.isArray(value)) return value as AffiliateRow[];
+  const normalizeRow = (raw: any): AffiliateRow => ({
+    affiliate_user_id: String(raw?.affiliate_user_id ?? raw?.user_id ?? ""),
+    affiliate_name: raw?.affiliate_name ?? raw?.display_name ?? null,
+    affiliate_email: raw?.affiliate_email ?? raw?.email ?? null,
+    code: String(raw?.code ?? raw?.affiliate_code ?? ""),
+    link: String(raw?.link ?? ""),
+    created_at: String(raw?.created_at ?? new Date().toISOString()),
+    clicks: Number(raw?.clicks ?? 0),
+    signups: Number(raw?.signups ?? 0),
+    reached_payment: Number(raw?.reached_payment ?? 0),
+    payers: Number(raw?.payers ?? 0),
+    commission_pending: Number(raw?.commission_pending ?? 0),
+    commission_paid: Number(raw?.commission_paid ?? 0),
+    is_active: raw?.is_active !== false,
+  });
+
+  if (Array.isArray(value)) return value.map(normalizeRow);
   if (!value || typeof value !== "object") return [];
-  const data = value as { affiliates?: unknown; rows?: unknown; data?: unknown };
-  if (Array.isArray(data.affiliates)) return data.affiliates as AffiliateRow[];
-  if (Array.isArray(data.rows)) return data.rows as AffiliateRow[];
-  if (Array.isArray(data.data)) return data.data as AffiliateRow[];
+  const data = value as { affiliates?: unknown; ranking?: unknown; rows?: unknown; data?: unknown };
+  // A RPC devolve { from, to, funnel, commissions, ranking, affiliates }.
+  for (const candidate of [data.affiliates, data.ranking, data.rows, data.data]) {
+    if (Array.isArray(candidate)) return candidate.map(normalizeRow);
+  }
   return [];
 };
+
 const canonicalizeAffiliateRow = (row: AffiliateRow): AffiliateRow => {
   const code = normalizeAffiliateCode(row.code);
   return { ...row, code, link: buildAffiliateUrl(code) };
