@@ -24,6 +24,9 @@ type AffiliateRow = {
   payers: number;
   commission_pending: number;
   commission_paid: number;
+  /** Afiliado aprovado porém pausado. Removido do programa some da lista. */
+  is_active?: boolean;
+
 };
 
 type AffiliateDetails = {
