@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
+import { filterCleanImages } from '../_shared/ml-content-sanitizer.ts'
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -598,18 +600,41 @@ Deno.serve(async (req) => {
     })()
 
     const MIN_REQUIRED_IMAGES = 3
-    const publicImages = rawImages.filter(isPublicUrl).slice(0, 6)
-    if (publicImages.length < MIN_REQUIRED_IMAGES) {
+    const allPublicImages = rawImages.filter(isPublicUrl)
+    if (allPublicImages.length < MIN_REQUIRED_IMAGES) {
       return json({
-        error: `O Mercado Livre exige no mínimo ${MIN_REQUIRED_IMAGES} fotos para publicar. Este produto tem apenas ${publicImages.length} foto(s) pública(s). Adicione mais imagens antes de publicar (imagens locais não são aceitas).`,
+        error: `O Mercado Livre exige no mínimo ${MIN_REQUIRED_IMAGES} fotos para publicar. Este produto tem apenas ${allPublicImages.length} foto(s) pública(s). Adicione mais imagens antes de publicar (imagens locais não são aceitas).`,
         code: 'INSUFFICIENT_IMAGES',
       }, 400)
+    }
+
+    // O ML pausa anúncios cujas fotos sejam artes/infográficos do fornecedor
+    // ("Ajuste o título e/ou substitua as fotos"). Filtramos antes de publicar:
+    // heurística de URL + checagem visual por IA. Fail-open: se sobrarem menos
+    // de 3 fotos limpas, completamos com as originais para não travar a venda.
+    let publicImages = allPublicImages.slice(0, 6)
+    try {
+      const filtered = await filterCleanImages(allPublicImages, { useVision: true, max: 6 })
+      if (filtered.rejected.length) {
+        console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
+          filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
+      }
+      if (filtered.clean.length >= MIN_REQUIRED_IMAGES) {
+        publicImages = filtered.clean
+      } else if (filtered.clean.length > 0) {
+        const rest = allPublicImages.filter(u => !filtered.clean.includes(u))
+        publicImages = [...filtered.clean, ...rest].slice(0, 6)
+        console.warn('[ml-publish] menos de 3 fotos limpas — completando com originais')
+      }
+    } catch (err) {
+      console.warn('[ml-publish] filtro visual de imagens indisponível:', String(err))
     }
 
     console.log('user_id:', user_id)
     console.log('title:', product.title.substring(0, 60))
     console.log('price:', product.price)
     console.log('images (public):', publicImages.length)
+
 
     if (!supabaseUrl || !serviceRoleKey) {
       return json({ error: 'Configuração do servidor incompleta.' }, 500)
