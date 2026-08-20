@@ -34,6 +34,28 @@ const SalesCheckoutPage = () => {
   }>(null);
   const [copied, setCopied] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pixQrImage, setPixQrImage] = useState<string | null>(null);
+
+  // A ValidaPay devolve apenas o "copia e cola" (EMV); o QR é gerado no cliente.
+  useEffect(() => {
+    const code = result?.pixQr;
+    if (!code) {
+      setPixQrImage(null);
+      return;
+    }
+    let active = true;
+    void QRCode.toDataURL(code, { width: 320, margin: 1 })
+      .then((url) => {
+        if (active) setPixQrImage(url);
+      })
+      .catch(() => {
+        if (active) setPixQrImage(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [result?.pixQr]);
+
 
   const [form, setForm] = useState({
     name: "",
