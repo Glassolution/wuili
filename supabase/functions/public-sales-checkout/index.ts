@@ -30,6 +30,36 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+/** Lê "R$ 1.299,90" em pt-BR (ponto = milhar, vírgula = decimal). */
+const parsePriceBRL = (text: string): number | null => {
+  const match = text.match(/(\d[\d.]*(?:,\d{1,2})?)/);
+  if (!match) return null;
+  const value = Number(match[1].replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(value) && value > 0 ? value : null;
+};
+
+/** Mesma prioridade de resolveProjectPrice no frontend. */
+const resolveEditedPrice = (metadata: {
+  price?: number | string;
+  elementOverrides?: Record<string, { textContent?: string }>;
+}): number | null => {
+  const raw = metadata.price;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === "string") {
+    const parsed = parsePriceBRL(raw);
+    if (parsed !== null) return parsed;
+  }
+  const found: number[] = [];
+  for (const override of Object.values(metadata.elementOverrides ?? {})) {
+    const text = override?.textContent;
+    if (typeof text !== "string" || !/R\$/i.test(text)) continue;
+    const parsed = parsePriceBRL(text);
+    if (parsed !== null) found.push(parsed);
+  }
+  return found.length ? Math.min(...found) : null;
+};
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
