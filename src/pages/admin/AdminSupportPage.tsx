@@ -366,21 +366,38 @@ const AdminSupportPage = () => {
         }
       }
 
-      const { data: messagesData } = await (supabase as any)
-        .from("support_messages")
-        .select("id,ticket_id,user_id,message,sender,created_at")
-        .in("ticket_id", ticketIds)
-        .order("created_at", { ascending: false });
+      // Busca TODAS as mensagens em lotes: o PostgREST corta em 1000 linhas por
+      // requisição e, sem paginar, tickets antigos ficavam sem `last_message_at`
+      // e caíam para `updated_at`, bagunçando a ordenação por última mensagem.
+      const PAGE_SIZE = 1000;
+      const allMessages: SupportMessage[] = [];
+      for (let page = 0; ; page += 1) {
+        const { data: pageData, error: pageError } = await (supabase as any)
+          .from("support_messages")
+          .select("id,ticket_id,user_id,message,sender,created_at")
+          .in("ticket_id", ticketIds)
+          .order("created_at", { ascending: false })
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+        if (pageError) break;
+        const rows = (pageData ?? []) as SupportMessage[];
+        allMessages.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+      }
 
       const lastByTicket = new Map<string, SupportMessage>();
       const messageCountByTicket = new Map<string, number>();
       const adminReplyByTicket = new Set<string>();
 
-      for (const message of (messagesData ?? []) as SupportMessage[]) {
+      for (const message of allMessages) {
         messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
-        if (!lastByTicket.has(message.ticket_id)) lastByTicket.set(message.ticket_id, message);
+        const current = lastByTicket.get(message.ticket_id);
+        // Última mensagem do ticket, venha de quem vier (cliente, admin ou IA).
+        if (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime()) {
+          lastByTicket.set(message.ticket_id, message);
+        }
         if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
       }
+
 
       return ticketsList.map((ticket) => {
         const customer = profilesByUser.get(ticket.user_id);
