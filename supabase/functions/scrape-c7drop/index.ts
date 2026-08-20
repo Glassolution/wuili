@@ -57,6 +57,7 @@ type ListItem = {
   compareAtPrice: number | string | null;
   image: string | null;
   stock: number | null;
+  manageStock?: boolean | null;
   categories?: Array<{ name?: string; slug?: string }>;
 };
 
@@ -90,6 +91,7 @@ type ProductDetail = {
   height?: number | string | null;
   length?: number | string | null;
   stock: number | null;
+  manageStock?: boolean | null;
   active?: boolean;
   images?: ProductImage[];
   variants?: ProductVariant[];
@@ -180,7 +182,11 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
   const price = extractDropshippingPrice(detail);
   // ML exige no mínimo 3 fotos: produto com galeria incompleta fica bloqueado.
   const blockedFlag = isBlocked(title) || !hasEnoughImages(images);
-  const stock = toNumber(detail.stock ?? listItem?.stock) ?? 0;
+  // A C7 usa `manageStock: false` para itens sem controle de estoque (sempre
+  // disponíveis) — nesses casos `stock` vem 0/-1 e não significa esgotado.
+  const manageStock = detail.manageStock ?? listItem?.manageStock ?? true;
+  const rawStock = toNumber(detail.stock ?? listItem?.stock) ?? 0;
+  const stock = manageStock === false ? 999 : rawStock;
   const compareAt = toNumber(detail.compareAtPrice ?? listItem?.compareAtPrice ?? null);
 
   const rawDesc = (detail.shortDescription && detail.shortDescription.trim().length > 0)
