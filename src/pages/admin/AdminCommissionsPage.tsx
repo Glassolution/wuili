@@ -158,6 +158,29 @@ const AdminCommissionsPage = () => {
   const isAdmin = role === "admin" || (!!user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AffiliateAdminTab>("approved");
+  const [rowToRemove, setRowToRemove] = useState<AffiliateRow | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleRemoveAffiliate = async () => {
+    if (!rowToRemove) return;
+    setRemoving(true);
+    try {
+      const { error } = await supabase.rpc("rpc_admin_remove_affiliate", {
+        p_user_id: rowToRemove.affiliate_user_id || null,
+        p_code: rowToRemove.code,
+      });
+      if (error) throw error;
+      toast.success(`${rowToRemove.affiliate_name ?? rowToRemove.code} foi removido do programa de afiliados.`);
+      setRowToRemove(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin-affiliate-commissions"] });
+    } catch (e) {
+      toast.error(`Não foi possível remover: ${String((e as any)?.message ?? e)}`);
+    } finally {
+      setRemoving(false);
+    }
+  };
+
 
   const { data: affiliates = [], isLoading, error } = useQuery({
     queryKey: ["admin-affiliate-commissions"],
