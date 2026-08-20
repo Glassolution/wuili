@@ -1,7 +1,9 @@
 // Checkout público das páginas de vendas geradas pelos usuários.
-// Cria pagamento no Mercado Pago (Pix ou cartão) e persiste um registro em store_orders.
-// O dono da página recebe o pedido no dashboard.
+// Gateway: ValidaPay (Pix). A integração antiga com o Mercado Pago foi
+// descontinuada junto com as assinaturas — o token da conta MP não é mais
+// válido e devolvia 401 "invalid access token", causando o 400 no "Pagar agora".
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { validaPayFetch, ValidaPayError } from "../_shared/validapay.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,43 +20,36 @@ type Body = {
     phone?: string;
     cpf?: string;
   };
-  shipping?: {
-    zip?: string;
-    street?: string;
-    number?: string;
-    complement?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-  };
+  shipping?: Record<string, string | undefined>;
   quantity?: number;
-  card_token?: string;
-  installments?: number;
-  issuer_id?: string;
 };
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
-    if (!MP_ACCESS_TOKEN) throw new Error("MERCADOPAGO_ACCESS_TOKEN não configurado");
-
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(dbUrl, dbKey);
 
     const body = (await req.json()) as Body;
 
-    if (!body?.slug || !body?.payment_method || !body?.buyer?.name || !body?.buyer?.email) {
-      return new Response(JSON.stringify({ error: "campos obrigatórios ausentes" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!body?.slug || !body?.buyer?.name || !body?.buyer?.email) {
+      return json({ error: "Preencha nome, e-mail e tente novamente." }, 400);
     }
 
-    // 1) Resolver a página de vendas via slug — tenta generated_sales_pages primeiro
-    //    e, em seguida, user_projects (loja gerada pelo editor).
+    const cpf = (body.buyer.cpf ?? "").replace(/\D/g, "");
+    if (cpf.length !== 11 && cpf.length !== 14) {
+      return json({ error: "Informe um CPF válido para gerar o Pix." }, 400);
+    }
+
+    // 1) Resolver a página de vendas via slug (generated_sales_pages ou user_projects).
     let ownerId: string | null = null;
     let salesPageId: string | null = null;
     let projectId: string | null = null;
@@ -87,10 +82,8 @@ Deno.serve(async (req) => {
       if (project) {
         ownerId = project.user_id;
         projectId = project.id;
-        // Pega o primeiro produto do projeto, se houver
-        const productIds: string[] = Array.isArray((project.metadata as { productIds?: string[] })?.productIds)
-          ? (project.metadata as { productIds?: string[] }).productIds ?? []
-          : [];
+        const metadata = (project.metadata ?? {}) as { productIds?: string[]; price?: number | string };
+        const productIds: string[] = Array.isArray(metadata.productIds) ? metadata.productIds : [];
         if (productIds.length > 0) {
           const { data: products } = await admin.rpc("get_public_store_products", { p_ids: productIds });
           const first = Array.isArray(products) ? products[0] : null;
@@ -102,27 +95,20 @@ Deno.serve(async (req) => {
             unitPrice = Number(first.suggested_price ?? 0);
           }
         }
+        // Preço editado pelo dono no editor tem prioridade sobre o do catálogo.
+        const edited = Number(String(metadata.price ?? "").toString().replace(",", "."));
+        if (Number.isFinite(edited) && edited > 0) unitPrice = edited;
         if (!productTitle || productTitle === "Produto") productTitle = project.nome;
       }
     }
 
-    if (!ownerId) {
-      return new Response(JSON.stringify({ error: "página não encontrada" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!unitPrice || unitPrice <= 0) {
-      return new Response(JSON.stringify({ error: "preço inválido para a página" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!ownerId) return json({ error: "Página não encontrada." }, 404);
+    if (!unitPrice || unitPrice <= 0) return json({ error: "Preço inválido para esta página." }, 400);
 
     const quantity = Math.max(1, Math.min(10, Number(body.quantity ?? 1)));
     const total = Number((unitPrice * quantity).toFixed(2));
 
-    // 2) Criar registro pending em store_orders (pega o id como external_reference)
+    // 2) Pedido pendente
     const externalRef = `store_${crypto.randomUUID()}`;
     const { data: orderRow, error: orderErr } = await admin
       .from("store_orders")
@@ -139,9 +125,9 @@ Deno.serve(async (req) => {
         buyer_name: body.buyer.name.trim().slice(0, 200),
         buyer_email: body.buyer.email.trim().toLowerCase().slice(0, 200),
         buyer_phone: body.buyer.phone?.slice(0, 40) ?? null,
-        buyer_cpf: body.buyer.cpf?.replace(/\D/g, "").slice(0, 14) ?? null,
+        buyer_cpf: cpf.slice(0, 14),
         shipping_address: body.shipping ?? null,
-        payment_method: body.payment_method,
+        payment_method: "pix",
         payment_status: "pending",
         mp_external_reference: externalRef,
       })
@@ -150,103 +136,72 @@ Deno.serve(async (req) => {
 
     if (orderErr || !orderRow) {
       console.error("store_orders insert error:", orderErr);
-      return new Response(JSON.stringify({ error: "falha ao registrar pedido" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Falha ao registrar pedido." }, 500);
     }
 
-    // 3) Criar pagamento no Mercado Pago
-    const mpPayload: Record<string, unknown> = {
-      transaction_amount: total,
-      description: productTitle,
-      payer: { email: body.buyer.email, first_name: body.buyer.name.split(" ")[0] },
-      external_reference: externalRef,
-      metadata: {
-        kind: "store_order",
-        store_order_id: orderRow.id,
-        owner_user_id: ownerId,
-        slug: body.slug,
-      },
-    };
-
-    if (body.payment_method === "pix") {
-      mpPayload.payment_method_id = "pix";
-    } else {
-      if (!body.card_token) {
-        return new Response(JSON.stringify({ error: "card_token obrigatório para cartão" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      mpPayload.token = body.card_token;
-      mpPayload.installments = body.installments ?? 1;
-      if (body.issuer_id) mpPayload.issuer_id = body.issuer_id;
-    }
-
-    const mpResp = await fetch("https://api.mercadopago.com/v1/payments", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-        "X-Idempotency-Key": externalRef,
-      },
-      body: JSON.stringify(mpPayload),
-    });
-    const mpData = await mpResp.json();
-
-    if (!mpResp.ok) {
-      console.error("MP payment error:", mpData);
+    // 3) Cobrança Pix na ValidaPay (valor dinâmico)
+    let charge: { chargeId?: string; pix?: { emv?: string }; status?: string };
+    try {
+      charge = await validaPayFetch<{ chargeId?: string; pix?: { emv?: string }; status?: string }>(
+        "/v1/charges",
+        {
+          method: "POST",
+          scope: "pix.cob/write pix.cob/read",
+          body: JSON.stringify({
+            amount: total,
+            paymentMethod: "pix",
+            description: productTitle.slice(0, 120),
+            externalId: externalRef,
+            customer: {
+              name: body.buyer.name.trim().slice(0, 120),
+              email: body.buyer.email.trim().toLowerCase(),
+              documentNumber: cpf,
+              ...(body.buyer.phone ? { phone: body.buyer.phone.replace(/\D/g, "") } : {}),
+            },
+            metadata: {
+              kind: "store_order",
+              store_order_id: orderRow.id,
+              owner_user_id: ownerId,
+              slug: body.slug,
+            },
+          }),
+        },
+      );
+    } catch (err) {
+      const detail = err instanceof ValidaPayError ? JSON.stringify(err.details) : String(err);
+      console.error("validapay charge error:", detail);
       await admin
         .from("store_orders")
         .update({ payment_status: "rejected", updated_at: new Date().toISOString() })
         .eq("id", orderRow.id);
-      return new Response(JSON.stringify({ error: "erro no pagamento", details: mpData }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ error: "Não foi possível gerar o Pix. Confira os dados e tente novamente." }, 400);
     }
 
-    // 4) Atualizar store_orders com dados do pagamento
-    const pixQr: string | null =
-      mpData.point_of_interaction?.transaction_data?.qr_code ?? null;
-    const pixQrBase64: string | null =
-      mpData.point_of_interaction?.transaction_data?.qr_code_base64 ?? null;
-
-    const paymentStatus =
-      mpData.status === "approved"
-        ? "approved"
-        : mpData.status === "rejected" || mpData.status === "cancelled"
-        ? "rejected"
-        : "pending";
+    const pixCode = charge?.pix?.emv ?? null;
+    if (!charge?.chargeId || !pixCode) {
+      console.error("validapay charge sem pix:", JSON.stringify(charge));
+      return json({ error: "O gateway não devolveu o código Pix. Tente novamente." }, 502);
+    }
 
     await admin
       .from("store_orders")
       .update({
-        mp_payment_id: String(mpData.id),
-        payment_status: paymentStatus,
-        pix_qr_code: pixQr,
-        pix_qr_code_base64: pixQrBase64,
+        mp_payment_id: String(charge.chargeId),
+        pix_qr_code: pixCode,
         updated_at: new Date().toISOString(),
       })
       .eq("id", orderRow.id);
 
-    return new Response(
-      JSON.stringify({
-        order_id: orderRow.id,
-        payment_id: mpData.id,
-        status: paymentStatus,
-        pix_qr_code: pixQr,
-        pix_qr_code_base64: pixQrBase64,
-        total,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return json({
+      order_id: orderRow.id,
+      payment_id: charge.chargeId,
+      status: "pending",
+      pix_qr_code: pixCode,
+      pix_qr_code_base64: null,
+      total,
+    });
   } catch (err) {
     console.error("public-sales-checkout error:", err);
-    return new Response(JSON.stringify({ error: "erro interno" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Erro interno no checkout." }, 500);
   }
 });
