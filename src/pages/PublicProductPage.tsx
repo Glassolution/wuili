@@ -421,11 +421,16 @@ const PublicProductPage = () => {
           <button
             type="button"
             onClick={handleAddToCart}
-            className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#1a3c2a] py-4 text-[15px] font-bold text-[#f5f2ea] shadow-[0_8px_20px_rgba(26,60,42,0.25)] transition hover:bg-[#122a1e]"
+            disabled={missingVariant}
+            className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#1a3c2a] py-4 text-[15px] font-bold text-[#f5f2ea] shadow-[0_8px_20px_rgba(26,60,42,0.25)] transition hover:bg-[#122a1e] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ShoppingCart size={18} strokeWidth={2.2} />
             Adicionar ao carrinho
           </button>
+          {variantError ? (
+            <p className="mt-2 text-[12px] font-semibold text-[#b3261e]">{variantError}</p>
+          ) : null}
+
 
           {/* MÉTODOS DE PAGAMENTO */}
           <div className="mt-5 flex flex-wrap items-center gap-2">
