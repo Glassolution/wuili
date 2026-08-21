@@ -84,6 +84,7 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
   }, [project]);
 
   const { Component, descFallback } = resolveProductTemplate(getProjectTemplate(project));
+  // Aviso exibido quando o comprador tenta comprar sem escolher a variação.
   const brand = getProjectStoreName(project) || project.nome;
   // O preço editado no canvas vale para a página inteira — bundles e "economize"
   // derivam daqui. Antes só o catálogo alimentava isso, e o override de texto
@@ -117,7 +118,28 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
     const aria = (target.getAttribute("aria-label") || "").toLowerCase();
     if (/adicionar ao carrinho|comprar|carrinho/.test(text + " " + aria)) {
       event.preventDefault();
-      if (slug) navigate(`/loja/${slug}/carrinho`);
+      if (!slug) return;
+      // Variação escolhida nos chips do template (radios com data-variant-group).
+      const root = rootRef.current;
+      const groups = new Set<string>();
+      root?.querySelectorAll<HTMLInputElement>("input[data-variant-group]").forEach((input) => {
+        if (input.dataset.variantGroup) groups.add(input.dataset.variantGroup);
+      });
+      const selected: Record<string, string> = {};
+      root?.querySelectorAll<HTMLInputElement>("input[data-variant-group]:checked").forEach((input) => {
+        if (input.dataset.variantGroup) selected[input.dataset.variantGroup] = input.value;
+      });
+      if (groups.size > 0 && Object.keys(selected).length < groups.size) {
+        setVariantWarning("Escolha as opções do produto (cor, tamanho...) antes de adicionar ao carrinho.");
+        return;
+      }
+      setVariantWarning(null);
+      const selection = resolveVariantSelection(product?.variantRows ?? [], selected);
+      const params = new URLSearchParams();
+      if (selection.label) params.set("variante", selection.label);
+      if (selection.sku) params.set("sku", selection.sku);
+      const qs = params.toString();
+      navigate(`/loja/${slug}/carrinho${qs ? `?${qs}` : ""}`);
     }
   };
 
@@ -214,7 +236,28 @@ const PublishedLojaPage = ({ project }: { project: UserProject }) => {
     }
     if (/adicionar ao carrinho|comprar|carrinho/.test(text + " " + aria)) {
       event.preventDefault();
-      if (slug) navigate(`/loja/${slug}/carrinho`);
+      if (!slug) return;
+      // Variação escolhida nos chips do template (radios com data-variant-group).
+      const root = rootRef.current;
+      const groups = new Set<string>();
+      root?.querySelectorAll<HTMLInputElement>("input[data-variant-group]").forEach((input) => {
+        if (input.dataset.variantGroup) groups.add(input.dataset.variantGroup);
+      });
+      const selected: Record<string, string> = {};
+      root?.querySelectorAll<HTMLInputElement>("input[data-variant-group]:checked").forEach((input) => {
+        if (input.dataset.variantGroup) selected[input.dataset.variantGroup] = input.value;
+      });
+      if (groups.size > 0 && Object.keys(selected).length < groups.size) {
+        setVariantWarning("Escolha as opções do produto (cor, tamanho...) antes de adicionar ao carrinho.");
+        return;
+      }
+      setVariantWarning(null);
+      const selection = resolveVariantSelection(product?.variantRows ?? [], selected);
+      const params = new URLSearchParams();
+      if (selection.label) params.set("variante", selection.label);
+      if (selection.sku) params.set("sku", selection.sku);
+      const qs = params.toString();
+      navigate(`/loja/${slug}/carrinho${qs ? `?${qs}` : ""}`);
     }
   };
 
