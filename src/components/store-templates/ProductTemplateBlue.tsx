@@ -417,7 +417,10 @@ const ProductTemplateBlue = ({
                       <input
                         type="radio"
                         name={`velo-blue-variant-${group.name}`}
-                        defaultChecked={option === group.options[0]}
+                        value={option}
+                        // Sem pré-seleção: a loja precisa saber qual variação o
+                        // comprador escolheu antes de mandar para o carrinho.
+                        data-variant-group={group.name}
                         className="sr-only"
                       />
                       {isColorGroup(group.name) ? (
