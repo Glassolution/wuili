@@ -387,25 +387,98 @@ function mapPublicProduct(row: PublicProductRow): PublicStoreProduct {
     imageUrls: allImages(row.images),
     category: row.category,
     variants: parseVariantOptions(row.variants),
+    variantRows: parseVariantRows(row.variants),
     description: row.description,
   };
 }
 
 /**
- * Lê as variações reais gravadas pelo scraper ([{ name, values }]). Retorna []
- * quando o fornecedor não informa variação — a vitrine então OMITE o seletor em
- * vez de inventar cores/tamanhos.
+ * Normaliza as variações cruas gravadas pelo scraper.
+ *
+ * O C7Drop grava uma LINHA por combinação:
+ *   [{ name: "Cor", value: "Azul", sku: "X", cost_price: 45, stock: 0 }, ...]
+ * Projetos/mocks antigos usam o formato agrupado:
+ *   [{ name: "Cor", options: ["Azul", "Preto"] }]
+ * Os dois são aceitos aqui.
+ */
+export function parseVariantRows(value: Json | null): ProductVariantRow[] {
+  if (!Array.isArray(value)) return [];
+  const rows: ProductVariantRow[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const raw = entry as {
+      name?: unknown;
+      value?: unknown;
+      options?: unknown;
+      sku?: unknown;
+      cost_price?: unknown;
+      stock?: unknown;
+    };
+    const name = typeof raw.name === "string" ? raw.name.trim() : "";
+    if (!name) continue;
+    const sku = typeof raw.sku === "string" && raw.sku.trim() ? raw.sku.trim() : null;
+    const costPrice = Number.isFinite(Number(raw.cost_price)) && raw.cost_price !== null ? Number(raw.cost_price) : null;
+    const stock = Number.isFinite(Number(raw.stock)) && raw.stock !== null ? Number(raw.stock) : null;
+    if (typeof raw.value === "string" && raw.value.trim()) {
+      rows.push({ name, value: raw.value.trim(), sku, costPrice, stock });
+      continue;
+    }
+    if (Array.isArray(raw.options)) {
+      for (const option of raw.options) {
+        if (typeof option === "string" && option.trim()) {
+          rows.push({ name, value: option.trim(), sku, costPrice, stock });
+        }
+      }
+    }
+  }
+  return rows;
+}
+
+/**
+ * Variações agrupadas por atributo, prontas para o seletor da vitrine.
+ * Retorna [] quando o fornecedor não informa variação — a vitrine então OMITE
+ * o seletor em vez de inventar cores/tamanhos.
+ *
+ * Grupos com uma única opção que não representam escolha real do comprador
+ * (ex.: { name: "Compra", value: "Dropshipping" }) são descartados: eles são
+ * metadado de fornecedor, não variação.
  */
 export function parseVariantOptions(value: Json | null): ProductVariantOption[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
-    const { name, options } = entry as { name?: unknown; options?: unknown };
-    if (typeof name !== "string" || !name.trim() || !Array.isArray(options)) return [];
-    const parsed = options.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-    return parsed.length > 0 ? [{ name: name.trim(), options: parsed }] : [];
-  });
+  const rows = parseVariantRows(value);
+  const grouped = new Map<string, string[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.name) ?? [];
+    if (!list.includes(row.value)) list.push(row.value);
+    grouped.set(row.name, list);
+  }
+  return Array.from(grouped.entries())
+    .filter(([, options]) => options.length > 1)
+    .map(([name, options]) => ({ name, options }));
 }
+
+/** Rótulo legível da variação escolhida: "Cor: Azul · Tamanho: M". */
+export function formatVariantLabel(selected: Record<string, string>): string {
+  return Object.entries(selected)
+    .filter(([, value]) => Boolean(value))
+    .map(([name, value]) => `${name}: ${value}`)
+    .join(" · ");
+}
+
+/** Resolve SKU e custo da combinação escolhida (quando o fornecedor diferencia). */
+export function resolveVariantSelection(
+  rows: ProductVariantRow[],
+  selected: Record<string, string>,
+): { label: string; sku: string | null; costPrice: number | null } {
+  const label = formatVariantLabel(selected);
+  const matches = rows.filter((row) => selected[row.name] === row.value);
+  const withSku = matches.find((row) => row.sku) ?? matches[0] ?? null;
+  return {
+    label,
+    sku: withSku?.sku ?? null,
+    costPrice: withSku?.costPrice ?? null,
+  };
+}
+
 
 export async function fetchUserProject(projectId: string): Promise<UserProject | null> {
   const { data, error } = await supabase
