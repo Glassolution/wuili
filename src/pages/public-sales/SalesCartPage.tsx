@@ -14,8 +14,7 @@ const SalesCartPage = () => {
   const navigate = useNavigate();
   const { data, loading, error } = useSalesPageData(slug);
   const [qty, setQty] = useState(1);
-  const [tip, setTip] = useState<number>(4);
-  const [customTip, setCustomTip] = useState("");
+
 
   if (loading) {
     return (
