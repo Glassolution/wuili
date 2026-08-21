@@ -1228,6 +1228,8 @@ const ConversationPanel = ({
   sending,
   onResolve,
   resolving,
+  onReopen,
+  reopening,
   onEditMessage,
   onDeleteMessage,
   messageActionPending,
@@ -1245,6 +1247,8 @@ const ConversationPanel = ({
   sending: boolean;
   onResolve: () => void;
   resolving: boolean;
+  onReopen: () => void;
+  reopening: boolean;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
   messageActionPending: boolean;
