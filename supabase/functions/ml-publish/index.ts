@@ -1439,6 +1439,7 @@ Deno.serve(async (req) => {
       categoryAttrs as unknown as Array<Record<string, unknown>>,
       product.price,
       product.available_quantity || 10,
+      pictures,
     )
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
