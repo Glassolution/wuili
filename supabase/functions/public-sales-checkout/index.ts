@@ -22,6 +22,36 @@ type Body = {
   };
   shipping?: Record<string, string | undefined>;
   quantity?: number;
+  /** Variação escolhida pelo comprador ("Cor: Azul · Tamanho: G"). */
+  variant_label?: string;
+  variant_sku?: string;
+};
+
+/** Linha crua de variação gravada pelo scraper em catalog_products.variants. */
+type VariantRow = { name?: string; value?: string; sku?: string; cost_price?: number | string };
+
+/** Custo da variante escolhida — o lojista precisa dele para a margem real. */
+const resolveVariantCost = (variants: unknown, label: string, sku: string): number | null => {
+  if (!Array.isArray(variants)) return null;
+  const rows = variants as VariantRow[];
+  if (sku) {
+    const bySku = rows.find((row) => row?.sku === sku);
+    const cost = Number(bySku?.cost_price);
+    if (Number.isFinite(cost) && cost > 0) return cost;
+  }
+  const chosen = new Set(
+    label
+      .split(" · ")
+      .map((part) => part.split(": ")[1]?.trim())
+      .filter((value): value is string => Boolean(value)),
+  );
+  for (const row of rows) {
+    if (row?.value && chosen.has(String(row.value).trim())) {
+      const cost = Number(row.cost_price);
+      if (Number.isFinite(cost) && cost > 0) return cost;
+    }
+  }
+  return null;
 };
 
 // Espelha src/pages/public-sales/cartTotals.ts — o "Total a pagar" do carrinho
@@ -148,6 +178,18 @@ Deno.serve(async (req) => {
     if (!ownerId) return json({ error: "Página não encontrada." }, 404);
     if (!unitPrice || unitPrice <= 0) return json({ error: "Preço inválido para esta página." }, 400);
 
+    const variantLabel = (body.variant_label ?? "").trim().slice(0, 200);
+    const variantSku = (body.variant_sku ?? "").trim().slice(0, 120);
+    let variantCostPrice: number | null = null;
+    if ((variantLabel || variantSku) && catalogProductId) {
+      const { data: catalogRow } = await admin
+        .from("catalog_products")
+        .select("variants")
+        .eq("id", catalogProductId)
+        .maybeSingle();
+      variantCostPrice = resolveVariantCost(catalogRow?.variants, variantLabel, variantSku);
+    }
+
     const quantity = Math.max(1, Math.min(10, Number(body.quantity ?? 1)));
     const subtotal = Number((unitPrice * quantity).toFixed(2));
     const total = Number((subtotal + SERVICE_FEE_BRL).toFixed(2));
@@ -171,6 +213,9 @@ Deno.serve(async (req) => {
         buyer_phone: body.buyer.phone?.slice(0, 40) ?? null,
         buyer_cpf: cpf.slice(0, 14),
         shipping_address: body.shipping ?? null,
+        variant_label: variantLabel || null,
+        variant_sku: variantSku || null,
+        variant_cost_price: variantCostPrice,
         payment_method: "pix",
         payment_status: "pending",
         mp_external_reference: externalRef,
@@ -194,7 +239,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             amount: total,
             paymentMethod: "pix",
-            description: productTitle.slice(0, 120),
+            description: (variantLabel ? `${productTitle} (${variantLabel})` : productTitle).slice(0, 120),
             externalId: externalRef,
             customer: {
               name: body.buyer.name.trim().slice(0, 120),
@@ -209,6 +254,8 @@ Deno.serve(async (req) => {
               service_fee: SERVICE_FEE_BRL,
               owner_user_id: ownerId,
               slug: body.slug,
+              variant_label: variantLabel || null,
+              variant_sku: variantSku || null,
             },
           }),
         },
