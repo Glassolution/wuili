@@ -212,6 +212,124 @@ async function validateSellerCanList(accessToken: string): Promise<SellerStatusB
 // product.brand / product.model / product.ml_attributes.
 
 
+/**
+ * Variações no Mercado Livre.
+ *
+ * O ML não aceita variação "livre": cada eixo (Cor, Tamanho...) precisa ser um
+ * atributo da categoria marcado com `tags.allow_variations`. Por isso só
+ * montamos `variations[]` quando conseguimos casar o nome da variação do
+ * fornecedor com um atributo válido da categoria. Se não casar, publicamos
+ * como item simples (comportamento antigo) em vez de estourar erro no ML.
+ */
+type SupplierVariantRow = { name: string; value: string; sku: string | null; stock: number | null }
+
+function parseSupplierVariantRows(raw: unknown): SupplierVariantRow[] {
+  if (typeof raw === 'string') {
+    try { return parseSupplierVariantRows(JSON.parse(raw)) } catch { return [] }
+  }
+  if (!Array.isArray(raw)) return []
+  const rows: SupplierVariantRow[] = []
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const r = entry as Record<string, unknown>
+    const name = cleanText(r.name as string | undefined)
+    if (!name) continue
+    const sku = cleanText(r.sku as string | undefined) || null
+    const stockNum = Number(r.stock)
+    const stock = Number.isFinite(stockNum) ? stockNum : null
+    const value = cleanText(r.value as string | undefined)
+    if (value) { rows.push({ name, value, sku, stock }); continue }
+    if (Array.isArray(r.options)) {
+      for (const opt of r.options) {
+        const v = cleanText(opt as string | undefined)
+        if (v) rows.push({ name, value: v, sku, stock })
+      }
+    }
+  }
+  return rows
+}
+
+/** "Cor"/"Color" → COLOR, "Tamanho"/"Size" → SIZE, senão casa pelo nome do atributo. */
+function matchVariationAttribute(
+  name: string,
+  categoryAttrs: Array<Record<string, unknown>>,
+): { id: string; name: string } | null {
+  const norm = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  const target = norm(name)
+  const alias: Record<string, string[]> = {
+    COLOR: ['cor', 'color', 'cores'],
+    SIZE: ['tamanho', 'size', 'tamanhos'],
+    MODEL: ['modelo', 'model'],
+    FLAVOR: ['sabor', 'flavor'],
+    CAPACITY: ['capacidade', 'capacity'],
+  }
+  const allowed = categoryAttrs.filter((a) => {
+    const tags = (a.tags as Record<string, unknown> | undefined) ?? {}
+    return Boolean(tags.allow_variations)
+  })
+  for (const attr of allowed) {
+    const id = cleanText(attr.id as string | undefined).toUpperCase()
+    const attrName = cleanText(attr.name as string | undefined)
+    if (norm(attrName) === target) return { id, name: attrName }
+    if (alias[id]?.includes(target)) return { id, name: attrName || id }
+  }
+  return null
+}
+
+function buildMlVariations(
+  variantsRaw: unknown,
+  categoryAttrs: Array<Record<string, unknown>>,
+  price: number,
+  totalQuantity: number,
+): Array<Record<string, unknown>> {
+  const rows = parseSupplierVariantRows(variantsRaw)
+  if (rows.length === 0) return []
+
+  // Agrupa por eixo e descarta eixos com uma opção só (não é escolha real).
+  const grouped = new Map<string, string[]>()
+  for (const row of rows) {
+    const list = grouped.get(row.name) ?? []
+    if (!list.includes(row.value)) list.push(row.value)
+    grouped.set(row.name, list)
+  }
+  const axes: Array<{ attrId: string; values: string[] }> = []
+  for (const [name, values] of grouped) {
+    if (values.length < 2) continue
+    const matched = matchVariationAttribute(name, categoryAttrs)
+    if (!matched) {
+      console.warn(`[ml-publish] Variação "${name}" sem atributo equivalente na categoria — publicando item simples.`)
+      return []
+    }
+    axes.push({ attrId: matched.id, values })
+  }
+  if (axes.length === 0) return []
+
+  // Produto cartesiano dos eixos (ML exige uma variação por combinação).
+  let combos: Array<Array<{ id: string; value_name: string }>> = [[]]
+  for (const axis of axes) {
+    const next: Array<Array<{ id: string; value_name: string }>> = []
+    for (const combo of combos) {
+      for (const value of axis.values) {
+        next.push([...combo, { id: axis.attrId, value_name: value }])
+      }
+    }
+    combos = next
+  }
+  // O ML limita variações por anúncio; 60 é folgado e seguro.
+  combos = combos.slice(0, 60)
+
+  const perVariation = Math.max(1, Math.floor((totalQuantity || 10) / combos.length))
+  return combos.map((attribute_combinations) => {
+    const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
+    return {
+      attribute_combinations,
+      price,
+      available_quantity: perVariation,
+      ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
+    }
+  })
+}
+
 function mergeAttribute(attributes: MLAttribute[], incoming: MLAttribute) {
   const attr = {
     id: cleanText(incoming.id),
@@ -1290,6 +1408,28 @@ Deno.serve(async (req) => {
     const pictures = publicImages.map(url => ({ source: toWhiteBg(url) }))
     console.log('Imagens para ML (normalizadas fundo branco):', pictures.length)
 
+    // === VARIAÇÕES (Cor/Tamanho...) ===
+    // Fonte: catalog_products.variants (o frontend pode mandar junto no payload).
+    let variantsSource: unknown = productRecord.variants ?? null
+    if (!variantsSource && productRecordId) {
+      const { data: variantRow } = await supabase
+        .from('catalog_products')
+        .select('variants')
+        .eq('id', productRecordId)
+        .maybeSingle()
+      variantsSource = variantRow?.variants ?? null
+    }
+    const mlVariations = buildMlVariations(
+      variantsSource,
+      categoryAttrs as unknown as Array<Record<string, unknown>>,
+      product.price,
+      product.available_quantity || 10,
+    )
+    if (mlVariations.length > 0) {
+      console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
+        JSON.stringify(mlVariations.map((v) => (v.attribute_combinations as Array<{ value_name: string }>).map((c) => c.value_name).join('/'))))
+    }
+
     // === BUILD PAYLOAD ===
     const mlPayload = {
       title,
@@ -1320,6 +1460,9 @@ Deno.serve(async (req) => {
         dimensions: shippingDimensions,
         tags: ['self_service_in'],
       },
+      // Com variações, o ML exige preço/estoque POR variação — enviar no item
+      // inteiro causa erro. `variations` sobrepõe os campos acima.
+      ...(mlVariations.length > 0 ? { variations: mlVariations } : {}),
 
     }
 
