@@ -175,8 +175,18 @@ export async function publishProject(project: UserProject, metadataPatch: Record
 }
 
 /** Variação real informada pelo fornecedor (ex.: { name: "Cor", options: ["Preto", "Branco"] }).
- *  O formato espelha o que o scraper grava em catalog_products.variants. */
+ *  Formato normalizado para a UI (agrupado por nome do atributo). */
 export type ProductVariantOption = { name: string; options: string[] };
+
+/** Linha crua de variação como o scraper C7Drop grava em catalog_products.variants:
+ *  { name: "Cor", value: "Azul", sku: "CX-INF", cost_price: 45, stock: 0 }. */
+export type ProductVariantRow = {
+  name: string;
+  value: string;
+  sku: string | null;
+  costPrice: number | null;
+  stock: number | null;
+};
 
 export type PublicStoreProduct = {
   id: string;
@@ -189,9 +199,12 @@ export type PublicStoreProduct = {
   category: string | null;
   /** [] quando o fornecedor não informa variação — a vitrine omite o seletor. */
   variants: ProductVariantOption[];
+  /** Linhas cruas (SKU e custo por variante), usadas no pedido. */
+  variantRows: ProductVariantRow[];
   /** HTML de especificações do fornecedor. Sanitizar antes de renderizar. */
   description: string | null;
 };
+
 
 /** Todas as fotos do produto. O scraper grava ["url", ...] ou [{ url }, ...]. */
 function allImages(images: Json | null): string[] {
