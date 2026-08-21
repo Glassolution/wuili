@@ -11,6 +11,8 @@ import {
   getProjectProductIds,
   getProjectStoreName,
   resolveProjectPrice,
+  type ProductVariantOption,
+  type ProductVariantRow,
   type UserProject,
 } from "@/lib/userProjects";
 import { formatPriceBRL, parsePriceBRL } from "@/lib/priceFormat";
@@ -40,6 +42,9 @@ export type SalesPageData = {
   storeDescription?: string | null;
   /** Meta Pixel do dono da loja (só usado para renderizar a storefront dele). */
   metaPixelId?: string | null;
+  /** Variações reais do fornecedor ([] quando o produto não tem). */
+  variants: ProductVariantOption[];
+  variantRows: ProductVariantRow[];
   tipoProjeto?: "loja_completa" | "pagina_venda";
 };
 
@@ -58,6 +63,8 @@ export function useSalesPageData(slug: string | undefined) {
       price: 25,
       accent: "#0A0A0A",
       brand: "Sua loja",
+      variants: [],
+      variantRows: [],
     };
     if (!slug) {
       if (isPreview) {
@@ -118,6 +125,8 @@ export function useSalesPageData(slug: string | undefined) {
           accent: getProjectAccent(project),
           brand: getProjectStoreName(project) || project.nome,
           metaPixelId: project.meta_pixel_id ?? null,
+          variants: first?.variants ?? [],
+          variantRows: first?.variantRows ?? [],
           tipoProjeto: (project.tipo_projeto as "loja_completa" | "pagina_venda") ?? undefined,
         });
 
