@@ -675,6 +675,22 @@ const AdminSupportPage = () => {
     onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
+  const reopenTicket = useMutation({
+    mutationFn: async () => {
+      if (!openTicket?.id) return;
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ status: "open" })
+        .eq("id", openTicket.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ticket reaberto.");
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+    },
+    onError: () => toast.error("Não foi possível reabrir o ticket."),
+  });
+
   const directRefund = useMutation({
     mutationFn: async (target: DirectRefundTarget) => {
       const { data, error } = await supabase.functions.invoke("admin-refund-action", {
