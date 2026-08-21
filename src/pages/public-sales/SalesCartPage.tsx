@@ -183,55 +183,9 @@ const SalesCartPage = () => {
 
               <div className="my-4 border-t border-dashed" style={{ borderColor: t.border }} />
 
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: t.muted }}>Gorjeta</p>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[12px]">
-                {[0, 2, 4, 7].map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => {
-                      setTip(v);
-                      setCustomTip("");
-                    }}
-                    className="rounded-md px-2 py-2 font-semibold transition"
-                    style={tip === v
-                      ? { border: `1px solid ${t.gold}`, backgroundColor: "rgba(37,99,235,0.10)", color: t.accentDark }
-                      : { border: `1px solid ${t.border}`, backgroundColor: "#fff", color: t.muted }}
-                  >
-                    {v === 0 ? "Sem gorjeta" : formatBRL(v)}
-                  </button>
-                ))}
-              </div>
-              <label className="mt-2 block">
-                <span className="sr-only">Personalizar gorjeta</span>
-                <div className="flex h-10 items-center overflow-hidden rounded-md border bg-white" style={{ borderColor: customTip ? t.gold : t.border }}>
-                  <span className="grid h-full place-items-center px-3 text-[12px] font-semibold" style={{ color: t.muted }}>R$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={customTip}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setCustomTip(value);
-                      setTip(Math.max(0, Number(value) || 0));
-                    }}
-                    placeholder="Personalizar valor"
-                    className="h-full min-w-0 flex-1 bg-transparent pr-3 text-[12px] font-semibold outline-none placeholder:text-slate-400"
-                    style={{ color: t.text }}
-                  />
-                </div>
-              </label>
-
-              <div className="my-4 border-t border-dashed" style={{ borderColor: t.border }} />
-
               <div className="flex justify-between text-[13px]">
                 <span style={{ color: t.muted }}>Taxa de serviço</span>
                 <span className="font-semibold" style={{ color: t.text }}>{formatBRL(serviceFee)}</span>
-              </div>
-              <div className="mt-2 flex justify-between text-[13px]">
-                <span style={{ color: t.muted }}>Impostos</span>
-                <span className="font-semibold" style={{ color: t.text }}>{formatBRL(tax)}</span>
               </div>
 
               <div className="mt-5 flex items-baseline justify-between pt-4" style={{ borderTop: `1px solid ${t.border}` }}>
@@ -241,7 +195,7 @@ const SalesCartPage = () => {
 
               <button
                 type="button"
-                onClick={() => navigate(`/${routePrefix}/${slug}/checkout?qty=${qty}&tip=${tipAmount}`)}
+                onClick={() => navigate(`/${routePrefix}/${slug}/checkout?qty=${qty}`)}
                 className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-md text-[12px] font-bold uppercase tracking-[0.18em] text-white transition"
                 style={{ backgroundColor: t.cta }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = t.ctaHover; }}
