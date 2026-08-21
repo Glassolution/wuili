@@ -1,8 +1,10 @@
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Loader2, Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { useState } from "react";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 import { computeCartTotals } from "./cartTotals";
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
+import { resolveVariantSelection } from "@/lib/userProjects";
 
 /**
  * Tela · Carrinho
@@ -12,8 +14,25 @@ const SalesCartPage = () => {
   const { slug = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data, loading, error } = useSalesPageData(slug);
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(() => {
+    const fromUrl = Number(searchParams.get("qty") ?? 1);
+    return Number.isFinite(fromUrl) ? Math.max(1, Math.min(10, fromUrl)) : 1;
+  });
+  // Variação escolhida na página do produto (?variante=Cor: Azul) ou aqui
+  // mesmo, quando o comprador cai direto no carrinho.
+  const variantFromUrl = searchParams.get("variante") ?? "";
+  const skuFromUrl = searchParams.get("sku") ?? "";
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
+    const parsed: Record<string, string> = {};
+    variantFromUrl.split(" · ").forEach((part) => {
+      const [name, value] = part.split(": ");
+      if (name?.trim() && value?.trim()) parsed[name.trim()] = value.trim();
+    });
+    return parsed;
+  });
+  const [variantError, setVariantError] = useState<string | null>(null);
 
 
   if (loading) {
