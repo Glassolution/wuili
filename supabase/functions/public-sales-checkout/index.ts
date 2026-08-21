@@ -195,7 +195,8 @@ Deno.serve(async (req) => {
       const { data: bySku } = await admin
         .from("catalog_products")
         .select("variants")
-        .contains("variants", [{ sku: variantSku }])
+        // jsonb precisa da string JSON: array JS vira literal de array PG e não casa.
+        .contains("variants", JSON.stringify([{ sku: variantSku }]))
         .limit(1)
         .maybeSingle();
       variantCostPrice = resolveVariantCost(bySku?.variants, variantLabel, variantSku);
