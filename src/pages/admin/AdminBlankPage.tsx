@@ -640,26 +640,53 @@ const AdminPainelPage = () => {
       const metadata = asRecord(payload.metadata);
       const customer = asRecord(payload.customer);
       const payer = asRecord(payload.payer);
-      const eventAt = String(payload.paidAt ?? payload.createdAt ?? row.created_at);
+      const currentCycle = asRecord(payload.currentCycle);
+      const firstItem = asRecord(Array.isArray(payload.items) ? payload.items[0] : undefined);
+      const itemPrice = asRecord(firstItem.price);
+      const eventAt = String(
+        payload.paidAt ?? currentCycle.paidAt ?? payload.createdAt ?? currentCycle.chargeDate ?? row.created_at,
+      );
       if (!isInPeriod(eventAt, period)) return [];
       const matchedSubscription =
         (row.charge_id ? subscriptionByCharge.get(row.charge_id) : undefined) ??
         (row.subscription_id ? subscriptionByProviderId.get(row.subscription_id) : undefined);
-      const eventAmount = Number(row.amount ?? payload.amount ?? 0);
-      const amount = eventAmount > 0 ? eventAmount : Number(matchedSubscription?.amount ?? 0);
-      const plan = String(matchedSubscription?.plan ?? metadata.plan ?? payload.plan ?? "").trim() || null;
+      // O webhook da ValidaPay traz o valor em lugares diferentes conforme o
+      // evento (currentCycle em assinaturas, items em cobranças avulsas).
+      const amount =
+        [
+          row.amount,
+          payload.amount,
+          currentCycle.amount,
+          firstItem.amount,
+          itemPrice.amount,
+          matchedSubscription?.amount,
+        ]
+          .map((value) => Number(value ?? 0))
+          .find((value) => Number.isFinite(value) && value > 0) ?? 0;
+      const plan =
+        String(matchedSubscription?.plan ?? metadata.plan ?? payload.plan ?? firstItem.name ?? "").trim() || null;
       const status = normalizeValidaPayStatus(row.status, row.event);
+      const recurrence = String(
+        payload.interval ?? itemPrice.recurrenceType ?? metadata.cycle ?? "",
+      ).toUpperCase();
       return [{
         activity: {
           id: getValidaPayEventKey(row),
           user_id: matchedSubscription?.user_id ?? (String(metadata.user_id ?? metadata.userId ?? "").trim() || null),
           payer_name: String(customer.name ?? payer.name ?? "").trim() || null,
-          payer_email: String(customer.email ?? "").trim() || null,
-          amount: Number.isFinite(amount) ? amount : 0,
+          payer_email: String(customer.email ?? payload.email ?? "").trim() || null,
+          amount,
           status,
-          payment_method: String(payload.paymentMethod ?? matchedSubscription?.payment_method ?? "").trim() || null,
+          payment_method:
+            String(
+              payload.paymentMethod ??
+                currentCycle.paymentMethod ??
+                matchedSubscription?.payment_method ??
+                "",
+            ).trim() || null,
           plan,
-          interval: Number.isFinite(amount) && amount >= 300 ? "Anual" : "Mensal",
+          interval:
+            recurrence.includes("YEAR") || recurrence.includes("ANNUAL") || amount >= 300 ? "Anual" : "Mensal",
           created_at: eventAt,
           source: "validapay",
         } satisfies FinanceActivity,
