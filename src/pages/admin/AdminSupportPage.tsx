@@ -24,6 +24,7 @@ import {
   Paperclip,
   Pencil,
   Plug,
+  RefreshCcw,
   Search,
   Send,
   Trash2,
@@ -675,6 +676,22 @@ const AdminSupportPage = () => {
     onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
+  const reopenTicket = useMutation({
+    mutationFn: async () => {
+      if (!openTicket?.id) return;
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ status: "open" })
+        .eq("id", openTicket.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ticket reaberto.");
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+    },
+    onError: () => toast.error("Não foi possível reabrir o ticket."),
+  });
+
   const directRefund = useMutation({
     mutationFn: async (target: DirectRefundTarget) => {
       const { data, error } = await supabase.functions.invoke("admin-refund-action", {
@@ -774,6 +791,8 @@ const AdminSupportPage = () => {
             sending={sendReply.isPending}
             onResolve={() => closeTicket.mutate()}
             resolving={closeTicket.isPending}
+            onReopen={() => reopenTicket.mutate()}
+            reopening={reopenTicket.isPending}
             onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
             onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
             messageActionPending={editMessage.isPending || deleteMessage.isPending}
@@ -1212,6 +1231,8 @@ const ConversationPanel = ({
   sending,
   onResolve,
   resolving,
+  onReopen,
+  reopening,
   onEditMessage,
   onDeleteMessage,
   messageActionPending,
@@ -1229,6 +1250,8 @@ const ConversationPanel = ({
   sending: boolean;
   onResolve: () => void;
   resolving: boolean;
+  onReopen: () => void;
+  reopening: boolean;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
   messageActionPending: boolean;
@@ -1276,14 +1299,25 @@ const ConversationPanel = ({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              onClick={onResolve}
-              disabled={resolving || closed}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
-            >
-              {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-              {closed ? "Resolvido" : "Resolver"}
-            </button>
+            {closed ? (
+              <button
+                onClick={onReopen}
+                disabled={reopening}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
+              >
+                {reopening ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
+                Reabrir ticket
+              </button>
+            ) : (
+              <button
+                onClick={onResolve}
+                disabled={resolving}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
+              >
+                {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                Resolver
+              </button>
+            )}
             <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1]" aria-label="Mais ações">
               <MoreHorizontal size={15} />
             </button>
