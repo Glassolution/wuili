@@ -256,8 +256,13 @@ Deno.serve(async (req) => {
         entry.status = 'corrigido'
       } else {
         entry.status = 'falha_update'
-        entry.detail = (await putRes.text()).slice(0, 300)
+        entry.detail = (await putRes.text()).slice(0, 900)
+        if (body.debug === true) {
+          entry.item_attrs = itemAttrs.map((a) => `${a.id}=${a.value_name ?? a.value_id ?? ''}`)
+          entry.sent = { attributes: clearedAttrs, variation0: variations[0] }
+        }
       }
+
       report.push(entry)
     }
 
