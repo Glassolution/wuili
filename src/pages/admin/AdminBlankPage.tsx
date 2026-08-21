@@ -743,7 +743,20 @@ const AdminPainelPage = () => {
     },
     series: { revenue: [], costs: [] },
   }), [approvedValidaPayActivities.length, data.validapayAvailable, localGrossRevenue, localRefunds, paidSubscriptionsInPeriod.length]);
-  const finance = providerFinance ?? localFinance;
+  // A ValidaPay às vezes responde sem métricas (sem conexão / período ainda não
+  // consolidado). Nesse caso os cards ficavam zerados mesmo com transações na
+  // lista — por isso caímos para o cálculo local quando o provedor vem vazio.
+  const providerHasMetrics =
+    !!providerFinance &&
+    (Number(providerFinance.metrics?.gross_revenue ?? 0) > 0 ||
+      Number(providerFinance.metrics?.approved_sales ?? 0) > 0 ||
+      Number(providerFinance.metrics?.refunds ?? 0) > 0 ||
+      Number(providerFinance.metrics?.withdrawals ?? 0) > 0);
+  const localHasMetrics =
+    localFinance.metrics.gross_revenue > 0 ||
+    localFinance.metrics.approved_sales > 0 ||
+    localFinance.metrics.refunds > 0;
+  const finance = providerHasMetrics || !localHasMetrics ? (providerFinance ?? localFinance) : localFinance;
   const eventWalletBalance = useMemo(
     () => getBalanceFromValidaPayEvents(data.validapayEvents),
     [data.validapayEvents],
