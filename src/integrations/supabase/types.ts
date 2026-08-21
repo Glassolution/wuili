@@ -2148,6 +2148,9 @@ export type Database = {
           unit_price: number
           updated_at: string
           user_id: string
+          variant_cost_price: number | null
+          variant_label: string | null
+          variant_sku: string | null
         }
         Insert: {
           buyer_cpf?: string | null
@@ -2173,6 +2176,9 @@ export type Database = {
           unit_price: number
           updated_at?: string
           user_id: string
+          variant_cost_price?: number | null
+          variant_label?: string | null
+          variant_sku?: string | null
         }
         Update: {
           buyer_cpf?: string | null
@@ -2198,6 +2204,9 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           user_id?: string
+          variant_cost_price?: number | null
+          variant_label?: string | null
+          variant_sku?: string | null
         }
         Relationships: [
           {
