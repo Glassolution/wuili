@@ -273,6 +273,13 @@ function matchVariationAttribute(
     if (norm(attrName) === target) return { id, name: attrName }
     if (alias[id]?.includes(target)) return { id, name: attrName || id }
   }
+  // Muitas categorias não têm "COLOR" puro e sim "Cor da caixa"/"Cor da pulseira".
+  // Casamos pelo prefixo do nome para não perder a variação nesses casos.
+  for (const attr of allowed) {
+    const id = cleanText(attr.id as string | undefined).toUpperCase()
+    const attrName = cleanText(attr.name as string | undefined)
+    if (norm(attrName).startsWith(target)) return { id, name: attrName || id }
+  }
   return null
 }
 
