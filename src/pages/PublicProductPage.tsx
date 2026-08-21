@@ -382,32 +382,18 @@ const PublicProductPage = () => {
           </div>
 
           {/* VARIAÇÕES */}
-          {product.variants.map((variant) => (
-            <div key={variant.name} className="mt-6 border-t border-[#1a1a1a]/8 pt-6">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#1a1a1a]/60">
-                {variant.name}
-              </span>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {variant.options.map((option) => {
-                  const active = selectedVariants[variant.name] === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setSelectedVariants((prev) => ({ ...prev, [variant.name]: option }))}
-                      className={`min-w-[64px] rounded-md border px-4 py-2 text-[12px] font-semibold transition ${
-                        active
-                          ? "border-[#1a3c2a] bg-white text-[#1a1a1a]"
-                          : "border-[#1a1a1a]/15 bg-white/60 text-[#1a1a1a]/70 hover:border-[#1a3c2a]/50"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <ProductVariantPicker
+            options={product.variants}
+            accent="#1a3c2a"
+            textColor="#1a1a1a"
+            value={selectedVariants}
+            requireExplicitChoice
+            onChange={(next) => {
+              setSelectedVariants(next);
+              setVariantError(null);
+            }}
+          />
+
 
           {/* QUANTIDADE */}
           <div className="mt-6 flex items-center gap-4">
