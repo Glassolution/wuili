@@ -35,7 +35,7 @@ const SalesCartPage = () => {
   }
 
   const unitPrice = data.price;
-  const { subtotal, serviceFee, tax, tip: tipAmount, total } = computeCartTotals(unitPrice, qty, tip);
+  const { subtotal, serviceFee, total } = computeCartTotals(unitPrice, qty);
   const t = {
     bg: "#F6F9FF",
     surface: "#FFFFFF",
