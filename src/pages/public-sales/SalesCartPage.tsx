@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Loader2, Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { useState } from "react";
 import { formatBRL, useSalesPageData } from "./salesPageData";
+import { computeCartTotals } from "./cartTotals";
 
 /**
  * Tela · Carrinho
@@ -35,10 +36,7 @@ const SalesCartPage = () => {
   }
 
   const unitPrice = data.price;
-  const subtotal = unitPrice * qty;
-  const serviceFee = 1.5;
-  const tax = 3.5;
-  const total = Math.max(0, subtotal + serviceFee + tax + tip);
+  const { subtotal, serviceFee, tax, tip: tipAmount, total } = computeCartTotals(unitPrice, qty, tip);
   const t = {
     bg: "#F6F9FF",
     surface: "#FFFFFF",
@@ -244,7 +242,7 @@ const SalesCartPage = () => {
 
               <button
                 type="button"
-                onClick={() => navigate(`/${routePrefix}/${slug}/checkout?qty=${qty}`)}
+                onClick={() => navigate(`/${routePrefix}/${slug}/checkout?qty=${qty}&tip=${tipAmount}`)}
                 className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-md text-[12px] font-bold uppercase tracking-[0.18em] text-white transition"
                 style={{ backgroundColor: t.cta }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = t.ctaHover; }}
