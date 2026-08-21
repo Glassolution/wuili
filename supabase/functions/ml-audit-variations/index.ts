@@ -236,8 +236,17 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // O ML rejeita quando o mesmo atributo (ex.: COLOR) está no item e nas
-      // variações. Limpamos esses atributos no nível do item no mesmo PUT.
+      // Anúncio criado com "family_name" (ficha/catálogo do ML) não aceita
+      // variações — só reconstruindo o anúncio do zero.
+      if (clean(item.family_name)) {
+        entry.status = 'catalogo_family_name'
+        report.push(entry)
+        continue
+      }
+
+      // O ML rejeita quando o mesmo atributo (ex.: COLOR, SELLER_SKU) aparece
+      // no item e nas variações. Limpamos no nível do item / removemos da
+      // variação conforme o caso.
       const axisIds = new Set<string>(
         variations.flatMap((v) => (v.attribute_combinations as Array<{ id: string }>).map((c) => c.id)),
       )
@@ -245,11 +254,20 @@ Deno.serve(async (req) => {
       const clearedAttrs = itemAttrs
         .filter((a) => axisIds.has(String(a.id).toUpperCase()))
         .map((a) => ({ id: String(a.id), value_id: null, value_name: null }))
+      const itemHasSku = itemAttrs.some((a) => String(a.id).toUpperCase() === 'SELLER_SKU')
+      const payloadVariations = itemHasSku
+        ? variations.map(({ attributes: _skip, ...rest }) => rest)
+        : variations
 
       const putRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(clearedAttrs.length > 0 ? { attributes: clearedAttrs, variations } : { variations }),
+        body: JSON.stringify(
+          clearedAttrs.length > 0
+            ? { attributes: clearedAttrs, variations: payloadVariations }
+            : { variations: payloadVariations },
+        ),
+
 
       })
       if (putRes.ok) {
