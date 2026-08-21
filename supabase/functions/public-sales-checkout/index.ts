@@ -189,6 +189,17 @@ Deno.serve(async (req) => {
         .maybeSingle();
       variantCostPrice = resolveVariantCost(catalogRow?.variants, variantLabel, variantSku);
     }
+    // A página pode listar mais de um produto; quando o SKU escolhido não
+    // pertence ao produto resolvido acima, buscamos o custo pelo próprio SKU.
+    if (variantCostPrice === null && variantSku) {
+      const { data: bySku } = await admin
+        .from("catalog_products")
+        .select("variants")
+        .contains("variants", [{ sku: variantSku }])
+        .limit(1)
+        .maybeSingle();
+      variantCostPrice = resolveVariantCost(bySku?.variants, variantLabel, variantSku);
+    }
 
     const quantity = Math.max(1, Math.min(10, Number(body.quantity ?? 1)));
     const subtotal = Number((unitPrice * quantity).toFixed(2));
