@@ -1167,7 +1167,7 @@ const guideOpenShowcaseStep = async (
 
   return {
     message:
-      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nMontei uma seleção do seu nicho, só com estoque ativo. Toca em escolher meu produto e me diz qual você quer.`,
+      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nSeparei aqui embaixo uma seleção do seu nicho, só com estoque ativo e no perfil que você me contou no cadastro. Arrasta pro lado e toca no que te agradar — eu sigo o guia com ele.`,
     actions: [
       {
         type: "open_showcase",
@@ -1284,13 +1284,12 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nReta final: revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre**: eu abro aqui no chat a tela de título, preço e estoque e publico com você.`,
+      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nA gente publica aqui mesmo, sem sair da conversa. Aqui embaixo eu te peço três coisas:\n\n1. **Título e preço** — o título com as palavras que o comprador digita na busca, e o preço já mostrando quanto sobra pra você.\n2. **Descrição** — eu escrevo pra você, ou você escreve do seu jeito.\n3. **Publicar** — você confere o resumo e toca no botão. Eu mando pro Mercado Livre.`,
     actions: [
       // Botão que realmente publica: abre o produto já com o modal de publicação
       // no Mercado Livre aberto. Antes o guia só mandava "abrir o produto" e o
       // iniciante não achava onde publicar.
       { type: "publish_ml", label: "Publicar no Mercado Livre", product_id: product.product_id, variant: "primary" },
-      { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       { type: "navigation", label: "Ver Pedidos", route: "/dashboard/pedidos" },
     ],
@@ -1560,7 +1559,7 @@ const maybeHandleBeginnerGuide = async (
 
     return {
       message:
-        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre** que eu abro aqui mesmo, no chat, a tela de título, preço e estoque.`,
+        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nPublicamos aqui mesmo. Aqui embaixo eu te peço o **título e o preço** (já te mostro quanto sobra por venda), depois a **descrição** — escrevo pra você se quiser — e por fim é só tocar em publicar.`,
       actions: [
         ...(productNav
           ? [
@@ -1570,7 +1569,6 @@ const maybeHandleBeginnerGuide = async (
                 product_id: productNav.route.split("/dashboard/catalogo/")[1]?.split("?")[0] ?? "",
                 variant: "primary" as const,
               },
-              productNav,
             ]
           : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
