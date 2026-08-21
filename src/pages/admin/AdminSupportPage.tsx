@@ -24,6 +24,7 @@ import {
   Paperclip,
   Pencil,
   Plug,
+  RefreshCcw,
   Search,
   Send,
   Trash2,
@@ -790,6 +791,8 @@ const AdminSupportPage = () => {
             sending={sendReply.isPending}
             onResolve={() => closeTicket.mutate()}
             resolving={closeTicket.isPending}
+            onReopen={() => reopenTicket.mutate()}
+            reopening={reopenTicket.isPending}
             onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
             onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
             messageActionPending={editMessage.isPending || deleteMessage.isPending}
