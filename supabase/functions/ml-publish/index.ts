@@ -288,6 +288,7 @@ function buildMlVariations(
   categoryAttrs: Array<Record<string, unknown>>,
   price: number,
   totalQuantity: number,
+  pictures: Array<{ source?: string }> = [],
 ): Array<Record<string, unknown>> {
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
@@ -325,15 +326,22 @@ function buildMlVariations(
   // O ML limita variações por anúncio; 60 é folgado e seguro.
   combos = combos.slice(0, 60)
 
+  // Algumas categorias (ex.: Filtros de Linha) exigem picture_ids em cada
+  // variação. Usamos as URLs já normalizadas do produto; o ML converte para
+  // IDs internos durante a criação do anúncio.
+  const pictureUrls = pictures.map((p) => p.source).filter((url): url is string => Boolean(url))
+
   const perVariation = Math.max(1, Math.floor((totalQuantity || 10) / combos.length))
   return combos.map((attribute_combinations) => {
     const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
-    return {
+    const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
       available_quantity: perVariation,
+      ...(pictureUrls.length > 0 ? { picture_ids: pictureUrls.slice(0, 10) } : {}),
       ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
     }
+    return variation
   })
 }
 
