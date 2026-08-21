@@ -288,6 +288,7 @@ function buildMlVariations(
   categoryAttrs: Array<Record<string, unknown>>,
   price: number,
   totalQuantity: number,
+  pictures: Array<{ source?: string }> = [],
 ): Array<Record<string, unknown>> {
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
@@ -325,15 +326,22 @@ function buildMlVariations(
   // O ML limita variações por anúncio; 60 é folgado e seguro.
   combos = combos.slice(0, 60)
 
+  // Algumas categorias (ex.: Filtros de Linha) exigem picture_ids em cada
+  // variação. Usamos as URLs já normalizadas do produto; o ML converte para
+  // IDs internos durante a criação do anúncio.
+  const pictureUrls = pictures.map((p) => p.source).filter((url): url is string => Boolean(url))
+
   const perVariation = Math.max(1, Math.floor((totalQuantity || 10) / combos.length))
   return combos.map((attribute_combinations) => {
     const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
-    return {
+    const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
       available_quantity: perVariation,
+      ...(pictureUrls.length > 0 ? { picture_ids: pictureUrls.slice(0, 10) } : {}),
       ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
     }
+    return variation
   })
 }
 
@@ -622,6 +630,11 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
     return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
   }
 
+  // Erros específicos de imagens em variações precisam de mensagem clara antes
+  // do catch-all de categoria/pictures abaixo.
+  if (causeStr.includes('item.pictures.variation')) {
+    return { message: 'Cada variação precisa ter entre 1 e 10 fotos. Verifique se o produto possui imagens suficientes.' }
+  }
   if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
@@ -1431,6 +1444,7 @@ Deno.serve(async (req) => {
       categoryAttrs as unknown as Array<Record<string, unknown>>,
       product.price,
       product.available_quantity || 10,
+      pictures,
     )
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
