@@ -17,6 +17,7 @@ import {
   getProjectStoreName,
   getProjectTemplate,
   resolveProjectPrice,
+  resolveVariantSelection,
   type PublicStoreProduct,
   type UserProject,
 } from "@/lib/userProjects";
@@ -54,6 +55,8 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
   const [product, setProduct] = useState<PublicStoreProduct | null>(null);
   const [related, setRelated] = useState<PublicStoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  // Aviso quando o comprador tenta comprar sem escolher a variação.
+  const [variantWarning, setVariantWarning] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -84,6 +87,7 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
   }, [project]);
 
   const { Component, descFallback } = resolveProductTemplate(getProjectTemplate(project));
+  // Aviso exibido quando o comprador tenta comprar sem escolher a variação.
   const brand = getProjectStoreName(project) || project.nome;
   // O preço editado no canvas vale para a página inteira — bundles e "economize"
   // derivam daqui. Antes só o catálogo alimentava isso, e o override de texto
@@ -117,12 +121,38 @@ const PublishedProductPage = ({ project }: { project: UserProject }) => {
     const aria = (target.getAttribute("aria-label") || "").toLowerCase();
     if (/adicionar ao carrinho|comprar|carrinho/.test(text + " " + aria)) {
       event.preventDefault();
-      if (slug) navigate(`/loja/${slug}/carrinho`);
+      if (!slug) return;
+      // Variação escolhida nos chips do template (radios com data-variant-group).
+      const root = rootRef.current;
+      const groups = new Set<string>();
+      root?.querySelectorAll<HTMLInputElement>("input[data-variant-group]").forEach((input) => {
+        if (input.dataset.variantGroup) groups.add(input.dataset.variantGroup);
+      });
+      const selected: Record<string, string> = {};
+      root?.querySelectorAll<HTMLInputElement>("input[data-variant-group]:checked").forEach((input) => {
+        if (input.dataset.variantGroup) selected[input.dataset.variantGroup] = input.value;
+      });
+      if (groups.size > 0 && Object.keys(selected).length < groups.size) {
+        setVariantWarning("Escolha as opções do produto (cor, tamanho...) antes de adicionar ao carrinho.");
+        return;
+      }
+      setVariantWarning(null);
+      const selection = resolveVariantSelection(product?.variantRows ?? [], selected);
+      const params = new URLSearchParams();
+      if (selection.label) params.set("variante", selection.label);
+      if (selection.sku) params.set("sku", selection.sku);
+      const qs = params.toString();
+      navigate(`/loja/${slug}/carrinho${qs ? `?${qs}` : ""}`);
     }
   };
 
   return (
     <div ref={rootRef} style={{ fontFamily: fontStack }} onClick={handleTemplateClick}>
+      {variantWarning ? (
+        <div className="fixed inset-x-0 bottom-4 z-50 mx-auto w-fit max-w-[92vw] rounded-full bg-[#DC2626] px-5 py-3 text-center text-[13px] font-semibold text-white shadow-lg">
+          {variantWarning}
+        </div>
+      ) : null}
       <Component
         brand={brand}
         title={product?.title || brand}

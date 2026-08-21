@@ -112,6 +112,43 @@ async function updateItem(
   return { ok: false, error: `HTTP ${res.status}: ${txt.substring(0, 300)}` };
 }
 
+/**
+ * Estoque em anúncio COM variação.
+ *
+ * O ML rejeita `available_quantity` no nível do item quando ele tem
+ * `variations` — a quantidade precisa ir em cada variação. Aqui lemos as
+ * variações do anúncio e distribuímos o estoque do fornecedor entre elas.
+ * Sem variação, cai no comportamento antigo (quantidade no item).
+ */
+async function updateQuantity(
+  token: string,
+  itemId: string,
+  qty: number,
+  extra: Record<string, unknown> = {},
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await mlFetch(
+    `https://api.mercadolibre.com/items/${itemId}?attributes=variations`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  let variationIds: Array<string | number> = [];
+  if (res.ok) {
+    const data = (await res.json().catch(() => null)) as { variations?: Array<{ id: string | number }> } | null;
+    variationIds = Array.isArray(data?.variations) ? data!.variations.map((v) => v.id).filter(Boolean) : [];
+  } else {
+    await res.text().catch(() => "");
+  }
+
+  if (variationIds.length === 0) {
+    return updateItem(token, itemId, { ...extra, available_quantity: qty });
+  }
+
+  const per = Math.max(1, Math.floor(qty / variationIds.length));
+  return updateItem(token, itemId, {
+    ...extra,
+    variations: variationIds.map((id) => ({ id, available_quantity: per })),
+  });
+}
+
 async function notify(supabase: Supa, userId: string, title: string, message: string) {
   try {
     await supabase.from("notifications").insert({
@@ -233,10 +270,7 @@ async function syncUser(
       const qty = Math.max(1, Math.min(stock, MAX_QTY));
       result.details.push({ ml_item_id: pub.ml_item_id, action: "reactivate", stock });
       if (dryRun) continue;
-      const r = await updateItem(token!, pub.ml_item_id, {
-        status: "active",
-        available_quantity: qty,
-      });
+      const r = await updateQuantity(token!, pub.ml_item_id, qty, { status: "active" });
       await sleep(REQUEST_DELAY_MS);
       if (!r.ok) {
         const dead = deadStatusFrom(r.error);
@@ -272,7 +306,7 @@ async function syncUser(
       result.details.push({ ml_item_id: pub.ml_item_id, action: "quantity", qty });
       if (dryRun) continue;
 
-      const r = await updateItem(token!, pub.ml_item_id, { available_quantity: qty });
+      const r = await updateQuantity(token!, pub.ml_item_id, qty);
       await sleep(REQUEST_DELAY_MS);
       if (!r.ok) {
         const dead = deadStatusFrom(r.error);

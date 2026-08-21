@@ -1,8 +1,10 @@
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ChevronLeft, Loader2, Minus, Plus, Search, ShoppingBag, X } from "lucide-react";
 import { useState } from "react";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 import { computeCartTotals } from "./cartTotals";
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
+import { resolveVariantSelection } from "@/lib/userProjects";
 
 /**
  * Tela · Carrinho
@@ -12,8 +14,25 @@ const SalesCartPage = () => {
   const { slug = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data, loading, error } = useSalesPageData(slug);
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(() => {
+    const fromUrl = Number(searchParams.get("qty") ?? 1);
+    return Number.isFinite(fromUrl) ? Math.max(1, Math.min(10, fromUrl)) : 1;
+  });
+  // Variação escolhida na página do produto (?variante=Cor: Azul) ou aqui
+  // mesmo, quando o comprador cai direto no carrinho.
+  const variantFromUrl = searchParams.get("variante") ?? "";
+  const skuFromUrl = searchParams.get("sku") ?? "";
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
+    const parsed: Record<string, string> = {};
+    variantFromUrl.split(" · ").forEach((part) => {
+      const [name, value] = part.split(": ");
+      if (name?.trim() && value?.trim()) parsed[name.trim()] = value.trim();
+    });
+    return parsed;
+  });
+  const [variantError, setVariantError] = useState<string | null>(null);
 
 
   if (loading) {
@@ -36,6 +55,10 @@ const SalesCartPage = () => {
 
   const unitPrice = data.price;
   const { subtotal, serviceFee, total } = computeCartTotals(unitPrice, qty);
+  const missingVariant = data.variants.some((variant) => !selectedVariants[variant.name]);
+  const selection = resolveVariantSelection(data.variantRows, selectedVariants);
+  const variantLabel = selection.label || variantFromUrl;
+  const variantSku = selection.sku || skuFromUrl;
   const t = {
     bg: "#F6F9FF",
     surface: "#FFFFFF",
@@ -128,11 +151,19 @@ const SalesCartPage = () => {
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-semibold" style={{ color: t.text }}>{data.productTitle}</p>
                 <p className="mt-0.5 text-[12px]" style={{ color: t.muted }}>{data.brand || "Marca"}</p>
-                <p className="mt-1 text-[12px]" style={{ color: t.muted }}>
-                  Cor: <span className="font-medium">Padrão</span>
-                  <span className="mx-2 opacity-40">|</span>
-                  Tamanho: <span className="font-medium">Único</span>
-                </p>
+                {variantLabel ? (
+                  <p className="mt-1 text-[12px] font-medium" style={{ color: t.muted }}>{variantLabel}</p>
+                ) : null}
+                {data.variants.length > 0 ? (
+                  <ProductVariantPicker
+                    options={data.variants}
+                    accent={t.accent}
+                    textColor={t.text}
+                    value={selectedVariants}
+                    requireExplicitChoice
+                    onChange={(next) => { setSelectedVariants(next); setVariantError(null); }}
+                  />
+                ) : null}
                 <div className="mt-2">
                   <span className="text-[17px] font-black" style={{ color: t.text, fontFamily: t.displayFont }}>{formatBRL(unitPrice)}</span>
                 </div>
@@ -195,7 +226,16 @@ const SalesCartPage = () => {
 
               <button
                 type="button"
-                onClick={() => navigate(`/${routePrefix}/${slug}/checkout?qty=${qty}`)}
+                onClick={() => {
+                  if (missingVariant) {
+                    setVariantError("Escolha a variação do produto antes de finalizar.");
+                    return;
+                  }
+                  const params = new URLSearchParams({ qty: String(qty) });
+                  if (variantLabel) params.set("variante", variantLabel);
+                  if (variantSku) params.set("sku", variantSku);
+                  navigate(`/${routePrefix}/${slug}/checkout?${params.toString()}`);
+                }}
                 className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-md text-[12px] font-bold uppercase tracking-[0.18em] text-white transition"
                 style={{ backgroundColor: t.cta }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = t.ctaHover; }}
@@ -203,6 +243,9 @@ const SalesCartPage = () => {
               >
                 Ir para o checkout
               </button>
+              {variantError ? (
+                <p className="mt-2 text-center text-[11px] font-semibold text-[#DC2626]">{variantError}</p>
+              ) : null}
               <p className="mt-3 text-center text-[11px]" style={{ color: t.muted }}>
                 Pagamento 100% seguro · Entrega em todo o Brasil
               </p>

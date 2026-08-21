@@ -341,6 +341,9 @@ type StoreOrderRow = {
   created_at: string;
   catalog_product_id: string | null;
   supplier_url: string | null;
+  /** Variação vendida ("Cor: Azul · Tamanho: G"), quando o produto tem. */
+  variant_label: string | null;
+  variant_sku: string | null;
   shipping_address: Json | null;
 };
 
@@ -351,7 +354,7 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("store_orders")
-        .select("id,product_title,product_image_url,buyer_name,buyer_email,buyer_phone,quantity,total,payment_method,payment_status,created_at,catalog_product_id,shipping_address")
+        .select("id,product_title,product_image_url,buyer_name,buyer_email,buyer_phone,quantity,total,payment_method,payment_status,created_at,catalog_product_id,shipping_address,variant_label,variant_sku")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -405,7 +408,15 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
                 <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
                   {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-contain p-1 mix-blend-multiply" /> : <Package size={20} className="text-[#A3A3A3]" />}
                 </div>
-                <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{order.product_title}</p>
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{order.product_title}</p>
+                  {order.variant_label ? (
+                    <p className="line-clamp-1 text-[11px] font-semibold text-[#2563EB]">
+                      {order.variant_label}
+                      {order.variant_sku ? <span className="text-[#737373]"> · SKU {order.variant_sku}</span> : null}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>

@@ -22,6 +22,10 @@ const SalesCheckoutPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const qty = Math.max(1, Math.min(10, Number(searchParams.get("qty") ?? 1)));
+  // Variação escolhida no carrinho — vai junto para a Edge Function e fica
+  // gravada no pedido para o lojista saber o que despachar.
+  const variantLabel = searchParams.get("variante") ?? "";
+  const variantSku = searchParams.get("sku") ?? "";
 
   const { data, loading, error } = useSalesPageData(slug);
   // Pagamento é sempre Pix (aprovação imediata); o checkout não oferece mais
@@ -120,6 +124,8 @@ const SalesCheckoutPage = () => {
           slug,
           payment_method: method,
           quantity: qty,
+          variant_label: variantLabel || undefined,
+          variant_sku: variantSku || undefined,
           buyer: {
             name: form.name,
             email: form.email,
@@ -225,6 +231,7 @@ const SalesCheckoutPage = () => {
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 text-[13px] font-semibold text-[#020817]">{data.productTitle}</p>
                 <p className="text-[11px] text-[#64748B]">Qtd. {qty}</p>
+                {variantLabel ? <p className="text-[11px] font-medium text-[#2563EB]">{variantLabel}</p> : null}
               </div>
               <p className="text-[13px] font-semibold text-[#020817]">{formatBRL(subtotal)}</p>
             </div>

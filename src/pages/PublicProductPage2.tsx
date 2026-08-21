@@ -8,9 +8,11 @@ import {
   getProjectLogoImage,
   getProjectProductIds,
   getProjectStoreName,
+  resolveVariantSelection,
   type PublicStoreProduct,
   type UserProject,
 } from "@/lib/userProjects";
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 
 const PublicProductPage2 = () => {
@@ -22,6 +24,7 @@ const PublicProductPage2 = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [variantError, setVariantError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
@@ -39,11 +42,9 @@ const PublicProductPage2 = () => {
         setProduct(current);
         setRelated(list.filter((i) => i.id !== productId).slice(0, 4));
         setSelectedImage(0);
-        if (current) {
-          const d: Record<string, string> = {};
-          current.variants.forEach((v) => { if (v.options[0]) d[v.name] = v.options[0]; });
-          setSelectedVariants(d);
-        }
+        // Nada pré-selecionado: o comprador precisa escolher a variação.
+        setSelectedVariants({});
+        setVariantError(null);
       }
       if (active) setLoading(false);
     })();
@@ -71,6 +72,19 @@ const PublicProductPage2 = () => {
       </div>
     </div>
   );
+
+  const missingVariant = product.variants.some((v) => !selectedVariants[v.name]);
+  const goToCart = () => {
+    if (missingVariant) {
+      setVariantError("Escolha as opções do produto antes de continuar.");
+      return;
+    }
+    const selection = resolveVariantSelection(product.variantRows, selectedVariants);
+    const params = new URLSearchParams({ qty: String(quantity) });
+    if (selection.label) params.set("variante", selection.label);
+    if (selection.sku) params.set("sku", selection.sku);
+    navigate(`${cartHref}?${params.toString()}`);
+  };
 
   const savings = product.originalPrice && product.originalPrice > product.price ? Math.round((1 - product.price / product.originalPrice) * 100) : null;
 
@@ -157,21 +171,14 @@ const PublicProductPage2 = () => {
           </div>
           <p className="mt-1 text-[12px] text-[#64748B]">ou 12x de {formatBRL(product.price / 12)} sem juros no cartão</p>
 
-          {product.variants.map((v) => (
-            <div key={v.name} className="mt-5 border-t border-[#E2E8F0] pt-4">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">{v.name}</span>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {v.options.map((o) => {
-                  const active = selectedVariants[v.name] === o;
-                  return (
-                    <button key={o} onClick={() => setSelectedVariants((p) => ({ ...p, [v.name]: o }))} className={`min-w-[60px] rounded-lg border px-4 py-2 text-[12px] font-semibold transition ${active ? "border-[#2563EB] bg-[#EFF6FF] text-[#2563EB]" : "border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#2563EB]"}`}>
-                      {o}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <ProductVariantPicker
+            options={product.variants}
+            accent="#2563EB"
+            textColor="#0F172A"
+            value={selectedVariants}
+            requireExplicitChoice
+            onChange={(next) => { setSelectedVariants(next); setVariantError(null); }}
+          />
 
           {/* QUANTITY */}
           <div className="mt-5 flex items-center gap-3">
@@ -183,12 +190,13 @@ const PublicProductPage2 = () => {
             <span className="text-[11px] text-[#64748B]">✓ Em estoque</span>
           </div>
 
-          <button onClick={() => navigate(cartHref)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3.5 text-[14px] font-bold text-white shadow-md transition hover:bg-[#1D4ED8]">
+          <button onClick={goToCart} disabled={missingVariant} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3.5 text-[14px] font-bold text-white shadow-md transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50">
             <ShoppingCart size={18} strokeWidth={2.2} /> Adicionar ao carrinho
           </button>
-          <button onClick={() => navigate(cartHref)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#2563EB] bg-white py-3.5 text-[14px] font-bold text-[#2563EB] transition hover:bg-[#EFF6FF]">
+          <button onClick={goToCart} disabled={missingVariant} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#2563EB] bg-white py-3.5 text-[14px] font-bold text-[#2563EB] transition hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-50">
             Comprar agora
           </button>
+          {variantError ? <p className="mt-2 text-[12px] font-semibold text-[#DC2626]">{variantError}</p> : null}
 
           {/* PAYMENT */}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">

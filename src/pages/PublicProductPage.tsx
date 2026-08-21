@@ -26,9 +26,11 @@ import {
   getProjectLogoImage,
   getProjectProductIds,
   getProjectStoreName,
+  resolveVariantSelection,
   type PublicStoreProduct,
   type UserProject,
 } from "@/lib/userProjects";
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
 import StoreReviews from "@/components/store-templates/StoreReviews";
@@ -56,6 +58,7 @@ const PublicProductPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [variantError, setVariantError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [reviewSummary, setReviewSummary] = useState(EMPTY_REVIEW_SUMMARY);
 
@@ -75,13 +78,9 @@ const PublicProductPage = () => {
           setProduct(current);
           setRelated(list.filter((item) => item.id !== productId).slice(0, 4));
           setSelectedImage(0);
-          if (current) {
-            const defaults: Record<string, string> = {};
-            current.variants.forEach((v) => {
-              if (v.options[0]) defaults[v.name] = v.options[0];
-            });
-            setSelectedVariants(defaults);
-          }
+          // Nada pré-selecionado: o comprador precisa escolher a variação.
+          setSelectedVariants({});
+          setVariantError(null);
         }
       } catch {
         setProduct(null);
@@ -164,9 +163,23 @@ const PublicProductPage = () => {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
+  // Sem variação escolhida o lojista não sabe o que despachar — por isso
+  // bloqueamos o "Adicionar ao carrinho" enquanto faltar alguma opção.
+  const missingVariant = product.variants.some((variant) => !selectedVariants[variant.name]);
+
   const handleAddToCart = () => {
-    navigate(cartHref);
+    if (missingVariant) {
+      setVariantError("Escolha as opções do produto antes de continuar.");
+      return;
+    }
+    setVariantError(null);
+    const selection = resolveVariantSelection(product.variantRows, selectedVariants);
+    const params = new URLSearchParams({ qty: String(quantity) });
+    if (selection.label) params.set("variante", selection.label);
+    if (selection.sku) params.set("sku", selection.sku);
+    navigate(`${cartHref}?${params.toString()}`);
   };
+
 
   return (
     <div className="min-h-screen bg-[#f5f2ea] text-[#1a1a1a]">
@@ -369,32 +382,18 @@ const PublicProductPage = () => {
           </div>
 
           {/* VARIAÇÕES */}
-          {product.variants.map((variant) => (
-            <div key={variant.name} className="mt-6 border-t border-[#1a1a1a]/8 pt-6">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#1a1a1a]/60">
-                {variant.name}
-              </span>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {variant.options.map((option) => {
-                  const active = selectedVariants[variant.name] === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setSelectedVariants((prev) => ({ ...prev, [variant.name]: option }))}
-                      className={`min-w-[64px] rounded-md border px-4 py-2 text-[12px] font-semibold transition ${
-                        active
-                          ? "border-[#1a3c2a] bg-white text-[#1a1a1a]"
-                          : "border-[#1a1a1a]/15 bg-white/60 text-[#1a1a1a]/70 hover:border-[#1a3c2a]/50"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <ProductVariantPicker
+            options={product.variants}
+            accent="#1a3c2a"
+            textColor="#1a1a1a"
+            value={selectedVariants}
+            requireExplicitChoice
+            onChange={(next) => {
+              setSelectedVariants(next);
+              setVariantError(null);
+            }}
+          />
+
 
           {/* QUANTIDADE */}
           <div className="mt-6 flex items-center gap-4">
@@ -422,11 +421,16 @@ const PublicProductPage = () => {
           <button
             type="button"
             onClick={handleAddToCart}
-            className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#1a3c2a] py-4 text-[15px] font-bold text-[#f5f2ea] shadow-[0_8px_20px_rgba(26,60,42,0.25)] transition hover:bg-[#122a1e]"
+            disabled={missingVariant}
+            className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#1a3c2a] py-4 text-[15px] font-bold text-[#f5f2ea] shadow-[0_8px_20px_rgba(26,60,42,0.25)] transition hover:bg-[#122a1e] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ShoppingCart size={18} strokeWidth={2.2} />
             Adicionar ao carrinho
           </button>
+          {variantError ? (
+            <p className="mt-2 text-[12px] font-semibold text-[#b3261e]">{variantError}</p>
+          ) : null}
+
 
           {/* MÉTODOS DE PAGAMENTO */}
           <div className="mt-5 flex flex-wrap items-center gap-2">
