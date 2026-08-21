@@ -630,6 +630,11 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
     return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
   }
 
+  // Erros específicos de imagens em variações precisam de mensagem clara antes
+  // do catch-all de categoria/pictures abaixo.
+  if (causeStr.includes('item.pictures.variation')) {
+    return { message: 'Cada variação precisa ter entre 1 e 10 fotos. Verifique se o produto possui imagens suficientes.' }
+  }
   if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
