@@ -164,9 +164,23 @@ const PublicProductPage = () => {
     ? Math.round((1 - product.price / product.originalPrice) * 100)
     : null;
 
+  // Sem variação escolhida o lojista não sabe o que despachar — por isso
+  // bloqueamos o "Adicionar ao carrinho" enquanto faltar alguma opção.
+  const missingVariant = product.variants.some((variant) => !selectedVariants[variant.name]);
+
   const handleAddToCart = () => {
-    navigate(cartHref);
+    if (missingVariant) {
+      setVariantError("Escolha as opções do produto antes de continuar.");
+      return;
+    }
+    setVariantError(null);
+    const selection = resolveVariantSelection(product.variantRows, selectedVariants);
+    const params = new URLSearchParams({ qty: String(quantity) });
+    if (selection.label) params.set("variante", selection.label);
+    if (selection.sku) params.set("sku", selection.sku);
+    navigate(`${cartHref}?${params.toString()}`);
   };
+
 
   return (
     <div className="min-h-screen bg-[#f5f2ea] text-[#1a1a1a]">
