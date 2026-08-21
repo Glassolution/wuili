@@ -26,9 +26,11 @@ import {
   getProjectLogoImage,
   getProjectProductIds,
   getProjectStoreName,
+  resolveVariantSelection,
   type PublicStoreProduct,
   type UserProject,
 } from "@/lib/userProjects";
+import ProductVariantPicker from "@/components/store-templates/ProductVariantPicker";
 import { formatPriceBRL as formatBRL } from "@/lib/priceFormat";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
 import StoreReviews from "@/components/store-templates/StoreReviews";
@@ -56,6 +58,7 @@ const PublicProductPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [variantError, setVariantError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [reviewSummary, setReviewSummary] = useState(EMPTY_REVIEW_SUMMARY);
 
@@ -75,13 +78,9 @@ const PublicProductPage = () => {
           setProduct(current);
           setRelated(list.filter((item) => item.id !== productId).slice(0, 4));
           setSelectedImage(0);
-          if (current) {
-            const defaults: Record<string, string> = {};
-            current.variants.forEach((v) => {
-              if (v.options[0]) defaults[v.name] = v.options[0];
-            });
-            setSelectedVariants(defaults);
-          }
+          // Nada pré-selecionado: o comprador precisa escolher a variação.
+          setSelectedVariants({});
+          setVariantError(null);
         }
       } catch {
         setProduct(null);
