@@ -236,10 +236,21 @@ Deno.serve(async (req) => {
         continue
       }
 
+      // O ML rejeita quando o mesmo atributo (ex.: COLOR) está no item e nas
+      // variações. Limpamos esses atributos no nível do item no mesmo PUT.
+      const axisIds = new Set<string>(
+        variations.flatMap((v) => (v.attribute_combinations as Array<{ id: string }>).map((c) => c.id)),
+      )
+      const itemAttrs = (Array.isArray(item.attributes) ? item.attributes : []) as Array<Record<string, unknown>>
+      const clearedAttrs = itemAttrs
+        .filter((a) => axisIds.has(String(a.id).toUpperCase()))
+        .map((a) => ({ id: String(a.id), value_id: null, value_name: null }))
+
       const putRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variations }),
+        body: JSON.stringify(clearedAttrs.length > 0 ? { attributes: clearedAttrs, variations } : { variations }),
+
       })
       if (putRes.ok) {
         entry.status = 'corrigido'
