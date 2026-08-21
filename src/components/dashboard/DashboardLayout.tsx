@@ -37,8 +37,8 @@ import { Image as ImageIcon,
   HelpCircle,
   Home,
   LogOut,
-  Settings,
   Search,
+  Settings,
   ShieldCheck,
   ShoppingCart,
   TrendingUp,
@@ -404,39 +404,61 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
+      {/*
+        Barra de marca, no lugar do preto #050505 que havia antes: é a faixa da cor da
+        marca com a logo e os ícones bare, como no cabeçalho da referência. Os ícones
+        perderam a pastilha `bg-white/10` — sobre a cor cheia ela virava ruído.
+      */}
       {!isRootDashboard && !isAccountPage && !isModelsRoute && (
-        <header
-          className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#050505] px-4 backdrop-blur-xl"
-        >
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between bg-[#2563EB] px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white"
-              aria-label="Voltar"
-            >
-              <ArrowLeft size={19} />
-            </button>
             {isCatalogProductDetail ? (
+              /*
+                Na ficha do produto a barra mostra a marca, e não o título da rota: o nome
+                do produto já é o primeiro texto abaixo da foto, e repetir os dois deixava
+                a mesma frase duas vezes na mesma dobra. O "voltar" desta tela é o botão
+                flutuante sobre a foto — mesma divisão da referência.
+              */
               <button
                 type="button"
-                onClick={() => navigate("/dashboard/catalogo")}
-                className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-white px-3 text-left text-[#5F6670]"
+                onClick={() => navigate("/dashboard")}
+                className="flex items-center gap-2 transition-opacity active:opacity-70"
+                aria-label="Ir para o início"
               >
-                <Search size={16} strokeWidth={2} className="shrink-0 text-[#3E454D]" />
-                <span className="truncate text-[13px] font-semibold">Buscar na Velo</span>
+                <img src="/icones/velo-cesta-branca.png" alt="" aria-hidden="true" className="h-7 w-7 shrink-0 object-contain" />
+                <span className="text-[19px] font-bold leading-none tracking-[-0.05em] text-white">Velo</span>
               </button>
             ) : (
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold leading-5 tracking-[-0.02em] text-white">{routeMeta.title}</p>
-                <p className="truncate text-[11px] font-medium text-white">Velo mobile</p>
-              </div>
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-colors active:bg-white/15"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold leading-5 tracking-[-0.02em] text-white">{routeMeta.title}</p>
+                  <p className="truncate text-[11px] font-medium text-white/70">Velo mobile</p>
+                </div>
+              </>
             )}
           </div>
 
-          <div className="flex shrink-0 items-center">
+          <div className="flex shrink-0 items-center gap-0.5">
+            {isCatalogProductDetail && (
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/catalogo")}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors active:bg-white/15"
+                aria-label="Buscar no catálogo"
+              >
+                <Search size={20} strokeWidth={2} />
+              </button>
+            )}
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white [&_button]:!flex [&_button]:!h-10 [&_button]:!w-10 [&_button]:!items-center [&_button]:!justify-center [&_button]:!text-white [&_svg]:!h-[18px] [&_svg]:!w-[18px] [&_svg]:!text-white"
+              className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-white [&_button]:!flex [&_button]:!h-10 [&_button]:!w-10 [&_button]:!items-center [&_button]:!justify-center [&_button]:!text-white [&_svg]:!h-[20px] [&_svg]:!w-[20px] [&_svg]:!text-white"
             >
               <NotificacoesPopover />
             </div>
@@ -543,6 +565,7 @@ const DashboardLayoutInner = () => {
     (rota) => location.pathname === rota || location.pathname.startsWith(`${rota}/`),
   );
   const isCatalogRoute = location.pathname.startsWith("/dashboard/catalogo");
+  const isCatalogProductDetailRoute = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
   // Configurações usa layout sem moldura, então o fundo da área principal é branco.
   const isSettingsRoute = location.pathname.startsWith("/dashboard/configuracoes");
   // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
@@ -551,7 +574,9 @@ const DashboardLayoutInner = () => {
   const showSupportWidget =
     location.pathname !== "/dashboard" &&
     location.pathname !== "/colecoes" &&
-    !location.pathname.startsWith("/dashboard/atlas");
+    !location.pathname.startsWith("/dashboard/atlas") &&
+    // Na ficha do produto a bolha cobria o botão de publicar, que é a ação da tela.
+    !isCatalogProductDetailRoute;
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);

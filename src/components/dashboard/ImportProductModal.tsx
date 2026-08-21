@@ -193,6 +193,9 @@ const extractExplicitBrand = (value: string) => {
   return cleanBrandCandidate(match?.[1]);
 };
 
+/** Quantas vezes o custo a Velo sugere cobrar. É também o valor inicial do slider. */
+const MULTIPLICADOR_SUGERIDO = 2.5;
+
 const isStickerAlbumProduct = (product: CatalogProduct | null, title: string) => {
   const haystack = normalizeText(`${title} ${product?.title ?? ""} ${product?.category ?? ""}`);
   return (
@@ -257,8 +260,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [checkingSeller, setCheckingSeller] = useState(false);
   // Estado do modal manual de categoria removido a pedido do usuário.
 
-  // Pricing engine
-  const [multiplier, setMultiplier] = useState(2.5);
+  /*
+    Pricing engine. O multiplicador inicial é a sugestão da Velo: sai de uma constante
+    porque a ficha do produto não mostra mais preço sugerido nem margem — a sugestão
+    aparece aqui, e o número exibido tem que ser exatamente o que o slider já aplicou.
+  */
+  const [multiplier, setMultiplier] = useState(MULTIPLICADOR_SUGERIDO);
 
   // AI description
   const [description, setDescription] = useState("");
@@ -859,6 +866,23 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
                 {/* Pricing — minimal rows */}
                 <div className="space-y-3">
                   <p className="text-[12px] font-medium text-gray-600">Precificação</p>
+
+                  {/*
+                    A ficha do produto agora mostra só o custo. É aqui, no momento em que a
+                    pessoa decide publicar, que ela descobre por quanto a Velo sugere vender
+                    e quanto sobra — e aqui o número é editável, então a sugestão é ponto de
+                    partida em vez de promessa.
+                  */}
+                  <div className="rounded-xl bg-[#F4F8FF] px-4 py-3">
+                    <p className="text-[12px] leading-[1.5] text-[#475569]">
+                      A Velo sugere vender por{" "}
+                      <span className="font-semibold text-[#0F172A]">
+                        {formatBRL(costPrice * MULTIPLICADOR_SUGERIDO)}
+                      </span>{" "}
+                      — {MULTIPLICADOR_SUGERIDO.toString().replace(".", ",")}x o custo. Ajuste abaixo até o preço que
+                      você quer praticar.
+                    </p>
+                  </div>
 
                   <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
                     <Row label="Custo do produto" value={formatBRL(costPrice)} />

@@ -385,12 +385,13 @@ export default function Index() {
   const [openFaq, setOpenFaq] = useState(0);
   const [headerSolid, setHeaderSolid] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const closeMenuTimer = useRef<number>();
   const reduceMotion = useReducedMotion();
   const activePanel = navItems.find((item) => item.label === openMenu && item.panel);
   // Com a aba aberta o header precisa virar sólido: a faixa branca embaixo dele não pode
   // nascer de uma barra transparente sobre a foto.
-  const headerOpaque = headerSolid || Boolean(activePanel);
+  const headerOpaque = headerSolid || Boolean(activePanel) || mobileNavOpen;
   const heroCarousel = useHeroCarousel();
   const { phrases, active } = heroCarousel;
   const currentPhrase = phrases[active]?.headline ?? "";
@@ -494,6 +495,39 @@ export default function Index() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openMenu]);
 
+  /*
+    Com o painel mobile aberto a página atrás não pode rolar: no iOS o toque "vaza" para o
+    body e o menu desliza junto enquanto o dedo arrasta.
+  */
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileNavOpen]);
+
+  const goToSectionFromMobileNav = (id: string) => {
+    setMobileNavOpen(false);
+    /*
+      Destrava o body aqui em vez de esperar a limpeza do efeito: ela roda no flush de
+      efeitos passivos, depois do paint, e qualquer scroll agendado antes disso acontece
+      com overflow:hidden ainda de pé — ou seja, não acontece. Medido: sem esta linha o
+      clique fechava o menu e a página não saía do topo.
+    */
+    document.body.style.overflow = "";
+    window.setTimeout(() => scrollToSection(id), 0);
+  };
+
   useEffect(() => () => window.clearTimeout(closeMenuTimer.current), []);
 
   return (
@@ -503,7 +537,11 @@ export default function Index() {
         onMouseLeave={schedulePanelClose}
         className={`fixed inset-x-0 top-0 z-50 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
-            ? "border-b border-[#EDF1F9] bg-white/95 backdrop-blur-md"
+            ? /*
+                Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
+                atravessava a barra e ela ficava cinza ao lado do painel, que é branco puro.
+              */
+              `border-b border-[#EDF1F9] backdrop-blur-md ${mobileNavOpen ? "bg-white" : "bg-white/95"}`
             : "border-b border-transparent bg-transparent"
         }`}
       >
@@ -572,6 +610,35 @@ export default function Index() {
             >
               {ctaLabel}
             </button>
+
+            {/*
+              Abaixo de lg a navegação inteira fica escondida (a <nav> é lg:flex), então sem
+              este botão "Como funciona", "Recursos", "FAQ" e "Entrar" simplesmente não existem
+              no celular. As duas barras viram X quando o painel abre.
+            */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((open) => !open)}
+              aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
+              aria-expanded={mobileNavOpen}
+              aria-controls="menu-mobile"
+              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors lg:hidden ${
+                headerOpaque ? "text-[#0B1B3D] hover:bg-[#F4F7FE]" : "text-white hover:bg-white/10"
+              }`}
+            >
+              <span className="relative block h-[14px] w-[22px]" aria-hidden="true">
+                <span
+                  className={`absolute left-0 block h-[2px] w-full rounded-full bg-current transition-transform duration-300 ${
+                    mobileNavOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
+                  }`}
+                />
+                <span
+                  className={`absolute left-0 block h-[2px] w-full rounded-full bg-current transition-transform duration-300 ${
+                    mobileNavOpen ? "top-1/2 -translate-y-1/2 -rotate-45" : "top-full -translate-y-full"
+                  }`}
+                />
+              </span>
+            </button>
           </div>
         </div>
 
@@ -620,6 +687,59 @@ export default function Index() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/*
+          Painel mobile: mesma animação de altura do mega menu do desktop, para as duas
+          navegações abrirem do mesmo jeito.
+        */}
+        <AnimatePresence initial={false}>
+          {mobileNavOpen && (
+            <motion.div
+              key="menu-mobile"
+              id="menu-mobile"
+              initial={{ height: 0 }}
+              animate={{ height: "auto" }}
+              exit={{ height: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden border-t border-[#EDF1F9] bg-white lg:hidden"
+            >
+              <div className="flex flex-col px-6 pb-8 pt-4 sm:px-10">
+                {navItems.map((item) => (
+                  <button
+                    key={item.target}
+                    type="button"
+                    onClick={() => goToSectionFromMobileNav(item.target)}
+                    className="border-b border-[#EDF1F9] py-4 text-left text-[17px] font-medium text-[#0B1B3D]"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    navigate(authTarget);
+                  }}
+                  className="py-4 text-left text-[17px] font-medium text-[#0B1B3D]"
+                >
+                  {!authLoading && user ? "Ir para o dashboard" : "Entrar"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    navigate(authTarget);
+                  }}
+                  className="mt-2 h-[52px] rounded-full bg-[#2563EB] text-[16px] font-semibold text-white transition-colors hover:bg-[#1E3A8A]"
+                >
+                  {ctaLabel}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/*
@@ -629,7 +749,7 @@ export default function Index() {
       */}
       <section
         data-velo-flat-buttons
-        className="relative isolate flex min-h-[88vh] flex-col justify-end overflow-hidden bg-[#0B1B3D] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
+        className="relative isolate flex min-h-[100svh] flex-col justify-end overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
       >
         <HeroBackdrop {...heroCarousel} />
 
@@ -641,20 +761,20 @@ export default function Index() {
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[rgba(8,14,28,0.1)]" />
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)]" />
         {/* No celular o texto ocupa a largura toda, então o scrim do canto não basta. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(8,14,28,0.88)_0%,rgba(8,14,28,0.6)_26%,rgba(8,14,28,0.2)_46%,transparent_62%)] sm:hidden" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.78)_28%,rgba(8,14,28,0.45)_50%,rgba(8,14,28,0.16)_68%,transparent_84%)] sm:hidden" />
         {/* Topo: só o necessário para a navbar não sumir sobre foto clara. */}
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)]" />
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)]" />
 
         {/* Mesmo gutter do header, em todas as resoluções. */}
-        <div className="relative w-full px-6 pb-16 pt-32 sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
+        <div className="relative w-full px-6 pb-14 pt-32 sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
           {/* font-family explícito: a regra global de h1–h6 em index.css força Hanken Grotesk. */}
           {/*
             As duas linhas usam exatamente o mesmo estilo (peso 200, branco): a diferença
             entre elas é só estrutural — uma é fixa, a outra é digitada.
           */}
-          <h1 className="max-w-[900px] text-[clamp(2.125rem,4.35vw,4rem)] font-extralight leading-[1.04] tracking-[-0.035em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
+          <h1 className="max-w-[900px] text-[2.75rem] leading-[1.02] font-extralight tracking-[-0.035em] text-white antialiased sm:text-[clamp(2.125rem,4.35vw,4rem)] sm:leading-[1.04] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
             <span className="block">Comece a vender</span>
             {/*
               minmax(0,1fr) é o que impede o texto de estourar a viewport: sem isso a coluna
@@ -675,22 +795,22 @@ export default function Index() {
             </span>
           </h1>
 
-          <p className="mt-6 max-w-[420px] text-[16px] leading-[1.55] tracking-[-0.01em] text-white/70 sm:text-[18px]">
+          <p className="mt-5 max-w-[420px] text-[16px] leading-[1.55] tracking-[-0.01em] text-white/70 sm:mt-6 sm:text-[18px]">
             A Velo encontra oportunidades de produto, ajuda a montar o anúncio e a publicar no Mercado Livre.
           </p>
 
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-8 flex flex-col gap-4 sm:mt-9 sm:flex-row sm:items-center sm:gap-3">
             <button
               type="button"
               onClick={() => navigate(authTarget)}
-              className="h-[54px] rounded-full bg-white px-8 text-[16px] font-semibold text-[#0B1B3D] transition-colors hover:bg-white/90"
+              className="h-[56px] w-full rounded-full bg-white px-8 text-[17px] font-semibold text-[#0B1B3D] transition-colors hover:bg-white/90 sm:h-[54px] sm:w-auto sm:text-[16px]"
             >
               {ctaLabel}
             </button>
             <button
               type="button"
               onClick={() => scrollToSection("como-funciona")}
-              className="h-[54px] rounded-full border border-white/70 px-8 text-[16px] font-medium text-white transition hover:border-white hover:bg-white/10"
+              className="self-center text-[16px] font-medium text-white underline decoration-white/50 underline-offset-[6px] transition hover:decoration-white sm:h-[54px] sm:self-auto sm:rounded-full sm:border sm:border-white/70 sm:px-8 sm:no-underline sm:hover:border-white sm:hover:bg-white/10"
             >
               Ver como funciona
             </button>

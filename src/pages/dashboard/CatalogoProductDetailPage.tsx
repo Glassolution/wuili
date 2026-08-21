@@ -325,7 +325,7 @@ const CatalogoProductDetailPage = () => {
   const gallery = product.images;
   const catalogMetrics = getProductCatalogMetrics(product);
   const socialProofCount = catalogMetrics.ordersCount ?? catalogMetrics.reviewsCount;
-  const [suggestedPriceMain, suggestedPriceCents = "00"] = formatPrice(product.suggestedPrice).split(",");
+  const [costPriceMain, costPriceCents = "00"] = formatPrice(product.price).split(",");
   // O preço grande é o de VENDA sugerido, não o que o lojista paga. Custo, lucro
   // e margem ficam explícitos logo abaixo para ninguém confundir os dois valores.
   const estimatedProfit = Math.max(0, product.suggestedPrice - product.price);
@@ -389,10 +389,28 @@ const CatalogoProductDetailPage = () => {
         </div>
 
         {/* SEÇÃO PRINCIPAL (duas colunas) */}
-        <div className="-mx-5 -mt-6 pb-10 lg:hidden">
+        <div className="-mx-5 -mt-6 pb-4 lg:hidden">
           <section className="bg-white">
-            <div className="relative h-[290px] overflow-hidden bg-white">
-              <div className="absolute right-4 top-4 z-10 flex items-center">
+            {/*
+              250px em vez de 290px: a foto do produto vem quase sempre com fundo branco e
+              muita margem própria, então a altura extra só empurrava o preço para fora da
+              primeira tela sem mostrar mais produto.
+
+              Fundo branco, igual ao das fotos do fornecedor. Cheguei a usar cinza claro
+              como na referência, mas ali a foto ocupa a moldura inteira; aqui ela é
+              `object-contain` sobre recorte branco, então o cinza aparecia só nas laterais
+              e a área ficava com duas cores de fundo em vez de uma.
+            */}
+            <div className="relative h-[250px] overflow-hidden bg-white">
+              <div className="absolute inset-x-4 top-4 z-10 flex items-center justify-between">
+                <button
+                  type="button"
+                  aria-label="Voltar"
+                  onClick={() => navigate(-1)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-[#111111] ring-1 ring-black/[0.06] backdrop-blur-sm transition-transform active:scale-95"
+                >
+                  <ArrowLeft size={18} strokeWidth={2} />
+                </button>
                 <button
                   type="button"
                   aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
@@ -458,7 +476,7 @@ const CatalogoProductDetailPage = () => {
               {categoryLabel}
             </span>
 
-            <h1 className="max-w-[340px] text-[15px] font-semibold leading-[1.2] tracking-[-0.015em] text-[#111111]">
+            <h1 className="max-w-[340px] text-[16px] font-normal leading-[1.3] tracking-[-0.01em] text-[#111111]">
               {product.title}
             </h1>
 
@@ -466,6 +484,8 @@ const CatalogoProductDetailPage = () => {
               <div className="mt-3 flex items-center gap-2 text-[12px]">
                 {catalogMetrics.rating !== null && (
                   <>
+                    {/* Nota antes das estrelas e contagem entre parênteses, como na referência. */}
+                    <span className="font-medium text-[#111111]">{catalogMetrics.rating.toFixed(1)}</span>
                     <div className="flex items-center gap-0.5">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
@@ -479,88 +499,95 @@ const CatalogoProductDetailPage = () => {
                         />
                       ))}
                     </div>
-                    <span className="font-semibold text-[#2563EB]">{catalogMetrics.rating.toFixed(1)}</span>
                   </>
                 )}
                 {socialProofCount !== null && (
-                  <span className="font-medium text-[#6B7280]">{formatReviewCount(socialProofCount)} vendidos</span>
+                  <span className="font-normal text-[#6B7280]">({formatReviewCount(socialProofCount)} vendidos)</span>
                 )}
               </div>
             )}
 
+            {/*
+              Um preço só, e é o custo — o número que não muda e não depende de decisão
+              nenhuma. Antes esta dobra abria com "Por quanto você pode vender" e trazia
+              preço sugerido, margem e lucro: três valores derivados de uma sugestão, num
+              momento em que o vendedor ainda nem decidiu publicar. A conversa de margem
+              foi para o modal de publicação, que é onde ele define o preço de venda de
+              verdade (ImportProductModal, passo "Precificação").
+            */}
             <div className="mt-5 border-t border-black/[0.08] pt-5">
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">
-                Por quanto você pode vender
-              </p>
-              <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
-                <span className="text-[26px] font-semibold leading-none tracking-[-0.045em] text-[#111111]">
-                  {suggestedPriceMain}
-                  <sup className="ml-0.5 align-super text-[14px] font-semibold leading-none tracking-[-0.02em]">
-                    {suggestedPriceCents}
-                  </sup>
-                </span>
-                <span className="mb-0.5 rounded-[6px] bg-[#F1F1EF] px-2 py-0.5 text-[11px] font-semibold text-[#111111]">
-                  Margem {marginLabel}
-                </span>
-              </div>
+              <span className="text-[32px] font-normal leading-none tracking-[-0.03em] text-[#111111]">
+                {costPriceMain}
+                <sup className="ml-0.5 align-super text-[16px] font-normal leading-none tracking-[-0.01em]">
+                  {costPriceCents}
+                </sup>
+              </span>
+              <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
 
-              <div className="mt-3 grid grid-cols-2 divide-x divide-black/[0.07] rounded-[12px] border border-black/[0.07] bg-[#FAFAF9]">
-                <div className="px-3.5 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">Você paga ao fornecedor</p>
-                  <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">{formatPrice(product.price)}</p>
-                </div>
-                <div className="px-3.5 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#71717A]">Seu lucro por venda</p>
-                  <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">{formatPrice(estimatedProfit)}</p>
-                </div>
+              {/*
+                O espaço entre o preço e os botões estava vazio. A referência preenche essa
+                faixa com o que decide a compra — prazo, estoque, formas de pagamento. Aqui
+                o equivalente é o que a Velo sabe do produto: estoque, fornecedor e marca,
+                os mesmos campos da seção "Características" logo abaixo. Só campos reais:
+                nada de prazo de entrega, que o catálogo não fornece.
+              */}
+              <div className="mt-5 space-y-1.5 text-[13px] leading-[1.5]">
+                {product.stockQuantity !== null && product.stockQuantity > 0 ? (
+                  <p className="font-semibold text-[#111111]">
+                    Estoque disponível
+                    <span className="font-normal text-[#71717A]"> · {product.stockQuantity} unidades</span>
+                  </p>
+                ) : null}
+                <p className="text-[#71717A]">
+                  Fornecedor: <span className="text-[#111111]">{supplierLabel}</span>
+                </p>
+                {product.brand ? (
+                  <p className="text-[#71717A]">
+                    Marca: <span className="text-[#111111]">{product.brand}</span>
+                  </p>
+                ) : null}
               </div>
-
-              <p className="mt-2 text-[11.5px] leading-5 text-[#71717A]">
-                Sugestão da Velo — você define o preço final antes de publicar.
-              </p>
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(true)}
-                data-dashboard-tour="produto-importar"
-                style={PRODUCT_IMPORT_BUTTON_STYLE}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[13px] font-semibold text-white transition hover:brightness-105 active:scale-[0.98]"
-              >
-                <PackagePlus size={17} strokeWidth={1.8} />
-                Publicar produto
-              </button>
+            {/*
+              Duas ações lado a lado, como na referência: a secundária em azul claro à
+              esquerda e a principal em azul cheio à direita, ambas em retângulo com canto
+              macio e sem ícone. Antes eram três botões empilhados ocupando a largura toda —
+              a tela terminava numa pilha de barras iguais, sem dizer qual era a ação.
+
+              "Ver no fornecedor" desceu para link: é consulta, não ação da tela, e a
+              referência também não tem um terceiro botão.
+            */}
+            <div className="mt-6 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={handleCreateSalesPage}
                 data-dashboard-tour="produto-criar-pagina"
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111] transition-colors hover:bg-[#F7F7F6]"
+                className="inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-[#E3EDFB] px-3 text-[14px] font-semibold text-[#2563EB] transition-colors active:bg-[#D3E2F8]"
               >
-                <FilePlus2 size={16} strokeWidth={1.8} />
-                Criar página de vendas
+                Criar página
               </button>
-              {product.product_url ? (
-                <a
-                  href={product.product_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
-                >
-                  Ver no fornecedor
-                  <ExternalLink size={16} strokeWidth={1.8} />
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => veloToast.info("O fornecedor não disponibilizou um link para este produto.")}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-black/15 bg-white px-5 text-[13px] font-semibold text-[#111111]"
-                >
-                  Ver no fornecedor
-                  <ExternalLink size={16} strokeWidth={1.8} />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                data-dashboard-tour="produto-importar"
+                className="inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-[#2563EB] px-3 text-[14px] font-semibold text-white transition-colors active:bg-[#1D4ED8]"
+              >
+                Publicar produto
+              </button>
             </div>
+
+            {product.product_url ? (
+              <a
+                href={product.product_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2563EB]"
+              >
+                Ver no fornecedor
+                <ExternalLink size={14} strokeWidth={2} />
+              </a>
+            ) : null}
           </section>
 
         </div>
@@ -735,12 +762,17 @@ const CatalogoProductDetailPage = () => {
           </section>
         </div>
 
-        <div className="mx-auto mt-6 max-w-[820px]">
-        <section className="py-10">
-          <h2 className="text-[24px] font-normal tracking-[-0.02em] text-[#333]">
+        {/*
+          No celular esta faixa vinha depois de ~104px de nada (o pb do bloco de cima mais
+          o mt daqui mais o py da seção), e "Características do produto" caía fora da
+          primeira tela. No desktop o respiro continua igual.
+        */}
+        <div className="mx-auto max-w-[820px] lg:mt-6">
+        <section className="py-6 lg:py-10">
+          <h2 className="text-[18px] font-normal tracking-[-0.02em] text-[#333] lg:text-[24px]">
             Características do produto
           </h2>
-          <div className="mt-7 grid gap-x-10 gap-y-5 sm:grid-cols-2">
+          <div className="mt-5 grid gap-x-10 gap-y-4 sm:grid-cols-2 lg:mt-7 lg:gap-y-5">
             {productCharacteristics.map(({ icon: Icon, label, value }) => (
               <div key={label} className="flex items-center gap-4">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#F5F5F5] text-[#333]">
@@ -755,7 +787,7 @@ const CatalogoProductDetailPage = () => {
         </section>
 
         <section className="border-t border-black/[0.10] py-10">
-          <h2 className="text-[24px] font-normal tracking-[-0.02em] text-[#333]">Descrição</h2>
+          <h2 className="text-[18px] font-normal tracking-[-0.02em] text-[#333] lg:text-[24px]">Descrição</h2>
           {product.description ? (
             <div className="mt-7">
               <div
@@ -764,7 +796,7 @@ const CatalogoProductDetailPage = () => {
               >
                 <div
                   ref={measureDescNode}
-                  className="overflow-x-auto text-[18px] font-light leading-8 text-[#666] prose prose-sm max-w-none [&_*]:max-w-full [&_p]:my-0 [&_p+p]:mt-5 [&_table]:!my-4 [&_table]:!w-full [&_table]:!table-fixed [&_table]:border-collapse [&_th]:border [&_th]:border-black/10 [&_th]:bg-[#F5F5F5] [&_th]:!w-[38%] [&_th]:px-3 [&_th]:py-2 [&_th]:text-[13px] [&_th]:font-semibold [&_th]:!text-left [&_th]:align-top [&_th]:whitespace-normal [&_th]:break-words [&_td]:border [&_td]:border-black/10 [&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_td]:!text-left [&_td]:align-top [&_td]:whitespace-normal [&_td]:break-words [&_h3]:text-[16px] [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 [&_img]:hidden"
+                  className="overflow-x-auto text-[14px] font-light leading-[1.7] text-[#666] lg:text-[18px] lg:leading-8 prose prose-sm max-w-none [&_*]:max-w-full [&_p]:my-0 [&_p+p]:mt-5 [&_table]:!my-4 [&_table]:!w-full [&_table]:!table-fixed [&_table]:border-collapse [&_th]:border [&_th]:border-black/10 [&_th]:bg-[#F5F5F5] [&_th]:!w-[38%] [&_th]:px-3 [&_th]:py-2 [&_th]:text-[13px] [&_th]:font-semibold [&_th]:!text-left [&_th]:align-top [&_th]:whitespace-normal [&_th]:break-words [&_td]:border [&_td]:border-black/10 [&_td]:px-3 [&_td]:py-2 [&_td]:text-[13px] [&_td]:!text-left [&_td]:align-top [&_td]:whitespace-normal [&_td]:break-words [&_h3]:text-[16px] [&_h3]:font-semibold [&_h3]:mt-5 [&_h3]:mb-2 [&_img]:hidden"
                   dangerouslySetInnerHTML={{ __html: product.description }}
                 />
                 {!descExpanded && descOverflows ? (
@@ -783,7 +815,7 @@ const CatalogoProductDetailPage = () => {
               ) : null}
             </div>
           ) : (
-            <p className="mt-7 text-[18px] font-light leading-8 text-[#666]">
+            <p className="mt-5 text-[14px] font-light leading-[1.7] text-[#666] lg:mt-7 lg:text-[18px] lg:leading-8">
               O fornecedor ainda não disponibilizou uma descrição detalhada para este produto.
             </p>
           )}
@@ -791,7 +823,7 @@ const CatalogoProductDetailPage = () => {
 
         {/* FAQ */}
         <section className="border-t border-black/[0.10] py-10">
-          <h2 className="mb-6 text-[26px] font-semibold tracking-[-0.04em] text-[#111]">
+          <h2 className="mb-6 text-[19px] font-semibold tracking-[-0.04em] text-[#111] lg:text-[26px]">
             Perguntas frequentes
           </h2>
           <div className="space-y-3">
@@ -815,7 +847,7 @@ const CatalogoProductDetailPage = () => {
         {related.length > 0 && (
           <section className="mt-6 py-8">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-[26px] font-semibold tracking-[-0.04em] text-[#111]">
+              <h2 className="text-[19px] font-semibold tracking-[-0.04em] text-[#111] lg:text-[26px]">
                 Produtos relacionados
               </h2>
               <div className="flex items-center gap-2">

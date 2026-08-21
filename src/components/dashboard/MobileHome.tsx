@@ -10,13 +10,14 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, BadgePercent, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Layers, Megaphone, Package, Plus, Search, ShieldCheck, Sparkles, Star, Truck, Users, Zap } from "lucide-react";
+import { ArrowUpRight, BadgePercent, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, ShieldCheck, Star, Truck, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { listCollectionsWithSummaries, type CollectionSummary } from "@/lib/collectionsApi";
 import { veloToast } from "@/components/ui/velo-toast";
 import { proxyImageList } from "@/lib/imageProxy";
+import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import {
   ProductFavoriteButton,
   formatReviewCount,
@@ -100,44 +101,58 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
     image: images[0],
     images,
     price: Number(product.cost_price) || 0,
-    ordersCount: Number(product.orders_count) || 0,
-    rating: toCatalogMetricNumber(product.rating),
+    /*
+      Mesmas funções do catálogo e da ficha do produto (src/lib/catalogFilters.ts). Elas
+      NÃO leem o banco: derivam nota e vendas de um hash do id, porque
+      `catalog_products.rating` é 0 em quase todo o catálogo (a C7 Drop não devolve
+      avgRating). Antes a home mobile lia os campos reais e, como eram zero, o bloco de
+      avaliação nunca aparecia — era a única tela sem a linha. A paridade com o desktop
+      foi decisão do produto, ciente de que o número é derivado e não medido.
+    */
+    ordersCount: Math.max(Number(product.orders_count) || 0, displayOrdersCountFor(product.id)),
+    rating: displayRatingFor(product.id),
     source: product.source ?? null,
   };
 };
 
-const mobileTabs = [
-  { label: "Tudo", value: "Todos os produtos" },
-  { label: "Casa", value: "Casa" },
-  { label: "Eletrônicos", value: "Eletrônicos" },
-  { label: "Moda", value: "Moda" },
-  { label: "Beleza", value: "Beleza" },
-  { label: "Decoração", value: "Decoração" },
-  { label: "Pet", value: "Pet" },
-  { label: "Outros", value: "Outros" },
-];
+/*
+  Ícones da marca, em public/icones/. São derivados dos originais soltos em public/
+  ("icone comunidades.png" e companhia, 1254x1254 e ~800KB cada), com dois tratamentos:
 
+  1. Fundo branqueado. Os PNGs não têm alpha e vêm com fundo off-white (~#F9F8F6). Sem
+     moldura em volta, esse tom apareceria como um quadradinho acinzentado sobre a seção
+     branca. Os pixels com min(R,G,B) >= 240 viraram branco puro — o mínimo por canal
+     separa fundo de glifo sem tocar em pixel colorido, já que o azul da marca tem R=37.
+  2. Glifos normalizados. Cada arte vinha com uma margem diferente dentro do canvas de
+     1254px — o de Comunidade media 950px de largura e o de Coleções 663px, uma diferença
+     de 43% que fazia um parecer maior que o outro na mesma fileira. Os quatro foram
+     recortados pelo bounding box do conteúdo e recentrados num quadrado com a mesma
+     margem, então agora ocupam a mesma altura óptica.
+  3. Reduzidos para 168px (3x do tamanho de tela). Os originais somavam 3,2MB para quatro
+     ícones na primeira tela do app, em celular.
+
+  O `mix-blend-multiply` no <img> é rede de segurança: com o fundo branco puro ele é
+  no-op sobre a seção branca de hoje, e continua sumindo se a seção ganhar um tom claro.
+*/
 const mobileVeloActionItems = [
-  { label: "Comunidade", icon: Users, to: "/docs" },
-  { label: "Coleções", icon: Layers, to: "/colecoes" },
-  { label: "Publicações", icon: Megaphone, to: "/dashboard/publicacoes" },
-  { label: "Imagens com IA", icon: Sparkles, to: "/dashboard/imagens-ia" },
+  { label: "Comunidade", icon: "/icones/comunidade.png", to: "/docs" },
+  { label: "Coleções", icon: "/icones/colecoes.png", to: "/colecoes" },
+  { label: "Publicações", icon: "/icones/publicacoes.png", to: "/dashboard/publicacoes" },
+  { label: "Imagens com IA", icon: "/icones/imagens-ia.png", to: "/dashboard/imagens-ia" },
 ] as const;
 
-const MOBILE_HOME_CATEGORY_OPTIONS = [
-  "Todos os produtos",
-  "Casa",
-  "Eletrônicos",
-  "Moda",
-  "Bijuterias",
-  "Decoração",
-  "Bebê e Infantil",
-  "Pet",
-  "Beleza",
-  "Saúde e Bem-estar",
-  "Esporte e Fitness",
-  "Outros",
-];
+/*
+  Rótulo do estado "sem filtro". Antes existia uma lista fixa de categorias ("Casa",
+  "Eletrônicos", "Moda"…) tanto nas abas quanto no seletor, e o filtro comparava
+  `product.category === valorDaAba` com igualdade estrita. Só que as categorias reais do
+  catálogo são outras (o próprio catálogo mostra coisas como "Salão & Barbearia"), então
+  nenhuma aba casava com nada e todas devolviam "Nenhum produto encontrado".
+
+  A lista agora sai dos produtos carregados: só aparece aba de categoria que existe de
+  fato, e a comparação é normalizada (sem acento, sem caixa) para não depender de como o
+  fornecedor escreveu.
+*/
+const TODAS_AS_CATEGORIAS = "Todos os produtos";
 const MOBILE_HOME_PRICE_OPTIONS = ["Todos os preços", "Até R$ 50", "R$ 50-150", "Acima de R$ 150"];
 const MOBILE_HOME_RATING_OPTIONS = ["Todas", "4+ estrelas", "4.5+ estrelas"];
 
@@ -256,20 +271,28 @@ const MobileProductCard = ({
             </span>
           </div>
           <p className="line-clamp-2 min-h-[36px] text-[12px] font-bold leading-[1.45] text-[#222222]">{product.title}</p>
-          {hasMetrics && (
-            <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-black/45">
-              {rating !== null && (
+          {/*
+            Nota e preço na mesma linha, com a estrela âmbar e "(N vendas)" — o mesmo
+            desenho do card de desktop (ProductCard.tsx). A contagem trunca em vez de
+            quebrar: no celular a coluna tem ~145px úteis e o preço não pode ser empurrado
+            para baixo.
+          */}
+          <div className="mt-2 flex items-center justify-between gap-1.5">
+            <div className="flex min-w-0 items-center gap-1 text-[10px]">
+              {hasMetrics && rating !== null && (
                 <>
-                  <Star className="h-3 w-3 fill-[#2563EB] text-[#2563EB]" strokeWidth={1.8} />
-                  <span className="text-[#2563EB]">{rating.toFixed(1)}</span>
+                  <Star size={11} strokeWidth={0} className="shrink-0 fill-[#F5A623]" />
+                  <span className="font-medium text-[#111111]">{rating.toFixed(1)}</span>
                 </>
               )}
-
-              {rating !== null && ordersCount !== null && <span>·</span>}
-              {ordersCount !== null && <span>{formatReviewCount(ordersCount)} vendidos</span>}
+              {hasMetrics && ordersCount !== null && (
+                <span className="truncate text-[#9A9A94]">({formatReviewCount(ordersCount)} vendas)</span>
+              )}
             </div>
-          )}
-          <p className="mt-2 text-[16px] font-semibold tracking-[-0.04em] text-[#111111]">{formatCurrency(product.price)}</p>
+            <span className="shrink-0 text-[13px] font-semibold tracking-[-0.025em] text-[#111111]">
+              {formatCurrency(product.price)}
+            </span>
+          </div>
         </div>
       </button>
       <ProductFavoriteButton
@@ -297,12 +320,53 @@ const MobileAliVeloHome = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
-  const [mobileCategoryFilter, setMobileCategoryFilter] = useState(MOBILE_HOME_CATEGORY_OPTIONS[0]);
+  const [mobileCategoryFilter, setMobileCategoryFilter] = useState(TODAS_AS_CATEGORIAS);
   const [mobilePriceFilter, setMobilePriceFilter] = useState(MOBILE_HOME_PRICE_OPTIONS[0]);
   const [mobileRatingFilter, setMobileRatingFilter] = useState(MOBILE_HOME_RATING_OPTIONS[0]);
   const [openMobileFilter, setOpenMobileFilter] = useState<"category" | "price" | "rating" | null>(null);
   const mobileFilterBarRef = useRef<HTMLDivElement | null>(null);
   const mobileCategoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  /*
+    Ordenadas por quantidade de produtos: a primeira aba depois de "Tudo" é sempre a que
+    tem mais o que mostrar, e nenhuma aba leva a uma lista vazia.
+  */
+  const categoriasDoCatalogo = useMemo(() => {
+    /*
+      Agrupadas pela chave normalizada, e não pelo texto cru: o mesmo fornecedor grava
+      "Salão & Barbearia" e "salao & barbearia" para a mesma coisa, e sem o agrupamento
+      as duas viravam abas separadas que filtravam exatamente o mesmo conjunto. Fica a
+      grafia mais frequente como rótulo.
+    */
+    const grupos = new Map<string, { rotulo: string; total: number; grafias: Map<string, number> }>();
+
+    for (const product of products) {
+      const categoria = product.category.trim();
+      if (!categoria) continue;
+
+      const chave = normalizeSearchText(categoria);
+      const grupo = grupos.get(chave) ?? { rotulo: categoria, total: 0, grafias: new Map() };
+      grupo.total += 1;
+      grupo.grafias.set(categoria, (grupo.grafias.get(categoria) ?? 0) + 1);
+      grupo.rotulo = [...grupo.grafias.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      grupos.set(chave, grupo);
+    }
+
+    return [
+      TODAS_AS_CATEGORIAS,
+      ...[...grupos.values()]
+        .sort((a, b) => b.total - a.total || a.rotulo.localeCompare(b.rotulo, "pt-BR"))
+        .map((grupo) => grupo.rotulo),
+    ];
+  }, [products]);
+
+  /*
+    Se o catálogo recarregar sem a categoria escolhida, o filtro apontaria para um valor
+    que não existe mais e a grade ficaria vazia sem aba ativa para explicar por quê.
+  */
+  useEffect(() => {
+    if (!categoriasDoCatalogo.includes(mobileCategoryFilter)) setMobileCategoryFilter(TODAS_AS_CATEGORIAS);
+  }, [categoriasDoCatalogo, mobileCategoryFilter]);
+
   const featuredProducts = useMemo(() => {
     const query = normalizeSearchText(mobileSearchQuery.trim());
 
@@ -313,7 +377,8 @@ const MobileAliVeloHome = ({
         normalizeSearchText(product.title).includes(query) ||
         normalizeSearchText(product.category).includes(query);
       const matchesCategory =
-        mobileCategoryFilter === MOBILE_HOME_CATEGORY_OPTIONS[0] || product.category === mobileCategoryFilter;
+        mobileCategoryFilter === TODAS_AS_CATEGORIAS ||
+        normalizeSearchText(product.category) === normalizeSearchText(mobileCategoryFilter);
 
       return (
         matchesSearch &&
@@ -443,10 +508,14 @@ const MobileAliVeloHome = ({
             <button
               type="button"
               onClick={() => navigate("/dashboard")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-[0_4px_12px_rgba(0,0,0,0.18)] transition-transform active:scale-95"
+              className="flex h-9 w-9 shrink-0 items-center justify-center transition-transform active:scale-95"
               aria-label="Velo"
             >
-              <img src="/logo.png" alt="" aria-hidden="true" className="h-7 w-7 object-contain" />
+              {/*
+                Cesta em branco direto sobre o degradê, sem o disco branco atrás: a marca
+                sobre fundo azul é a versão invertida, a mesma da barra do dashboard.
+              */}
+              <img src="/icones/velo-cesta-branca.png" alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
             </button>
             <div className="flex h-9 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-3.5 text-left text-[#1F2933] shadow-[0_8px_18px_rgba(30,58,138,0.25)]">
               <Search className="h-[18px] w-[18px] shrink-0 text-[#2563EB]" strokeWidth={2.2} />
@@ -469,23 +538,23 @@ const MobileAliVeloHome = ({
           </div>
 
           <nav className="mt-3 flex gap-7 overflow-x-auto text-[16px] font-semibold tracking-[-0.03em] text-white/65 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {mobileTabs.map((tab) => {
-              const isActive = mobileCategoryFilter === tab.value;
+            {categoriasDoCatalogo.map((categoria) => {
+              const isActive = mobileCategoryFilter === categoria;
 
               return (
                 <button
-                  key={tab.value}
+                  key={categoria}
                   ref={(node) => {
-                    mobileCategoryTabRefs.current[tab.value] = node;
+                    mobileCategoryTabRefs.current[categoria] = node;
                   }}
                   type="button"
                   onClick={() => {
-                    setMobileCategoryFilter(tab.value);
+                    setMobileCategoryFilter(categoria);
                     setOpenMobileFilter(null);
                   }}
                   className={`relative shrink-0 pb-2 transition-colors duration-200 ${isActive ? "text-white" : "text-white/65"}`}
                 >
-                  {tab.label}
+                  {categoria === TODAS_AS_CATEGORIAS ? "Tudo" : categoria}
                   {isActive && <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-white animate-fade-in" />}
                 </button>
               );
@@ -494,11 +563,20 @@ const MobileAliVeloHome = ({
         </div>
 
         <section className="bg-[linear-gradient(180deg,#2563EB_0%,#3B82F6_55%,#EFF4FF_100%)] px-4 pb-4 pt-3">
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/catalogo")}
-            className="block w-full overflow-hidden rounded-[16px] bg-[linear-gradient(135deg,#1E3A8A_0%,#1D4ED8_55%,#3B82F6_100%)] p-3 text-left shadow-[0_12px_28px_rgba(30,58,138,0.35)] transition-transform active:scale-[0.98]"
-          >
+          {/*
+            O banner inteiro era um <button> que levava ao catálogo, e as miniaturas dos
+            produtos eram <div> dentro dele — tocar um produto subia o clique para o botão
+            de fora e caía no catálogo, nunca no produto. Agora o container é uma <div> e
+            cada alvo tem o seu próprio botão: o cabeçalho e o "Explorar" vão para o
+            catálogo, cada miniatura vai para a sua ficha. Aninhar <button> em <button>
+            não resolveria — é marcação inválida e o navegador desfaz o aninhamento.
+          */}
+          <div className="block w-full overflow-hidden rounded-[16px] bg-[linear-gradient(135deg,#1E3A8A_0%,#1D4ED8_55%,#3B82F6_100%)] p-3 text-left shadow-[0_12px_28px_rgba(30,58,138,0.35)]">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/catalogo")}
+              className="block w-full text-left transition-transform active:scale-[0.99]"
+            >
             <div className="flex items-start justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[-0.01em] text-white/90">
                 <ShieldCheck className="h-[14px] w-[14px]" strokeWidth={2.4} />
@@ -523,9 +601,14 @@ const MobileAliVeloHome = ({
                 <Zap className="h-[13px] w-[13px]" strokeWidth={2.4} /> Publica em 1 clique
               </span>
             </div>
+            </button>
 
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="flex flex-col justify-between rounded-[10px] bg-white px-2 py-2 text-center">
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/catalogo")}
+                className="flex flex-col justify-between rounded-[10px] bg-white px-2 py-2 text-center transition-transform active:scale-95"
+              >
                 <div>
                   <p className="text-[15px] font-black leading-none tracking-[-0.04em] text-[#1D4ED8]">
                     {products.length > 0 ? `${products.length}+` : "Novos"}
@@ -535,10 +618,21 @@ const MobileAliVeloHome = ({
                 <span className="mt-1.5 inline-flex h-6 w-full items-center justify-center rounded-full bg-[#2563EB] text-[9px] font-black text-white">
                   Explorar
                 </span>
-              </div>
+              </button>
               {[firstProduct, secondProduct].map((item, index) =>
                 item?.image ? (
-                  <div key={item.id ?? index} className="relative overflow-hidden rounded-[10px] bg-white/15">
+                  <button
+                    /*
+                      Chave pelo índice, não pelo id: com um único produto no catálogo,
+                      `secondProduct` cai de volta no `firstProduct` e as duas miniaturas
+                      teriam o mesmo id — chave duplicada no mesmo array.
+                    */
+                    key={index}
+                    type="button"
+                    onClick={() => navigate(`/dashboard/catalogo/${item.id}`)}
+                    aria-label={item.title}
+                    className="relative overflow-hidden rounded-[10px] bg-white/15 transition-transform active:scale-95"
+                  >
                     <img
                       src={item.image}
                       alt=""
@@ -548,13 +642,13 @@ const MobileAliVeloHome = ({
                     <span className="absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-[#1E3A8A]/85 px-2 py-0.5 text-[9px] font-black text-white">
                       {formatCurrency(item.price)}
                     </span>
-                  </div>
+                  </button>
                 ) : (
                   <div key={index} className="min-h-[68px] rounded-[10px] bg-white/15" />
                 ),
               )}
             </div>
-          </button>
+          </div>
         </section>
 
 
@@ -659,25 +753,47 @@ const MobileAliVeloHome = ({
         {products.length > 0 && (
           <section ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
             <div className="mb-4 grid grid-cols-4 gap-1 pb-1">
-              {mobileVeloActionItems.map((item) => {
-                const ItemIcon = item.icon;
+              {mobileVeloActionItems.map((item, indice) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => navigate(item.to)}
+                  /*
+                    `backwards` é obrigatório aqui: `animate-fade-in` não tem fill, então
+                    durante o atraso o item ficaria no estado normal (visível) e só então
+                    pularia para opacidade 0 para começar a animar — um pisca-pisca em
+                    cascata. Com backwards ele já nasce no quadro inicial e espera a vez.
+                  */
+                  style={{ animationDelay: `${indice * 55}ms` }}
+                  className="group flex min-w-0 animate-fade-in flex-col items-center gap-2 text-center [animation-fill-mode:backwards]"
+                >
+                  {/*
+                    Só o ícone reage ao toque — escalar o rótulo junto é o que dava o
+                    aspecto de app barato, porque texto pequeno em transform fica borrado.
+                    Os tempos são assimétricos de propósito: 100ms para afundar (o dedo
+                    precisa de resposta imediata) e 300ms para voltar, que é o que faz o
+                    movimento parecer que assenta em vez de dar um estalo.
 
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => navigate(item.to)}
-                    className="flex min-w-0 flex-col items-center gap-1.5 text-center transition-transform active:scale-95"
-                  >
-                    <span className="flex h-[52px] w-[52px] items-center justify-center rounded-[18px] border border-[#DBEAFE] bg-[#EFF6FF] text-[#2563EB]">
-                      <ItemIcon className="h-[24px] w-[24px]" strokeWidth={2} />
-                    </span>
-                    <span className="line-clamp-2 max-w-full text-[10px] font-bold leading-tight tracking-[-0.02em] text-[#334155]">
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
+                    alt vazio: o rótulo logo abaixo já nomeia o atalho, e repetir viraria
+                    eco no leitor de tela.
+                  */}
+                  <img
+                    src={item.icon}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-10 w-10 mix-blend-multiply transition-transform duration-300 ease-out group-active:scale-[0.88] group-active:duration-100"
+                  />
+                  {/*
+                    Em 375px a coluna tem ~83px e "Imagens com IA" ocupa a largura inteira;
+                    o px-0.5 é só para o rótulo não encostar na borda da coluna vizinha. Ele
+                    continua quebrando em duas linhas, como na referência — cabe em duas
+                    pelo line-clamp e não empurra a fileira.
+                  */}
+                  <span className="line-clamp-2 max-w-full px-0.5 text-[11px] font-semibold leading-tight tracking-[-0.01em] text-[#475569]">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
             </div>
 
             <div className="mb-5 flex items-center gap-2.5 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-2.5">
@@ -726,7 +842,7 @@ const MobileAliVeloHome = ({
                 value={mobileCategoryFilter}
                 isOpen={openMobileFilter === "category"}
                 onToggle={() => setOpenMobileFilter((current) => (current === "category" ? null : "category"))}
-                options={MOBILE_HOME_CATEGORY_OPTIONS}
+                options={categoriasDoCatalogo}
                 onSelect={(value) => {
                   setMobileCategoryFilter(value);
                   setOpenMobileFilter(null);

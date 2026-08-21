@@ -46,6 +46,52 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease } },
 };
 const semMovimento = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.2 } } };
+/*
+  O card do mobile entra com um scale mínimo além do deslocamento: é o que faz ele
+  parecer que "assenta" sobre o fundo escuro em vez de só deslizar. 0.985 é de
+  propósito discreto — acima disso a borda arredondada visivelmente deforma.
+*/
+const cardEntrada = {
+  hidden: { opacity: 0, y: 22, scale: 0.985 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease } },
+};
+
+/*
+  Mesmas pilhas de fonte da landing (src/pages/Index.tsx). Elas precisam ser declaradas
+  aqui de novo porque index.css força "Hanken Grotesk" no body e em h1–h6 — sem o
+  font-family explícito, o título desta página cai no Hanken e destoa da landing inteira.
+*/
+const FONTE_TEXTO =
+  "[font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif]";
+// Título: mesmo tratamento das headlines da landing — Inter em peso leve, tracking
+// fechado e sem o character variant "cv11" herdado do body.
+const FONTE_TITULO =
+  "font-light tracking-[-0.03em] antialiased [font-family:Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]";
+/*
+  O card é a exceção pedida: campo, botão e rótulo continuam na fonte de interface, que é
+  o que se lê melhor em texto pequeno e em caixa de entrada.
+*/
+const FONTE_FORMULARIO =
+  "[font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]";
+
+const AVISO_ESTILO = {
+  erro: "border-[#FBD5D5] bg-[#FEF3F2] text-[#B42318]",
+  info: "border-[#C7DBFE] bg-[#EFF5FF] text-[#1D4ED8]",
+  ok: "border-[#BBF0D0] bg-[#F0FDF4] text-[#15803D]",
+} as const;
+
+const AvisoIcone = ({ tipo }: { tipo: "erro" | "info" | "ok" }) => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-[1px] shrink-0">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.45" strokeWidth="1.3" />
+    {tipo === "ok" ? (
+      <path d="M5 8.2 7 10.2l4-4.4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    ) : tipo === "erro" ? (
+      <path d="M8 4.6v4.1M8 11.1v.3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    ) : (
+      <path d="M8 7.4v4.1M8 4.6v.3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    )}
+  </svg>
+);
 
 /* ─── Google SVG ──────────────────────────────────────────────────────────── */
 const GoogleIcon = () => (
@@ -128,6 +174,33 @@ const LoginPage = () => {
   const [acceptTerms, setAcceptTerms]     = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [slide, setSlide]                 = useState(0);
+  /*
+    Todo retorno desta tela (erro, aviso, confirmação) aparece aqui dentro do card, e não
+    mais como toast. Num formulário o feedback tem que nascer ao lado do campo que o
+    causou — a pílula no canto da tela obriga a pessoa a procurar o que deu errado, e some
+    sozinha antes de ela terminar de ler.
+  */
+  const [aviso, setAviso] = useState<{ tipo: "erro" | "info" | "ok"; texto: string } | null>(null);
+
+  /*
+    Digitar já é a resposta ao aviso, então ele sai na primeira tecla. Isso mora no
+    onChange, e não num efeito com [email, password, nome] nas dependências: o efeito
+    disparava no mesmo ciclo em que o aviso acabava de ser posto e a limpeza corria contra
+    ele. Trocar de etapa NÃO limpa — "este e-mail já possui conta" e "link enviado"
+    existem justamente para sobreviver à troca.
+  */
+  const aoDigitar = (definir: (valor: string) => void) => (evento: { target: { value: string } }) => {
+    setAviso(null);
+    definir(evento.target.value);
+  };
+
+  /*
+    Segura o último aviso durante o fechamento: se o conteúdo saísse junto com o estado, o
+    texto piscaria para fora antes de a caixa terminar de colapsar.
+  */
+  const ultimoAviso = useRef(aviso);
+  if (aviso) ultimoAviso.current = aviso;
+  const avisoVisivel = aviso ?? ultimoAviso.current;
 
   const passwordRef = useRef<HTMLInputElement>(null);
   const nomeRef     = useRef<HTMLInputElement>(null);
@@ -145,14 +218,14 @@ const LoginPage = () => {
         veloToast.waitForMinimum(toastId),
       ]);
       veloToast.dismiss(toastId);
-      if (result.error) { veloToast.error(result.error.message); setGoogleLoading(false); return; }
+      if (result.error) { setAviso({ tipo: "erro", texto: result.error.message }); setGoogleLoading(false); return; }
       if (result.data.url) { window.location.assign(result.data.url); return; }
-      veloToast.error("Não foi possível iniciar o acesso com o Google.");
+      setAviso({ tipo: "erro", texto: "Não foi possível iniciar o acesso com o Google." });
       setGoogleLoading(false);
     } catch (error) {
       await veloToast.waitForMinimum(toastId);
       veloToast.dismiss(toastId);
-      veloToast.error(error instanceof Error ? error.message : "Erro inesperado.");
+      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
       setGoogleLoading(false);
     }
   };
@@ -167,27 +240,27 @@ const LoginPage = () => {
         veloToast.waitForMinimum(toastId),
       ]);
       veloToast.dismiss(toastId);
-      if (error) { veloToast.error(error.message === "Invalid login credentials" ? "Email ou senha incorretos." : error.message); return; }
+      if (error) { setAviso({ tipo: "erro", texto: error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message }); return; }
       if (data.session || data.user) {
         // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
         navigate("/dashboard", { replace: true }); return;
       }
-      veloToast.error("Não foi possível concluir o login.");
+      setAviso({ tipo: "erro", texto: "Não foi possível concluir o login." });
     } catch (error) {
       await veloToast.waitForMinimum(toastId);
       veloToast.dismiss(toastId);
-      veloToast.error(error instanceof Error ? error.message : "Erro inesperado.");
+      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
     } finally { setLoading(false); }
   };
 
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
     // No cadastro direto o e-mail não passou pela validação da etapa inicial.
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { veloToast.error("Digite um e-mail válido."); return; }
-    if (nome.trim().length < 2) { veloToast.error("Informe seu nome."); return; }
-    if (password.length < 8)    { veloToast.error("Senha precisa ter pelo menos 8 caracteres."); return; }
-    if (!acceptTerms)   { veloToast.error("Você precisa aceitar os Termos de Uso."); return; }
-    if (!acceptPrivacy) { veloToast.error("Você precisa aceitar a Política de Privacidade."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
+    if (nome.trim().length < 2) { setAviso({ tipo: "erro", texto: "Informe seu nome." }); return; }
+    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Senha precisa ter pelo menos 8 caracteres." }); return; }
+    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Você precisa aceitar os Termos de Uso." }); return; }
+    if (!acceptPrivacy) { setAviso({ tipo: "erro", texto: "Você precisa aceitar a Política de Privacidade." }); return; }
     setLoading(true);
     const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
     const [{ data, error }] = await Promise.all([
@@ -201,12 +274,12 @@ const LoginPage = () => {
     if (error) {
       setLoading(false);
       if (error.message === "User already registered") {
-        veloToast.info("Este e-mail ja possui conta. Entre com sua senha.");
         setStep("login");
+        setAviso({ tipo: "info", texto: "Este e-mail já possui conta. Entre com sua senha." });
         window.setTimeout(() => passwordRef.current?.focus(), 120);
         return;
       }
-      veloToast.error(error.message);
+      setAviso({ tipo: "erro", texto: error.message });
       return;
     }
     if (data.user) {
@@ -214,7 +287,6 @@ const LoginPage = () => {
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);
-      veloToast.success("Conta criada com sucesso.");
       // Se a sessão foi criada (auto-confirm), segue para o onboarding.
       // Caso contrário (confirmação por e-mail pendente), volta o botão ao
       // estado normal e informa o usuário para conferir o e-mail.
@@ -222,37 +294,37 @@ const LoginPage = () => {
         navigate("/dashboard", { replace: true });
         return;
       }
-      veloToast.info("Confirme seu e-mail para continuar.");
+      setAviso({ tipo: "ok", texto: "Conta criada. Confirme seu e-mail para continuar." });
     }
     setLoading(false);
   };
 
   const handleReset = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) { veloToast.error("Digite seu email"); return; }
+    if (!email.trim()) { setAviso({ tipo: "erro", texto: "Digite seu e-mail." }); return; }
     setLoading(true);
-    const toastId = veloToast.loading("Enviando link de recuperação...");
+    // Sem toast de "enviando": o próprio botão já troca o rótulo enquanto a chamada corre.
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
-    if (error) { veloToast.error(error.message, { id: toastId }); return; }
-    veloToast.success("Email de recuperação enviado.", { id: toastId });
+    if (error) { setAviso({ tipo: "erro", texto: error.message }); return; }
     setResetMode(false);
     setStep("initial");
+    setAviso({ tipo: "ok", texto: "Link de recuperação enviado. Confira seu e-mail." });
   };
 
   const handleEmailContinue = async () => {
     const clean = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { veloToast.error("Digite um e-mail válido."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
     setCheckingEmail(true);
     const exists = await checkEmailExists(clean);
     setCheckingEmail(false);
     // Veio pela detecção de e-mail: o campo já está resolvido, então trava para não confundir.
     setEmailLocked(true);
     if (exists === null) {
-      veloToast.info("Não consegui confirmar o cadastro agora. Se você já tem conta, entre com sua senha.");
       setStep("login");
+      setAviso({ tipo: "info", texto: "Não consegui confirmar o cadastro agora. Se você já tem conta, entre com sua senha." });
       return;
     }
     setStep(exists ? "login" : "signup");
@@ -260,12 +332,14 @@ const LoginPage = () => {
 
   // Cadastro escolhido de propósito, sem passar pela detecção: o e-mail continua editável.
   const irParaCadastro = () => {
+    setAviso(null);
     setEmailLocked(false);
     setPassword("");
     setStep("signup");
   };
 
   const voltarParaInicio = () => {
+    setAviso(null);
     setEmailLocked(false);
     setPassword("");
     setNome("");
@@ -301,23 +375,35 @@ const LoginPage = () => {
       // chapado. Sem isto o `hover:bg-[#1D4ED8]` casa com `button[class*="bg-[#1"]`
       // e o brilho volta pelo CSS global.
       data-velo-flat-buttons
-      className="flex min-h-screen bg-white text-[#0F172A]"
-      style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif' }}
+      /* Azul chapado, o mesmo #0B1B3D do hero da landing. Sem degradê: o brilho radial
+         não dizia nada sobre a marca e podia estar em qualquer produto. */
+      className={`relative flex min-h-screen bg-[#0B1B3D] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
     >
       {/* ── Coluna do formulário ─────────────────────────────────────────── */}
-      <div className="flex w-full flex-col px-6 py-10 sm:px-12 lg:w-1/2 lg:px-16 lg:py-12">
-        <motion.div
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease }}
-          className="w-fit"
-        >
-          <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
-            <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
-          </Link>
-        </motion.div>
+      <div className="relative flex w-full flex-col px-5 pb-10 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
+        <div className="flex flex-1 flex-col justify-center py-6 lg:py-12">
+          {/*
+            No celular a marca faz parte do mesmo bloco do título: fora dele, o
+            `justify-center` do miolo abria um vão morto entre uma coisa e outra e a parte
+            de cima ficava com cara de conteúdo faltando. No desktop ela volta a ficar
+            ancorada no canto superior esquerdo — daí o absolute, que repete exatamente o
+            gutter da coluna (left-16 = px-16, top-12 = py-12).
+          */}
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease }}
+            className="mx-auto mb-8 w-fit lg:absolute lg:left-16 lg:top-12 lg:mx-0 lg:mb-0"
+          >
+            <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
+              <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
+              {/* Mesma métrica do logotipo da landing. No desktop só o ícone, como sempre foi. */}
+              <span className="text-[26px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
+                Velo
+              </span>
+            </Link>
+          </motion.div>
 
-        <div className="flex flex-1 items-center py-12">
           <motion.div
             variants={stagger}
             initial="hidden"
@@ -337,13 +423,52 @@ const LoginPage = () => {
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
                   transition={{ duration: 0.26, ease }}
                 >
-                  <h1 className="text-[26px] font-bold leading-[1.2] tracking-[-0.025em] text-[#0F172A]">
+                  <h1 className={`text-center text-[30px] leading-[1.12] text-white lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
                     {copy.title}
                   </h1>
-                  <p className="mt-2 text-[14px] leading-[1.55] text-[#64748B]">{copy.subtitle}</p>
+                  <p className="mx-auto mt-2.5 max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
+                    {copy.subtitle}
+                  </p>
+
                 </motion.div>
               </AnimatePresence>
             </motion.div>
+
+            {/*
+              No celular o formulário vira um card branco sobre o fundo escuro — é ele que
+              dá a profundidade que faltava. A partir de lg o card some por completo: a
+              coluna já é branca e a moldura viraria caixa dentro de caixa.
+            */}
+            <motion.div
+              variants={reduceMotion ? semMovimento : cardEntrada}
+              className={`mt-7 rounded-[24px] bg-white p-5 shadow-[0_28px_70px_-24px_rgba(2,8,23,0.75)] ring-1 ring-white/10 lg:mt-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none lg:ring-0 ${FONTE_FORMULARIO}`}
+            >
+
+            {/*
+              Colapso em CSS puro, e não com AnimatePresence: este bloco vive dentro do card,
+              que é um motion com `variants`, e um filho animado ali herda o contexto de
+              variantes do container (que tem staggerChildren). Uma caixa que só abre e fecha
+              não precisa disso — a transição em CSS é independente do ciclo do framer e
+              continua valendo com JS ocupado. max-height em vez de grid-template-rows porque
+              o Safari do iPhone só interpola grid-template-rows do 17.2 em diante, e o alvo
+              aqui é justamente o celular.
+            */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                aviso ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
+              {avisoVisivel && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className={`mb-4 flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3 text-[13px] font-medium leading-[1.5] lg:mb-0 lg:mt-7 ${AVISO_ESTILO[avisoVisivel.tipo]}`}
+                >
+                  <AvisoIcone tipo={avisoVisivel.tipo} />
+                  <span>{avisoVisivel.texto}</span>
+                </div>
+              )}
+            </div>
 
             {!resetMode && mostraSocial && (
               <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
@@ -351,7 +476,7 @@ const LoginPage = () => {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={googleLoading}
-                  className="mt-7 inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60"
+                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 lg:mt-7"
                 >
                   <GoogleIcon />
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
@@ -369,11 +494,11 @@ const LoginPage = () => {
 
             <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
             {resetMode ? (
-              <form onSubmit={handleReset} className="mt-7 space-y-4">
+              <form onSubmit={handleReset} className="space-y-4 lg:mt-7">
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={aoDigitar(setEmail)}
                   required
                   placeholder="Endereço de e-mail"
                   className={inputCls}
@@ -384,7 +509,7 @@ const LoginPage = () => {
                 <p className="text-center text-[14px] text-[#64748B]">
                   <button
                     type="button"
-                    onClick={() => setResetMode(false)}
+                    onClick={() => { setAviso(null); setResetMode(false); }}
                     className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                   >
                     Voltar para o login
@@ -406,7 +531,7 @@ const LoginPage = () => {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={aoDigitar(setEmail)}
                     placeholder="Endereço de e-mail"
                     readOnly={emailLocked}
                     // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
@@ -435,7 +560,7 @@ const LoginPage = () => {
                             ref={passwordRef}
                             type={showPw ? "text" : "password"}
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={aoDigitar(setPassword)}
                             required
                             placeholder="Senha"
                             className={`${inputCls} pr-11`}
@@ -452,7 +577,7 @@ const LoginPage = () => {
 
                         <button
                           type="button"
-                          onClick={() => setResetMode(true)}
+                          onClick={() => { setAviso(null); setResetMode(true); }}
                           className="text-[14px] font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                         >
                           Esqueceu a senha?
@@ -477,7 +602,7 @@ const LoginPage = () => {
                           ref={nomeRef}
                           type="text"
                           value={nome}
-                          onChange={(e) => setNome(e.target.value)}
+                          onChange={aoDigitar(setNome)}
                           required
                           placeholder="Nome completo"
                           className={inputCls}
@@ -487,7 +612,7 @@ const LoginPage = () => {
                           <input
                             type={showPw ? "text" : "password"}
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={aoDigitar(setPassword)}
                             required
                             placeholder="Senha com 8+ caracteres"
                             className={`${inputCls} pr-11`}
@@ -584,16 +709,29 @@ const LoginPage = () => {
               </div>
             )}
             </motion.div>
+
+            </motion.div>
           </motion.div>
         </div>
 
-        <p className="text-center text-[12.5px] text-[#94A3B8] lg:text-left">
+        {/*
+          Saída de emergência de quem travou no login. Só no celular: no desktop a coluna
+          da direita já ocupa esse papel de "tem mais coisa aqui".
+        */}
+        <Link
+          to="/docs"
+          className="mx-auto mb-6 w-fit text-[13px] font-semibold text-white/70 underline underline-offset-4 transition hover:text-white lg:hidden"
+        >
+          Precisa de ajuda?
+        </Link>
+
+        <p className="text-center text-[12.5px] leading-[1.6] text-white/45 lg:text-left lg:text-[#94A3B8]">
           Ao continuar, você concorda com a{" "}
-          <Link to="/privacidade" className="text-[#64748B] underline underline-offset-2 hover:text-[#0F172A]">
+          <Link to="/privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
             Política de Privacidade
           </Link>{" "}
           e os{" "}
-          <Link to="/termos" className="text-[#64748B] underline underline-offset-2 hover:text-[#0F172A]">
+          <Link to="/termos" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
             Termos de Uso
           </Link>
           .
@@ -647,7 +785,7 @@ const LoginPage = () => {
             transition={{ duration: 0.4, ease }}
             className="min-h-[92px]"
           >
-            <h2 className="text-[22px] font-bold tracking-[-0.025em] text-[#0F172A]">
+            <h2 className={`text-[24px] leading-[1.15] text-[#0F172A] ${FONTE_TITULO}`}>
               {SHOWCASE[slide].title}
             </h2>
             <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-[1.6] text-[#64748B]">
