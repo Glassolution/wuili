@@ -22,6 +22,19 @@ type Body = {
   };
   shipping?: Record<string, string | undefined>;
   quantity?: number;
+  /** Gorjeta escolhida no carrinho (R$). Taxa de serviço e impostos são fixos. */
+  tip?: number;
+};
+
+// Espelha src/pages/public-sales/cartTotals.ts — o "Total a pagar" do carrinho
+// é subtotal + taxa de serviço + impostos + gorjeta.
+const SERVICE_FEE_BRL = 1.5;
+const TAX_BRL = 3.5;
+const MAX_TIP_BRL = 500;
+const sanitizeTip = (value: unknown): number => {
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Number(Math.min(MAX_TIP_BRL, n).toFixed(2));
 };
 
 const json = (body: unknown, status = 200) =>
@@ -145,7 +158,9 @@ Deno.serve(async (req) => {
     if (!unitPrice || unitPrice <= 0) return json({ error: "Preço inválido para esta página." }, 400);
 
     const quantity = Math.max(1, Math.min(10, Number(body.quantity ?? 1)));
-    const total = Number((unitPrice * quantity).toFixed(2));
+    const subtotal = Number((unitPrice * quantity).toFixed(2));
+    const tip = sanitizeTip(body.tip);
+    const total = Number((subtotal + SERVICE_FEE_BRL + TAX_BRL + tip).toFixed(2));
 
     // 2) Pedido pendente
     const externalRef = `store_${crypto.randomUUID()}`;
@@ -200,6 +215,10 @@ Deno.serve(async (req) => {
             metadata: {
               kind: "store_order",
               store_order_id: orderRow.id,
+              subtotal,
+              tip,
+              service_fee: SERVICE_FEE_BRL,
+              tax: TAX_BRL,
               owner_user_id: ownerId,
               slug: body.slug,
             },
@@ -237,6 +256,10 @@ Deno.serve(async (req) => {
       status: "pending",
       pix_qr_code: pixCode,
       pix_qr_code_base64: null,
+      subtotal,
+      tip,
+      service_fee: SERVICE_FEE_BRL,
+      tax: TAX_BRL,
       total,
     });
   } catch (err) {
