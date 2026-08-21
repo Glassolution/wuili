@@ -38,20 +38,6 @@ type ProductPreview = {
   source: string | null;
 };
 
-// Rótulo amigável da loja/fornecedor de origem (mesmo padrão do catálogo desktop).
-const SOURCE_LABELS: Record<string, string> = {
-  c7drop: "C7Drop",
-  aliexpress: "AliExpress",
-  amazon: "Amazon",
-  shopee: "Shopee",
-  mercadolivre: "Mercado Livre",
-};
-
-const getSourceLabel = (source: string | null): string => {
-  if (!source) return SOURCE_LABELS.c7drop;
-  return SOURCE_LABELS[source.toLowerCase()] ?? source;
-};
-
 const HOME_PRODUCTS_LIMIT = 1000;
 const HOME_PRODUCTS_PER_PAGE = 20;
 const HOME_FAVORITES_STORAGE_PREFIX = "velo:home-favorite-products";
@@ -242,9 +228,6 @@ const MobileProductCard = ({
 
   return (
     <article className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-      <span className="absolute left-2 top-2 z-10 max-w-[70%] truncate rounded-[4px] bg-[#2563EB]/90 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm">
-        {getSourceLabel(product.source)}
-      </span>
       <button
         type="button"
         onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}

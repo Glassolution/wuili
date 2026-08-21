@@ -40,12 +40,17 @@ import { Image as ImageIcon,
   Search,
   Settings,
   ShieldCheck,
-  ShoppingCart,
-  TrendingUp,
   UserPlus,
-  UserRound,
   type LucideIcon,
 } from "lucide-react";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import {
+  NavAccountIcon,
+  NavHomeIcon,
+  NavOrdersIcon,
+  NavResultsIcon,
+  type MobileNavIconProps,
+} from "@/components/dashboard/MobileNavIcons";
 
 /**
  * Conteúdo das páginas do dashboard.
@@ -140,6 +145,12 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
 }
 
+/**
+ * Item da barra inferior do mobile.
+ *
+ * Sem fundo na aba ativa: o retângulo azul competia com o próprio ícone. Quem
+ * marca a seleção agora é o desenho, que passa de contorno a preenchido.
+ */
 const MobileBottomItem = ({
   to,
   label,
@@ -149,16 +160,18 @@ const MobileBottomItem = ({
 }: {
   to?: string;
   label: string;
-  icon: LucideIcon;
+  icon: (props: MobileNavIconProps) => JSX.Element;
   active: boolean;
   onClick?: () => void;
 }) => {
   const className =
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-semibold transition";
-  const style = active ? { color: "#2563EB", backgroundColor: "#EFF4FF" } : { color: "rgba(17,17,17,0.6)" };
+    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5 px-1 py-2 text-[10px] transition-transform duration-200 active:scale-95";
+  const style = active
+    ? { color: "#2563EB", fontWeight: 700 }
+    : { color: "rgba(17,17,17,0.45)", fontWeight: 600 };
   const content = (
     <>
-      <Icon size={19} strokeWidth={active ? 2.4 : 1.9} />
+      <Icon active={active} />
       <span className="max-w-full truncate">{label}</span>
     </>
   );
@@ -177,6 +190,36 @@ const MobileBottomItem = ({
     </button>
   );
 };
+
+/**
+ * Botão central do Atlas.
+ *
+ * Disco elevado que rompe a borda da barra, o gesto que os apps usam para a
+ * ação principal. A pílula com texto dentro parecia banner de anúncio e não
+ * dizia que ali mora o assistente; aqui o desenho fala por si e o rótulo
+ * "Atlas" fica na mesma linha dos outros, mantendo o ritmo da barra.
+ */
+const MobileAtlasButton = ({ active }: { active: boolean }) => (
+  <Link
+    to="/dashboard/atlas"
+    aria-label="Abrir o Atlas"
+    aria-current={active ? "page" : undefined}
+    className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5 px-1 py-2 text-[10px] transition-transform duration-200 active:scale-95"
+    style={{ color: active ? "#2563EB" : "rgba(17,17,17,0.45)", fontWeight: active ? 700 : 600 }}
+  >
+    <span
+      className="-mt-[26px] flex h-[46px] w-[46px] items-center justify-center rounded-full"
+      style={{
+        background: "linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)",
+        // O anel branco recorta a barra e faz o disco flutuar sobre ela.
+        boxShadow: "0 0 0 4px #FFFFFF, 0 8px 20px rgba(37,99,235,0.45)",
+      }}
+    >
+      <AtlasAvatarIcon size={24} />
+    </span>
+    <span className="max-w-full truncate">Atlas</span>
+  </Link>
+);
 
 const MobileDrawerLink = ({
   to,
@@ -346,6 +389,10 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const isAccountPage = location.pathname === "/dashboard/minha-conta";
   const isCatalogProductDetail = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
   const isModelsRoute = location.pathname.startsWith("/dashboard/modelos");
+  // O Atlas no mobile é tela cheia, no formato de um app de chat: sem a faixa
+  // azul em cima nem a barra de abas embaixo, que roubavam duas faixas da
+  // conversa e deixavam dois cabeçalhos empilhados.
+  const isAtlasRoute = location.pathname.startsWith("/dashboard/atlas");
   const displayName = user?.user_metadata?.full_name ?? user?.email ?? "Velo";
   const initials = displayName
     .split(/[\s._\-@]+/)
@@ -409,7 +456,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         marca com a logo e os ícones bare, como no cabeçalho da referência. Os ícones
         perderam a pastilha `bg-white/10` — sobre a cor cheia ela virava ruído.
       */}
-      {!isRootDashboard && !isAccountPage && !isModelsRoute && (
+      {!isRootDashboard && !isAccountPage && !isModelsRoute && !isAtlasRoute && (
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between bg-[#2563EB] px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {isCatalogProductDetail ? (
@@ -467,8 +514,10 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       )}
 
       <main
-        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-[calc(96px+env(safe-area-inset-bottom))] ${
-          isRootDashboard ? "px-0 pt-0" : "px-4 pt-4"
+        className={`min-h-0 flex-1 overflow-x-hidden ${
+          isAtlasRoute
+            ? "flex overflow-hidden p-0"
+            : `overflow-y-auto pb-[calc(96px+env(safe-area-inset-bottom))] ${isRootDashboard ? "px-0 pt-0" : "px-4 pt-4"}`
         }`}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
@@ -488,12 +537,18 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         </PageErrorBoundary>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden">
-        <div className="mx-auto flex max-w-[480px] items-center gap-1">
-          <MobileBottomItem to="/dashboard" label="Início" icon={Home} active={location.pathname === "/dashboard"} />
-          <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={ShoppingCart} active={location.pathname.startsWith("/dashboard/pedidos")} />
-          <MobileBottomItem to="/dashboard/resultados" label="Resultados" icon={TrendingUp} active={location.pathname.startsWith("/dashboard/resultados")} />
-          <MobileBottomItem to="/dashboard/minha-conta" label="Minha Conta" icon={UserRound} active={isAccountPage || location.pathname === "/colecoes" || location.pathname.startsWith("/dashboard/configuracoes")} />
+      <nav
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden ${
+          isAtlasRoute ? "hidden" : ""
+        }`}
+      >
+        {/* items-end: o disco do Atlas sobe, mas os rótulos ficam na mesma linha. */}
+        <div className="mx-auto flex max-w-[480px] items-end gap-1">
+          <MobileBottomItem to="/dashboard" label="Início" icon={NavHomeIcon} active={location.pathname === "/dashboard"} />
+          <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={NavOrdersIcon} active={location.pathname.startsWith("/dashboard/pedidos")} />
+          <MobileAtlasButton active={location.pathname.startsWith("/dashboard/atlas")} />
+          <MobileBottomItem to="/dashboard/resultados" label="Resultados" icon={NavResultsIcon} active={location.pathname.startsWith("/dashboard/resultados")} />
+          <MobileBottomItem to="/dashboard/minha-conta" label="Minha Conta" icon={NavAccountIcon} active={isAccountPage || location.pathname === "/colecoes" || location.pathname.startsWith("/dashboard/configuracoes")} />
         </div>
       </nav>
 

@@ -161,7 +161,8 @@ const isBeginnerTrigger = (message: string, userMessageCount: number) => {
   const normalized = normalizeGuideText(message);
   if (
     /\b(ajude|ajuda|quero|preciso).*\b(comecar|inicio|iniciar|zero)\b/.test(normalized) ||
-    /\b(nao sei).*\b(comecar|por onde|o que fazer)\b/.test(normalized) ||
+    // Aceite do convite: é o texto do botão que o Atlas oferece a quem trava.
+    /\b((comecar|iniciar|quero|abrir|bora)( o)? guia|guia de iniciante|guia do iniciante)\b/.test(normalized) ||
     /\b(nunca fiz|sou iniciante|iniciante|primeira vez|dropshipping)\b/.test(normalized)
   ) {
     return true;
@@ -231,10 +232,56 @@ const isConversationalAside = (message: string) => {
   );
 };
 
+/** Botão que leva ao guia, oferecido sempre que o usuário parece perdido. */
+const CONVITE_DO_GUIA: QuickReplyAction = {
+  type: "quick_reply",
+  label: "Começar o guia de iniciante",
+  message: "Começar o guia de iniciante",
+};
+
 const conversationalAsideResponse = (nome: string | null = null): AtlasResponse => ({
   message:
-    `Oi${nome ? `, ${nome}` : ""}! Estou por aqui. 😄\n\nPode falar comigo normalmente: tiro dúvidas, explico dropshipping ou continuo o seu guia de onde parou.\n\nMe conta o que você quer fazer agora.`,
-  actions: [],
+    `Oi${nome ? `, ${nome}` : ""}! Estou por aqui. 😄\n\nPode falar comigo normalmente: tiro dúvidas, explico dropshipping ou continuo o seu guia de onde parou.\n\nMe conta o que você quer fazer agora — ou, se preferir, eu te levo pelo guia de iniciante do começo ao primeiro anúncio.`,
+  actions: [CONVITE_DO_GUIA],
+});
+
+/**
+ * Dúvida de quem travou: "não sei o que fazer", "estou perdido", "e agora?".
+ *
+ * Separado de `isBeginnerTrigger` de propósito. Quem pede o guia com todas as
+ * letras entra direto nele; quem só demonstra dúvida recebe um convite com
+ * botão, porque empurrar cinco passos de uma vez em cima de quem fez uma
+ * pergunta solta soa como menu automático, não como ajuda.
+ */
+const isLostOrUnsure = (message: string) => {
+  const normalized = normalizeGuideText(message)
+    .replace(/[?!.,]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (
+    /\b(nao sei (o que|oque|nem por onde|por onde)|nao sei fazer|nao sei usar|nao sei nada)\b/.test(normalized) ||
+    /\b(por onde (eu )?(comeco|comecar|inicio|iniciar)|onde (eu )?comeco)\b/.test(normalized) ||
+    /\b(estou perdido|estou perdida|to perdido|to perdida|me perdi|estou confuso|estou confusa|to confuso|to confusa)\b/
+      .test(normalized) ||
+    /\b(e agora|o que (eu )?faco|qual (o )?primeiro passo|primeiro passo|como assim)\b/.test(normalized) ||
+    /\b((estou|to) com duvida|tenho duvida|tenho duvidas|muitas duvidas|nao entendi nada|nao faco ideia)\b/.test(
+      normalized,
+    ) ||
+    /\b(sou novo|sou nova|acabei de (chegar|entrar|criar)|nunca vendi|nunca usei)\b/.test(normalized)
+  );
+};
+
+/**
+ * Convite ao guia, com saída: quem só queria tirar uma dúvida não fica preso.
+ */
+const offerBeginnerGuideResponse = (nome: string | null = null): AtlasResponse => ({
+  message:
+    `Calma${nome ? `, ${nome}` : ""}, travar no começo é normal — quase todo mundo chega assim. 🙂\n\nEu tenho um **guia de iniciante** de 5 passos e faço ele junto com você:\n\n1. Escolher o seu nicho\n2. Separar produtos com estoque e boa margem\n3. Definir onde vender\n4. Conferir o potencial de divulgação\n5. Publicar o seu primeiro anúncio\n\nQuer que eu comece agora? Se preferir, também respondo qualquer dúvida solta antes.`,
+  actions: [
+    CONVITE_DO_GUIA,
+    { type: "quick_reply", label: "Só tirar uma dúvida", message: "Quero tirar uma dúvida antes" },
+  ],
 });
 
 const isBeginnerGuideReply = (message: string) => {
@@ -1690,8 +1737,8 @@ const fallbackReply = (message: string): AtlasResponse => {
 
   return {
     message:
-      "Oi! 😄 Me conta o que você quer fazer agora: encontrar produtos, conectar o Mercado Livre, criar um anúncio, gerar imagens, acompanhar pedidos ou mexer na assinatura. Eu te levo lá.",
-    actions: [],
+      "Oi! 😄 Me conta o que você quer fazer agora: encontrar produtos, conectar o Mercado Livre, criar um anúncio, gerar imagens, acompanhar pedidos ou mexer na assinatura. Eu te levo lá.\n\nE se ainda não sabe por onde começar, eu te levo pelo guia de iniciante.",
+    actions: [CONVITE_DO_GUIA],
   };
 };
 
@@ -1757,6 +1804,22 @@ serve(async (req) => {
             imagem: safeImageUrl(produtoSelecionado.imagem),
           }
         : null;
+
+    // Usuário travado ("não sei o que fazer", "e agora?", "estou perdido"):
+    // antes isso caía no modelo e voltava um parágrafo genérico. Agora vira o
+    // convite ao guia, com o botão que o inicia. Só fora do guia e sem produto
+    // escolhido, para não interromper quem já está no meio do fluxo.
+    const contagemDeMensagensDoUsuario = normalizedMessages.filter((m) => m.role !== "assistant").length;
+    if (
+      !guiaEmAndamento &&
+      !produtoDoCatalogo &&
+      !isBeginnerTrigger(lastUserMessage, contagemDeMensagensDoUsuario) &&
+      isLostOrUnsure(lastUserMessage)
+    ) {
+      const nomeDoUsuario = await buscarPrimeiroNome(serviceClient, authenticatedUserId);
+      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "convite_guia" });
+      return responder(offerBeginnerGuideResponse(nomeDoUsuario));
+    }
 
     const beginnerGuideResponse = await maybeHandleBeginnerGuide(
       normalizedMessages,
