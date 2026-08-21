@@ -5,7 +5,7 @@ import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL, useSalesPageData } from "./salesPageData";
 import { initMetaPixel, trackPixel } from "@/lib/metaPixel";
-import { computeCartTotals, sanitizeTip } from "./cartTotals";
+import { computeCartTotals } from "./cartTotals";
 
 /**
  * Tela 3 — Checkout
@@ -22,7 +22,6 @@ const SalesCheckoutPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const qty = Math.max(1, Math.min(10, Number(searchParams.get("qty") ?? 1)));
-  const tip = sanitizeTip(searchParams.get("tip"));
 
   const { data, loading, error } = useSalesPageData(slug);
   // Pagamento é sempre Pix (aprovação imediata); o checkout não oferece mais
@@ -75,8 +74,8 @@ const SalesCheckoutPage = () => {
   });
 
   const totals = useMemo(
-    () => computeCartTotals(data?.price ?? 0, qty, tip),
-    [data?.price, qty, tip],
+    () => computeCartTotals(data?.price ?? 0, qty),
+    [data?.price, qty],
   );
   const subtotal = data ? totals.subtotal : 0;
   const total = data ? totals.total : 0;
@@ -121,7 +120,6 @@ const SalesCheckoutPage = () => {
           slug,
           payment_method: method,
           quantity: qty,
-          tip: tip,
           buyer: {
             name: form.name,
             email: form.email,
@@ -236,19 +234,9 @@ const SalesCheckoutPage = () => {
                 <dt>Subtotal</dt>
                 <dd>{formatBRL(subtotal)}</dd>
               </div>
-              {totals.tip > 0 ? (
-                <div className="flex justify-between text-[#64748B]">
-                  <dt>Gorjeta</dt>
-                  <dd>{formatBRL(totals.tip)}</dd>
-                </div>
-              ) : null}
               <div className="flex justify-between text-[#64748B]">
                 <dt>Taxa de serviço</dt>
                 <dd>{formatBRL(totals.serviceFee)}</dd>
-              </div>
-              <div className="flex justify-between text-[#64748B]">
-                <dt>Impostos</dt>
-                <dd>{formatBRL(totals.tax)}</dd>
               </div>
               <div className="flex justify-between text-[#64748B]">
                 <dt>Frete</dt>
