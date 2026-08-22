@@ -17,27 +17,24 @@ import {
   getStorePublishedCount,
   incrementStorePublishedCount,
 } from "@/components/dashboard/FirstStoreOnboarding";
+import {
+  ErroDePublicacao,
+  MULTIPLICADOR_SUGERIDO,
+  gerarDescricaoComIa,
+  inferProductBrand,
+  inferStickerAlbumName,
+  isStickerAlbumProduct,
+  montarAtributosMl,
+  primeiraImagemDoProduto,
+  publicarNoMercadoLivre,
+  type ProdutoDoCatalogo,
+} from "@/lib/publicacaoMercadoLivre";
 
-export type CatalogProduct = {
-  id: string;
-  title: string;
-  description: string | null;
-  images: any;
-  cost_price: number;
-  suggested_price: number;
-  margin_percent: number;
-  category: string | null;
-  source: string;
-  original_url?: string;
-  stock_quantity?: number | null;
-  external_id?: string;
-  variants?: any;
-  brand?: string | null;
-  model?: string | null;
-  supplier_name?: string | null;
-  weight?: number | null;
-  product_url?: string | null;
-};
+/**
+ * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
+ * Atlas publica pelo chat com exatamente as mesmas, e duas cópias divergiriam.
+ */
+export type CatalogProduct = ProdutoDoCatalogo;
 
 type Props = {
   open: boolean;
@@ -58,188 +55,11 @@ const ACCENT = "#2563EB";
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const getImage = (images: any): string | null => {
-  try {
-    const arr = typeof images === "string" ? JSON.parse(images) : images;
-    return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
-  } catch {
-    return null;
-  }
-};
-
 const STEPS = [
   { num: 1, label: "Detalhes" },
   { num: 2, label: "Revisão" },
   { num: 3, label: "Plano" },
 ];
-
-const normalizeText = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-
-const KNOWN_BRANDS: Array<{ label: string; patterns: string[] }> = [
-  { label: "Panini", patterns: ["panini"] },
-  { label: "X-Cell", patterns: ["x-cell", "x cell", "xcell"] },
-  { label: "Laikou", patterns: ["laikou"] },
-  { label: "Hegai", patterns: ["hegai"] },
-  { label: "Vortita", patterns: ["vortita"] },
-  { label: "Queen Oil", patterns: ["queen oil", "queenoil"] },
-  { label: "OleAura", patterns: ["oleaura", "ole aura"] },
-  { label: "Samsung", patterns: ["samsung"] },
-  { label: "Apple", patterns: ["apple", "iphone", "ipad", "macbook"] },
-  { label: "Xiaomi", patterns: ["xiaomi", "redmi", "poco"] },
-  { label: "Motorola", patterns: ["motorola", "moto g", "moto e"] },
-  { label: "LG", patterns: ["lg"] },
-  { label: "Philips", patterns: ["philips"] },
-  { label: "Mondial", patterns: ["mondial"] },
-  { label: "Britânia", patterns: ["britania"] },
-  { label: "Philco", patterns: ["philco"] },
-  { label: "Cadence", patterns: ["cadence"] },
-  { label: "Oster", patterns: ["oster"] },
-  { label: "Arno", patterns: ["arno"] },
-  { label: "Tramontina", patterns: ["tramontina"] },
-  { label: "Stanley", patterns: ["stanley"] },
-  { label: "JBL", patterns: ["jbl"] },
-  { label: "Sony", patterns: ["sony"] },
-  { label: "Intelbras", patterns: ["intelbras"] },
-  { label: "Multilaser", patterns: ["multilaser"] },
-  { label: "Positivo", patterns: ["positivo"] },
-  { label: "Logitech", patterns: ["logitech"] },
-  { label: "Baseus", patterns: ["baseus"] },
-  { label: "Ugreen", patterns: ["ugreen"] },
-  { label: "Anker", patterns: ["anker"] },
-  { label: "Lenovo", patterns: ["lenovo"] },
-  { label: "Dell", patterns: ["dell"] },
-  { label: "HP", patterns: ["hp"] },
-  { label: "Canon", patterns: ["canon"] },
-  { label: "Epson", patterns: ["epson"] },
-  { label: "Elgin", patterns: ["elgin"] },
-  { label: "WAP", patterns: ["wap"] },
-  { label: "Karcher", patterns: ["karcher", "kärcher"] },
-  { label: "Black+Decker", patterns: ["black+decker", "black decker", "black-decker"] },
-  { label: "Fisher-Price", patterns: ["fisher-price", "fisher price"] },
-  { label: "Hot Wheels", patterns: ["hot wheels"] },
-  { label: "Barbie", patterns: ["barbie"] },
-  { label: "Lego", patterns: ["lego"] },
-  { label: "Hasbro", patterns: ["hasbro"] },
-  { label: "Mattel", patterns: ["mattel"] },
-  { label: "Nike", patterns: ["nike"] },
-  { label: "Adidas", patterns: ["adidas"] },
-  { label: "Puma", patterns: ["puma"] },
-  { label: "Olympikus", patterns: ["olympikus"] },
-  { label: "Mizuno", patterns: ["mizuno"] },
-  { label: "Asics", patterns: ["asics"] },
-  { label: "Havaianas", patterns: ["havaianas"] },
-  { label: "Crocs", patterns: ["crocs"] },
-  { label: "Nivea", patterns: ["nivea", "nívea"] },
-  { label: "L'Oréal", patterns: ["loreal", "l'oreal", "l'oréal"] },
-  { label: "Garnier", patterns: ["garnier"] },
-  { label: "Maybelline", patterns: ["maybelline"] },
-  { label: "Ruby Rose", patterns: ["ruby rose"] },
-  { label: "Macrilan", patterns: ["macrilan"] },
-  { label: "Vult", patterns: ["vult"] },
-  { label: "Eudora", patterns: ["eudora"] },
-  { label: "Natura", patterns: ["natura"] },
-  { label: "O Boticário", patterns: ["o boticario", "boticario"] },
-  { label: "Avon", patterns: ["avon"] },
-  { label: "Pantene", patterns: ["pantene"] },
-  { label: "Dove", patterns: ["dove"] },
-  { label: "Oral-B", patterns: ["oral-b", "oral b"] },
-  { label: "Colgate", patterns: ["colgate"] },
-  { label: "Gillette", patterns: ["gillette"] },
-];
-
-const GENERIC_BRAND = "Genérica";
-
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const hasBrandPattern = (haystack: string, pattern: string) => {
-  const normalizedPattern = normalizeText(pattern);
-  if (/^[a-z0-9]{1,3}$/.test(normalizedPattern)) {
-    return new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedPattern)}([^a-z0-9]|$)`).test(haystack);
-  }
-  return haystack.includes(normalizedPattern);
-};
-
-const cleanBrandCandidate = (value: string | null | undefined) => {
-  const cleaned = (value ?? "")
-    .replace(/\s+/g, " ")
-    .replace(/^[:"'`´\-–—\s]+|[:"'`´\-–—\s]+$/g, "")
-    .replace(/\b(modelo|model|produto|product)\b.*$/i, "")
-    .trim();
-
-  const normalized = normalizeText(cleaned);
-  const invalid = [
-    "c7drop",
-    "c7 drop",
-    "fornecedor",
-    "fornecedor verificado",
-    "sem marca",
-    "nao informado",
-    "não informado",
-    "generico",
-    "genérico",
-  ];
-
-  if (!cleaned || cleaned.length > 36 || invalid.includes(normalized)) return "";
-  if (/^(maquina|descascador|caixa|kit|suporte|envelope|produto|album|figurinha)\b/i.test(cleaned)) return "";
-  return cleaned;
-};
-
-const extractExplicitBrand = (value: string) => {
-  const match = value.match(/\b(?:marca|brand)\s*[:\-–—]\s*([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9&+.'’\-\s]{1,34})/i);
-  return cleanBrandCandidate(match?.[1]);
-};
-
-/** Quantas vezes o custo a Velo sugere cobrar. É também o valor inicial do slider. */
-const MULTIPLICADOR_SUGERIDO = 2.5;
-
-const isStickerAlbumProduct = (product: CatalogProduct | null, title: string) => {
-  const haystack = normalizeText(`${title} ${product?.title ?? ""} ${product?.category ?? ""}`);
-  return (
-    haystack.includes("figurinha") ||
-    haystack.includes("album") ||
-    haystack.includes("copa do mundo") ||
-    haystack.includes("fifa")
-  );
-};
-
-const inferProductBrand = (product: CatalogProduct | null, title: string) => {
-  const savedBrand = cleanBrandCandidate(product?.brand);
-  if (savedBrand) return savedBrand;
-
-  const sourceText = [
-    title,
-    product?.title,
-    product?.description,
-    product?.category,
-    product?.supplier_name,
-  ].filter(Boolean).join(" ");
-
-  if (isStickerAlbumProduct(product, title)) return "Panini";
-
-  const explicitBrand = extractExplicitBrand(sourceText);
-  if (explicitBrand) return explicitBrand;
-
-  const normalizedSource = normalizeText(sourceText);
-  const knownBrand = KNOWN_BRANDS.find((entry) =>
-    entry.patterns.some((pattern) => hasBrandPattern(normalizedSource, pattern))
-  );
-  if (knownBrand) return knownBrand.label;
-
-  const supplierBrand = cleanBrandCandidate(product?.supplier_name);
-  if (supplierBrand) return supplierBrand;
-
-  return GENERIC_BRAND;
-};
-
-const inferStickerAlbumName = (product: CatalogProduct | null, title: string) => {
-  const haystack = normalizeText(`${title} ${product?.title ?? ""}`);
-  if (haystack.includes("fifa") || haystack.includes("copa do mundo")) return "Copa do Mundo FIFA 2026";
-  return "Álbum colecionável";
-};
 
 const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
@@ -379,19 +199,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     [sellPrice, totalCost]
   );
 
-  const img = product ? getImage(product.images) : null;
+  const img = product ? primeiraImagemDoProduto(product.images) : null;
   const stockQty = product?.stock_quantity ?? 0;
   const hasStock = stockQty > 0;
   const requiresStickerAttrs = isStickerAlbumProduct(product, title);
-  const saleFormatAttribute = saleFormat === "kit"
-    ? { id: "SALE_FORMAT", value_id: "1359392", value_name: "Kit" }
-    : { id: "SALE_FORMAT", value_id: "1359391", value_name: "Unidade" };
-  const mlAttributes = [
-    ...(brand.trim() ? [{ id: "BRAND", value_name: brand.trim() }] : []),
-    ...(model.trim() ? [{ id: "MODEL", value_name: model.trim() }] : []),
-    ...(requiresStickerAttrs && albumName.trim() ? [{ id: "ALBUM_NAME", value_name: albumName.trim() }] : []),
-    ...(requiresStickerAttrs ? [saleFormatAttribute] : []),
-  ];
+  const mlAttributes = montarAtributosMl({
+    marca: brand,
+    modelo: model,
+    nomeDoAlbum: albumName,
+    formatoDeVenda: saleFormat,
+    exigeAtributosDeAlbum: requiresStickerAttrs,
+  });
 
   // A descrição não é mais pré-preenchida com a descrição original do produto
   // (que vinha com HTML cru do fornecedor). O usuário gera uma descrição limpa
@@ -449,56 +267,13 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     setGeneratingDesc(true);
     const toastId = veloToast.loading("Gerando descrição com IA...");
     try {
-      const price = sellPrice.toFixed(2).replace(".", ",");
-      const category = product.category || "Não informada";
-      const productDescriptionPrompt = `Você é um especialista em copywriting para e-commerce brasileiro.
-Gere uma descrição de produto persuasiva e completa para o Mercado Livre
-com base nestas informações:
-
-Nome: ${title}
-Categoria: ${category}
-Preço: R$ ${price}
-
-A descrição deve ter:
-- 4 a 6 parágrafos
-- Parágrafo 1: apresentação do produto e principal benefício
-- Parágrafo 2: características técnicas e diferenciais
-- Parágrafo 3: para quem é indicado e situações de uso
-- Parágrafo 4: garantia de qualidade e satisfação
-- Parágrafo 5: call-to-action persuasivo
-- Tom: confiante, vendedor e acessível
-- Idioma: português brasileiro
-- Não use bullet points, escreva em parágrafos corridos
-- Mínimo 300 palavras
-
-Retorne APENAS a descrição, sem introdução, sem comentários.`;
-
-      const { data, error } = await supabase.functions.invoke("chat", {
-        body: {
-          mode: "product_description",
-          messages: [{
-            role: "user",
-            content: productDescriptionPrompt
-          }]
-        },
+      const texto = await gerarDescricaoComIa({
+        titulo: title,
+        categoria: product.category,
+        preco: sellPrice,
       });
-      if (error) {
-        // Loga o motivo real só para nós (nunca expõe detalhe interno ao cliente)
-        try {
-          const body = await (error as { context?: Response }).context?.json?.();
-          console.warn("[gerar-descricao] falha:", body?.error ?? error);
-        } catch {
-          console.warn("[gerar-descricao] falha:", error);
-        }
-        throw new Error("Erro ao gerar descrição. Tente novamente em instantes.");
-      }
-      const text = data?.response || data?.choices?.[0]?.message?.content || "";
-      if (typeof text === "string" && text.trim()) {
-        setDescription(text.trim());
-        veloToast.success("Descrição gerada", { id: toastId });
-      } else {
-        veloToast.error("Não foi possível gerar a descrição", { id: toastId });
-      }
+      setDescription(texto);
+      veloToast.success("Descrição gerada", { id: toastId });
     } catch (e) {
       veloToast.error(e instanceof Error ? e.message : "Erro ao gerar descrição", { id: toastId });
     } finally {
@@ -548,77 +323,26 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
     setPublishing(true);
     const toastId = veloToast.loading("Publicando produto...");
     try {
-      const images = (() => {
-        try {
-          const arr = typeof product?.images === "string" ? JSON.parse(product.images) : product?.images;
-          return Array.isArray(arr) ? arr : [];
-        } catch { return []; }
-      })();
-
-      const publishBody = {
-        product: {
-          id: product?.id,
-          external_id: product?.external_id,
-          cj_product_id: null,
-          cj_product_url: product?.original_url ?? null,
-          cj_variant_id: null,
-          title: title.trim(),
-          price: sellPrice,
-          cost_price: totalCost,
-          description: description || `${title} - Produto de alta qualidade com envio rápido.`,
-          images,
-          available_quantity: Math.min(stockQty, 10),
-          condition: "new",
-          brand: brand.trim() || null,
-          model: model.trim() || null,
-          ml_attributes: mlAttributes,
-          weight: typeof product?.weight === "number" ? product.weight : null,
-          product_url: product?.product_url ?? null,
-          override_category_id: override?.categoryId,
-          size_grid_id: override?.sizeGridId,
-        },
-      };
-
-      // Trocamos supabase.functions.invoke por fetch direto: o invoke consome
-      // o body internamente em respostas não-2xx (FunctionsHttpError com
-      // Response já drenado), impedindo a leitura do JSON de erro
-      // (CATEGORY_REQUIRES_MANUAL / CATEGORY_LOW_CONFIDENCE). Com fetch nós
-      // controlamos status + body em uma única leitura.
-      const SUPABASE_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co";
-      const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xenBvaW94dmJxYXZydHBodG9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDMyNDgsImV4cCI6MjA5MDgxOTI0OH0.G1VlS8doiHQtooC2tyiiHbWl4h9kqoMSuirShDhhjzk";
-      const { data: sess } = await supabase.auth.getSession();
-      const accessToken = sess?.session?.access_token ?? SUPABASE_ANON;
-
-      let status = 0;
-      let body: any = null;
+      let data: { permalink: string; item_id: string };
       try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/ml-publish`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: SUPABASE_ANON,
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify(publishBody),
+        data = await publicarNoMercadoLivre({
+          produto: product,
+          titulo: title,
+          preco: sellPrice,
+          descricao: description,
+          marca: brand,
+          modelo: model,
+          atributos: mlAttributes,
+          estoque: stockQty,
+          override,
         });
-        status = res.status;
-        const raw = await res.text();
-        try { body = raw ? JSON.parse(raw) : null; } catch { body = { raw }; }
-      } catch (netErr: any) {
-        console.error("[ml-publish] network error:", netErr);
-        veloToast.error(netErr?.message || "Erro de rede ao publicar", { id: toastId });
-        setPublishing(false);
-        return;
-      }
-
-      if (status < 200 || status >= 300 || body?.error) {
-        const code: string | undefined = body?.code;
-        const friendly: string | undefined = body?.error || body?.message;
+      } catch (erro) {
+        const codigo = erro instanceof ErroDePublicacao ? erro.codigo : undefined;
 
         // Categoria não pôde ser resolvida automaticamente → apenas informa o usuário.
         // (O modal manual foi removido a pedido: publicação no Mercado Livre está
         // temporariamente indisponível para produtos sem categoria confiável.)
-        if (code === "CATEGORY_REQUIRES_MANUAL" || code === "CATEGORY_LOW_CONFIDENCE") {
+        if (codigo === "CATEGORY_REQUIRES_MANUAL" || codigo === "CATEGORY_LOW_CONFIDENCE") {
           veloToast.error(
             "Não foi possível publicar este produto no Mercado Livre no momento. Tente outro produto.",
             { id: toastId },
@@ -628,20 +352,17 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
         }
 
         // Conta do ML bloqueada para publicar → tutorial em 3 etapas.
-        if (code === "ML_SELLER_CANNOT_LIST") {
+        if (codigo === "ML_SELLER_CANNOT_LIST") {
           veloToast.dismiss(toastId);
           setMlVerifyModalOpen(true);
           setPublishing(false);
           return;
         }
 
-        veloToast.error(friendly || "Erro ao publicar", { id: toastId });
+        veloToast.error(erro instanceof Error ? erro.message : "Erro ao publicar", { id: toastId });
         setPublishing(false);
         return;
       }
-
-      const data = body;
-
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
@@ -653,8 +374,8 @@ Retorne APENAS a descrição, sem introdução, sem comentários.`;
       });
       void planLimits.refreshUsage();
       if (data.permalink) window.open(data.permalink, "_blank", "noopener,noreferrer");
-    } catch (err: any) {
-      veloToast.error(err?.message || "Erro inesperado", { id: toastId });
+    } catch (err) {
+      veloToast.error(err instanceof Error ? err.message : "Erro inesperado", { id: toastId });
     } finally {
       setPublishing(false);
     }
