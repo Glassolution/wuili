@@ -2,7 +2,7 @@
 // funciona com as credenciais salvas. Não expõe nenhum secret.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getValidaPayToken, VALIDAPAY_API_URL, VALIDAPAY_AUTH_URL } from "../_shared/validapay.ts";
+import { createCheckoutSession, getValidaPayToken, VALIDAPAY_API_URL, VALIDAPAY_AUTH_URL, ValidaPayError } from "../_shared/validapay.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
