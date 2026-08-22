@@ -25,8 +25,15 @@
     <title>Velo — Infraestrutura de vendas para aumentar suas receitas</title>
     <meta name="description" content="Crie sua loja, encontre produtos de fornecedores reais e publique automaticamente no Mercado Livre, Shopee e mais. Sem estoque, sem complicação.">
     <meta property="og:type" content="website" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="apple-touch-icon" href="/logo.png" />
+    <!--
+      Favicon. O Google busca /favicon.ico na raiz do domínio, e é de lá que ele
+      tira o ícone do resultado de busca — por isso o .ico existe e carrega a
+      marca atual (a cesta azul), nos tamanhos 16, 32 e 48. O ?v= força os
+      navegadores a largarem o ícone antigo, que fica em cache por muito tempo.
+    -->
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <meta name="theme-color" content="#2563EB" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
