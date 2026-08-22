@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle } from "lucide-react";
+import VideoTutorialModal from "./VideoTutorialModal";
 
 type Props = {
   open: boolean;
@@ -16,6 +17,11 @@ type Props = {
 type Step = 1 | 2 | 3;
 
 const ML_PROFILE_URL = "https://www.mercadolivre.com.br/vender";
+
+/* Tutorial gravado mostrando a ativação da conta de vendedor no Mercado Livre. */
+const TUTORIAL_VIDEO_SRC =
+  "https://player.vimeo.com/video/1220476544?badge=0&autopause=0&player_id=0&app_id=58479";
+const TUTORIAL_VIDEO_ASPECT = "67.75%";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
@@ -142,6 +148,14 @@ const StepVisual = ({ step }: { step: Step }) => {
 const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
   const [step, setStep] = useState<Step>(1);
   const [visible, setVisible] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+
+  /*
+    Ref espelhando o estado: o listener de Esc é registrado uma vez só
+    (o efeito depende apenas de `open`) e precisa saber se o vídeo está aberto.
+  */
+  const videoOpenRef = useRef(false);
+  videoOpenRef.current = videoOpen;
 
   useEffect(() => {
     if (open) {
@@ -150,6 +164,7 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
     } else {
       setVisible(false);
     }
+    setVideoOpen(false);
   }, [open]);
 
   const close = () => {
@@ -161,7 +176,10 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      // Com o vídeo aberto, o Esc fecha só ele e mantém o tutorial no lugar.
+      if (videoOpenRef.current) return setVideoOpen(false);
+      close();
     };
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -258,6 +276,16 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
                   {step === 2 ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
                 </button>
 
+                {step === 2 && (
+                  <button
+                    onClick={() => setVideoOpen(true)}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] font-['Hanken_Grotesk',_sans-serif] text-[15px] font-medium tracking-[-0.01em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5]"
+                  >
+                    <PlayCircle size={16} />
+                    Assistir vídeo tutorial
+                  </button>
+                )}
+
                 {step > 1 && (
                   <button
                     onClick={() => setStep((step - 1) as Step)}
@@ -288,6 +316,15 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
             >
               <X size={16} />
             </button>
+
+            <VideoTutorialModal
+              open={videoOpen}
+              onClose={() => setVideoOpen(false)}
+              title="Como ativar sua conta de vendedor"
+              description="Passo a passo em vídeo para verificar a conta e ativar o modo vendedor no Mercado Livre."
+              src={TUTORIAL_VIDEO_SRC}
+              aspectPadding={TUTORIAL_VIDEO_ASPECT}
+            />
           </motion.div>
         </div>
       )}
