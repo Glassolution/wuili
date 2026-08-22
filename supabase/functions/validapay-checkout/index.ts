@@ -252,6 +252,23 @@ Deno.serve(async (req) => {
         ? err.message
         : String(err);
     console.error("validapay-checkout erro", message);
+
+    // Falha do lado do gateway (conta do adquirente indisponível): o cliente não
+    // tem o que corrigir, então mostramos um aviso claro em vez de erro técnico.
+    const code = (err instanceof ValidaPayError
+      ? (err.data as { error?: { code?: string } } | null)?.error?.code
+      : null) ?? "";
+    if (code === "ACCOUNT_NOT_FOUND" || (err instanceof ValidaPayError && err.status === 404)) {
+      return json(
+        {
+          error:
+            "Nosso sistema de pagamento está temporariamente indisponível. Já estamos resolvendo — tente novamente em alguns minutos ou fale com o suporte.",
+          code: "gateway_unavailable",
+        },
+        503,
+      );
+    }
     return json({ error: `Checkout indisponível: ${message}` }, 500);
+
   }
 });
