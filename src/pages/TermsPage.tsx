@@ -12,10 +12,11 @@ const TermsPage = () => (
 
     <LegalSection title="2. Sobre a Plataforma">
       <p>
-        A Velo é uma plataforma SaaS de dropshipping que permite ao Usuário importar produtos de
-        fornecedores nacionais e publicá-los automaticamente em marketplaces como o Mercado Livre.
-        A Plataforma é operada por Luis Felipe Ferreira Xavier, pessoa física, CPF 071.774.332-28,
-        residente em Marabá/Pará.
+        A Velo é uma plataforma SaaS de dropshipping com IA para iniciantes brasileiros. O usuário
+        escolhe produtos do catálogo Velo — alimentado por scraping de fornecedores brasileiros como
+        a C7Drop —, personaliza títulos e descrições com inteligência artificial e publica anúncios
+        em marketplaces como o Mercado Livre e a Shopee. A Plataforma é operada por Luis Felipe
+        Ferreira Xavier, pessoa física, CPF 071.774.332-28, residente em Marabá/Pará.
       </p>
     </LegalSection>
 
@@ -33,9 +34,8 @@ const TermsPage = () => (
         expresso pelo Usuário antes do vencimento.
       </p>
       <p>
-        4.2. Os pagamentos são processados por terceiros (processadoras de pagamento) e estão
-        sujeitos aos termos dessas plataformas. A Velo não armazena dados completos de cartão de
-        crédito.
+        4.2. Os pagamentos de assinatura são processados pela ValidaPay. Dados completos de cartão
+        de crédito não são armazenados pela Velo; ficam sob responsabilidade da processadora.
       </p>
       <p>
         4.3. Não há reembolso após o início do ciclo de cobrança mensal, exceto nos casos

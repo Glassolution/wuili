@@ -24,6 +24,12 @@ const Footer = () => (
         <a href="#solucoes" className="transition-colors hover:text-white">
           Soluções
         </a>
+        <Link to="/politica-de-privacidade" className="transition-colors hover:text-white">
+          Política de Privacidade
+        </Link>
+        <Link to="/termos-de-servico" className="transition-colors hover:text-white">
+          Termos de Serviço
+        </Link>
       </nav>
 
       <div className="text-[13px] text-white/45">© 2026 Velo. Todos os direitos reservados.</div>

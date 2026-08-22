@@ -950,7 +950,7 @@ const CheckoutPage = () => {
                     />
                     <span>
                       Aceito os{" "}
-                      <Link to="/termos" target="_blank" className="font-medium text-black underline underline-offset-2">
+                      <Link to="/termos-de-servico" target="_blank" className="font-medium text-black underline underline-offset-2">
                         Termos de Uso
                       </Link>
                       .
@@ -965,7 +965,7 @@ const CheckoutPage = () => {
                     />
                     <span>
                       Aceito a{" "}
-                      <Link to="/privacidade" target="_blank" className="font-medium text-black underline underline-offset-2">
+                      <Link to="/politica-de-privacidade" target="_blank" className="font-medium text-black underline underline-offset-2">
                         Política de Privacidade
                       </Link>
                       .
@@ -998,11 +998,11 @@ const CheckoutPage = () => {
             Cancele quando quiser
           </button>{" "}
           em Configurações. Ao assinar, você concorda com os{" "}
-          <Link to="/termos" target="_blank" className="font-medium text-black underline underline-offset-2">
+          <Link to="/termos-de-servico" target="_blank" className="font-medium text-black underline underline-offset-2">
             Termos de Uso
           </Link>{" "}
           e com a{" "}
-          <Link to="/privacidade" target="_blank" className="font-medium text-black underline underline-offset-2">
+          <Link to="/politica-de-privacidade" target="_blank" className="font-medium text-black underline underline-offset-2">
             Política de Privacidade
           </Link>
           .

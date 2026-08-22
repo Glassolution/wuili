@@ -75,7 +75,8 @@ const PrivacyPage = () => (
       <p>A Velo pode compartilhar dados com:</p>
       <LegalList
         items={[
-          "Processadoras de pagamento (ex.: Mercado Pago, Stripe): para processar cobranças",
+          "Processadora de pagamento ValidaPay: para processar cobranças de assinaturas de forma segura",
+          "Fornecedores e catálogo de produtos (ex.: C7Drop): para disponibilizar e sincronizar produtos na plataforma",
           "Provedores de infraestrutura (ex.: Supabase, Vercel): para hospedagem e banco de dados",
           "Provedores de email (ex.: Resend): para envio de comunicações transacionais",
           "Mercado Livre e outros marketplaces: apenas os dados necessários para a integração (ex.: token de acesso fornecido pelo próprio Usuário)",

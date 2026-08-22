@@ -634,7 +634,7 @@ const LoginPage = () => {
                             label={
                               <>
                                 Li e aceito os{" "}
-                                <Link to="/termos" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                                <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Termos de Uso
                                 </Link>
                               </>
@@ -646,7 +646,7 @@ const LoginPage = () => {
                             label={
                               <>
                                 Li e aceito a{" "}
-                                <Link to="/privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                                <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Política de Privacidade
                                 </Link>
                               </>
@@ -727,11 +727,11 @@ const LoginPage = () => {
 
         <p className="text-center text-[12.5px] leading-[1.6] text-white/45 lg:text-left lg:text-[#94A3B8]">
           Ao continuar, você concorda com a{" "}
-          <Link to="/privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
+          <Link to="/politica-de-privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
             Política de Privacidade
           </Link>{" "}
           e os{" "}
-          <Link to="/termos" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
+          <Link to="/termos-de-servico" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
             Termos de Uso
           </Link>
           .

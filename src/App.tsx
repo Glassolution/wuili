@@ -231,7 +231,8 @@ const App = () => (
               {/* Endereço antigo da Comunidade e Ajuda. Mantido como redirecionamento
                   porque circula em links e posts antigos. */}
               <Route path="/docs" element={<Navigate to="/dashboard/comunidade" replace />} />
-              <Route path="/termos" element={<TermsPage />} />
+              <Route path="/termos-de-servico" element={<TermsPage />} />
+              <Route path="/termos" element={<Navigate to="/termos-de-servico" replace />} />
               {/* Retorno da ValidaPay após pagamento aprovado. Pública: o
                   usuário volta do checkout externo, podendo não estar logado. */}
               <Route path="/assinatura/confirmada" element={<AssinaturaConfirmadaPage />} />
@@ -239,7 +240,8 @@ const App = () => (
               {import.meta.env.DEV ? (
                 <Route path="/__preview-template/:templateId" element={<TemplatePreviewPage />} />
               ) : null}
-              <Route path="/privacidade" element={<PrivacyPage />} />
+              <Route path="/politica-de-privacidade" element={<PrivacyPage />} />
+              <Route path="/privacidade" element={<Navigate to="/politica-de-privacidade" replace />} />
               <Route path="/preview/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug" element={<PublicStorePage />} />
               <Route path="/loja/:slug/catalogo" element={<PublicStoreCatalogPage />} />

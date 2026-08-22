@@ -3582,6 +3582,18 @@ export type Database = {
         Args: { p_project: string; p_user: string }
         Returns: boolean
       }
+      ml_variation_backfill_candidates: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          email: string
+          ml_item_id: string
+          price: number
+          publication_id: string
+          title: string
+          user_id: string
+          variants: Json
+        }[]
+      }
       rpc_admin_accept_affiliate_application: {
         Args: { p_user_id: string }
         Returns: Json
