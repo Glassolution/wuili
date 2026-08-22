@@ -312,6 +312,17 @@
 }
 
 @layer utilities {
+  /* Carrossel de produtos do Atlas: a barra de rolagem corta os cards e o
+     movimento já é indicado pelas setas e pelo card que aparece pela metade. */
+  .velo-scroll-oculto {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .velo-scroll-oculto::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Dashboard uses Hanken Grotesk across shell typography */
   .dashboard-inter,
   .dashboard-inter * {
