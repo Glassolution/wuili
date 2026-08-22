@@ -81,7 +81,7 @@ type ConnectMlAction = {
 };
 
 /**
- * Abre a vitrine de produtos do guia (modal do frontend).
+ * Vitrine de produtos do guia, renderizada como carrossel dentro da mensagem.
  *
  * O nicho vai junto para a vitrine cruzar o que o usuário acabou de escolher na
  * conversa com o perfil respondido no cadastro, em vez de mostrar só o perfil.
@@ -1150,10 +1150,10 @@ const showProductsForNiche = async (
 /**
  * Passo 2: escolha do produto na vitrine.
  *
- * Assim que o nicho é confirmado, o guia abre a vitrine que já existe no
- * frontend em vez de despejar cards de texto no chat. A vitrine cruza o nicho
- * confirmado aqui com o perfil respondido no cadastro, e o produto escolhido
- * segue amarrado ao resto do guia até a publicação.
+ * Assim que o nicho é confirmado, o guia manda a vitrine junto da mensagem: o
+ * frontend a renderiza como um carrossel dentro da própria conversa. A seleção
+ * cruza o nicho confirmado aqui com o perfil respondido no cadastro, e o
+ * produto escolhido segue amarrado ao resto do guia até a publicação.
  */
 const guideOpenShowcaseStep = async (
   supabase: ServiceClient,
@@ -1167,7 +1167,7 @@ const guideOpenShowcaseStep = async (
 
   return {
     message:
-      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nMontei uma seleção do seu nicho, só com estoque ativo. Toca em escolher meu produto e me diz qual você quer.`,
+      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nSeparei aqui embaixo uma seleção do seu nicho, só com estoque ativo e no perfil que você me contou no cadastro. Arrasta pro lado e toca no que te agradar — eu sigo o guia com ele.`,
     actions: [
       {
         type: "open_showcase",
@@ -1284,13 +1284,12 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nReta final: revisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre**: eu abro aqui no chat a tela de título, preço e estoque e publico com você.`,
+      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nA gente publica aqui mesmo, sem sair da conversa. Aqui embaixo eu te peço três coisas:\n\n1. **Título e preço** — o título com as palavras que o comprador digita na busca, e o preço já mostrando quanto sobra pra você.\n2. **Descrição** — eu escrevo pra você, ou você escreve do seu jeito.\n3. **Publicar** — você confere o resumo e toca no botão. Eu mando pro Mercado Livre.`,
     actions: [
-      // Botão que realmente publica: abre o produto já com o modal de publicação
-      // no Mercado Livre aberto. Antes o guia só mandava "abrir o produto" e o
-      // iniciante não achava onde publicar.
+      // O frontend renderiza esta ação como o formulário de publicação dentro
+      // da conversa. Antes o guia só mandava "abrir o produto" e o iniciante não
+      // achava onde publicar.
       { type: "publish_ml", label: "Publicar no Mercado Livre", product_id: product.product_id, variant: "primary" },
-      { type: "navigation", label: "Abrir produto escolhido", route: productRoute },
       { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },
       { type: "navigation", label: "Ver Pedidos", route: "/dashboard/pedidos" },
     ],
@@ -1528,8 +1527,9 @@ const maybeHandleBeginnerGuide = async (
     };
   }
 
-  // Passo 2 sem cards: a vitrine é o caminho. Se ela foi fechada sem escolha, o
-  // usuário pede de volta e o guia reabre em vez de travar.
+  // Passo 2 sem cards: a vitrine é o caminho. Se o usuário rolou a conversa e
+  // perdeu o carrossel de vista, ele pede de volta e o guia manda outro em vez
+  // de travar.
   if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
     if (niche) return guideOpenShowcaseStep(supabase, niche, nome);
@@ -1560,8 +1560,11 @@ const maybeHandleBeginnerGuide = async (
 
     return {
       message:
-        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nRevisa título, descrição, preço e margem, e publica.\n\n**Título:** use as palavras que o comprador digita na busca.\n\nToca em **Publicar no Mercado Livre** que eu abro aqui mesmo, no chat, a tela de título, preço e estoque.`,
+        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nPublicamos aqui mesmo. Aqui embaixo eu te peço o **título e o preço** (já te mostro quanto sobra por venda), depois a **descrição** — escrevo pra você se quiser — e por fim é só tocar em publicar.`,
       actions: [
+        // Sem "abrir o produto no catálogo" ao lado: a publicação acontece na
+        // conversa, e o atalho para o catálogo só tirava a pessoa do fluxo no
+        // exato momento de publicar.
         ...(productNav
           ? [
               {
@@ -1570,7 +1573,6 @@ const maybeHandleBeginnerGuide = async (
                 product_id: productNav.route.split("/dashboard/catalogo/")[1]?.split("?")[0] ?? "",
                 variant: "primary" as const,
               },
-              productNav,
             ]
           : [{ type: "navigation" as const, label: "Abrir Catálogo", route: "/dashboard/catalogo" }]),
         { type: "navigation", label: "Ver Publicações", route: "/dashboard/publicacoes" },

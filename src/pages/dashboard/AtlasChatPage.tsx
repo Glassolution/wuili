@@ -28,9 +28,10 @@ import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
 import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAtlasNavegacao } from "@/contexts/AtlasChatContext";
+import { useAtlasNavegacao, type NichoDaVitrine } from "@/contexts/AtlasChatContext";
+import AtlasProductCarousel from "@/components/dashboard/AtlasProductCarousel";
 import { supabase } from "@/integrations/supabase/client";
-import AtlasPublishMlButton from "@/components/dashboard/AtlasPublishMlButton";
+import AtlasPublishComposer from "@/components/dashboard/AtlasPublishComposer";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -83,12 +84,20 @@ type AtlasPublishMlAction = {
   variant?: "primary";
 };
 
+/** Vitrine do guia renderizada dentro da própria mensagem. */
+type AtlasOpenShowcaseAction = {
+  type: "open_showcase";
+  label: string;
+  niche?: NichoDaVitrine;
+};
+
 type AtlasAction =
   | AtlasNavigationAction
   | AtlasPublishMlAction
   | AtlasProductCardAction
   | AtlasQuickReplyAction
-  | AtlasConnectMlAction;
+  | AtlasConnectMlAction
+  | AtlasOpenShowcaseAction;
 
 type AtlasMessageData = {
   actions?: AtlasAction[];
@@ -115,12 +124,22 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (candidate.type === "connect_ml") {
     return typeof candidate.label === "string";
   }
+  if (candidate.type === "open_showcase") {
+    return typeof candidate.label === "string";
+  }
+  // Sem este caso, a ação de publicar era descartada aqui e o passo 5 chegava
+  // ao usuário só com o atalho para o catálogo — nunca com o botão que publica.
+  if (candidate.type === "publish_ml") {
+    return typeof candidate.label === "string" && typeof candidate.product_id === "string";
+  }
   return false;
 };
 
+// Mesmo teto do painel lateral (12). Com 3, o passo 1 do guia perdia metade das
+// categorias sugeridas e a vitrine podia ser cortada junto com elas.
 const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
   if (!Array.isArray(value)) return [];
-  return value.filter(isAtlasAction).slice(0, 3);
+  return value.filter(isAtlasAction).slice(0, 12);
 };
 
 const formatMargin = (margin?: number | null) => {
@@ -471,12 +490,18 @@ const AtlasChatPage = () => {
 
           if (action.type === "publish_ml") {
             return (
-              <AtlasPublishMlButton
+              <AtlasPublishComposer
                 key={`publish-${action.product_id}-${index}`}
                 produtoId={action.product_id}
                 label={action.label}
               />
             );
+          }
+
+          // A vitrine do guia entra como carrossel na própria mensagem, no
+          // lugar do modal que cobria a conversa.
+          if (action.type === "open_showcase") {
+            return <AtlasProductCarousel key={`vitrine-${index}`} nicho={action.niche ?? null} />;
           }
 
           if (action.type === "connect_ml") {
