@@ -17,7 +17,6 @@ import OnboardingModal, {
   markOnboardingSeen,
   shouldShowOnboarding,
 } from "@/components/onboarding/OnboardingModal";
-import AtlasProductShowcase from "@/components/dashboard/AtlasProductShowcase";
 import { CHAVE_RESPOSTAS_DO_QUIZ } from "@/lib/perfilDoQuiz";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -337,7 +336,7 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
         <MobileDrawerLink to="/dashboard/imagens-ia" label="Imagens com IA" icon={ImageIcon} />
         <MobileDrawerButton label="Convidar amigo" icon={UserPlus} onClick={() => setInviteOpen(true)} />
-        <MobileDrawerLink to="/docs" label="Ajuda & Central" icon={HelpCircle} />
+        <MobileDrawerLink to="/dashboard/comunidade" label="Ajuda & Central" icon={HelpCircle} />
         {isAdmin && (
           <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} badge="Admin" />
         )}
@@ -805,9 +804,6 @@ const DashboardLayoutInner = () => {
         </div>
       </div>
       {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
-      {/* Fica no layout, e não numa página: a vitrine é chamada do chat e
-          precisa aparecer por cima de qualquer rota. */}
-      <AtlasProductShowcase />
       <NotificationBannerStack />
       {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
     </div>

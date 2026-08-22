@@ -116,7 +116,7 @@ const CommunityAnnouncementModal = () => {
             type="button"
             onClick={() => {
               dismiss();
-              navigate("/docs");
+              navigate("/dashboard/comunidade");
             }}
             className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
           >
