@@ -27,6 +27,13 @@ describe("normalizeAtlasActions", () => {
     expect(acoes).toHaveLength(1);
   });
 
+  it("mantém o atalho para o vídeo tutorial da conta de vendedor", () => {
+    const acoes = normalizeAtlasActions([{ type: "watch_tutorial", label: "Assistir vídeo tutorial" }]);
+
+    expect(acoes).toHaveLength(1);
+    expect(acoes[0]).toMatchObject({ type: "watch_tutorial", label: "Assistir vídeo tutorial" });
+  });
+
   it("reconhece todos os tipos que o guia envia", () => {
     const acoes = normalizeAtlasActions([
       { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" },
@@ -35,6 +42,7 @@ describe("normalizeAtlasActions", () => {
       { type: "product_card", product_id: "prod-2" },
       { type: "publish_ml", label: "Publicar", product_id: "prod-3" },
       { type: "open_showcase", label: "Escolher produto" },
+      { type: "watch_tutorial", label: "Assistir vídeo tutorial" },
     ]);
 
     expect(acoes.map((acao) => acao.type)).toEqual([
@@ -44,6 +52,7 @@ describe("normalizeAtlasActions", () => {
       "product_card",
       "publish_ml",
       "open_showcase",
+      "watch_tutorial",
     ]);
   });
 
@@ -51,6 +60,7 @@ describe("normalizeAtlasActions", () => {
     expect(normalizeAtlasActions([
       { type: "publish_ml", label: "Publicar" },
       { type: "navigation", label: "Sem rota" },
+      { type: "watch_tutorial" },
       { type: "inventado", label: "?" },
       null,
       "texto",

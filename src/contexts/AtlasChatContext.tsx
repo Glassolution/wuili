@@ -55,6 +55,8 @@ export type NichoDaVitrine = { id: string; label: string; catalogTerms: string[]
 /** Abre a vitrine de produtos do guia, já filtrada pelo nicho confirmado. */
 export type AtlasOpenShowcaseAction = { type: "open_showcase"; label: string; niche?: NichoDaVitrine };
 export type AtlasConnectMlAction = { type: "connect_ml"; label: string };
+/** Abre o tutorial gravado da ativação da conta de vendedor sem sair da conversa. */
+export type AtlasWatchTutorialAction = { type: "watch_tutorial"; label: string };
 /**
  * Publica direto do chat: o frontend abre o modal de publicação (título, preço,
  * estoque) por cima da conversa, em vez de mandar o usuário para o catálogo.
@@ -71,6 +73,7 @@ export type AtlasAction =
   | AtlasProductCardAction
   | AtlasQuickReplyAction
   | AtlasConnectMlAction
+  | AtlasWatchTutorialAction
   | AtlasPublishMlAction
   | AtlasOpenShowcaseAction;
 
@@ -107,6 +110,7 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (c.type === "product_card") return typeof c.product_id === "string";
   if (c.type === "quick_reply") return typeof c.label === "string" && typeof c.message === "string";
   if (c.type === "connect_ml") return typeof c.label === "string";
+  if (c.type === "watch_tutorial") return typeof c.label === "string";
   if (c.type === "open_showcase") return typeof c.label === "string";
   // Sem este caso, a ação de publicar era descartada aqui e o passo 5 chegava
   // ao usuário só com o atalho para o catálogo — nunca com o botão que publica.
@@ -270,6 +274,8 @@ São quatro coisas pra resolver na conta, e leva uns 5 minutos:
 
 Abre numa aba nova e preenche tudo, sem pular campo — se faltar um item, o Mercado Livre continua recusando. Quando terminar, volta aqui: seu anúncio continua montado do jeito que você deixou, é só tocar em publicar de novo.
 
+Se preferir ver antes de fazer, gravei o passo a passo em vídeo — é só tocar no botão abaixo.
+
 Travou em alguma etapa? Me conta qual que eu te explico.`;
 
 const MENSAGEM_ANDRYA =
@@ -429,6 +435,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
           created_at: new Date().toISOString(),
           product_data: {
             actions: [
+              { type: "watch_tutorial", label: "Assistir vídeo tutorial" },
               { type: "quick_reply", label: "Já ativei, e agora?", message: "Já ativei minha conta de vendedor no Mercado Livre" },
               { type: "quick_reply", label: "Travei numa etapa", message: "Travei na ativação da conta de vendedor do Mercado Livre, pode me ajudar?" },
             ],

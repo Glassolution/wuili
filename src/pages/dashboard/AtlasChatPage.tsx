@@ -8,6 +8,7 @@ import {
   Plus,
   MessageSquare,
   PackageSearch,
+  PlayCircle,
   Trash2,
   ArrowLeft,
   Archive,
@@ -30,6 +31,8 @@ import AtlasThinkingText from "@/components/dashboard/AtlasThinkingText";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasNavegacao, type NichoDaVitrine } from "@/contexts/AtlasChatContext";
 import AtlasProductCarousel from "@/components/dashboard/AtlasProductCarousel";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
 import { supabase } from "@/integrations/supabase/client";
 import AtlasPublishComposer from "@/components/dashboard/AtlasPublishComposer";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
@@ -77,6 +80,12 @@ type AtlasConnectMlAction = {
   label: string;
 };
 
+/** Abre o tutorial gravado da ativação da conta de vendedor sem sair da conversa. */
+type AtlasWatchTutorialAction = {
+  type: "watch_tutorial";
+  label: string;
+};
+
 type AtlasPublishMlAction = {
   type: "publish_ml";
   label: string;
@@ -97,6 +106,7 @@ type AtlasAction =
   | AtlasProductCardAction
   | AtlasQuickReplyAction
   | AtlasConnectMlAction
+  | AtlasWatchTutorialAction
   | AtlasOpenShowcaseAction;
 
 type AtlasMessageData = {
@@ -122,6 +132,9 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
     return typeof candidate.label === "string" && typeof candidate.message === "string";
   }
   if (candidate.type === "connect_ml") {
+    return typeof candidate.label === "string";
+  }
+  if (candidate.type === "watch_tutorial") {
     return typeof candidate.label === "string";
   }
   if (candidate.type === "open_showcase") {
@@ -166,6 +179,7 @@ const AtlasChatPage = () => {
   const threadId = params.threadId ?? null;
   const queryClient = useQueryClient();
   const [conectandoMl, setConectandoMl] = useState(false);
+  const [tutorialAberto, setTutorialAberto] = useState(false);
   // Inicia o OAuth do Mercado Livre a partir do próprio chat. O helper só
   // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
   // função não consegue mandar o usuário para outro domínio.
@@ -502,6 +516,22 @@ const AtlasChatPage = () => {
           // lugar do modal que cobria a conversa.
           if (action.type === "open_showcase") {
             return <AtlasProductCarousel key={`vitrine-${index}`} nicho={action.niche ?? null} />;
+          }
+
+          // Quando o Mercado Livre recusa por conta inativa, o vídeo do passo a
+          // passo fica ao lado da explicação — sem mandar a pessoa procurar.
+          if (action.type === "watch_tutorial") {
+            return (
+              <button
+                key={`${action.type}-${index}`}
+                type="button"
+                onClick={() => setTutorialAberto(true)}
+                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border !border-[#E4E7EC] bg-white px-3 py-1.5 text-left text-[12px] font-semibold text-[#353535] transition-colors hover:bg-[#F7F8FA]"
+              >
+                <PlayCircle className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" strokeWidth={2.2} />
+                <span className="truncate">{action.label}</span>
+              </button>
+            );
           }
 
           if (action.type === "connect_ml") {
@@ -1031,6 +1061,15 @@ const AtlasChatPage = () => {
           </form>
         </div>
       </section>
+
+      <VideoTutorialModal
+        open={tutorialAberto}
+        onClose={() => setTutorialAberto(false)}
+        title={TUTORIAL_CONTA_VENDEDOR.title}
+        description={TUTORIAL_CONTA_VENDEDOR.description}
+        src={TUTORIAL_CONTA_VENDEDOR.src}
+        aspectPadding={TUTORIAL_CONTA_VENDEDOR.aspectPadding}
+      />
     </main>
   );
 };

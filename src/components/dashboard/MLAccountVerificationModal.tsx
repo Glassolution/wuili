@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle } from "lucide-react";
 import VideoTutorialModal from "./VideoTutorialModal";
+import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
 
 type Props = {
   open: boolean;
@@ -19,9 +20,8 @@ type Step = 1 | 2 | 3;
 const ML_PROFILE_URL = "https://www.mercadolivre.com.br/vender";
 
 /* Tutorial gravado mostrando a ativação da conta de vendedor no Mercado Livre. */
-const TUTORIAL_VIDEO_SRC =
-  "https://player.vimeo.com/video/1220476544?badge=0&autopause=0&player_id=0&app_id=58479";
-const TUTORIAL_VIDEO_ASPECT = "67.75%";
+const TUTORIAL_VIDEO_SRC = TUTORIAL_CONTA_VENDEDOR.src;
+const TUTORIAL_VIDEO_ASPECT = TUTORIAL_CONTA_VENDEDOR.aspectPadding;
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 

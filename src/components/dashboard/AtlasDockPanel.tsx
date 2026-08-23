@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, Copy, Maximize2, PackageSearch, SquarePen, ThumbsDown, ThumbsUp, X as CloseIcon } from "lucide-react";
+import { ArrowUpRight, Copy, Maximize2, PackageSearch, PlayCircle, SquarePen, ThumbsDown, ThumbsUp, X as CloseIcon } from "lucide-react";
 
 import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
@@ -13,6 +13,8 @@ import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
 import AtlasPublishComposer from "@/components/dashboard/AtlasPublishComposer";
 import AtlasProductCarousel from "@/components/dashboard/AtlasProductCarousel";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
 import {
   getMessageActions,
   useAtlasChat,
@@ -98,6 +100,7 @@ const AtlasDockPanel = () => {
   // Declarado antes de `renderAcoes` porque o carrossel de produtos usa a
   // largura do painel para decidir o tamanho dos cards.
   const lateral = modo === "lateral";
+  const [tutorialAberto, setTutorialAberto] = useState(false);
 
   const renderAcoes = (mensagem: AtlasMessage) => {
     const acoes = getMessageActions(mensagem);
@@ -152,6 +155,22 @@ const AtlasDockPanel = () => {
                 className="inline-flex w-fit max-w-full items-center rounded-full bg-[#2563EB] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-wait disabled:opacity-60"
               >
                 {conectandoMl ? "Abrindo o Mercado Livre…" : acao.label}
+              </button>
+            );
+          }
+
+          // Quando o Mercado Livre recusa por conta inativa, o vídeo do passo a
+          // passo fica ao lado da explicação — sem mandar a pessoa procurar.
+          if (acao.type === "watch_tutorial") {
+            return (
+              <button
+                key={`tutorial-${i}`}
+                type="button"
+                onClick={() => setTutorialAberto(true)}
+                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full border !border-[#E4E7EC] bg-white px-3 py-1.5 text-left text-[12px] font-semibold text-[#353535] transition-colors hover:bg-[#F7F8FA]"
+              >
+                <PlayCircle className="h-3.5 w-3.5 shrink-0 text-[#2563EB]" strokeWidth={2.2} />
+                <span className="truncate">{acao.label}</span>
               </button>
             );
           }
@@ -445,6 +464,15 @@ const AtlasDockPanel = () => {
       </div>
         </motion.aside>
       )}
+
+      <VideoTutorialModal
+        open={tutorialAberto}
+        onClose={() => setTutorialAberto(false)}
+        title={TUTORIAL_CONTA_VENDEDOR.title}
+        description={TUTORIAL_CONTA_VENDEDOR.description}
+        src={TUTORIAL_CONTA_VENDEDOR.src}
+        aspectPadding={TUTORIAL_CONTA_VENDEDOR.aspectPadding}
+      />
     </AnimatePresence>
   );
 };
