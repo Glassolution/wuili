@@ -1147,6 +1147,14 @@ const AdminPainelPage = () => {
     () => allValidapayActivities.filter((activity) => activity.status === "refunded"),
     [allValidapayActivities],
   );
+  /** Mesma definição do churn do card: reembolso ou cancelamento. */
+  const allChurnActivities = useMemo(
+    () =>
+      allValidapayActivities.filter((activity) =>
+        ["refunded", "cancelled", "canceled"].includes(activity.status.toLowerCase()),
+      ),
+    [allValidapayActivities],
+  );
   const allPaidSubscriptions = useMemo(
     () =>
       data.validapayAvailable
@@ -1175,6 +1183,10 @@ const AdminPainelPage = () => {
     () => allRefundedActivities.map((activity) => ({ at: activity.created_at, amount: activity.amount })),
     [allRefundedActivities],
   );
+  const churnEvents = useMemo<SeriesEvent[]>(
+    () => allChurnActivities.map((activity) => ({ at: activity.created_at, amount: activity.amount })),
+    [allChurnActivities],
+  );
 
   /** Soma (ou conta) os eventos de cada balde do intervalo. */
   const seriesFor = useCallback(
@@ -1202,6 +1214,11 @@ const AdminPainelPage = () => {
   const approvedCountSeries = useMemo(
     () => seriesFor(revenueEvents, periodRange, buckets, "count"),
     [revenueEvents, periodRange, buckets, seriesFor],
+  );
+  /** Barras do card de churn: quantidade de cancelamentos em cada balde. */
+  const churnCountSeries = useMemo(
+    () => seriesFor(churnEvents, periodRange, buckets, "count"),
+    [churnEvents, periodRange, buckets, seriesFor],
   );
   const netSparklineValues = useMemo(
     () => revenueSparklineValues.map((value, index) => Math.max(value - (costSparklineValues[index] ?? 0), 0)),
@@ -1398,14 +1415,14 @@ const AdminPainelPage = () => {
               series={revenueSparklineValues}
             />
             <DashboardMetricCard
-              title="Resultado líquido"
-              value={hideFinancialValues ? null : walletBalance?.available ?? finance.metrics.net_revenue}
-              format="currency"
-              description={walletBalance ? walletBalanceDetails || "Saldo disponível" : "Entradas menos saídas"}
+              title="Churn"
+              value={hideFinancialValues ? null : churnRate}
+              format="percent"
+              description="Cancelamentos e reembolsos sobre a base paga do período; as barras contam os cancelamentos."
               loading={financialDataLoading}
               compact={compactPanel}
-              trend={revenueVariation}
-              series={netSparklineValues}
+              trend={null}
+              series={churnCountSeries}
             />
             <DashboardMetricCard
               title="Total de saídas"
