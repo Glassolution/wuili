@@ -96,20 +96,29 @@ const AFFILIATE_TABS: Array<{
 
 const money = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const date = (v: string | null | undefined) => (v ? new Date(v).toLocaleDateString("pt-BR") : "-");
-const isMissingRpcError = (error: unknown) =>
-  /could not find the function/i.test(String((error as any)?.message ?? error ?? ""));
+/** Payload cru de RPC: as chaves variam entre versões, então cada campo é lido na mão. */
+type RawRecord = Record<string, unknown>;
+const readMessage = (error: unknown) =>
+  String((error as { message?: unknown } | null | undefined)?.message ?? error ?? "");
+const readText = (value: unknown, fallback = "") =>
+  value === null || value === undefined ? fallback : String(value);
+const readTextOrNull = (value: unknown) => {
+  const text = readText(value).trim();
+  return text ? text : null;
+};
+const isMissingRpcError = (error: unknown) => /could not find the function/i.test(readMessage(error));
 const PUBLIC_APP_URL = ((import.meta.env.VITE_PUBLIC_APP_URL as string | undefined) ?? "https://velods.com.br").replace(/\/+$/, "");
 const normalizeAffiliateCode = (value?: string | null) =>
   String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32);
 const buildAffiliateUrl = (code: string) => `${PUBLIC_APP_URL}/ref/${normalizeAffiliateCode(code)}`;
 const asAffiliateRows = (value: unknown): AffiliateRow[] => {
-  const normalizeRow = (raw: any): AffiliateRow => ({
-    affiliate_user_id: String(raw?.affiliate_user_id ?? raw?.user_id ?? ""),
-    affiliate_name: raw?.affiliate_name ?? raw?.display_name ?? null,
-    affiliate_email: raw?.affiliate_email ?? raw?.email ?? null,
-    code: String(raw?.code ?? raw?.affiliate_code ?? ""),
-    link: String(raw?.link ?? ""),
-    created_at: String(raw?.created_at ?? new Date().toISOString()),
+  const normalizeRow = (raw: RawRecord): AffiliateRow => ({
+    affiliate_user_id: readText(raw?.affiliate_user_id ?? raw?.user_id),
+    affiliate_name: readTextOrNull(raw?.affiliate_name) ?? readTextOrNull(raw?.display_name),
+    affiliate_email: readTextOrNull(raw?.affiliate_email) ?? readTextOrNull(raw?.email),
+    code: readText(raw?.code ?? raw?.affiliate_code),
+    link: readText(raw?.link),
+    created_at: readText(raw?.created_at, new Date().toISOString()),
     clicks: Number(raw?.clicks ?? 0),
     signups: Number(raw?.signups ?? 0),
     reached_payment: Number(raw?.reached_payment ?? 0),
@@ -117,16 +126,17 @@ const asAffiliateRows = (value: unknown): AffiliateRow[] => {
     commission_pending: Number(raw?.commission_pending ?? 0),
     commission_paid: Number(raw?.commission_paid ?? 0),
     is_active: raw?.is_active !== false,
-    application_status: raw?.application_status ?? null,
+    application_status: readTextOrNull(raw?.application_status),
 
   });
 
-  if (Array.isArray(value)) return value.map(normalizeRow);
+  const toRows = (list: unknown[]) => list.map((item) => normalizeRow((item ?? {}) as RawRecord));
+  if (Array.isArray(value)) return toRows(value);
   if (!value || typeof value !== "object") return [];
   const data = value as { affiliates?: unknown; ranking?: unknown; rows?: unknown; data?: unknown };
   // A RPC devolve { from, to, funnel, commissions, ranking, affiliates }.
   for (const candidate of [data.affiliates, data.ranking, data.rows, data.data]) {
-    if (Array.isArray(candidate)) return candidate.map(normalizeRow);
+    if (Array.isArray(candidate)) return toRows(candidate);
   }
   return [];
 };
@@ -182,7 +192,7 @@ const AdminCommissionsPage = () => {
       setSelectedCode(null);
       await queryClient.invalidateQueries({ queryKey: ["admin-affiliate-commissions"] });
     } catch (e) {
-      toast.error(`Não foi possível remover: ${String((e as any)?.message ?? e)}`);
+      toast.error(`Não foi possível remover: ${readMessage(e)}`);
     } finally {
       setRemoving(false);
     }
@@ -211,9 +221,9 @@ const AdminCommissionsPage = () => {
         if (convRes.error) throw convRes.error;
         if (profRes.error) throw profRes.error;
 
-        const profiles = (profRes.data ?? []) as Array<any>;
-        const profileByUser = new Map<string, any>();
-        for (const p of profiles) profileByUser.set(String(p.user_id ?? p.id), p);
+        const profiles = (profRes.data ?? []) as RawRecord[];
+        const profileByUser = new Map<string, RawRecord>();
+        for (const p of profiles) profileByUser.set(readText(p.user_id ?? p.id), p);
 
         const clicksByCode = new Map<string, number>();
         for (const click of (clicksRes.data ?? []) as Array<{ affiliate_code: string }>) {
@@ -228,13 +238,13 @@ const AdminCommissionsPage = () => {
         const pendingByCode = new Map<string, number>();
         const paidByCode = new Map<string, number>();
 
-        for (const conv of (convRes.data ?? []) as Array<any>) {
-          const code = String(conv.affiliate_code ?? "").toUpperCase();
-          const subscriber = String(conv.subscriber_user_id ?? "");
+        for (const conv of (convRes.data ?? []) as RawRecord[]) {
+          const code = readText(conv.affiliate_code).toUpperCase();
+          const subscriber = readText(conv.subscriber_user_id);
           if (!code || !subscriber) continue;
 
-          const status = String(conv.status ?? "").toLowerCase();
-          const payoutStatus = String((conv as any).payout_status ?? "pending").toLowerCase();
+          const status = readText(conv.status).toLowerCase();
+          const payoutStatus = readText(conv.payout_status, "pending").toLowerCase();
           const commissionValue = Number(conv.commission_value ?? 0);
 
           const signups = signupsByCode.get(code) ?? new Set<string>();
@@ -260,16 +270,21 @@ const AdminCommissionsPage = () => {
           }
         }
 
-        return ((affRes.data ?? []) as Array<any>).map((a) => {
-          const code = normalizeAffiliateCode(a.code);
-          const p = profileByUser.get(String(a.user_id));
+        return ((affRes.data ?? []) as RawRecord[]).map((a) => {
+          const code = normalizeAffiliateCode(readText(a.code));
+          const p = profileByUser.get(readText(a.user_id));
           return {
-            affiliate_user_id: String(a.user_id),
-            affiliate_name: p?.full_name ?? p?.display_name ?? p?.name ?? p?.email ?? code ?? "Afiliado sem nome",
-            affiliate_email: p?.email ?? null,
+            affiliate_user_id: readText(a.user_id),
+            affiliate_name:
+              readTextOrNull(p?.full_name) ??
+              readTextOrNull(p?.display_name) ??
+              readTextOrNull(p?.name) ??
+              readTextOrNull(p?.email) ??
+              (code || "Afiliado sem nome"),
+            affiliate_email: readTextOrNull(p?.email),
             code,
             link: buildAffiliateUrl(code),
-            created_at: String(a.created_at ?? new Date().toISOString()),
+            created_at: readText(a.created_at, new Date().toISOString()),
             clicks: clicksByCode.get(code) ?? 0,
             signups: signupsByCode.get(code)?.size ?? 0,
             reached_payment: reachedByCode.get(code)?.size ?? 0,
@@ -315,18 +330,23 @@ const AdminCommissionsPage = () => {
         if (convRes.error) throw convRes.error;
         if (profRes.error) throw profRes.error;
 
-        const profileByUser = new Map<string, any>();
-        for (const p of (profRes.data ?? []) as any[]) profileByUser.set(String(p.user_id ?? p.id), p);
+        const profileByUser = new Map<string, RawRecord>();
+        for (const p of (profRes.data ?? []) as RawRecord[]) profileByUser.set(readText(p.user_id ?? p.id), p);
 
-        const conversions = ((convRes.data ?? []) as any[]).map((c) => {
-          const sp = profileByUser.get(String(c.subscriber_user_id));
+        const conversions = ((convRes.data ?? []) as RawRecord[]).map((c) => {
+          const sp = profileByUser.get(readText(c.subscriber_user_id));
           return {
             ...c,
-            subscriber_email: sp?.email ?? null,
-            subscriber_name: sp?.full_name ?? sp?.display_name ?? sp?.name ?? sp?.email ?? "Usuário sem nome",
-            payout_status: (c as any).payout_status ?? "pending",
+            subscriber_email: readTextOrNull(sp?.email),
+            subscriber_name:
+              readTextOrNull(sp?.full_name) ??
+              readTextOrNull(sp?.display_name) ??
+              readTextOrNull(sp?.name) ??
+              readTextOrNull(sp?.email) ??
+              "Usuário sem nome",
+            payout_status: readText(c.payout_status, "pending"),
           };
-        });
+        }) as AffiliateDetails["conversions"];
 
         return {
           affiliate: affRes.data
@@ -338,8 +358,8 @@ const AdminCommissionsPage = () => {
                 created_at: String(affRes.data.created_at ?? new Date().toISOString()),
               }
             : null,
-          clicks: (clicksRes.data ?? []) as any,
-          conversions: conversions as any,
+          clicks: (clicksRes.data ?? []) as AffiliateDetails["clicks"],
+          conversions,
         } satisfies AffiliateDetails;
       }
     },
@@ -457,7 +477,7 @@ const AdminCommissionsPage = () => {
             </div>
             {error ? (
               <p className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[11px] font-semibold text-red-600">
-                Erro ao carregar: {String((error as any)?.message ?? error)}
+                Erro ao carregar: {readMessage(error)}
               </p>
             ) : null}
           </div>

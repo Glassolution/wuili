@@ -8,6 +8,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 
+/** Recorte da assinatura que a tabela de reembolsos consulta. */
+type RefundSubscription = {
+  id: string;
+  plan: string | null;
+  created_at: string | null;
+  amount: number | null;
+  validapay_charge_id: string | null;
+  payment_method: string | null;
+};
+
 type RefundRow = {
   id: string;
   user_id: string;
@@ -156,11 +166,11 @@ const AdminRefundsPage = () => {
   );
   const rejected = useMemo(() => allRefunds.filter((r) => ["rejected", "denied"].includes(r.status)), [allRefunds]);
 
-  const requestedUserIds = new Set(allRefunds.map((r) => r.user_id));
+  const requestedUserIds = useMemo(() => new Set(allRefunds.map((r) => r.user_id)), [allRefunds]);
   const eligible = useMemo(
     () =>
       activeSubs.filter((s) => daysSince(s.created_at) <= REFUND_WINDOW_DAYS && !requestedUserIds.has(s.user_id)),
-    [activeSubs, allRefunds],
+    [activeSubs, requestedUserIds],
   );
 
   const userIds = useMemo(
@@ -178,8 +188,9 @@ const AdminRefundsPage = () => {
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, email").in("user_id", userIds);
       const map: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }> = {};
-      (data || []).forEach((p: any) => {
-        map[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url, email: (p as any).email ?? null };
+      (data || []).forEach((p) => {
+        const row = p as { user_id: string; display_name: string | null; avatar_url: string | null; email?: string | null };
+        map[row.user_id] = { display_name: row.display_name, avatar_url: row.avatar_url, email: row.email ?? null };
       });
       return map;
     },
@@ -193,9 +204,10 @@ const AdminRefundsPage = () => {
         .from("subscriptions")
         .select("id, plan, created_at, amount, validapay_charge_id, payment_method")
         .in("id", subIds);
-      const map: Record<string, any> = {};
-      (data || []).forEach((s: any) => {
-        map[s.id] = s;
+      const map: Record<string, RefundSubscription> = {};
+      (data || []).forEach((row) => {
+        const sub = row as RefundSubscription;
+        map[sub.id] = sub;
       });
       return map;
     },
@@ -216,7 +228,7 @@ const AdminRefundsPage = () => {
       qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
       qc.invalidateQueries({ queryKey: ["admin-pending-counts"] });
     },
-    onError: (e: any) => toast.error(e.message || "Erro"),
+    onError: (e: unknown) => toast.error((e as Error)?.message || "Erro"),
     onSettled: () => setBusyId(null),
   });
 
@@ -429,7 +441,7 @@ const RefundsTable = ({
 }: {
   rows: RefundRow[];
   profiles: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }>;
-  subs: Record<string, any>;
+  subs: Record<string, RefundSubscription>;
   variant: "pending" | "processing" | "approved" | "rejected";
   busyId?: string | null;
   onApprove?: (id: string) => void;
