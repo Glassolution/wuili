@@ -1208,14 +1208,22 @@ const AdminPainelPage = () => {
     [revenueSparklineValues, costSparklineValues],
   );
 
-  /** Série tracejada do período anterior, alinhada balde a balde com a atual. */
-  const previousRevenueSeries = useMemo(() => {
+  /**
+   * Série tracejada do período anterior, alinhada balde a balde com a atual.
+   *
+   * Compara resultado líquido com resultado líquido: o gráfico mostra entradas
+   * menos saídas, então a linha de referência precisa descontar os reembolsos
+   * daquela janela também.
+   */
+  const previousNetSeries = useMemo(() => {
     if (!compareEnabled) return [];
     const previousBuckets = buildBuckets(previousRange, grouping);
-    const values = seriesFor(revenueEvents, previousRange, previousBuckets);
-    if (values.length === buckets.length) return values;
-    return buckets.map((_, index) => values[values.length - buckets.length + index] ?? 0);
-  }, [compareEnabled, previousRange, grouping, revenueEvents, buckets, seriesFor]);
+    const receita = seriesFor(revenueEvents, previousRange, previousBuckets);
+    const saidas = seriesFor(refundEvents, previousRange, previousBuckets);
+    const liquido = receita.map((value, index) => Math.max(value - (saidas[index] ?? 0), 0));
+    if (liquido.length === buckets.length) return liquido;
+    return buckets.map((_, index) => liquido[liquido.length - buckets.length + index] ?? 0);
+  }, [compareEnabled, previousRange, grouping, revenueEvents, refundEvents, buckets, seriesFor]);
 
   const seriesVariation = (values: number[]) => {
     if (values.length < 2) return null;
@@ -1420,10 +1428,10 @@ const AdminPainelPage = () => {
           transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.14, ease: [0.22, 1, 0.36, 1] }}
         >
           <FinanceHistoryCard
-            total={hideFinancialValues ? null : finance.metrics.gross_revenue}
-            values={revenueSparklineValues}
+            total={hideFinancialValues ? null : finance.metrics.net_revenue}
+            values={netSparklineValues}
             labels={revenueSparklineLabels}
-            comparisonValues={previousRevenueSeries}
+            comparisonValues={previousNetSeries}
             comparisonLabel="Período anterior"
             grouping={grouping}
             loading={financialDataLoading}
@@ -1841,7 +1849,7 @@ const FinanceHistoryCard = ({
     <AdminChartCard className="relative p-4">
       <p className="admin-kpi-label">
         <span className="admin-metric-icon"><Globe aria-hidden="true" /></span>
-        <span className="admin-kpi-label-text" title={`Receita confirmada ${periodLabel}`}>Histórico financeiro</span>
+        <span className="admin-kpi-label-text" title={`Entradas menos saídas ${periodLabel}`}>Resultado líquido</span>
       </p>
       {loading ? (
         <LoadingShimmer className="mt-2 h-7 w-36" />
@@ -1880,7 +1888,7 @@ const FinanceHistoryCard = ({
             className="admin-chart-svg block w-full"
             role="img"
             tabIndex={0}
-            aria-label={`Histórico de entradas financeiras. ${
+            aria-label={`Resultado líquido ao longo do período. ${
               activePoint ? `${formatAxisLabel(labels[activePointIndex ?? 0] ?? "")}: ${formatBRL(activePoint.value)}` : "Use as setas para percorrer os pontos."
             }`}
             onMouseMove={handlePointerMove}
@@ -1953,7 +1961,7 @@ const FinanceHistoryCard = ({
       <div className="mt-3 flex flex-wrap items-center justify-end gap-x-5 gap-y-1 text-[13px] text-[#5f6368]">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-[#2563eb]" aria-hidden="true" />
-          Receita confirmada
+          Resultado líquido
         </span>
         {hasComparison && comparisonLabel ? (
           <span className="inline-flex items-center gap-1.5">
