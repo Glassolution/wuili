@@ -11,7 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { veloToast } from "@/components/ui/velo-toast";
-import AtlasPublishMlButton from "@/components/dashboard/AtlasPublishMlButton";
+import AtlasPublishComposer from "@/components/dashboard/AtlasPublishComposer";
+import AtlasProductCarousel from "@/components/dashboard/AtlasProductCarousel";
 import {
   getMessageActions,
   useAtlasChat,
@@ -50,7 +51,7 @@ const AtlasDockPanel = () => {
   const reduzirMovimento = useReducedMotion();
   const {
     aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, quota,
-    fechar, novaConversa, enviar, abrirConversa, aoApagarConversa, abrirVitrine,
+    fechar, novaConversa, enviar, abrirConversa, aoApagarConversa,
   } = useAtlasChat();
   const navegarPeloAtlas = useAtlasNavegacao();
 
@@ -94,6 +95,9 @@ const AtlasDockPanel = () => {
   };
 
   const titulo = mensagens.find((m) => m.role === "user")?.content ?? "Conversa com o Atlas";
+  // Declarado antes de `renderAcoes` porque o carrossel de produtos usa a
+  // largura do painel para decidir o tamanho dos cards.
+  const lateral = modo === "lateral";
 
   const renderAcoes = (mensagem: AtlasMessage) => {
     const acoes = getMessageActions(mensagem);
@@ -125,12 +129,15 @@ const AtlasDockPanel = () => {
             );
           }
 
+          // Publicação conduzida dentro da conversa: título, lucro, descrição e
+          // o botão que publica, tudo na própria mensagem.
           if (acao.type === "publish_ml") {
             return (
-              <AtlasPublishMlButton
+              <AtlasPublishComposer
                 key={`pub-${acao.product_id}-${i}`}
                 produtoId={acao.product_id}
                 label={acao.label}
+                compacto={lateral}
               />
             );
           }
@@ -149,20 +156,10 @@ const AtlasDockPanel = () => {
             );
           }
 
-          // Reabre a vitrine do guia (ela também abre sozinha ao chegar a
-          // resposta, mas o botão fica para quem fechou o modal sem escolher).
+          // A vitrine do guia é parte da mensagem: o carrossel entra aqui
+          // mesmo, em vez de um botão que abria um modal por cima da conversa.
           if (acao.type === "open_showcase") {
-            return (
-              <button
-                key={`vitrine-${i}`}
-                type="button"
-                onClick={() => abrirVitrine(acao.niche ?? null)}
-                className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
-              >
-                <PackageSearch className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
-                <span className="truncate">{acao.label}</span>
-              </button>
-            );
+            return <AtlasProductCarousel key={`vitrine-${i}`} nicho={acao.niche ?? null} compacto={lateral} />;
           }
 
           const produto = acao.product;
@@ -239,7 +236,6 @@ const AtlasDockPanel = () => {
     );
   };
 
-  const lateral = modo === "lateral";
   const painelInicial = reduzirMovimento
     ? false
     : lateral
@@ -309,9 +305,12 @@ const AtlasDockPanel = () => {
           >
             <SquarePen className="h-[17px] w-[17px]" strokeWidth={1.8} />
           </button>
+          {/* Leva a conversa junto. Sem o id, a tela cheia abre sem thread,
+              cria uma "Nova conversa" vazia e a pessoa acha que perdeu tudo —
+              a conversa continuava no histórico, mas fora da tela. */}
           <button
             type="button"
-            onClick={() => navigate("/dashboard/atlas")}
+            onClick={() => navigate(threadId ? `/dashboard/atlas/${threadId}` : "/dashboard/atlas")}
             className="grid h-8 w-8 place-items-center rounded-full transition-colors hover:bg-black/[0.045]"
             aria-label="Abrir em tela cheia"
           >

@@ -108,6 +108,9 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
   if (c.type === "quick_reply") return typeof c.label === "string" && typeof c.message === "string";
   if (c.type === "connect_ml") return typeof c.label === "string";
   if (c.type === "open_showcase") return typeof c.label === "string";
+  // Sem este caso, a ação de publicar era descartada aqui e o passo 5 chegava
+  // ao usuário só com o atalho para o catálogo — nunca com o botão que publica.
+  if (c.type === "publish_ml") return typeof c.label === "string" && typeof c.product_id === "string";
   return false;
 };
 
@@ -200,16 +203,23 @@ type AtlasChatContextValue = {
   quota: AtlasQuota | null;
   produtoSelecionado: ProdutoDoGuia | null;
   selecionarProduto: (produto: ProdutoDoGuia) => Promise<void>;
-  /**
-   * Vitrine de produtos do guia. Durante o guia, "Abrir Catálogo" mostra uma
-   * seleção feita a partir do quiz de cadastro em vez de largar o iniciante na
-   * grade inteira do catálogo.
-   */
-  vitrineAberta: boolean;
   /** Nicho confirmado no guia; a vitrine cruza ele com o perfil do cadastro. */
   nichoDaVitrine: NichoDaVitrine | null;
-  abrirVitrine: (nicho?: NichoDaVitrine | null) => void;
-  fecharVitrine: () => void;
+  /**
+   * Mostra a vitrine de produtos do guia dentro da conversa.
+   *
+   * Durante o guia, "Abrir Catálogo" mostra uma seleção feita a partir do quiz
+   * de cadastro em vez de largar o iniciante na grade inteira do catálogo. A
+   * seleção entra como uma mensagem do Atlas, com o carrossel embutido.
+   */
+  mostrarVitrineNoChat: (nicho?: NichoDaVitrine | null) => void;
+  /**
+   * O Mercado Livre recusou a publicação por conta de vendedor inativa.
+   *
+   * O Atlas assume a explicação na conversa, em vez de a pessoa levar um modal
+   * de tutorial na cara sem entender o que aconteceu nem o que fazer.
+   */
+  avisarContaDeVendedorBloqueada: () => void;
   abrir: () => void;
   abrirLateral: () => void;
   fechar: () => void;
@@ -235,6 +245,32 @@ const ehEasterEggAndrya = (texto: string) =>
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase(),
   );
+
+/**
+ * Conta de vendedor não ativada no Mercado Livre.
+ *
+ * Os requisitos são os mesmos do tutorial de verificação
+ * (`MLAccountVerificationModal`): modo vendedor, dados pessoais, endereço de
+ * retirada e Mercado Envios. Estão escritos aqui de forma explícita porque é
+ * onde a publicação trava na prática — em especial o endereço, que o Mercado
+ * Livre exige completo, com CEP e número.
+ */
+const MENSAGEM_CONTA_DE_VENDEDOR = `Opa, segura aí — o Mercado Livre recusou a publicação. 🛑
+
+O motivo não é o seu produto: é a sua **conta de vendedor**, que ainda não está ativa. O Mercado Livre exige isso de toda conta antes de aceitar anúncio publicado por integração, mesmo de quem já compra por lá há anos.
+
+São quatro coisas pra resolver na conta, e leva uns 5 minutos:
+
+1. **Ativar o modo vendedor** — o botão "Vender" fica no topo da página do Mercado Livre.
+2. **Seus dados** — CPF (ou CNPJ) e um documento de identidade com foto.
+3. **Endereço completo** — CEP, número e complemento. É o endereço de retirada, de onde o produto sai.
+4. **Aceitar o Mercado Envios** — sem isso o anúncio não sobe.
+
+[Abrir a área de vender do Mercado Livre](https://www.mercadolivre.com.br/vender)
+
+Abre numa aba nova e preenche tudo, sem pular campo — se faltar um item, o Mercado Livre continua recusando. Quando terminar, volta aqui: seu anúncio continua montado do jeito que você deixou, é só tocar em publicar de novo.
+
+Travou em alguma etapa? Me conta qual que eu te explico.`;
 
 const MENSAGEM_ANDRYA =
   "Andrya 💚\n\nTem nome que muda o clima da conversa — esse é um deles. Alguém aí gosta MUITO dela, e dá pra sentir daqui.\n\nEntão vai um pouquinho de festa por conta da casa: Andrya, você é especial. 🎆";
@@ -326,18 +362,81 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const [carregandoConversa, setCarregandoConversa] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDoGuia | null>(null);
-  const [vitrineAberta, setVitrineAberta] = useState(false);
   const [nichoDaVitrine, setNichoDaVitrine] = useState<NichoDaVitrine | null>(null);
   const [quota, setQuota] = useState<AtlasQuota | null>(null);
   const [fogosAtivos, setFogosAtivos] = useState(false);
   // Pergunta automática a enviar assim que a navegação por botão do Atlas concluir.
   const [perguntaPendente, setPerguntaPendente] = useState<{ rota: string } | null>(null);
 
-  const abrirVitrine = useCallback((nicho?: NichoDaVitrine | null) => {
-    if (nicho !== undefined) setNichoDaVitrine(nicho);
-    setVitrineAberta(true);
+  /**
+   * Coloca a vitrine na conversa como uma fala do Atlas.
+   *
+   * A mensagem é local: não vai para o banco porque não é conteúdo gerado, é a
+   * mesma seleção que o carrossel refaz a partir do perfil sempre que a
+   * conversa é reaberta. Se a última fala já traz uma vitrine, não empilha
+   * outra — o usuário clicaria duas vezes e veria dois carrosséis iguais.
+   */
+  const mostrarVitrineNoChat = useCallback((nichoNovo?: NichoDaVitrine | null) => {
+    if (nichoNovo !== undefined) setNichoDaVitrine(nichoNovo);
+    // Sem nicho explícito vale o último confirmado na conversa: é o caso de
+    // quem clica em "Abrir Catálogo" depois do passo 1.
+    const nicho = nichoNovo ?? nichoDaVitrine;
+    setMensagens((atual) => {
+      const ultima = atual[atual.length - 1];
+      const jaTemVitrine =
+        ultima?.role === "assistant" &&
+        getMessageActions(ultima).some((acao) => acao.type === "open_showcase");
+      if (jaTemVitrine) return atual;
+
+      const vitrine: AtlasOpenShowcaseAction = {
+        type: "open_showcase",
+        label: "Escolher meu produto",
+        ...(nicho ? { niche: nicho } : {}),
+      };
+      return [
+        ...atual,
+        {
+          id: `local-vitrine-${Date.now()}`,
+          role: "assistant",
+          content:
+            "Separei do catálogo o que mais combina com o que você me contou no cadastro. Escolhe um produto pra gente seguir.",
+          created_at: new Date().toISOString(),
+          product_data: { actions: [vitrine] },
+        },
+      ];
+    });
+  }, [nichoDaVitrine]);
+
+  /**
+   * Explicação da conta de vendedor bloqueada, na voz do Atlas.
+   *
+   * O texto é fixo, não sai do modelo: são requisitos concretos do Mercado
+   * Livre, e uma resposta gerada poderia inventar etapa que não existe ou
+   * esquecer o CEP — que é justamente onde a publicação costuma travar.
+   */
+  const avisarContaDeVendedorBloqueada = useCallback(() => {
+    setMensagens((atual) => {
+      const ultima = atual[atual.length - 1];
+      // Tocar em publicar de novo não empilha o mesmo aviso outra vez.
+      if (ultima?.role === "assistant" && ultima.id.startsWith("local-vendedor")) return atual;
+
+      return [
+        ...atual,
+        {
+          id: `local-vendedor-${Date.now()}`,
+          role: "assistant",
+          content: MENSAGEM_CONTA_DE_VENDEDOR,
+          created_at: new Date().toISOString(),
+          product_data: {
+            actions: [
+              { type: "quick_reply", label: "Já ativei, e agora?", message: "Já ativei minha conta de vendedor no Mercado Livre" },
+              { type: "quick_reply", label: "Travei numa etapa", message: "Travei na ativação da conta de vendedor do Mercado Livre, pode me ajudar?" },
+            ],
+          },
+        },
+      ];
+    });
   }, []);
-  const fecharVitrine = useCallback(() => setVitrineAberta(false), []);
 
   const paginaAtual = useMemo(() => {
     const pagina = descreverPagina(location.pathname);
@@ -352,7 +451,6 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const fechar = useCallback(() => {
     setAberto(false);
     setRotaDeAbertura(null);
-    setVitrineAberta(false);
   }, []);
   // Reabrir a partir da página atual volta ao modo padrão dela: reancorar a rota
   // evita o chat continuar lateral sem necessidade.
@@ -376,7 +474,6 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     setAberto(false);
     setRotaDeAbertura(null);
     setProdutoSelecionado(null);
-    setVitrineAberta(false);
     setNichoDaVitrine(null);
   }, []);
 
@@ -495,15 +592,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
         void queryClient.invalidateQueries({ queryKey: atlasThreadsQueryKey(user.id) });
         if (sessaoRef.current === sessionId) {
           setMensagens((atual) => [...atual, salva as AtlasMessage]);
-          // O guia manda abrir a vitrine ao confirmar o nicho: o modal aparece
-          // sozinho, sem depender de o usuário achar o botão na mensagem.
+          // O carrossel é renderizado pela própria ação da mensagem. Aqui só
+          // guardamos o nicho confirmado, para o caso de o usuário pedir a
+          // vitrine outra vez mais adiante na conversa.
           const pedidoDeVitrine = acoes.find(
             (acao): acao is AtlasOpenShowcaseAction => acao.type === "open_showcase",
           );
-          if (pedidoDeVitrine) {
-            setNichoDaVitrine(pedidoDeVitrine.niche ?? null);
-            setVitrineAberta(true);
-          }
+          if (pedidoDeVitrine) setNichoDaVitrine(pedidoDeVitrine.niche ?? null);
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Não foi possível conversar com o Atlas";
@@ -584,7 +679,6 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
 
       setAberto(true);
       setRotaDeAbertura("__atlas_lateral__");
-      setVitrineAberta(false);
       navigate(rota);
       setPerguntaPendente({ rota });
     },
@@ -669,11 +763,9 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       quota,
       produtoSelecionado,
       selecionarProduto,
-      vitrineAberta,
       nichoDaVitrine,
-      abrirVitrine,
-
-      fecharVitrine,
+      mostrarVitrineNoChat,
+      avisarContaDeVendedorBloqueada,
       abrir,
       abrirLateral,
       fechar,
@@ -685,8 +777,8 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     }),
     [
       aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
-      produtoSelecionado, selecionarProduto, vitrineAberta, nichoDaVitrine, abrirVitrine, fecharVitrine,
-      abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, navegarPorLink, aoApagarConversa,
+      produtoSelecionado, selecionarProduto, nichoDaVitrine, mostrarVitrineNoChat,
+      avisarContaDeVendedorBloqueada, abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, navegarPorLink, aoApagarConversa,
     ],
   );
 
@@ -722,18 +814,18 @@ const ehRotaDoCatalogo = (rota: string) => /^\/dashboard\/catalogo\/?$/.test(rot
  * Fora do guia, e para qualquer outra rota, navega normalmente.
  */
 export const useAtlasNavegacao = () => {
-  const { guiaAtivo, abrirVitrine, navegarPorLink } = useAtlasChat();
+  const { guiaAtivo, mostrarVitrineNoChat, navegarPorLink } = useAtlasChat();
 
   return useCallback(
     async (rota: string) => {
       if (guiaAtivo && ehRotaDoCatalogo(rota)) {
-        abrirVitrine();
+        mostrarVitrineNoChat();
         return;
       }
       // Navega preservando a conversa e já pergunta pelo usuário o que fazer
       // na página de destino.
       await navegarPorLink(rota);
     },
-    [abrirVitrine, guiaAtivo, navegarPorLink],
+    [guiaAtivo, mostrarVitrineNoChat, navegarPorLink],
   );
 };

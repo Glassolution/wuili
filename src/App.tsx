@@ -228,7 +228,9 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/convite/:token" element={<ReferralAcceptPage />} />
               <Route path="/setup" element={<SetupPage />} />
-              <Route path="/docs" element={<Docs />} />
+              {/* Endereço antigo da Comunidade e Ajuda. Mantido como redirecionamento
+                  porque circula em links e posts antigos. */}
+              <Route path="/docs" element={<Navigate to="/dashboard/comunidade" replace />} />
               <Route path="/termos-de-servico" element={<TermsPage />} />
               <Route path="/termos" element={<Navigate to="/termos-de-servico" replace />} />
               {/* Retorno da ValidaPay após pagamento aprovado. Pública: o
@@ -319,6 +321,10 @@ const App = () => (
                 <Route path="criar-video" element={<CriarVideoPage />} />
                 <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
                 <Route path="cursos-ecommerce" element={<DocumentacaoComunidadePage />} />
+                {/* Comunidade e Ajuda passou a viver dentro do painel: antes era
+                    uma rota solta em /docs, com sidebar e tema próprios, e a
+                    pessoa sentia que tinha saído da Velo. */}
+                <Route path="comunidade" element={<Docs />} />
                 <Route path="sugestoes" element={<SugestoesPage />} />
                 <Route path="minha-loja" element={<StoreProjectsPage />} />
               </Route>

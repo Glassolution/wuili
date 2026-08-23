@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, BadgePercent, Check, LayoutTemplate, Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
+import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
@@ -230,7 +232,13 @@ const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { enviar: enviarParaAtlas, mensagens: chatMessages } = useAtlasChat();
+  const {
+    enviar: enviarParaAtlas,
+    mensagens: chatMessages,
+    threadId,
+    abrirConversa,
+    aoApagarConversa,
+  } = useAtlasChat();
   const reduceMotion = useReducedMotion();
   const introDecisionMade = useRef<string | null>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -240,6 +248,28 @@ const DashboardHomePage = () => {
   const [introState, setIntroState] = useState<"pending" | "play" | "done">("pending");
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
+
+  /**
+   * Existe conversa anterior para mostrar no histórico?
+   *
+   * A contagem é de mensagens, não de threads, de propósito: abrir o chat em
+   * tela cheia cria uma thread vazia, e uma lista só de "Nova conversa" não é
+   * histórico nenhum. Se a pessoa já escreveu alguma coisa, aí sim tem o que
+   * reabrir. Só consulta quando o chat abre — antes disso o botão nem existe.
+   */
+  const { data: temHistorico = false } = useQuery({
+    queryKey: ["atlas-tem-historico", user?.id],
+    enabled: Boolean(user?.id) && chatActive,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("atlas_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user!.id);
+      if (error) throw new Error(error.message);
+      return (count ?? 0) > 0;
+    },
+  });
   const [conectandoMl, setConectandoMl] = useState(false);
   
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
@@ -579,6 +609,51 @@ const DashboardHomePage = () => {
             </span>
           </motion.a>
 
+          {/* Histórico das conversas, espelhando o bloco de suporte do canto
+              oposto. Só aparece com o chat aberto e com conversa anterior de
+              verdade: num primeiro acesso o botão abriria uma lista vazia. */}
+          <AnimatePresence>
+            {chatActive && temHistorico && (
+              <motion.div
+                key="atalho-historico"
+                initial={reduceMotion ? false : { opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  position: "absolute",
+                  left: x(30),
+                  top: y(20),
+                  zIndex: 40,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: fs(8),
+                  height: y(56),
+                  // O gatilho do menu tem 36px fixos, enquanto a moldura escala
+                  // com a largura do canvas: sem o piso, ele vazava da pílula em
+                  // telas estreitas.
+                  minHeight: 40,
+                  padding: `0 ${fs(14)}`,
+                  borderRadius: fs(18),
+                  border: "1px solid rgba(17, 24, 39, 0.09)",
+                  background: "rgba(255, 255, 255, 0.97)",
+                  boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
+                  color: "#101114",
+                }}
+              >
+                <AtlasHistoryMenu
+                  userId={user?.id}
+                  activeThreadId={threadId}
+                  onSelectThread={abrirConversa}
+                  onThreadDeleted={aoApagarConversa}
+                />
+                <span style={{ fontSize: fs(11.8), fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap" }}>
+                  Suas conversas
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <motion.h1
             initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -831,6 +906,19 @@ const DashboardHomePage = () => {
               />
             </svg>
           </button>
+
+          {/* O "+" sobre a foto do produto é desenho da imagem de fundo, não um
+              elemento real — clicar nele não fazia nada. Este botão transparente
+              fica exatamente por cima e leva ao mesmo destino do "Adicionar
+              produto", que é o que a pessoa espera ao tocar num "+". */}
+          <button
+            type="button"
+            onClick={go("/dashboard/catalogo")}
+            aria-label="Adicionar produto"
+            title="Adicionar produto"
+            className="rounded-[18%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(10,10,10,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
+            style={buttonStyle(500, 520, 80, 79, 0, { background: "transparent" })}
+          />
 
           <span style={textStyle(813, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>02</span>
           <h2 style={textStyle(806, 384, 22, 245, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>

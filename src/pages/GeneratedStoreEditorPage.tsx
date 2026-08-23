@@ -1767,7 +1767,7 @@ const GeneratedStoreEditorPage = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const handleOpenHelp = () => { closeProjectMenu(); navigate("/docs"); };
+  const handleOpenHelp = () => { closeProjectMenu(); navigate("/dashboard/comunidade"); };
   const handleOpenSettings = () => {
     if (!currentProject) {
       setContextNotice("Abra um projeto salvo para acessar as configurações.");

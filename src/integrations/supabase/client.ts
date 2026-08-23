@@ -188,6 +188,10 @@ if (LOCAL_FUNCTIONS_URL && LOCAL_FUNCTION_NAMES.size > 0 && !SUPABASE_DISABLED) 
 
 export const isSupabaseEnabled = !SUPABASE_DISABLED;
 export const supabaseUrl = SUPABASE_URL;
+// Chave pública (anon), a mesma que o cliente já usa em toda requisição. Fica
+// exportada para quem precisa chamar uma Edge Function por `fetch` direto em
+// vez de `functions.invoke`, sem recopiar a constante.
+export const supabaseAnonKey = SUPABASE_PUBLISHABLE_KEY;
 
 type SupabaseResultWithError = { error: unknown; data?: any; count?: number | null };
 

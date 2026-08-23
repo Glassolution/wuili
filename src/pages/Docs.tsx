@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import {
-  Activity,
-  ArrowLeft,
   BadgeCheck,
-  BookOpen,
-  Camera,
   ChevronDown,
-  GalleryHorizontalEnd,
   Heart,
   Image as ImageIcon,
   MessageCircle,
@@ -16,16 +10,10 @@ import {
   Search,
   Trash2,
   UserRound,
-  Users,
   X,
-  Zap,
-  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/lib/profileContext";
-import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import {
   useHelpFeed,
   type HelpFeedComment,
@@ -49,7 +37,7 @@ function highlight(text: string, query: string) {
   return (
     <>
       {text.slice(0, idx)}
-      <span className="text-white font-semibold">{text.slice(idx, idx + q.length)}</span>
+      <span className="text-[#0A0A0A] font-semibold">{text.slice(idx, idx + q.length)}</span>
       {text.slice(idx + q.length)}
     </>
   );
@@ -124,27 +112,27 @@ function SearchPalette({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/70 px-4 pt-[10vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/40 px-4 pt-[10vh] backdrop-blur-sm"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[720px] overflow-hidden rounded-[16px] bg-[#141416] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
+        className="w-full max-w-[720px] overflow-hidden rounded-[16px] bg-[#FFFFFF] shadow-[0_30px_80px_rgba(0,0,0,0.5)]"
       >
-        <div className="flex items-center gap-[14px] border-b border-white/[0.06] px-[22px]">
-          <Search className="h-[20px] w-[20px] text-[#8b8b90]" strokeWidth={1.7} />
+        <div className="flex items-center gap-[14px] border-b border-black/[0.06] px-[22px]">
+          <Search className="h-[20px] w-[20px] text-[#8A8A8A]" strokeWidth={1.7} />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar em toda a Central de ajuda..."
-            className="h-[64px] flex-1 bg-transparent text-[18px] text-white outline-none placeholder:text-[#67676c]"
+            className="h-[64px] flex-1 bg-transparent text-[18px] text-[#0A0A0A] outline-none placeholder:text-[#8A8A8A]"
           />
         </div>
 
         <div className="max-h-[480px] overflow-y-auto py-[10px]">
           {results.length === 0 ? (
-            <p className="px-[22px] py-[28px] text-center text-[15px] text-[#67676c]">
+            <p className="px-[22px] py-[28px] text-center text-[15px] text-[#8A8A8A]">
               Nada encontrado para "{query}".
             </p>
           ) : (
@@ -158,17 +146,17 @@ function SearchPalette({
                       onMouseEnter={() => setCursor(i)}
                       onClick={() => onSelect(r.sectionKey, r.item.id)}
                       className={`flex w-full items-center gap-[16px] px-[22px] py-[12px] text-left transition ${
-                        active ? "bg-white/[0.06]" : "hover:bg-white/[0.03]"
+                        active ? "bg-black/[0.05]" : "hover:bg-black/[0.03]"
                       }`}
                     >
-                      <span className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] bg-white/[0.05] text-white">
+                      <span className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[10px] bg-black/[0.04] text-[#0A0A0A]">
                         <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[16px] font-medium text-[#d5d5d8]">
+                        <p className="truncate text-[16px] font-medium text-[#3A3A36]">
                           {highlight(r.item.title, query)}
                         </p>
-                        <p className="mt-[3px] truncate text-[13px] text-[#67676c]">
+                        <p className="mt-[3px] truncate text-[13px] text-[#8A8A8A]">
                           {r.sectionLabel} <span className="mx-[6px]">›</span> {r.item.title}
                         </p>
                       </div>
@@ -180,19 +168,19 @@ function SearchPalette({
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-white/[0.06] px-[22px] py-[10px] text-[12px] text-[#67676c]">
+        <div className="flex items-center justify-between border-t border-black/[0.06] px-[22px] py-[10px] text-[12px] text-[#8A8A8A]">
           <div className="flex items-center gap-[16px]">
             <span className="flex items-center gap-[6px]">
-              <kbd className="rounded-[5px] bg-white/[0.06] px-[6px] py-[2px] font-medium text-[#a5a5aa]">↑↓</kbd>
+              <kbd className="rounded-[5px] bg-black/[0.05] px-[6px] py-[2px] font-medium text-[#6B6B66]">↑↓</kbd>
               Select
             </span>
             <span className="flex items-center gap-[6px]">
-              <kbd className="rounded-[5px] bg-white/[0.06] px-[6px] py-[2px] font-medium text-[#a5a5aa]">↵</kbd>
+              <kbd className="rounded-[5px] bg-black/[0.05] px-[6px] py-[2px] font-medium text-[#6B6B66]">↵</kbd>
               Open
             </span>
           </div>
           <span className="flex items-center gap-[6px]">
-            <kbd className="rounded-[5px] bg-white/[0.06] px-[6px] py-[2px] font-medium text-[#a5a5aa]">esc</kbd>
+            <kbd className="rounded-[5px] bg-black/[0.05] px-[6px] py-[2px] font-medium text-[#6B6B66]">esc</kbd>
             Close
           </span>
         </div>
@@ -202,12 +190,20 @@ function SearchPalette({
 }
 
 
-const shortcuts: { name: string; description: string; icon: string; to: string }[] = [
-  { name: "Catálogo Velo", description: "Produtos prontos para vender", icon: "🛍️", to: "/dashboard/catalogo" },
-  { name: "Minhas publicações", description: "Anúncios no Mercado Livre", icon: "📦", to: "/dashboard/publicacoes" },
-  { name: "Tutoriais", description: "Aprenda a vender com a Velo", icon: "🎓", to: "/docs" },
-  { name: "Central de ajuda", description: "Dúvidas e suporte", icon: "💬", to: "/dashboard/suporte" },
-  { name: "Meu plano", description: "Gerencie sua assinatura", icon: "⚡", to: "/dashboard/planos" },
+/**
+ * Abas da área de Comunidade e Ajuda.
+ *
+ * Antes eram dois grupos numa sidebar própria ("Explore" e "Ajuda"). Viraram
+ * uma fileira só de abas: são seis destinos, e uma segunda barra lateral
+ * dentro do painel fazia a área parecer outro produto.
+ */
+const SECOES: Array<{ key: TabKey; label: string }> = [
+  { key: "feed", label: "Novidades" },
+  { key: "tutorial", label: "Tutoriais" },
+  { key: "anuncios", label: "Anúncios" },
+  { key: "publicacao", label: "Publicação" },
+  { key: "pagamentos", label: "Pagamentos" },
+  { key: "conta", label: "Conta e suporte" },
 ];
 
 function timeAgo(iso: string): string {
@@ -222,132 +218,6 @@ function timeAgo(iso: string): string {
   return `${d}d`;
 }
 
-function Sidebar({
-  tab,
-  onTab,
-  displayName,
-  avatar,
-  onOpenPalette,
-  onChangeAvatar,
-}: {
-  tab: TabKey;
-  onTab: (t: TabKey) => void;
-  displayName: string;
-  avatar: string | null;
-  onOpenPalette: () => void;
-  onChangeAvatar: (file: File) => void;
-}) {
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const navGroups: Array<{
-    title: string;
-    items: Array<{ label: string; icon: LucideIcon; active?: boolean; onClick?: () => void }>;
-  }> = [
-    {
-      title: "Explore",
-      items: [
-        { label: "Feed", icon: Zap, active: tab === "feed", onClick: () => onTab("feed") },
-        { label: "Tutorial", icon: BookOpen, active: tab === "tutorial", onClick: () => onTab("tutorial") },
-        { label: "Anúncios", icon: Activity, active: tab === "anuncios", onClick: () => onTab("anuncios") },
-      ],
-    },
-    {
-      title: "Ajuda",
-      items: [
-        { label: "Publicação", icon: GalleryHorizontalEnd, active: tab === "publicacao", onClick: () => onTab("publicacao") },
-        { label: "Pagamentos", icon: ImageIcon, active: tab === "pagamentos", onClick: () => onTab("pagamentos") },
-        { label: "Conta & suporte", icon: Users, active: tab === "conta", onClick: () => onTab("conta") },
-      ],
-    },
-  ];
-
-
-
-
-  return (
-    <aside className="sticky top-0 hidden h-[140.845071vh] w-[368px] shrink-0 flex-col self-start overflow-y-auto border-r border-white/[0.08] bg-[#0d0d0e] px-[14px] py-3 lg:flex">
-      <div className="flex h-[54px] w-full items-center gap-3 text-left">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => avatarInputRef.current?.click()}
-            className="group relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-[#2b2b2d] text-[#a5a5a9]"
-            aria-label="Trocar foto"
-          >
-            {avatar ? (
-              <img src={avatar} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <UserRound className="h-[19px] w-[19px]" strokeWidth={1.6} />
-            )}
-            <span className="absolute inset-0 flex items-center justify-center bg-black/55 opacity-0 transition group-hover:opacity-100">
-              <Camera className="h-4 w-4 text-white" strokeWidth={1.8} />
-            </span>
-          </button>
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onChangeAvatar(file);
-              e.target.value = "";
-            }}
-          />
-        </div>
-        <span className="min-w-0 flex-1 truncate text-[17px] font-semibold text-[#f2f2f3]">{displayName}</span>
-        <ChevronDown className="h-4 w-4 text-[#8b8b90]" />
-      </div>
-
-
-
-      <div className="mt-1 border-t border-white/[0.08] pt-[14px]">
-        <button
-          onClick={onOpenPalette}
-          className="relative flex h-[43px] w-full items-center rounded-[9px] bg-[#242425] pl-[46px] pr-[10px] text-left text-[16px] text-[#8d8d92] transition hover:bg-[#2a2a2c]"
-        >
-          <Search className="absolute left-[15px] top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#aaaab0]" />
-          <span className="flex-1">Search...</span>
-          <kbd className="rounded-[6px] bg-white/[0.06] px-[8px] py-[3px] text-[12px] font-medium text-[#aaaab0]">Ctrl K</kbd>
-        </button>
-      </div>
-
-      <nav className="mt-[14px] border-t border-white/[0.08] pt-[20px]">
-        {navGroups.map((group, groupIndex) => (
-          <section
-            key={group.title}
-            className={groupIndex ? "mt-[29px] border-t border-white/[0.08] pt-[22px]" : ""}
-          >
-            <h2 className="mb-[12px] px-[7px] text-[16px] font-semibold text-white">{group.title}</h2>
-            <div className="space-y-[4px]">
-              {group.items.map(({ label, icon: Icon, active, onClick }) => (
-                <button
-                  key={label}
-                  onClick={onClick}
-                  className={`flex h-[43px] w-full items-center gap-[14px] rounded-[9px] px-[13px] text-[16px] font-medium transition ${
-                    active ? "bg-[#272728] text-white" : "text-[#89898f] hover:bg-white/[0.04] hover:text-white"
-                  }`}
-                >
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
-      </nav>
-
-      <div className="mt-auto border-t border-white/[0.08] pt-[14px]">
-        <Link
-          to="/dashboard"
-          className="flex h-[43px] w-full items-center gap-[14px] rounded-[9px] px-[13px] text-[15px] font-medium text-[#89898f] transition hover:bg-white/[0.04] hover:text-white"
-        >
-          <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.7} />
-          Voltar para o dashboard
-        </Link>
-      </div>
-    </aside>
-  );
-}
 
 
 function CommentsSection({
@@ -399,16 +269,16 @@ function CommentsSection({
   };
 
   return (
-    <div className="mt-[16px] rounded-[14px] border border-white/[0.06] bg-[#141416] p-[16px]">
+    <div className="mt-[16px] rounded-[14px] border border-black/[0.06] bg-[#FFFFFF] p-[16px]">
       {loading ? (
-        <p className="text-[15px] text-[#67676c]">Carregando comentários…</p>
+        <p className="text-[15px] text-[#8A8A8A]">Carregando comentários…</p>
       ) : comments.length === 0 ? (
-        <p className="text-[15px] text-[#67676c]">Seja o primeiro a comentar.</p>
+        <p className="text-[15px] text-[#8A8A8A]">Seja o primeiro a comentar.</p>
       ) : (
         <ul className="space-y-[14px]">
           {comments.map((c) => (
             <li key={c.id} className="flex gap-[12px]">
-              <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-white/10 bg-[#29292b] text-[#a5a5a9]">
+              <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] border border-black/[0.08] bg-[#EDEDEA] text-[#6B6B66]">
                 {c.author_avatar ? (
                   <img src={c.author_avatar} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -417,10 +287,10 @@ function CommentsSection({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-[8px]">
-                  <strong className="text-[15px] font-semibold text-white">{c.author_name}</strong>
-                  <span className="text-[14px] text-[#67676c]">{timeAgo(c.created_at)}</span>
+                  <strong className="text-[15px] font-semibold text-[#0A0A0A]">{c.author_name}</strong>
+                  <span className="text-[14px] text-[#8A8A8A]">{timeAgo(c.created_at)}</span>
                 </div>
-                <p className="mt-[4px] whitespace-pre-line text-[15px] leading-[1.5] text-[#c8c8cb]">{c.content}</p>
+                <p className="mt-[4px] whitespace-pre-line text-[15px] leading-[1.5] text-[#4B4B46]">{c.content}</p>
               </div>
             </li>
           ))}
@@ -434,13 +304,13 @@ function CommentsSection({
             maxLength={500}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Escreva um comentário…"
-            className="min-h-[42px] flex-1 resize-none rounded-[9px] border-0 bg-[#242425] px-[14px] py-[10px] text-[15px] text-white outline-none placeholder:text-[#8d8d92]"
+            className="min-h-[42px] flex-1 resize-none rounded-[9px] border-0 bg-[#F1F1EE] px-[14px] py-[10px] text-[15px] text-[#0A0A0A] outline-none placeholder:text-[#8A8A8A]"
             rows={1}
           />
           <button
             onClick={submit}
             disabled={sending || !draft.trim()}
-            className="h-[42px] rounded-[10px] bg-[#159ff2] px-[16px] text-[15px] font-semibold text-white disabled:opacity-50"
+            className="h-[42px] rounded-[10px] bg-[#2563EB] px-[16px] text-[15px] font-semibold text-[#0A0A0A] disabled:opacity-50"
           >
             {sending ? "Enviando…" : "Enviar"}
           </button>
@@ -503,49 +373,49 @@ function Post({
   };
 
   return (
-    <article className="border-b border-white/[0.08] py-[24px]">
+    <article className="border-b border-black/[0.07] py-[24px]">
       <div className="flex gap-[18px]">
-        <span className="h-[42px] w-[42px] shrink-0 overflow-hidden rounded-[10px] border border-white/10 bg-[#29292b]">
+        <span className="h-[42px] w-[42px] shrink-0 overflow-hidden rounded-[10px] border border-black/[0.08] bg-[#EDEDEA]">
           {post.author_avatar ? (
             <img src={post.author_avatar} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="flex h-full w-full items-center justify-center text-[#a5a5a9]">
+            <span className="flex h-full w-full items-center justify-center text-[#6B6B66]">
               <UserRound className="h-5 w-5" />
             </span>
           )}
         </span>
         <div className="min-w-0 flex-1">
           <header className="relative flex flex-wrap items-center gap-[8px]">
-            <strong className="text-[18px] font-semibold leading-none text-white">{post.author_name}</strong>
-            <BadgeCheck className="h-[20px] w-[20px] fill-white text-[#0d0d0e]" strokeWidth={2.2} aria-label="Conta verificada" />
-            <span className="text-[16.5px] font-medium text-[#67676c]">{timeAgo(post.created_at)}</span>
+            <strong className="text-[18px] font-semibold leading-none text-[#0A0A0A]">{post.author_name}</strong>
+            <BadgeCheck className="h-[20px] w-[20px] fill-white text-[#FBFBFA]" strokeWidth={2.2} aria-label="Conta verificada" />
+            <span className="text-[16.5px] font-medium text-[#8A8A8A]">{timeAgo(post.created_at)}</span>
             {isAdmin && (
               <div className="relative ml-auto">
                 <button
                   onClick={() => setShowAdminMenu((value) => !value)}
                   aria-label="Opções da publicação"
-                  className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-[#85858a] transition hover:bg-white/[0.06] hover:text-white"
+                  className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-[#8A8A8A] transition hover:bg-black/[0.05] hover:text-[#0A0A0A]"
                 >
                   <MoreHorizontal className="h-[19px] w-[19px]" />
                 </button>
                 {showAdminMenu && (
-                  <div className="absolute right-0 top-[34px] z-30 w-[150px] overflow-hidden rounded-[10px] border border-white/10 bg-[#202021] p-[5px] shadow-2xl">
+                  <div className="absolute right-0 top-[34px] z-30 w-[150px] overflow-hidden rounded-[10px] border border-black/[0.08] bg-[#F5F5F2] p-[5px] shadow-2xl">
                     {confirmingDelete ? (
                       <div className="p-[7px]">
-                        <p className="text-[12px] font-medium leading-[1.35] text-white">Excluir esta publicação?</p>
-                        <p className="mt-[3px] text-[11px] leading-[1.35] text-[#929298]">Esta ação não pode ser desfeita.</p>
+                        <p className="text-[12px] font-medium leading-[1.35] text-[#0A0A0A]">Excluir esta publicação?</p>
+                        <p className="mt-[3px] text-[11px] leading-[1.35] text-[#6B6B66]">Esta ação não pode ser desfeita.</p>
                         <div className="mt-[9px] flex gap-[6px]">
                           <button
                             onClick={() => setConfirmingDelete(false)}
                             disabled={saving}
-                            className="flex-1 rounded-[6px] bg-white/[0.06] px-[7px] py-[6px] text-[11px] font-semibold text-white disabled:opacity-50"
+                            className="flex-1 rounded-[6px] bg-black/[0.05] px-[7px] py-[6px] text-[11px] font-semibold text-[#0A0A0A] disabled:opacity-50"
                           >
                             Cancelar
                           </button>
                           <button
                             onClick={removePost}
                             disabled={saving}
-                            className="flex-1 rounded-[6px] bg-red-500 px-[7px] py-[6px] text-[11px] font-semibold text-white disabled:opacity-50"
+                            className="flex-1 rounded-[6px] bg-red-500 px-[7px] py-[6px] text-[11px] font-semibold text-[#0A0A0A] disabled:opacity-50"
                           >
                             {saving ? "Excluindo…" : "Excluir"}
                           </button>
@@ -555,14 +425,14 @@ function Post({
                       <>
                         <button
                           onClick={() => { setEditing(true); setShowAdminMenu(false); }}
-                          className="flex w-full items-center gap-[9px] rounded-[7px] px-[10px] py-[8px] text-left text-[14px] font-medium text-white hover:bg-white/[0.06]"
+                          className="flex w-full items-center gap-[9px] rounded-[7px] px-[10px] py-[8px] text-left text-[14px] font-medium text-[#0A0A0A] hover:bg-black/[0.05]"
                         >
                           <Pencil className="h-[15px] w-[15px]" /> Editar
                         </button>
                         <button
                           onClick={() => setConfirmingDelete(true)}
                           disabled={saving}
-                          className="flex w-full items-center gap-[9px] rounded-[7px] px-[10px] py-[8px] text-left text-[14px] font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                          className="flex w-full items-center gap-[9px] rounded-[7px] px-[10px] py-[8px] text-left text-[14px] font-medium text-red-600 hover:bg-red-500/10 disabled:opacity-50"
                         >
                           <Trash2 className="h-[15px] w-[15px]" /> Excluir
                         </button>
@@ -579,21 +449,21 @@ function Post({
                 value={editDraft}
                 maxLength={2000}
                 onChange={(event) => setEditDraft(event.target.value)}
-                className="min-h-[96px] w-full resize-y rounded-[10px] border border-white/10 bg-[#1b1b1d] px-[13px] py-[11px] text-[16px] leading-[1.5] text-white outline-none focus:border-white/20"
+                className="min-h-[96px] w-full resize-y rounded-[10px] border border-black/[0.08] bg-[#FFFFFF] px-[13px] py-[11px] text-[16px] leading-[1.5] text-[#0A0A0A] outline-none focus:border-white/20"
               />
               <div className="mt-[9px] flex justify-end gap-[8px]">
-                <button onClick={() => { setEditing(false); setEditDraft(post.content); }} className="rounded-[8px] bg-[#272728] px-[13px] py-[8px] text-[14px] font-semibold text-white">Cancelar</button>
-                <button onClick={saveEdit} disabled={saving || !editDraft.trim()} className="rounded-[8px] bg-[#159ff2] px-[13px] py-[8px] text-[14px] font-semibold text-white disabled:opacity-50">{saving ? "Salvando…" : "Salvar"}</button>
+                <button onClick={() => { setEditing(false); setEditDraft(post.content); }} className="rounded-[8px] bg-[#EDEDEA] px-[13px] py-[8px] text-[14px] font-semibold text-[#0A0A0A]">Cancelar</button>
+                <button onClick={saveEdit} disabled={saving || !editDraft.trim()} className="rounded-[8px] bg-[#2563EB] px-[13px] py-[8px] text-[14px] font-semibold text-[#0A0A0A] disabled:opacity-50">{saving ? "Salvando…" : "Salvar"}</button>
               </div>
             </div>
           ) : post.content && (
-            <p className="mt-[12px] whitespace-pre-line text-[18px] font-medium leading-[1.6] text-[#c8c8cb]">
+            <p className="mt-[12px] whitespace-pre-line text-[18px] font-medium leading-[1.6] text-[#4B4B46]">
               {post.content}
             </p>
           )}
 
           {post.image_signed_url && (
-            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-white/10">
+            <div className="relative mt-[16px] overflow-hidden rounded-[14px] border border-black/[0.08]">
               <img src={post.image_signed_url} alt="" className="block w-full max-h-[560px] object-cover" />
             </div>
           )}
@@ -604,10 +474,10 @@ function Post({
               onClick={() => canInteract && onLike(post.id)}
               disabled={!canInteract}
               aria-label="Curtir"
-              className="flex items-center gap-[8px] text-[#85858a] transition hover:text-white disabled:opacity-60"
+              className="flex items-center gap-[8px] text-[#8A8A8A] transition hover:text-[#0A0A0A] disabled:opacity-60"
             >
               <Heart
-                className={`h-[21px] w-[21px] ${post.liked_by_me ? "fill-white text-white" : ""}`}
+                className={`h-[21px] w-[21px] ${post.liked_by_me ? "fill-white text-[#0A0A0A]" : ""}`}
                 strokeWidth={1.7}
               />
               <span className="text-[15px] font-medium">{post.likes_count}</span>
@@ -615,7 +485,7 @@ function Post({
             <button
               onClick={() => setShowComments((v) => !v)}
               aria-label="Comentar"
-              className="flex items-center gap-[8px] text-[#85858a] transition hover:text-white"
+              className="flex items-center gap-[8px] text-[#8A8A8A] transition hover:text-[#0A0A0A]"
             >
               <MessageCircle className="h-[21px] w-[21px]" strokeWidth={1.7} />
               <span className="text-[15px] font-medium">{post.comments_count}</span>
@@ -689,7 +559,7 @@ function Composer({
   return (
     <div className="pb-[20px] pl-[158px] pr-[28px] pt-[20px]">
       <div className="flex items-start gap-[20px]">
-        <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] border border-white/10 bg-[#29292b] text-[#9b9ba0]">
+        <span className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] border border-black/[0.08] bg-[#EDEDEA] text-[#6B6B66]">
           <UserRound className="h-[20px] w-[20px]" />
         </span>
         <div className="flex-1">
@@ -698,7 +568,7 @@ function Composer({
             maxLength={2000}
             onChange={(e) => setText(e.target.value)}
             placeholder="Compartilhe algo com a comunidade..."
-            className="w-full resize-none border-b border-white/[0.08] bg-transparent pb-[10px] text-[16px] font-medium leading-[1.55] text-white outline-none placeholder:text-[#626267]"
+            className="w-full resize-none border-b border-black/[0.07] bg-transparent pb-[10px] text-[16px] font-medium leading-[1.55] text-[#0A0A0A] outline-none placeholder:text-[#8A8A8A]"
             rows={2}
           />
           {preview && (
@@ -706,11 +576,11 @@ function Composer({
               <img
                 src={preview}
                 alt=""
-                className="max-h-[240px] rounded-[12px] border border-white/[0.08] object-cover"
+                className="max-h-[240px] rounded-[12px] border border-black/[0.07] object-cover"
               />
               <button
                 onClick={() => pick(null)}
-                className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#252526] text-white shadow"
+                className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#F1F1EE] text-[#0A0A0A] shadow"
                 aria-label="Remover imagem"
               >
                 <X className="h-4 w-4" />
@@ -727,16 +597,16 @@ function Composer({
             />
             <button
               onClick={() => inputRef.current?.click()}
-              className="flex items-center gap-[8px] rounded-[9px] bg-[#242425] px-[14px] py-[9px] text-[15px] font-medium text-[#c8c8cb]"
+              className="flex items-center gap-[8px] rounded-[9px] bg-[#F1F1EE] px-[14px] py-[9px] text-[15px] font-medium text-[#4B4B46]"
             >
               <ImageIcon className="h-4 w-4" /> {file ? "Trocar imagem" : "Adicionar imagem"}
             </button>
             <div className="ml-auto flex items-center gap-[10px]">
-              <span className="text-[13px] text-[#67676c]">{text.length}/2000</span>
+              <span className="text-[13px] text-[#8A8A8A]">{text.length}/2000</span>
               <button
                 onClick={submit}
                 disabled={busy || (!text.trim() && !file)}
-                className="rounded-[10px] bg-[#159ff2] px-[19px] py-[10px] text-[15px] font-semibold text-white disabled:opacity-50"
+                className="rounded-[10px] bg-[#2563EB] px-[19px] py-[10px] text-[15px] font-semibold text-[#0A0A0A] disabled:opacity-50"
               >
                 {busy ? "Publicando…" : "Publicar"}
               </button>
@@ -757,21 +627,21 @@ function TutorialAdminForm({
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   return (
-    <div className="mb-[24px] rounded-[16px] border border-white/[0.08] bg-[#19191a] p-[18px]">
-      <h3 className="text-[16px] font-semibold text-white">Novo tutorial</h3>
+    <div className="mb-[24px] rounded-[16px] border border-black/[0.07] bg-[#FFFFFF] p-[18px]">
+      <h3 className="text-[16px] font-semibold text-[#0A0A0A]">Novo tutorial</h3>
       <input
         value={title}
         maxLength={160}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Título"
-        className="mt-[12px] h-[42px] w-full rounded-[9px] border-0 bg-[#242425] px-[14px] text-[15px] text-white outline-none placeholder:text-[#8d8d92]"
+        className="mt-[12px] h-[42px] w-full rounded-[9px] border-0 bg-[#F1F1EE] px-[14px] text-[15px] text-[#0A0A0A] outline-none placeholder:text-[#8A8A8A]"
       />
       <textarea
         value={body}
         maxLength={8000}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Conteúdo (Markdown suportado)"
-        className="mt-[10px] min-h-[120px] w-full resize-none rounded-[9px] border-0 bg-[#242425] px-[14px] py-[10px] text-[15px] text-white outline-none placeholder:text-[#8d8d92]"
+        className="mt-[10px] min-h-[120px] w-full resize-none rounded-[9px] border-0 bg-[#F1F1EE] px-[14px] py-[10px] text-[15px] text-[#0A0A0A] outline-none placeholder:text-[#8A8A8A]"
       />
       <div className="mt-[12px] flex justify-end">
         <button
@@ -790,7 +660,7 @@ function TutorialAdminForm({
             }
           }}
           disabled={busy || !title.trim() || !body.trim()}
-          className="rounded-[10px] bg-[#159ff2] px-[19px] py-[10px] text-[15px] font-semibold text-white disabled:opacity-50"
+          className="rounded-[10px] bg-[#2563EB] px-[19px] py-[10px] text-[15px] font-semibold text-[#0A0A0A] disabled:opacity-50"
         >
           {busy ? "Publicando…" : "Publicar tutorial"}
         </button>
@@ -801,64 +671,21 @@ function TutorialAdminForm({
 
 function TutorialList({ tutorials }: { tutorials: HelpFeedTutorial[] }) {
   if (tutorials.length === 0) {
-    return <p className="py-[40px] text-center text-[15px] text-[#67676c]">Nenhum tutorial publicado ainda.</p>;
+    return <p className="py-[40px] text-center text-[15px] text-[#8A8A8A]">Nenhum tutorial publicado ainda.</p>;
   }
   return (
     <ul className="space-y-[16px]">
       {tutorials.map((t) => (
-        <li key={t.id} className="rounded-[16px] border border-white/[0.08] bg-[#19191a] p-[20px]">
-          <h3 className="text-[18px] font-semibold text-white">{t.title}</h3>
-          <p className="mt-[10px] whitespace-pre-line text-[15px] leading-[1.6] text-[#c8c8cb]">{t.body_md}</p>
-          <p className="mt-[10px] text-[13px] text-[#67676c]">{timeAgo(t.created_at)} atrás</p>
+        <li key={t.id} className="rounded-[16px] border border-black/[0.07] bg-[#FFFFFF] p-[20px]">
+          <h3 className="text-[18px] font-semibold text-[#0A0A0A]">{t.title}</h3>
+          <p className="mt-[10px] whitespace-pre-line text-[15px] leading-[1.6] text-[#4B4B46]">{t.body_md}</p>
+          <p className="mt-[10px] text-[13px] text-[#8A8A8A]">{timeAgo(t.created_at)} atrás</p>
         </li>
       ))}
     </ul>
   );
 }
 
-function RightRail() {
-  return (
-    <aside className="sticky top-0 hidden h-screen w-[428px] shrink-0 overflow-y-auto bg-[#0d0d0e] pb-10 pt-[87px] xl:block">
-      <section className="rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
-        <h2 className="text-[17px] font-semibold text-white">Bem-vindo(a)</h2>
-        <p className="mt-[12px] text-[16px] font-medium leading-[1.5] text-[#9b9ba1]">
-          Conhece alguém que curtiria a comunidade?
-          <br />
-          Compartilhe seu link de convite.
-        </p>
-        <div className="mt-[20px] grid grid-cols-2 gap-[12px]">
-          <button className="h-[43px] rounded-[10px] bg-[#159ff2] text-[16px] font-semibold text-white">
-            Copiar convite
-          </button>
-          <button className="h-[43px] rounded-[10px] bg-[#272728] text-[16px] font-semibold text-white">
-            Abrir Velo
-          </button>
-        </div>
-      </section>
-
-      <section className="mt-[21px] rounded-[27px] border border-white/[0.08] bg-[#19191a] p-[21px]">
-        <h2 className="text-[17px] font-semibold text-white">Atalhos Velo</h2>
-        <div className="mt-[20px] space-y-[10px]">
-          {shortcuts.map((item) => (
-            <a
-              key={item.to}
-              href={item.to}
-              className="flex items-center gap-[13px] rounded-[14px] px-[8px] py-[8px] transition hover:bg-white/[0.04]"
-            >
-              <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] bg-[#29292b] text-[20px]">
-                {item.icon}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[16px] font-semibold leading-none text-white">{item.name}</p>
-                <p className="mt-[5px] truncate text-[14px] font-medium text-[#9a9aa0]">{item.description}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-    </aside>
-  );
-}
 
 function GuidesView({
   sectionKey,
@@ -897,7 +724,7 @@ function GuidesView({
       <div className="pb-[80px] pt-[36px]">
         <button
           onClick={() => setActiveId(null)}
-          className="mb-[28px] flex items-center gap-[8px] text-[18px] font-medium text-[#8b8b90] transition hover:text-white"
+          className="mb-[28px] flex items-center gap-[8px] text-[18px] font-medium text-[#8A8A8A] transition hover:text-[#0A0A0A]"
         >
           <ChevronDown className="h-[18px] w-[18px] rotate-90" />
           Voltar para {section.label}
@@ -905,46 +732,46 @@ function GuidesView({
 
         <div className="mx-auto max-w-[900px]">
           <div className="flex items-center gap-[14px]">
-            <span className="flex h-[64px] w-[64px] items-center justify-center rounded-[16px] bg-white/[0.04] text-white">
+            <span className="flex h-[64px] w-[64px] items-center justify-center rounded-[16px] bg-black/[0.035] text-[#0A0A0A]">
               <Icon className="h-[30px] w-[30px]" strokeWidth={1.7} />
             </span>
-            <span className="text-[14px] font-semibold uppercase tracking-[0.16em] text-[#9b9ba1]">
+            <span className="text-[14px] font-semibold uppercase tracking-[0.16em] text-[#6B6B66]">
               {section.label}
             </span>
           </div>
 
-          <h1 className="mt-[26px] text-[52px] font-semibold leading-[1.05] tracking-[-0.02em] text-white">
+          <h1 className="mt-[26px] text-[52px] font-semibold leading-[1.05] tracking-[-0.02em] text-[#0A0A0A]">
             {active.title}
           </h1>
-          <p className="mt-[18px] text-[22px] leading-[1.55] text-[#a5a5aa]">{active.summary}</p>
+          <p className="mt-[18px] text-[22px] leading-[1.55] text-[#6B6B66]">{active.summary}</p>
 
           <div className="mt-[44px]">
-            <h2 className="text-[16px] font-semibold uppercase tracking-[0.16em] text-[#67676c]">
+            <h2 className="text-[16px] font-semibold uppercase tracking-[0.16em] text-[#8A8A8A]">
               Passo a passo
             </h2>
             <ol className="mt-[20px] space-y-[16px]">
               {active.steps.map((step, i) => (
-                <li key={i} className="flex gap-[20px] rounded-[16px] bg-[#141416] px-[22px] py-[20px]">
+                <li key={i} className="flex gap-[20px] rounded-[16px] bg-[#FFFFFF] px-[22px] py-[20px]">
                   <span className="flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full bg-white text-[16px] font-bold text-black">
                     {i + 1}
                   </span>
-                  <p className="text-[19px] leading-[1.6] text-[#d5d5d8]">{step}</p>
+                  <p className="text-[19px] leading-[1.6] text-[#3A3A36]">{step}</p>
                 </li>
               ))}
             </ol>
           </div>
 
           {active.tip && (
-            <div className="mt-[32px] rounded-[16px] bg-[#141416] p-[22px]">
-              <p className="text-[14px] font-semibold uppercase tracking-[0.14em] text-white/70">Dica</p>
-              <p className="mt-[10px] text-[19px] leading-[1.6] text-[#d5d5d8]">{active.tip}</p>
+            <div className="mt-[32px] rounded-[16px] bg-[#FFFFFF] p-[22px]">
+              <p className="text-[14px] font-semibold uppercase tracking-[0.14em] text-[#0A0A0A]/70">Dica</p>
+              <p className="mt-[10px] text-[19px] leading-[1.6] text-[#3A3A36]">{active.tip}</p>
             </div>
           )}
 
-          <div className="mt-[44px] flex flex-col gap-[14px] rounded-[18px] bg-[#141416] p-[26px] sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-[44px] flex flex-col gap-[14px] rounded-[18px] bg-[#FFFFFF] p-[26px] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-[20px] font-semibold text-white">Ainda com dúvida?</p>
-              <p className="mt-[6px] text-[17px] text-[#8b8b90]">Fale com o suporte humano em Suporte → Novo chamado.</p>
+              <p className="text-[20px] font-semibold text-[#0A0A0A]">Ainda com dúvida?</p>
+              <p className="mt-[6px] text-[17px] text-[#8A8A8A]">Fale com o suporte humano em Suporte → Novo chamado.</p>
             </div>
             <button
               onClick={() => setActiveId(null)}
@@ -970,23 +797,23 @@ function GuidesView({
           }}
         />
         <div className="relative mx-auto max-w-[960px] px-[24px] pb-[64px] pt-[72px] text-center">
-          <span className="inline-flex items-center gap-[8px] text-[14px] font-semibold uppercase tracking-[0.18em] text-[#8b8b90]">
+          <span className="inline-flex items-center gap-[8px] text-[14px] font-semibold uppercase tracking-[0.18em] text-[#8A8A8A]">
             Central de ajuda · {section.label}
           </span>
-          <h1 className="mt-[24px] text-[62px] font-semibold leading-[1.02] tracking-[-0.025em] text-white sm:text-[72px]">
+          <h1 className="mt-[24px] text-[62px] font-semibold leading-[1.02] tracking-[-0.025em] text-[#0A0A0A] sm:text-[72px]">
             {section.headline ?? "Como podemos te ajudar?"}
           </h1>
-          <p className="mx-auto mt-[22px] max-w-[640px] text-[21px] leading-[1.55] text-[#9b9ba1]">
+          <p className="mx-auto mt-[22px] max-w-[640px] text-[21px] leading-[1.55] text-[#6B6B66]">
             {section.intro}
           </p>
 
           <label className="relative mx-auto mt-[36px] block max-w-[640px]">
-            <Search className="absolute left-[22px] top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-[#7a7a80]" />
+            <Search className="absolute left-[22px] top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-[#8A8A8A]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Descreva o problema..."
-              className="h-[64px] w-full rounded-[16px] bg-[#141416] pl-[58px] pr-[18px] text-[19px] text-white outline-none transition placeholder:text-[#67676c] focus:bg-[#18181a]"
+              className="h-[64px] w-full rounded-[16px] bg-[#FFFFFF] pl-[58px] pr-[18px] text-[19px] text-[#0A0A0A] outline-none transition placeholder:text-[#8A8A8A] focus:bg-[#FFFFFF]"
             />
           </label>
 
@@ -996,7 +823,7 @@ function GuidesView({
                 <button
                   key={t}
                   onClick={() => setQuery(t)}
-                  className="rounded-full bg-white/[0.04] px-[18px] py-[9px] text-[15px] font-medium text-[#a5a5aa] transition hover:bg-white/[0.08] hover:text-white"
+                  className="rounded-full bg-black/[0.035] px-[18px] py-[9px] text-[15px] font-medium text-[#6B6B66] transition hover:bg-black/[0.06] hover:text-[#0A0A0A]"
                 >
                   {t}
                 </button>
@@ -1008,16 +835,16 @@ function GuidesView({
 
       <section className="mx-auto max-w-[1080px] px-[24px] pt-[24px]">
         <div className="mb-[24px] flex items-baseline justify-between">
-          <h2 className="text-[17px] font-semibold uppercase tracking-[0.16em] text-[#67676c]">
+          <h2 className="text-[17px] font-semibold uppercase tracking-[0.16em] text-[#8A8A8A]">
             {query.trim() ? "Resultados" : "Guias populares"}
           </h2>
-          <span className="text-[15px] text-[#67676c]">{filtered.length} guias</span>
+          <span className="text-[15px] text-[#8A8A8A]">{filtered.length} guias</span>
         </div>
 
         {filtered.length === 0 ? (
-          <div className="rounded-[18px] bg-[#141416] p-[40px] text-center">
-            <p className="text-[19px] font-semibold text-white">Nada encontrado para "{query}"</p>
-            <p className="mt-[10px] text-[16px] text-[#8b8b90]">
+          <div className="rounded-[18px] bg-[#FFFFFF] p-[40px] text-center">
+            <p className="text-[19px] font-semibold text-[#0A0A0A]">Nada encontrado para "{query}"</p>
+            <p className="mt-[10px] text-[16px] text-[#8A8A8A]">
               Tente outra palavra ou abra um chamado no Suporte — respondemos em algumas horas.
             </p>
           </div>
@@ -1029,13 +856,13 @@ function GuidesView({
                 <button
                   key={item.id}
                   onClick={() => setActiveId(item.id)}
-                  className="group relative overflow-hidden rounded-[18px] bg-[#141416] p-[26px] text-left transition hover:bg-[#18181a]"
+                  className="group relative overflow-hidden rounded-[18px] bg-[#FFFFFF] p-[26px] text-left transition hover:bg-[#FFFFFF]"
                 >
-                  <span className="mb-[18px] flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-white/[0.05] text-white">
+                  <span className="mb-[18px] flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-black/[0.04] text-[#0A0A0A]">
                     <Icon className="h-[22px] w-[22px]" strokeWidth={1.7} />
                   </span>
-                  <h3 className="text-[20px] font-semibold leading-[1.3] text-white">{item.title}</h3>
-                  <p className="mt-[10px] text-[16px] leading-[1.55] text-[#8b8b90]">{item.summary}</p>
+                  <h3 className="text-[20px] font-semibold leading-[1.3] text-[#0A0A0A]">{item.title}</h3>
+                  <p className="mt-[10px] text-[16px] leading-[1.55] text-[#8A8A8A]">{item.summary}</p>
                 </button>
               );
             })}
@@ -1050,7 +877,6 @@ function GuidesView({
 export default function Docs() {
 
   const { user } = useAuth();
-  const { nome, foto, setFoto } = useProfile();
   const {
     isAdmin,
     posts,
@@ -1081,126 +907,84 @@ export default function Docs() {
   }, []);
 
   const canInteract = useMemo(() => Boolean(user), [user]);
-  const accountName = useMemo(() => {
-    const bruto =
-      nome && nome !== "Usuario"
-        ? nome
-        : (user?.user_metadata?.full_name as string | undefined) ||
-          (user?.user_metadata?.name as string | undefined) ||
-          "";
-    // Exibição: só os dois primeiros nomes.
-    return nomeDeExibicao(bruto, user?.email);
-  }, [nome, user]);
-  const [emailHash, setEmailHash] = useState<string | null>(null);
-  useEffect(() => {
-    const email = user?.email?.trim().toLowerCase();
-    if (!email || !globalThis.crypto?.subtle) { setEmailHash(null); return; }
-    let cancelled = false;
-    globalThis.crypto.subtle
-      .digest("SHA-256", new TextEncoder().encode(email))
-      .then((buf) => {
-        if (cancelled) return;
-        const hex = Array.from(new Uint8Array(buf))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-        setEmailHash(hex);
-      })
-      .catch(() => setEmailHash(null));
-    return () => { cancelled = true; };
-  }, [user?.email]);
-  const gravatarUrl = emailHash ? `https://www.gravatar.com/avatar/${emailHash}?d=identicon&s=120` : null;
-  const accountAvatar = foto || (typeof user?.user_metadata?.avatar_url === "string" ? user.user_metadata.avatar_url : null) || gravatarUrl;
 
   const [showComposer, setShowComposer] = useState(false);
 
-  const handleChangeAvatar = async (file: File) => {
-    if (!user?.id) return;
-    if (file.size > 900_000) {
-      toast.error("Escolha uma imagem menor que 900 KB.");
-      return;
-    }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-    setFoto(dataUrl);
-    const { error, count } = await supabase
-      .from("profiles")
-      .update({ avatar_url: dataUrl })
-      .eq("user_id", user.id)
-      .select("user_id", { count: "exact", head: true });
-    if (error) {
-      toast.error("Não foi possível atualizar a foto.");
-      return;
-    }
-    if (!count) {
-      await supabase.from("profiles").insert({ user_id: user.id, avatar_url: dataUrl });
-    }
-    toast.success("Foto atualizada.");
-  };
 
   return (
-    <div
-      className="min-h-screen overflow-x-hidden bg-[#0d0d0e] font-['Inter_Variable','Inter',ui-sans-serif,system-ui,sans-serif] text-white"
-      style={{ zoom: 0.71, minHeight: "140.845071vh" }}
-    >
-      <div className="flex min-h-screen w-full">
-        <Sidebar tab={tab} onTab={(t) => { setTab(t); setActiveGuideId(null); }} displayName={accountName} avatar={accountAvatar} onOpenPalette={() => setPaletteOpen(true)} onChangeAvatar={handleChangeAvatar} />
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.06] bg-[#0d0d0e]/95 px-[18px] backdrop-blur sm:px-[28px]">
-            <Link
-              to="/dashboard"
-              aria-label="Voltar para o início"
-              className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[10px] text-[#d8d8dc] transition hover:bg-white/[0.06] hover:text-white"
-            >
-              <ArrowLeft className="h-[21px] w-[21px]" strokeWidth={1.8} />
-            </Link>
-            <div className="flex items-center gap-[20px]">
+    // Sem shell próprio: a página vive dentro do layout do dashboard, então a
+    // sidebar da Velo, o cabeçalho e a conta continuam sendo os de sempre. O
+    // `zoom: 0.71` e a altura em `140.845071vh` saíram junto — eram gambiarra
+    // para encaixar um layout que não era o da Velo.
+    <div className="min-h-full text-[#0A0A0A]">
+      <div className="mx-auto w-full max-w-[860px] px-1 pb-16 sm:px-4">
+        <header className="pt-1">
+          <h1 className="text-[22px] font-bold tracking-[-0.03em] text-[#0A0A0A]">Comunidade e Ajuda</h1>
+          <p className="mt-1 text-[13.5px] leading-[19px] text-[#6B6B66]">
+            Avisos da equipe, tutoriais e respostas para as dúvidas mais comuns.
+          </p>
+
+          {/* Navegação em abas no topo, no lugar da segunda sidebar. Uma
+              sidebar dentro de outra fazia a área parecer um site à parte. */}
+          <div className="mt-4 flex items-center gap-2 overflow-x-auto border-b border-black/[0.07] pb-px velo-scroll-oculto">
+            {SECOES.map((secao) => {
+              const ativa = tab === secao.key;
+              return (
+                <button
+                  key={secao.key}
+                  type="button"
+                  onClick={() => {
+                    setTab(secao.key);
+                    setActiveGuideId(null);
+                  }}
+                  className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-2.5 pb-2.5 pt-1 text-[13px] font-semibold transition-colors ${
+                    ativa
+                      ? "border-[#2563EB] text-[#0A0A0A]"
+                      : "border-transparent text-[#8A8A8A] hover:text-[#0A0A0A]"
+                  }`}
+                >
+                  {secao.label}
+                </button>
+              );
+            })}
+            <div className="ml-auto flex shrink-0 items-center gap-2 pb-1.5">
               <button
-                onClick={() => setTab("feed")}
-                className={`rounded-[10px] px-[18px] py-[12px] text-[17px] font-semibold ${
-                  tab === "feed" ? "bg-[#28282a] text-white" : "text-[#737378]"
-                }`}
+                type="button"
+                onClick={() => setPaletteOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] bg-white px-3 py-1.5 text-[12px] font-medium text-[#6B6B66] transition-colors hover:bg-[#F7F7F5]"
               >
-                Feed
+                <Search className="h-3.5 w-3.5" strokeWidth={2} />
+                Buscar
+                <kbd className="rounded bg-black/[0.05] px-1.5 py-0.5 text-[10.5px] font-medium">Ctrl K</kbd>
               </button>
-              <button
-                onClick={() => setTab("tutorial")}
-                className={`rounded-[10px] px-[18px] py-[12px] text-[17px] font-semibold ${
-                  tab === "tutorial" ? "bg-[#28282a] text-white" : "text-[#737378]"
-                }`}
-              >
-                Tutorial
-              </button>
+              {isAdmin && tab === "feed" && (
+                <button
+                  type="button"
+                  onClick={() => setShowComposer((v) => !v)}
+                  className="rounded-full bg-[#2563EB] px-3.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                >
+                  {showComposer ? "Fechar" : "Publicar"}
+                </button>
+              )}
             </div>
-          </header>
-          {isAdmin && tab === "feed" && (
-            <button
-              onClick={() => setShowComposer((v) => !v)}
-              className="fixed right-[24px] top-[14px] z-40 rounded-[10px] bg-[#159ff2] px-[20px] py-[9px] text-[15px] font-semibold text-white transition hover:opacity-90"
-            >
-              {showComposer ? "Fechar" : "Post"}
-            </button>
-          )}
+          </div>
+        </header>
 
           <div className="flex flex-1 min-h-0 w-full">
             {(tab === "feed" || tab === "tutorial") ? (
               <>
-                <div className="hidden flex-1 shrink xl:block" />
-                <main className="min-h-screen w-full min-w-0 max-w-[780px] shrink-0 bg-[#0d0d0e]">
+                <main className="w-full min-w-0">
                   {tab === "feed" && isAdmin && showComposer && <Composer onSubmit={async (opts) => { await createPost(opts); setShowComposer(false); }} />}
 
                   <div className="relative mx-auto max-w-[720px] px-[24px]">
                     {tab === "feed" && (
                       <>
                         {loading ? (
-                          <p className="py-[40px] text-center text-[15px] text-[#67676c]">Carregando feed…</p>
+                          <p className="py-[40px] text-center text-[15px] text-[#8A8A8A]">Carregando feed…</p>
                         ) : error ? (
-                          <p className="py-[40px] text-center text-[15px] text-red-400">{error}</p>
+                          <p className="py-[40px] text-center text-[15px] text-red-600">{error}</p>
                         ) : posts.length === 0 ? (
-                          <p className="py-[40px] text-center text-[15px] text-[#67676c]">
+                          <p className="py-[40px] text-center text-[15px] text-[#8A8A8A]">
                             Ainda não há publicações. {isAdmin ? "Seja o primeiro a publicar!" : "Volte em breve."}
                           </p>
                         ) : (
@@ -1229,17 +1013,13 @@ export default function Docs() {
                     )}
                   </div>
                 </main>
-                <div className="hidden w-[8px] shrink-0 xl:block" />
-                <RightRail />
-                <div className="hidden flex-1 shrink xl:block" />
               </>
             ) : (
-              <main className="min-h-screen w-full min-w-0 flex-1 bg-[#0d0d0e] px-[24px]">
+              <main className="w-full min-w-0 flex-1">
                 <GuidesView sectionKey={tab} activeId={activeGuideId} setActiveId={setActiveGuideId} />
               </main>
             )}
           </div>
-        </div>
       </div>
 
       <SearchPalette

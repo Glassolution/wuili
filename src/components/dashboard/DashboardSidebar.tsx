@@ -684,7 +684,7 @@ const DashboardSidebar = () => {
             "Sugestões" e antes dos cards promocionais. Mesmo estilo de "Sugestões". */}
         <button
           type="button"
-          onClick={() => navigate("/docs")}
+          onClick={() => navigate("/dashboard/comunidade")}
           style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 9px", marginBottom: 7, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
         >
           <Info size={17} strokeWidth={2} aria-hidden="true" />
@@ -789,7 +789,7 @@ const DashboardSidebar = () => {
                 className="velo-profile-menu-row"
                 type="button"
                 role="menuitem"
-                onClick={() => handlePanelNavigate("/docs")}
+                onClick={() => handlePanelNavigate("/dashboard/comunidade")}
                 style={styles.profileMenuRow}
               >
                 <span style={styles.profileMenuRowLeft}>

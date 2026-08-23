@@ -121,7 +121,7 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
   no-op sobre a seção branca de hoje, e continua sumindo se a seção ganhar um tom claro.
 */
 const mobileVeloActionItems = [
-  { label: "Comunidade", icon: "/icones/comunidade.png", to: "/docs" },
+  { label: "Comunidade", icon: "/icones/comunidade.png", to: "/dashboard/comunidade" },
   { label: "Coleções", icon: "/icones/colecoes.png", to: "/colecoes" },
   { label: "Publicações", icon: "/icones/publicacoes.png", to: "/dashboard/publicacoes" },
   { label: "Imagens com IA", icon: "/icones/imagens-ia.png", to: "/dashboard/imagens-ia" },
