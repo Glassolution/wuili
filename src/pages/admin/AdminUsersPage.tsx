@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
 import { AdminUserDetailModal } from "@/components/admin/AdminUserDetailModal";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -319,10 +320,7 @@ const AdminUsersPage = () => {
       <div className="space-y-5 text-[#171715]">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
-            <div key={item.label} className="rounded-[16px] border border-[#E6EAF2] bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.035)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">{item.label}</p>
-              <p className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-[#171715]">{item.value}</p>
-            </div>
+            <AdminKPIStat key={item.label} label={item.label} value={<span className="admin-kpi-value">{item.value}</span>} />
           ))}
         </div>
 
@@ -330,15 +328,13 @@ const AdminUsersPage = () => {
           <div className="border-b border-[#EEF1F6] bg-[#F8FAFC] px-5 py-4">
             {/* Toolbar */}
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex rounded-[10px] border border-[#DDE3EE] bg-white p-0.5 text-[12px]">
+              <div className="admin-segmented">
                 {(["list", "grid"] as const).map((v) => (
                   <button
                     key={v}
                     onClick={() => setView(v)}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md px-3.5 py-1.5 transition",
-                      view === v ? "bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.18)]" : "text-[#6B7280] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
-                    )}
+                    aria-pressed={view === v}
+                    data-active={view === v}
                   >
                     {v === "list" ? <List size={13} strokeWidth={1.5} /> : <Grid3x3 size={13} strokeWidth={1.5} />}
                     {v === "list" ? "Lista" : "Grade"}
@@ -347,7 +343,7 @@ const AdminUsersPage = () => {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex rounded-[10px] border border-[#DDE3EE] bg-white p-0.5 text-[11px]">
+                <div className="admin-segmented">
                   {statusFilters.map((s) => (
                     <button
                       key={s.key}
@@ -355,25 +351,23 @@ const AdminUsersPage = () => {
                         setFilter(s.key);
                         setPage(1);
                       }}
-                      className={cn(
-                        "rounded-md px-3 py-1.5 transition",
-                        filter === s.key ? "bg-[#111827] text-white" : "text-[#6B7280] hover:bg-[#F1F5F9] hover:text-[#171715]"
-                      )}
+                      aria-pressed={filter === s.key}
+                      data-active={filter === s.key}
                     >
                       {s.label}
                     </button>
                   ))}
                 </div>
-                <button className="flex items-center gap-2 rounded-[10px] border border-[#DDE3EE] bg-white px-4 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]">
-                  <Filter size={13} strokeWidth={1.5} />
+                <button type="button" className="admin-pill">
+                  <Filter strokeWidth={1.7} />
                   Filtrar
                 </button>
-                <button className="flex items-center gap-2 rounded-[10px] border border-[#DDE3EE] bg-white px-4 py-2 text-[12px] font-semibold text-[#64748B] transition hover:border-[#C7D7FE] hover:text-[#2563EB]">
-                  <Download size={13} strokeWidth={1.5} />
+                <button type="button" className="admin-pill">
+                  <Download strokeWidth={1.7} />
                   Exportar
                 </button>
-                <button className="flex items-center gap-2 rounded-[10px] bg-[#2563EB] px-4 py-2 text-[12px] font-semibold text-white shadow-[0_10px_20px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]">
-                  <Plus size={13} strokeWidth={2.5} />
+                <button type="button" className="admin-btn-primary">
+                  <Plus strokeWidth={2} />
                   Novo usuário
                 </button>
               </div>

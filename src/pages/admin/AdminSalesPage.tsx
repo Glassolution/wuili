@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, Copy, Loader2, ShoppingBag, WalletCards } from "lucide-react";
+import { Banknote, CheckCircle2, Copy, Loader2, ShoppingBag } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
 
 type SaleRow = {
   id: string;
@@ -110,9 +111,7 @@ export default function AdminSalesPage() {
         <section className="overflow-hidden rounded-[18px] border border-[#E3E8F4] bg-[#F7FAFF] shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
           <div className="flex flex-col gap-4 border-b border-[#E3E8F4] bg-white px-5 py-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#2563EB] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)]">
-                <ShoppingBag size={18} strokeWidth={1.9} />
-              </span>
+              <span className="admin-metric-icon"><ShoppingBag /></span>
               <div>
                 <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-[#171715]">Controle de vendas</h2>
                 <p className="mt-1 text-[12px] text-[#777772]">Pedidos pagos prontos para conferência e repasse via Pix.</p>
@@ -125,9 +124,9 @@ export default function AdminSalesPage() {
           </div>
 
           <div className="grid gap-3 p-4 sm:grid-cols-3">
-            <MetricCard label="Pedidos pagos" value={String(totals.count)} icon={<ShoppingBag size={16} />} />
-            <MetricCard label="A repassar" value={String(totals.pendingCount)} icon={<WalletCards size={16} />} />
-            <MetricCard label="Valor pago" value={brl(totals.paidValue)} icon={<Banknote size={16} />} highlight />
+            <MetricCard label="Pedidos pagos" value={String(totals.count)} />
+            <MetricCard label="A repassar" value={String(totals.pendingCount)} />
+            <MetricCard label="Valor pago" value={brl(totals.paidValue)} />
           </div>
         </section>
 
@@ -243,23 +242,9 @@ export default function AdminSalesPage() {
 const MetricCard = ({
   label,
   value,
-  icon,
-  highlight = false,
 }: {
   label: string;
   value: string;
-  icon: React.ReactNode;
-  highlight?: boolean;
 }) => (
-  <div className={`rounded-[14px] border p-4 ${highlight ? "border-[#C7D7FE] bg-[#EFF6FF]" : "border-[#E6EAF2] bg-white"}`}>
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">{label}</p>
-        <p className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-[#171715]">{value}</p>
-      </div>
-      <span className={`flex h-9 w-9 items-center justify-center rounded-[11px] ${highlight ? "bg-[#2563EB] text-white" : "bg-[#F1F5F9] text-[#2563EB]"}`}>
-        {icon}
-      </span>
-    </div>
-  </div>
+  <AdminKPIStat label={label} value={<span className="admin-kpi-value">{value}</span>} />
 );

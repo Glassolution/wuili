@@ -9,6 +9,7 @@ import {
   Phone,
   ShoppingCart,
   Store,
+  type LucideIcon,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,11 +118,10 @@ export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
       <div
         onClick={(e) => e.stopPropagation()}
         ref={scrollRef}
-        className="h-full w-full max-w-[720px] overflow-y-auto border-l border-white/[0.06] bg-[#0A0A0B] text-white shadow-[0_0_60px_rgba(0,0,0,0.6)]"
-        style={{ fontFamily: '"Inter", ui-sans-serif, system-ui' }}
+        className="admin-detail-modal h-full w-full max-w-[720px] overflow-y-auto border-l bg-[#fffdf9] text-[#1c1918] shadow-[0_0_60px_rgba(48,38,44,0.2)]"
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.06] bg-[#0A0A0B]/95 px-6 py-4 backdrop-blur">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-[#fffdf9]/95 px-6 py-4 backdrop-blur">
           <button
             onClick={onClose}
             className="flex items-center gap-2 text-[12px] text-white/60 hover:text-white"
@@ -339,7 +339,7 @@ const Panel = ({
   children,
 }: {
   title: string;
-  icon: any;
+  icon: LucideIcon;
   children: React.ReactNode;
 }) => (
   <section className="rounded-2xl border border-white/[0.06] bg-[#161617] p-5">
@@ -351,7 +351,7 @@ const Panel = ({
   </section>
 );
 
-const InfoChip = ({ icon: Icon, value }: { icon: any; value: string }) => (
+const InfoChip = ({ icon: Icon, value }: { icon: LucideIcon; value: string }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#161617] px-2.5 py-1 text-white/70">
     <Icon size={12} className="text-white/40" />
     {value}

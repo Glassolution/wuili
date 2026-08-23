@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Lock, XCircle, UserRound, Clock, ShieldCheck, RotateCcw } from "lucide-react";
+import { CheckCircle2, Info, Loader2, Lock, XCircle, UserRound, RotateCcw } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -235,12 +235,12 @@ const AdminRefundsPage = () => {
     );
   }
 
-  const tabs: { key: TabKey; label: string; count: number; icon: typeof Clock; accent: string }[] = [
-    { key: "pending", label: "Pedidos recentes", count: pending.length, icon: Clock, accent: "text-amber-700 bg-amber-100" },
-    { key: "processing", label: "Em processo", count: processing.length, icon: RotateCcw, accent: "text-blue-700 bg-blue-100" },
-    { key: "eligible", label: "Ativos elegíveis", count: eligible.length, icon: ShieldCheck, accent: "text-emerald-700 bg-emerald-100" },
-    { key: "approved", label: "Reembolsados", count: approved.length, icon: CheckCircle2, accent: "text-slate-700 bg-slate-100" },
-    { key: "rejected", label: "Recusados", count: rejected.length, icon: XCircle, accent: "text-red-700 bg-red-100" },
+  const tabs: { key: TabKey; label: string; count: number }[] = [
+    { key: "pending", label: "Pedidos recentes", count: pending.length },
+    { key: "processing", label: "Em processo", count: processing.length },
+    { key: "eligible", label: "Ativos elegíveis", count: eligible.length },
+    { key: "approved", label: "Reembolsados", count: approved.length },
+    { key: "rejected", label: "Recusados", count: rejected.length },
   ];
 
   return (
@@ -262,21 +262,16 @@ const AdminRefundsPage = () => {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {tabs.map((t) => {
               const active = tab === t.key;
-              const Icon = t.icon;
               return (
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
-                  className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition ${
-                    active
-                      ? "border-[#2563EB] bg-[#EFF6FF] text-[#0F172A] shadow-[0_14px_35px_rgba(37,99,235,0.10)]"
-                      : "border-[#E5E7EB] bg-white text-[#667085] shadow-sm hover:border-[#B8C7E8] hover:text-[#0F172A]"
-                  }`}
+                  aria-pressed={active}
+                  data-active={active}
+                  className="admin-metric-card flex items-center justify-between px-4 py-3 text-left transition"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-[#2563EB] text-white" : t.accent}`}>
-                      <Icon size={16} strokeWidth={1.5} />
-                    </div>
+                    <span className="admin-metric-icon"><Info /></span>
                     <div>
                       <p className="text-[13px] font-semibold">{t.label}</p>
                       <p className={`text-[11px] ${active ? "text-[#475569]" : "text-[#8A8A8E]"}`}>

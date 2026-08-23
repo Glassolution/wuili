@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CheckCircle2, CreditCard, ExternalLink, Loader2, MousePointerClick, Trash2, UserPlus, UsersRound, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Trash2, UsersRound, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
 import { AdminAffiliateApplicationsPanel } from "@/components/admin/AdminAffiliateApplicationsPanel";
 import { AdminWithdrawalsPanel } from "@/components/admin/AdminWithdrawalsPanel";
 import AffiliateApplicationCard from "@/components/admin/AffiliateApplicationCard";
@@ -406,17 +407,12 @@ const AdminCommissionsPage = () => {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                "rounded-[14px] border px-4 py-3 text-left transition",
-                activeTab === tab.key
-                  ? "border-[#C7D7FE] bg-[#EFF6FF] shadow-[0_10px_22px_rgba(37,99,235,0.08)]"
-                  : "border-transparent bg-white hover:border-[#E6EAF2] hover:bg-[#F8FAFC]",
-              )}
+              aria-pressed={activeTab === tab.key}
+              data-active={activeTab === tab.key}
+              className="admin-metric-card px-4 py-3 text-left transition"
             >
-              <span className={cn("text-[13px] font-semibold", activeTab === tab.key ? "text-[#2563EB]" : "text-[#171715]")}>
-                {tab.label}
-              </span>
-              <span className="mt-1 block text-[11px] leading-4 text-[#777772]">{tab.description}</span>
+              <span className="text-[13px] font-semibold text-[#1a1a1a]">{tab.label}</span>
+              <span className="admin-kpi-subtitle mt-1 block leading-5">{tab.description}</span>
             </button>
           ))}
         </nav>
@@ -428,9 +424,7 @@ const AdminCommissionsPage = () => {
             <section className="overflow-hidden rounded-[18px] border border-[#E3E8F4] bg-[#F7FAFF] shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
               <div className="flex flex-col gap-4 border-b border-[#E3E8F4] bg-white px-5 py-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#2563EB] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)]">
-                    <UsersRound size={18} strokeWidth={1.9} />
-                  </span>
+                  <span className="admin-metric-icon"><UsersRound /></span>
                   <div>
                     <h2 className="text-[17px] font-semibold tracking-[-0.03em] text-[#171715]">Afiliados aprovados</h2>
                     <p className="mt-1 text-[12px] text-[#777772]">Resumo do funil e repasses pendentes por código.</p>
@@ -443,13 +437,13 @@ const AdminCommissionsPage = () => {
               </div>
 
               <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
-                <MetricCard label="Afiliados" value={String(totals.totalAffiliates)} icon={<UsersRound size={16} />} />
-                <MetricCard label="Cliques" value={String(totals.clicks)} icon={<MousePointerClick size={16} />} />
-                <MetricCard label="Cadastros" value={String(totals.signups)} icon={<UserPlus size={16} />} />
-                <MetricCard label="No pagamento" value={String(totals.reachedPayment)} icon={<CreditCard size={16} />} />
-                <MetricCard label="Pagantes" value={String(totals.payers)} icon={<CheckCircle2 size={16} />} />
-                <MetricCard label="Pendente" value={money(totals.commissionPending)} icon={<Banknote size={16} />} highlight="amber" />
-                <MetricCard label="Pago" value={money(totals.commissionPaid)} icon={<Banknote size={16} />} highlight="emerald" />
+                <MetricCard label="Afiliados" value={String(totals.totalAffiliates)} />
+                <MetricCard label="Cliques" value={String(totals.clicks)} />
+                <MetricCard label="Cadastros" value={String(totals.signups)} />
+                <MetricCard label="No pagamento" value={String(totals.reachedPayment)} />
+                <MetricCard label="Pagantes" value={String(totals.payers)} />
+                <MetricCard label="Pendente" value={money(totals.commissionPending)} highlight="amber" />
+                <MetricCard label="Pago" value={money(totals.commissionPaid)} highlight="emerald" />
               </div>
             </section>
 
@@ -642,18 +636,16 @@ const AdminCommissionsPage = () => {
                   <div className="rounded-[16px] border border-[#E6EAF2] bg-white p-4">
                     <p className="text-[14px] font-semibold text-[#171715]">Performance</p>
                     <div className="mt-3 grid grid-cols-2 gap-3">
-                      <MetricCard label="Cliques" value={String(selectedRow?.clicks ?? 0)} icon={<MousePointerClick size={16} />} />
-                      <MetricCard label="Cadastros" value={String(selectedRow?.signups ?? 0)} icon={<UserPlus size={16} />} />
+                      <MetricCard label="Cliques" value={String(selectedRow?.clicks ?? 0)} />
+                      <MetricCard label="Cadastros" value={String(selectedRow?.signups ?? 0)} />
                       <MetricCard
                         label="Comissão pendente"
                         value={money(Number(selectedRow?.commission_pending ?? 0))}
-                        icon={<Banknote size={16} />}
                         highlight="amber"
                       />
                       <MetricCard
                         label="Comissão paga"
                         value={money(Number(selectedRow?.commission_paid ?? 0))}
-                        icon={<Banknote size={16} />}
                         highlight="emerald"
                       />
                     </div>
@@ -756,39 +748,15 @@ const AdminCommissionsPage = () => {
 const MetricCard = ({
   label,
   value,
-  icon,
-  highlight,
 }: {
   label: string;
   value: string;
-  icon: React.ReactNode;
   highlight?: "amber" | "emerald";
 }) => (
-  <div
-    className={cn(
-      "rounded-[14px] border bg-white p-4",
-      highlight === "amber" && "border-[#FDE7B2] bg-[#FFFDF7]",
-      highlight === "emerald" && "border-[#BBF7D0] bg-[#F7FEFA]",
-      !highlight && "border-[#E6EAF2]",
-    )}
-  >
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">{label}</p>
-        <p className="mt-2 text-[21px] font-semibold tracking-[-0.04em] text-[#171715]">{value}</p>
-      </div>
-      <span
-        className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]",
-          highlight === "amber" && "bg-[#FFF7E6] text-[#B7791F]",
-          highlight === "emerald" && "bg-[#ECFDF3] text-[#087443]",
-          !highlight && "bg-[#EFF6FF] text-[#2563EB]",
-        )}
-      >
-        {icon}
-      </span>
-    </div>
-  </div>
+  <AdminKPIStat
+    label={label}
+    value={<span className="admin-kpi-value">{value}</span>}
+  />
 );
 
 const Th = ({ children, className }: { children: React.ReactNode; className?: string }) => (

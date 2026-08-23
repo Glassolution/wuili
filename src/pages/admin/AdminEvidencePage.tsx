@@ -139,19 +139,20 @@ const AdminEvidencePage = () => {
           if (query.trim()) search.mutate(query.trim());
         }}
       >
-        <div className="relative flex-1">
-          <Search size={16} strokeWidth={1.5} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a1a19c]" />
+        <label className="admin-control flex flex-1 items-center gap-2">
+          <Search size={15} strokeWidth={1.7} className="shrink-0 text-[#8c8f93]" />
+          <span className="sr-only">Buscar usuário</span>
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="E-mail, CPF ou ID do usuário"
-            className="h-11 w-full rounded-full border border-[#e3e3df] bg-white pl-11 pr-4 text-[14px] text-[#171715] placeholder:text-[#a1a19c] outline-none focus:border-[#171715]"
+            className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1a1a1a] outline-none placeholder:text-[#8c8f93]"
           />
-        </div>
+        </label>
         <button
           type="submit"
           disabled={search.isPending}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171715] px-6 text-[13px] font-semibold text-white transition hover:bg-black disabled:opacity-60"
+          className="admin-btn-primary justify-center px-4 disabled:opacity-60"
         >
           {search.isPending ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} strokeWidth={1.5} />}
           Gerar dossiê

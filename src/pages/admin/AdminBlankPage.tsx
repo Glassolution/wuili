@@ -1,18 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, animate, motion, useReducedMotion } from "framer-motion";
 import {
+  BarChart3,
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
+  CalendarRange,
+  GitCompare,
   Download,
-  MoreHorizontal,
-  ShoppingBag,
-  UserMinus,
+  Globe,
+  Search,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminChartCard,
+  AdminKPIStat,
+  AdminPill,
+  AdminProgressBar,
+  AdminSelectPill,
+  AdminTableHeader,
+} from "@/components/admin/AdminPrimitives";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -119,7 +132,20 @@ const EMPTY_DATA: WalletData = {
   validapayAvailable: false,
 };
 
-type Period = "year" | "month" | "day";
+type Period =
+  | "today"
+  | "yesterday"
+  | "last7"
+  | "last30"
+  | "this_week"
+  | "last_week"
+  | "this_month"
+  | "last_month"
+  | "last3m"
+  | "year";
+
+/** Agrupamento dos pontos do gráfico. */
+type Grouping = "hour" | "day" | "week" | "month";
 
 const PERIOD_STORAGE_KEY = "velo:admin-wallet-period";
 const ACTIVITY_PAGE_SIZE = 10;
@@ -148,6 +174,19 @@ const BILLING_ACTIVITY_STATUSES = new Set([
   "refunded",
 ]);
 const REFUND_STATUSES = new Set(["approved", "processed", "completed", "refunded"]);
+type ActivityStatusFilter = "all" | "approved" | "pending" | "issue";
+
+const matchesActivityStatusFilter = (status: string, filter: ActivityStatusFilter) => {
+  if (filter === "all") return true;
+  const normalizedStatus = status.toLowerCase();
+  if (filter === "approved") {
+    return ["active", "paid", "approved", "trialing", "completed"].includes(normalizedStatus);
+  }
+  if (filter === "pending") {
+    return ["pending", "in_process", "authorized", "suspended_payment_pending"].includes(normalizedStatus);
+  }
+  return ["refunded", "cancelled", "canceled", "rejected", "failed", "past_due"].includes(normalizedStatus);
+};
 
 const formatBRL = (value: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -208,9 +247,11 @@ const getPlanLabel = (plan: string) => {
 
 const getPaymentMethodLabel = (method: string | null) => {
   const normalized = String(method ?? "").trim().toLowerCase();
-  if (normalized === "pix") return "Pix";
-  if (["credit_card", "card", "credito"].includes(normalized)) return "Cartão de crédito";
-  if (["debit_card", "debito"].includes(normalized)) return "Cartão de débito";
+  // o provedor manda "credit_card" e "creditcard" — compara sem separadores
+  const compact = normalized.replace(/[^a-z]/g, "");
+  if (compact === "pix") return "Pix";
+  if (["creditcard", "card", "credito", "cartaodecredito"].includes(compact)) return "Cartão de crédito";
+  if (["debitcard", "debito", "cartaodedebito"].includes(compact)) return "Cartão de débito";
   if (normalized.includes("manual")) return "Pagamento manual";
   if (normalized === "trial") return "Período de teste";
   return method?.trim() || "Não informado";
@@ -258,20 +299,60 @@ const isValidaPaySubscription = (subscription: SubscriptionRow) => {
     (!!legacyPaymentId && !/^\d+$/.test(legacyPaymentId));
 };
 
+const PERIOD_OPTIONS: Array<{ value: Period; label: string }> = [
+  { value: "today", label: "Hoje" },
+  { value: "yesterday", label: "Ontem" },
+  { value: "last7", label: "Últimos 7 dias" },
+  { value: "last30", label: "Últimos 30 dias" },
+  { value: "this_week", label: "Esta semana" },
+  { value: "last_week", label: "Semana passada" },
+  { value: "this_month", label: "Este mês" },
+  { value: "last_month", label: "Mês passado" },
+  { value: "last3m", label: "Últimos 3 meses" },
+  { value: "year", label: "Este ano" },
+];
+
+const COMPARE_OPTIONS: Array<{ value: "previous" | "none"; label: string }> = [
+  { value: "previous", label: "Comparar período anterior" },
+  { value: "none", label: "Sem comparação" },
+];
+
+const GROUPING_OPTIONS: Array<{ value: Grouping | "auto"; label: string }> = [
+  { value: "auto", label: "Agrupamento automático" },
+  { value: "hour", label: "Por hora" },
+  { value: "day", label: "Por dia" },
+  { value: "week", label: "Por semana" },
+  { value: "month", label: "Por mês" },
+];
+
+const getPeriodLabel = (period: Period) =>
+  PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? "Período";
+
 const getPeriodContext = (period: Period) => {
   const now = new Date();
-  if (period === "day") return "hoje";
-  if (period === "month") {
-    const month = new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(now);
-    return `em ${month}`;
+  const monthName = (date: Date) => new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(date);
+  switch (period) {
+    case "today":
+      return "hoje";
+    case "yesterday":
+      return "ontem";
+    case "last7":
+      return "nos últimos 7 dias";
+    case "last30":
+      return "nos últimos 30 dias";
+    case "this_week":
+      return "nesta semana";
+    case "last_week":
+      return "na semana passada";
+    case "this_month":
+      return `em ${monthName(now)}`;
+    case "last_month":
+      return `em ${monthName(new Date(now.getFullYear(), now.getMonth() - 1, 1))}`;
+    case "last3m":
+      return "nos últimos 3 meses";
+    default:
+      return `em ${now.getFullYear()}`;
   }
-  return `em ${now.getFullYear()}`;
-};
-
-const getStoredPeriod = (): Period => {
-  if (typeof window === "undefined") return "year";
-  const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
-  return stored === "day" || stored === "month" || stored === "year" ? stored : "year";
 };
 
 const getBelemDateKey = (value: string | Date) => {
@@ -285,13 +366,134 @@ const getBelemDateKey = (value: string | Date) => {
   return `${part("year")}-${part("month")}-${part("day")}`;
 };
 
-const isInPeriod = (value: string | null, period: Period) => {
-  if (!value) return false;
-  const valueKey = getBelemDateKey(value);
+const getStoredPeriod = (): Period => {
+  if (typeof window === "undefined") return "last30";
+  const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
+  return PERIOD_OPTIONS.some((option) => option.value === stored) ? (stored as Period) : "last30";
+};
+
+/** Datas são ancoradas ao meio-dia UTC para o deslocamento de dias não escorregar. */
+const keyToDate = (key: string) => new Date(`${key}T12:00:00Z`);
+const dateToKey = (date: Date) => date.toISOString().slice(0, 10);
+const shiftDays = (date: Date, days: number) => {
+  const shifted = new Date(date);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted;
+};
+const daysBetween = (startKey: string, endKey: string) =>
+  Math.round((keyToDate(endKey).getTime() - keyToDate(startKey).getTime()) / 86_400_000) + 1;
+
+type PeriodRange = { startKey: string; endKey: string };
+
+/** Intervalo fechado do período, em chaves YYYY-MM-DD no fuso de Belém. */
+const getPeriodRange = (period: Period): PeriodRange => {
   const todayKey = getBelemDateKey(new Date());
-  if (period === "day") return valueKey === todayKey;
-  if (period === "month") return valueKey.slice(0, 7) === todayKey.slice(0, 7);
-  return valueKey.slice(0, 4) === todayKey.slice(0, 4);
+  const today = keyToDate(todayKey);
+  // 0 = domingo no getUTCDay; a semana da Velo começa na segunda
+  const weekdayFromMonday = (today.getUTCDay() + 6) % 7;
+  const startOfWeek = shiftDays(today, -weekdayFromMonday);
+  const firstOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 12));
+  const firstOfLastMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1, 12));
+  const lastOfLastMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0, 12));
+
+  switch (period) {
+    case "today":
+      return { startKey: todayKey, endKey: todayKey };
+    case "yesterday": {
+      const key = dateToKey(shiftDays(today, -1));
+      return { startKey: key, endKey: key };
+    }
+    case "last7":
+      return { startKey: dateToKey(shiftDays(today, -6)), endKey: todayKey };
+    case "last30":
+      return { startKey: dateToKey(shiftDays(today, -29)), endKey: todayKey };
+    case "this_week":
+      return { startKey: dateToKey(startOfWeek), endKey: todayKey };
+    case "last_week":
+      return { startKey: dateToKey(shiftDays(startOfWeek, -7)), endKey: dateToKey(shiftDays(startOfWeek, -1)) };
+    case "this_month":
+      return { startKey: dateToKey(firstOfMonth), endKey: todayKey };
+    case "last_month":
+      return { startKey: dateToKey(firstOfLastMonth), endKey: dateToKey(lastOfLastMonth) };
+    case "last3m":
+      return { startKey: dateToKey(shiftDays(today, -89)), endKey: todayKey };
+    default:
+      return { startKey: `${todayKey.slice(0, 4)}-01-01`, endKey: todayKey };
+  }
+};
+
+/** Mesmo tamanho de janela, imediatamente antes do período escolhido. */
+const getPreviousRange = (range: PeriodRange): PeriodRange => {
+  const length = daysBetween(range.startKey, range.endKey);
+  const end = shiftDays(keyToDate(range.startKey), -1);
+  return { startKey: dateToKey(shiftDays(end, -(length - 1))), endKey: dateToKey(end) };
+};
+
+/** "YYYY-MM-DDTHH" no fuso de Belém, usado quando o recorte é de um dia só. */
+const getBelemHourKey = (value: string | Date) => {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Belem",
+    hour: "2-digit",
+    hour12: false,
+  }).format(date);
+  return `${getBelemDateKey(date)}T${hour.padStart(2, "0")}`;
+};
+
+const isInRange = (value: string | null, range: PeriodRange) => {
+  if (!value) return false;
+  const key = getBelemDateKey(value);
+  return key >= range.startKey && key <= range.endKey;
+};
+
+const isInPeriod = (value: string | null, period: Period) => isInRange(value, getPeriodRange(period));
+
+/** Agrupamento padrão: dia até um mês, semana até quatro meses, mês acima disso. */
+const getAutoGrouping = (range: PeriodRange): Grouping => {
+  const days = daysBetween(range.startKey, range.endKey);
+  if (days <= 1) return "hour";
+  if (days <= 31) return "day";
+  if (days <= 120) return "week";
+  return "month";
+};
+
+/** Chave do balde a que o instante pertence, normalizada para o início do balde. */
+const getBucketKey = (value: string, grouping: Grouping) => {
+  if (grouping === "hour") return getBelemHourKey(value);
+  const dateKey = getBelemDateKey(value);
+  if (grouping === "day") return dateKey;
+  if (grouping === "month") return `${dateKey.slice(0, 7)}-01`;
+  const date = keyToDate(dateKey);
+  return dateToKey(shiftDays(date, -((date.getUTCDay() + 6) % 7)));
+};
+
+/** Lista ordenada de baldes que cobre o intervalo inteiro, inclusive os vazios. */
+const buildBuckets = (range: PeriodRange, grouping: Grouping) => {
+  if (grouping === "hour") {
+    // um dia inteiro em horas; no dia corrente para na hora atual
+    const todayKey = getBelemDateKey(new Date());
+    const lastHour = range.endKey === todayKey ? Number(getBelemHourKey(new Date()).slice(-2)) : 23;
+    const days = daysBetween(range.startKey, range.endKey);
+    const dayKeys = Array.from({ length: Math.min(days, 3) }, (_, index) =>
+      dateToKey(shiftDays(keyToDate(range.startKey), index)),
+    );
+    return dayKeys.flatMap((dayKey, dayIndex) => {
+      const limit = dayIndex === dayKeys.length - 1 ? lastHour : 23;
+      return Array.from({ length: limit + 1 }, (_, hour) => `${dayKey}T${String(hour).padStart(2, "0")}`);
+    });
+  }
+
+  const buckets: string[] = [];
+  let cursor = getBucketKey(range.startKey, grouping);
+  const guard = 400;
+  while (cursor <= range.endKey && buckets.length < guard) {
+    buckets.push(cursor);
+    const date = keyToDate(cursor);
+    if (grouping === "day") cursor = dateToKey(shiftDays(date, 1));
+    else if (grouping === "week") cursor = dateToKey(shiftDays(date, 7));
+    else cursor = dateToKey(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1, 12)));
+  }
+  return buckets;
 };
 
 const fetchAllSubscriptions = async () => {
@@ -394,16 +596,27 @@ const fetchWalletData = async (): Promise<WalletData> => {
     subscriptions,
     profiles,
     users: Array.isArray(adminUsers.data) ? adminUsers.data : [],
-    refunds: (refunds.data as RefundRow[] | null) ?? [],
+    refunds: Array.isArray(refunds.data) ? refunds.data : [],
     validapayEvents: validapay.rows,
     validapayAvailable: validapay.available,
   };
 };
 
 
+/** A Edge Function só entende day/month/year — os recortes novos caem no mais próximo. */
+const toApiPeriod = (period: Period): "day" | "month" | "year" => {
+  if (period === "today" || period === "yesterday") return "day";
+  if (period === "year" || period === "last3m") return "year";
+  return "month";
+};
+
+/** Só confiamos nas métricas do provedor quando o recorte é exatamente o que ele calcula. */
+const providerMatchesPeriod = (period: Period) =>
+  period === "today" || period === "this_month" || period === "year";
+
 const fetchFinanceData = async (period: Period): Promise<FinanceData> => {
   const { data, error } = await supabase.functions.invoke("admin-wallet-finance", {
-    body: { period },
+    body: { period: toApiPeriod(period) },
   });
   if (error) throw error;
   if (!data?.metrics || !data?.series) throw new Error("Resposta financeira incompleta");
@@ -553,7 +766,14 @@ const getValidaPayEventKey = (row: ValidaPayEventRow) =>
 
 const AdminPainelPage = () => {
   const [period, setPeriod] = useState<Period>(getStoredPeriod);
+  const [groupingChoice, setGroupingChoice] = useState<Grouping | "auto">("auto");
+  const [compareEnabled, setCompareEnabled] = useState(true);
+  const periodRange = useMemo(() => getPeriodRange(period), [period]);
+  const grouping: Grouping = groupingChoice === "auto" ? getAutoGrouping(periodRange) : groupingChoice;
   const [activityPage, setActivityPage] = useState(1);
+  const [activitySearch, setActivitySearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ActivityStatusFilter>("all");
+  const [compactPanel, setCompactPanel] = useState(false);
   const activitySectionRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const { data = EMPTY_DATA, isLoading, isError, isFetching } = useQuery({
@@ -614,7 +834,7 @@ const AdminPainelPage = () => {
     [data.validapayAvailable, uniqueSubscriptions, period],
   );
 
-  const validapayActivities = useMemo<FinanceActivity[]>(() => {
+  const allValidapayActivities = useMemo<FinanceActivity[]>(() => {
     const latestByCharge = new Map<string, ValidaPayEventRow>();
     const subscriptionByCharge = new Map<string, SubscriptionRow>();
     const subscriptionByProviderId = new Map<string, SubscriptionRow>();
@@ -646,7 +866,6 @@ const AdminPainelPage = () => {
       const eventAt = String(
         payload.paidAt ?? currentCycle.paidAt ?? payload.createdAt ?? currentCycle.chargeDate ?? row.created_at,
       );
-      if (!isInPeriod(eventAt, period)) return [];
       const matchedSubscription =
         (row.charge_id ? subscriptionByCharge.get(row.charge_id) : undefined) ??
         (row.subscription_id ? subscriptionByProviderId.get(row.subscription_id) : undefined);
@@ -704,7 +923,13 @@ const AdminPainelPage = () => {
       .filter((candidate) => !(candidate.activity.status === "pending" && candidate.subscriptionId && resolvedSubscriptions.has(candidate.subscriptionId)))
       .map((candidate) => candidate.activity)
       .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
-  }, [data.validapayEvents, period, uniqueSubscriptions]);
+  }, [data.validapayEvents, uniqueSubscriptions]);
+
+  /** Recorte do período usado pelas métricas e pela tabela. */
+  const validapayActivities = useMemo(
+    () => allValidapayActivities.filter((activity) => isInRange(activity.created_at, periodRange)),
+    [allValidapayActivities, periodRange],
+  );
 
   const paidSubscriptionsInPeriod = useMemo(
     () =>
@@ -783,7 +1008,10 @@ const AdminPainelPage = () => {
     localFinance.metrics.gross_revenue > 0 ||
     localFinance.metrics.approved_sales > 0 ||
     localFinance.metrics.refunds > 0;
-  const finance = providerHasMetrics || !localHasMetrics ? (providerFinance ?? localFinance) : localFinance;
+  const finance =
+    providerMatchesPeriod(period) && (providerHasMetrics || !localHasMetrics)
+      ? (providerFinance ?? localFinance)
+      : localFinance;
   const eventWalletBalance = useMemo(
     () => getBalanceFromValidaPayEvents(data.validapayEvents),
     [data.validapayEvents],
@@ -825,22 +1053,49 @@ const AdminPainelPage = () => {
     ),
     [databaseActivities, validapayActivities],
   );
+  const normalizedActivitySearch = activitySearch.trim().toLocaleLowerCase("pt-BR");
+  const filteredPaymentActivities = useMemo(
+    () => paymentActivities.filter((activity) => {
+      if (!matchesActivityStatusFilter(activity.status, statusFilter)) return false;
+      if (!normalizedActivitySearch) return true;
+      const identity = activity.user_id ? identitiesByUser.get(activity.user_id) : undefined;
+      return [identity?.name, identity?.email, activity.payer_name, activity.payer_email, activity.plan, activity.payment_method]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("pt-BR")
+        .includes(normalizedActivitySearch);
+    }),
+    [identitiesByUser, normalizedActivitySearch, paymentActivities, statusFilter],
+  );
+  const filteredSubscriptions = useMemo(
+    () => visibleSubscriptions.filter((subscription) => {
+      if (!matchesActivityStatusFilter(subscription.status, statusFilter)) return false;
+      if (!normalizedActivitySearch) return true;
+      const identity = identitiesByUser.get(subscription.user_id);
+      return [identity?.name, identity?.email, subscription.plan, subscription.payment_method]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase("pt-BR")
+        .includes(normalizedActivitySearch);
+    }),
+    [identitiesByUser, normalizedActivitySearch, statusFilter, visibleSubscriptions],
+  );
   const usePaymentActivities = data.validapayAvailable;
-  const activityCount = usePaymentActivities ? paymentActivities.length : visibleSubscriptions.length;
+  const activityCount = usePaymentActivities ? filteredPaymentActivities.length : filteredSubscriptions.length;
   const activityTotalPages = Math.max(1, Math.ceil(activityCount / ACTIVITY_PAGE_SIZE));
   const activityPageStart = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
-  const paginatedPaymentActivities = paymentActivities.slice(
+  const paginatedPaymentActivities = filteredPaymentActivities.slice(
     activityPageStart,
     activityPageStart + ACTIVITY_PAGE_SIZE,
   );
-  const paginatedSubscriptions = visibleSubscriptions.slice(
+  const paginatedSubscriptions = filteredSubscriptions.slice(
     activityPageStart,
     activityPageStart + ACTIVITY_PAGE_SIZE,
   );
 
   useEffect(() => {
     setActivityPage(1);
-  }, [period]);
+  }, [activitySearch, period, statusFilter]);
 
   useEffect(() => {
     setActivityPage((current) => Math.min(current, activityTotalPages));
@@ -880,32 +1135,119 @@ const AdminPainelPage = () => {
     : (churnBase > 0 ? churnedSubscriptionsInPeriod.length / churnBase : 0);
   const periodContext = getPeriodContext(period);
 
-  const localRevenueSeries = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 14 }, (_, index) => {
-      const date = new Date(now);
-      date.setDate(now.getDate() - (13 - index));
-      const dayKey = getBelemDateKey(date);
-      return approvedValidaPayActivities.reduce((sum, item) => {
-        return getBelemDateKey(item.created_at) === dayKey ? sum + item.amount : sum;
-      }, 0);
-    });
-  }, [approvedValidaPayActivities]);
+  // ---- séries do gráfico: baldes reais dentro do intervalo escolhido ----
+  const previousRange = useMemo(() => getPreviousRange(periodRange), [periodRange]);
+  const buckets = useMemo(() => buildBuckets(periodRange, grouping), [periodRange, grouping]);
 
-  const localCostSeries = useMemo(() => {
-    const now = new Date();
-    return Array.from({ length: 14 }, (_, index) => {
-      const date = new Date(now);
-      date.setDate(now.getDate() - (13 - index));
-      const dayKey = getBelemDateKey(date);
-      return validapayActivities.reduce((sum, item) => {
-        if (item.status !== "refunded") return sum;
-        return getBelemDateKey(item.created_at) === dayKey ? sum + item.amount : sum;
-      }, 0);
+  const allApprovedActivities = useMemo(
+    () => allValidapayActivities.filter((activity) => activity.status === "approved"),
+    [allValidapayActivities],
+  );
+  const allRefundedActivities = useMemo(
+    () => allValidapayActivities.filter((activity) => activity.status === "refunded"),
+    [allValidapayActivities],
+  );
+  const allPaidSubscriptions = useMemo(
+    () =>
+      data.validapayAvailable
+        ? []
+        : uniqueSubscriptions.filter(
+            (subscription) =>
+              hasPaymentReference(subscription) &&
+              isValidaPaySubscription(subscription) &&
+              PAID_STATUSES.has(subscription.status.toLowerCase()),
+          ),
+    [data.validapayAvailable, uniqueSubscriptions],
+  );
+
+  type SeriesEvent = { at: string | null; amount: number };
+  const revenueEvents = useMemo<SeriesEvent[]>(
+    () => [
+      ...allApprovedActivities.map((activity) => ({ at: activity.created_at, amount: activity.amount })),
+      ...allPaidSubscriptions.map((subscription) => ({
+        at: subscriptionEventAt(subscription),
+        amount: Number(subscription.amount ?? 0),
+      })),
+    ],
+    [allApprovedActivities, allPaidSubscriptions],
+  );
+  const refundEvents = useMemo<SeriesEvent[]>(
+    () => allRefundedActivities.map((activity) => ({ at: activity.created_at, amount: activity.amount })),
+    [allRefundedActivities],
+  );
+
+  /** Soma (ou conta) os eventos de cada balde do intervalo. */
+  const seriesFor = useCallback(
+    (events: SeriesEvent[], range: PeriodRange, keys: string[], mode: "sum" | "count" = "sum") => {
+      const totals = new Map<string, number>();
+      events.forEach((event) => {
+        if (!isInRange(event.at, range)) return;
+        const bucket = getBucketKey(event.at as string, grouping);
+        totals.set(bucket, (totals.get(bucket) ?? 0) + (mode === "count" ? 1 : event.amount));
+      });
+      return keys.map((key) => totals.get(key) ?? 0);
+    },
+    [grouping],
+  );
+
+  const revenueSparklineValues = useMemo(
+    () => seriesFor(revenueEvents, periodRange, buckets),
+    [revenueEvents, periodRange, buckets, seriesFor],
+  );
+  const revenueSparklineLabels = buckets;
+  const costSparklineValues = useMemo(
+    () => seriesFor(refundEvents, periodRange, buckets),
+    [refundEvents, periodRange, buckets, seriesFor],
+  );
+  const approvedCountSeries = useMemo(
+    () => seriesFor(revenueEvents, periodRange, buckets, "count"),
+    [revenueEvents, periodRange, buckets, seriesFor],
+  );
+  const netSparklineValues = useMemo(
+    () => revenueSparklineValues.map((value, index) => Math.max(value - (costSparklineValues[index] ?? 0), 0)),
+    [revenueSparklineValues, costSparklineValues],
+  );
+
+  /** Série tracejada do período anterior, alinhada balde a balde com a atual. */
+  const previousRevenueSeries = useMemo(() => {
+    if (!compareEnabled) return [];
+    const previousBuckets = buildBuckets(previousRange, grouping);
+    const values = seriesFor(revenueEvents, previousRange, previousBuckets);
+    if (values.length === buckets.length) return values;
+    return buckets.map((_, index) => values[values.length - buckets.length + index] ?? 0);
+  }, [compareEnabled, previousRange, grouping, revenueEvents, buckets, seriesFor]);
+
+  const seriesVariation = (values: number[]) => {
+    if (values.length < 2) return null;
+    const previous = values[values.length - 2] ?? 0;
+    const current = values[values.length - 1] ?? 0;
+    if (previous <= 0) return current > 0 ? 1 : null;
+    return (current - previous) / previous;
+  };
+  const revenueVariation = seriesVariation(revenueSparklineValues);
+
+  const costVariation = seriesVariation(costSparklineValues);
+
+  /** Agrupamentos reais do período, usados nos cards ranqueados. */
+  const rankedActivities = useMemo(
+    () => paymentActivities.filter((activity) => PAID_STATUSES.has(activity.status.toLowerCase())),
+    [paymentActivities],
+  );
+
+  const buildRanking = (getKey: (activity: (typeof rankedActivities)[number]) => string) => {
+    const groups = new Map<string, { label: string; total: number; count: number }>();
+    rankedActivities.forEach((activity) => {
+      const label = getKey(activity);
+      const current = groups.get(label) ?? { label, total: 0, count: 0 };
+      current.total += activity.amount;
+      current.count += 1;
+      groups.set(label, current);
     });
-  }, [validapayActivities]);
-  const revenueSparklineValues = providerFinance?.series.revenue.map((item) => item.value) ?? localRevenueSeries;
-  const costSparklineValues = providerFinance?.series.costs.map((item) => item.value) ?? localCostSeries;
+    return [...groups.values()].sort((left, right) => right.total - left.total).slice(0, 4);
+  };
+
+  const rankingByPlan = buildRanking((activity) => getPlanLabel(activity.plan ?? ""));
+  const rankingByPayment = buildRanking((activity) => getPaymentMethodLabel(activity.payment_method));
 
   const downloadReport = () => {
     const activityRows = usePaymentActivities
@@ -963,7 +1305,7 @@ const AdminPainelPage = () => {
   return (
     <AdminShell active="dashboard" userId="admin" fullBleed>
       <motion.div
-        className="relative min-h-full overflow-hidden bg-white px-5 pb-10 pt-5 text-[#171717] sm:px-[22px] lg:pt-6"
+        className="relative min-h-full px-5 pb-8 pt-1 lg:px-7"
         initial={reduceMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
@@ -972,225 +1314,659 @@ const AdminPainelPage = () => {
         <AnimatePresence>
           {panelRefreshing ? <PanelRefreshIndicator /> : null}
         </AnimatePresence>
+
         <motion.header
-          className="flex items-center justify-between gap-4"
+          className="flex flex-col gap-3"
           initial={reduceMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.04 }}
         >
-          <div className="flex items-center gap-4">
-            <h1 className="text-[19px] font-semibold tracking-[-0.035em]">Carteira</h1>
-            <PeriodFilter value={period} onChange={setPeriod} />
-            <span className="hidden text-[10px] font-medium text-[#999994] md:inline">
-              {providerFinance?.source === "providers"
-                ? "Extrato financeiro da ValidaPay"
-                : data.validapayAvailable
-                ? "Eventos confirmados da ValidaPay"
-                : providerFinance?.source === "database"
-                ? "Registros confirmados da ValidaPay"
-                : isFinanceError
-                ? "Extrato da ValidaPay indisponível · exibindo apenas registros ValidaPay confirmados"
-                : "Conectando ao extrato da ValidaPay..."}
-            </span>
+          <div className="admin-page-title">
+            <BarChart3 aria-hidden="true" />
+            <h1>Visão geral da carteira</h1>
           </div>
-          <button
-            type="button"
-            onClick={downloadReport}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171717] px-4 text-[12px] font-semibold text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-black/20"
-          >
-            <Download size={14} strokeWidth={1.8} />
-            Baixar relatório
-          </button>
+
+          <div className="admin-header-actions flex flex-wrap items-center">
+            <AdminSelectPill
+              icon={CalendarDays}
+              label="Período"
+              value={period}
+              options={PERIOD_OPTIONS}
+              onChange={(value) => setPeriod(value as Period)}
+            />
+            <AdminSelectPill
+              icon={GitCompare}
+              label="Comparação"
+              value={compareEnabled ? "previous" : "none"}
+              options={COMPARE_OPTIONS}
+              onChange={(value) => setCompareEnabled(value === "previous")}
+            />
+            <AdminSelectPill
+              icon={CalendarRange}
+              label="Agrupar por"
+              value={groupingChoice}
+              options={GROUPING_OPTIONS}
+              onChange={(value) => setGroupingChoice(value as Grouping | "auto")}
+            />
+            <AdminPill onClick={downloadReport}>
+              <Download aria-hidden="true" />
+              Exportar
+            </AdminPill>
+            <AdminPill
+              aria-pressed={compactPanel}
+              onClick={() => setCompactPanel((value) => !value)}
+            >
+              <SlidersHorizontal aria-hidden="true" />
+              {compactPanel ? "Expandir painel" : "Personalizar painel"}
+            </AdminPill>
+          </div>
         </motion.header>
 
         <motion.section
-          className="mt-7 grid border-b border-[#eeeeec] lg:grid-cols-2"
+          className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
           initial={reduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
-          <WalletMetric
-            title={walletBalance ? "Saldo disponível na ValidaPay" : `Resultado líquido ${periodContext}`}
-            value={hideFinancialValues ? null : walletBalance?.available ?? finance.metrics.net_revenue}
-            description={walletBalance
-              ? "Valor disponível agora para movimentação ou saque"
-              : "Entradas menos saídas registradas no período; não representa o saldo disponível"}
-            action={walletBalance
-              ? walletBalanceDetails || "Saldo obtido do último evento confirmado da ValidaPay"
-              : financialDataUnavailable
-              ? "Não foi possível consultar dados financeiros da ValidaPay"
-              : "Saldo oficial da ValidaPay ainda sem conexão"}
+          <>
+            <DashboardMetricCard
+              title="Vendas aprovadas"
+              value={hideFinancialValues ? null : finance.metrics.approved_sales}
+              format="integer"
+              description="Pagamentos confirmados"
+              loading={financialDataLoading}
+              compact={compactPanel}
+              trend={null}
+              series={approvedCountSeries}
+            />
+            <DashboardMetricCard
+              title="Total de entradas"
+              value={hideFinancialValues ? null : finance.metrics.gross_revenue}
+              format="currency"
+              description={"Receita bruta " + periodContext}
+              loading={financialDataLoading}
+              compact={compactPanel}
+              trend={revenueVariation}
+              series={revenueSparklineValues}
+            />
+            <DashboardMetricCard
+              title="Resultado líquido"
+              value={hideFinancialValues ? null : walletBalance?.available ?? finance.metrics.net_revenue}
+              format="currency"
+              description={walletBalance ? walletBalanceDetails || "Saldo disponível" : "Entradas menos saídas"}
+              loading={financialDataLoading}
+              compact={compactPanel}
+              trend={revenueVariation}
+              series={netSparklineValues}
+            />
+            <DashboardMetricCard
+              title="Total de saídas"
+              value={hideFinancialValues ? null : finance.metrics.costs}
+              format="currency"
+              description={"Reembolsos: " + formatBRL(finance.metrics.refunds)}
+              loading={financialDataLoading}
+              compact={compactPanel}
+              trend={costVariation}
+              series={costSparklineValues}
+              invertTrend
+            />
+          </>
+        </motion.section>
+
+        <motion.section
+          className="mt-3"
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.14, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <FinanceHistoryCard
+            total={hideFinancialValues ? null : finance.metrics.gross_revenue}
             values={revenueSparklineValues}
+            labels={revenueSparklineLabels}
+            comparisonValues={previousRevenueSeries}
+            comparisonLabel="Período anterior"
+            grouping={grouping}
             loading={financialDataLoading}
-          />
-          <WalletMetric
-            title={`Total de saídas ${periodContext}`}
-            value={hideFinancialValues ? null : finance.metrics.costs}
-            description="Débitos efetivamente registrados no extrato da ValidaPay"
-            action={`Reembolsos ${formatBRL(finance.metrics.refunds)} · Taxas ${formatBRL(finance.metrics.fees)} · Saques ${formatBRL(finance.metrics.withdrawals)}`}
-            values={costSparklineValues}
-            loading={financialDataLoading}
-            divided
+            compact={compactPanel}
+            periodLabel={periodContext}
           />
         </motion.section>
 
         <motion.section
-          className="mt-5"
-          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+          className="mt-3 grid gap-3 lg:grid-cols-2"
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.17, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: reduceMotion ? 0 : 0.48, delay: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-[18px] font-semibold tracking-[-0.03em]">Resumo de atividades</h2>
-            <PeriodFilter value={period} onChange={setPeriod} />
-          </div>
-
-          <div className="mt-5 grid min-h-[80px] overflow-hidden rounded-[3px] border border-[#f0f0ee] bg-white shadow-[0_8px_24px_rgba(28,28,24,0.018)] sm:grid-cols-3">
-            <SummaryItem
-              icon={ShoppingBag}
-              label="Vendas aprovadas"
-              value={hideFinancialValues ? null : finance.metrics.approved_sales}
-              format="integer"
-              loading={financialDataLoading}
-            />
-            <SummaryItem
-              icon={CircleDollarSign}
-              label="Total de entradas"
-              value={hideFinancialValues ? null : finance.metrics.gross_revenue}
-              format="currency"
-              loading={financialDataLoading}
-            />
-            <SummaryItem
-              icon={UserMinus}
-              label="Taxa de churn"
-              value={hideFinancialValues ? null : churnRate}
-              format="percent"
-              loading={financialDataLoading}
-            />
-          </div>
+          <RankedCard title="Produtos mais vendidos" rows={rankingByPlan} loading={isLoading} />
+          <RankedCard title="Formas de pagamento" rows={rankingByPayment} loading={isLoading} />
         </motion.section>
 
         <motion.section
           ref={activitySectionRef}
-          className="mt-7"
+          className="admin-card mt-3 overflow-hidden"
           initial={reduceMotion ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.5, delay: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: reduceMotion ? 0 : 0.5, delay: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-[18px] font-semibold tracking-[-0.03em]">Atividade recente</h2>
-            <div className="flex items-center gap-3">
-              <PeriodFilter value={period} onChange={setPeriod} />
-              <button type="button" aria-label="Mais opções" className="grid h-8 w-8 place-items-center rounded-full text-[#73736f] hover:bg-[#f4f4f2]">
-                <MoreHorizontal size={17} />
-              </button>
+          <div className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="admin-page-title">Atividade financeira</h2>
+            </div>
+            <div className="flex flex-1 flex-wrap items-center gap-2 lg:max-w-[560px] lg:justify-end">
+              <label className="admin-control flex h-8 min-w-[190px] flex-1 items-center gap-2 px-2.5 text-[#827a75] lg:max-w-[250px]">
+                <Search size={13} strokeWidth={1.6} className="shrink-0 text-[#171717]" />
+                <span className="sr-only">Buscar atividade</span>
+                <input
+                  value={activitySearch}
+                  onChange={(event) => setActivitySearch(event.target.value)}
+                  placeholder="Buscar assinante..."
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-[#303030] outline-none placeholder:text-[#8c8f93]"
+                />
+              </label>
+              <label className="admin-control relative inline-flex h-8 items-center text-[#595959]">
+                <SlidersHorizontal size={13} className="pointer-events-none absolute left-2.5" />
+                <span className="sr-only">Filtrar por status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+                  className="h-full cursor-pointer appearance-none bg-transparent py-0 pl-8 pr-7 text-[13px] font-normal outline-none"
+                >
+                  <option value="all">Todos</option>
+                  <option value="approved">Aprovados</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="issue">Com problema</option>
+                </select>
+                <ChevronDown size={11} className="pointer-events-none absolute right-2.5" />
+              </label>
+              <AdminPill
+                variant="primary"
+                onClick={downloadReport}
+              >
+                <Download aria-hidden="true" />
+                Baixar relatório
+              </AdminPill>
             </div>
           </div>
 
-          <div className="mt-2 overflow-hidden rounded-[2px] border border-[#f0f0ee]">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] border-collapse text-left">
-                <thead>
-                  <tr className="bg-[#f6f6f5] text-[11px] font-semibold text-[#5f5f5b]">
-                    <th className="px-4 py-3">Assinante</th>
-                    <th className="px-4 py-3">Dia de cobrança</th>
-                    <th className="px-4 py-3">Intervalo</th>
-                    <th className="px-4 py-3">Valor</th>
-                    <th className="px-4 py-3">Produto</th>
-                    <th className="px-4 py-3">Método de pagamento</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? <ActivityTableSkeleton /> : usePaymentActivities ? paginatedPaymentActivities.map((activity, index) => {
-                    const status = getSubscriptionStatus(activity.status);
-                    const identity = activity.user_id ? identitiesByUser.get(activity.user_id) : undefined;
-                    const name = identity?.name || activity.payer_name || activity.payer_email || "Assinante não identificado";
-                    const email = identity?.email || activity.payer_email;
-                    return (
-                      <motion.tr
-                        key={`payment:${activity.id}`}
-                        className="border-t border-[#f2f2f0] text-[12px] text-[#222220] transition-colors hover:bg-[#fafaf9]"
-                        initial={reduceMotion ? false : { opacity: 0, y: 7 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 10) * 0.035 }}
-                      >
-                        <td className="max-w-[220px] px-4 py-3.5">
-                          <p className="truncate font-semibold">{name}</p>
-                          {email && email !== name ? <p className="mt-1 truncate text-[10px] text-[#92928d]">{email}</p> : null}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <p className="font-semibold text-[#555550]">{formatChargeDay(activity.created_at)}</p>
-                          <p className="mt-1 text-[10px] text-[#888883]">{formatDate(activity.created_at)} · {formatTime(activity.created_at)}</p>
-                        </td>
-                        <td className="px-4 py-3.5"><span className="rounded-full border border-[#d9dce6] bg-[#f4f5f9] px-2.5 py-1 font-medium text-[#394867]">{activity.interval}</span></td>
-                        <td className="px-4 py-3.5 font-semibold">{activity.amount > 0 ? formatBRL(activity.amount) : "—"}</td>
-                        <td className="px-4 py-3.5 font-medium">{getPlanLabel(activity.plan ?? "")}</td>
-                        <td className="px-4 py-3.5"><p className="font-medium">{getPaymentMethodLabel(activity.payment_method)}</p></td>
-                        <td className="px-4 py-3.5" title={`Status registrado: ${activity.status}`}><StatusBadge label={status.label} tone={status.tone} /></td>
-                      </motion.tr>
-                    );
-                  }) : paginatedSubscriptions.map((subscription, index) => {
-                    const status = getSubscriptionStatus(subscription.status);
-                    const identity = identitiesByUser.get(subscription.user_id);
-                    const eventAt = subscriptionEventAt(subscription);
-                    const chargeAt = subscription.next_charge_at || subscription.current_period_start || eventAt;
-                    return (
-                      <motion.tr
-                        key={subscription.id}
-                        className="border-t border-[#f2f2f0] text-[12px] text-[#222220] transition-colors hover:bg-[#fafaf9]"
-                        initial={reduceMotion ? false : { opacity: 0, y: 7 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 10) * 0.035 }}
-                      >
-                        <td className="max-w-[220px] px-4 py-3.5">
-                          <p className="truncate font-semibold">{identity?.name || identity?.email || "Assinante não identificado"}</p>
-                          {identity?.name && identity.email ? <p className="mt-1 truncate text-[10px] text-[#92928d]">{identity.email}</p> : null}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <p className="font-semibold text-[#555550]">{formatChargeDay(chargeAt)}</p>
-                          <p className="mt-1 text-[10px] text-[#888883]">{formatDate(eventAt)} · {formatTime(eventAt)}</p>
-                        </td>
-                        <td className="px-4 py-3.5"><span className="rounded-full border border-[#d9dce6] bg-[#f4f5f9] px-2.5 py-1 font-medium text-[#394867]">{getBillingInterval(subscription)}</span></td>
-                        <td className="px-4 py-3.5 font-semibold">{formatBRL(Number(subscription.amount ?? 0))}</td>
-                        <td className="px-4 py-3.5 font-medium">{getPlanLabel(subscription.plan)}</td>
-                        <td className="px-4 py-3.5">
-                          <p className="font-medium">{getPaymentMethodLabel(subscription.payment_method)}</p>
-                          {subscription.charge_attempts > 0 ? <p className="mt-1 text-[10px] text-[#92928d]">{subscription.charge_attempts} tentativa{subscription.charge_attempts === 1 ? "" : "s"}</p> : null}
-                        </td>
-                        <td className="px-4 py-3.5" title={`Status registrado: ${subscription.status}`}>
-                          <StatusBadge label={status.label} tone={status.tone} />
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {!isLoading && isError ? (
-              <div className="grid min-h-40 place-items-center px-6 text-center text-[12px] text-[#9b3d3d]">
-                Não foi possível carregar os dados do painel.
-              </div>
-            ) : null}
-            {!isLoading && !isError && activityCount === 0 ? (
-              <div className="grid min-h-40 place-items-center px-6 text-center text-[12px] text-[#777772]">
-                Nenhuma assinatura encontrada neste período.
-              </div>
-            ) : null}
-            {!isLoading && !isError && activityCount > 0 ? (
-              <ActivityPagination
-                page={activityPage}
-                totalPages={activityTotalPages}
-                totalItems={activityCount}
-                pageSize={ACTIVITY_PAGE_SIZE}
-                onPageChange={changeActivityPage}
-              />
-            ) : null}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[940px] border-collapse text-left">
+              <AdminTableHeader>
+                <tr className="border-y text-[10px] font-medium text-[#827a75]">
+                  <th className="px-4 py-2.5">Assinante</th>
+                  <th className="px-3 py-2.5">Cobrança</th>
+                  <th className="px-3 py-2.5">Intervalo</th>
+                  <th className="px-3 py-2.5">Valor</th>
+                  <th className="px-3 py-2.5">Produto</th>
+                  <th className="px-3 py-2.5">Pagamento</th>
+                  <th className="px-4 py-2.5">Status</th>
+                </tr>
+              </AdminTableHeader>
+              <tbody>
+                {isLoading ? <ActivityTableSkeleton /> : usePaymentActivities ? paginatedPaymentActivities.map((activity, index) => {
+                  const status = getSubscriptionStatus(activity.status);
+                  const identity = activity.user_id ? identitiesByUser.get(activity.user_id) : undefined;
+                  const name = identity?.name || activity.payer_name || activity.payer_email || "Assinante não identificado";
+                  const email = identity?.email || activity.payer_email;
+                  return (
+                    <motion.tr
+                      key={"payment:" + activity.id}
+                      className="border-t text-[13px] text-[#303030] transition-colors hover:bg-[#fafafa]"
+                      initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 10) * 0.035 }}
+                    >
+                      <td className="max-w-[210px] px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="admin-avatar">
+                            {name.slice(0, 2).toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-[#1a1a1a]">{name}</p>
+                            {email && email !== name ? <p className="mt-0.5 truncate text-[12px] text-[#8c8f93]">{email}</p> : null}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium text-[#303030]">{formatChargeDay(activity.created_at)}</p>
+                        <p className="mt-0.5 text-[12px] text-[#8c8f93]">{formatDate(activity.created_at)} · {formatTime(activity.created_at)}</p>
+                      </td>
+                      <td className="px-3 py-2.5"><AdminBadge>{activity.interval}</AdminBadge></td>
+                      <td className="admin-number px-3 py-2.5 font-semibold text-[#1c1918]">{activity.amount > 0 ? formatBRL(activity.amount) : "—"}</td>
+                      <td className="px-3 py-2.5 font-medium">{getPlanLabel(activity.plan ?? "")}</td>
+                      <td className="px-3 py-2.5 font-medium">{getPaymentMethodLabel(activity.payment_method)}</td>
+                      <td className="px-4 py-2.5" title={"Status registrado: " + activity.status}><StatusBadge label={status.label} tone={status.tone} /></td>
+                    </motion.tr>
+                  );
+                }) : paginatedSubscriptions.map((subscription, index) => {
+                  const status = getSubscriptionStatus(subscription.status);
+                  const identity = identitiesByUser.get(subscription.user_id);
+                  const eventAt = subscriptionEventAt(subscription);
+                  const chargeAt = subscription.next_charge_at || subscription.current_period_start || eventAt;
+                  const name = identity?.name || identity?.email || "Assinante não identificado";
+                  return (
+                    <motion.tr
+                      key={subscription.id}
+                      className="border-t text-[13px] text-[#303030] transition-colors hover:bg-[#fafafa]"
+                      initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 10) * 0.035 }}
+                    >
+                      <td className="max-w-[210px] px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="admin-avatar">
+                            {name.slice(0, 2).toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-[#1a1a1a]">{name}</p>
+                            {identity?.name && identity.email ? <p className="mt-0.5 truncate text-[12px] text-[#8c8f93]">{identity.email}</p> : null}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium text-[#303030]">{formatChargeDay(chargeAt)}</p>
+                        <p className="mt-0.5 text-[12px] text-[#8c8f93]">{formatDate(eventAt)} · {formatTime(eventAt)}</p>
+                      </td>
+                      <td className="px-3 py-2.5"><AdminBadge>{getBillingInterval(subscription)}</AdminBadge></td>
+                      <td className="admin-number px-3 py-2.5 font-semibold text-[#1c1918]">{formatBRL(Number(subscription.amount ?? 0))}</td>
+                      <td className="px-3 py-2.5 font-medium">{getPlanLabel(subscription.plan)}</td>
+                      <td className="px-3 py-2.5">
+                        <p className="font-medium">{getPaymentMethodLabel(subscription.payment_method)}</p>
+                        {subscription.charge_attempts > 0 ? <p className="mt-0.5 text-[12px] text-[#8c8f93]">{subscription.charge_attempts} tentativa{subscription.charge_attempts === 1 ? "" : "s"}</p> : null}
+                      </td>
+                      <td className="px-4 py-2.5" title={"Status registrado: " + subscription.status}>
+                        <StatusBadge label={status.label} tone={status.tone} />
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+
+          {!isLoading && isError ? (
+            <div className="grid min-h-44 place-items-center border-t border-[#edf0f5] px-6 text-center text-[13px] text-[#d72c0d]">
+              Não foi possível carregar os dados do painel.
+            </div>
+          ) : null}
+          {!isLoading && !isError && activityCount === 0 ? (
+            <div className="grid min-h-44 place-items-center border-t border-[#edf0f5] px-6 text-center">
+              <div>
+                <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-[#eaf0ff] text-[#2563eb]"><Search size={18} /></span>
+                <p className="mt-3 text-[13px] font-medium text-[#5f6368]">Nenhuma atividade encontrada neste período.</p>
+              </div>
+            </div>
+          ) : null}
+          {!isLoading && !isError && activityCount > 0 ? (
+            <ActivityPagination
+              page={activityPage}
+              totalPages={activityTotalPages}
+              totalItems={activityCount}
+              pageSize={ACTIVITY_PAGE_SIZE}
+              onPageChange={changeActivityPage}
+            />
+          ) : null}
         </motion.section>
       </motion.div>
     </AdminShell>
+  );
+};
+
+const DashboardMetricCard = ({
+  title,
+  value,
+  format,
+  description,
+  loading,
+  compact,
+  trend,
+  series,
+  invertTrend = false,
+}: {
+  title: string;
+  value: number | null;
+  format: MetricFormat;
+  description: string;
+  loading: boolean;
+  compact: boolean;
+  trend: number | null;
+  series?: number[];
+  /** Métricas de saída: subir é ruim, e o verde de marca fica reservado à receita. */
+  invertTrend?: boolean;
+}) => (
+  <AdminKPIStat
+    label={title}
+    subtitle={description}
+    compact={compact}
+    series={loading ? undefined : series}
+    value={loading ? (
+      <LoadingShimmer className="h-6 w-32" />
+    ) : (
+      <AnimatedMetricNumber value={value} format={format} className="admin-kpi-value block whitespace-nowrap" />
+    )}
+    delta={!loading && trend !== null ? `${trend >= 0 ? "+" : ""}${formatPercent(trend)}` : null}
+    deltaTone={
+      invertTrend
+        ? trend !== null && trend > 0
+          ? "danger"
+          : "neutral"
+        : trend !== null && trend < 0
+          ? "danger"
+          : "success"
+    }
+  />
+);
+
+/** Lista ranqueada com barra proporcional, no padrão do card de destaques. */
+const RankedCard = ({
+  title,
+  rows,
+  loading,
+}: {
+  title: string;
+  rows: Array<{ label: string; total: number; count: number }>;
+  loading: boolean;
+}) => {
+  const max = Math.max(...rows.map((row) => row.total), 1);
+  return (
+    <AdminCard className="p-4">
+      <p className="admin-kpi-label">
+        <span className="admin-metric-icon"><Globe aria-hidden="true" /></span>
+        <span className="admin-kpi-label-text">{title}</span>
+      </p>
+      {loading ? (
+        <div className="mt-5 space-y-5">
+          {[0, 1, 2].map((index) => (
+            <LoadingShimmer key={index} className="h-9 w-full" delay={index * 0.06} />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="mt-5 text-[13px] text-[#8c8f93]">Nenhum registro no período.</p>
+      ) : (
+        <div className="mt-4 space-y-3.5">
+          {rows.map((row) => (
+            <div key={row.label}>
+              <div className="flex items-center gap-3">
+                <span className="admin-rank-mark" aria-hidden="true">{row.label.slice(0, 2).toUpperCase()}</span>
+                <span className="min-w-0 flex-1 truncate text-[14px] text-[#1a1a1a]">{row.label}</span>
+                <span className="admin-number shrink-0 text-[14px] font-medium text-[#1a1a1a]">{formatBRL(row.total)}</span>
+                <span className="admin-number w-9 shrink-0 text-right text-[13px] text-[#8c8f93]">{row.count}</span>
+              </div>
+              <div className="mt-2">
+                <AdminProgressBar ratio={row.total / max} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </AdminCard>
+  );
+};
+
+const FinanceHistoryCard = ({
+  total,
+  values,
+  labels = [],
+  comparisonValues = [],
+  comparisonLabel,
+  grouping,
+  loading,
+  compact,
+  periodLabel,
+}: {
+  total: number | null;
+  values: number[];
+  labels: string[];
+  comparisonValues?: number[];
+  comparisonLabel?: string;
+  grouping: Grouping;
+  loading: boolean;
+  compact: boolean;
+  periodLabel: string;
+}) => {
+  const reduceMotion = useReducedMotion();
+  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  // o SVG é desenhado em pixels reais: 1 unidade = 1px, senão o viewBox
+  // estica texto e traço junto com a largura do card.
+  const [plotWidth, setPlotWidth] = useState(720);
+
+  useEffect(() => {
+    const node = plotRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const width = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (width > 0) setPlotWidth(width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const chartValues =
+    values.length > 1 ? values : values.length === 1 ? [values[0], values[0]] : [0, 0, 0, 0, 0, 0, 0];
+  const hasComparison = comparisonValues.length === chartValues.length && comparisonValues.some((value) => value > 0);
+  const rawMax = Math.max(...chartValues, ...(hasComparison ? comparisonValues : []), 1);
+  // eixo com marcações "redondas" (1, 2 ou 5 × potência de dez)
+  const niceStep = (raw: number) => {
+    const exponent = Math.floor(Math.log10(raw));
+    const base = 10 ** exponent;
+    const normalized = raw / base;
+    const multiple = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return multiple * base;
+  };
+  const axisStep = niceStep(rawMax / 4);
+  const max = axisStep * 4;
+  const width = plotWidth;
+  const height = compact ? 150 : 196;
+  const plotTop = 10;
+  const plotBottom = height - 10;
+  const plotLeft = 46;
+  const plotRight = width - 4;
+  const pointAt = (value: number, index: number, length: number) => ({
+    x: plotLeft + index * ((plotRight - plotLeft) / Math.max(length - 1, 1)),
+    y: plotBottom - (value / max) * (plotBottom - plotTop),
+    value,
+  });
+  const points = chartValues.map((value, index) => pointAt(value, index, chartValues.length));
+  const linePath = "M " + points.map((point) => `${point.x} ${point.y}`).join(" L ");
+  const comparisonPath = hasComparison
+    ? "M " + comparisonValues
+        .map((value, index) => {
+          const point = pointAt(value, index, comparisonValues.length);
+          return `${point.x} ${point.y}`;
+        })
+        .join(" L ")
+    : "";
+  // o último balde pode estar vazio (hora sem venda); mostramos o último com movimento
+  const latest = [...chartValues].reverse().find((value) => value > 0) ?? 0;
+  const activePoint = activePointIndex === null ? null : points[activePointIndex];
+  const activePrevious = activePointIndex && activePointIndex > 0 ? chartValues[activePointIndex - 1] : 0;
+  const activeVariation = activePoint && activePrevious > 0 ? (activePoint.value - activePrevious) / activePrevious : null;
+  const yTicks = [1, 0.75, 0.5, 0.25, 0];
+  const formatAxisValue = (value: number) => {
+    if (value === 0) return "0";
+    if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
+    if (value >= 1_000) return `${Number((value / 1_000).toFixed(1))}k`;
+    // passos pequenos precisam de decimal, senão o eixo repete o mesmo rótulo
+    const decimals = axisStep >= 10 ? 0 : axisStep >= 1 ? 1 : 2;
+    return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: decimals }).format(value);
+  };
+  /** 0 → 12 AM (meia-noite), 12 → 12 PM, cobrindo as 24 horas do dia. */
+  const formatHourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`;
+
+  const formatAxisLabel = (raw: string) => {
+    if (grouping === "hour") {
+      const hour = Number(raw.slice(-2));
+      return Number.isNaN(hour) ? raw : formatHourLabel(hour);
+    }
+    const parsed = raw ? new Date(`${raw}T12:00:00Z`) : new Date(Number.NaN);
+    if (Number.isNaN(parsed.getTime())) return raw.slice(0, 3);
+    if (grouping === "month") {
+      return new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" }).format(parsed).replace(".", "");
+    }
+    return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })
+      .format(parsed)
+      .replace(" de ", " ")
+      .replace(".", "");
+  };
+  /** O SVG é 1:1, então o x do mouse já é a coordenada do desenho. */
+  const handlePointerMove = (event: ReactMouseEvent<SVGSVGElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const step = (plotRight - plotLeft) / Math.max(points.length - 1, 1);
+    const index = Math.round((x - plotLeft) / step);
+    setActivePointIndex(Math.min(Math.max(index, 0), points.length - 1));
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
+    if (event.key === "Escape") {
+      setActivePointIndex(null);
+      return;
+    }
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    setActivePointIndex((current) => {
+      const base = current ?? points.length - 1;
+      const next = event.key === "ArrowRight" ? base + 1 : base - 1;
+      return Math.min(Math.max(next, 0), points.length - 1);
+    });
+  };
+
+  const axisCount = Math.min(labels.length || chartValues.length, 6);
+  const axisIndexes = Array.from({ length: axisCount }, (_, index) =>
+    Math.round(index * (Math.max((labels.length || chartValues.length) - 1, 0) / Math.max(axisCount - 1, 1))),
+  );
+
+  return (
+    <AdminChartCard className="relative p-4">
+      <p className="admin-kpi-label">
+        <span className="admin-metric-icon"><Globe aria-hidden="true" /></span>
+        <span className="admin-kpi-label-text" title={`Receita confirmada ${periodLabel}`}>Histórico financeiro</span>
+      </p>
+      {loading ? (
+        <LoadingShimmer className="mt-2 h-7 w-36" />
+      ) : (
+        <AnimatedMetricNumber value={total} format="currency" className="admin-kpi-value mt-2 block" />
+      )}
+
+      <div ref={plotRef} className="relative mt-2">
+        {activePoint ? (
+          <motion.div
+            className="admin-chart-tooltip"
+            style={{
+              left: Math.min(Math.max(activePoint.x, 78), Math.max(width - 78, 78)),
+              top: activePoint.y < 92 ? activePoint.y + 14 : activePoint.y - 12,
+              transform: `translate(-50%, ${activePoint.y < 92 ? "0" : "-100%"})`,
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <p className="admin-chart-tooltip-label">{formatAxisLabel(labels[activePointIndex ?? 0] ?? "")}</p>
+            <p className="admin-number mt-1 text-[14px] font-semibold text-[#1a1a1a]">{formatBRL(activePoint.value)}</p>
+            {activeVariation !== null ? (
+              <p className={`mt-0.5 text-[12px] font-medium ${activeVariation >= 0 ? "text-[#22c55e]" : "text-[#d72c0d]"}`}>
+                {activeVariation >= 0 ? "↗" : "↘"} {activeVariation >= 0 ? "+" : ""}{formatPercent(activeVariation)}
+              </p>
+            ) : null}
+          </motion.div>
+        ) : null}
+        {loading ? (
+          <LoadingShimmer className={compact ? "h-[150px] w-full" : "h-[196px] w-full"} />
+        ) : (
+          <svg
+            width={width}
+            height={height}
+            viewBox={`0 0 ${width} ${height}`}
+            className="admin-chart-svg block w-full"
+            role="img"
+            tabIndex={0}
+            aria-label={`Histórico de entradas financeiras. ${
+              activePoint ? `${formatAxisLabel(labels[activePointIndex ?? 0] ?? "")}: ${formatBRL(activePoint.value)}` : "Use as setas para percorrer os pontos."
+            }`}
+            onMouseMove={handlePointerMove}
+            onMouseLeave={() => setActivePointIndex(null)}
+            onBlur={() => setActivePointIndex(null)}
+            onKeyDown={handleKeyDown}
+          >
+            {yTicks.map((ratio) => {
+              const y = plotTop + (plotBottom - plotTop) * ratio;
+              return (
+                <g key={ratio}>
+                  <line x1={plotLeft} x2={plotRight} y1={y} y2={y} stroke="#ececec" strokeWidth="1" shapeRendering="crispEdges" />
+                  <text x={plotLeft - 12} y={y + 4} textAnchor="end" fill="#8c8f93" fontSize="13">
+                    {formatAxisValue(max * (1 - ratio))}
+                  </text>
+                </g>
+              );
+            })}
+            {activePoint ? (
+              <line
+                x1={activePoint.x}
+                x2={activePoint.x}
+                y1={plotTop}
+                y2={plotBottom}
+                stroke="#c9ced6"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+                shapeRendering="crispEdges"
+              />
+            ) : null}
+            {comparisonPath ? (
+              <motion.path
+                d={comparisonPath}
+                fill="none"
+                stroke="#9db8f2"
+                strokeWidth="1.5"
+                strokeDasharray="2 3"
+                strokeLinecap="round"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: reduceMotion ? 0 : 0.6, delay: reduceMotion ? 0 : 0.2 }}
+              />
+            ) : null}
+            <motion.path
+              d={linePath}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: 1 }}
+              transition={{ duration: reduceMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
+            />
+            {activePoint ? (
+              <circle cx={activePoint.x} cy={activePoint.y} r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
+            ) : null}
+          </svg>
+        )}
+        <div
+          className="mt-2 flex items-center justify-between text-[13px] text-[#8c8f93]"
+          style={{ paddingLeft: plotLeft }}
+        >
+          {axisIndexes.map((axisIndex, index) => (
+            <span key={`${axisIndex}-${index}`}>{formatAxisLabel(labels[axisIndex] ?? "")}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-x-5 gap-y-1 text-[13px] text-[#5f6368]">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-[#2563eb]" aria-hidden="true" />
+          Receita confirmada
+        </span>
+        {hasComparison && comparisonLabel ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#9db8f2]" aria-hidden="true" />
+            {comparisonLabel}
+          </span>
+        ) : null}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-[#c9c9c9]" aria-hidden="true" />
+          Último registro · <span className="admin-number font-medium text-[#1a1a1a]">{formatBRL(latest)}</span>
+        </span>
+      </div>
+    </AdminChartCard>
   );
 };
 
@@ -1422,13 +2198,13 @@ const LoadingShimmer = ({ className, delay = 0 }: { className: string; delay?: n
 
 const PanelRefreshIndicator = () => (
   <motion.div
-    className="pointer-events-none absolute inset-x-0 top-0 z-30 h-px overflow-hidden bg-[#ededeb]"
+    className="pointer-events-none absolute inset-x-0 top-0 z-30 h-px overflow-hidden bg-[#f7dce7]"
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     exit={{ opacity: 0 }}
   >
     <motion.span
-      className="block h-full w-[28%] bg-gradient-to-r from-transparent via-[#292927] to-transparent"
+      className="block h-full w-[28%] bg-gradient-to-r from-transparent via-[#2563eb] to-transparent"
       initial={{ x: "-120%" }}
       animate={{ x: "460%" }}
       transition={{ duration: 1.05, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
@@ -1485,13 +2261,13 @@ const ActivityPagination = ({
 
   return (
     <motion.footer
-      className="flex flex-col gap-3 border-t border-[#eeeeec] bg-[#fcfcfb] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 border-t border-[#ececec] bg-[#fdfdfd] px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28 }}
     >
-      <p className="text-[10px] font-medium text-[#878781]">
-        Exibindo <span className="font-semibold text-[#50504b]">{rangeStart}–{rangeEnd}</span> de {totalItems} atividades
+      <p className="text-[12px] font-normal text-[#8c8f93]">
+        Exibindo <span className="font-medium text-[#303030]">{rangeStart}–{rangeEnd}</span> de {totalItems} atividades
       </p>
       <div className="flex items-center gap-1" aria-label="Paginação das atividades">
         <button
@@ -1511,10 +2287,10 @@ const ActivityPagination = ({
             onClick={() => onPageChange(pageNumber)}
             aria-current={pageNumber === page ? "page" : undefined}
             aria-label={`Página ${pageNumber}`}
-            className={`grid h-7 min-w-7 place-items-center rounded-md px-1.5 text-[10px] font-semibold transition ${
+            className={`grid h-7 min-w-7 place-items-center rounded-md px-1.5 text-[10px] font-medium transition ${
               pageNumber === page
-                ? "bg-[#20201e] text-white shadow-[0_1px_2px_rgba(0,0,0,0.16)]"
-                : "text-[#73736d] hover:bg-white hover:text-[#20201e]"
+                ? "bg-[#1a1a1a] text-white"
+                : "text-[#5f6368] hover:bg-white hover:text-[#1a1a1a]"
             }`}
           >
             {pageNumber}
@@ -1537,31 +2313,6 @@ const ActivityPagination = ({
   );
 };
 
-const PeriodFilter = ({
-  value,
-  onChange,
-}: {
-  value: Period;
-  onChange: (value: Period) => void;
-}) => (
-  <motion.label
-    className="relative inline-flex h-8 items-center rounded-md text-[#666661] transition hover:bg-[#f5f5f3]"
-    whileTap={{ scale: 0.97 }}
-  >
-    <span className="sr-only">Selecionar período</span>
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value as Period)}
-      className="h-8 cursor-pointer appearance-none rounded-md bg-transparent py-0 pl-2 pr-7 text-[12px] font-semibold outline-none"
-    >
-      <option value="year">Ano atual</option>
-      <option value="month">Mês atual</option>
-      <option value="day">Hoje</option>
-    </select>
-    <ChevronDown size={12} className="pointer-events-none absolute right-2" />
-  </motion.label>
-);
-
 const StatusBadge = ({
   label,
   tone,
@@ -1569,23 +2320,7 @@ const StatusBadge = ({
   label: string;
   tone: "success" | "danger" | "warning" | "neutral";
 }) => {
-  const toneClass = {
-    success: "bg-[#f0faeb] text-[#65a64b]",
-    danger: "bg-[#fff0f1] text-[#d9757c]",
-    warning: "bg-[#fff7df] text-[#b47a18]",
-    neutral: "bg-[#f2f2f0] text-[#777772]",
-  }[tone];
-
-  return (
-    <motion.span
-      className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${toneClass}`}
-      initial={{ opacity: 0, scale: 0.88 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {label}
-    </motion.span>
-  );
+  return <AdminBadge tone={tone}>{label}</AdminBadge>;
 };
 
 export default AdminPainelPage;

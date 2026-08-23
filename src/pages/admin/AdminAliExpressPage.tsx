@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Loader2, Link2, Power } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -26,6 +27,20 @@ type SyncLog = {
   products_dropped_from_top: number;
   error_count: number;
   error_message: string | null;
+};
+
+type AliExpressConnectResponse = {
+  authUrl?: string;
+  auth_url?: string;
+  url?: string;
+};
+
+type AliExpressProfileConnection = {
+  aliexpress_access_token?: string | null;
+};
+
+type CronStatusRow = {
+  active?: boolean | null;
 };
 
 const fmtDate = (iso: string | null) =>
@@ -55,12 +70,14 @@ export default function AdminAliExpressPage() {
       user?.id
         ? supabase.from("profiles").select("aliexpress_access_token").eq("user_id", user.id).maybeSingle()
         : Promise.resolve({ data: null }),
-      (supabase.rpc as any)("get_aliexpress_cron_status"),
+      supabase.rpc("get_aliexpress_cron_status" as never),
     ]);
     if (m.data) setMappings(m.data as Mapping[]);
     if (l.data) setLogs(l.data as SyncLog[]);
-    setIsConnected(Boolean((p as any)?.data?.aliexpress_access_token));
-    const row = Array.isArray((c as any)?.data) ? (c as any).data[0] : null;
+    const profileConnection = p.data as AliExpressProfileConnection | null;
+    const cronRows = c.data as unknown;
+    setIsConnected(Boolean(profileConnection?.aliexpress_access_token));
+    const row = Array.isArray(cronRows) ? cronRows[0] as CronStatusRow | undefined : null;
     setCronActive(row ? Boolean(row.active) : null);
     setLoading(false);
   };
@@ -75,7 +92,8 @@ export default function AdminAliExpressPage() {
     try {
       const { data, error } = await supabase.functions.invoke("aliexpress-connect");
       if (error) throw error;
-      const authUrl = (data as any)?.authUrl || (data as any)?.auth_url || (data as any)?.url;
+      const connection = data as AliExpressConnectResponse | null;
+      const authUrl = connection?.authUrl || connection?.auth_url || connection?.url;
       if (!authUrl) throw new Error("URL de autorização não retornada");
       window.location.href = authUrl;
     } catch (err) {
@@ -144,7 +162,7 @@ export default function AdminAliExpressPage() {
     if (!confirm(next ? "Reativar o cron do AliExpress (executa a cada 6h)?" : "Desligar o cron do AliExpress? Nenhuma sincronização automática vai rodar até você reativar.")) return;
     setTogglingCron(true);
     try {
-      const { error } = await (supabase.rpc as any)("set_aliexpress_cron_active", { p_active: next });
+      const { error } = await supabase.rpc("set_aliexpress_cron_active" as never, { p_active: next } as never);
       if (error) throw error;
       setCronActive(next);
       veloToast.success(next ? "Cron reativado" : "Cron desligado");
@@ -167,7 +185,7 @@ export default function AdminAliExpressPage() {
             <button
               onClick={connectAliExpress}
               disabled={connecting}
-              className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600 disabled:opacity-60"
+              className="admin-pill inline-flex items-center disabled:opacity-60"
             >
               {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
               {connecting ? "Conectando..." : "Conectar AliExpress"}
@@ -178,8 +196,8 @@ export default function AdminAliExpressPage() {
             disabled={togglingCron || cronActive === null}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${
               cronActive
-                ? "bg-red-500/15 text-red-300 hover:bg-red-500/25"
-                : "bg-green-500/15 text-green-300 hover:bg-green-500/25"
+                ? "bg-[#fcecee] text-[#c85c6d] hover:bg-[#f8dce1]"
+                : "bg-[#eaf8f0] text-[#1c9a61] hover:bg-[#dcf3e6]"
             }`}
             title={cronActive ? "Desligar sincronização automática (6h)" : "Reativar sincronização automática (6h)"}
           >
@@ -189,7 +207,7 @@ export default function AdminAliExpressPage() {
           <button
             onClick={syncNow}
             disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+            className="admin-control inline-flex h-8 items-center gap-1.5 px-3 text-[12px] font-semibold disabled:opacity-60"
           >
             {syncing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             {syncing ? "Sincronizando..." : "Sincronizar agora"}
@@ -212,41 +230,41 @@ export default function AdminAliExpressPage() {
         </section>
 
         {/* Mapeamentos */}
-        <section className="rounded-xl border border-white/10 bg-[#161617] p-5">
-          <h2 className="text-lg font-bold text-white">Mapeamento de categorias</h2>
-          <p className="mt-1 text-xs text-white/60">Vincule cada categoria da Velo a uma categoria da AliExpress.</p>
+        <section className="admin-card p-4">
+          <h2 className="text-lg font-semibold text-[#1c1918]">Mapeamento de categorias</h2>
+          <p className="mt-1 text-xs text-[#827a75]">Vincule cada categoria da Velo a uma categoria da AliExpress.</p>
 
           <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
             <input
               placeholder="Categoria Velo (ex: eletronicos)"
               value={form.velo_category}
               onChange={(e) => setForm({ ...form, velo_category: e.target.value })}
-              className="rounded-lg border border-white/10 bg-[#161617] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+              className="admin-control h-8 px-2.5 text-[12px] outline-none placeholder:text-[#aaa19b]"
             />
             <input
               placeholder="AliExpress category_id"
               value={form.aliexpress_category_id}
               onChange={(e) => setForm({ ...form, aliexpress_category_id: e.target.value })}
-              className="rounded-lg border border-white/10 bg-[#161617] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+              className="admin-control h-8 px-2.5 text-[12px] outline-none placeholder:text-[#aaa19b]"
             />
             <input
               placeholder="Nome (opcional)"
               value={form.aliexpress_category_name}
               onChange={(e) => setForm({ ...form, aliexpress_category_name: e.target.value })}
-              className="rounded-lg border border-white/10 bg-[#161617] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-white/30 focus:outline-none"
+              className="admin-control h-8 px-2.5 text-[12px] outline-none placeholder:text-[#aaa19b]"
             />
             <button
               onClick={addMapping}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:opacity-90"
+              className="admin-btn-primary inline-flex items-center justify-center"
             >
               <Plus size={16} />
               Adicionar
             </button>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-lg border border-white/10">
+          <div className="mt-4 overflow-hidden rounded-[10px] border">
             <table className="w-full text-left text-sm">
-              <thead className="bg-white/5 text-xs uppercase tracking-wider text-white/60">
+              <thead className="text-xs uppercase tracking-wider text-[#827a75]">
                 <tr>
                   <th className="px-3 py-2">Velo</th>
                   <th className="px-3 py-2">AliExpress ID</th>
@@ -255,30 +273,30 @@ export default function AdminAliExpressPage() {
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
-              <tbody className="text-white">
+              <tbody className="text-[#1c1918]">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-white/50">
+                    <td colSpan={5} className="px-3 py-6 text-center text-[#aaa19b]">
                       Carregando...
                     </td>
                   </tr>
                 ) : mappings.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-6 text-center text-white/50">
+                    <td colSpan={5} className="px-3 py-6 text-center text-[#aaa19b]">
                       Nenhum mapeamento cadastrado.
                     </td>
                   </tr>
                 ) : (
                   mappings.map((m) => (
-                    <tr key={m.id} className="border-t border-white/10">
+                    <tr key={m.id} className="border-t">
                       <td className="px-3 py-2 font-medium">{m.velo_category}</td>
-                      <td className="px-3 py-2 font-mono text-xs text-white/80">{m.aliexpress_category_id}</td>
-                      <td className="px-3 py-2 text-white/70">{m.aliexpress_category_name || "—"}</td>
+                      <td className="px-3 py-2 font-mono text-xs text-[#494340]">{m.aliexpress_category_id}</td>
+                      <td className="px-3 py-2 text-[#827a75]">{m.aliexpress_category_name || "—"}</td>
                       <td className="px-3 py-2">
                         <button
                           onClick={() => toggleActive(m)}
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            m.active ? "bg-green-500/15 text-green-300" : "bg-white/10 text-white/60"
+                            m.active ? "bg-[#eaf8f0] text-[#1c9a61]" : "bg-[#f3eee8] text-[#827a75]"
                           }`}
                         >
                           {m.active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
@@ -288,7 +306,7 @@ export default function AdminAliExpressPage() {
                       <td className="px-3 py-2 text-right">
                         <button
                           onClick={() => removeMapping(m.id)}
-                          className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white"
+                          className="rounded-lg p-1.5 text-[#aaa19b] hover:bg-[#fcecee] hover:text-[#c85c6d]"
                           aria-label="Remover"
                         >
                           <Trash2 size={14} />
@@ -303,11 +321,11 @@ export default function AdminAliExpressPage() {
         </section>
 
         {/* Histórico */}
-        <section className="rounded-xl border border-white/10 bg-[#161617] p-5">
-          <h2 className="text-lg font-bold text-white">Últimas execuções</h2>
-          <div className="mt-4 overflow-hidden rounded-lg border border-white/10">
+        <section className="admin-card p-4">
+          <h2 className="text-lg font-semibold text-[#1c1918]">Últimas execuções</h2>
+          <div className="mt-3 overflow-hidden rounded-[10px] border">
             <table className="w-full text-left text-sm">
-              <thead className="bg-white/5 text-xs uppercase tracking-wider text-white/60">
+              <thead className="text-xs uppercase tracking-wider text-[#827a75]">
                 <tr>
                   <th className="px-3 py-2">Início</th>
                   <th className="px-3 py-2">Trigger</th>
@@ -319,36 +337,36 @@ export default function AdminAliExpressPage() {
                   <th className="px-3 py-2">Erros</th>
                 </tr>
               </thead>
-              <tbody className="text-white">
+              <tbody className="text-[#1c1918]">
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-white/50">
+                    <td colSpan={8} className="px-3 py-6 text-center text-[#aaa19b]">
                       Sem execuções ainda.
                     </td>
                   </tr>
                 ) : (
                   logs.map((l) => (
-                    <tr key={l.id} className="border-t border-white/10">
-                      <td className="px-3 py-2 text-white/80">{fmtDate(l.started_at)}</td>
-                      <td className="px-3 py-2 text-white/70">{l.triggered_by}</td>
+                    <tr key={l.id} className="border-t">
+                      <td className="px-3 py-2 text-[#494340]">{fmtDate(l.started_at)}</td>
+                      <td className="px-3 py-2 text-[#827a75]">{l.triggered_by}</td>
                       <td className="px-3 py-2">
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                             l.status === "success"
-                              ? "bg-green-500/15 text-green-300"
+                              ? "bg-[#eaf8f0] text-[#1c9a61]"
                               : l.status === "failed"
-                                ? "bg-red-500/20 text-red-300"
-                                : "bg-white/10 text-white/60"
+                                ? "bg-[#fcecee] text-[#c85c6d]"
+                                : "bg-[#fff4df] text-[#b87725]"
                           }`}
                         >
                           {l.status}
                         </span>
                       </td>
                       <td className="px-3 py-2">{l.categories_processed}</td>
-                      <td className="px-3 py-2 text-green-300">{l.products_new}</td>
+                      <td className="px-3 py-2 text-[#1c9a61]">{l.products_new}</td>
                       <td className="px-3 py-2">{l.products_updated}</td>
-                      <td className="px-3 py-2 text-white/70">{l.products_dropped_from_top}</td>
-                      <td className="px-3 py-2 text-red-300" title={l.error_message ?? ""}>
+                      <td className="px-3 py-2 text-[#827a75]">{l.products_dropped_from_top}</td>
+                      <td className="px-3 py-2 text-[#c85c6d]" title={l.error_message ?? ""}>
                         {l.error_count}
                       </td>
                     </tr>
@@ -358,7 +376,7 @@ export default function AdminAliExpressPage() {
             </table>
           </div>
           {lastLog?.error_message ? (
-            <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+            <p className="mt-3 rounded-[12px] border border-[#f2cbd2] bg-[#fcecee] p-3 text-xs text-[#c85c6d]">
               <strong>Erros na última rodada:</strong> {lastLog.error_message}
             </p>
           ) : null}
@@ -371,22 +389,12 @@ export default function AdminAliExpressPage() {
 const StatusCard = ({
   label,
   value,
-  tone = "neutral",
 }: {
   label: string;
   value: string;
   tone?: "ok" | "err" | "neutral";
 }) => {
-  const toneCls =
-    tone === "ok"
-      ? "text-green-300"
-      : tone === "err"
-        ? "text-red-300"
-        : "text-white";
   return (
-    <div className="rounded-xl border border-white/10 bg-[#161617] p-4">
-      <p className="text-xs uppercase tracking-wider text-white/50">{label}</p>
-      <p className={`mt-2 text-lg font-bold ${toneCls}`}>{value}</p>
-    </div>
+    <AdminKPIStat label={label} value={<span className="admin-kpi-value">{value}</span>} />
   );
 };
