@@ -17,6 +17,7 @@ import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import { getAdminPanelStyle, setAdminPanelStyle, type AdminPanelStyle } from "@/lib/adminPanelStyle";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
 import {
@@ -28,7 +29,14 @@ import {
   type NotificationPreferences,
 } from "@/lib/notifications";
 
-type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
+type TabId =
+  | "Perfil"
+  | "Minhas Lojas"
+  | "Integrações"
+  | "Plano"
+  | "Notificações"
+  | "Segurança"
+  | "Suporte";
 
 const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Perfil", icon: User },
@@ -40,13 +48,16 @@ const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Suporte", icon: MessageCircle, separatorBefore: true },
 ];
 
+const isTabId = (value: string | null): value is TabId => NAV.some((item) => item.id === value);
+
 const SettingsPage = () => {
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TabId) || "Perfil";
+  const tabParam = searchParams.get("tab");
+  const initialTab: TabId = isTabId(tabParam) ? tabParam : "Perfil";
   const [tab, setTab] = useState<TabId>(initialTab);
   useEffect(() => {
-    const t = searchParams.get("tab") as TabId | null;
-    if (t && t !== tab) setTab(t);
+    const t = searchParams.get("tab");
+    if (isTabId(t) && t !== tab) setTab(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
@@ -217,10 +228,48 @@ const PlanSeal = () => {
   );
 };
 
+const AdminPanelStyleField = () => {
+  const [selectedStyle, setSelectedStyle] = useState<AdminPanelStyle>(() => getAdminPanelStyle());
+  const options: Array<{ label: "Old" | "Atual"; value: AdminPanelStyle }> = [
+    { label: "Old", value: "old" },
+    { label: "Atual", value: "current" },
+  ];
+
+  const handleStyleChange = (style: AdminPanelStyle) => {
+    setSelectedStyle(style);
+    setAdminPanelStyle(style);
+  };
+
+  return (
+    <FieldRow label="Estilo de painel admin" desc="Controle reservado para administradores." fieldLabel="Versão">
+      <div className="grid h-[38px] grid-cols-2 gap-1 rounded-[9px] border border-[#E6E6E6] bg-[#F7F7F7] p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/15 dark:bg-white/5">
+        {options.map((option) => {
+          const active = selectedStyle === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => handleStyleChange(option.value)}
+              className={`rounded-[6px] text-[12.5px] font-medium transition ${
+                active
+                  ? "bg-white text-[#111113] shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:bg-white dark:text-black"
+                  : "text-[#8A8A8A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </FieldRow>
+  );
+};
+
 /* ══ Profile ════════════════════════════════════════════ */
 const ProfileTab = () => {
   const { nome, foto, setNome, setFoto } = useProfile();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [nomeEditado, setNomeEditado] = useState(nome);
   const [telefone, setTelefone] = useState("");
   const [telefoneOriginal, setTelefoneOriginal] = useState("");
@@ -322,6 +371,11 @@ const ProfileTab = () => {
   // Fallback de iniciais quando não há foto (evita imagem padrão externa quebrada).
   const iniciais = (nome || user?.email || "U")
     .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined) ??
+    null;
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
 
   return (
     <div data-dashboard-tour="configuracoes-perfil">
@@ -403,6 +457,13 @@ const ProfileTab = () => {
       </FieldRow>
 
       <div className={rowDivider} />
+
+      {isAdmin && (
+        <>
+          <AdminPanelStyleField />
+          <div className={rowDivider} />
+        </>
+      )}
 
       {/* Ações */}
       <div className="mt-6 flex items-center justify-end gap-2.5">

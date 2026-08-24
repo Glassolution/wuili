@@ -88,12 +88,12 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
-const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
-const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersRoutePage"));
+const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsRoutePage"));
 const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
-const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
-const AdminBlankPage = lazy(() => import("./pages/admin/AdminBlankPage"));
-const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesPage"));
+const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsRoutePage"));
+const AdminPanelPage = lazy(() => import("./pages/admin/AdminPanelPage"));
+const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesRoutePage"));
 const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
@@ -268,7 +268,7 @@ const App = () => (
               <Route path="/minha-loja/fluxo" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
-              <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
+              <Route path="/admin/painel" element={<AdminRoute><AdminPanelPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/product-analytics" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/reporting" element={<Navigate to="/admin/painel" replace />} />

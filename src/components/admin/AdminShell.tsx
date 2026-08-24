@@ -12,7 +12,9 @@ import {
   UsersRound,
 } from "lucide-react";
 import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
+import { OldAdminShell } from "@/components/admin/OldAdminShell";
 import SearchPalette from "@/components/dashboard/SearchPalette";
+import { getAdminPanelStyle } from "@/lib/adminPanelStyle";
 import "@/styles/admin-theme.css";
 
 type AdminSection =
@@ -91,11 +93,20 @@ const PageHeader = ({
 
 export const AdminShell = ({ children, active, fullBleed = false, title, subtitle, actions }: AdminShellProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [panelStyle] = useState(() => getAdminPanelStyle());
 
   useLayoutEffect(() => {
     document.documentElement.classList.add("velo-admin-surface");
     return () => document.documentElement.classList.remove("velo-admin-surface");
   }, []);
+
+  if (panelStyle === "old") {
+    return (
+      <OldAdminShell active={active} userId="admin" fullBleed={fullBleed} title={title} subtitle={subtitle} actions={actions}>
+        {children}
+      </OldAdminShell>
+    );
+  }
 
   return (
     <div className="velo-admin-root h-screen overflow-hidden">
