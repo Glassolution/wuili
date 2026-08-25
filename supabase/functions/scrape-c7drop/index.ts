@@ -184,7 +184,7 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
   // ML exige no mínimo 3 fotos: produto com galeria incompleta fica bloqueado.
   // Celulares/smartphones (MLB1055) não publicam no ML sem homologação Anatel.
   const blockedFlag =
-    isBlocked(title) || !hasEnoughImages(images) || isCellphoneProduct(title, detail.categoryName ?? null);
+    isBlocked(title) || !hasEnoughImages(images) || isCellphoneProduct(title, pickCategoryName(detail));
   // A C7 usa `manageStock: false` para itens sem controle de estoque (sempre
   // disponíveis) — nesses casos `stock` vem 0/-1 e não significa esgotado.
   const manageStock = detail.manageStock ?? listItem?.manageStock ?? true;
