@@ -28,6 +28,7 @@ import {
   inferCategory,
   isBlocked,
   isFakeAdProduct,
+  isCellphoneProduct,
   hasEnoughImages,
 } from "../_shared/catalog-filters.ts";
 
@@ -181,7 +182,9 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
   const images = normalizeImages(detail, listItem?.image ?? null);
   const price = extractDropshippingPrice(detail);
   // ML exige no mínimo 3 fotos: produto com galeria incompleta fica bloqueado.
-  const blockedFlag = isBlocked(title) || !hasEnoughImages(images);
+  // Celulares/smartphones (MLB1055) não publicam no ML sem homologação Anatel.
+  const blockedFlag =
+    isBlocked(title) || !hasEnoughImages(images) || isCellphoneProduct(title, pickCategoryName(detail));
   // A C7 usa `manageStock: false` para itens sem controle de estoque (sempre
   // disponíveis) — nesses casos `stock` vem 0/-1 e não significa esgotado.
   const manageStock = detail.manageStock ?? listItem?.manageStock ?? true;

@@ -3,7 +3,7 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-b2drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { hasEnoughImages } from "../_shared/catalog-filters.ts";
+import { hasEnoughImages, isCellphoneProduct } from "../_shared/catalog-filters.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,7 +144,9 @@ Deno.serve(async (req) => {
     const rows = scraped.map((p) => {
       const images = [p.image_url].filter(Boolean);
       // ML exige no mínimo 3 fotos.
-      const blockedFlag = isBlocked(p.title) || !hasEnoughImages(images);
+      // Celulares/smartphones (MLB1055) não publicam no ML sem homologação Anatel.
+      const blockedFlag =
+        isBlocked(p.title) || !hasEnoughImages(images) || isCellphoneProduct(p.title, inferCategory(p.title));
       if (blockedFlag) blocked++;
       return {
         source: SOURCE,
