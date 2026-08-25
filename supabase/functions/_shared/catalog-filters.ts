@@ -32,6 +32,108 @@ export function isFakeAdProduct(title: string, productUrl?: string | null): bool
   return false;
 }
 
+// ============================================================================
+// CELULARES / SMARTPHONES (domínio MLB-CELLPHONES / categoria MLB1055)
+// ----------------------------------------------------------------------------
+// O Mercado Livre exige, para essa categoria, número de homologação da Anatel,
+// GTIN, modelo, cor, operadora e dual SIM — atributos que o fluxo automático da
+// Velo não tem como preencher. Publicar sempre falha, então o aparelho não pode
+// nem aparecer no catálogo (mesma política dos produtos com menos de 3 fotos).
+// Acessórios (capa, película, carregador, fone, suporte…) continuam liberados.
+// ============================================================================
+
+const CELLPHONE_KEYWORDS: string[] = [
+  "smartphone",
+  "smart phone",
+  "celular",
+  "aparelho telefonico",
+  "telefone celular",
+  "iphone",
+  "galaxy a",
+  "galaxy s",
+  "galaxy m",
+  "galaxy z",
+  "redmi note",
+  "redmi 1",
+  "redmi a",
+  "poco x",
+  "poco m",
+  "poco f",
+  "poco c",
+  "moto g",
+  "moto e",
+  "moto edge",
+  "realme c",
+  "realme note",
+  "infinix",
+  "tecno spark",
+  "xiaomi 1",
+  "note 13",
+  "note 14",
+];
+
+// Palavras que indicam ACESSÓRIO de celular — não são o aparelho em si.
+const CELLPHONE_ACCESSORY_KEYWORDS: string[] = [
+  "capa",
+  "capinha",
+  "case",
+  "pelicula",
+  "protetor",
+  "suporte",
+  "carregador",
+  "cabo",
+  "fone",
+  "headset",
+  "earbud",
+  "power bank",
+  "bateria",
+  "adaptador",
+  "chip",
+  "cartao",
+  "caneta",
+  "teclado",
+  "tripe",
+  "ring light",
+  "lente",
+  "porta celular",
+  "bolsa",
+  "pochete",
+  "smartwatch",
+  "relogio",
+  "estabilizador",
+  "gimbal",
+  "kit",
+  "pop socket",
+  "popsocket",
+  "anel",
+  "espelho",
+];
+
+const CELLPHONE_CATEGORIES = new Set([
+  "celulares e smartphones",
+  "celulares",
+  "smartphones",
+  "celulares e telefones",
+]);
+
+/**
+ * Detecta se o produto é um aparelho celular/smartphone (MLB1055).
+ * Acessórios são explicitamente liberados.
+ */
+export function isCellphoneProduct(
+  title: string,
+  category?: string | null,
+): boolean {
+  const t = stripAccents(String(title ?? "")).toLowerCase();
+  const c = stripAccents(String(category ?? "")).toLowerCase().trim();
+
+  const accessory = CELLPHONE_ACCESSORY_KEYWORDS.some((k) => t.includes(k));
+  if (accessory) return false;
+
+  if (CELLPHONE_CATEGORIES.has(c)) return true;
+  return CELLPHONE_KEYWORDS.some((k) => t.includes(k));
+}
+
 // Decodifica entidades HTML comuns (&#8211;, &amp;, &quot;, &#215;, etc.)
 // que vêm cruas da WooCommerce Store API.
 const NAMED_ENTITIES: Record<string, string> = {
