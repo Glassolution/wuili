@@ -300,19 +300,19 @@ const MobileAccountPage = ({
 
   return (
   <section className="-mx-4 -mt-4 min-h-screen bg-white pb-8">
-    <div className="bg-[#111111] px-5 pb-6 pt-6 text-white">
+    <div className="bg-[#2563EB] px-5 pb-6 pt-6 text-white">
       <div className="mb-6">
         <span className="text-[24px] font-bold tracking-[-0.04em]">Velo</span>
       </div>
       <Link to="/dashboard/configuracoes" className="flex min-w-0 items-center gap-4">
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/80 bg-white text-[18px] font-bold text-[#111111] shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/80 bg-white text-[18px] font-bold text-[#2563EB] shadow-[0_8px_24px_rgba(30,58,138,0.24)]">
           {foto ? <img src={foto} alt="Avatar" className="h-full w-full object-cover" /> : initials}
         </span>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <p className="truncate text-[21px] font-bold tracking-[-0.03em]">{displayName}</p>
             {!planLoading && (
-              <span className="shrink-0 rounded-full border border-white/20 bg-white/12 px-2 py-1 text-[9px] font-black uppercase leading-none text-white/85">
+              <span className="shrink-0 rounded-full border border-white/30 bg-white/15 px-2 py-1 text-[9px] font-black uppercase leading-none text-white">
                 {planLabel}
               </span>
             )}
@@ -320,7 +320,7 @@ const MobileAccountPage = ({
           <p className="mt-0.5 truncate text-[13px] font-medium text-white/75">Meu perfil ›</p>
         </div>
       </Link>
-      <div className="mt-6 flex h-14 items-center rounded-2xl bg-white px-4 text-[#111111] shadow-[0_10px_25px_rgba(0,0,0,0.10)]">
+      <div className="mt-6 flex h-14 items-center rounded-2xl bg-white px-4 text-[#1E3A8A] shadow-[0_10px_25px_rgba(30,58,138,0.18)]">
         <div>
           <p className="text-[13px] font-bold">Sua conta Velo</p>
           <p className="text-[11px] text-black/50">Seu plano e sua loja, do seu jeito.</p>

@@ -7,6 +7,7 @@ import {
   Activity,
   AlertTriangle,
   Archive,
+  ArrowLeft,
   Bug,
   CalendarDays,
   CheckCircle2,
@@ -55,6 +56,7 @@ type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso
 type TicketView = "all" | "new" | "in_progress";
 type TicketStatusFilter = "all" | "open" | "closed";
 type TicketDateFilter = "all" | "today" | "7d" | "30d";
+type MobileSupportPanel = "inbox" | "conversation" | "customer";
 
 type AdminTicket = {
   id: string;
@@ -316,6 +318,7 @@ const AdminSupportPage = () => {
   const [view, setView] = useState<TicketView>("all");
   const [statusFilter, setStatusFilter] = useState<TicketStatusFilter>("open");
   const [dateFilter, setDateFilter] = useState<TicketDateFilter>("all");
+  const [mobilePanel, setMobilePanel] = useState<MobileSupportPanel>("inbox");
   const [directRefundTarget, setDirectRefundTarget] = useState<DirectRefundTarget | null>(null);
   const [readTickets, setReadTickets] = useState<TicketReadState>(getStoredReadTickets);
 
@@ -506,6 +509,12 @@ const AdminSupportPage = () => {
       setOpenTicketId(visibleTickets[0].id);
     }
   }, [openTicketId, visibleTickets]);
+
+  useEffect(() => {
+    if (!openTicketId && mobilePanel !== "inbox") {
+      setMobilePanel("inbox");
+    }
+  }, [mobilePanel, openTicketId]);
 
   const openTicket = useMemo(
     () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
@@ -839,13 +848,22 @@ const AdminSupportPage = () => {
   return (
     <AdminShell active="support" userId={user.id} fullBleed>
       <>
-        <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] overflow-hidden bg-[#f7f7f5]">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f7f7f5] lg:grid lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+          <MobileSupportTabs
+            active={mobilePanel}
+            hasTicket={!!openTicket}
+            openTickets={tickets.filter((ticket) => ticket.status === "open").length}
+            onChange={setMobilePanel}
+          />
           <TicketInbox
             tickets={visibleTickets}
             allTickets={tickets}
             loading={loadingTickets}
             selectedId={openTicketId}
-            onSelect={setOpenTicketId}
+            onSelect={(id) => {
+              setOpenTicketId(id);
+              setMobilePanel("conversation");
+            }}
             search={search}
             onSearch={setSearch}
             view={view}
@@ -855,6 +873,7 @@ const AdminSupportPage = () => {
             dateFilter={dateFilter}
             onDateFilter={setDateFilter}
             readTickets={readTickets}
+            className={mobilePanel === "inbox" ? "flex" : "hidden lg:flex"}
           />
 
           <ConversationPanel
@@ -883,6 +902,8 @@ const AdminSupportPage = () => {
             onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
             messageActionPending={editMessage.isPending || deleteMessage.isPending}
             chatEndRef={chatEndRef}
+            onShowCustomerMobile={() => setMobilePanel("customer")}
+            className={mobilePanel === "conversation" ? "flex" : "hidden lg:flex"}
           />
 
           <CustomerContextPanel
@@ -892,6 +913,8 @@ const AdminSupportPage = () => {
             refunding={directRefund.isPending}
             previousTicketCount={previousTicketCount}
             onDirectRefund={(ticket, customer) => setDirectRefundTarget({ ticket, customer })}
+            onBackMobile={() => setMobilePanel("conversation")}
+            className={mobilePanel === "customer" ? "flex" : "hidden lg:flex"}
           />
         </div>
 
@@ -943,6 +966,52 @@ const AdminSupportPage = () => {
   );
 };
 
+const MobileSupportTabs = ({
+  active,
+  hasTicket,
+  openTickets,
+  onChange,
+}: {
+  active: MobileSupportPanel;
+  hasTicket: boolean;
+  openTickets: number;
+  onChange: (panel: MobileSupportPanel) => void;
+}) => {
+  const items: Array<{ value: MobileSupportPanel; label: string; count?: number; disabled?: boolean }> = [
+    { value: "inbox", label: "Fila", count: openTickets },
+    { value: "conversation", label: "Conversa", disabled: !hasTicket },
+    { value: "customer", label: "Cliente", disabled: !hasTicket },
+  ];
+
+  return (
+    <div className="shrink-0 border-b border-[#e1e1dd] bg-[#f7f7f5] px-3 py-2 lg:hidden">
+      <div className="grid grid-cols-3 gap-1 rounded-[12px] border border-[#deded9] bg-white p-1 shadow-[0_1px_2px_rgba(20,20,16,0.035)]">
+        {items.map((item) => {
+          const selected = active === item.value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => onChange(item.value)}
+              disabled={item.disabled}
+              className={`flex h-9 min-w-0 items-center justify-center gap-1 rounded-[9px] px-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                selected ? "bg-[#20201e] text-white" : "text-[#686862] hover:bg-[#f1f1ee] hover:text-[#20201e]"
+              }`}
+            >
+              <span className="truncate">{item.label}</span>
+              {item.count && item.count > 0 ? (
+                <span className={`rounded-full px-1.5 text-[9px] ${selected ? "bg-white/18 text-white" : "bg-[#ecece8] text-[#5d5d57]"}`}>
+                  {item.count > 99 ? "99+" : item.count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const TicketInbox = ({
   tickets,
   allTickets,
@@ -958,6 +1027,7 @@ const TicketInbox = ({
   dateFilter,
   onDateFilter,
   readTickets,
+  className = "flex",
 }: {
   tickets: AdminTicket[];
   allTickets: AdminTicket[];
@@ -973,9 +1043,10 @@ const TicketInbox = ({
   dateFilter: TicketDateFilter;
   onDateFilter: (value: TicketDateFilter) => void;
   readTickets: TicketReadState;
+  className?: string;
 }) => (
-  <aside className="flex min-h-0 flex-col border-r border-[#e4e4e0] bg-[#fafaf9]">
-    <div className="border-b border-[#e7e7e3] px-4 pb-3 pt-4">
+  <aside className={`${className} min-h-0 flex-1 flex-col border-r border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
+    <div className="border-b border-[#e7e7e3] px-3 pb-3 pt-3 sm:px-4 sm:pt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[#deded9] bg-white text-[#333330] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -1042,7 +1113,7 @@ const TicketInbox = ({
       </div>
     </div>
 
-    <div className="flex items-center justify-between border-b border-[#e8e8e4] px-4 py-2.5">
+    <div className="flex items-center justify-between border-b border-[#e8e8e4] px-3 py-2.5 sm:px-4">
       <span className="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-[#999993]">Conversas</span>
       <span className="flex items-center gap-1 text-[10px] text-[#8b8b85]">
         Recentes <ChevronDown size={11} />
@@ -1080,6 +1151,8 @@ const CustomerContextPanel = ({
   refunding,
   previousTicketCount,
   onDirectRefund,
+  onBackMobile,
+  className = "flex",
 }: {
   ticket: AdminTicket | null;
   customer: CustomerContextData | null;
@@ -1087,10 +1160,12 @@ const CustomerContextPanel = ({
   refunding: boolean;
   previousTicketCount: number;
   onDirectRefund: (ticket: AdminTicket, customer: CustomerContextData) => void;
+  onBackMobile: () => void;
+  className?: string;
 }) => {
   if (!ticket) {
     return (
-      <aside className="flex min-h-0 items-center justify-center border-l border-[#e4e4e0] bg-[#fafaf9] px-8 text-center">
+      <aside className={`${className} min-h-0 flex-1 items-center justify-center border-l border-[#e4e4e0] bg-[#fafaf9] px-8 text-center lg:flex-none`}>
         <div>
           <UserCircle2 size={24} strokeWidth={1.4} className="mx-auto text-[#afafa9]" />
           <p className="mt-3 text-[11px] leading-5 text-[#8d8d87]">Selecione um atendimento para visualizar os dados do cliente.</p>
@@ -1116,9 +1191,17 @@ const CustomerContextPanel = ({
   );
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-y-auto border-l border-[#e4e4e0] bg-[#fafaf9]">
-      <div className="border-b border-[#e6e6e2] bg-white px-5 py-5">
-        <div className="flex items-center gap-3">
+    <aside className={`${className} min-h-0 flex-1 flex-col overflow-y-auto border-l border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
+      <div className="border-b border-[#e6e6e2] bg-white px-4 py-4 sm:px-5 sm:py-5">
+        <button
+          type="button"
+          onClick={onBackMobile}
+          className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#deded9] bg-white px-2.5 text-[10.5px] font-semibold text-[#5f5f59] shadow-[0_1px_2px_rgba(0,0,0,0.03)] lg:hidden"
+        >
+          <ArrowLeft size={13} />
+          Conversa
+        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Avatar name={data.name} email={data.email} image={data.avatar_url} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[#252522]">
@@ -1130,7 +1213,7 @@ const CustomerContextPanel = ({
             type="button"
             onClick={() => onDirectRefund(ticket, data)}
             disabled={refunding || loading}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe]"
+            className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe] sm:h-8 sm:w-auto"
             title="Abrir reembolsos deste cliente"
           >
             {refunding ? <Loader2 size={13} className="animate-spin" /> : <HandCoins size={13} strokeWidth={2.1} />}
@@ -1147,7 +1230,7 @@ const CustomerContextPanel = ({
         </div>
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className="space-y-3 p-3 sm:p-4">
         <ContextCard title="Informações do cliente">
           <ContextRow icon={Mail} label="E-mail" value={data.email || "Não informado"} breakValue />
           <ContextRow icon={CalendarDays} label="Cliente há" value={elapsedTime(data.customer_since)} />
@@ -1341,6 +1424,8 @@ const ConversationPanel = ({
   onDeleteMessage,
   messageActionPending,
   chatEndRef,
+  onShowCustomerMobile,
+  className = "flex",
 }: {
   ticket: AdminTicket | null;
   messages: SupportMessage[];
@@ -1360,6 +1445,8 @@ const ConversationPanel = ({
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
   messageActionPending: boolean;
   chatEndRef: React.RefObject<HTMLDivElement>;
+  onShowCustomerMobile: () => void;
+  className?: string;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messageScrollRef = useRef<HTMLDivElement>(null);
@@ -1385,7 +1472,7 @@ const ConversationPanel = ({
 
   if (!ticket) {
     return (
-      <section className="flex min-h-0 items-center justify-center bg-white">
+      <section className={`${className} min-h-0 flex-1 items-center justify-center bg-white lg:flex-none`}>
         <div className="max-w-sm text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e3e3df] bg-[#fafaf8] text-[#797973]">
             <MessageCircle size={21} strokeWidth={1.5} />
@@ -1401,24 +1488,34 @@ const ConversationPanel = ({
   const closed = ticket.status === "closed";
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col bg-white">
-      <header className="border-b border-[#e5e5e1] bg-white px-5 py-3.5">
-        <div className="flex items-center justify-between gap-4">
+    <section className={`${className} min-h-0 min-w-0 flex-1 flex-col bg-white lg:flex-none`}>
+      <header className="border-b border-[#e5e5e1] bg-white px-3 py-2 sm:px-5 sm:py-3.5">
+        <div className="mb-1 flex justify-end lg:hidden">
+          <button
+            type="button"
+            onClick={onShowCustomerMobile}
+            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10px] font-semibold text-[#2563EB]"
+          >
+            <UserCircle2 size={13} />
+            Cliente
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
-              <h2 className="truncate text-[14px] font-semibold tracking-[-0.02em] text-[#20201e]">
+              <h2 className="truncate text-[13px] font-semibold tracking-[-0.02em] text-[#20201e] sm:text-[14px]">
                 {ticket.subject || meta.label}
               </h2>
               <span className={`hidden shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold lg:inline-flex ${meta.badge}`}>
                 {meta.label}
               </span>
             </div>
-            <div className="mt-1.5 flex items-center gap-2.5 text-[10px] text-[#8f8f89]">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] text-[#8f8f89] sm:mt-1.5 sm:gap-x-2.5 sm:text-[10px]">
               <span className="flex items-center gap-1"><Hash size={10} /> {ticket.id.slice(0, 8)}</span>
               <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
               <span>{ticket.message_count} {ticket.message_count === 1 ? "mensagem" : "mensagens"}</span>
-              <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
+              <span className="hidden h-1 w-1 rounded-full bg-[#c2c2bd] sm:inline-flex" />
               <span>aberto {relativeTime(ticket.created_at)}</span>
             </div>
           </div>
@@ -1427,7 +1524,7 @@ const ConversationPanel = ({
               <button
                 onClick={onReopen}
                 disabled={reopening}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
+                className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#dcdcd7] bg-white px-3 text-[10px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px]"
               >
                 {reopening ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
                 Reabrir ticket
@@ -1436,20 +1533,20 @@ const ConversationPanel = ({
               <button
                 onClick={onResolve}
                 disabled={resolving}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
+                className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#dcdcd7] bg-white px-3 text-[10px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px]"
               >
                 {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                 Resolvido
               </button>
             )}
-            <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1]" aria-label="Mais ações">
+            <button className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1] sm:h-8 sm:w-8 sm:rounded-lg" aria-label="Mais ações">
               <MoreHorizontal size={15} />
             </button>
           </div>
         </div>
       </header>
 
-      <div ref={messageScrollRef} className="velo-scroll-oculto min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f8f9fb] px-5 py-5">
+      <div ref={messageScrollRef} className="velo-scroll-oculto min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f8f9fb] px-3 py-4 sm:px-5 sm:py-5">
         {loadingMessages ? (
           <MessageSkeleton />
         ) : messages.length === 0 ? (
@@ -1479,17 +1576,17 @@ const ConversationPanel = ({
         )}
       </div>
 
-      <div className="border-t border-[#e4e6eb] bg-white p-3.5">
+      <div className="border-t border-[#e4e6eb] bg-white p-2.5 sm:p-3.5">
         <div className="mx-auto max-w-[860px] overflow-hidden rounded-[16px] border border-[#dfe3ec] bg-white shadow-[0_10px_30px_rgba(34,44,68,0.07)] transition focus-within:border-[#7b9cf2] focus-within:ring-2 focus-within:ring-[#dfe8ff]">
-          <div className="flex items-center justify-between border-b border-[#eef0f4] bg-[#fbfcfe] px-3.5 py-2.5">
+          <div className="flex items-center justify-between gap-2 border-b border-[#eef0f4] bg-[#fbfcfe] px-3 py-2.5 sm:px-3.5">
             <div className="flex items-center gap-2 text-[10px] text-[#777772]">
               <span className="grid h-6 w-6 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_1px_3px_rgba(46,102,235,0.1)]">
                 <AtlasAvatarIcon size={18} animated />
               </span>
-              <span>Respondendo como <strong className="font-semibold text-[#334155]">Suporte Velo</strong></span>
+              <span className="truncate">Respondendo como <strong className="font-semibold text-[#334155]">Suporte Velo</strong></span>
               <ChevronDown size={11} />
             </div>
-            <span className="text-[9.5px] text-[#a0a09a]">Enter para enviar</span>
+            <span className="hidden shrink-0 text-[9.5px] text-[#a0a09a] sm:inline">Enter para enviar</span>
           </div>
           <textarea
             value={reply}
@@ -1505,7 +1602,7 @@ const ConversationPanel = ({
             className="min-h-[80px] w-full resize-none bg-white px-4 py-3 text-[12.5px] leading-5 text-[#252522] outline-none placeholder:text-[#a6aab3] disabled:bg-[#fafafa] disabled:text-[#9ca3af]"
           />
           {replyImage ? <SupportImagePreview file={replyImage} onRemove={onRemoveReplyImage} /> : null}
-          <div className="flex items-center justify-between px-3 pb-3">
+          <div className="flex items-center justify-between gap-2 px-3 pb-3">
             <div className="flex items-center gap-1">
               <input
                 ref={fileInputRef}
@@ -1532,7 +1629,7 @@ const ConversationPanel = ({
             <button
               onClick={onSend}
               disabled={closed || sending || (!reply.trim() && !replyImage)}
-              className="inline-flex h-9 items-center gap-2 rounded-full bg-[#2f66eb] px-4 text-[10.5px] font-semibold text-white shadow-[0_5px_14px_rgba(47,102,235,0.22)] transition hover:-translate-y-0.5 hover:bg-[#2459d8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+              className="inline-flex h-9 min-w-[118px] items-center justify-center gap-2 rounded-full bg-[#2f66eb] px-4 text-[10.5px] font-semibold text-white shadow-[0_5px_14px_rgba(47,102,235,0.22)] transition hover:-translate-y-0.5 hover:bg-[#2459d8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
             >
               {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
               Enviar resposta
@@ -1571,6 +1668,16 @@ const ThreadMessage = ({
   const [editWidth, setEditWidth] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressNextClickRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) return;
+    window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    longPressStartRef.current = null;
+  };
 
   useEffect(() => {
     setDraft(parsed.text);
@@ -1595,6 +1702,8 @@ const ThreadMessage = ({
     };
   }, [contextMenuOpen]);
 
+  useEffect(() => clearLongPressTimer, []);
+
   const saveEdit = async () => {
     await onEditMessage(message, draft);
     setEditing(false);
@@ -1611,15 +1720,20 @@ const ThreadMessage = ({
       initial={{ opacity: 0, y: 8, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.28, delay: Math.min(index * 0.025, 0.18), ease: [0.22, 1, 0.36, 1] }}
-      className={`flex items-end gap-2.5 ${admin ? "justify-end" : "justify-start"}`}
+      className={`flex items-end gap-2 sm:gap-2.5 ${admin ? "justify-end" : "justify-start"}`}
       onContextMenu={(event) => {
         if (!admin || editing) return;
         event.preventDefault();
         setContextMenuOpen(true);
       }}
+      onClick={(event) => {
+        if (!suppressNextClickRef.current) return;
+        event.stopPropagation();
+        suppressNextClickRef.current = false;
+      }}
     >
       {!admin ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
-      <div className={`relative min-w-0 max-w-[82%] ${admin ? "items-end" : "items-start"}`}>
+      <div className={`relative min-w-0 max-w-[86%] sm:max-w-[82%] ${admin ? "items-end" : "items-start"}`}>
         <div className={`mb-1.5 flex items-center gap-2 px-1 ${admin ? "justify-end" : "justify-start"}`}>
           <span className="truncate text-[9.5px] font-semibold text-[#626977]">
             {admin ? "Suporte Velo" : customerName || "Usuário"}
@@ -1629,9 +1743,27 @@ const ThreadMessage = ({
         <div
           ref={bubbleRef}
           style={editing && editWidth ? { width: `${editWidth}px` } : undefined}
-          className={`px-4 py-3 shadow-[0_3px_12px_rgba(25,35,55,0.055)] ${
+          onPointerDown={(event) => {
+            if (!admin || editing || event.pointerType === "mouse") return;
+            clearLongPressTimer();
+            longPressStartRef.current = { x: event.clientX, y: event.clientY };
+            longPressTimerRef.current = window.setTimeout(() => {
+              setContextMenuOpen(true);
+              suppressNextClickRef.current = true;
+              longPressTimerRef.current = null;
+            }, 520);
+          }}
+          onPointerUp={clearLongPressTimer}
+          onPointerCancel={clearLongPressTimer}
+          onPointerLeave={clearLongPressTimer}
+          onPointerMove={(event) => {
+            if (!longPressStartRef.current) return;
+            const distance = Math.hypot(event.clientX - longPressStartRef.current.x, event.clientY - longPressStartRef.current.y);
+            if (distance > 8) clearLongPressTimer();
+          }}
+          className={`px-3.5 py-2.5 shadow-[0_3px_12px_rgba(25,35,55,0.055)] sm:px-4 sm:py-3 ${
             admin
-              ? "rounded-[18px_18px_5px_18px] bg-[#2f66eb] text-white"
+              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] text-white"
               : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
           }`}
         >
@@ -1671,7 +1803,7 @@ const ThreadMessage = ({
             <SupportMessageMedia
               value={message.message}
               textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : "text-[#34363b]"}`}
-              imageClassName="max-h-[340px] max-w-[460px] w-full"
+              imageClassName="max-h-[300px] max-w-full w-full sm:max-h-[340px] sm:max-w-[460px]"
             />
           )}
         </div>
@@ -1713,7 +1845,7 @@ const ThreadMessage = ({
         ) : null}
       </div>
       {admin ? (
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)]">
+        <span className="hidden h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)] sm:grid">
           <AtlasAvatarIcon size={21} animated />
         </span>
       ) : null}

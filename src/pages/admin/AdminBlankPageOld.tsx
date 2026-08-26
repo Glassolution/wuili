@@ -130,7 +130,7 @@ const EMPTY_DATA: WalletData = {
   validapayAvailable: false,
 };
 
-type Period = "year" | "month" | "day";
+type Period = "week" | "month" | "day";
 
 const PERIOD_STORAGE_KEY = "velo:admin-wallet-period";
 const DEFAULT_PERIOD: Period = "day";
@@ -273,17 +273,18 @@ const isValidaPaySubscription = (subscription: SubscriptionRow) => {
 const getPeriodContext = (period: Period) => {
   const now = new Date();
   if (period === "day") return "hoje";
+  if (period === "week") return "na semana";
   if (period === "month") {
     const month = new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(now);
     return `em ${month}`;
   }
-  return `em ${now.getFullYear()}`;
+  return "no período";
 };
 
 const getStoredPeriod = (): Period => {
   if (typeof window === "undefined") return DEFAULT_PERIOD;
   const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
-  return stored === "day" || stored === "month" || stored === "year" ? stored : DEFAULT_PERIOD;
+  return stored === "day" || stored === "month" || stored === "week" ? stored : DEFAULT_PERIOD;
 };
 
 const getBelemDateKey = (value: string | Date) => {
@@ -302,8 +303,13 @@ const isInPeriod = (value: string | null, period: Period) => {
   const valueKey = getBelemDateKey(value);
   const todayKey = getBelemDateKey(new Date());
   if (period === "day") return valueKey === todayKey;
+  if (period === "week") {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    return valueKey >= getBelemDateKey(weekStart) && valueKey <= todayKey;
+  }
   if (period === "month") return valueKey.slice(0, 7) === todayKey.slice(0, 7);
-  return valueKey.slice(0, 4) === todayKey.slice(0, 4);
+  return false;
 };
 
 const fetchAllSubscriptions = async () => {
@@ -1057,7 +1063,7 @@ const AdminPainelPage = () => {
             <button
               type="button"
               onClick={downloadReport}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-[#171717] px-4 text-[12px] font-semibold text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-black/20"
+              className="hidden h-10 items-center gap-2 rounded-full bg-[#171717] px-4 text-[12px] font-semibold text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] transition hover:bg-black focus:outline-none focus:ring-2 focus:ring-black/20 sm:inline-flex"
             >
               <Download size={14} strokeWidth={1.8} />
               Baixar relatório
@@ -1162,7 +1168,81 @@ const AdminPainelPage = () => {
           </div>
 
           <div className="mt-2 overflow-hidden rounded-[2px] border border-[#f0f0ee]">
-            <div className="overflow-x-auto">
+            <div className="divide-y divide-[#eceef3] bg-white md:hidden">
+              {isLoading ? (
+                Array.from({ length: 5 }, (_, index) => (
+                  <div key={index} className="p-4">
+                    <div className="h-3 w-36 animate-pulse rounded bg-[#e5e7eb]" />
+                    <div className="mt-2 h-2.5 w-48 animate-pulse rounded bg-[#eef0f4]" />
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="h-12 animate-pulse rounded-xl bg-[#f3f4f6]" />
+                      <div className="h-12 animate-pulse rounded-xl bg-[#f3f4f6]" />
+                    </div>
+                  </div>
+                ))
+              ) : usePaymentActivities ? paginatedPaymentActivities.map((activity, index) => {
+                const status = getSubscriptionStatus(activity.status);
+                const identity = activity.user_id ? identitiesByUser.get(activity.user_id) : undefined;
+                const name = identity?.name || activity.payer_name || activity.payer_email || "Assinante não identificado";
+                const email = identity?.email || activity.payer_email;
+                return (
+                  <motion.article
+                    key={`mobile-payment:${activity.id}`}
+                    className="p-4 text-[#222220]"
+                    initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : Math.min(index, 8) * 0.025 }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold">{name}</p>
+                        {email && email !== name ? <p className="mt-1 truncate text-[10.5px] text-[#8f96a3]">{email}</p> : null}
+                      </div>
+                      <StatusBadge label={status.label} tone={status.tone} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                      <MobileActivityField label="Cobrança" value={`${formatChargeDay(activity.created_at)} · ${formatDate(activity.created_at)}`} />
+                      <MobileActivityField label="Valor" value={activity.amount > 0 ? formatBRL(activity.amount) : "—"} strong />
+                      <MobileActivityField label="Intervalo" value={activity.interval} />
+                      <MobileActivityField label="Produto" value={getPlanLabel(activity.plan ?? "")} />
+                      <MobileActivityField label="Pagamento" value={getPaymentMethodLabel(activity.payment_method)} wide />
+                    </div>
+                  </motion.article>
+                );
+              }) : paginatedSubscriptions.map((subscription, index) => {
+                const status = getSubscriptionStatus(subscription.status);
+                const identity = identitiesByUser.get(subscription.user_id);
+                const eventAt = subscriptionEventAt(subscription);
+                const chargeAt = subscription.next_charge_at || subscription.current_period_start || eventAt;
+                const name = identity?.name || identity?.email || "Assinante não identificado";
+                return (
+                  <motion.article
+                    key={`mobile-subscription:${subscription.id}`}
+                    className="p-4 text-[#222220]"
+                    initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : Math.min(index, 8) * 0.025 }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold">{name}</p>
+                        {identity?.name && identity.email ? <p className="mt-1 truncate text-[10.5px] text-[#8f96a3]">{identity.email}</p> : null}
+                      </div>
+                      <StatusBadge label={status.label} tone={status.tone} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                      <MobileActivityField label="Cobrança" value={`${formatChargeDay(chargeAt)} · ${formatDate(eventAt)}`} />
+                      <MobileActivityField label="Valor" value={formatBRL(Number(subscription.amount ?? 0))} strong />
+                      <MobileActivityField label="Intervalo" value={getBillingInterval(subscription)} />
+                      <MobileActivityField label="Produto" value={getPlanLabel(subscription.plan)} />
+                      <MobileActivityField label="Pagamento" value={getPaymentMethodLabel(subscription.payment_method)} wide />
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[1120px] border-collapse text-left">
                 <thead>
                   <tr className="bg-[#f6f6f5] text-[11px] font-semibold text-[#5f5f5b]">
@@ -1771,9 +1851,9 @@ const PeriodFilter = ({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const options: Array<{ value: Period; label: string }> = [
-    { value: "year", label: "Ano atual" },
-    { value: "month", label: "Mês atual" },
     { value: "day", label: "Hoje" },
+    { value: "week", label: "Semanal" },
+    { value: "month", label: "Mensal" },
   ];
   const current = options.find((option) => option.value === value) ?? options[0];
 
@@ -1802,7 +1882,7 @@ const PeriodFilter = ({
       <motion.button
         type="button"
         onClick={() => setOpen((state) => !state)}
-        className="inline-flex h-8 min-w-[88px] items-center justify-between gap-2 rounded-md px-2 text-[12px] font-semibold text-[#666661] outline-none transition hover:bg-[#f5f5f3] focus-visible:ring-2 focus-visible:ring-[#2563eb]/25"
+        className="inline-flex h-8 min-w-[86px] items-center justify-between gap-2 rounded-full px-3 text-[12px] font-semibold text-[#5f5f59] outline-none transition hover:bg-[#f5f5f3] focus-visible:ring-2 focus-visible:ring-[#2563eb]/25"
         whileTap={{ scale: 0.97 }}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -1819,7 +1899,7 @@ const PeriodFilter = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.12 }}
-            className="absolute right-0 top-[calc(100%+6px)] z-50 w-[118px] overflow-hidden rounded-[8px] border border-[#d8d8d3] bg-white py-1 shadow-[0_10px_28px_rgba(28,28,24,0.12)]"
+            className="absolute right-0 top-[calc(100%+8px)] z-50 w-[132px] overflow-hidden rounded-[14px] border border-[#dfe5f2] bg-white p-1.5 shadow-[0_18px_38px_rgba(15,23,42,0.14)]"
             role="listbox"
           >
             {options.map((option) => {
@@ -1832,15 +1912,16 @@ const PeriodFilter = ({
                     onChange(option.value);
                     setOpen(false);
                   }}
-                  className={`flex h-8 w-full items-center px-3 text-left text-[12px] font-semibold transition ${
+                  className={`flex h-9 w-full items-center justify-between rounded-[10px] px-3 text-left text-[12px] font-semibold transition ${
                     selected
-                      ? "bg-[#2563eb] text-white"
-                      : "text-[#565650] hover:bg-[#f5f5f3] hover:text-[#20201e]"
+                      ? "bg-[#eef4ff] text-[#2563EB]"
+                      : "text-[#565650] hover:bg-[#f7f8fb] hover:text-[#20201e]"
                   }`}
                   role="option"
                   aria-selected={selected}
                 >
-                  {option.label}
+                  <span>{option.label}</span>
+                  {selected ? <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" /> : null}
                 </button>
               );
             })}
@@ -1850,6 +1931,23 @@ const PeriodFilter = ({
     </div>
   );
 };
+
+const MobileActivityField = ({
+  label,
+  value,
+  strong = false,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  wide?: boolean;
+}) => (
+  <div className={`min-w-0 rounded-xl border border-[#edf0f5] bg-[#f8fafc] px-3 py-2 ${wide ? "col-span-2" : ""}`}>
+    <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#9aa3b2]">{label}</p>
+    <p className={`mt-1 truncate text-[11px] text-[#343431] ${strong ? "font-bold" : "font-semibold"}`}>{value}</p>
+  </div>
+);
 
 const StatusBadge = ({
   label,
