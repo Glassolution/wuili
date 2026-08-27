@@ -45,7 +45,10 @@ serve(async (req) => {
   const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
   const adminClient = createClient(dbUrl, dbKey);
   const state = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  // 60 min: no celular o usuário costuma parar no meio do fluxo do ML
+  // (login, completar cadastro, código por SMS). Com 10 min o state expirava
+  // antes do callback e a conexão falhava sem motivo aparente.
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
   const { error: stateError } = await adminClient.from("ml_oauth_states").insert({
     state,
