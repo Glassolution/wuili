@@ -613,7 +613,7 @@ async function logPrediction(
 }
 
 // Map ML API errors to user-friendly messages
-function mapMLError(mlData: Record<string, unknown>): { message: string; code?: string } {
+function mapMLError(mlData: Record<string, unknown>): { message: string; code?: string; seller_codes?: string[] } {
   const msg = (mlData?.message as string) || ''
   const causeArr = arrayFromUnknown(mlData?.cause)
   const causeStr = JSON.stringify(causeArr).toLowerCase()
@@ -627,7 +627,7 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
     causeStr.includes('restriction')
   ) {
     const codes = collectSellerStatusCodes(causeArr, mlData.error, mlData.code, mlData.message)
-    return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
+    return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST', seller_codes: codes }
   }
 
   // Erros específicos de imagens em variações precisam de mensagem clara antes
@@ -1854,7 +1854,7 @@ Deno.serve(async (req) => {
 
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
       const mapped = itemResponse.ok
-        ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
+        ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined, seller_codes: undefined as string[] | undefined }
         : mapMLError(itemData)
       if (/anatel|homologa/i.test(causeMessages(itemData))) {
         mapped.message = 'O Mercado Livre exige o número de homologação Anatel para este produto e não encontramos uma ficha de catálogo compatível. Escolha outro produto ou publique manualmente pelo Mercado Livre.'
