@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
+import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 // import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog"; // removido a pedido
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -77,6 +78,9 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
+  // Códigos crus do ML (ex.: "address_pending") quando a publicação é
+  // bloqueada por cadastro incompleto — alimentam o modal que diz o que falta.
+  const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [checkingSeller, setCheckingSeller] = useState(false);
   // Estado do modal manual de categoria removido a pedido do usuário.
 
@@ -351,10 +355,15 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           return;
         }
 
-        // Conta do ML bloqueada para publicar → tutorial em 3 etapas.
+        // Conta do ML bloqueada para publicar → modal dizendo exatamente o que
+        // falta no cadastro (endereço, telefone…). Sem códigos, cai no tutorial.
         if (codigo === "ML_SELLER_CANNOT_LIST") {
           veloToast.dismiss(toastId);
-          setMlVerifyModalOpen(true);
+          if (erro instanceof ErroDePublicacao && erro.sellerCodes?.length) {
+            setMlMissingCodes(erro.sellerCodes);
+          } else {
+            setMlVerifyModalOpen(true);
+          }
           setPublishing(false);
           return;
         }
@@ -1066,6 +1075,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // Fechar e concluir apenas fecham. A conta é revalidada no próximo clique
         // em "Publicar produto" — rechecar aqui reabria o modal na sequência.
         onFinish={() => setMlVerifyModalOpen(false)}
+      />
+
+      <MlMissingInfoModal
+        open={mlMissingCodes !== null}
+        sellerCodes={mlMissingCodes ?? []}
+        onClose={() => setMlMissingCodes(null)}
       />
 
       {/* ManualCategoryDialog removido: não exibir seletor de categoria manual. */}

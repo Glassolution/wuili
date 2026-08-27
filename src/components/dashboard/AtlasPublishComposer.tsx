@@ -18,6 +18,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 import {
   getActiveStore,
   getStorePublishedCount,
@@ -109,6 +110,9 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
   const [verificandoVendedor, setVerificandoVendedor] = useState(false);
   // Conta de vendedor recusada pelo ML: trava o botão e explica na conversa.
   const [contaBloqueada, setContaBloqueada] = useState(false);
+  // Códigos crus do ML (ex.: "address_pending") — alimentam o modal que diz
+  // exatamente o que falta no cadastro da conta.
+  const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [resultado, setResultado] = useState<{ permalink: string; item_id: string } | null>(null);
 
   const publicandoRef = useRef(false);
@@ -259,6 +263,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       const { data } = await supabase.functions.invoke("ml-seller-status");
       if (data?.connected && data?.canList === false) {
         setContaBloqueada(true);
+        setMlMissingCodes(Array.isArray(data?.codes) ? data.codes : []);
         avisarContaDeVendedorBloqueada();
         return;
       }
@@ -299,6 +304,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       if (codigo === "ML_SELLER_CANNOT_LIST") {
         veloToast.dismiss(toastId);
         setContaBloqueada(true);
+        setMlMissingCodes(erro instanceof ErroDePublicacao ? (erro.sellerCodes ?? []) : []);
         avisarContaDeVendedorBloqueada();
         return;
       }
@@ -647,6 +653,11 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         </div>
       </section>
 
+      <MlMissingInfoModal
+        open={mlMissingCodes !== null}
+        sellerCodes={mlMissingCodes ?? []}
+        onClose={() => setMlMissingCodes(null)}
+      />
     </>
   );
 };
