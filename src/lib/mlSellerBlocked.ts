@@ -26,6 +26,7 @@ const normalize = (value: string) =>
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
+
 const ML_CONTA_URL = "https://www.mercadolivre.com.br/minha-conta/dados-pessoais";
 const ML_VENDER_URL = "https://www.mercadolivre.com.br/vender";
 
