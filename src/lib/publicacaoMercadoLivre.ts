@@ -265,11 +265,18 @@ export const montarAtributosMl = (dados: {
  */
 export class ErroDePublicacao extends Error {
   codigo?: string;
+  /**
+   * Códigos crus que o Mercado Livre devolve quando bloqueia a conta do
+   * vendedor (ex.: "address_pending", "phone_pending"). É com eles que a UI
+   * monta o modal explicando exatamente o que falta preencher no cadastro.
+   */
+  sellerCodes?: string[];
 
-  constructor(mensagem: string, codigo?: string) {
+  constructor(mensagem: string, codigo?: string, sellerCodes?: string[]) {
     super(mensagem);
     this.name = "ErroDePublicacao";
     this.codigo = codigo;
+    this.sellerCodes = sellerCodes;
   }
 }
 
@@ -354,7 +361,14 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
   }
 
   if (status < 200 || status >= 300 || resposta?.error) {
-    throw new ErroDePublicacao(resposta?.error || resposta?.message || "Erro ao publicar", resposta?.code);
+    const sellerCodes = Array.isArray(resposta?.seller_codes)
+      ? resposta.seller_codes.filter((c: unknown): c is string => typeof c === "string")
+      : undefined;
+    throw new ErroDePublicacao(
+      resposta?.error || resposta?.message || "Erro ao publicar",
+      resposta?.code,
+      sellerCodes,
+    );
   }
 
   return { permalink: resposta?.permalink, item_id: resposta?.item_id };

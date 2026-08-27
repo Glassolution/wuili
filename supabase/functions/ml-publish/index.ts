@@ -1873,7 +1873,7 @@ Deno.serve(async (req) => {
           ml_response: itemData,
         },
       })
-      return json({ error: mapped.message, code: mapped.code, details: itemData }, 400)
+      return json({ error: mapped.message, code: mapped.code, seller_codes: mapped.seller_codes ?? null, details: itemData }, 400)
     }
 
 
