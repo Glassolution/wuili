@@ -129,7 +129,7 @@ describe("publicarNoMercadoLivre", () => {
     });
   };
 
-  it("envia o anúncio com título aparado e estoque limitado a 10", async () => {
+  it("envia o anúncio com título aparado e estoque real do catálogo", async () => {
     responderCom(200, { permalink: "https://ml.test/MLB1", item_id: "MLB1" });
 
     const resultado = await publicar();
@@ -139,8 +139,8 @@ describe("publicarNoMercadoLivre", () => {
     expect(url).toBe("https://projeto.supabase.co/functions/v1/ml-publish");
     const enviado = JSON.parse(opcoes.body).product;
     expect(enviado.title).toBe("Fone Bluetooth TWS");
-    // Teto de 10 por anúncio, mesmo com 25 no catálogo.
-    expect(enviado.available_quantity).toBe(10);
+    // Estoque real do catálogo, sem teto artificial.
+    expect(enviado.available_quantity).toBe(25);
     expect(enviado.price).toBe(99.9);
     expect(enviado.cost_price).toBe(40);
     expect(enviado.images).toEqual(["https://exemplo.test/1.jpg", "https://exemplo.test/2.jpg"]);
