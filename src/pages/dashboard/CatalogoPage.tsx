@@ -1126,6 +1126,7 @@ const CatalogoPage = () => {
               .from("catalog_products")
               .select("*")
               .in("id", favoritedIds)
+              .eq("is_active", true)
               .eq("is_blocked", false)
               .gt("stock_quantity", 0),
           );
