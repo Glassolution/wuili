@@ -25,8 +25,14 @@ const MLReconnectModal = () => {
   const [connecting, setConnecting] = useState(false);
 
   const dentroDoPainel = location.pathname.startsWith("/dashboard");
+  // Pré-visualização visual do modal (QA), sem consultar o backend.
+  const previewQA = new URLSearchParams(location.search).get("velo_ml_reconnect") === "preview";
 
   useEffect(() => {
+    if (previewQA) {
+      setOpen(true);
+      return;
+    }
     if (loading || !user || !dentroDoPainel) return;
     if (sessionStorage.getItem(DISMISS_KEY) === "1") return;
 
