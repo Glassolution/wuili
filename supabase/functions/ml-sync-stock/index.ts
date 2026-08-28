@@ -59,12 +59,16 @@ type Supa = any;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function getFreshToken(supabase: Supa, userId: string): Promise<string | null> {
-  const { data: integ } = await supabase
+  // Há usuários com mais de uma linha de integração ML (reconexões antigas):
+  // `maybeSingle()` devolvia erro e derrubava a sincronização. Pegamos a mais recente.
+  const { data: integRows } = await supabase
     .from("user_integrations")
     .select("access_token, refresh_token, expires_at")
     .eq("user_id", userId)
     .eq("platform", "mercadolivre")
-    .maybeSingle();
+    .order("expires_at", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const integ = Array.isArray(integRows) ? integRows[0] : null;
   if (!integ?.access_token) return null;
 
   const expiresAt = integ.expires_at ? new Date(integ.expires_at as string) : new Date(0);
@@ -81,7 +85,12 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
     }),
   });
   const rd = await rr.json().catch(() => ({}));
-  if (!rr.ok || !rd.access_token) return null;
+  if (!rr.ok || !rd.access_token) {
+    console.warn(
+      `[ml-sync-stock] refresh falhou user=${userId} status=${rr.status} body=${JSON.stringify(rd).slice(0, 300)}`,
+    );
+    return null;
+  }
 
   await supabase
     .from("user_integrations")
@@ -196,6 +205,7 @@ async function syncUser(
   catalog: Map<string, CatalogRow>,
   dryRun: boolean,
   deadline: number,
+  onlyPause = false,
 ): Promise<UserResult> {
   const result: UserResult = {
     checked: 0,
@@ -264,6 +274,10 @@ async function syncUser(
       );
       continue;
     }
+
+    // Modo `onlyPause`: usado em ações pontuais (ex.: mutirão de anúncios com
+    // estoque zerado). Não reativa nem reenvia quantidade.
+    if (onlyPause) continue;
 
     // ---- 2. Voltou a ter estoque → reativar somente o que nós pausamos
     if (available && isPaused && pausedByVelo) {
@@ -343,6 +357,8 @@ Deno.serve(async (req) => {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const dryRun = body?.dryRun === true;
     const force = body?.force === true; // ignora a guarda dos 20%
+    // `onlyPause`: só pausa anúncios cujo produto está sem estoque/inativo.
+    const onlyPause = body?.onlyPause === true;
 
     let targetUserId: string | null = null;
     const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -418,8 +434,17 @@ Deno.serve(async (req) => {
     }
 
     // ---- Agrupa por usuário
+    const targets = onlyPause
+      ? pubs.filter((p) => {
+        const prod = p.catalog_product_id ? catalog.get(p.catalog_product_id) : undefined;
+        if (!prod) return false;
+        // Só estoque zerado: produtos apenas ocultados no Velo (is_active=false,
+        // ex.: celulares) não devem derrubar anúncios que ainda têm estoque.
+        return Number(prod.stock_quantity ?? 0) <= 0 && p.status !== "paused";
+      })
+      : pubs;
     const byUser = new Map<string, Pub[]>();
-    for (const p of pubs) {
+    for (const p of targets) {
       const list = byUser.get(p.user_id) ?? [];
       list.push(p);
       byUser.set(p.user_id, list);
@@ -432,7 +457,7 @@ Deno.serve(async (req) => {
 
     for (const [userId, list] of byUser) {
       if (Date.now() > deadline) { timedOut = true; break; }
-      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline);
+      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline, onlyPause);
       if (r.timedOut) timedOut = true;
       perUser[userId] = r;
       checked += r.checked;
