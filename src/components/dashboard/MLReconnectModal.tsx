@@ -46,7 +46,7 @@ const MLReconnectModal = () => {
     return () => {
       ativo = false;
     };
-  }, [user, loading, dentroDoPainel]);
+  }, [user, loading, dentroDoPainel, previewQA]);
 
   const fechar = () => {
     sessionStorage.setItem(DISMISS_KEY, "1");
