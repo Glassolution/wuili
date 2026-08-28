@@ -369,6 +369,43 @@ Deno.serve(async (req) => {
     }
 
     // ------------------------------------------------------------------
+    // Modo prune: revisita produtos que não foram vistos nas últimas rodadas
+    // e desativa os que o fornecedor removeu (detalhe responde 404). Evita
+    // que o lojista veja produto com link do fornecedor quebrado.
+    // ------------------------------------------------------------------
+    if (mode === "prune") {
+      const staleDays = Math.max(1, parseInt(url.searchParams.get("stale_days") ?? "3", 10) || 3);
+      const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString();
+      const { data: staleRows, error: staleErr } = await supabase
+        .from("catalog_products")
+        .select("id,external_id")
+        .eq("source", SOURCE)
+        .eq("is_active", true)
+        .lt("scraped_at", cutoff)
+        .limit(500);
+      if (staleErr) throw staleErr;
+      let deactivated = 0;
+      let stillAlive = 0;
+      await mapPool(staleRows ?? [], CONCURRENCY, async (row) => {
+        const detail = await fetchDetail(row.external_id);
+        if (detail) {
+          stillAlive++;
+          return;
+        }
+        const { error } = await supabase
+          .from("catalog_products")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("id", row.id);
+        if (!error) deactivated++;
+      });
+      const summary = { ok: true, mode: "prune", stale_days: staleDays, checked: staleRows?.length ?? 0, deactivated, still_alive: stillAlive };
+      console.log("[scrape-c7drop] Prune concluído:", JSON.stringify(summary));
+      return new Response(JSON.stringify(summary), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ------------------------------------------------------------------
     // Modo full: pagina a lista, busca detalhe de cada produto e upserta.
     // ------------------------------------------------------------------
     // Suporta fatiar por páginas (`?start=1&end=5`) porque o scrape inteiro
