@@ -207,6 +207,7 @@ const App = () => (
           <UpgradeModalProvider>
           <FlatButtonsOnCatalog />
           <MarcarAppCarregado />
+          <MLReconnectModal />
           <Suspense fallback={<RouteFallback />}>
 
             <Routes>
