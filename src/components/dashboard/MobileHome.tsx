@@ -958,7 +958,6 @@ const MobileHome = () => {
         .from("catalog_products")
         .select(columns)
         .eq("is_active", true)
-        .eq("is_active", true)
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
         .order("orders_count", { ascending: false, nullsFirst: false })
@@ -973,7 +972,6 @@ const MobileHome = () => {
         const fallbackResult = await supabase
           .from("catalog_products")
           .select(columns)
-          .eq("is_active", true)
           .eq("is_active", true)
           .eq("is_blocked", false)
           .order("orders_count", { ascending: false, nullsFirst: false })
