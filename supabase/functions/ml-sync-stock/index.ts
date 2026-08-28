@@ -10,7 +10,8 @@
 //      'velo_out_of_stock' para saber que a pausa foi nossa.
 //  • Produto voltou (stock > 0 e is_active) → reativamos SOMENTE o que nós
 //    pausamos por estoque. Nunca reabrimos o que o vendedor pausou à mão.
-//  • available_quantity divergente → corrigimos para min(estoque, 10).
+//  • available_quantity divergente → corrigimos para o estoque real do catálogo
+//    (sem teto artificial; antes era min(estoque, 10)).
 //  • Guarda de segurança: se mais de 20% do catálogo estiver zerado na rodada
 //    (sinal de scraper/C7 fora do ar), abortamos sem pausar nada.
 //
@@ -27,10 +28,15 @@ const corsHeaders = {
 };
 
 const PAUSED_BY_VELO = "velo_out_of_stock";
-const MAX_QTY = 10;
+// Sem teto artificial: enviamos o estoque real do catálogo (mínimo 1, que é o
+// que o ML aceita para um anúncio ativo).
+const qtyParaEnviar = (stock: number) => Math.max(1, Math.floor(stock));
 const OUT_OF_STOCK_ABORT_RATIO = 0.2;
 const REQUEST_DELAY_MS = 120;
-const QUANTITY_REFRESH_DAYS = 7;
+const QUANTITY_REFRESH_DAYS = 1; // toda publicação é reenviada ao menos 1x/dia
+// Lote por execução: garante que cada rodada termine dentro do orçamento de
+// tempo e que a próxima continue de onde parou (ordenação por stock_synced_at).
+const DEFAULT_BATCH_LIMIT = 600;
 const TIME_BUDGET_MS = 110_000; // a runtime encerra a invocação bem antes disso
 
 // Status nossos que representam anúncio no ar / pausado por nós.
@@ -217,6 +223,10 @@ async function syncUser(
     details: [],
   };
 
+  // Toda publicação percorrida (mesmo sem alteração) recebe stock_synced_at no
+  // fim da rodada — é isso que faz o cursor avançar entre execuções do cron.
+  const visitados: string[] = [];
+
   let token: string | null = null;
   if (!dryRun) {
     token = await getFreshToken(supabase, userId);
@@ -232,7 +242,13 @@ async function syncUser(
       break;
     }
     const product = pub.catalog_product_id ? catalog.get(pub.catalog_product_id) : undefined;
-    if (!product) continue; // produto de outra fonte / não rastreado
+    if (!product) {
+      // Produto de outra fonte / vínculo perdido: marcamos como visitado para
+      // não travar o cursor da varredura nas próximas execuções.
+      visitados.push(pub.id);
+      continue;
+    }
+    visitados.push(pub.id);
     result.checked++;
 
     const stock = Number(product.stock_quantity ?? 0);
@@ -281,7 +297,7 @@ async function syncUser(
 
     // ---- 2. Voltou a ter estoque → reativar somente o que nós pausamos
     if (available && isPaused && pausedByVelo) {
-      const qty = Math.max(1, Math.min(stock, MAX_QTY));
+      const qty = qtyParaEnviar(stock);
       result.details.push({ ml_item_id: pub.ml_item_id, action: "reactivate", stock });
       if (dryRun) continue;
       const r = await updateQuantity(token!, pub.ml_item_id, qty, { status: "active" });
@@ -316,7 +332,7 @@ async function syncUser(
       const lastSync = pub.stock_synced_at ? new Date(pub.stock_synced_at).getTime() : 0;
       const stale = Date.now() - lastSync > QUANTITY_REFRESH_DAYS * 86_400_000;
       if (!stale) continue;
-      const qty = Math.max(1, Math.min(stock, MAX_QTY));
+      const qty = qtyParaEnviar(stock);
       result.details.push({ ml_item_id: pub.ml_item_id, action: "quantity", qty });
       if (dryRun) continue;
 
@@ -341,6 +357,16 @@ async function syncUser(
     }
   }
 
+  if (!dryRun && visitados.length > 0) {
+    const agora = new Date().toISOString();
+    for (let i = 0; i < visitados.length; i += 200) {
+      await supabase
+        .from("user_publications")
+        .update({ stock_synced_at: agora })
+        .in("id", visitados.slice(i, i + 200));
+    }
+  }
+
   return result;
 }
 
@@ -359,6 +385,9 @@ Deno.serve(async (req) => {
     const force = body?.force === true; // ignora a guarda dos 20%
     // `onlyPause`: só pausa anúncios cujo produto está sem estoque/inativo.
     const onlyPause = body?.onlyPause === true;
+    const batchLimit = Number.isFinite(Number(body?.limit))
+      ? Math.max(1, Math.min(5000, Number(body.limit)))
+      : DEFAULT_BATCH_LIMIT;
 
     let targetUserId: string | null = null;
     const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -443,8 +472,12 @@ Deno.serve(async (req) => {
         return Number(prod.stock_quantity ?? 0) <= 0 && p.status !== "paused";
       })
       : pubs;
+    // Lote da execução: as publicações já vêm ordenadas por stock_synced_at
+    // (nulls primeiro), então cada rodada pega quem está há mais tempo sem sync.
+    const lote = targetUserId ? targets : targets.slice(0, batchLimit);
+    const restantes = Math.max(0, targets.length - lote.length);
     const byUser = new Map<string, Pub[]>();
-    for (const p of targets) {
+    for (const p of lote) {
       const list = byUser.get(p.user_id) ?? [];
       list.push(p);
       byUser.set(p.user_id, list);
@@ -484,6 +517,8 @@ Deno.serve(async (req) => {
             errors,
             deadListings,
             timedOut,
+            batchLimit,
+            pendentesProximaRodada: restantes,
           },
           perUser,
           ranAt: new Date().toISOString(),

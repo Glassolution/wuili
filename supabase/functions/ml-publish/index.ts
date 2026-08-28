@@ -331,13 +331,23 @@ function buildMlVariations(
   // IDs internos durante a criação do anúncio.
   const pictureUrls = pictures.map((p) => p.source).filter((url): url is string => Boolean(url))
 
-  const perVariation = Math.max(1, Math.floor((totalQuantity || 10) / combos.length))
+  // Estoque por variação: preferimos o estoque real informado pelo fornecedor
+  // para aquele valor; se ele não existir, dividimos o estoque do produto.
+  const perVariation = Math.max(1, Math.floor((totalQuantity || 1) / combos.length))
+  const stockPorValor = new Map<string, number>()
+  for (const r of rows) {
+    const st = Number(r.stock ?? 0)
+    if (r.value && st > 0) stockPorValor.set(String(r.value), Math.max(stockPorValor.get(String(r.value)) ?? 0, st))
+  }
   return combos.map((attribute_combinations) => {
     const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
+    const estoqueDaVariacao = attribute_combinations
+      .map((c) => stockPorValor.get(String(c.value_name)))
+      .find((v) => typeof v === 'number' && v > 0)
     const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
-      available_quantity: perVariation,
+      available_quantity: Math.max(1, Math.floor(estoqueDaVariacao ?? perVariation)),
       ...(pictureUrls.length > 0 ? { picture_ids: pictureUrls.slice(0, 10) } : {}),
       ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
     }
@@ -1443,7 +1453,7 @@ Deno.serve(async (req) => {
       variantsSource,
       categoryAttrs as unknown as Array<Record<string, unknown>>,
       product.price,
-      product.available_quantity || 10,
+      Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
       pictures,
     )
     if (mlVariations.length > 0) {
@@ -1460,7 +1470,7 @@ Deno.serve(async (req) => {
       category_id: categoryId,
       price: product.price,
       currency_id: 'BRL',
-      available_quantity: product.available_quantity || 10,
+      available_quantity: Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
       buying_mode: 'buy_it_now',
       condition: 'new',
       listing_type_id: 'gold_special',
@@ -1574,7 +1584,7 @@ Deno.serve(async (req) => {
           category_id: categoryId,
           price: product.price,
           currency_id: 'BRL',
-          available_quantity: product.available_quantity || 10,
+          available_quantity: Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
           buying_mode: 'buy_it_now',
           condition: 'new',
           listing_type_id: 'gold_special',
@@ -1828,7 +1838,7 @@ Deno.serve(async (req) => {
             category_id: categoryId,
             price: product.price,
             currency_id: 'BRL',
-            available_quantity: product.available_quantity || 10,
+            available_quantity: Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
             buying_mode: 'buy_it_now',
             condition: 'new',
             listing_type_id: 'gold_special',

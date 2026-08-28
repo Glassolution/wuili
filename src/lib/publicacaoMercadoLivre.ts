@@ -321,7 +321,8 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
       cost_price: produto.cost_price ?? 0,
       description: dados.descricao || `${dados.titulo} - Produto de alta qualidade com envio rápido.`,
       images: listaDeImagens(produto.images),
-      available_quantity: Math.min(dados.estoque, 10),
+      // Estoque real do catálogo (sem teto artificial de 10 unidades).
+      available_quantity: Math.max(1, Math.floor(dados.estoque)),
       condition: "new",
       brand: dados.marca.trim() || null,
       model: dados.modelo.trim() || null,
