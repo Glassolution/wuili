@@ -44,6 +44,10 @@ const DETAIL_URL = (slug: string) => `${BASE}/api/products/${encodeURIComponent(
 const PER_PAGE = 50; // API atual limita em 50 mesmo pedindo mais
 const MAX_PAGES = 60;
 const CONCURRENCY = 6;
+// Produtos que o fornecedor marca como `manageStock: false` não têm controle de
+// estoque (reposição contínua). Não temos número real: publicamos com um
+// estoque padrão conservador em vez do antigo 999 fictício.
+const UNMANAGED_STOCK = 100;
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; VeloBot/1.0; +https://wuili.lovable.app)",
@@ -120,6 +124,46 @@ function normalizeImages(detail: ProductDetail, fallback?: string | null): strin
   return Array.from(new Set(list));
 }
 
+// A C7 devolve a mesma variante repetida por tier de preço (GRUPO_VIP, ATACADO,
+// DROPSHIPPING). Para o catálogo Velo interessa uma linha por (nome, valor),
+// com o preço do tier DROPSHIPPING e o estoque real informado pelo fornecedor.
+function normalizeVariants(detail: ProductDetail): Array<Record<string, unknown>> {
+  const raw = detail.variants ?? [];
+  const byKey = new Map<string, { name: string; value: string; stock: number; sku: string | null; cost_price: number | null; tier: string }>();
+  for (const v of raw) {
+    const name = (v.name ?? "").trim();
+    const value = (v.value ?? "").trim();
+    if (!name || !value) continue;
+    const key = `${name.toLowerCase()}|${value.toLowerCase()}`;
+    const tier = (v.tier ?? "").toUpperCase();
+    const price = toNumber(v.price);
+    const stock = toNumber(v.stock) ?? 0;
+    const atual = byKey.get(key);
+    const ehDrop = tier === "DROPSHIPPING";
+    if (!atual || (ehDrop && atual.tier !== "DROPSHIPPING")) {
+      byKey.set(key, {
+        name,
+        value,
+        stock: Math.max(stock, atual?.stock ?? 0),
+        sku: (v.sku ?? null) || null,
+        cost_price: price,
+        tier,
+      });
+    } else if (stock > atual.stock) {
+      atual.stock = stock;
+    }
+  }
+  const manageStock = detail.manageStock !== false;
+  return Array.from(byKey.values()).map((v) => ({
+    name: v.name,
+    value: v.value,
+    sku: v.sku,
+    cost_price: v.cost_price,
+    // manageStock=false → fornecedor não controla estoque dessa linha.
+    stock: manageStock ? v.stock : UNMANAGED_STOCK,
+  }));
+}
+
 function pickCategoryName(detail: ProductDetail): string | null {
   const raw = detail.categories?.[0];
   if (!raw) return null;
@@ -189,7 +233,7 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
   // disponíveis) — nesses casos `stock` vem 0/-1 e não significa esgotado.
   const manageStock = detail.manageStock ?? listItem?.manageStock ?? true;
   const rawStock = toNumber(detail.stock ?? listItem?.stock) ?? 0;
-  const stock = manageStock === false ? 999 : rawStock;
+  const stock = manageStock === false ? UNMANAGED_STOCK : rawStock;
   const compareAt = toNumber(detail.compareAtPrice ?? listItem?.compareAtPrice ?? null);
 
   const rawDesc = (detail.shortDescription && detail.shortDescription.trim().length > 0)
@@ -229,6 +273,7 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
     category,
     supplier_name: "C7 Drop",
     stock_quantity: stock > 0 ? stock : 0,
+    variants: normalizeVariants(detail),
     is_active: detail.active !== false,
     product_url: `${BASE}/produto/${detail.slug}`,
     is_blocked: blockedFlag,
