@@ -230,6 +230,7 @@ const CatalogoProductDetailPage = () => {
           supabase
             .from("catalog_products")
             .select("*")
+            .eq("is_active", true)
             .eq("is_blocked", false)
             .neq("id", id)
             .eq("category", data.category || "")
@@ -242,6 +243,7 @@ const CatalogoProductDetailPage = () => {
             supabase
               .from("catalog_products")
               .select("*")
+              .eq("is_active", true)
               .eq("is_blocked", false)
               .neq("id", id)
               .limit(12),

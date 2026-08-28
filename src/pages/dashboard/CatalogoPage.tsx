@@ -1126,6 +1126,7 @@ const CatalogoPage = () => {
               .from("catalog_products")
               .select("*")
               .in("id", favoritedIds)
+              .eq("is_active", true)
               .eq("is_blocked", false)
               .gt("stock_quantity", 0),
           );
@@ -1156,7 +1157,9 @@ const CatalogoPage = () => {
             supabase
               .from("catalog_products")
               .select("*")
-              .in("id", atlasResults.ids),
+              .in("id", atlasResults.ids)
+              .eq("is_active", true)
+              .eq("is_blocked", false),
           );
           if (fetchError) throw fetchError;
           const byId = new Map((data || []).map((p) => [p.id, p]));
@@ -1175,7 +1178,7 @@ const CatalogoPage = () => {
         // não é exportado de forma prática; a query final é tipada pelo Supabase.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const applyCommonFilters = (query: any) => {
-          let q = query.eq("is_blocked", false).gt("stock_quantity", 0);
+          let q = query.eq("is_active", true).eq("is_blocked", false).gt("stock_quantity", 0);
           const priceBounds = getPriceRangeBounds(selectedPriceRange);
           if (activeCategory !== CATEGORIA_TODOS && activeCategory !== CATEGORIA_FAVORITOS) {
             // O valor já é o do banco; ilike só para não depender de caixa.
@@ -1257,6 +1260,7 @@ const CatalogoPage = () => {
             .from("catalog_products")
             .select("*")
             .eq("source", "c7drop")
+            .eq("is_active", true)
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .limit(10),
@@ -1296,6 +1300,7 @@ const CatalogoPage = () => {
       const { data, error } = await supabase
         .from("catalog_products")
         .select("category")
+        .eq("is_active", true)
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
         .limit(5000);
