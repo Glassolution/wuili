@@ -3691,6 +3691,7 @@ export type Database = {
           usuarios: number
         }[]
       }
+      rpc_ml_reconnect_required: { Args: never; Returns: boolean }
       rpc_record_affiliate_visit: {
         Args: {
           p_affiliate_code: string
