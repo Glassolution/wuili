@@ -302,7 +302,7 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
               {/* Mesmo gradiente do fundo dos prints, para a foto encostar sem emenda. */}
               <div className="absolute inset-0 bg-[linear-gradient(158deg,#FEEFDE_0%,#FEF4E9_48%,#FEF8F2_100%)]" />
 
-              <div className="relative flex h-full w-full items-center justify-center p-4 pt-16 sm:pt-16 md:pt-4">
+              <div className="relative flex h-full w-full items-center justify-center p-3 pt-14 sm:p-4 sm:pt-16 md:pt-4">
                 <AnimatePresence mode="wait">
                   <StepVisual key={step} step={step} />
                 </AnimatePresence>
