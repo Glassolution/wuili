@@ -1875,7 +1875,7 @@ Deno.serve(async (req) => {
       try {
         await supabase.from('ml_publish_errors').insert({
           user_id,
-          ml_user_id: String(mlUserId ?? ''),
+          ml_user_id: itemData?.seller_id ? String(itemData.seller_id) : null,
           http_status: itemResponse.status,
           raw_response: itemData,
           cause: arrayFromUnknown(itemData?.cause),
