@@ -270,8 +270,8 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
                 </motion.div>
               </AnimatePresence>
 
-              <div className="mt-auto pt-8">
-                <button onClick={primaryAction} className="btn-primary btn-primary--md w-full">
+              <div className="mt-auto pt-6 md:pt-8">
+                <button type="button" onClick={primaryAction} className="btn-primary btn-primary--md w-full">
                   {primaryLabel}
                   {step === 2 ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
                 </button>
