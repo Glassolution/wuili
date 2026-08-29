@@ -323,11 +323,15 @@ const LoginPage = () => {
     // Veio pela detecção de e-mail: o campo já está resolvido, então trava para não confundir.
     setEmailLocked(true);
     if (exists === null) {
-      setStep("login");
-      setAviso({ tipo: "info", texto: "Não consegui confirmar o cadastro agora. Se você já tem conta, entre com sua senha." });
+      // Não deu para confirmar: seguimos para o cadastro. Se o e-mail já existir,
+      // o próprio signUp devolve "User already registered" e leva para o login.
+      setEmailLocked(false);
+      setStep("signup");
+      setAviso({ tipo: "info", texto: "Não consegui confirmar o cadastro agora. Se você já tem conta, use \"Já tenho conta\"." });
       return;
     }
     setStep(exists ? "login" : "signup");
+
   };
 
   // Cadastro escolhido de propósito, sem passar pela detecção: o e-mail continua editável.
