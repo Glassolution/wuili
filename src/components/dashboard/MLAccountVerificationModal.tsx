@@ -298,7 +298,7 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
             </div>
 
             {/* Painel visual */}
-            <div className="relative order-1 h-[250px] shrink-0 overflow-hidden bg-[#FEF3E7] md:order-2 md:h-auto">
+            <div className="relative order-1 h-[190px] shrink-0 overflow-hidden bg-[#FEF3E7] sm:h-[230px] md:order-2 md:h-auto">
               {/* Mesmo gradiente do fundo dos prints, para a foto encostar sem emenda. */}
               <div className="absolute inset-0 bg-[linear-gradient(158deg,#FEEFDE_0%,#FEF4E9_48%,#FEF8F2_100%)]" />
 
