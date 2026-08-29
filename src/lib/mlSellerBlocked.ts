@@ -90,6 +90,26 @@ export function infoFaltanteDoVendedor(codes: string[] | undefined | null): Info
     };
   }
 
+  // "restrictions_coliving" é a trava de convivência/reputação do Mercado Livre:
+  // a conta aparece como liberada em /users/me, mas o POST /items é recusado.
+  // Não adianta mandar o usuário preencher endereço — é revisão da conta lá.
+  if (has("coliving", "convivencia", "unable_to_list")) {
+    return {
+      titulo: "Sua conta do Mercado Livre está com restrição para anunciar",
+      explicacao:
+        "O Mercado Livre bloqueou a criação de novos anúncios nesta conta por uma restrição interna de convivência (código restrictions_coliving). Não é algo que a Velo consiga liberar — precisa ser resolvido direto com o Mercado Livre.",
+      passos: [
+        "Acesse mercadolivre.com.br e entre na sua conta.",
+        "Tente criar um anúncio manualmente em “Vender” — o Mercado Livre mostrará o aviso oficial do bloqueio.",
+        "Siga a verificação pedida na tela (validação de identidade, documentos ou aceite de termos).",
+        "Se não aparecer nenhum aviso, fale com o atendimento do Mercado Livre citando o código restrictions_coliving.",
+        "Assim que o bloqueio for liberado, volte aqui e publique novamente.",
+      ],
+      url: ML_VENDER_URL,
+      botao: "Abrir o Mercado Livre",
+    };
+  }
+
   if (has("identity", "identification", "identidade", "kyc", "regulation", "regul")) {
     return {
       titulo: "Falta validar sua identidade",
