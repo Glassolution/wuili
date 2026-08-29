@@ -227,10 +227,10 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 14, scale: 0.975 }}
             transition={{ duration: 0.42, ease: EASE_OUT }}
-            className="relative grid w-full max-w-[780px] max-h-[92vh] overflow-hidden rounded-[22px] bg-white shadow-[0_40px_120px_-30px_rgba(8,20,60,0.55)] md:h-[580px] md:max-h-[88vh] md:grid-cols-2"
+            className="relative grid w-full max-w-[780px] max-h-[92vh] overflow-y-auto overscroll-contain rounded-[22px] bg-white shadow-[0_40px_120px_-30px_rgba(8,20,60,0.55)] md:h-[580px] md:max-h-[88vh] md:grid-cols-2 md:overflow-hidden"
           >
             {/* Coluna de texto */}
-            <div className="order-2 flex flex-col overflow-y-auto p-7 sm:p-9 md:order-1 md:p-10">
+            <div className="order-2 flex min-h-0 flex-col p-6 sm:p-9 md:order-1 md:overflow-y-auto md:p-10">
               <span className="inline-flex w-fit items-center rounded-full bg-[#EFF4FF] px-2.5 py-1 text-[11.5px] font-semibold tracking-[-0.01em] text-[#2563EB]">
                 Passo {step} de 3
               </span>
