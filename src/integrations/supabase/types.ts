@@ -3392,6 +3392,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      auth_email_exists: { Args: { p_email: string }; Returns: boolean }
       claim_project_invites: { Args: never; Returns: number }
       close_stale_support_tickets: { Args: never; Returns: number }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
