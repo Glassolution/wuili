@@ -329,7 +329,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     // Cada tentativa deve refletir apenas a resposta atual do Mercado Livre.
     setMlMissingCodes(null);
     setPublishing(true);
-    const toastId = veloToast.loading("Publicando produto...");
+    // Não exibimos toast de carregamento: o próprio botão já comunica o estado.
+    const toastId = `ml-publish-${Date.now()}`;
     try {
       let data: { permalink: string; item_id: string };
       try {
