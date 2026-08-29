@@ -62,7 +62,8 @@ const OwnProductsPanel = () => {
     // O modal deve representar somente a tentativa de publicação atual.
     setMlMissingCodes(null);
     setPublishingId(p.id);
-    const toastId = veloToast.loading("Publicando no Mercado Livre...");
+    // Não exibimos toast de carregamento: o botão já comunica o estado.
+    const toastId = `ml-publish-${Date.now()}`;
 
     try {
       const { data: sess } = await supabase.auth.getSession();

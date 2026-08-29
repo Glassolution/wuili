@@ -280,7 +280,8 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
 
     publicandoRef.current = true;
     setPublicando(true);
-    const toastId = veloToast.loading("Publicando no Mercado Livre...");
+    // Não exibimos toast de carregamento: o composer já comunica o estado.
+    const toastId = `ml-publish-${Date.now()}`;
     try {
       const dados = await publicarNoMercadoLivre({
         produto,
