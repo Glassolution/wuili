@@ -59,6 +59,8 @@ const OwnProductsPanel = () => {
       veloToast.error("Este produto precisa de pelo menos 3 fotos para ser publicado no Mercado Livre.");
       return;
     }
+    // O modal deve representar somente a tentativa de publicação atual.
+    setMlMissingCodes(null);
     setPublishingId(p.id);
     const toastId = veloToast.loading("Publicando no Mercado Livre...");
 
@@ -129,6 +131,7 @@ const OwnProductsPanel = () => {
         return;
       }
 
+      setMlMissingCodes(null);
       await supabase.from("user_products" as any).update({ status: "published" }).eq("id", p.id);
       veloToast.success("Produto publicado no Mercado Livre.", { id: toastId });
       refresh();

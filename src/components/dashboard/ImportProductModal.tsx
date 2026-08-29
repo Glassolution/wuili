@@ -166,6 +166,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     setStep(1);
     setPublishResult(null);
     setPublishing(false);
+    setMlMissingCodes(null);
     setDescription("");
     setTranslated(false);
     setBrand(inferProductBrand(product, truncated));
@@ -221,6 +222,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   const handleClose = () => {
     if (publishing) return;
+    setMlMissingCodes(null);
     setVisible(false);
     setTimeout(onClose, 160);
   };
@@ -324,6 +326,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       return;
     }
 
+    // Cada tentativa deve refletir apenas a resposta atual do Mercado Livre.
+    setMlMissingCodes(null);
     setPublishing(true);
     const toastId = veloToast.loading("Publicando produto...");
     try {
@@ -373,6 +377,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         return;
       }
 
+      setMlMissingCodes(null);
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       setStep(4);
       if (activeStore) incrementStorePublishedCount(activeStore.id);

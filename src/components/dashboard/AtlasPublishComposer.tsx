@@ -151,6 +151,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         setMarca(inferProductBrand(carregado, tituloCurto));
         setModelo((carregado.model ?? "").trim());
         setNomeDoAlbum(inferStickerAlbumName(carregado, tituloCurto));
+        setMlMissingCodes(null);
         setConectadoAoMl(Boolean((integracao.data as { access_token?: string } | null)?.access_token));
         setEtapa("specs");
       } catch (e) {
@@ -245,6 +246,9 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       return;
     }
 
+    // Descarta motivos de uma tentativa anterior antes de consultar o ML novamente.
+    setMlMissingCodes(null);
+
     // Limite de produtos da loja Velo ativa, quando existe uma.
     const loja = getActiveStore();
     if (loja) {
@@ -294,6 +298,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         estoque,
       });
 
+      setMlMissingCodes(null);
       setResultado(dados);
       setEtapa("publicado");
       if (loja) incrementStorePublishedCount(loja.id);
