@@ -1871,6 +1871,23 @@ Deno.serve(async (req) => {
         mapped.code = 'ANATEL_REQUIRED'
       }
 
+      // Registro para auditoria: permite ver se um bloqueio é isolado ou geral.
+      try {
+        await supabase.from('ml_publish_errors').insert({
+          user_id,
+          ml_user_id: String(mlUserId ?? ''),
+          http_status: itemResponse.status,
+          raw_response: itemData,
+          cause: arrayFromUnknown(itemData?.cause),
+          mapped_code: mapped.code ?? null,
+          mapped_message: mapped.message,
+          product_title: title,
+          category_id: categoryId ?? null,
+        })
+      } catch (logErr) {
+        console.error('[ml-publish] Falha ao registrar erro de publicação:', logErr)
+      }
+
       await notifyUser(supabase, {
         user_id,
         type: 'publication_error',
