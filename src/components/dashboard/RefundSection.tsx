@@ -289,9 +289,20 @@ const RefundSection = () => {
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-5 flex gap-3 dark:bg-amber-500/10 dark:border-amber-500/30">
                   <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-[13px] text-amber-900 dark:text-amber-200">
-                    Ao confirmar, sua solicitação será analisada em até <strong>48 horas</strong>. Se aprovada, o valor de <strong>{fmtMoney(active.amount)}</strong> será estornado no cartão e pode levar até <strong>30 dias</strong> para aparecer na fatura (prazo do banco emissor). Suas publicações no Mercado Livre serão removidas.
+                    {mode === "cancel" ? (
+                      <>
+                        O prazo de 7 dias para reembolso já expirou, então <strong>não haverá devolução</strong> do valor pago.
+                        Ao confirmar, sua assinatura <strong>não será renovada</strong> e você mantém o acesso
+                        {active.current_period_end ? <> até <strong>{fmtDate(active.current_period_end)}</strong></> : <> até o fim do período já pago</>}.
+                      </>
+                    ) : (
+                      <>
+                        Ao confirmar, sua assinatura é <strong>cancelada</strong> e o pedido de reembolso será analisado em até <strong>48 horas</strong>. Se aprovado, o valor de <strong>{fmtMoney(active.amount)}</strong> será estornado no cartão e pode levar até <strong>30 dias</strong> para aparecer na fatura (prazo do banco emissor). Suas publicações no Mercado Livre serão removidas.
+                      </>
+                    )}
                   </div>
                 </div>
+
                 <div className="flex flex-col gap-2.5">
                   <button onClick={openSupportChat}
                     className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-black text-white text-[14px] font-semibold hover:opacity-85 dark:bg-white dark:text-black">
