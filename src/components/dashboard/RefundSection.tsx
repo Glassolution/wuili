@@ -45,6 +45,7 @@ const RefundSection = () => {
   const [hasAnyRefund, setHasAnyRefund] = useState(false);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Subscription | null>(null);
+  const [mode, setMode] = useState<Mode>("refund");
   const [step, setStep] = useState<Step>("reason");
   const [reason, setReason] = useState<string>("");
   const [details, setDetails] = useState("");
@@ -56,7 +57,7 @@ const RefundSection = () => {
     setLoading(true);
     const { data } = await supabase
       .from("subscriptions")
-      .select("id, plan, status, amount, mp_payment_id, payment_method, created_at")
+      .select("id, plan, status, amount, mp_payment_id, payment_method, created_at, current_period_end, cancel_at_period_end")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setSubs(data || []);
@@ -74,6 +75,10 @@ const RefundSection = () => {
 
   useEffect(() => { load(); }, [user]);
 
+  const openFlow = (s: Subscription, m: Mode) => {
+    setActive(s); setMode(m); setStep("reason"); setReason(""); setDetails("");
+    setProcessing(false); setResult(null);
+  };
 
   const closeModal = () => {
     setActive(null); setStep("reason"); setReason(""); setDetails("");
@@ -85,19 +90,21 @@ const RefundSection = () => {
     setStep("result");
     setProcessing(true); setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("request-refund", {
+      const fn = mode === "cancel" ? "cancel-subscription" : "request-refund";
+      const { data, error } = await supabase.functions.invoke(fn, {
         body: { subscription_id: active.id, reason, reason_details: details.trim() },
       });
       if (error || !data?.success) {
         setResult({ kind: "error", message: data?.error || data?.message || "Erro ao enviar solicitação." });
       } else {
         setResult({ kind: "success", message: data.message });
-        veloToast.success("Solicitação recebida!");
+        veloToast.success(mode === "cancel" ? "Assinatura cancelada." : "Solicitação recebida!");
         load();
       }
     } catch (e) {
       setResult({ kind: "error", message: String(e) });
     } finally {
+
       setProcessing(false);
     }
   };
