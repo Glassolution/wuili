@@ -191,21 +191,29 @@ const RefundSection = () => {
                   <span className="text-[11px] inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
                     <Clock size={12} /> Em análise
                   </span>
-                ) : hasAnyRefund ? (
-                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">Reembolso já solicitado</span>
+                ) : s.cancel_at_period_end ? (
+                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500 text-right">
+                    Cancelada{s.current_period_end ? ` — acesso até ${fmtDate(s.current_period_end)}` : ""}
+                  </span>
                 ) : eligible ? (
                   <button
-                    onClick={() => setActive(s)}
+                    onClick={() => openFlow(s, "refund")}
                     className="text-[12px] px-3.5 py-1.5 rounded-full border border-black text-black hover:bg-black hover:text-white transition-colors font-medium dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
                   >
-                    Solicitar reembolso
+                    Cancelar e pedir reembolso
+                  </button>
+                ) : s.status === "active" ? (
+                  <button
+                    onClick={() => openFlow(s, "cancel")}
+                    className="text-[12px] px-3.5 py-1.5 rounded-full border border-[#E5E5E5] text-[#525252] hover:border-black hover:text-black transition-colors font-medium dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
+                  >
+                    Cancelar assinatura
                   </button>
                 ) : (
-                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">
-                    {s.status === "active" ? "Prazo expirado" : "—"}
-                  </span>
+                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">—</span>
                 )}
               </div>
+
             );
           })}
         </div>
