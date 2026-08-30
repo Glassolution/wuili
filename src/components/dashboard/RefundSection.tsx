@@ -13,10 +13,14 @@ type Subscription = {
   mp_payment_id: string | null;
   payment_method: string | null;
   created_at: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean | null;
 };
 
 type Step = "reason" | "details" | "confirm" | "result";
+type Mode = "refund" | "cancel";
 type Result = { kind: "success" | "error"; message: string } | null;
+
 
 const PLAN_LABEL: Record<string, string> = {
   gratis: "Free", go: "Go", plus: "Pro", pro: "Pro", business: "Business",
