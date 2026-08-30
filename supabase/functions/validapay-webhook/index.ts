@@ -57,7 +57,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.chargeId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
       .eq("validapay_charge_id", p.chargeId)
       .maybeSingle();
     if (data) return data;
@@ -65,7 +65,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.subscriptionId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
       .eq("validapay_subscription_id", p.subscriptionId)
       .maybeSingle();
     if (data) return data;
@@ -73,7 +73,7 @@ async function findSubscription(p: WebhookPayload) {
   if (metaUser) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
       .eq("user_id", metaUser)
       .eq("provider", "validapay")
       .order("created_at", { ascending: false })
