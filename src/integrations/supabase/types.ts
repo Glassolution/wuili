@@ -2338,6 +2338,9 @@ export type Database = {
       subscriptions: {
         Row: {
           amount: number
+          cancel_at_period_end: boolean
+          cancellation_reason: string | null
+          cancelled_at: string | null
           charge_attempts: number
           confirmation_email_sent_at: string | null
           created_at: string
@@ -2380,6 +2383,9 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          cancel_at_period_end?: boolean
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           charge_attempts?: number
           confirmation_email_sent_at?: string | null
           created_at?: string
@@ -2422,6 +2428,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cancel_at_period_end?: boolean
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           charge_attempts?: number
           confirmation_email_sent_at?: string | null
           created_at?: string
