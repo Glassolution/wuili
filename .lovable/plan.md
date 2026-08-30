@@ -1,86 +1,46 @@
+# Cancelamento e reembolso de assinatura — plano
 
-# Storefront completo Loja 1 — estilo AERO STEP
+## 0. O que já existe hoje (e onde há conflito)
 
-Reconstrução do template "Loja 1" como uma storefront de verdade, com paleta creme (#f5f2ea / #e9e5d8), verde musgo (#3d4a2a) e dourado sutil (#c8a24a), cantos arredondados grandes e cards de estilo de vida. Entrego em 4 fases pequenas pra você validar cada uma antes de eu seguir — evita retrabalho.
+- **UI:** `src/components/dashboard/RefundSection.tsx` — título já é "Cancelar assinatura / reembolso", mas na prática só existe o fluxo de **reembolso**. Fora do prazo de 7 dias o card mostra apenas o texto morto "Prazo expirado", sem nenhuma ação. **Não existe hoje nenhum botão de cancelar assinatura.**
+- **Backend de reembolso:** `request-refund` (cria pedido `pending`, valida janela de 7 dias, notifica admins) → `admin-refund-action` (aprova/recusa, estorna na ValidaPay, marca assinatura como `cancelled`, rebaixa perfil para `gratis`, fecha anúncios no ML). Também existem `process-refund` (legado, Mercado Pago) e `check-pending-refunds`.
+- **Banco:** tabela `subscriptions` **não tem** campo de "cancelar ao fim do ciclo". Tem `status`, `current_period_end`, `next_charge_at`, `refundable_until`.
+- **Renovação:** feita pelo webhook `validapay-webhook` (eventos `subscription.renewed` / `payment.success`), que reativa e empurra `current_period_end` +1 mês.
 
-## Design tokens (aplicados em todas as fases)
+**Conflitos identificados:**
+1. Hoje "cancelar" e "reembolsar" são a mesma coisa no back (aprovar reembolso já cancela). O item 1 do pedido, na prática, só precisa ficar explícito na UI/textos — não muda o back.
+2. Não há como marcar "cancelado mas com acesso até o fim do ciclo": o único caminho existente coloca `status = cancelled` e rebaixa para `gratis` na hora. Precisa de campo novo.
+3. `usePlan` considera ativo quem tem `status` em `active/paid/approved/trialing`. Se cancelarmos ao fim do ciclo mantendo `status = active`, o acesso continua correto até o vencimento — é o caminho mais seguro.
 
-- Fundo base: `#f5f2ea` (creme claro)
-- Superfícies/cards: `#ffffff` sobre creme, ou `#e9e5d8` (sálvia claro)
-- CTA / cabeçalho / seções escuras: `#3d4a2a` (verde musgo)
-- Acento (estrelas, badges, chip promocional): `#c8a24a` (dourado)
-- Texto principal: `#1a1a1a` sobre creme, `#f5f2ea` sobre verde
-- Raios: `rounded-[20px]` cards grandes, `rounded-full` botões/pills, `rounded-[14px]` cards de produto
-- Botão primário: pill verde musgo com ícone circular claro à direita (igual print de referência)
+## 1. Reembolso dentro de 7 dias = cancelamento automático
 
-## Fase 1 — Home da loja (a que aparece no editor)
+Sem mudança de banco. Ajustes:
+- `RefundSection.tsx`: o fluxo passa a se chamar "Cancelar assinatura e pedir reembolso"; a tela de confirmação deixa claro que a assinatura é encerrada junto com o estorno.
+- `request-refund`: além de criar o pedido, marca a assinatura como `cancel_at_period_end = true` (para não renovar enquanto o pedido está em análise) e registra `cancellation_requested_at`. A aprovação em `admin-refund-action` continua fazendo o cancelamento imediato e o estorno.
 
-Substitui integralmente o bloco JSX inline em `src/pages/GeneratedStoreEditorPage.tsx` (linhas ~3270–3450) e o componente público `src/components/store-templates/StorefrontLojaTemplate.tsx` para ficarem idênticos.
+## 2. Fora dos 7 dias = só cancelar, sem reembolso
 
-Estrutura nova (de cima pra baixo):
+- **Migração** em `public.subscriptions`: novos campos `cancel_at_period_end boolean default false`, `cancelled_at timestamptz`, `cancellation_reason text`.
+- **Nova Edge Function `cancel-subscription`**: valida o JWT, confere a titularidade da assinatura, marca `cancel_at_period_end = true`, grava motivo/data e cria notificação. Mantém `status = active` e `current_period_end` intactos → acesso preservado até o fim do ciclo pago. Tenta também cancelar a recorrência na ValidaPay pelo `validapay_subscription_id` (se a API recusar, o bloqueio local abaixo já garante a não renovação).
+- **`validapay-webhook`**: ao receber renovação de uma assinatura com `cancel_at_period_end = true`, não reativa — coloca `status = expired` e rebaixa o perfil para `gratis`. Rede de segurança contra cobrança nova.
+- **UI (`RefundSection.tsx`)**: fora do prazo, no lugar de "Prazo expirado" aparece o botão **"Cancelar assinatura"**, que abre um modal com aviso claro: *"O prazo de 7 dias para reembolso já expirou. Não haverá devolução do valor pago. Você mantém o acesso até DD/MM/AAAA e a assinatura não será renovada."* Depois de cancelado, o card mostra "Cancelado — acesso até DD/MM".
+- Um job/checagem já existente não é necessário: quem tem `cancel_at_period_end` simplesmente deixa de ser renovado; a expiração natural cuida do resto.
 
-```text
-[Navbar creme]  logo · nav central (Catálogo/Novidades/Ofertas/Sobre) · Entrar · Carrinho verde
-[Hero card grande arredondado]
-  esquerda: eyebrow "PRÊMIUM" · headline em 3 linhas · sub · 2 CTAs (pill verde + pill outline)
-  direita: imagem de lifestyle recortada
-  cards flutuantes: "Frete grátis" · "Prove antes de pagar" · "Produtos originais"
-[Barra de busca creme + chips de categoria pill]
-[Hits de venda]  título + "Ver todos" · grid de 5 cards de produto com heart, rating dourado, preço, badge de desconto
-[2 cards lifestyle grandes]  Categoria A (imagem + copy + botão "Ver mais")  |  Categoria B
-[Mais 2 cards lifestyle]  Categoria C  |  Categoria D
-[Tech grid]  6 ícones em linha (Frete, Prova, Original, Qualidade, Suporte, Sustentável)
-[Club card horizontal verde]  cartão membership + copy + CTA
-[Strip de garantias]  4 colunas com ícone + label
-[Footer]  logo · 4 colunas de links · social · copyright
-```
+## 3. Cancelar a renovação de joaopaulolimamartins09@gmail.com
 
-Todos os textos, imagens, categorias e produtos continuam vindos das mesmas fontes de dados que já alimentam o editor ao vivo (`brandName`, `heroImage`, `displayedProducts`, `browseCategories`, `categoryHighlights` etc.), com os mesmos `data-editor-*` para o editor inline continuar funcionando.
+Assinatura encontrada: plano **Pro**, R$ 79,80, ativa, ciclo até **23/09/2026** (ValidaPay `sub_1787503207382_ixlo09oia`). Existe também uma assinatura antiga já `expired` — será ignorada.
 
-## Fase 2 — Página de catálogo da loja
+Ação: marcar `cancel_at_period_end = true` na assinatura ativa. Ele mantém o Pro até 23/09/2026 e não é cobrado novamente.
 
-Rota `/loja/:slug/catalogo` (ou a rota pública equivalente já existente do storefront). Layout:
+## Resumo técnico
 
-- Navbar + footer compartilhados da Fase 1
-- Header creme com título "Catálogo", contagem de itens, busca
-- Sidebar esquerda com filtros: categoria (checkbox), faixa de preço (slider), ordenação, marca. Colapsável no mobile.
-- Grid de produtos em cards iguais aos da home
-- Paginação em pills
+| Item | Alteração |
+|---|---|
+| `subscriptions` | + `cancel_at_period_end`, `cancelled_at`, `cancellation_reason` |
+| `cancel-subscription` (nova função) | cancelamento sem reembolso, fim de ciclo |
+| `request-refund` | passa a marcar cancelamento junto do pedido |
+| `validapay-webhook` | não renova assinatura marcada para cancelar |
+| `RefundSection.tsx` | dois caminhos distintos por elegibilidade + avisos |
+| Dados | cancelar renovação do usuário citado |
 
-Fonte de dados: os mesmos produtos que o storefront hoje lê (via `catalog` edge function + produtos importados pelo dono da loja).
-
-## Fase 3 — Página de produto + carrinho
-
-- **Página de produto** (`/loja/:slug/produto/:id`): galeria à esquerda, painel de compra à direita (título, rating, preço, variantes em pills, quantidade, botão "Adicionar ao carrinho" verde musgo, acordeão de descrição/entrega/devolução, seção "Você também pode gostar")
-- **Carrinho** (`/loja/:slug/carrinho`): lista de itens com miniatura, ajuste de quantidade, resumo lateral com subtotal/frete/total e CTA "Finalizar compra"
-- Sem checkout novo nessa fase — o botão de finalizar leva pro checkout que já existe hoje
-
-## Fase 4 — Conta do cliente da loja
-
-Isso exige backend novo (autenticação de clientes finais, separada do login do dono Velo). Entrego:
-
-- Tabela `store_customers` (id, store_id, email, nome, senha via Supabase Auth) com RLS por `store_id`
-- Tabela `store_customer_orders` (histórico) com RLS
-- Edge function `store-customer-signup` e `store-customer-login`
-- Páginas: `/loja/:slug/entrar`, `/loja/:slug/cadastro`, `/loja/:slug/conta` (dados, pedidos, endereços), todas no mesmo visual creme/verde
-- Botão "Entrar" da navbar da loja passa a apontar pra essas rotas
-
-Como isso mexe em auth e cria tabelas novas, faço só depois das Fases 1–3 aprovadas.
-
-## Detalhes técnicos
-
-- **Onde muda a home**: `src/pages/GeneratedStoreEditorPage.tsx` (JSX inline do preview do editor) + `src/components/store-templates/StorefrontLojaTemplate.tsx` (versão pública renderizada em `velods.com.br`). Os dois precisam ficar em paridade — tratei os dois na mesma edição.
-- **Editor inline**: mantenho todos os atributos `data-editor-type`, `data-editor-section`, `data-editor-label`, `data-editor-product-id`, `data-editor-media-kind` pra edição inline (texto, imagens, ícones, seções) continuar funcionando sem regressão.
-- **Seções customizadas**: preservo as chamadas `renderCustomSectionsAfter("hero" | "categories" | "body" | "promotions" | "collections" | "footer")` nos mesmos pontos, pra não quebrar seções que o usuário já tenha adicionado via `SectionsEditorPage`.
-- **Dados**: nenhum mock — sigo usando `displayedProducts`, `catalog_products`, `user_projects`, integrações existentes.
-- **Mobile**: cada fase usa o mesmo `mobilePreview` já suportado hoje e reflui pro celular (hero empilha, grid vira 2 colunas, sidebar de filtros vira drawer).
-- **Fase 4 (auth de clientes)**: uso Lovable Cloud, RLS ativo em ambas as tabelas, sem `has_role`, sem tocar em schemas reservados.
-
-## Ordem de entrega
-
-1. Fase 1 (Home) — te mando pra revisar.
-2. Se aprovar, sigo pra Fase 2 (Catálogo).
-3. Depois Fase 3 (Produto + Carrinho).
-4. Por último Fase 4 (Conta do cliente), já com o backend.
-
-Posso começar pela Fase 1 agora?
+Sem impacto em `admin-refund-action`, `process-refund` ou nos limites de plano.
