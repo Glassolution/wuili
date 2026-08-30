@@ -92,6 +92,19 @@ Deno.serve(async (req) => {
     }).select().single();
     if (insErr) return json({ error: insErr.message }, 500);
 
+    // Pedido de reembolso = cancelamento da assinatura. Marcamos para não
+    // renovar já na solicitação; a aprovação encerra e estorna de fato.
+    await admin
+      .from("subscriptions")
+      .update({
+        cancel_at_period_end: true,
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: `Reembolso: ${reason}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sub.id);
+
+
     // Notificar todos os admins (in-app)
     try {
       const { data: admins } = await admin.from("user_roles").select("user_id").eq("role", "admin");

@@ -57,7 +57,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.chargeId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
       .eq("validapay_charge_id", p.chargeId)
       .maybeSingle();
     if (data) return data;
@@ -65,7 +65,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.subscriptionId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
       .eq("validapay_subscription_id", p.subscriptionId)
       .maybeSingle();
     if (data) return data;
@@ -73,7 +73,7 @@ async function findSubscription(p: WebhookPayload) {
   if (metaUser) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
       .eq("user_id", metaUser)
       .eq("provider", "validapay")
       .order("created_at", { ascending: false })
@@ -233,7 +233,19 @@ Deno.serve(async (req) => {
     const nowIso = now.toISOString();
 
     const activate = async () => {
+      // Assinatura marcada para cancelar ao fim do ciclo não volta a ser
+      // renovada: encerramos e rebaixamos o perfil em vez de reativar.
+      if (subscription.cancel_at_period_end) {
+        console.log("validapay-webhook: renovação ignorada (cancelamento agendado)", subscription.id);
+        await admin
+          .from("subscriptions")
+          .update({ status: "expired", updated_at: nowIso })
+          .eq("id", subscription.id);
+        await admin.from("profiles").update({ plano: "gratis" }).eq("user_id", subscription.user_id);
+        return;
+      }
       await admin
+
         .from("subscriptions")
         .update({
           status: "active",

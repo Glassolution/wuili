@@ -13,10 +13,14 @@ type Subscription = {
   mp_payment_id: string | null;
   payment_method: string | null;
   created_at: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean | null;
 };
 
 type Step = "reason" | "details" | "confirm" | "result";
+type Mode = "refund" | "cancel";
 type Result = { kind: "success" | "error"; message: string } | null;
+
 
 const PLAN_LABEL: Record<string, string> = {
   gratis: "Free", go: "Go", plus: "Pro", pro: "Pro", business: "Business",
@@ -41,6 +45,7 @@ const RefundSection = () => {
   const [hasAnyRefund, setHasAnyRefund] = useState(false);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Subscription | null>(null);
+  const [mode, setMode] = useState<Mode>("refund");
   const [step, setStep] = useState<Step>("reason");
   const [reason, setReason] = useState<string>("");
   const [details, setDetails] = useState("");
@@ -52,7 +57,7 @@ const RefundSection = () => {
     setLoading(true);
     const { data } = await supabase
       .from("subscriptions")
-      .select("id, plan, status, amount, mp_payment_id, payment_method, created_at")
+      .select("id, plan, status, amount, mp_payment_id, payment_method, created_at, current_period_end, cancel_at_period_end")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     setSubs(data || []);
@@ -70,6 +75,10 @@ const RefundSection = () => {
 
   useEffect(() => { load(); }, [user]);
 
+  const openFlow = (s: Subscription, m: Mode) => {
+    setActive(s); setMode(m); setStep("reason"); setReason(""); setDetails("");
+    setProcessing(false); setResult(null);
+  };
 
   const closeModal = () => {
     setActive(null); setStep("reason"); setReason(""); setDetails("");
@@ -81,19 +90,21 @@ const RefundSection = () => {
     setStep("result");
     setProcessing(true); setResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("request-refund", {
+      const fn = mode === "cancel" ? "cancel-subscription" : "request-refund";
+      const { data, error } = await supabase.functions.invoke(fn, {
         body: { subscription_id: active.id, reason, reason_details: details.trim() },
       });
       if (error || !data?.success) {
         setResult({ kind: "error", message: data?.error || data?.message || "Erro ao enviar solicitação." });
       } else {
         setResult({ kind: "success", message: data.message });
-        veloToast.success("Solicitação recebida!");
+        veloToast.success(mode === "cancel" ? "Assinatura cancelada." : "Solicitação recebida!");
         load();
       }
     } catch (e) {
       setResult({ kind: "error", message: String(e) });
     } finally {
+
       setProcessing(false);
     }
   };
@@ -135,8 +146,10 @@ const RefundSection = () => {
     <div className="mt-8 pt-8 border-t border-[#F0F0F0] dark:border-white/10">
       <h3 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Cancelar assinatura / reembolso</h3>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">
-        Reembolso disponível em até 7 dias após o pagamento. Toda solicitação passa por análise (até 48h).
+        Nos primeiros 7 dias após o pagamento você pode pedir reembolso — a assinatura é cancelada junto (análise em até 48h).
+        Depois desse prazo é possível cancelar a renovação, mantendo o acesso até o fim do período já pago, sem devolução do valor.
       </p>
+
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-[#737373] dark:text-zinc-400"><Loader2 size={14} className="animate-spin" /> Carregando...</div>
@@ -178,21 +191,29 @@ const RefundSection = () => {
                   <span className="text-[11px] inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
                     <Clock size={12} /> Em análise
                   </span>
-                ) : hasAnyRefund ? (
-                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">Reembolso já solicitado</span>
+                ) : s.cancel_at_period_end ? (
+                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500 text-right">
+                    Cancelada{s.current_period_end ? ` — acesso até ${fmtDate(s.current_period_end)}` : ""}
+                  </span>
                 ) : eligible ? (
                   <button
-                    onClick={() => setActive(s)}
+                    onClick={() => openFlow(s, "refund")}
                     className="text-[12px] px-3.5 py-1.5 rounded-full border border-black text-black hover:bg-black hover:text-white transition-colors font-medium dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black"
                   >
-                    Solicitar reembolso
+                    Cancelar e pedir reembolso
+                  </button>
+                ) : s.status === "active" ? (
+                  <button
+                    onClick={() => openFlow(s, "cancel")}
+                    className="text-[12px] px-3.5 py-1.5 rounded-full border border-[#E5E5E5] text-[#525252] hover:border-black hover:text-black transition-colors font-medium dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-white dark:hover:text-white"
+                  >
+                    Cancelar assinatura
                   </button>
                 ) : (
-                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">
-                    {s.status === "active" ? "Prazo expirado" : "—"}
-                  </span>
+                  <span className="text-[11px] text-[#A3A3A3] dark:text-zinc-500">—</span>
                 )}
               </div>
+
             );
           })}
         </div>
@@ -268,9 +289,20 @@ const RefundSection = () => {
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-5 flex gap-3 dark:bg-amber-500/10 dark:border-amber-500/30">
                   <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="text-[13px] text-amber-900 dark:text-amber-200">
-                    Ao confirmar, sua solicitação será analisada em até <strong>48 horas</strong>. Se aprovada, o valor de <strong>{fmtMoney(active.amount)}</strong> será estornado no cartão e pode levar até <strong>30 dias</strong> para aparecer na fatura (prazo do banco emissor). Suas publicações no Mercado Livre serão removidas.
+                    {mode === "cancel" ? (
+                      <>
+                        O prazo de 7 dias para reembolso já expirou, então <strong>não haverá devolução</strong> do valor pago.
+                        Ao confirmar, sua assinatura <strong>não será renovada</strong> e você mantém o acesso
+                        {active.current_period_end ? <> até <strong>{fmtDate(active.current_period_end)}</strong></> : <> até o fim do período já pago</>}.
+                      </>
+                    ) : (
+                      <>
+                        Ao confirmar, sua assinatura é <strong>cancelada</strong> e o pedido de reembolso será analisado em até <strong>48 horas</strong>. Se aprovado, o valor de <strong>{fmtMoney(active.amount)}</strong> será estornado no cartão e pode levar até <strong>30 dias</strong> para aparecer na fatura (prazo do banco emissor). Suas publicações no Mercado Livre serão removidas.
+                      </>
+                    )}
                   </div>
                 </div>
+
                 <div className="flex flex-col gap-2.5">
                   <button onClick={openSupportChat}
                     className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-black text-white text-[14px] font-semibold hover:opacity-85 dark:bg-white dark:text-black">
