@@ -233,7 +233,19 @@ Deno.serve(async (req) => {
     const nowIso = now.toISOString();
 
     const activate = async () => {
+      // Assinatura marcada para cancelar ao fim do ciclo não volta a ser
+      // renovada: encerramos e rebaixamos o perfil em vez de reativar.
+      if (subscription.cancel_at_period_end) {
+        console.log("validapay-webhook: renovação ignorada (cancelamento agendado)", subscription.id);
+        await admin
+          .from("subscriptions")
+          .update({ status: "expired", updated_at: nowIso })
+          .eq("id", subscription.id);
+        await admin.from("profiles").update({ plano: "gratis" }).eq("user_id", subscription.user_id);
+        return;
+      }
       await admin
+
         .from("subscriptions")
         .update({
           status: "active",
