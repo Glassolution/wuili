@@ -146,8 +146,10 @@ const RefundSection = () => {
     <div className="mt-8 pt-8 border-t border-[#F0F0F0] dark:border-white/10">
       <h3 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Cancelar assinatura / reembolso</h3>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">
-        Reembolso disponível em até 7 dias após o pagamento. Toda solicitação passa por análise (até 48h).
+        Nos primeiros 7 dias após o pagamento você pode pedir reembolso — a assinatura é cancelada junto (análise em até 48h).
+        Depois desse prazo é possível cancelar a renovação, mantendo o acesso até o fim do período já pago, sem devolução do valor.
       </p>
+
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-[#737373] dark:text-zinc-400"><Loader2 size={14} className="animate-spin" /> Carregando...</div>
