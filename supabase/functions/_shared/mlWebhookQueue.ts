@@ -13,6 +13,8 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { mlFetch } from "./mlClient.ts";
+import { dispatchOrderToBot } from "./c7dropBotDispatch.ts";
+
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
