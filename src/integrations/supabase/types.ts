@@ -940,6 +940,7 @@ export type Database = {
       }
       dropship_orders: {
         Row: {
+          c7drop_product_url: string | null
           carrier: string | null
           created_at: string
           currency: string
@@ -949,12 +950,19 @@ export type Database = {
           id: string
           items: Json
           metadata: Json
+          ml_order_id: string | null
+          needs_manual_sku: boolean
           notes: string | null
           order_number: string
           payment_method: string | null
           payment_reference: string | null
           payment_status: string
+          preco_ml: number
+          quantidade: number
+          seller_email: string | null
           shipping_address: Json | null
+          sku_c7drop: string | null
+          source: string
           status: string
           total_amount: number
           tracking_code: string | null
@@ -963,6 +971,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          c7drop_product_url?: string | null
           carrier?: string | null
           created_at?: string
           currency?: string
@@ -972,12 +981,19 @@ export type Database = {
           id?: string
           items?: Json
           metadata?: Json
+          ml_order_id?: string | null
+          needs_manual_sku?: boolean
           notes?: string | null
           order_number: string
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string
+          preco_ml?: number
+          quantidade?: number
+          seller_email?: string | null
           shipping_address?: Json | null
+          sku_c7drop?: string | null
+          source?: string
           status?: string
           total_amount?: number
           tracking_code?: string | null
@@ -986,6 +1002,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          c7drop_product_url?: string | null
           carrier?: string | null
           created_at?: string
           currency?: string
@@ -995,12 +1012,19 @@ export type Database = {
           id?: string
           items?: Json
           metadata?: Json
+          ml_order_id?: string | null
+          needs_manual_sku?: boolean
           notes?: string | null
           order_number?: string
           payment_method?: string | null
           payment_reference?: string | null
           payment_status?: string
+          preco_ml?: number
+          quantidade?: number
+          seller_email?: string | null
           shipping_address?: Json | null
+          sku_c7drop?: string | null
+          source?: string
           status?: string
           total_amount?: number
           tracking_code?: string | null
