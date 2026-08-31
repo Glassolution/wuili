@@ -1632,6 +1632,8 @@ export type Database = {
       }
       orders: {
         Row: {
+          bot_notified_at: string | null
+          bot_payload: Json | null
           buyer_address: string | null
           buyer_city: string | null
           buyer_complement: string | null
@@ -1658,6 +1660,7 @@ export type Database = {
           ml_tracking_sent: boolean | null
           ml_tracking_sent_at: string | null
           ml_user_id: string | null
+          needs_manual_sku: boolean
           ordered_at: string | null
           platform: string
           product_image: string | null
@@ -1674,6 +1677,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          bot_notified_at?: string | null
+          bot_payload?: Json | null
           buyer_address?: string | null
           buyer_city?: string | null
           buyer_complement?: string | null
@@ -1700,6 +1705,7 @@ export type Database = {
           ml_tracking_sent?: boolean | null
           ml_tracking_sent_at?: string | null
           ml_user_id?: string | null
+          needs_manual_sku?: boolean
           ordered_at?: string | null
           platform?: string
           product_image?: string | null
@@ -1716,6 +1722,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          bot_notified_at?: string | null
+          bot_payload?: Json | null
           buyer_address?: string | null
           buyer_city?: string | null
           buyer_complement?: string | null
@@ -1742,6 +1750,7 @@ export type Database = {
           ml_tracking_sent?: boolean | null
           ml_tracking_sent_at?: string | null
           ml_user_id?: string | null
+          needs_manual_sku?: boolean
           ordered_at?: string | null
           platform?: string
           product_image?: string | null
