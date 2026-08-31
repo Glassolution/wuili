@@ -350,6 +350,17 @@ serve(async (req) => {
       } else {
         newOrdersCount++;
         syncedOrders.push(newOrder);
+        try {
+          await dispatchOrderToBot(adminClient, {
+            orderId: newOrder.id,
+            mlOrderId,
+            userId,
+            mlOrder: fullOrder,
+            precoMl: salePrice,
+          });
+        } catch (e) {
+          console.warn(`[ml-sync-orders] envio ao bot falhou para ${mlOrderId}:`, (e as Error).message);
+        }
         await notifyUser(adminClient, {
           user_id: userId,
           type: "new_sale",
@@ -364,6 +375,7 @@ serve(async (req) => {
           },
         });
       }
+
     }
 
     return new Response(
