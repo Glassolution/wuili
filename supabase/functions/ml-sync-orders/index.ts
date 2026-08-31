@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { dispatchOrderToBot } from "../_shared/c7dropBotDispatch.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -350,6 +352,17 @@ serve(async (req) => {
       } else {
         newOrdersCount++;
         syncedOrders.push(newOrder);
+        try {
+          await dispatchOrderToBot(adminClient, {
+            orderId: newOrder.id,
+            mlOrderId,
+            userId,
+            mlOrder: fullOrder,
+            precoMl: salePrice,
+          });
+        } catch (e) {
+          console.warn(`[ml-sync-orders] envio ao bot falhou para ${mlOrderId}:`, (e as Error).message);
+        }
         await notifyUser(adminClient, {
           user_id: userId,
           type: "new_sale",
@@ -364,6 +377,7 @@ serve(async (req) => {
           },
         });
       }
+
     }
 
     return new Response(
