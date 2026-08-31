@@ -894,6 +894,122 @@ export type Database = {
         }
         Relationships: []
       }
+      dropship_order_events: {
+        Row: {
+          actor: string
+          created_at: string
+          event_type: string
+          id: string
+          message: string | null
+          metadata: Json
+          new_status: string | null
+          order_id: string
+          previous_status: string | null
+        }
+        Insert: {
+          actor?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string | null
+          metadata?: Json
+          new_status?: string | null
+          order_id: string
+          previous_status?: string | null
+        }
+        Update: {
+          actor?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          message?: string | null
+          metadata?: Json
+          new_status?: string | null
+          order_id?: string
+          previous_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dropship_order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "dropship_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dropship_orders: {
+        Row: {
+          carrier: string | null
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          items: Json
+          metadata: Json
+          notes: string | null
+          order_number: string
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string
+          shipping_address: Json | null
+          status: string
+          total_amount: number
+          tracking_code: string | null
+          tracking_url: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          carrier?: string | null
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          metadata?: Json
+          notes?: string | null
+          order_number: string
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string
+          shipping_address?: Json | null
+          status?: string
+          total_amount?: number
+          tracking_code?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          carrier?: string | null
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          items?: Json
+          metadata?: Json
+          notes?: string | null
+          order_number?: string
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string
+          shipping_address?: Json | null
+          status?: string
+          total_amount?: number
+          tracking_code?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       feature_suggestions: {
         Row: {
           category: string
