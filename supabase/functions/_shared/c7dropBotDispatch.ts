@@ -173,9 +173,9 @@ export function buildBotPayload(params: {
 }
 
 /**
- * Envia o pedido ao bot de forma idempotente por ml_order_id.
- * Só dispara quando TODOS os itens têm sku_c7drop; caso contrário o pedido é
- * marcado como pendente de correção manual e nada é enviado.
+ * Grava/atualiza o pedido do Mercado Livre em `dropship_orders`, que é a
+ * integração central lida pelo worker. Idempotente por `ml_order_id`.
+ * Sem SKU do C7Drop, o pedido é criado mas marcado para correção manual.
  */
 export async function dispatchOrderToBot(
   supabase: SupabaseClient,
@@ -188,18 +188,11 @@ export async function dispatchOrderToBot(
   },
 ): Promise<{ dispatched: boolean; reason: string }> {
   const { orderId, mlOrderId, userId, mlOrder, precoMl } = params;
-
-  // Idempotência: se já enviamos este ml_order_id, não repetimos.
-  const { data: already } = await supabase
-    .from("orders")
-    .select("id, bot_notified_at")
-    .eq("ml_order_id", String(mlOrderId))
-    .not("bot_notified_at", "is", null)
-    .maybeSingle();
-  if (already) return { dispatched: false, reason: "already_dispatched" };
+  const mlOrderIdStr = String(mlOrderId);
 
   const itens = await resolveC7dropItems(supabase, userId, mlOrder);
   const missing = itens.filter((i) => !i.sku_c7drop);
+  const needsManual = itens.length === 0 || missing.length > 0;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -208,65 +201,67 @@ export async function dispatchOrderToBot(
     .maybeSingle();
 
   const payload = buildBotPayload({
-    mlOrderId: String(mlOrderId),
+    mlOrderId: mlOrderIdStr,
     veloSellerId: userId,
     sellerEmail: String(profile?.email ?? ""),
     itens,
     precoMl,
   });
 
-  if (itens.length === 0 || missing.length > 0) {
-    await supabase
-      .from("orders")
-      .update({
-        needs_manual_sku: true,
-        bot_payload: payload,
-        fulfillment_status: "needs_review",
-        fulfillment_error: "sku_c7drop_nao_mapeado",
-      })
-      .eq("id", orderId);
+  const buyer = mlOrder?.buyer ?? {};
+  const addr = mlOrder?.shipping?.receiver_address ?? {};
+  const customerName = String(
+    addr?.receiver_name ??
+      [buyer?.first_name, buyer?.last_name].filter(Boolean).join(" ").trim() ??
+      "",
+  ).trim() || null;
+
+  const row = {
+    ml_order_id: mlOrderIdStr,
+    order_number: `ML-${mlOrderIdStr}`,
+    user_id: userId,
+    seller_email: payload.seller_email,
+    sku_c7drop: payload.sku_c7drop,
+    c7drop_product_url: payload.c7drop_product_url,
+    quantidade: payload.quantidade,
+    preco_ml: payload.preco_ml,
+    total_amount: payload.preco_ml,
+    items: payload.itens,
+    needs_manual_sku: needsManual,
+    source: "mercadolivre",
+    customer_name: customerName,
+    customer_email: buyer?.email ? String(buyer.email) : null,
+    customer_phone: addr?.receiver_phone ? String(addr.receiver_phone) : null,
+    shipping_address: Object.keys(addr ?? {}).length > 0 ? addr : null,
+    metadata: { velo_order_id: orderId, payload },
+  };
+
+  // Idempotência por ml_order_id: nunca duplica o mesmo pedido.
+  const { error } = await supabase
+    .from("dropship_orders")
+    .upsert(row, { onConflict: "ml_order_id", ignoreDuplicates: false });
+
+  if (error) {
+    console.error("[c7drop] falha ao gravar dropship_orders:", error.message);
+    return { dispatched: false, reason: `dropship_upsert_error` };
+  }
+
+  // Espelha o estado no pedido original da Velo.
+  await supabase
+    .from("orders")
+    .update({
+      bot_payload: payload,
+      needs_manual_sku: needsManual,
+      ...(needsManual
+        ? { fulfillment_status: "needs_review", fulfillment_error: "sku_c7drop_nao_mapeado" }
+        : { bot_notified_at: new Date().toISOString() }),
+    })
+    .eq("id", orderId);
+
+  if (needsManual) {
+    console.warn(`[c7drop] pedido ${mlOrderIdStr} sem sku_c7drop — correção manual`);
     return { dispatched: false, reason: "sku_c7drop_nao_mapeado" };
   }
 
-  const url = Deno.env.get("C7DROP_BOT_WEBHOOK_URL");
-  if (!url) {
-    await supabase.from("orders").update({ bot_payload: payload }).eq("id", orderId);
-    console.warn("[c7drop-bot] C7DROP_BOT_WEBHOOK_URL não configurada; envio ignorado");
-    return { dispatched: false, reason: "webhook_url_missing" };
-  }
-
-  const token = Deno.env.get("C7DROP_BOT_WEBHOOK_TOKEN");
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Idempotency-Key": `ml-order:${mlOrderId}`,
-        ...(token ? { "x-webhook-token": token } : {}),
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("[c7drop-bot] envio falhou:", res.status, text.slice(0, 300));
-      await supabase.from("orders").update({ bot_payload: payload }).eq("id", orderId);
-      return { dispatched: false, reason: `bot_http_${res.status}` };
-    }
-
-    await supabase
-      .from("orders")
-      .update({
-        bot_notified_at: new Date().toISOString(),
-        bot_payload: payload,
-        needs_manual_sku: false,
-      })
-      .eq("id", orderId);
-
-    return { dispatched: true, reason: "ok" };
-  } catch (e) {
-    console.error("[c7drop-bot] erro de rede:", (e as Error).message);
-    await supabase.from("orders").update({ bot_payload: payload }).eq("id", orderId);
-    return { dispatched: false, reason: "network_error" };
-  }
+  return { dispatched: true, reason: "ok" };
 }
