@@ -2,7 +2,7 @@
  * c7dropBotDispatch
  * -----------------
  * Resolve o SKU do fornecedor C7Drop de cada item de um pedido do Mercado Livre
- * e envia o payload para o bot externo.
+ * e grava/atualiza o pedido em `dropship_orders` (integração central do worker).
  *
  * Onde vive o SKU do fornecedor na Velo:
  *   catalog_products.variants[].sku  → SKU real usado no C7Drop (ex.: "CTR-GEM1003")
