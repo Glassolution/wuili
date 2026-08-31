@@ -416,9 +416,28 @@ async function handleOrdersTopic(
     return `order_created_needs_review_${newOrder.id}`;
   }
 
-  // External supplier fulfillment is intentionally disabled.
-  return `order_created_${newOrder.id}`;
+  // Envia o pedido ao bot do C7Drop (idempotente por ml_order_id).
+  const dispatch = await dispatchOrderToBot(supabase, {
+    orderId: newOrder.id as string,
+    mlOrderId: String(mlOrderId),
+    userId: integration.user_id as string,
+    mlOrder,
+    precoMl: totalAmount,
+  });
+
+  if (!dispatch.dispatched && dispatch.reason === "sku_c7drop_nao_mapeado") {
+    await notifyUser(
+      supabase,
+      integration.user_id as string,
+      "Pedido precisa de correção manual",
+      `O pedido ${mlOrderId} não pôde ser enviado automaticamente ao fornecedor porque falta o SKU do C7Drop de pelo menos um item. Confira em Pedidos e finalize manualmente.`,
+    );
+    return `order_created_needs_sku_${newOrder.id}`;
+  }
+
+  return `order_created_${newOrder.id}${dispatch.dispatched ? "_bot_ok" : `_bot_${dispatch.reason}`}`;
 }
+
 
 async function notifyUser(
   supabase: SupabaseClient,
