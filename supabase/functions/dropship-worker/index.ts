@@ -8,7 +8,11 @@ import { z } from "npm:zod@3.23.8";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json", "x-worker-token": "" },
+    headers: {
+      ...corsHeaders,
+      "Access-Control-Allow-Headers": "content-type, x-worker-token",
+      "Content-Type": "application/json",
+    },
   });
 
 const ORDER_FIELDS = [
@@ -71,13 +75,6 @@ const EventSchema = z.object({
   message: z.string().max(1000).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
-
-const BodySchema = z.discriminatedUnion("action", [
-  ListSchema,
-  GetSchema.innerType?.() ?? (GetSchema as unknown as typeof ListSchema),
-  UpdateSchema.innerType?.() ?? (UpdateSchema as unknown as typeof ListSchema),
-  EventSchema,
-] as never);
 
 function timingSafeEqual(a: string, b: string) {
   if (a.length !== b.length) return false;
