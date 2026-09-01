@@ -13,6 +13,7 @@
  * interno do anúncio (slug), servindo apenas como chave de busca no catálogo.
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { resolveShippingLabel } from "./mlShippingLabel.ts";
 
 export interface BotOrderItem {
   sku_c7drop: string | null;
@@ -185,9 +186,10 @@ export async function dispatchOrderToBot(
     userId: string;
     mlOrder: MlOrder;
     precoMl: number;
+    accessToken?: string | null;
   },
 ): Promise<{ dispatched: boolean; reason: string }> {
-  const { orderId, mlOrderId, userId, mlOrder, precoMl } = params;
+  const { orderId, mlOrderId, userId, mlOrder, precoMl, accessToken } = params;
   const mlOrderIdStr = String(mlOrderId);
 
   const itens = await resolveC7dropItems(supabase, userId, mlOrder);
@@ -216,6 +218,15 @@ export async function dispatchOrderToBot(
       "",
   ).trim() || null;
 
+  // Etiqueta de envio do ML: se ainda não estiver disponível, o pedido é
+  // gravado sem etiqueta e marcado com needs_shipping_label = true.
+  const label = await resolveShippingLabel(supabase, {
+    mlOrderId: mlOrderIdStr,
+    userId,
+    mlOrder,
+    accessToken,
+  });
+
   const row = {
     ml_order_id: mlOrderIdStr,
     order_number: `ML-${mlOrderIdStr}`,
@@ -228,6 +239,9 @@ export async function dispatchOrderToBot(
     total_amount: payload.preco_ml,
     items: payload.itens,
     needs_manual_sku: needsManual,
+    etiqueta_ml_url: label.url,
+    etiqueta_ml_path: label.path,
+    needs_shipping_label: !label.url,
     source: "mercadolivre",
     customer_name: customerName,
     customer_email: buyer?.email ? String(buyer.email) : null,
@@ -258,10 +272,59 @@ export async function dispatchOrderToBot(
     })
     .eq("id", orderId);
 
+  if (!label.url) {
+    console.warn(`[c7drop] pedido ${mlOrderIdStr} sem etiqueta do ML — worker deve aguardar`);
+  }
+
   if (needsManual) {
     console.warn(`[c7drop] pedido ${mlOrderIdStr} sem sku_c7drop — correção manual`);
     return { dispatched: false, reason: "sku_c7drop_nao_mapeado" };
   }
 
   return { dispatched: true, reason: "ok" };
+}
+
+/**
+ * Nova tentativa de obter a etiqueta de um pedido já gravado em
+ * `dropship_orders`. Usado nas sincronizações periódicas: enquanto o ML não
+ * gerar a etiqueta, o pedido segue com `needs_shipping_label = true`.
+ */
+export async function retryShippingLabel(
+  supabase: SupabaseClient,
+  params: {
+    mlOrderId: string;
+    userId: string;
+    mlOrder: MlOrder;
+    accessToken?: string | null;
+  },
+): Promise<boolean> {
+  const mlOrderIdStr = String(params.mlOrderId);
+
+  const { data: existing } = await supabase
+    .from("dropship_orders")
+    .select("id, needs_shipping_label")
+    .eq("ml_order_id", mlOrderIdStr)
+    .maybeSingle();
+
+  if (!existing || existing.needs_shipping_label === false) return false;
+
+  const label = await resolveShippingLabel(supabase, {
+    mlOrderId: mlOrderIdStr,
+    userId: params.userId,
+    mlOrder: params.mlOrder,
+    accessToken: params.accessToken,
+  });
+  if (!label.url) return false;
+
+  await supabase
+    .from("dropship_orders")
+    .update({
+      etiqueta_ml_url: label.url,
+      etiqueta_ml_path: label.path,
+      needs_shipping_label: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id);
+
+  return true;
 }
