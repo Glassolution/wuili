@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const token = req.headers.get("x-worker-token");
-  if (!token || token !== Deno.env.get("DROPSHIP_WORKER_TOKEN")) {
+  if (!token || token !== Deno.env.get("ML_DEBUG_TOKEN")) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
