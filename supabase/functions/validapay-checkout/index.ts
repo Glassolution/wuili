@@ -108,6 +108,39 @@ Deno.serve(async (req) => {
       console.warn("validapay-checkout: cupom ignorado", body.coupon, plan, cycle);
     }
 
+    // Desconto de indicação: quem entrou pelo link de convite (/convite/:token)
+    // tem 15% na PRIMEIRA cobrança. A UI já mostra o preço com desconto, então
+    // o gateway precisa receber o mesmo desconto — senão o cliente pagaria cheio.
+    const referralLookup = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
+    );
+    let referralPercentOff = 0;
+    try {
+      const { data: referral } = await referralLookup
+        .from("referrals")
+        .select("id,status")
+        .eq("invited_user_id", userId)
+        .in("status", ["linked", "pending"])
+        .limit(1)
+        .maybeSingle();
+      if (referral) referralPercentOff = 15;
+    } catch (err) {
+      console.error("validapay-checkout: falha ao checar indicação", String(err));
+    }
+
+    // Não acumula com cupom: vale o maior desconto.
+    const couponPercentOff = coupon?.coupon.percentOff ?? 0;
+    const discountPercent = Math.max(couponPercentOff, referralPercentOff);
+    const discountSource = discountPercent === 0
+      ? null
+      : referralPercentOff >= couponPercentOff
+      ? "referral"
+      : "coupon";
+
+
+
 
     const origin = req.headers.get("origin") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
 
@@ -143,15 +176,16 @@ Deno.serve(async (req) => {
         plan,
         cycle,
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
-        ...(coupon ? { coupon_code: coupon.coupon.code } : {}),
+        ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
+        ...(discountSource === "referral" ? { referral_discount: "15" } : {}),
       },
       // Desconto só na 1ª cobrança (fromCycle/toCycle = 1).
-      ...(coupon
+      ...(discountPercent > 0
         ? {
             discounts: [
               {
                 type: "PERCENTAGE",
-                value: coupon.coupon.percentOff,
+                value: discountPercent,
                 fromCycle: 1,
                 toCycle: 1,
                 durationMonths: 1,
@@ -159,6 +193,7 @@ Deno.serve(async (req) => {
             ],
           }
         : {}),
+
 
     };
 
