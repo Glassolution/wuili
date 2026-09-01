@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeroCard from "./HeroCard";
-const heroDashboard = "/hero.png";
+const heroDashboard = "/hero.webp";
 
 const CheckIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-shrink-0 mt-[1px]">
