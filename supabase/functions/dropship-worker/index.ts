@@ -32,6 +32,9 @@ const ListSchema = z.object({
   updated_since: z.string().datetime().optional(),
   limit: z.number().int().min(1).max(200).default(50),
   offset: z.number().int().min(0).default(0),
+  // Por padrão o worker ignora pedidos incompletos (sem SKU do C7Drop ou sem
+  // etiqueta do Mercado Livre). Use true para listar todos.
+  include_incomplete: z.boolean().default(false),
 });
 
 const GetSchema = z.object({
@@ -118,12 +121,15 @@ Deno.serve(async (req) => {
       case "list_orders": {
         const parsed = ListSchema.safeParse(body);
         if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
-        const { status, updated_since, limit, offset } = parsed.data;
+        const { status, updated_since, limit, offset, include_incomplete } = parsed.data;
         let q = admin
           .from("dropship_orders")
           .select("*")
           .order("created_at", { ascending: false })
           .range(offset, offset + limit - 1);
+        if (!include_incomplete) {
+          q = q.eq("needs_shipping_label", false).eq("needs_manual_sku", false);
+        }
         if (status) q = q.eq("status", status);
         if (updated_since) q = q.gte("updated_at", updated_since);
         const { data, error } = await q;
