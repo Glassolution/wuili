@@ -4,8 +4,7 @@ import {
   type SubscriptionEmailInput,
 } from "../_shared/transactional-email-templates.ts";
 import {
-  applyPendingReferralRewards,
-  grantInviterMonthsForPaidInvitee,
+  grantInviterDiscountForPaidInvitee,
 } from "../_shared/referral-rewards.ts";
 
 const corsHeaders = {
@@ -254,12 +253,10 @@ Deno.serve(async (req) => {
       if (profileError) {
         console.error("Active subscription profile sync failed:", JSON.stringify({ user_id: userId, plan: normalizedPlan, error: profileError }));
       }
-      // Indicação: primeiro pagamento confirmado do convidado → +3 meses para quem convidou.
-      await grantInviterMonthsForPaidInvitee(adminClient, {
+      // Indicação: pagamento confirmado do convidado → libera 15% para quem convidou.
+      await grantInviterDiscountForPaidInvitee(adminClient, {
         invitedUserId: String(userId),
-        paymentRef: String(paymentId),
       });
-      await applyPendingReferralRewards(adminClient, String(userId));
 
       if (subscriptionForEmail) {
         const emailResult = await sendSubscriptionConfirmationEmailOnce({
