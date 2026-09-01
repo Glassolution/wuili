@@ -1712,11 +1712,16 @@ Deno.serve(async (req) => {
       console.log('Item criado (retry sem family_name):', JSON.stringify(itemData).substring(0, 800))
     }
 
-    // Contas migradas para User Products devolvem um par contraditório quando
-    // o item tem variações: "The field variations is invalid with family name"
-    // + "body does not contains ... [family_name]". As variações NÃO podem ser
-    // descartadas — tentamos as combinações válidas de title/family_name até o
-    // ML aceitar o anúncio COM as variações.
+    // Contas migradas para o modelo User Products não aceitam `variations` no
+    // mesmo POST: o ML devolve "The field variations is invalid with family
+    // name" e, ao mesmo tempo, exige `family_name`. Nesse modelo as variações
+    // não vão dentro do item — cada variação é um anúncio próprio que o ML
+    // agrupa pelo mesmo `family_name`. Então:
+    //   1) tentamos ainda enviar `variations` (contas clássicas aceitam);
+    //   2) se o ML insistir no conflito, publicamos a 1ª variação como anúncio
+    //      principal e as demais como irmãos do mesmo family_name (logo abaixo,
+    //      depois que os atributos obrigatórios já foram acertados).
+    let variacoesIrmas: Array<Record<string, unknown>> = []
     if (!itemResponse.ok && mlVariations.length > 0) {
       const msgVar = causeMessages(itemData)
       if (
@@ -1725,7 +1730,7 @@ Deno.serve(async (req) => {
         msgVar.includes('required_fields')
       ) {
         const base = mlPayload as Record<string, unknown>
-        const { family_name: _fn, title: _tt, ...withoutBoth } = base as any
+        const { family_name: _fn, title: _tt, variations: _vv, ...withoutBoth } = base as any
 
         const tentativas: Array<{ label: string; payload: Record<string, unknown> }> = [
           // Modelo clássico: title + variações, sem family_name.
@@ -1748,6 +1753,41 @@ Deno.serve(async (req) => {
           itemData = await itemResponse.json()
           console.log(`Item criado (${tentativa.label}):`, JSON.stringify(itemData).substring(0, 800))
           if (itemResponse.ok) effectivePayload = tentativa.payload as typeof mlPayload
+        }
+
+        // Ainda barrado pelo conflito → modelo User Products: um anúncio por
+        // variação, todos com o mesmo family_name.
+        if (!itemResponse.ok && causeMessages(itemData).includes('variations is invalid with family name')) {
+          console.warn('[ml-publish] Conta no modelo User Products — publicando uma variação por anúncio (mesmo family_name)')
+          const comboAttrs = (v: Record<string, unknown>) =>
+            ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => ({
+              id: String(c.id),
+              ...(c.value_id ? { value_id: String(c.value_id) } : {}),
+              ...(c.value_name ? { value_name: String(c.value_name) } : {}),
+            })) as MLAttribute[]
+
+          const payloadDaVariacao = (v: Record<string, unknown>) => ({
+            ...withoutBoth,
+            family_name: base.family_name,
+            available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
+            price: Number(v.price) || (base.price as number),
+            attributes: [...(withoutBoth.attributes as MLAttribute[]), ...comboAttrs(v)],
+          })
+
+          const [primeira, ...restantes] = mlVariations as Array<Record<string, unknown>>
+          variacoesIrmas = restantes
+          const primeiroPayload = payloadDaVariacao(primeira)
+          effectivePayload = primeiroPayload as typeof mlPayload
+          itemResponse = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(primeiroPayload),
+          })
+          itemData = await itemResponse.json()
+          console.log('Item criado (1ª variação, modelo User Products):', JSON.stringify(itemData).substring(0, 800))
         }
       }
     }
@@ -1981,6 +2021,52 @@ Deno.serve(async (req) => {
 
     const itemId = itemData.id as string
     console.log('Item ID:', itemId)
+
+    // Modelo User Products: as demais variações viram anúncios irmãos, com o
+    // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
+    // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
+    // a combinação da variação.
+    if (variacoesIrmas.length > 0) {
+      const attrsAceitos = ((effectivePayload as Record<string, unknown>).attributes as MLAttribute[]) ?? []
+      const idsDaCombinacao = new Set(
+        variacoesIrmas.flatMap((v) =>
+          ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => String(c.id).toUpperCase()),
+        ),
+      )
+      const attrsBase = attrsAceitos.filter((a) => !idsDaCombinacao.has(String(a.id).toUpperCase()))
+
+      for (const v of variacoesIrmas) {
+        const combo = ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => ({
+          id: String(c.id),
+          ...(c.value_id ? { value_id: String(c.value_id) } : {}),
+          ...(c.value_name ? { value_name: String(c.value_name) } : {}),
+        })) as MLAttribute[]
+        const payloadIrmao = {
+          ...(effectivePayload as Record<string, unknown>),
+          available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
+          price: Number(v.price) || (effectivePayload as Record<string, unknown>).price,
+          attributes: [...attrsBase, ...combo],
+        }
+        try {
+          const resIrmao = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payloadIrmao),
+          })
+          const dataIrmao = await resIrmao.json()
+          if (resIrmao.ok && dataIrmao?.id) {
+            console.log('[ml-publish] Variação irmã publicada:', dataIrmao.id, JSON.stringify(combo))
+          } else {
+            console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
+          }
+        } catch (erroIrmao) {
+          console.warn('[ml-publish] Erro ao publicar variação irmã:', erroIrmao)
+        }
+      }
+    }
 
     // === DESCRIPTION (send only after item creation succeeds) ===
     const descriptionText = typeof product.description === 'string'
