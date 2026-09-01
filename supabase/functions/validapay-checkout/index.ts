@@ -108,15 +108,17 @@ Deno.serve(async (req) => {
       console.warn("validapay-checkout: cupom ignorado", body.coupon, plan, cycle);
     }
 
-    // Desconto de indicação: quem entrou pelo link de convite (/convite/:token)
-    // tem 15% na PRIMEIRA cobrança. A UI já mostra o preço com desconto, então
-    // o gateway precisa receber o mesmo desconto — senão o cliente pagaria cheio.
+    // Desconto de indicação: 15% na PRIMEIRA cobrança para OS DOIS lados.
+    //  - Convidado: entrou pelo link de convite (/convite/:token).
+    //  - Convidador: tem crédito liberado porque um amigo convidado já pagou,
+    //    e ele mesmo ainda não assinou.
     const referralLookup = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
     let referralPercentOff = 0;
+    let referralId: string | null = null;
     try {
       const { data: referral } = await referralLookup
         .from("referrals")
@@ -125,7 +127,36 @@ Deno.serve(async (req) => {
         .in("status", ["linked", "pending"])
         .limit(1)
         .maybeSingle();
-      if (referral) referralPercentOff = 15;
+      if (referral) {
+        referralPercentOff = 15;
+        referralId = referral.id as string;
+      }
+
+      if (!referralId) {
+        // Convidador: só vale se ele nunca teve assinatura paga.
+        const { data: paidBefore } = await referralLookup
+          .from("subscriptions")
+          .select("id")
+          .eq("user_id", userId)
+          .in("status", ["active", "cancelled", "past_due"])
+          .limit(1)
+          .maybeSingle();
+        if (!paidBefore) {
+          const { data: credit } = await referralLookup
+            .from("referrals")
+            .select("id")
+            .eq("inviter_id", userId)
+            .eq("status", "subscribed")
+            .eq("inviter_rewarded", true)
+            .order("subscribed_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (credit) {
+            referralPercentOff = 15;
+            referralId = credit.id as string;
+          }
+        }
+      }
     } catch (err) {
       console.error("validapay-checkout: falha ao checar indicação", String(err));
     }
@@ -138,6 +169,7 @@ Deno.serve(async (req) => {
       : referralPercentOff >= couponPercentOff
       ? "referral"
       : "coupon";
+
 
 
 
@@ -177,7 +209,7 @@ Deno.serve(async (req) => {
         cycle,
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
         ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
-        ...(discountSource === "referral" ? { referral_discount: "15" } : {}),
+        ...(discountSource === "referral" ? { referral_discount: "15", referral_id: referralId ?? "" } : {}),
       },
       // Desconto só na 1ª cobrança (fromCycle/toCycle = 1).
       ...(discountPercent > 0
@@ -271,11 +303,13 @@ Deno.serve(async (req) => {
       provider: "validapay",
       payment_method: "pix",
       // `amount` guarda o valor efetivamente cobrado na 1ª cobrança.
-      amount: coupon ? coupon.total : baseAmount,
-      ...(coupon
-        ? { discount_percent: coupon.coupon.percentOff, original_amount: baseAmount }
+      amount: Math.round(baseAmount * (1 - discountPercent / 100) * 100) / 100,
+      ...(discountPercent > 0
+        ? { discount_percent: discountPercent, original_amount: baseAmount }
         : {}),
+      ...(referralId && discountSource === "referral" ? { referral_id: referralId } : {}),
       validapay_subscription_id: session.id,
+
     });
 
     console.log("validapay-checkout: sessão criada", { userId, plan, cycle, sessionId: session.id });

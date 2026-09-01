@@ -12,8 +12,8 @@ import { getCharge, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
 import {
-  applyPendingReferralRewards,
-  grantInviterMonthsForPaidInvitee,
+  consumeInviterReferralDiscount,
+  grantInviterDiscountForPaidInvitee,
 } from "../_shared/referral-rewards.ts";
 
 
@@ -57,7 +57,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.chargeId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
       .eq("validapay_charge_id", p.chargeId)
       .maybeSingle();
     if (data) return data;
@@ -65,7 +65,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.subscriptionId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
       .eq("validapay_subscription_id", p.subscriptionId)
       .maybeSingle();
     if (data) return data;
@@ -73,7 +73,7 @@ async function findSubscription(p: WebhookPayload) {
   if (metaUser) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
       .eq("user_id", metaUser)
       .eq("provider", "validapay")
       .order("created_at", { ascending: false })
@@ -328,16 +328,16 @@ Deno.serve(async (req) => {
         });
         console.log("validapay-webhook: comissão", event, commission);
 
-        // Indicação: se este assinante veio de um convite, quem convidou ganha
-        // 3 meses grátis (idempotente por pagamento). Também aplicamos aqui
-        // eventuais recompensas pendentes do próprio assinante.
-        if (paymentKey) {
-          await grantInviterMonthsForPaidInvitee(admin, {
-            invitedUserId: subscription.user_id,
-            paymentRef: String(paymentKey),
-          });
+        // Indicação (15% para os dois): o pagamento do convidado libera o
+        // crédito de 15% para quem convidou. Se este pagamento já usou um
+        // crédito de convidador, ele é consumido agora.
+        await grantInviterDiscountForPaidInvitee(admin, {
+          invitedUserId: subscription.user_id,
+        });
+        const usedReferralId = (subscription as { referral_id?: string | null }).referral_id ?? null;
+        if (usedReferralId) {
+          await consumeInviterReferralDiscount(admin, usedReferralId);
         }
-        await applyPendingReferralRewards(admin, subscription.user_id);
         break;
       }
       case "payment.failed":
