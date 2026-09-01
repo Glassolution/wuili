@@ -176,15 +176,16 @@ Deno.serve(async (req) => {
         plan,
         cycle,
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
-        ...(coupon ? { coupon_code: coupon.coupon.code } : {}),
+        ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
+        ...(discountSource === "referral" ? { referral_discount: "15" } : {}),
       },
       // Desconto só na 1ª cobrança (fromCycle/toCycle = 1).
-      ...(coupon
+      ...(discountPercent > 0
         ? {
             discounts: [
               {
                 type: "PERCENTAGE",
-                value: coupon.coupon.percentOff,
+                value: discountPercent,
                 fromCycle: 1,
                 toCycle: 1,
                 durationMonths: 1,
@@ -192,6 +193,7 @@ Deno.serve(async (req) => {
             ],
           }
         : {}),
+
 
     };
 
