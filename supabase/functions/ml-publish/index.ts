@@ -1417,6 +1417,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Quando o "Formato de venda" (SALE_FORMAT/UNIT) é enviado, o ML passa a
+    // exigir "Unidades por kit" (UNITS_PER_PACK / UNITS_PER_PACKAGE) —
+    // erro item.attribute.invalid_sale_units. Preenchemos com 1 sempre que a
+    // categoria aceitar o atributo.
+    const temFormatoDeVenda = allAttrs.some((a) => ['SALE_FORMAT', 'UNIT', 'SALE_UNIT'].includes(String(a.id)))
+    if (temFormatoDeVenda) {
+      for (const packId of ['UNITS_PER_PACK', 'UNITS_PER_PACKAGE']) {
+        const aceitaNaCategoria = (categoryAttrs as Array<Record<string, unknown>>)
+          .some((a) => String(a?.id ?? '') === packId)
+        const jaTem = allAttrs.some((a) => String(a.id) === packId)
+        if (aceitaNaCategoria && !jaTem) {
+          mergeAttribute(allAttrs, { id: packId, value_name: '1' })
+          console.log(`[ml-publish] ${packId}=1 adicionado (formato de venda preenchido)`)
+        }
+      }
+    }
+
     console.log('Atributos:', allAttrs.map(a => `${a.id}=${a.value_id ?? a.value_name}`))
 
 
