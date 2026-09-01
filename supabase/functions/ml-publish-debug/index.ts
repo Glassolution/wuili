@@ -86,13 +86,9 @@ Deno.serve(async (req) => {
     picture_ids: imgs,
   }));
 
-  const variationsNoPics = variations.map(({ picture_ids: _p, ...rest }) => rest);
   const tentativas: Array<{ label: string; payload: Record<string, unknown> }> = [
-    { label: "family_name + variations + available_quantity", payload: { ...base, family_name: title, available_quantity: 10, variations } },
-    { label: "title + variations + available_quantity (sem family_name)", payload: { ...base, title, available_quantity: 10, variations } },
-    { label: "title + family_name + variations + available_quantity", payload: { ...base, title, family_name: title, available_quantity: 10, variations } },
-    { label: "title + family_name + variations sem picture_ids", payload: { ...base, title, family_name: title, available_quantity: 10, variations: variationsNoPics } },
-    { label: "title + family_name (sem variations)", payload: { ...base, title, family_name: title, available_quantity: 10 } },
+    { label: "family_name sem title, sem variations, com COLOR", payload: { ...base, family_name: title, available_quantity: 10, attributes: [...(base.attributes as unknown[]), { id: "COLOR", value_name: cores[0] ?? "Preto" }] } },
+    { label: "family_name sem title, sem variations", payload: { ...base, family_name: title, available_quantity: 10 } },
   ];
 
   const resultados = [];
