@@ -98,16 +98,16 @@ const HERO_SLIDES = [
     foto específica tiver o sujeito muito fora do meio e ficar cortada no celular, onde
     cabe bem menos da largura original.
   */
-  { src: "/pessoa%2001.png", focus: "50% 50%", headline: "sem estoque, sem risco." },
-  { src: "/pessoa%2002.png", focus: "50% 50%", headline: "com o produto certo." },
-  { src: "/pessoa%2003.png", focus: "50% 50%", headline: "em poucos minutos." },
+  { src: "/pessoa%2001.webp", focus: "50% 50%", headline: "sem estoque, sem risco." },
+  { src: "/pessoa%2002.webp", focus: "50% 50%", headline: "com o produto certo." },
+  { src: "/pessoa%2003.webp", focus: "50% 50%", headline: "em poucos minutos." },
 ];
 
 /*
   PLACEHOLDER TEMPORÁRIO — some sozinho assim que qualquer foto de HERO_SLIDES carregar.
   É um mockup com avatar gerado por IA, não um vendedor real usando a Velo.
 */
-const HERO_PLACEHOLDER = "/hero-pasted-image-2.png";
+const HERO_PLACEHOLDER = "/hero-pasted-image-2.webp";
 
 /*
   Seção de prova visual, logo abaixo do hero.
@@ -137,11 +137,11 @@ const HEADLINE_TAMANHO = "text-[clamp(1.75rem,3.2vw,3rem)]";
 
 const PROVA_VISUAL = [
   {
-    src: "/barra%2001.png",
+    src: "/barra%2001.webp",
     alt: "Conversa com a IA da Velo recomendando produtos com preço e loja",
   },
   {
-    src: "/barra%2002.png",
+    src: "/barra%2002.webp",
     alt: "Loja da Velo com produtos selecionados e marketplaces conectados",
   },
 ];
@@ -854,7 +854,7 @@ export default function Index() {
             className="mt-14 overflow-hidden rounded-[24px] border border-[#E9EEF8] bg-[#FBFCFF] shadow-[0_28px_70px_rgba(15,35,95,0.08)] lg:mt-20"
           >
             <img
-              src="/prova-catalogo.png"
+              src="/prova-catalogo.webp"
               alt="Tela de produto no catálogo da Velo: preço sugerido de R$ 44,00, margem de 100%, custo de R$ 22,00 ao fornecedor e lucro de R$ 22,00 por venda"
               loading="lazy"
               decoding="async"
@@ -917,7 +917,7 @@ export default function Index() {
             <div data-reveal className="lg:col-span-7">
               <div className="overflow-hidden rounded-[20px] border border-white/10 bg-white">
                 <img
-                  src="/prova-atlas.png"
+                  src="/prova-atlas.webp"
                   alt="Conversa com o Atlas: o usuário pede um produto do nicho de beleza e o Atlas indica um kit de pincéis, explica o motivo e oferece abrir o catálogo"
                   loading="lazy"
                   decoding="async"
