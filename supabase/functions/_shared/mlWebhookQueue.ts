@@ -425,6 +425,7 @@ async function handleOrdersTopic(
     userId: integration.user_id as string,
     mlOrder,
     precoMl: totalAmount,
+    accessToken,
   });
 
   if (!dispatch.dispatched && dispatch.reason === "sku_c7drop_nao_mapeado") {

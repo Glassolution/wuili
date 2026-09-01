@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { dispatchOrderToBot } from "../_shared/c7dropBotDispatch.ts";
+import { dispatchOrderToBot, retryShippingLabel } from "../_shared/c7dropBotDispatch.ts";
 
 
 const corsHeaders = {
@@ -266,6 +266,17 @@ serve(async (req) => {
             },
           });
         }
+        // Nova tentativa de baixar a etiqueta do ML enquanto ela não existir.
+        try {
+          await retryShippingLabel(adminClient, {
+            mlOrderId,
+            userId,
+            mlOrder: { ...fullOrder, shipping },
+            accessToken,
+          });
+        } catch (e) {
+          console.warn(`[ml-sync-orders] retry etiqueta ${mlOrderId}:`, (e as Error).message);
+        }
         continue;
       }
 
@@ -357,8 +368,9 @@ serve(async (req) => {
             orderId: newOrder.id,
             mlOrderId,
             userId,
-            mlOrder: fullOrder,
+            mlOrder: { ...fullOrder, shipping },
             precoMl: salePrice,
+            accessToken,
           });
         } catch (e) {
           console.warn(`[ml-sync-orders] envio ao bot falhou para ${mlOrderId}:`, (e as Error).message);

@@ -947,11 +947,14 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          etiqueta_ml_path: string | null
+          etiqueta_ml_url: string | null
           id: string
           items: Json
           metadata: Json
           ml_order_id: string | null
           needs_manual_sku: boolean
+          needs_shipping_label: boolean
           notes: string | null
           order_number: string
           payment_method: string | null
@@ -978,11 +981,14 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          etiqueta_ml_path?: string | null
+          etiqueta_ml_url?: string | null
           id?: string
           items?: Json
           metadata?: Json
           ml_order_id?: string | null
           needs_manual_sku?: boolean
+          needs_shipping_label?: boolean
           notes?: string | null
           order_number: string
           payment_method?: string | null
@@ -1009,11 +1015,14 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          etiqueta_ml_path?: string | null
+          etiqueta_ml_url?: string | null
           id?: string
           items?: Json
           metadata?: Json
           ml_order_id?: string | null
           needs_manual_sku?: boolean
+          needs_shipping_label?: boolean
           notes?: string | null
           order_number?: string
           payment_method?: string | null
