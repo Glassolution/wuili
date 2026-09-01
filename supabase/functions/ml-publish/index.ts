@@ -2022,6 +2022,52 @@ Deno.serve(async (req) => {
     const itemId = itemData.id as string
     console.log('Item ID:', itemId)
 
+    // Modelo User Products: as demais variações viram anúncios irmãos, com o
+    // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
+    // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
+    // a combinação da variação.
+    if (variacoesIrmas.length > 0) {
+      const attrsAceitos = ((effectivePayload as Record<string, unknown>).attributes as MLAttribute[]) ?? []
+      const idsDaCombinacao = new Set(
+        variacoesIrmas.flatMap((v) =>
+          ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => String(c.id).toUpperCase()),
+        ),
+      )
+      const attrsBase = attrsAceitos.filter((a) => !idsDaCombinacao.has(String(a.id).toUpperCase()))
+
+      for (const v of variacoesIrmas) {
+        const combo = ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => ({
+          id: String(c.id),
+          ...(c.value_id ? { value_id: String(c.value_id) } : {}),
+          ...(c.value_name ? { value_name: String(c.value_name) } : {}),
+        })) as MLAttribute[]
+        const payloadIrmao = {
+          ...(effectivePayload as Record<string, unknown>),
+          available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
+          price: Number(v.price) || (effectivePayload as Record<string, unknown>).price,
+          attributes: [...attrsBase, ...combo],
+        }
+        try {
+          const resIrmao = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payloadIrmao),
+          })
+          const dataIrmao = await resIrmao.json()
+          if (resIrmao.ok && dataIrmao?.id) {
+            console.log('[ml-publish] Variação irmã publicada:', dataIrmao.id, JSON.stringify(combo))
+          } else {
+            console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
+          }
+        } catch (erroIrmao) {
+          console.warn('[ml-publish] Erro ao publicar variação irmã:', erroIrmao)
+        }
+      }
+    }
+
     // === DESCRIPTION (send only after item creation succeeds) ===
     const descriptionText = typeof product.description === 'string'
       ? product.description.trim()
