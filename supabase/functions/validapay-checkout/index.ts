@@ -303,11 +303,13 @@ Deno.serve(async (req) => {
       provider: "validapay",
       payment_method: "pix",
       // `amount` guarda o valor efetivamente cobrado na 1ª cobrança.
-      amount: coupon ? coupon.total : baseAmount,
-      ...(coupon
-        ? { discount_percent: coupon.coupon.percentOff, original_amount: baseAmount }
+      amount: Math.round(baseAmount * (1 - discountPercent / 100) * 100) / 100,
+      ...(discountPercent > 0
+        ? { discount_percent: discountPercent, original_amount: baseAmount }
         : {}),
+      ...(referralId && discountSource === "referral" ? { referral_id: referralId } : {}),
       validapay_subscription_id: session.id,
+
     });
 
     console.log("validapay-checkout: sessão criada", { userId, plan, cycle, sessionId: session.id });
