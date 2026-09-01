@@ -1459,7 +1459,23 @@ Deno.serve(async (req) => {
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
         JSON.stringify(mlVariations.map((v) => (v.attribute_combinations as Array<{ value_name: string }>).map((c) => c.value_name).join('/'))))
+
+      // O ML rejeita (cause 146) quando o MESMO atributo aparece no item e na
+      // variação. Tudo que define a variação (COLOR, SIZE...) sai do item.
+      const variationAttrIds = new Set<string>()
+      for (const v of mlVariations) {
+        for (const c of (v.attribute_combinations as Array<{ id?: string }>) ?? []) {
+          if (c?.id) variationAttrIds.add(String(c.id))
+        }
+      }
+      if (variationAttrIds.size > 0) {
+        for (let i = allAttrs.length - 1; i >= 0; i--) {
+          if (variationAttrIds.has(String(allAttrs[i].id))) allAttrs.splice(i, 1)
+        }
+        console.log('[ml-publish] Atributos removidos do item (definidos na variação):', [...variationAttrIds])
+      }
     }
+
 
     // === BUILD PAYLOAD ===
     const mlPayload = {
@@ -1678,6 +1694,36 @@ Deno.serve(async (req) => {
       itemData = await itemResponse.json()
       console.log('Item criado (retry sem family_name):', JSON.stringify(itemData).substring(0, 800))
     }
+
+    // Contas migradas para User Products devolvem um par contraditório quando
+    // o item tem variações: "The field variations is invalid with family name"
+    // + "body does not contains ... [family_name]". Nesse cenário o ML não
+    // aceita variações neste fluxo — publicamos o item simples somando o
+    // estoque das variações (o vendedor pode criar as variações depois).
+    if (!itemResponse.ok && mlVariations.length > 0) {
+      const msgVar = causeMessages(itemData)
+      if (msgVar.includes('variations is invalid with family name') || msgVar.includes('family_name')) {
+        console.warn('[ml-publish] ML recusou variações + family_name — reenviando item simples')
+        const totalQty = mlVariations.reduce(
+          (sum, v) => sum + (Number((v as Record<string, unknown>).available_quantity) || 0),
+          0,
+        )
+        const { variations: _omitVars, ...payloadNoVars } = mlPayload as any
+        payloadNoVars.available_quantity = Math.max(1, totalQty || 1)
+        effectivePayload = payloadNoVars as typeof mlPayload
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payloadNoVars),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (retry sem variações):', JSON.stringify(itemData).substring(0, 800))
+      }
+    }
+
 
     // Última rede de segurança: se o ML ainda rejeitar por grade de medidas
     // (fashion_grid/SIZE_GRID_ID) mesmo depois do reencaminhamento inicial,
