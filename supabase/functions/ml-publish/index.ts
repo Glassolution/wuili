@@ -1697,32 +1697,44 @@ Deno.serve(async (req) => {
 
     // Contas migradas para User Products devolvem um par contraditório quando
     // o item tem variações: "The field variations is invalid with family name"
-    // + "body does not contains ... [family_name]". Nesse cenário o ML não
-    // aceita variações neste fluxo — publicamos o item simples somando o
-    // estoque das variações (o vendedor pode criar as variações depois).
+    // + "body does not contains ... [family_name]". As variações NÃO podem ser
+    // descartadas — tentamos as combinações válidas de title/family_name até o
+    // ML aceitar o anúncio COM as variações.
     if (!itemResponse.ok && mlVariations.length > 0) {
       const msgVar = causeMessages(itemData)
-      if (msgVar.includes('variations is invalid with family name') || msgVar.includes('family_name')) {
-        console.warn('[ml-publish] ML recusou variações + family_name — reenviando item simples')
-        const totalQty = mlVariations.reduce(
-          (sum, v) => sum + (Number((v as Record<string, unknown>).available_quantity) || 0),
-          0,
-        )
-        const { variations: _omitVars, ...payloadNoVars } = mlPayload as any
-        payloadNoVars.available_quantity = Math.max(1, totalQty || 1)
-        effectivePayload = payloadNoVars as typeof mlPayload
-        itemResponse = await fetch('https://api.mercadolibre.com/items', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payloadNoVars),
-        })
-        itemData = await itemResponse.json()
-        console.log('Item criado (retry sem variações):', JSON.stringify(itemData).substring(0, 800))
+      if (
+        msgVar.includes('variations is invalid with family name') ||
+        msgVar.includes('family_name') ||
+        msgVar.includes('required_fields')
+      ) {
+        const base = mlPayload as Record<string, unknown>
+        const { family_name: _fn, title: _tt, ...withoutBoth } = base as any
+
+        const tentativas: Array<{ label: string; payload: Record<string, unknown> }> = [
+          // Modelo clássico: title + variações, sem family_name.
+          { label: 'sem family_name (com variações)', payload: { ...withoutBoth, title: base.title, variations: mlVariations } },
+          // Modelo User Products: family_name + variações, sem title.
+          { label: 'sem title (com variações)', payload: { ...withoutBoth, family_name: base.family_name, variations: mlVariations } },
+        ]
+
+        for (const tentativa of tentativas) {
+          if (itemResponse.ok) break
+          console.warn(`[ml-publish] Reenviando ${tentativa.label}`)
+          itemResponse = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(tentativa.payload),
+          })
+          itemData = await itemResponse.json()
+          console.log(`Item criado (${tentativa.label}):`, JSON.stringify(itemData).substring(0, 800))
+          if (itemResponse.ok) effectivePayload = tentativa.payload as typeof mlPayload
+        }
       }
     }
+
 
 
     // Última rede de segurança: se o ML ainda rejeitar por grade de medidas
