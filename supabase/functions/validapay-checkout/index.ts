@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
         cycle,
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
         ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
-        ...(discountSource === "referral" ? { referral_discount: "15" } : {}),
+        ...(discountSource === "referral" ? { referral_discount: "15", referral_id: referralId ?? "" } : {}),
       },
       // Desconto só na 1ª cobrança (fromCycle/toCycle = 1).
       ...(discountPercent > 0
