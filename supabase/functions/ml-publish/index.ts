@@ -1738,6 +1738,9 @@ Deno.serve(async (req) => {
     //      principal e as demais como irmãos do mesmo family_name (logo abaixo,
     //      depois que os atributos obrigatórios já foram acertados).
     let variacoesIrmas: Array<Record<string, unknown>> = []
+    // Variação usada no anúncio PRINCIPAL quando caímos no modelo User Products
+    // (um anúncio por variação, agrupados pelo mesmo family_name).
+    let variacaoPrincipal: Record<string, unknown> | null = null
     if (!itemResponse.ok && mlVariations.length > 0) {
       const msgVar = causeMessages(itemData)
       if (
@@ -1782,9 +1785,18 @@ Deno.serve(async (req) => {
               ...(c.value_name ? { value_name: String(c.value_name) } : {}),
             })) as MLAttribute[]
 
+          // Fotos específicas da variação (item 5): cada anúncio-irmão abre
+          // com a imagem daquele valor, e não com a do item principal.
+          const picturesDaVariacao = (v: Record<string, unknown>) => {
+            const fotos = (v._velo_pictures as string[] | undefined) ?? []
+            if (fotos.length === 0) return withoutBoth.pictures
+            return fotos.map((source) => ({ source }))
+          }
+
           const payloadDaVariacao = (v: Record<string, unknown>) => ({
             ...withoutBoth,
             family_name: base.family_name,
+            pictures: picturesDaVariacao(v),
             available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
             price: Number(v.price) || (base.price as number),
             attributes: [...(withoutBoth.attributes as MLAttribute[]), ...comboAttrs(v)],
@@ -1792,6 +1804,7 @@ Deno.serve(async (req) => {
 
           const [primeira, ...restantes] = mlVariations as Array<Record<string, unknown>>
           variacoesIrmas = restantes
+          variacaoPrincipal = primeira
           const primeiroPayload = payloadDaVariacao(primeira)
           effectivePayload = primeiroPayload as typeof mlPayload
           itemResponse = await fetch('https://api.mercadolibre.com/items', {
