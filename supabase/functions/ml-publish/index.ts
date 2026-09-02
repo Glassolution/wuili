@@ -2108,7 +2108,7 @@ Deno.serve(async (req) => {
             console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
             irmaosFalhos.push({
               variation_value: valorDaVariacao,
-              erro: mapMlError(resIrmao.status, dataIrmao).message,
+              erro: mapMLError(dataIrmao as Record<string, unknown>).message,
             })
           }
         } catch (erroIrmao) {
@@ -2192,6 +2192,11 @@ Deno.serve(async (req) => {
         permalink:          itemData.permalink,
         published_at:       new Date().toISOString(),
         catalog_product_id: catalogProductId,
+        // Agrupamento das variações publicadas como anúncios separados.
+        family_name:        grupoDeVariacao ? familyName : null,
+        variation_group_id: grupoDeVariacao,
+        variation_name:     (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
+        variation_value:    (variacaoPrincipal?._velo_value as string | undefined) ?? null,
         cj_product_id:      product.cj_product_id  ?? null,
         cj_product_url:     product.cj_product_url ?? null,
         cj_variant_id:      product.cj_variant_id  ?? null,
@@ -2254,7 +2259,30 @@ Deno.serve(async (req) => {
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
-    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
+    // Falha parcial: quando o anúncio foi publicado por variação (modelo User
+    // Products) e alguma irmã falhou, o frontend NÃO pode mostrar "publicado
+    // com sucesso" puro — devolvemos o placar exato das variações.
+    const totalVariacoes = variacoesIrmas.length > 0 ? variacoesIrmas.length + 1 : 0
+    const publicadas = variacoesIrmas.length > 0 ? irmaosPublicados.length + 1 : 0
+    const parcial = irmaosFalhos.length > 0
+    return json({
+      success: true,
+      permalink: itemData.permalink,
+      item_id: itemId,
+      ...(totalVariacoes > 0
+        ? {
+          partial: parcial,
+          variations_total: totalVariacoes,
+          variations_published: publicadas,
+          variations_failed: irmaosFalhos.map((f) => ({ value: f.variation_value, error: f.erro })),
+          variation_group_id: grupoDeVariacao,
+          family_name: familyName,
+          message: parcial
+            ? `Publicado ${publicadas} de ${totalVariacoes} variações. Falharam: ${irmaosFalhos.map((f) => f.variation_value ?? '?').join(', ')}.`
+            : `Publicadas ${publicadas} variações no Mercado Livre.`,
+        }
+        : {}),
+    })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
