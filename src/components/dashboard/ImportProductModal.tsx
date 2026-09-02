@@ -383,7 +383,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       setStep(4);
       if (activeStore) incrementStorePublishedCount(activeStore.id);
 
-      veloToast.success("Produto publicado com sucesso", {
+      // Publicação por variação (anúncios-irmãos): se alguma variação falhou,
+      // não podemos dizer "publicado com sucesso" — mostramos o placar exato.
+      const avisoDeVariacoes = data.mensagem;
+      if (data.parcial) {
+        veloToast.warning(avisoDeVariacoes ?? "Algumas variações não foram publicadas.", { id: toastId });
+      } else veloToast.success(avisoDeVariacoes ?? "Produto publicado com sucesso", {
         id: toastId,
         action: data.permalink ? { label: "Ver", onClick: () => window.open(data.permalink, "_blank", "noopener,noreferrer") } : undefined,
       });
