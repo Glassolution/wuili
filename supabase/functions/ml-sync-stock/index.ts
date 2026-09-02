@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
     for (let from = 0; from < 20_000; from += PAGE) {
       let pubQuery = supabase
         .from("user_publications")
-        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at")
+        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at,variation_value,variation_group_id")
         .not("catalog_product_id", "is", null)
         .in("status", SYNCABLE_STATUSES)
         .order("stock_synced_at", { ascending: true, nullsFirst: true })
