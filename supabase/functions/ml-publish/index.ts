@@ -2055,6 +2055,14 @@ Deno.serve(async (req) => {
     // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
     // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
     // a combinação da variação.
+    // Cada irmão publicado é registrado em user_publications (mesmo
+    // variation_group_id + family_name) para entrar no ml-sync-stock (Fase 3) e
+    // na pausa por falta de estoque do webhook de pedidos (Fase 4).
+    const grupoDeVariacao = variacoesIrmas.length > 0 ? crypto.randomUUID() : null
+    const familyName = String((effectivePayload as Record<string, unknown>).family_name ?? title)
+    const irmaosPublicados: Array<{ ml_item_id: string; variation_value: string | null; permalink: string | null }> = []
+    const irmaosFalhos: Array<{ variation_value: string | null; erro: string }> = []
+
     if (variacoesIrmas.length > 0) {
       const attrsAceitos = ((effectivePayload as Record<string, unknown>).attributes as MLAttribute[]) ?? []
       const idsDaCombinacao = new Set(
@@ -2070,8 +2078,11 @@ Deno.serve(async (req) => {
           ...(c.value_id ? { value_id: String(c.value_id) } : {}),
           ...(c.value_name ? { value_name: String(c.value_name) } : {}),
         })) as MLAttribute[]
+        const fotosIrmao = (v._velo_pictures as string[] | undefined) ?? []
+        const valorDaVariacao = (v._velo_value as string | null) ?? combo[0]?.value_name ?? null
         const payloadIrmao = {
           ...(effectivePayload as Record<string, unknown>),
+          ...(fotosIrmao.length > 0 ? { pictures: fotosIrmao.map((source) => ({ source })) } : {}),
           available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
           price: Number(v.price) || (effectivePayload as Record<string, unknown>).price,
           attributes: [...attrsBase, ...combo],
@@ -2088,14 +2099,53 @@ Deno.serve(async (req) => {
           const dataIrmao = await resIrmao.json()
           if (resIrmao.ok && dataIrmao?.id) {
             console.log('[ml-publish] Variação irmã publicada:', dataIrmao.id, JSON.stringify(combo))
+            irmaosPublicados.push({
+              ml_item_id: String(dataIrmao.id),
+              variation_value: valorDaVariacao,
+              permalink: (dataIrmao.permalink as string | undefined) ?? null,
+            })
           } else {
             console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
+            irmaosFalhos.push({
+              variation_value: valorDaVariacao,
+              erro: mapMlError(resIrmao.status, dataIrmao).message,
+            })
           }
         } catch (erroIrmao) {
           console.warn('[ml-publish] Erro ao publicar variação irmã:', erroIrmao)
+          irmaosFalhos.push({
+            variation_value: valorDaVariacao,
+            erro: erroIrmao instanceof Error ? erroIrmao.message : 'Erro desconhecido',
+          })
+        }
+      }
+
+      if (irmaosPublicados.length > 0) {
+        const linhas = irmaosPublicados.map((irmao) => ({
+          user_id,
+          ml_item_id: irmao.ml_item_id,
+          title,
+          thumbnail: publicImages[0] || null,
+          price: product.price,
+          cost_price: product.cost_price || null,
+          status: 'active',
+          permalink: irmao.permalink,
+          published_at: new Date().toISOString(),
+          catalog_product_id: catalogProductId,
+          family_name: familyName,
+          variation_group_id: grupoDeVariacao,
+          variation_name: (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
+          variation_value: irmao.variation_value,
+        }))
+        const { error: erroIrmaos } = await supabase.from('user_publications').insert(linhas)
+        if (erroIrmaos) {
+          console.error('[ml-publish] Falha ao registrar anúncios-irmãos:', erroIrmaos)
+        } else {
+          console.log(`[ml-publish] ${linhas.length} anúncio(s)-irmão(s) registrados no grupo ${grupoDeVariacao}`)
         }
       }
     }
+
 
     // === DESCRIPTION (send only after item creation succeeds) ===
     const descriptionText = typeof product.description === 'string'
