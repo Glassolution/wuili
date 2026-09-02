@@ -280,7 +280,17 @@ export class ErroDePublicacao extends Error {
   }
 }
 
-export type ResultadoDaPublicacao = { permalink: string; item_id: string };
+export type ResultadoDaPublicacao = {
+  permalink: string;
+  item_id: string;
+  /** Verdadeiro quando o produto foi publicado por variação e alguma delas falhou. */
+  parcial?: boolean;
+  variacoesTotal?: number;
+  variacoesPublicadas?: number;
+  variacoesComFalha?: Array<{ valor: string | null; erro: string }>;
+  mensagem?: string;
+};
+
 
 export type DadosDaPublicacao = {
   produto: ProdutoDoCatalogo;
