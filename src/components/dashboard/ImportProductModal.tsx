@@ -28,6 +28,7 @@ import {
   montarAtributosMl,
   primeiraImagemDoProduto,
   publicarNoMercadoLivre,
+  type ResultadoDaPublicacao,
   type ProdutoDoCatalogo,
 } from "@/lib/publicacaoMercadoLivre";
 
@@ -332,7 +333,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     // Não exibimos toast de carregamento: o próprio botão já comunica o estado.
     const toastId = `ml-publish-${Date.now()}`;
     try {
-      let data: { permalink: string; item_id: string };
+      let data: ResultadoDaPublicacao;
       try {
         data = await publicarNoMercadoLivre({
           produto: product,
