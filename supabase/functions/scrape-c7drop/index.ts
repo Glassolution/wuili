@@ -153,14 +153,18 @@ function normalizeVariants(detail: ProductDetail): Array<Record<string, unknown>
       atual.stock = stock;
     }
   }
-  const manageStock = detail.manageStock !== false;
+  const manageStock = detail.manageStock === true;
   return Array.from(byKey.values()).map((v) => ({
     name: v.name,
     value: v.value,
     sku: v.sku,
     cost_price: v.cost_price,
-    // manageStock=false → fornecedor não controla estoque dessa linha.
+    // manageStock=false/ausente → fornecedor não controla estoque dessa linha,
+    // então `stock: 0` por variante NÃO significa "esgotado".
     stock: manageStock ? v.stock : UNMANAGED_STOCK,
+    // Marca se o número acima veio de dado real do fornecedor. A sincronização
+    // de estoque (Fase 3) só confia no estoque por variante quando é `true`.
+    stock_managed: manageStock,
   }));
 }
 

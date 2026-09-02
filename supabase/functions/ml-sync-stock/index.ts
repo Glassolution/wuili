@@ -72,7 +72,15 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const norm = (v: unknown) =>
   String(v ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-/** Estoque do fornecedor para um valor específico de variação (ex.: "Azul"). */
+/**
+ * Estoque do fornecedor para um valor específico de variação (ex.: "Azul").
+ *
+ * IMPORTANTE: o C7Drop só informa estoque por variante quando o produto tem
+ * `manageStock=true` (gravado como `stock_managed: true` pelo scraper). Na
+ * maioria dos produtos esse dado não existe e a variante vem com `stock: 0`,
+ * o que NÃO significa que aquela cor/tamanho acabou. Nesses casos devolvemos
+ * `null` para o chamador cair no estoque do produto pai.
+ */
 function estoqueDaVariante(variantsRaw: unknown, value: string): number | null {
   let parsed: unknown = variantsRaw;
   if (typeof parsed === "string") {
@@ -83,8 +91,10 @@ function estoqueDaVariante(variantsRaw: unknown, value: string): number | null {
   let encontrado: number | null = null;
   for (const item of parsed) {
     if (!item || typeof item !== "object") continue;
-    const row = item as { value?: unknown; stock?: unknown };
+    const row = item as { value?: unknown; stock?: unknown; stock_managed?: unknown };
     if (norm(row.value) !== alvo) continue;
+    // Só confiamos no número quando ele reflete dado real do fornecedor.
+    if (row.stock_managed !== true) continue;
     const st = Math.max(0, Math.floor(Number(row.stock ?? 0)));
     encontrado = Math.max(encontrado ?? 0, st);
   }
