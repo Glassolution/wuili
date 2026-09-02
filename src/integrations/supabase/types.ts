@@ -3326,6 +3326,7 @@ export type Database = {
           cj_variant_id: string | null
           cost_price: number | null
           created_at: string | null
+          family_name: string | null
           id: string
           ml_closed_at: string | null
           ml_item_id: string
@@ -3350,6 +3351,7 @@ export type Database = {
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
+          family_name?: string | null
           id?: string
           ml_closed_at?: string | null
           ml_item_id: string
@@ -3374,6 +3376,7 @@ export type Database = {
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
+          family_name?: string | null
           id?: string
           ml_closed_at?: string | null
           ml_item_id?: string

@@ -304,7 +304,11 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       setEtapa("publicado");
       if (loja) incrementStorePublishedCount(loja.id);
       void planLimits.refreshUsage();
-      veloToast.success("Produto publicado com sucesso", { id: toastId });
+      if (dados.parcial) {
+        veloToast.info(dados.mensagem ?? "Algumas variações não foram publicadas.", { id: toastId });
+      } else {
+        veloToast.success(dados.mensagem ?? "Produto publicado com sucesso", { id: toastId });
+      }
     } catch (erro) {
       const codigo = erro instanceof ErroDePublicacao ? erro.codigo : undefined;
       if (codigo === "ML_SELLER_CANNOT_LIST") {

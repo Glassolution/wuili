@@ -50,6 +50,10 @@ type Pub = {
   catalog_product_id: string | null;
   paused_reason: string | null;
   stock_synced_at?: string | null;
+  // Anúncios-irmãos publicados por variação (modelo User Products do ML):
+  // cada linha representa UM valor da dimensão (ex.: Cor = Azul).
+  variation_value?: string | null;
+  variation_group_id?: string | null;
 };
 
 type CatalogRow = {
@@ -57,12 +61,35 @@ type CatalogRow = {
   stock_quantity: number | null;
   is_active: boolean | null;
   title: string | null;
+  variants?: unknown;
 };
 
 // deno-lint-ignore no-explicit-any -- cliente supabase sem tipos gerados no Deno
 type Supa = any;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const norm = (v: unknown) =>
+  String(v ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** Estoque do fornecedor para um valor específico de variação (ex.: "Azul"). */
+function estoqueDaVariante(variantsRaw: unknown, value: string): number | null {
+  let parsed: unknown = variantsRaw;
+  if (typeof parsed === "string") {
+    try { parsed = JSON.parse(parsed); } catch { return null; }
+  }
+  if (!Array.isArray(parsed)) return null;
+  const alvo = norm(value);
+  let encontrado: number | null = null;
+  for (const item of parsed) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as { value?: unknown; stock?: unknown };
+    if (norm(row.value) !== alvo) continue;
+    const st = Math.max(0, Math.floor(Number(row.stock ?? 0)));
+    encontrado = Math.max(encontrado ?? 0, st);
+  }
+  return encontrado;
+}
 
 async function getFreshToken(supabase: Supa, userId: string): Promise<string | null> {
   // Há usuários com mais de uma linha de integração ML (reconexões antigas):
@@ -251,7 +278,13 @@ async function syncUser(
     visitados.push(pub.id);
     result.checked++;
 
-    const stock = Number(product.stock_quantity ?? 0);
+    // Anúncio-irmão de variação: o estoque que vale é o daquele valor no
+    // fornecedor, não o agregado do produto. Sem isso, um irmão continuaria
+    // vendendo uma cor já zerada só porque as outras cores têm estoque.
+    const stockDaVariante = pub.variation_value
+      ? estoqueDaVariante(product.variants, pub.variation_value)
+      : null;
+    const stock = stockDaVariante ?? Number(product.stock_quantity ?? 0);
     const available = product.is_active !== false && stock > 0;
     const isPaused = pub.status === "paused";
     const pausedByVelo = pub.paused_reason === PAUSED_BY_VELO;
@@ -403,7 +436,7 @@ Deno.serve(async (req) => {
     for (let from = 0; from < 20_000; from += PAGE) {
       let pubQuery = supabase
         .from("user_publications")
-        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at")
+        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at,variation_value,variation_group_id")
         .not("catalog_product_id", "is", null)
         .in("status", SYNCABLE_STATUSES)
         .order("stock_synced_at", { ascending: true, nullsFirst: true })
@@ -433,7 +466,7 @@ Deno.serve(async (req) => {
       const slice = ids.slice(i, i + 200);
       const { data, error } = await supabase
         .from("catalog_products")
-        .select("external_id,stock_quantity,is_active,title")
+        .select("external_id,stock_quantity,is_active,title,variants")
         .in("external_id", slice);
       if (error) throw error;
       for (const row of (data ?? []) as CatalogRow[]) catalog.set(row.external_id, row);

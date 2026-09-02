@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
 import { filterCleanImages } from '../_shared/ml-content-sanitizer.ts'
+import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 
 
 const corsHeaders = {
@@ -293,43 +294,45 @@ function buildMlVariations(
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
 
-  // Agrupa por eixo e descarta eixos com uma opção só (não é escolha real).
-  const grouped = new Map<string, string[]>()
-  for (const row of rows) {
-    const list = grouped.get(row.name) ?? []
-    if (!list.includes(row.value)) list.push(row.value)
-    grouped.set(row.name, list)
+  // GUARDA ÚNICA DE DIMENSÃO REAL (_shared/ml-variations.ts).
+  // É a MESMA guarda usada pelo motor de variações: descarta tiers internos do
+  // C7Drop ("Compra: Atacado/Dropshipping/Grupo Vip", "Kit", "Promoção"),
+  // múltiplas dimensões e listas fora da faixa de 2..6 valores. Sem isso,
+  // o caminho de anúncios-irmãos por family_name geraria um anúncio duplicado
+  // por tier de preço do fornecedor.
+  const guarda = selectPublishableDimension(variantsRaw)
+  if (!guarda.ok || !guarda.name) {
+    console.log(
+      `[ml-publish] Sem variação publicável (motivo=${guarda.reason}; dimensões=${JSON.stringify(guarda.allDimensions)}) — item simples.`,
+    )
+    return []
   }
-  const axes: Array<{ attrId: string; values: string[] }> = []
-  for (const [name, values] of grouped) {
-    if (values.length < 2) continue
-    const matched = matchVariationAttribute(name, categoryAttrs)
-    if (!matched) {
-      console.warn(`[ml-publish] Variação "${name}" sem atributo equivalente na categoria — publicando item simples.`)
-      return []
-    }
-    axes.push({ attrId: matched.id, values })
-  }
-  if (axes.length === 0) return []
 
-  // Produto cartesiano dos eixos (ML exige uma variação por combinação).
-  let combos: Array<Array<{ id: string; value_name: string }>> = [[]]
-  for (const axis of axes) {
-    const next: Array<Array<{ id: string; value_name: string }>> = []
-    for (const combo of combos) {
-      for (const value of axis.values) {
-        next.push([...combo, { id: axis.attrId, value_name: value }])
-      }
-    }
-    combos = next
+  const matched = matchVariationAttribute(guarda.name, categoryAttrs)
+  if (!matched) {
+    console.warn(`[ml-publish] Variação "${guarda.name}" sem atributo equivalente na categoria — publicando item simples.`)
+    return []
   }
-  // O ML limita variações por anúncio; 60 é folgado e seguro.
-  combos = combos.slice(0, 60)
+
+  const combos: Array<Array<{ id: string; value_name: string }>> = guarda.values.map((value) => [
+    { id: matched.id, value_name: value },
+  ])
 
   // Algumas categorias (ex.: Filtros de Linha) exigem picture_ids em cada
   // variação. Usamos as URLs já normalizadas do produto; o ML converte para
   // IDs internos durante a criação do anúncio.
   const pictureUrls = pictures.map((p) => p.source).filter((url): url is string => Boolean(url))
+
+  // Imagem específica por variação: quando o produto tem pelo menos uma foto
+  // para cada valor, a variação nº i recebe a foto nº i (as demais entram como
+  // apoio). Sem fotos suficientes, todas herdam a galeria completa.
+  const fotosSuficientes = pictureUrls.length >= combos.length
+  const fotosDaVariacao = (indice: number): string[] => {
+    if (pictureUrls.length === 0) return []
+    if (!fotosSuficientes) return pictureUrls.slice(0, 10)
+    const principal = pictureUrls[indice]
+    return [principal, ...pictureUrls.filter((u) => u !== principal)].slice(0, 10)
+  }
 
   // Estoque por variação: preferimos o estoque real informado pelo fornecedor
   // para aquele valor; se ele não existir, dividimos o estoque do produto.
@@ -339,21 +342,34 @@ function buildMlVariations(
     const st = Number(r.stock ?? 0)
     if (r.value && st > 0) stockPorValor.set(String(r.value), Math.max(stockPorValor.get(String(r.value)) ?? 0, st))
   }
-  return combos.map((attribute_combinations) => {
+  return combos.map((attribute_combinations, indice) => {
     const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
     const estoqueDaVariacao = attribute_combinations
       .map((c) => stockPorValor.get(String(c.value_name)))
       .find((v) => typeof v === 'number' && v > 0)
+    const fotos = fotosDaVariacao(indice)
     const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
       available_quantity: Math.max(1, Math.floor(estoqueDaVariacao ?? perVariation)),
-      ...(pictureUrls.length > 0 ? { picture_ids: pictureUrls.slice(0, 10) } : {}),
+      ...(fotos.length > 0 ? { picture_ids: fotos } : {}),
       ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
+      // Metadados internos (removidos antes de enviar ao ML) usados para
+      // registrar o anúncio-irmão em user_publications.
+      _velo_dimension: guarda.name,
+      _velo_value: attribute_combinations[0]?.value_name ?? null,
+      _velo_pictures: fotos,
     }
     return variation
   })
 }
+
+// Metadados internos não podem ir no POST do ML.
+function semMetadadosVelo(v: Record<string, unknown>): Record<string, unknown> {
+  const { _velo_dimension: _d, _velo_value: _v, _velo_pictures: _p, ...limpo } = v as Record<string, unknown>
+  return limpo
+}
+
 
 function mergeAttribute(attributes: MLAttribute[], incoming: MLAttribute) {
   const attr = {
@@ -1526,7 +1542,7 @@ Deno.serve(async (req) => {
       },
       // Com variações, o ML exige preço/estoque POR variação — enviar no item
       // inteiro causa erro. `variations` sobrepõe os campos acima.
-      ...(mlVariations.length > 0 ? { variations: mlVariations } : {}),
+      ...(mlVariations.length > 0 ? { variations: mlVariations.map(semMetadadosVelo) } : {}),
 
     }
 
@@ -1722,6 +1738,9 @@ Deno.serve(async (req) => {
     //      principal e as demais como irmãos do mesmo family_name (logo abaixo,
     //      depois que os atributos obrigatórios já foram acertados).
     let variacoesIrmas: Array<Record<string, unknown>> = []
+    // Variação usada no anúncio PRINCIPAL quando caímos no modelo User Products
+    // (um anúncio por variação, agrupados pelo mesmo family_name).
+    let variacaoPrincipal: Record<string, unknown> | null = null
     if (!itemResponse.ok && mlVariations.length > 0) {
       const msgVar = causeMessages(itemData)
       if (
@@ -1734,9 +1753,9 @@ Deno.serve(async (req) => {
 
         const tentativas: Array<{ label: string; payload: Record<string, unknown> }> = [
           // Modelo clássico: title + variações, sem family_name.
-          { label: 'sem family_name (com variações)', payload: { ...withoutBoth, title: base.title, variations: mlVariations } },
+          { label: 'sem family_name (com variações)', payload: { ...withoutBoth, title: base.title, variations: mlVariations.map(semMetadadosVelo) } },
           // Modelo User Products: family_name + variações, sem title.
-          { label: 'sem title (com variações)', payload: { ...withoutBoth, family_name: base.family_name, variations: mlVariations } },
+          { label: 'sem title (com variações)', payload: { ...withoutBoth, family_name: base.family_name, variations: mlVariations.map(semMetadadosVelo) } },
         ]
 
         for (const tentativa of tentativas) {
@@ -1766,9 +1785,18 @@ Deno.serve(async (req) => {
               ...(c.value_name ? { value_name: String(c.value_name) } : {}),
             })) as MLAttribute[]
 
+          // Fotos específicas da variação (item 5): cada anúncio-irmão abre
+          // com a imagem daquele valor, e não com a do item principal.
+          const picturesDaVariacao = (v: Record<string, unknown>) => {
+            const fotos = (v._velo_pictures as string[] | undefined) ?? []
+            if (fotos.length === 0) return withoutBoth.pictures
+            return fotos.map((source) => ({ source }))
+          }
+
           const payloadDaVariacao = (v: Record<string, unknown>) => ({
             ...withoutBoth,
             family_name: base.family_name,
+            pictures: picturesDaVariacao(v),
             available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
             price: Number(v.price) || (base.price as number),
             attributes: [...(withoutBoth.attributes as MLAttribute[]), ...comboAttrs(v)],
@@ -1776,6 +1804,7 @@ Deno.serve(async (req) => {
 
           const [primeira, ...restantes] = mlVariations as Array<Record<string, unknown>>
           variacoesIrmas = restantes
+          variacaoPrincipal = primeira
           const primeiroPayload = payloadDaVariacao(primeira)
           effectivePayload = primeiroPayload as typeof mlPayload
           itemResponse = await fetch('https://api.mercadolibre.com/items', {
@@ -2026,6 +2055,14 @@ Deno.serve(async (req) => {
     // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
     // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
     // a combinação da variação.
+    // Cada irmão publicado é registrado em user_publications (mesmo
+    // variation_group_id + family_name) para entrar no ml-sync-stock (Fase 3) e
+    // na pausa por falta de estoque do webhook de pedidos (Fase 4).
+    const grupoDeVariacao = variacoesIrmas.length > 0 ? crypto.randomUUID() : null
+    const familyName = String((effectivePayload as Record<string, unknown>).family_name ?? title)
+    const irmaosPublicados: Array<{ ml_item_id: string; variation_value: string | null; permalink: string | null }> = []
+    const irmaosFalhos: Array<{ variation_value: string | null; erro: string }> = []
+
     if (variacoesIrmas.length > 0) {
       const attrsAceitos = ((effectivePayload as Record<string, unknown>).attributes as MLAttribute[]) ?? []
       const idsDaCombinacao = new Set(
@@ -2041,8 +2078,11 @@ Deno.serve(async (req) => {
           ...(c.value_id ? { value_id: String(c.value_id) } : {}),
           ...(c.value_name ? { value_name: String(c.value_name) } : {}),
         })) as MLAttribute[]
+        const fotosIrmao = (v._velo_pictures as string[] | undefined) ?? []
+        const valorDaVariacao = (v._velo_value as string | null) ?? combo[0]?.value_name ?? null
         const payloadIrmao = {
           ...(effectivePayload as Record<string, unknown>),
+          ...(fotosIrmao.length > 0 ? { pictures: fotosIrmao.map((source) => ({ source })) } : {}),
           available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
           price: Number(v.price) || (effectivePayload as Record<string, unknown>).price,
           attributes: [...attrsBase, ...combo],
@@ -2059,14 +2099,53 @@ Deno.serve(async (req) => {
           const dataIrmao = await resIrmao.json()
           if (resIrmao.ok && dataIrmao?.id) {
             console.log('[ml-publish] Variação irmã publicada:', dataIrmao.id, JSON.stringify(combo))
+            irmaosPublicados.push({
+              ml_item_id: String(dataIrmao.id),
+              variation_value: valorDaVariacao,
+              permalink: (dataIrmao.permalink as string | undefined) ?? null,
+            })
           } else {
             console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
+            irmaosFalhos.push({
+              variation_value: valorDaVariacao,
+              erro: mapMLError(dataIrmao as Record<string, unknown>).message,
+            })
           }
         } catch (erroIrmao) {
           console.warn('[ml-publish] Erro ao publicar variação irmã:', erroIrmao)
+          irmaosFalhos.push({
+            variation_value: valorDaVariacao,
+            erro: erroIrmao instanceof Error ? erroIrmao.message : 'Erro desconhecido',
+          })
+        }
+      }
+
+      if (irmaosPublicados.length > 0) {
+        const linhas = irmaosPublicados.map((irmao) => ({
+          user_id,
+          ml_item_id: irmao.ml_item_id,
+          title,
+          thumbnail: publicImages[0] || null,
+          price: product.price,
+          cost_price: product.cost_price || null,
+          status: 'active',
+          permalink: irmao.permalink,
+          published_at: new Date().toISOString(),
+          catalog_product_id: catalogProductId,
+          family_name: familyName,
+          variation_group_id: grupoDeVariacao,
+          variation_name: (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
+          variation_value: irmao.variation_value,
+        }))
+        const { error: erroIrmaos } = await supabase.from('user_publications').insert(linhas)
+        if (erroIrmaos) {
+          console.error('[ml-publish] Falha ao registrar anúncios-irmãos:', erroIrmaos)
+        } else {
+          console.log(`[ml-publish] ${linhas.length} anúncio(s)-irmão(s) registrados no grupo ${grupoDeVariacao}`)
         }
       }
     }
+
 
     // === DESCRIPTION (send only after item creation succeeds) ===
     const descriptionText = typeof product.description === 'string'
@@ -2113,6 +2192,11 @@ Deno.serve(async (req) => {
         permalink:          itemData.permalink,
         published_at:       new Date().toISOString(),
         catalog_product_id: catalogProductId,
+        // Agrupamento das variações publicadas como anúncios separados.
+        family_name:        grupoDeVariacao ? familyName : null,
+        variation_group_id: grupoDeVariacao,
+        variation_name:     (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
+        variation_value:    (variacaoPrincipal?._velo_value as string | undefined) ?? null,
         cj_product_id:      product.cj_product_id  ?? null,
         cj_product_url:     product.cj_product_url ?? null,
         cj_variant_id:      product.cj_variant_id  ?? null,
@@ -2175,7 +2259,30 @@ Deno.serve(async (req) => {
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
-    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
+    // Falha parcial: quando o anúncio foi publicado por variação (modelo User
+    // Products) e alguma irmã falhou, o frontend NÃO pode mostrar "publicado
+    // com sucesso" puro — devolvemos o placar exato das variações.
+    const totalVariacoes = variacoesIrmas.length > 0 ? variacoesIrmas.length + 1 : 0
+    const publicadas = variacoesIrmas.length > 0 ? irmaosPublicados.length + 1 : 0
+    const parcial = irmaosFalhos.length > 0
+    return json({
+      success: true,
+      permalink: itemData.permalink,
+      item_id: itemId,
+      ...(totalVariacoes > 0
+        ? {
+          partial: parcial,
+          variations_total: totalVariacoes,
+          variations_published: publicadas,
+          variations_failed: irmaosFalhos.map((f) => ({ value: f.variation_value, error: f.erro })),
+          variation_group_id: grupoDeVariacao,
+          family_name: familyName,
+          message: parcial
+            ? `Publicado ${publicadas} de ${totalVariacoes} variações. Falharam: ${irmaosFalhos.map((f) => f.variation_value ?? '?').join(', ')}.`
+            : `Publicadas ${publicadas} variações no Mercado Livre.`,
+        }
+        : {}),
+    })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'
