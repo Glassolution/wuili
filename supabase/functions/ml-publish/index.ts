@@ -293,43 +293,45 @@ function buildMlVariations(
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
 
-  // Agrupa por eixo e descarta eixos com uma opção só (não é escolha real).
-  const grouped = new Map<string, string[]>()
-  for (const row of rows) {
-    const list = grouped.get(row.name) ?? []
-    if (!list.includes(row.value)) list.push(row.value)
-    grouped.set(row.name, list)
+  // GUARDA ÚNICA DE DIMENSÃO REAL (_shared/ml-variations.ts).
+  // É a MESMA guarda usada pelo motor de variações: descarta tiers internos do
+  // C7Drop ("Compra: Atacado/Dropshipping/Grupo Vip", "Kit", "Promoção"),
+  // múltiplas dimensões e listas fora da faixa de 2..6 valores. Sem isso,
+  // o caminho de anúncios-irmãos por family_name geraria um anúncio duplicado
+  // por tier de preço do fornecedor.
+  const guarda = selectPublishableDimension(variantsRaw)
+  if (!guarda.ok || !guarda.name) {
+    console.log(
+      `[ml-publish] Sem variação publicável (motivo=${guarda.reason}; dimensões=${JSON.stringify(guarda.allDimensions)}) — item simples.`,
+    )
+    return []
   }
-  const axes: Array<{ attrId: string; values: string[] }> = []
-  for (const [name, values] of grouped) {
-    if (values.length < 2) continue
-    const matched = matchVariationAttribute(name, categoryAttrs)
-    if (!matched) {
-      console.warn(`[ml-publish] Variação "${name}" sem atributo equivalente na categoria — publicando item simples.`)
-      return []
-    }
-    axes.push({ attrId: matched.id, values })
-  }
-  if (axes.length === 0) return []
 
-  // Produto cartesiano dos eixos (ML exige uma variação por combinação).
-  let combos: Array<Array<{ id: string; value_name: string }>> = [[]]
-  for (const axis of axes) {
-    const next: Array<Array<{ id: string; value_name: string }>> = []
-    for (const combo of combos) {
-      for (const value of axis.values) {
-        next.push([...combo, { id: axis.attrId, value_name: value }])
-      }
-    }
-    combos = next
+  const matched = matchVariationAttribute(guarda.name, categoryAttrs)
+  if (!matched) {
+    console.warn(`[ml-publish] Variação "${guarda.name}" sem atributo equivalente na categoria — publicando item simples.`)
+    return []
   }
-  // O ML limita variações por anúncio; 60 é folgado e seguro.
-  combos = combos.slice(0, 60)
+
+  const combos: Array<Array<{ id: string; value_name: string }>> = guarda.values.map((value) => [
+    { id: matched.id, value_name: value },
+  ])
 
   // Algumas categorias (ex.: Filtros de Linha) exigem picture_ids em cada
   // variação. Usamos as URLs já normalizadas do produto; o ML converte para
   // IDs internos durante a criação do anúncio.
   const pictureUrls = pictures.map((p) => p.source).filter((url): url is string => Boolean(url))
+
+  // Imagem específica por variação: quando o produto tem pelo menos uma foto
+  // para cada valor, a variação nº i recebe a foto nº i (as demais entram como
+  // apoio). Sem fotos suficientes, todas herdam a galeria completa.
+  const fotosSuficientes = pictureUrls.length >= combos.length
+  const fotosDaVariacao = (indice: number): string[] => {
+    if (pictureUrls.length === 0) return []
+    if (!fotosSuficientes) return pictureUrls.slice(0, 10)
+    const principal = pictureUrls[indice]
+    return [principal, ...pictureUrls.filter((u) => u !== principal)].slice(0, 10)
+  }
 
   // Estoque por variação: preferimos o estoque real informado pelo fornecedor
   // para aquele valor; se ele não existir, dividimos o estoque do produto.
@@ -339,21 +341,34 @@ function buildMlVariations(
     const st = Number(r.stock ?? 0)
     if (r.value && st > 0) stockPorValor.set(String(r.value), Math.max(stockPorValor.get(String(r.value)) ?? 0, st))
   }
-  return combos.map((attribute_combinations) => {
+  return combos.map((attribute_combinations, indice) => {
     const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
     const estoqueDaVariacao = attribute_combinations
       .map((c) => stockPorValor.get(String(c.value_name)))
       .find((v) => typeof v === 'number' && v > 0)
+    const fotos = fotosDaVariacao(indice)
     const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
       available_quantity: Math.max(1, Math.floor(estoqueDaVariacao ?? perVariation)),
-      ...(pictureUrls.length > 0 ? { picture_ids: pictureUrls.slice(0, 10) } : {}),
+      ...(fotos.length > 0 ? { picture_ids: fotos } : {}),
       ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
+      // Metadados internos (removidos antes de enviar ao ML) usados para
+      // registrar o anúncio-irmão em user_publications.
+      _velo_dimension: guarda.name,
+      _velo_value: attribute_combinations[0]?.value_name ?? null,
+      _velo_pictures: fotos,
     }
     return variation
   })
 }
+
+// Metadados internos não podem ir no POST do ML.
+function semMetadadosVelo(v: Record<string, unknown>): Record<string, unknown> {
+  const { _velo_dimension: _d, _velo_value: _v, _velo_pictures: _p, ...limpo } = v as Record<string, unknown>
+  return limpo
+}
+
 
 function mergeAttribute(attributes: MLAttribute[], incoming: MLAttribute) {
   const attr = {
