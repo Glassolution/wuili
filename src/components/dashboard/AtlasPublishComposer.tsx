@@ -305,7 +305,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       if (loja) incrementStorePublishedCount(loja.id);
       void planLimits.refreshUsage();
       if (dados.parcial) {
-        veloToast.warning(dados.mensagem ?? "Algumas variações não foram publicadas.", { id: toastId });
+        veloToast.info(dados.mensagem ?? "Algumas variações não foram publicadas.", { id: toastId });
       } else {
         veloToast.success(dados.mensagem ?? "Produto publicado com sucesso", { id: toastId });
       }
