@@ -1542,7 +1542,7 @@ Deno.serve(async (req) => {
       },
       // Com variações, o ML exige preço/estoque POR variação — enviar no item
       // inteiro causa erro. `variations` sobrepõe os campos acima.
-      ...(mlVariations.length > 0 ? { variations: mlVariations } : {}),
+      ...(mlVariations.length > 0 ? { variations: mlVariations.map(semMetadadosVelo) } : {}),
 
     }
 
@@ -1750,9 +1750,9 @@ Deno.serve(async (req) => {
 
         const tentativas: Array<{ label: string; payload: Record<string, unknown> }> = [
           // Modelo clássico: title + variações, sem family_name.
-          { label: 'sem family_name (com variações)', payload: { ...withoutBoth, title: base.title, variations: mlVariations } },
+          { label: 'sem family_name (com variações)', payload: { ...withoutBoth, title: base.title, variations: mlVariations.map(semMetadadosVelo) } },
           // Modelo User Products: family_name + variações, sem title.
-          { label: 'sem title (com variações)', payload: { ...withoutBoth, family_name: base.family_name, variations: mlVariations } },
+          { label: 'sem title (com variações)', payload: { ...withoutBoth, family_name: base.family_name, variations: mlVariations.map(semMetadadosVelo) } },
         ]
 
         for (const tentativa of tentativas) {
