@@ -382,7 +382,24 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
     );
   }
 
-  return { permalink: resposta?.permalink, item_id: resposta?.item_id };
+  return {
+    permalink: resposta?.permalink,
+    item_id: resposta?.item_id,
+    ...(typeof resposta?.variations_total === "number"
+      ? {
+        parcial: Boolean(resposta?.partial),
+        variacoesTotal: resposta.variations_total,
+        variacoesPublicadas: resposta.variations_published,
+        variacoesComFalha: Array.isArray(resposta?.variations_failed)
+          ? resposta.variations_failed.map((f: { value?: string | null; error?: string }) => ({
+            valor: f?.value ?? null,
+            erro: f?.error ?? "Falha ao publicar variação",
+          }))
+          : [],
+        mensagem: resposta?.message,
+      }
+      : {}),
+  };
 };
 
 /** Mensagem de erro pronta para o usuário, a partir do código da `ml-publish`. */
