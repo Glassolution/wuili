@@ -23,6 +23,14 @@ const json = (body: Record<string, unknown>, status = 200) =>
 
 const BATCH_LIMIT = 40;
 const READY_STATUSES = new Set(["ready_to_ship", "handling", "shipped"]);
+// Envio ja concluido/encerrado: etiqueta nao e mais necessaria.
+const TERMINAL_STATUSES = new Set([
+  "delivered",
+  "not_delivered",
+  "cancelled",
+  "dropped_off",
+  "returned",
+]);
 const ALREADY_SHIPPED_REASONS = new Set([
   "shipment_shipped",
   "shipment_dropped_off",
@@ -136,6 +144,15 @@ Deno.serve(async (req) => {
 
     const shippingStatus = String(raw?.shipping?.status ?? "");
     const shipmentId = raw?.shipping?.id ?? null;
+    if (TERMINAL_STATUSES.has(shippingStatus)) {
+      // Pedido ja entregue/encerrado: sai da fila de etiqueta pendente.
+      jaEnviados++;
+      await admin
+        .from("dropship_orders")
+        .update({ needs_shipping_label: false, updated_at: new Date().toISOString() })
+        .eq("id", row.id);
+      continue;
+    }
     if (!shipmentId || !READY_STATUSES.has(shippingStatus)) {
       naoProntos++;
       continue;
