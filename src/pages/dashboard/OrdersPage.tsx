@@ -373,6 +373,16 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
           payer_document: document,
           payer_name: draft.buyerName || undefined,
           payer_email: draft.buyerEmail || undefined,
+          buyer_phone: draft.buyerPhone || undefined,
+          address: {
+            zip: draft.zip || undefined,
+            street: draft.street || undefined,
+            number: draft.number || undefined,
+            complement: draft.complement || undefined,
+            neighborhood: draft.neighborhood || undefined,
+            city: draft.city || undefined,
+            state: draft.state || undefined,
+          },
         },
       });
       const response = data as {
