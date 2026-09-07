@@ -226,12 +226,22 @@ export async function dispatchOrderToBot(
 
   const buyer = mlOrder?.buyer ?? {};
   const addr = mlOrder?.shipping?.receiver_address ?? {};
-  const customerName = String(
+
+  // CPF, telefone e e-mail reais do comprador (o pedido cru vem mascarado).
+  // Sem eles o bot para no checkout da C7Drop.
+  const details = await fetchBuyerDetails(supabase, {
+    mlOrderId: mlOrderIdStr,
+    userId,
+    mlOrder,
+    accessToken,
+  });
+
+  const customerName = details.name ?? (String(
     addr?.receiver_name ??
       [buyer?.first_name, buyer?.last_name].filter(Boolean).join(" ").trim() ??
       "",
-  ).trim() || null;
-  const customerDocument = onlyDigits(firstString(
+  ).trim() || null);
+  const customerDocument = details.document ?? onlyDigits(firstString(
     addr?.receiver_document,
     addr?.document,
     addr?.cpf,
@@ -239,6 +249,7 @@ export async function dispatchOrderToBot(
     buyer?.billing_info?.doc_number,
     mlOrder?.payments?.[0]?.payer?.identification?.number,
   ));
+  const shippingAddress = details.receiverAddress ?? addr;
 
   // Etiqueta de envio do ML: se ainda não estiver disponível, o pedido é
   // gravado sem etiqueta e marcado com needs_shipping_label = true.
