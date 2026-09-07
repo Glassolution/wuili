@@ -8,6 +8,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { fetchBuyerDetails } from "../_shared/mlBuyerDetails.ts";
+import { getMlAccessToken } from "../_shared/mlShippingLabel.ts";
 
 const BATCH_LIMIT = 60;
 
