@@ -30,11 +30,12 @@ const CANDIDATES = (id: string, immediate: boolean) => [
 ];
 
 
-async function tryCancel(subId: string, probe = false) {
+async function tryCancel(subId: string, probe = false, immediate = false) {
   const token = await getValidaPayToken(SCOPE);
   const attempts: Array<{ method: string; path: string; status: number; body: string }> = [];
-  for (const c of CANDIDATES(subId)) {
+  for (const c of CANDIDATES(subId, immediate)) {
     if (!probe && c.method === "GET") continue;
+
     try {
       const resp = await fetch(`${VALIDAPAY_API_URL}${c.path}`, {
         method: c.method,
