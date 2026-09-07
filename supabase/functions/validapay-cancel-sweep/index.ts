@@ -50,7 +50,7 @@ async function resolveSubId(id: string, token: string): Promise<string> {
 async function inspectSession(id: string) {
   const token = await getValidaPayToken(SCOPE);
   const out: Record<string, unknown> = {};
-  for (const path of [`/v1/checkout-sessions/${encodeURIComponent(id)}`, `/v1/subscriptions?checkoutId=${encodeURIComponent(id)}`]) {
+  for (const path of [`/v1/subscriptions?limit=2`, `/v1/subscriptions?limit=2&page=2`]) {
     const resp = await fetch(`${VALIDAPAY_API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
     out[path] = { status: resp.status, body: (await resp.text()).slice(0, 900) };
   }
