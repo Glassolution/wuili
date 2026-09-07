@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const probe = url.searchParams.get("probe");
-    if (probe) return json(await tryCancel(probe));
+    if (probe) return json(await tryCancel(probe, true));
 
     const body = await req.json().catch(() => ({}));
     const dryRun = body?.dry_run !== false;
