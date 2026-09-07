@@ -352,7 +352,6 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
   const [pix, setPix] = useState<C7DropPixState | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     setDraft(info ? createPurchaseDraft(info) : null);
@@ -360,7 +359,6 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
     setPix(null);
     setQrDataUrl(null);
     setIsGeneratingQr(false);
-    setIsConfirming(false);
   }, [info]);
 
   // O bot da Railway grava o Pix da C7Drop no pedido; ficamos ouvindo até chegar.
@@ -469,33 +467,6 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
     }
   };
 
-  const handleConfirmPaid = async () => {
-    if (!pixOrderId || isConfirming) return;
-    setIsConfirming(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("dropship-confirm-c7drop-pix", {
-        body: { order_id: pixOrderId },
-      });
-      const response = data as { error?: string } | null;
-      if (error || response?.error) {
-        let detail = response?.error ?? null;
-        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
-        const context = (error as any)?.context;
-        if (!detail && context && typeof context.json === "function") {
-          const body = await context.json().catch(() => null);
-          detail = typeof body?.error === "string" ? body.error : null;
-        }
-        throw new Error(detail ?? error?.message ?? "Não foi possível confirmar o pagamento.");
-      }
-      setPix((current) => (current ? { ...current, paymentStatus: "paid", status: "pagamento_confirmado" } : current));
-      onCreatedPix?.();
-      veloToast.success("Pagamento confirmado. O bot vai finalizar o pedido no fornecedor.");
-    } catch (error) {
-      veloToast.error(error instanceof Error ? error.message : "Não foi possível confirmar o pagamento.");
-    } finally {
-      setIsConfirming(false);
-    }
-  };
   const supplierPriceLabel = info.supplierPrice ? formatBRL(info.supplierPrice) : "Não informado";
 
   if (pixOrderId) {
@@ -575,14 +546,14 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             ) : null}
 
             {!isPaid ? (
-              <button
-                type="button"
-                onClick={handleConfirmPaid}
-                disabled={!pix?.copyPaste || isConfirming}
-                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#16A34A] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(22,163,74,0.22)] transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isConfirming ? "Confirmando..." : "Já paguei"}
-              </button>
+              <div className="mt-4 rounded-[16px] border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-3 text-center">
+                <p className="text-[13px] font-black text-[#137443]">
+                  Depois de pagar, aguarde a confirmação automática.
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#15803D]">
+                  O bot acompanha a C7Drop e atualiza o pedido quando o pagamento for identificado.
+                </p>
+              </div>
             ) : null}
 
             <button
