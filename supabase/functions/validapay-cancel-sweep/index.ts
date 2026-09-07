@@ -47,7 +47,18 @@ async function resolveSubId(id: string, token: string): Promise<string> {
   }
 }
 
+async function inspectSession(id: string) {
+  const token = await getValidaPayToken(SCOPE);
+  const out: Record<string, unknown> = {};
+  for (const path of [`/v1/checkout-sessions/${encodeURIComponent(id)}`, `/v1/subscriptions?checkoutId=${encodeURIComponent(id)}`]) {
+    const resp = await fetch(`${VALIDAPAY_API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
+    out[path] = { status: resp.status, body: (await resp.text()).slice(0, 900) };
+  }
+  return out;
+}
+
 async function tryCancel(rawId: string, probe = false, immediate = false) {
+
   const token = await getValidaPayToken(SCOPE);
   const subId = await resolveSubId(rawId, token);
   const attempts: Array<{ method: string; path: string; status: number; body: string }> = [];
