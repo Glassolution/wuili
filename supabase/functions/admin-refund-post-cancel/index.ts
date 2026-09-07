@@ -29,29 +29,52 @@ function collectChargeIds(node: Any, out: Set<string>) {
   }
 }
 
-async function findSubscriptionCharges(validapaySubId: string) {
-  const paths = [
-    `/v1/subscriptions/${encodeURIComponent(validapaySubId)}`,
-    `/v1/subscriptions/${encodeURIComponent(validapaySubId)}/charges`,
-    `/v1/charges?subscriptionId=${encodeURIComponent(validapaySubId)}`,
-  ];
-  const ids = new Set<string>();
-  const raw: Record<string, unknown> = {};
-  for (const path of paths) {
-    try {
-      const data = await validaPayFetch(path, {
-        method: "GET",
-        scope: "checkouts/read pix.cob/read accounts/read wallet/read",
+type ChargeItem = {
+  chargeId: string;
+  subscriptionId?: string | null;
+  status?: string | null;
+  amount?: number | null;
+  createdAt?: string | null;
+  paymentType?: string | null;
+  email?: string | null;
+};
+
+/**
+ * A ValidaPay ignora o filtro ?subscriptionId no /v1/charges, então varremos as
+ * páginas mais recentes e filtramos localmente.
+ */
+async function listRecentCharges(sinceIso: string, maxPages = 40): Promise<ChargeItem[]> {
+  const since = new Date(sinceIso).getTime();
+  const out: ChargeItem[] = [];
+  let lastKey: string | null = null;
+  for (let page = 0; page < maxPages; page++) {
+    const qs = new URLSearchParams({ limit: "100" });
+    if (lastKey) qs.set("lastKey", lastKey);
+    const data = await validaPayFetch<Any>(`/v1/charges?${qs.toString()}`, {
+      method: "GET",
+      scope: "checkouts/read pix.cob/read accounts/read wallet/read",
+    });
+    const items: Any[] = data?.items ?? [];
+    if (!items.length) break;
+    for (const it of items) {
+      out.push({
+        chargeId: String(it.chargeId ?? it.id),
+        subscriptionId: it.subscriptionId ?? null,
+        status: it.status ?? null,
+        amount: it.amount ?? null,
+        createdAt: it.createdAt ?? null,
+        paymentType: it.paymentType ?? null,
+        email: it.email ?? null,
       });
-      raw[path] = data;
-      collectChargeIds(data, ids);
-    } catch (err) {
-      const e = err as ValidaPayError;
-      raw[path] = { error: e.message, status: e.status };
     }
+    const oldest = items[items.length - 1]?.createdAt;
+    if (oldest && new Date(oldest).getTime() < since) break;
+    lastKey = data?.pagination?.lastKey ?? null;
+    if (!lastKey || data?.pagination?.hasMore === false) break;
   }
-  return { ids: [...ids], raw };
+  return out;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
