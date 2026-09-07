@@ -156,7 +156,7 @@ const AlertSchema = z.object({
   order_id: z.string().uuid().nullable().optional(),
   order_number: z.string().max(120).nullable().optional(),
   severity: z.string().min(1).max(30).default("warning"),
-  code: z.string().max(120).nullable().optional(),
+  code: z.string().min(1).max(120),
   message: z.string().max(2000),
   details: z.record(z.unknown()).optional(),
 });
@@ -370,6 +370,7 @@ Deno.serve(async (req) => {
             current_order_id: current_order_id ?? null,
             current_order_number: current_order_number ?? order?.order_number ?? null,
             details: details ?? {},
+            seen_at: new Date().toISOString(),
             last_seen_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }, { onConflict: "worker_id" })
@@ -389,7 +390,7 @@ Deno.serve(async (req) => {
             order_id: parsed.data.order_id ?? null,
             order_number: parsed.data.order_number ?? null,
             severity: parsed.data.severity,
-            code: parsed.data.code ?? null,
+            code: parsed.data.code,
             message: parsed.data.message,
             details: parsed.data.details ?? {},
           })
