@@ -238,6 +238,7 @@ Deno.serve(async (req) => {
     };
 
     const patch = {
+      preco_produto: numberValue(orderRow.preco_produto) ?? amount,
       status: "pix_gerado",
       payment_status: "pending",
       payment_method: "pix",
