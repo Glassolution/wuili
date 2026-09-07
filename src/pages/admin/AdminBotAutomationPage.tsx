@@ -71,6 +71,9 @@ type ActionOrder = {
   refund_status: string | null;
   refund_error: string | null;
   error_detail: string | null;
+  tracking_code: string | null;
+  tracking_url: string | null;
+  carrier: string | null;
   isTest?: boolean;
 };
 
@@ -79,10 +82,12 @@ type WorkerPanelData = {
   staleWorkerIds: string[];
   alerts: WorkerAlert[];
   actionOrders: ActionOrder[];
+  processedOrders: ActionOrder[];
   errors: Partial<Record<"worker" | "alerts" | "orders", string>>;
 };
 
 type EditableOrderField = "sku_c7drop" | "c7drop_product_url" | "etiqueta_ml_url";
+type OrdersPanelMode = "action" | "processed";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const REFRESH_INTERVAL_SECONDS = REFRESH_INTERVAL_MS / 1_000;
@@ -147,6 +152,7 @@ const FLOW_HELP_STEPS: Array<{ status: OrderStatus; description: string }> = [
 ];
 
 const ACTION_STATUSES = new Set(["falha_reserva", "falha_finalizacao", "cancelamento_pendente"]);
+const PROCESSED_STATUSES = new Set(["pedido_concluido", "rastreio_pendente", "rastreio_disponivel"]);
 const PRICE_UPDATE_ACTION_STATUSES = new Set(["pending", "failed"]);
 const RETRY_PAYMENT_STATUSES = new Set(["expirado", "cancelado"]);
 const PAID_PAYMENT_STATUSES = new Set(["paid", "approved", "confirmed", "pago", "confirmado"]);
@@ -173,6 +179,9 @@ const TEST_ACTION_ORDERS: ActionOrder[] = [
     refund_status: "not_required",
     refund_error: null,
     error_detail: "SKU ausente para reservar no fornecedor",
+    tracking_code: null,
+    tracking_url: null,
+    carrier: null,
     isTest: true,
   },
   {
@@ -196,6 +205,9 @@ const TEST_ACTION_ORDERS: ActionOrder[] = [
     refund_status: "not_required",
     refund_error: null,
     error_detail: "Aguardando URL da etiqueta do Mercado Livre",
+    tracking_code: null,
+    tracking_url: null,
+    carrier: null,
     isTest: true,
   },
   {
@@ -219,6 +231,9 @@ const TEST_ACTION_ORDERS: ActionOrder[] = [
     refund_status: "not_required",
     refund_error: null,
     error_detail: "Fornecedor recusou finalização automática",
+    tracking_code: null,
+    tracking_url: null,
+    carrier: null,
     isTest: true,
   },
   {
@@ -242,6 +257,9 @@ const TEST_ACTION_ORDERS: ActionOrder[] = [
     refund_status: "not_required",
     refund_error: null,
     error_detail: "Pix expirado; pode solicitar nova cobrança de 8h",
+    tracking_code: null,
+    tracking_url: null,
+    carrier: null,
     isTest: true,
   },
   {
@@ -265,6 +283,9 @@ const TEST_ACTION_ORDERS: ActionOrder[] = [
     refund_status: "pending",
     refund_error: null,
     error_detail: "Atualização de preço falhou antes do pagamento",
+    tracking_code: null,
+    tracking_url: null,
+    carrier: null,
     isTest: true,
   },
 ];
@@ -352,6 +373,9 @@ const normalizeOrder = (row: Record<string, unknown>): ActionOrder => {
     error_detail:
       getString(row, ["error_detail", "error_details", "error_message", "last_error", "failure_reason", "fulfillment_error"]) ??
       getMetadataDetail(row),
+    tracking_code: getString(row, ["tracking_code"]),
+    tracking_url: getString(row, ["tracking_url"]),
+    carrier: getString(row, ["carrier"]),
   };
 };
 
@@ -431,7 +455,7 @@ const errorMessage = (error: unknown) => {
 const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
   const errors: WorkerPanelData["errors"] = {};
 
-  const [heartbeatResult, staleResult, alertsResult, filteredOrdersResult] = await Promise.all([
+  const [heartbeatResult, staleResult, alertsResult, filteredOrdersResult, processedOrdersResult] = await Promise.all([
     supabase
       .from("dropship_worker_heartbeats" as never)
       .select("*")
@@ -460,12 +484,20 @@ const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
       )
       .order("updated_at", { ascending: false })
       .limit(120),
+    supabase
+      .from("dropship_orders")
+      .select("*")
+      .in("status", Array.from(PROCESSED_STATUSES))
+      .order("updated_at", { ascending: false })
+      .limit(80),
   ]);
 
   let orderRows = (filteredOrdersResult.data ?? []) as unknown as Record<string, unknown>[];
+  let processedRows = (processedOrdersResult.data ?? []) as unknown as Record<string, unknown>[];
 
   if (heartbeatResult.error) errors.worker = errorMessage(heartbeatResult.error);
   if (alertsResult.error) errors.alerts = errorMessage(alertsResult.error);
+  if (processedOrdersResult.error) processedRows = [];
 
   if (filteredOrdersResult.error) {
     const fallbackOrders = await supabase
@@ -494,6 +526,7 @@ const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
     staleWorkerIds,
     alerts: alertRows.map(normalizeAlert),
     actionOrders: orderRows.map(normalizeOrder).filter(needsAction),
+    processedOrders: processedRows.map(normalizeOrder),
     errors,
   };
 };
@@ -541,6 +574,7 @@ export default function AdminBotAutomationPage() {
   const [showTestOrders, setShowTestOrders] = useState(() => import.meta.env.DEV);
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [ordersPanelMode, setOrdersPanelMode] = useState<OrdersPanelMode>("action");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-bot-automation-slim"],
@@ -601,18 +635,21 @@ export default function AdminBotAutomationPage() {
     [data?.actionOrders, showTestOrders, testOrders],
   );
 
+  const panelOrders = ordersPanelMode === "action" ? summaryOrders : data?.processedOrders ?? [];
+
   const filteredOrders = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return summaryOrders.filter((order) => {
+    return panelOrders.filter((order) => {
       const bySearch =
         !normalizedSearch ||
         order.order_number?.toLowerCase().includes(normalizedSearch) ||
         order.ml_order_id?.toLowerCase().includes(normalizedSearch) ||
         order.id.toLowerCase().includes(normalizedSearch) ||
-        order.sku_c7drop?.toLowerCase().includes(normalizedSearch);
+        order.sku_c7drop?.toLowerCase().includes(normalizedSearch) ||
+        order.tracking_code?.toLowerCase().includes(normalizedSearch);
       return bySearch;
     });
-  }, [search, summaryOrders]);
+  }, [panelOrders, search]);
 
   const selectedOrder = selectedOrderId ? filteredOrders.find((order) => order.id === selectedOrderId) ?? null : null;
 
@@ -668,9 +705,16 @@ export default function AdminBotAutomationPage() {
             orders={filteredOrders}
             loading={isLoading}
             error={data?.errors.orders}
+            mode={ordersPanelMode}
+            actionCount={summaryOrders.length}
+            processedCount={data?.processedOrders.length ?? 0}
             search={search}
             selectedOrder={selectedOrder}
             showTestOrders={showTestOrders}
+            onModeChange={(mode) => {
+              setOrdersPanelMode(mode);
+              setSelectedOrderId(null);
+            }}
             onSearchChange={setSearch}
             onSelectOrder={(orderId) => setSelectedOrderId(orderId)}
             onCloseDetails={() => setSelectedOrderId(null)}
@@ -953,9 +997,13 @@ const OrdersPanel = ({
   orders,
   loading,
   error,
+  mode,
+  actionCount,
+  processedCount,
   search,
   selectedOrder,
   showTestOrders,
+  onModeChange,
   onSearchChange,
   onSelectOrder,
   onCloseDetails,
@@ -969,9 +1017,13 @@ const OrdersPanel = ({
   orders: ActionOrder[];
   loading: boolean;
   error?: string;
+  mode: OrdersPanelMode;
+  actionCount: number;
+  processedCount: number;
   search: string;
   selectedOrder: ActionOrder | null;
   showTestOrders: boolean;
+  onModeChange: (mode: OrdersPanelMode) => void;
   onSearchChange: (value: string) => void;
   onSelectOrder: (orderId: string) => void;
   onCloseDetails: () => void;
@@ -984,10 +1036,34 @@ const OrdersPanel = ({
 }) => (
   <AdminCard className="overflow-hidden p-0">
     <SectionHeader
-      title="Pedidos que precisam de ação"
-      subtitle="Apenas dados operacionais para destravar pedido."
+      title={mode === "action" ? "Pedidos que precisam de ação" : "Pedidos processados"}
+      subtitle={mode === "action" ? "Apenas dados operacionais para destravar pedido." : "Últimos pedidos finalizados ou aguardando rastreio."}
       aside={
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="inline-flex h-8 rounded-[10px] border border-[#DDE6F6] bg-[#F8FAFC] p-0.5">
+            <button
+              type="button"
+              onClick={() => onModeChange("action")}
+              className={
+                mode === "action"
+                  ? "rounded-[8px] bg-white px-2.5 text-[11.5px] font-semibold text-[#2563EB] shadow-sm"
+                  : "rounded-[8px] px-2.5 text-[11.5px] font-semibold text-[#667085] transition hover:text-[#2563EB]"
+              }
+            >
+              Ação {actionCount}
+            </button>
+            <button
+              type="button"
+              onClick={() => onModeChange("processed")}
+              className={
+                mode === "processed"
+                  ? "rounded-[8px] bg-white px-2.5 text-[11.5px] font-semibold text-[#2563EB] shadow-sm"
+                  : "rounded-[8px] px-2.5 text-[11.5px] font-semibold text-[#667085] transition hover:text-[#2563EB]"
+              }
+            >
+              Processados {processedCount}
+            </button>
+          </div>
           {import.meta.env.DEV ? (
             <button
               type="button"
@@ -1020,8 +1096,8 @@ const OrdersPanel = ({
           <tr>
             <th className="px-3 py-3">Pedido ML</th>
             <th className="px-3 py-3">Status</th>
-            <th className="px-3 py-3">Motivo</th>
-            <th className="px-3 py-3">Erro/detalhe</th>
+            <th className="px-3 py-3">{mode === "action" ? "Motivo" : "Rastreio"}</th>
+            <th className="px-3 py-3">{mode === "action" ? "Erro/detalhe" : "Transportadora"}</th>
             <th className="px-3 py-3">Atualizado</th>
             <th className="px-3 py-3">Ações</th>
           </tr>
@@ -1034,18 +1110,27 @@ const OrdersPanel = ({
               </td>
             </tr>
           ) : orders.length ? (
-            orders.map((order) => (
-              <ActionOrderRow
-                key={order.id}
-                order={order}
-                selected={selectedOrder?.id === order.id}
-                onOpen={() => onSelectOrder(order.id)}
-              />
-            ))
+            orders.map((order) =>
+              mode === "action" ? (
+                <ActionOrderRow
+                  key={order.id}
+                  order={order}
+                  selected={selectedOrder?.id === order.id}
+                  onOpen={() => onSelectOrder(order.id)}
+                />
+              ) : (
+                <ProcessedOrderRow
+                  key={order.id}
+                  order={order}
+                  selected={selectedOrder?.id === order.id}
+                  onOpen={() => onSelectOrder(order.id)}
+                />
+              ),
+            )
           ) : (
             <tr>
               <td colSpan={6} className="h-32 text-center text-[13px] text-[#777772]">
-                Nenhum pedido precisa de ação com os filtros atuais.
+                {mode === "action" ? "Nenhum pedido precisa de ação com os filtros atuais." : "Nenhum pedido processado encontrado com os filtros atuais."}
               </td>
             </tr>
           )}
@@ -1210,6 +1295,60 @@ const ActionOrderRow = ({
   </tr>
 );
 
+const ProcessedOrderRow = ({
+  order,
+  selected,
+  onOpen,
+}: {
+  order: ActionOrder;
+  selected: boolean;
+  onOpen: () => void;
+}) => (
+  <tr
+    className={selected ? "cursor-pointer border-t border-[#BFDBFE] bg-[#F8FAFF] align-top transition hover:bg-[#F8FAFF]" : "cursor-pointer border-t border-[#EEF1F6] align-top transition hover:bg-[#F9FBFF]"}
+    onClick={onOpen}
+  >
+    <td className="px-3 py-3">
+      <p className="font-semibold text-[#171715]">{order.ml_order_id ?? order.order_number ?? order.id.slice(0, 8)}</p>
+      {order.order_number && order.ml_order_id ? <p className="mt-0.5 text-[11px] text-[#8A8F9B]">Velo {order.order_number}</p> : null}
+    </td>
+    <td className="px-3 py-3">
+      <AdminBadge tone={order.status === "rastreio_disponivel" ? "success" : "neutral"}>{statusLabel(order.status ?? "-")}</AdminBadge>
+    </td>
+    <td className="px-3 py-3">
+      {order.tracking_url && order.tracking_code ? (
+        <a
+          href={order.tracking_url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#2563EB] hover:underline"
+        >
+          {order.tracking_code}
+          <ExternalLink size={11} />
+        </a>
+      ) : (
+        <span className="text-[12px] text-[#596171]">{order.tracking_code ?? "-"}</span>
+      )}
+    </td>
+    <td className="px-3 py-3 text-[12px] text-[#596171]">{order.carrier ?? "-"}</td>
+    <td className="px-3 py-3 text-[11.5px] text-[#596171]">{dateFmt(order.updated_at || order.created_at)}</td>
+    <td className="px-3 py-3">
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+        className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-[#DDE6F6] bg-white px-2.5 text-[11px] font-semibold text-[#2563EB] transition hover:bg-[#F8FAFF]"
+      >
+        <PanelRightOpen size={13} />
+        Detalhes
+      </button>
+    </td>
+  </tr>
+);
+
 const DetailField = ({ label, value }: { label: string; value?: string | null }) => (
   <div className="rounded-[10px] border border-[#EEF1F6] bg-[#FBFCFF] px-3 py-2.5">
     <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#8A8F9B]">{label}</p>
@@ -1269,6 +1408,8 @@ const OrderDetailsDrawer = ({
           <DetailField label="Atualizado" value={dateFmt(order.updated_at || order.created_at)} />
           <DetailField label="Trava" value={order.locked_by || order.locked_at ? "ativa" : "livre"} />
           <DetailField label="Estorno" value={order.refund_required ? order.refund_status ?? "pendente" : "não necessário"} />
+          <DetailField label="Rastreio" value={order.tracking_code} />
+          <DetailField label="Transportadora" value={order.carrier} />
         </section>
 
         <section>
