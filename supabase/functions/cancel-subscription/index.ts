@@ -73,23 +73,25 @@ Deno.serve(async (req) => {
       .eq("id", sub.id);
     if (updErr) return json({ error: updErr.message }, 500);
 
-    // Tenta encerrar a recorrência no gateway. Se falhar, o bloqueio local no
-    // webhook já garante que nenhuma renovação seja aceita.
+    // Encerra a recorrência no gateway. A ValidaPay usa DELETE
+    // /v1/subscriptions/{id} (sem ?immediate=true = agenda para o fim do ciclo).
     let providerCancelled = false;
     if (sub.validapay_subscription_id) {
-      for (const path of [
-        `/v1/subscriptions/${encodeURIComponent(sub.validapay_subscription_id)}/cancel`,
-        `/v1/subscriptions/${encodeURIComponent(sub.validapay_subscription_id)}`,
-      ]) {
-        try {
-          await validaPayFetch(path, { method: path.endsWith("/cancel") ? "POST" : "DELETE" });
-          providerCancelled = true;
-          break;
-        } catch (e) {
-          console.error("cancel-subscription: gateway", path, String(e));
-        }
+      try {
+        await validaPayFetch(`/v1/subscriptions/${encodeURIComponent(sub.validapay_subscription_id)}`, {
+          method: "DELETE",
+          scope: "checkouts/write checkouts/read subscriptions/write subscriptions/read accounts/read",
+        });
+        providerCancelled = true;
+        await admin
+          .from("subscriptions")
+          .update({ provider_cancelled_at: new Date().toISOString() })
+          .eq("id", sub.id);
+      } catch (e) {
+        console.error("cancel-subscription: falha ao cancelar no gateway", sub.id, String(e));
       }
     }
+
 
     const accessUntil = sub.current_period_end as string | null;
     await admin.from("notifications").insert({
