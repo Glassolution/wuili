@@ -14,33 +14,38 @@ const corsHeaders = {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+const SCOPE =
+  "checkouts/write checkouts/read subscriptions/write subscriptions/read pix.cob/read pix.cob/write accounts/read wallet/read wallet/write";
+
 const CANDIDATES = (id: string) => [
-  { method: "POST", path: `/v1/subscriptions/${encodeURIComponent(id)}/cancel` },
-  { method: "DELETE", path: `/v1/subscriptions/${encodeURIComponent(id)}` },
-  { method: "POST", path: `/subscriptions/${encodeURIComponent(id)}/cancel` },
-  { method: "DELETE", path: `/subscriptions/${encodeURIComponent(id)}` },
-  { method: "POST", path: `/v1/recurrences/${encodeURIComponent(id)}/cancel` },
-  { method: "DELETE", path: `/v1/recurrences/${encodeURIComponent(id)}` },
+  { method: "GET", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: undefined as string | undefined },
+  { method: "POST", path: `/v1/subscriptions/${encodeURIComponent(id)}/cancel`, body: undefined },
+  { method: "PATCH", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: JSON.stringify({ status: "CANCELLED" }) },
+  { method: "PUT", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: JSON.stringify({ status: "CANCELLED" }) },
+  { method: "DELETE", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: undefined },
 ];
 
-async function tryCancel(subId: string) {
-  const token = await getValidaPayToken();
+async function tryCancel(subId: string, probe = false) {
+  const token = await getValidaPayToken(SCOPE);
   const attempts: Array<{ method: string; path: string; status: number; body: string }> = [];
   for (const c of CANDIDATES(subId)) {
+    if (!probe && c.method === "GET") continue;
     try {
       const resp = await fetch(`${VALIDAPAY_API_URL}${c.path}`, {
         method: c.method,
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        ...(c.body ? { body: c.body } : {}),
       });
       const body = (await resp.text()).slice(0, 300);
-      attempts.push({ ...c, status: resp.status, body });
-      if (resp.ok) return { ok: true, attempts };
+      attempts.push({ method: c.method, path: c.path, status: resp.status, body });
+      if (resp.ok && c.method !== "GET") return { ok: true, attempts };
     } catch (e) {
-      attempts.push({ ...c, status: 0, body: String(e).slice(0, 200) });
+      attempts.push({ method: c.method, path: c.path, status: 0, body: String(e).slice(0, 200) });
     }
   }
   return { ok: false, attempts };
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
