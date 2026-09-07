@@ -635,6 +635,10 @@ const OrderRow = ({
             <p className="mt-1 text-[13px] font-semibold leading-tight text-[#111111]">{formatDate(order.ordered_at ?? order.created_at)}</p>
           </div>
         </div>
+
+        <div className="mt-4 border-t border-[#EFEFEB] pt-3">
+          <SupplierButton url={order.supplier_url} compact onOpen={() => onSupplierPurchase(order)} />
+        </div>
       </div>
 
       <div
