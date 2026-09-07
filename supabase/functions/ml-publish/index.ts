@@ -671,6 +671,15 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
   if (causeStr.includes('item.pictures.variation')) {
     return { message: 'Cada variação precisa ter entre 1 e 10 fotos. Verifique se o produto possui imagens suficientes.' }
   }
+  // Atributos recusados dentro da variação (ex.: peso/medidas por variação).
+  // O ML cita "category_id" nesses erros, então isso precisa vir ANTES do
+  // catch-all de categoria — senão o usuário recebe uma mensagem errada.
+  if (causeStr.includes('seller_package_weight') || causeStr.includes('seller_package_dimensions')) {
+    return {
+      message: 'O Mercado Livre recusou o peso/medidas da embalagem para esta categoria. Já tentamos publicar sem esses dados; se persistir, tente novamente em alguns minutos.',
+      code: 'INVALID_PACKAGE_ATTRIBUTES',
+    }
+  }
   if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
@@ -1338,13 +1347,29 @@ Deno.serve(async (req) => {
     })
     // Exposto no objeto para reaproveitar no payload de shipping abaixo.
     const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
-    // Em anúncios COM variação, o ML calcula o frete pelas medidas da variação
-    // e ignora as do item — por isso as mesmas medidas vão também lá dentro.
+    // Em anúncios COM variação, algumas categorias calculam o frete pelas
+    // medidas da variação. MAS só podemos repetir esses atributos na variação
+    // quando a própria categoria os marca com `tags.allow_variations`; nas
+    // demais o ML rejeita a publicação inteira ("attributes are invalid /
+    // repeated"), que era o erro que os usuários estavam vendo.
+    const permiteAtributoNaVariacao = (attrId: string): boolean => {
+      const def = (categoryAttrs as Array<Record<string, unknown>>).find(
+        (a) => String(a?.id ?? '').toUpperCase() === attrId,
+      )
+      const tags = (def?.tags as Record<string, unknown> | undefined) ?? {}
+      return Boolean(tags.allow_variations)
+    }
     const shippingAttrsVariacao: MLAttribute[] = [
-      { id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName },
-      { id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName },
+      ...(permiteAtributoNaVariacao('SELLER_PACKAGE_WEIGHT')
+        ? [{ id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName }]
+        : []),
+      ...(permiteAtributoNaVariacao('SELLER_PACKAGE_DIMENSIONS')
+        ? [{ id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName }]
+        : []),
     ]
-    console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
+    console.log(
+      `[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg); na variação: ${shippingAttrsVariacao.map((a) => a.id).join(',') || 'nenhum'}`,
+    )
 
 
 
@@ -1757,6 +1782,37 @@ Deno.serve(async (req) => {
     // Variação usada no anúncio PRINCIPAL quando caímos no modelo User Products
     // (um anúncio por variação, agrupados pelo mesmo family_name).
     let variacaoPrincipal: Record<string, unknown> | null = null
+
+    // Rede de segurança: se o ML recusar peso/medidas DENTRO da variação
+    // (categorias que não aceitam esses atributos por variação), reenviamos o
+    // mesmo anúncio sem eles — o frete continua correto pelo shipping.dimensions
+    // do item.
+    if (!itemResponse.ok && mlVariations.length > 0 && shippingAttrsVariacao.length > 0) {
+      const msgPeso = causeMessages(itemData)
+      if (msgPeso.includes('seller_package_weight') || msgPeso.includes('seller_package_dimensions')) {
+        console.warn('[ml-publish] Categoria não aceita peso/medidas por variação — reenviando sem esses atributos.')
+        const idsEnvio = new Set(shippingAttrsVariacao.map((a) => String(a.id)))
+        for (const v of mlVariations) {
+          const attrs = (v.attributes as MLAttribute[] | undefined) ?? []
+          const limpos = attrs.filter((a) => !idsEnvio.has(String(a.id)))
+          if (limpos.length > 0) v.attributes = limpos
+          else delete v.attributes
+        }
+        const payloadSemEnvio = {
+          ...(mlPayload as Record<string, unknown>),
+          variations: mlVariations.map(semMetadadosVelo),
+        }
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadSemEnvio),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (sem peso/medidas na variação):', JSON.stringify(itemData).substring(0, 800))
+        if (itemResponse.ok) effectivePayload = payloadSemEnvio as typeof mlPayload
+      }
+    }
+
     if (!itemResponse.ok && mlVariations.length > 0) {
       const msgVar = causeMessages(itemData)
       if (
