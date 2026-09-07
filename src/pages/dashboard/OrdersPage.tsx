@@ -230,23 +230,47 @@ const purchaseInfoFromStoreOrder = (order: StoreOrderRow): SupplierPurchaseInfo 
 };
 
 const attachDropshipOrderId = async (info: SupplierPurchaseInfo, order: MlOrderRow): Promise<SupplierPurchaseInfo> => {
+  let supplierPrice = info.supplierPrice;
+  let buyerDocument = info.buyerDocument;
+
+  // Custo real do fornecedor: catálogo Velo (C7Drop) x quantidade.
+  if (!supplierPrice && order.catalog_product_id) {
+    const { data: catalog } = await supabase
+      .from("catalog_products")
+      .select("cost_price")
+      .eq("id", order.catalog_product_id)
+      .maybeSingle();
+    const unit = Number(catalog?.cost_price ?? 0);
+    if (unit > 0) supplierPrice = Number((unit * Math.max(1, Number(order.quantity ?? 1))).toFixed(2));
+  }
+
   const mlOrderId = order.ml_order_id ?? order.external_order_id;
-  if (!mlOrderId) return info;
+  if (!mlOrderId) return { ...info, supplierPrice, buyerDocument };
 
   const { data, error } = await supabase
     .from("dropship_orders")
-    .select("id")
+    .select("id, customer_document")
     .eq("ml_order_id", String(mlOrderId))
     .maybeSingle();
 
   if (error) throw error;
-  return { ...info, dropshipOrderId: typeof data?.id === "string" ? data.id : null };
+  if (typeof data?.customer_document === "string" && data.customer_document.trim()) {
+    buyerDocument = data.customer_document.trim();
+  }
+
+  return {
+    ...info,
+    supplierPrice,
+    buyerDocument,
+    dropshipOrderId: typeof data?.id === "string" ? data.id : null,
+  };
 };
 
 const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft => ({
   buyerName: info.buyerName === "—" ? "" : info.buyerName,
   buyerEmail: info.buyerEmail === "—" ? "" : info.buyerEmail,
   buyerPhone: info.buyerPhone === "—" ? "" : info.buyerPhone,
+  buyerDocument: info.buyerDocument ?? "",
   zip: info.address?.zip ?? "",
   street: info.address?.street ?? "",
   number: info.address?.number ?? "",
@@ -255,6 +279,7 @@ const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft 
   city: info.address?.city ?? "",
   state: info.address?.state ?? "",
 });
+
 
 const SupplierButton = ({
   url,
