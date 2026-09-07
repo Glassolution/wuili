@@ -100,13 +100,12 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(500);
 
-    const results: Array<Record<string, unknown>> = [];
+    // 1) Monta a lista de assinaturas afetadas.
+    const targets: Array<{ sub: Any; renewedAt: string }> = [];
     const seen = new Set<string>();
-
     for (const ev of events ?? []) {
       const vpSubId = ev.subscription_id as string | null;
       if (!vpSubId || seen.has(vpSubId)) continue;
-
       const { data: sub } = await admin
         .from("subscriptions").select("*")
         .eq("validapay_subscription_id", vpSubId).maybeSingle();
@@ -114,37 +113,61 @@ Deno.serve(async (req) => {
       if (new Date(ev.created_at as string) <= new Date(sub.cancelled_at)) continue;
       if (body.subscription_ids?.length && !body.subscription_ids.includes(sub.id)) continue;
       seen.add(vpSubId);
+      targets.push({ sub, renewedAt: ev.created_at as string });
+    }
 
-      // Já estornado antes?
-      const { data: prior } = await admin
-        .from("refund_requests").select("id,status")
-        .eq("subscription_id", sub.id)
-        .in("status", ["processed", "pending"])
-        .maybeSingle();
-      if (prior) {
-        results.push({ subscription_id: sub.id, skipped: "refund_ja_registrado" });
-        continue;
+    const results: Array<Record<string, unknown>> = [];
+    if (!targets.length) return json({ ok: true, dry_run: dryRun, count: 0, results });
+
+    // 2) Varre as cobranças recentes do gateway uma única vez.
+    const oldestRenewal = targets
+      .map((t) => new Date(t.renewedAt).getTime())
+      .reduce((a, b) => Math.min(a, b));
+    const charges = await listRecentCharges(new Date(oldestRenewal - 2 * 86400_000).toISOString());
+
+    for (const { sub, renewedAt } of targets) {
+      const renewedTs = new Date(renewedAt).getTime();
+      const candidates = charges
+        .filter((c) =>
+          c.subscriptionId === sub.validapay_subscription_id &&
+          c.chargeId !== sub.validapay_charge_id &&
+          PAID.includes(String(c.status ?? "").toUpperCase()) &&
+          Math.abs(new Date(c.createdAt ?? 0).getTime() - renewedTs) < 3 * 86400_000
+        )
+        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+      const target = candidates[0];
+
+      // Essa cobrança específica já foi estornada?
+      if (target) {
+        const { data: prior } = await admin
+          .from("refund_requests").select("id,status")
+          .eq("charge_id", target.chargeId)
+          .in("status", ["processed", "pending"])
+          .maybeSingle();
+        if (prior) {
+          results.push({ subscription_id: sub.id, charge_id: target.chargeId, skipped: "ja_estornada" });
+          continue;
+        }
       }
-
-      const { ids, raw } = await findSubscriptionCharges(vpSubId);
-      // Ignora a cobrança inicial já conhecida — queremos a da renovação.
-      const renewalIds = ids.filter((c) => c !== sub.validapay_charge_id);
-      const target = renewalIds[0] ?? ids[0] ?? sub.validapay_charge_id;
 
       if (dryRun) {
         results.push({
           subscription_id: sub.id,
-          validapay_subscription_id: vpSubId,
-          renewed_at: ev.created_at,
+          email: target?.email ?? null,
+          validapay_subscription_id: sub.validapay_subscription_id,
+          renewed_at: renewedAt,
           cancelled_at: sub.cancelled_at,
           amount: sub.amount,
           initial_charge: sub.validapay_charge_id,
-          charges_found: ids,
-          target_charge: target,
-          raw,
+          target_charge: target?.chargeId ?? null,
+          target_status: target?.status ?? null,
+          target_amount: target?.amount ?? null,
+          target_created_at: target?.createdAt ?? null,
+          candidates: candidates.length,
         });
         continue;
       }
+
 
       if (!target) {
         results.push({ subscription_id: sub.id, ok: false, error: "cobrança não localizada" });
