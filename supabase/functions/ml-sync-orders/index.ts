@@ -134,41 +134,11 @@ async function notifyUser(
   if (error) console.warn("[ml-sync-orders] falha ao criar notificacao:", error.message);
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+async function syncUserOrders(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<Response> {
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
-    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
-    const adminClient = createClient(dbUrl, dbKey);
-
-    // Identify user via JWT
-    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const userId = user.id;
-
     // Fetch user integrations
     const { data: integration, error: integrationError } = await adminClient
       .from("user_integrations")
@@ -570,4 +540,69 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+  const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
+  const adminClient = createClient(dbUrl, dbKey);
+
+  // Identify user via JWT
+  const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+  if (userError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  // Admin bulk mode: { user_ids: string[] } — syncs several users in one call
+  let body: { user_ids?: string[] } = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  if (Array.isArray(body.user_ids) && body.user_ids.length > 0) {
+    const { data: isAdmin } = await supabaseClient.rpc("is_admin", { _user_id: user.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const results = [];
+    for (const targetUserId of body.user_ids.slice(0, 10)) {
+      const res = await syncUserOrders(adminClient, targetUserId);
+      const json = await res.json().catch(() => ({}));
+      results.push({ user_id: targetUserId, status: res.status, ...json });
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, processed: results.length, results }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
+    );
+  }
+
+  return await syncUserOrders(adminClient, user.id);
 });
