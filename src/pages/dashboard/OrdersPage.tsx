@@ -514,6 +514,8 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
                 <PurchaseField label="Nome" icon={UserRound} value={draft.buyerName} onChange={(value) => update("buyerName", value)} />
                 <PurchaseField label="E-mail" icon={Mail} value={draft.buyerEmail} onChange={(value) => update("buyerEmail", value)} />
                 <PurchaseField label="Telefone" icon={Phone} value={draft.buyerPhone} onChange={(value) => update("buyerPhone", value)} />
+                <PurchaseField label="CPF / CNPJ" value={draft.buyerDocument} onChange={(value) => update("buyerDocument", value)} />
+
               </div>
             </section>
 
