@@ -1340,7 +1340,14 @@ Deno.serve(async (req) => {
     }
     // Exposto no objeto para reaproveitar no payload de shipping abaixo.
     const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
+    // Em anúncios COM variação, o ML calcula o frete pelas medidas da variação
+    // e ignora as do item — por isso as mesmas medidas vão também lá dentro.
+    const shippingAttrsVariacao: MLAttribute[] = [
+      { id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName },
+      { id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName },
+    ]
     console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
+
 
 
 
