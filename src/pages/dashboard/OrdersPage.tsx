@@ -96,6 +96,7 @@ type SupplierPurchaseInfo = {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  buyerDocument: string;
   address: ShippingAddress | null;
 };
 
@@ -103,6 +104,7 @@ type SupplierPurchaseDraft = {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  buyerDocument: string;
   zip: string;
   street: string;
   number: string;
