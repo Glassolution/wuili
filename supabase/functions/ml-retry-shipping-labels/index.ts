@@ -39,24 +39,54 @@ Deno.serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
-  // Autorizacao: token interno (cron) ou usuario admin
+  // Autorizacao: token interno / admin liberam execucao imediata (forcada).
   const expectedToken = Deno.env.get("DROPSHIP_WORKER_TOKEN") ?? Deno.env.get("CRON_SECRET");
   const internalToken = req.headers.get("x-worker-token") ?? req.headers.get("x-cron-token");
-  if (!(expectedToken && internalToken && internalToken === expectedToken)) {
+  let privileged = !!(expectedToken && internalToken && internalToken === expectedToken);
+
+  if (!privileged) {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Nao autorizado" }, 401);
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData } = await userClient.auth.getUser();
-    if (!userData?.user) return json({ error: "Token invalido" }, 401);
-    const { data: role } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "admin")
+    if (authHeader?.startsWith("Bearer ")) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData } = await userClient.auth.getUser();
+      if (userData?.user) {
+        const { data: role } = await admin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userData.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        privileged = !!role;
+      }
+    }
+  }
+
+  // Single-flight: mesmo sem credencial privilegiada (chamada do cron), a rotina
+  // so roda uma vez a cada 10 minutos.
+  const JOB = "ml-retry-shipping-labels";
+  const LEASE_MINUTES = 10;
+  if (!privileged) {
+    const nowIso = new Date().toISOString();
+    const { data: lock } = await admin
+      .from("job_locks")
+      .select("locked_until")
+      .eq("job", JOB)
       .maybeSingle();
-    if (!role) return json({ error: "Acesso restrito a admins" }, 403);
+
+    if (lock?.locked_until && new Date(lock.locked_until as string) > new Date()) {
+      return json({ success: true, skipped: "execucao_recente" });
+    }
+
+    await admin.from("job_locks").upsert(
+      {
+        job: JOB,
+        locked_until: new Date(Date.now() + LEASE_MINUTES * 60 * 1000).toISOString(),
+        last_run_at: nowIso,
+      },
+      { onConflict: "job" },
+    );
   }
 
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
