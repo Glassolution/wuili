@@ -353,12 +353,17 @@ function buildMlVariations(
       .map((c) => stockPorValor.get(String(c.value_name)))
       .find((v) => typeof v === 'number' && v > 0)
     const fotos = fotosDaVariacao(indice)
+    const atributosDaVariacao: MLAttribute[] = [
+      ...(skuRow?.sku ? [{ id: 'SELLER_SKU', value_name: skuRow.sku }] : []),
+      ...shippingAttrs,
+    ]
     const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
       available_quantity: Math.max(1, Math.floor(estoqueDaVariacao ?? perVariation)),
       ...(fotos.length > 0 ? { picture_ids: fotos } : {}),
-      ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
+      ...(atributosDaVariacao.length > 0 ? { attributes: atributosDaVariacao } : {}),
+
       // Metadados internos (removidos antes de enviar ao ML) usados para
       // registrar o anúncio-irmão em user_publications.
       _velo_dimension: guarda.name,
