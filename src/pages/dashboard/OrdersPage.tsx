@@ -202,6 +202,7 @@ const purchaseInfoFromMlOrder = (order: MlOrderRow): SupplierPurchaseInfo | null
     buyerName: clean(order.buyer_name),
     buyerEmail: clean(order.buyer_email),
     buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
     address: {
       zip: order.buyer_zip,
       street: order.buyer_address,
@@ -227,6 +228,7 @@ const purchaseInfoFromStoreOrder = (order: StoreOrderRow): SupplierPurchaseInfo 
     buyerName: clean(order.buyer_name),
     buyerEmail: clean(order.buyer_email),
     buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
     address: normalizeShippingAddress(order.shipping_address),
   };
 };
