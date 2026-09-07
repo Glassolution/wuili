@@ -30,11 +30,30 @@ const CANDIDATES = (id: string, immediate: boolean) => [
 ];
 
 
-async function tryCancel(subId: string, probe = false, immediate = false) {
+/** Algumas assinaturas guardam o id da sessão de checkout (cs_...): resolve o sub_. */
+async function resolveSubId(id: string, token: string): Promise<string> {
+  if (!id.startsWith("cs_")) return id;
+  try {
+    const resp = await fetch(`${VALIDAPAY_API_URL}/v1/checkout-sessions/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) return id;
+    const data = await resp.json().catch(() => null) as Record<string, unknown> | null;
+    const found = (data?.subscriptionId ?? data?.subscription_id ??
+      (data?.subscription as Record<string, unknown> | undefined)?.id) as string | undefined;
+    return found ?? id;
+  } catch {
+    return id;
+  }
+}
+
+async function tryCancel(rawId: string, probe = false, immediate = false) {
   const token = await getValidaPayToken(SCOPE);
+  const subId = await resolveSubId(rawId, token);
   const attempts: Array<{ method: string; path: string; status: number; body: string }> = [];
   for (const c of CANDIDATES(subId, immediate)) {
     if (!probe && c.method === "GET") continue;
+
 
     try {
       const resp = await fetch(`${VALIDAPAY_API_URL}${c.path}`, {
