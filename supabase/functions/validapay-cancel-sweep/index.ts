@@ -47,15 +47,21 @@ async function resolveSubId(id: string, token: string): Promise<string> {
   }
 }
 
-async function inspectSession(id: string) {
+async function inspectSession(_id: string) {
   const token = await getValidaPayToken(SCOPE);
-  const out: Record<string, unknown> = {};
-  for (const path of [`/v1/subscriptions?limit=2`, `/v1/subscriptions?limit=2&page=2`]) {
-    const resp = await fetch(`${VALIDAPAY_API_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
-    out[path] = { status: resp.status, body: (await resp.text()).slice(0, 900) };
-  }
-  return out;
+  const resp = await fetch(`${VALIDAPAY_API_URL}/v1/subscriptions?limit=1`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await resp.json().catch(() => null) as Record<string, unknown> | null;
+  const items = (data?.items ?? []) as unknown[];
+  return {
+    status: resp.status,
+    topLevelKeys: data ? Object.keys(data) : [],
+    semItems: data ? Object.fromEntries(Object.entries(data).filter(([k]) => k !== "items")) : null,
+    itemKeys: items[0] ? Object.keys(items[0] as Record<string, unknown>) : [],
+  };
 }
+
 
 async function tryCancel(rawId: string, probe = false, immediate = false) {
 
