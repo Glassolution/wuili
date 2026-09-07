@@ -1338,13 +1338,29 @@ Deno.serve(async (req) => {
     })
     // Exposto no objeto para reaproveitar no payload de shipping abaixo.
     const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
-    // Em anúncios COM variação, o ML calcula o frete pelas medidas da variação
-    // e ignora as do item — por isso as mesmas medidas vão também lá dentro.
+    // Em anúncios COM variação, algumas categorias calculam o frete pelas
+    // medidas da variação. MAS só podemos repetir esses atributos na variação
+    // quando a própria categoria os marca com `tags.allow_variations`; nas
+    // demais o ML rejeita a publicação inteira ("attributes are invalid /
+    // repeated"), que era o erro que os usuários estavam vendo.
+    const permiteAtributoNaVariacao = (attrId: string): boolean => {
+      const def = (categoryAttrs as Array<Record<string, unknown>>).find(
+        (a) => String(a?.id ?? '').toUpperCase() === attrId,
+      )
+      const tags = (def?.tags as Record<string, unknown> | undefined) ?? {}
+      return Boolean(tags.allow_variations)
+    }
     const shippingAttrsVariacao: MLAttribute[] = [
-      { id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName },
-      { id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName },
+      ...(permiteAtributoNaVariacao('SELLER_PACKAGE_WEIGHT')
+        ? [{ id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName }]
+        : []),
+      ...(permiteAtributoNaVariacao('SELLER_PACKAGE_DIMENSIONS')
+        ? [{ id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName }]
+        : []),
     ]
-    console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
+    console.log(
+      `[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg); na variação: ${shippingAttrsVariacao.map((a) => a.id).join(',') || 'nenhum'}`,
+    )
 
 
 
