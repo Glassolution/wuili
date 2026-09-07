@@ -57,6 +57,53 @@ Deno.serve(async (req) => {
   const limit = Math.min(Number(body?.limit ?? BATCH_LIMIT) || BATCH_LIMIT, 200);
   const dryRun = body?.dry_run === true;
 
+  // Modo diagnóstico: inspeciona quais campos o ML devolve para um pedido.
+  if (body?.probe) {
+    const mlOrderId = String(body.probe);
+    const { data: dropship } = await supabase
+      .from("dropship_orders")
+      .select("user_id")
+      .eq("ml_order_id", mlOrderId)
+      .maybeSingle();
+    const { data: order } = await supabase
+      .from("orders")
+      .select("raw, shipment_id")
+      .eq("ml_order_id", mlOrderId)
+      .maybeSingle();
+
+    const token = await getMlAccessToken(supabase, String(dropship?.user_id ?? ""));
+    const probe: Json = { ml_order_id: mlOrderId, tem_token: Boolean(token) };
+    const raw = order?.raw as Json;
+    const shipmentId = order?.shipment_id ?? raw?.shipping?.id ?? null;
+    probe.shipment_id = shipmentId ? String(shipmentId) : null;
+
+    if (token) {
+      for (
+        const [nome, url] of [
+          ["billing_info", `https://api.mercadolibre.com/orders/${mlOrderId}/billing_info`],
+          ["order", `https://api.mercadolibre.com/orders/${mlOrderId}`],
+          ...(shipmentId
+            ? [["shipment", `https://api.mercadolibre.com/shipments/${shipmentId}`] as const]
+            : []),
+        ] as [string, string][]
+      ) {
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-format-new": "true",
+            Accept: "application/json",
+          },
+        });
+        const text = await res.text();
+        probe[nome] = { status: res.status, corpo: text.slice(0, 1500) };
+      }
+    }
+
+    return new Response(JSON.stringify(probe), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const { data: pendentes, error } = await supabase
     .from("dropship_orders")
     .select("id, ml_order_id, user_id, customer_document, customer_phone, customer_email")
