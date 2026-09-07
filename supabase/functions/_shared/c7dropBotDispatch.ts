@@ -14,6 +14,7 @@
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { resolveShippingLabel } from "./mlShippingLabel.ts";
+import { fetchBuyerDetails } from "./mlBuyerDetails.ts";
 
 export interface BotOrderItem {
   sku_c7drop: string | null;
@@ -225,12 +226,22 @@ export async function dispatchOrderToBot(
 
   const buyer = mlOrder?.buyer ?? {};
   const addr = mlOrder?.shipping?.receiver_address ?? {};
-  const customerName = String(
+
+  // CPF, telefone e e-mail reais do comprador (o pedido cru vem mascarado).
+  // Sem eles o bot para no checkout da C7Drop.
+  const details = await fetchBuyerDetails(supabase, {
+    mlOrderId: mlOrderIdStr,
+    userId,
+    mlOrder,
+    accessToken,
+  });
+
+  const customerName = details.name ?? (String(
     addr?.receiver_name ??
       [buyer?.first_name, buyer?.last_name].filter(Boolean).join(" ").trim() ??
       "",
-  ).trim() || null;
-  const customerDocument = onlyDigits(firstString(
+  ).trim() || null);
+  const customerDocument = details.document ?? onlyDigits(firstString(
     addr?.receiver_document,
     addr?.document,
     addr?.cpf,
@@ -238,6 +249,7 @@ export async function dispatchOrderToBot(
     buyer?.billing_info?.doc_number,
     mlOrder?.payments?.[0]?.payer?.identification?.number,
   ));
+  const shippingAddress = details.receiverAddress ?? addr;
 
   // Etiqueta de envio do ML: se ainda não estiver disponível, o pedido é
   // gravado sem etiqueta e marcado com needs_shipping_label = true.
@@ -267,10 +279,12 @@ export async function dispatchOrderToBot(
     ...(label.url ? { shipping_label_wait_alerted_at: null } : {}),
     source: "mercadolivre",
     customer_name: customerName,
-    customer_email: buyer?.email ? String(buyer.email) : null,
-    customer_phone: addr?.receiver_phone ? String(addr.receiver_phone) : null,
+    customer_email: details.email ?? (buyer?.email ? String(buyer.email) : null),
+    customer_phone: details.phone ?? (addr?.receiver_phone ? String(addr.receiver_phone) : null),
     customer_document: customerDocument,
-    shipping_address: Object.keys(addr ?? {}).length > 0 ? addr : null,
+    shipping_address: shippingAddress && Object.keys(shippingAddress).length > 0
+      ? shippingAddress
+      : null,
     metadata: { velo_order_id: orderId, payload },
   };
 
