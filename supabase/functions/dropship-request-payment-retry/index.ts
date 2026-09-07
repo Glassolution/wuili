@@ -192,10 +192,35 @@ Deno.serve(async (req) => {
       return json({ error: "Informe o CPF ou CNPJ de quem vai pagar o Pix." }, 400);
     }
 
-    // Guarda o CPF informado para as proximas compras deste pedido.
-    if (!stringValue(orderRow.customer_document)) {
-      await admin.from("dropship_orders").update({ customer_document: payerDocument }).eq("id", orderId);
+    // Guarda os dados do comprador digitados no formulario para o bot usar
+    // no checkout da C7Drop. Campos vindos do formulario sempre prevalecem;
+    // campos nao enviados mantem o valor atual do pedido.
+    const buyerName = firstString(body?.buyer_name, body?.payer_name);
+    const buyerEmail = firstString(body?.buyer_email, body?.payer_email);
+    const buyerPhoneDigits = String(body?.buyer_phone ?? "").replace(/\D/g, "");
+    const buyerPhone = buyerPhoneDigits.length >= 10 ? buyerPhoneDigits : null;
+
+    const addressBody = record(body?.address);
+    const addressPatch: JsonRecord = {};
+    for (const key of ["zip", "street", "number", "complement", "neighborhood", "city", "state"]) {
+      const value = stringValue(addressBody[key]);
+      if (value) addressPatch[key] = value;
     }
+
+    const buyerPatch: JsonRecord = { customer_document: payerDocument };
+    if (buyerName) buyerPatch.customer_name = buyerName;
+    if (buyerEmail) buyerPatch.customer_email = buyerEmail;
+    if (buyerPhone) buyerPatch.customer_phone = buyerPhone;
+    if (Object.keys(addressPatch).length > 0) {
+      buyerPatch.shipping_address = { ...shippingAddress, ...addressPatch };
+    }
+
+    const { error: buyerError } = await admin
+      .from("dropship_orders")
+      .update(buyerPatch)
+      .eq("id", orderId);
+
+    if (buyerError) return json({ error: buyerError.message }, 500);
 
 
     const now = new Date().toISOString();
