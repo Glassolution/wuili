@@ -671,6 +671,15 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
   if (causeStr.includes('item.pictures.variation')) {
     return { message: 'Cada variação precisa ter entre 1 e 10 fotos. Verifique se o produto possui imagens suficientes.' }
   }
+  // Atributos recusados dentro da variação (ex.: peso/medidas por variação).
+  // O ML cita "category_id" nesses erros, então isso precisa vir ANTES do
+  // catch-all de categoria — senão o usuário recebe uma mensagem errada.
+  if (causeStr.includes('seller_package_weight') || causeStr.includes('seller_package_dimensions')) {
+    return {
+      message: 'O Mercado Livre recusou o peso/medidas da embalagem para esta categoria. Já tentamos publicar sem esses dados; se persistir, tente novamente em alguns minutos.',
+      code: 'INVALID_PACKAGE_ATTRIBUTES',
+    }
+  }
   if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
   // "Atributos obrigatórios faltando" (isso dificultava diagnóstico).
