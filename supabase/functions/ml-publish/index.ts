@@ -1310,12 +1310,12 @@ Deno.serve(async (req) => {
     const weightGrams = Math.max(50, Math.round(rawWeight * 1000))
     const weightValName = `${weightGrams} g`
 
-    if (categoryAttrIds.has('SELLER_PACKAGE_WEIGHT')) {
-      mergeAttribute(allAttrs, {
-        id: 'SELLER_PACKAGE_WEIGHT',
-        value_name: weightValName,
-      })
-    }
+    // Sempre enviado: em anúncios Mercado Envios (me2) o frete é calculado
+    // por estes atributos — `shipping.dimensions` nem sequer é editável depois.
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_PACKAGE_WEIGHT',
+      value_name: weightValName,
+    })
 
     // 3.6) Dimensões da embalagem — CRÍTICO para o cálculo do frete.
     // Sem dimensões válidas, o Mercado Livre aplica uma tabela padrão de "pacote
@@ -1332,12 +1332,10 @@ Deno.serve(async (req) => {
     // enviávamos "AxBxC cm" com espaço, o que era descartado pela API — daí
     // vinham os fretes gigantescos mesmo com peso correto.
     const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},cm`
-    if (categoryAttrIds.has('SELLER_PACKAGE_DIMENSIONS')) {
-      mergeAttribute(allAttrs, {
-        id: 'SELLER_PACKAGE_DIMENSIONS',
-        value_name: dimsValName,
-      })
-    }
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_PACKAGE_DIMENSIONS',
+      value_name: dimsValName,
+    })
     // Exposto no objeto para reaproveitar no payload de shipping abaixo.
     const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
     // Em anúncios COM variação, o ML calcula o frete pelas medidas da variação
