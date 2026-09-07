@@ -164,8 +164,13 @@ Deno.serve(async (req) => {
       return json({ error: "Pedido ja esta pago; nao gere novo Pix." }, 409);
     }
 
-    const amount = resolveAmount(orderRow);
-    if (!amount) return json({ error: "Pedido sem valor para gerar Pix." }, 400);
+    const amount = await resolveAmount(admin, orderRow);
+    if (!amount) {
+      return json(
+        { error: "Ainda nao sabemos o custo deste produto no fornecedor. Tente novamente em alguns minutos." },
+        400,
+      );
+    }
 
     const metadata = record(orderRow.metadata);
     const shippingAddress = record(orderRow.shipping_address);
@@ -184,8 +189,14 @@ Deno.serve(async (req) => {
     );
 
     if (!payerDocument) {
-      return json({ error: "Falta CPF/CNPJ do pagador para gerar o Pix." }, 400);
+      return json({ error: "Informe o CPF ou CNPJ de quem vai pagar o Pix." }, 400);
     }
+
+    // Guarda o CPF informado para as proximas compras deste pedido.
+    if (!stringValue(orderRow.customer_document)) {
+      await admin.from("dropship_orders").update({ customer_document: payerDocument }).eq("id", orderId);
+    }
+
 
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
