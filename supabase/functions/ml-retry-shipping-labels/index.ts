@@ -189,5 +189,15 @@ Deno.serve(async (req) => {
     erros,
   };
   console.log("[etiqueta-retry] resumo:", JSON.stringify(resumo));
+  await admin.from("job_locks").upsert(
+    {
+      job: JOB,
+      last_run_at: new Date().toISOString(),
+      last_result: resumo,
+      locked_until: new Date(Date.now() + (privileged ? 0 : LEASE_MINUTES * 60 * 1000))
+        .toISOString(),
+    },
+    { onConflict: "job" },
+  );
   return json(resumo);
 });
