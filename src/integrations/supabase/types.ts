@@ -944,6 +944,7 @@ export type Database = {
           carrier: string | null
           created_at: string
           currency: string
+          customer_document: string | null
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
@@ -964,6 +965,7 @@ export type Database = {
           quantidade: number
           seller_email: string | null
           shipping_address: Json | null
+          shipping_label_wait_alerted_at: string | null
           sku_c7drop: string | null
           source: string
           status: string
@@ -978,6 +980,7 @@ export type Database = {
           carrier?: string | null
           created_at?: string
           currency?: string
+          customer_document?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -998,6 +1001,7 @@ export type Database = {
           quantidade?: number
           seller_email?: string | null
           shipping_address?: Json | null
+          shipping_label_wait_alerted_at?: string | null
           sku_c7drop?: string | null
           source?: string
           status?: string
@@ -1012,6 +1016,7 @@ export type Database = {
           carrier?: string | null
           created_at?: string
           currency?: string
+          customer_document?: string | null
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
@@ -1032,6 +1037,7 @@ export type Database = {
           quantidade?: number
           seller_email?: string | null
           shipping_address?: Json | null
+          shipping_label_wait_alerted_at?: string | null
           sku_c7drop?: string | null
           source?: string
           status?: string
@@ -1795,6 +1801,7 @@ export type Database = {
           supplier_url: string | null
           total_amount: number | null
           tracking_code: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
@@ -1840,6 +1847,7 @@ export type Database = {
           supplier_url?: string | null
           total_amount?: number | null
           tracking_code?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
@@ -1885,6 +1893,7 @@ export type Database = {
           supplier_url?: string | null
           total_amount?: number | null
           tracking_code?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
