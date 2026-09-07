@@ -23,6 +23,12 @@ const json = (body: Record<string, unknown>, status = 200) =>
 
 const BATCH_LIMIT = 40;
 const READY_STATUSES = new Set(["ready_to_ship", "handling", "shipped"]);
+const ALREADY_SHIPPED_REASONS = new Set([
+  "shipment_shipped",
+  "shipment_dropped_off",
+  "shipment_delivered",
+  "shipment_not_delivered",
+]);
 // Janela: pedidos criados no ML nos ultimos 3 dias (ontem/hoje + folga)
 const LOOKBACK_DAYS = 3;
 
@@ -197,6 +203,7 @@ Deno.serve(async (req) => {
     aguardando_nota_fiscal: invoicePending,
     nao_prontos_para_envio: naoProntos,
     sem_pedido_ml: semPedido,
+    ja_enviados: jaEnviados,
     erros,
   };
   console.log("[etiqueta-retry] resumo:", JSON.stringify(resumo));
