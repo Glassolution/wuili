@@ -1505,6 +1505,7 @@ Deno.serve(async (req) => {
       product.price,
       Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
       pictures,
+      shippingAttrsVariacao,
     )
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
