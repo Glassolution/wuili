@@ -13,45 +13,55 @@ const json = (body: unknown, status = 200) =>
 // deno-lint-ignore no-explicit-any -- payload do gateway não é tipado
 type Any = any;
 
-/** Procura recursivamente ids de cobrança (cha_...) e datas associadas no payload. */
-function collectChargeIds(node: Any, out: Set<string>) {
-  if (!node) return;
-  if (typeof node === "string") {
-    if (node.startsWith("cha_")) out.add(node);
-    return;
+const PAID = ["PAID", "CONFIRMED", "APPROVED", "COMPLETED", "SETTLED"];
+
+
+type ChargeItem = {
+  chargeId: string;
+  subscriptionId?: string | null;
+  status?: string | null;
+  amount?: number | null;
+  createdAt?: string | null;
+  paymentType?: string | null;
+  email?: string | null;
+};
+
+/**
+ * A ValidaPay ignora o filtro ?subscriptionId no /v1/charges, então varremos as
+ * páginas mais recentes e filtramos localmente.
+ */
+async function listRecentCharges(sinceIso: string, maxPages = 40): Promise<ChargeItem[]> {
+  const since = new Date(sinceIso).getTime();
+  const out: ChargeItem[] = [];
+  let lastKey: string | null = null;
+  for (let page = 0; page < maxPages; page++) {
+    const qs = new URLSearchParams({ limit: "100" });
+    if (lastKey) qs.set("lastKey", lastKey);
+    const data = await validaPayFetch<Any>(`/v1/charges?${qs.toString()}`, {
+      method: "GET",
+      scope: "checkouts/read pix.cob/read accounts/read wallet/read",
+    });
+    const items: Any[] = data?.items ?? [];
+    if (!items.length) break;
+    for (const it of items) {
+      out.push({
+        chargeId: String(it.chargeId ?? it.id),
+        subscriptionId: it.subscriptionId ?? null,
+        status: it.status ?? null,
+        amount: it.amount ?? null,
+        createdAt: it.createdAt ?? null,
+        paymentType: it.paymentType ?? null,
+        email: it.email ?? null,
+      });
+    }
+    const oldest = items[items.length - 1]?.createdAt;
+    if (oldest && new Date(oldest).getTime() < since) break;
+    lastKey = data?.pagination?.lastKey ?? null;
+    if (!lastKey || data?.pagination?.hasMore === false) break;
   }
-  if (Array.isArray(node)) {
-    for (const n of node) collectChargeIds(n, out);
-    return;
-  }
-  if (typeof node === "object") {
-    for (const v of Object.values(node)) collectChargeIds(v, out);
-  }
+  return out;
 }
 
-async function findSubscriptionCharges(validapaySubId: string) {
-  const paths = [
-    `/v1/subscriptions/${encodeURIComponent(validapaySubId)}`,
-    `/v1/subscriptions/${encodeURIComponent(validapaySubId)}/charges`,
-    `/v1/charges?subscriptionId=${encodeURIComponent(validapaySubId)}`,
-  ];
-  const ids = new Set<string>();
-  const raw: Record<string, unknown> = {};
-  for (const path of paths) {
-    try {
-      const data = await validaPayFetch(path, {
-        method: "GET",
-        scope: "checkouts/read pix.cob/read accounts/read wallet/read",
-      });
-      raw[path] = data;
-      collectChargeIds(data, ids);
-    } catch (err) {
-      const e = err as ValidaPayError;
-      raw[path] = { error: e.message, status: e.status };
-    }
-  }
-  return { ids: [...ids], raw };
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -90,13 +100,12 @@ Deno.serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(500);
 
-    const results: Array<Record<string, unknown>> = [];
+    // 1) Monta a lista de assinaturas afetadas.
+    const targets: Array<{ sub: Any; renewedAt: string }> = [];
     const seen = new Set<string>();
-
     for (const ev of events ?? []) {
       const vpSubId = ev.subscription_id as string | null;
       if (!vpSubId || seen.has(vpSubId)) continue;
-
       const { data: sub } = await admin
         .from("subscriptions").select("*")
         .eq("validapay_subscription_id", vpSubId).maybeSingle();
@@ -104,37 +113,61 @@ Deno.serve(async (req) => {
       if (new Date(ev.created_at as string) <= new Date(sub.cancelled_at)) continue;
       if (body.subscription_ids?.length && !body.subscription_ids.includes(sub.id)) continue;
       seen.add(vpSubId);
+      targets.push({ sub, renewedAt: ev.created_at as string });
+    }
 
-      // Já estornado antes?
-      const { data: prior } = await admin
-        .from("refund_requests").select("id,status")
-        .eq("subscription_id", sub.id)
-        .in("status", ["processed", "pending"])
-        .maybeSingle();
-      if (prior) {
-        results.push({ subscription_id: sub.id, skipped: "refund_ja_registrado" });
-        continue;
+    const results: Array<Record<string, unknown>> = [];
+    if (!targets.length) return json({ ok: true, dry_run: dryRun, count: 0, results });
+
+    // 2) Varre as cobranças recentes do gateway uma única vez.
+    const oldestRenewal = targets
+      .map((t) => new Date(t.renewedAt).getTime())
+      .reduce((a, b) => Math.min(a, b));
+    const charges = await listRecentCharges(new Date(oldestRenewal - 2 * 86400_000).toISOString());
+
+    for (const { sub, renewedAt } of targets) {
+      const renewedTs = new Date(renewedAt).getTime();
+      const candidates = charges
+        .filter((c) =>
+          c.subscriptionId === sub.validapay_subscription_id &&
+          c.chargeId !== sub.validapay_charge_id &&
+          PAID.includes(String(c.status ?? "").toUpperCase()) &&
+          Math.abs(new Date(c.createdAt ?? 0).getTime() - renewedTs) < 3 * 86400_000
+        )
+        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+      const target = candidates[0];
+
+      // Essa cobrança específica já foi estornada?
+      if (target) {
+        const { data: prior } = await admin
+          .from("refund_requests").select("id,status")
+          .eq("charge_id", target.chargeId)
+          .in("status", ["processed", "pending"])
+          .maybeSingle();
+        if (prior) {
+          results.push({ subscription_id: sub.id, charge_id: target.chargeId, skipped: "ja_estornada" });
+          continue;
+        }
       }
-
-      const { ids, raw } = await findSubscriptionCharges(vpSubId);
-      // Ignora a cobrança inicial já conhecida — queremos a da renovação.
-      const renewalIds = ids.filter((c) => c !== sub.validapay_charge_id);
-      const target = renewalIds[0] ?? ids[0] ?? sub.validapay_charge_id;
 
       if (dryRun) {
         results.push({
           subscription_id: sub.id,
-          validapay_subscription_id: vpSubId,
-          renewed_at: ev.created_at,
+          email: target?.email ?? null,
+          validapay_subscription_id: sub.validapay_subscription_id,
+          renewed_at: renewedAt,
           cancelled_at: sub.cancelled_at,
           amount: sub.amount,
           initial_charge: sub.validapay_charge_id,
-          charges_found: ids,
-          target_charge: target,
-          raw,
+          target_charge: target?.chargeId ?? null,
+          target_status: target?.status ?? null,
+          target_amount: target?.amount ?? null,
+          target_created_at: target?.createdAt ?? null,
+          candidates: candidates.length,
         });
         continue;
       }
+
 
       if (!target) {
         results.push({ subscription_id: sub.id, ok: false, error: "cobrança não localizada" });
@@ -145,19 +178,19 @@ Deno.serve(async (req) => {
       let ok = false;
       try {
         const result = await refundCharge(
-          target,
-          Number(sub.amount ?? 0),
+          target.chargeId,
+          Number(target.amount ?? sub.amount ?? 0),
           "CUSTOMER_REQUEST",
         ) as Record<string, unknown>;
         const st = String(result?.status ?? "").toUpperCase();
         ok = ["CONFIRMED", "COMPLETED", "SUCCESS", "PROCESSING"].includes(st) || result?.success === true;
-        providerResponse = { provider: "validapay", chargeId: target, ...result };
+        providerResponse = { provider: "validapay", chargeId: target.chargeId, ...result };
       } catch (e) {
         const err = e as ValidaPayError;
-        providerResponse = { provider: "validapay", chargeId: target, error: err.message, details: err.details ?? null };
+        providerResponse = { provider: "validapay", chargeId: target.chargeId, error: err.message, details: err.details ?? null };
         console.error("refund_logs", JSON.stringify({
           origin: "admin-refund-post-cancel", outcome: "error",
-          subscription_id: sub.id, chargeId: target, message: err.message,
+          subscription_id: sub.id, chargeId: target.chargeId, message: err.message,
         }));
       }
 
@@ -166,11 +199,11 @@ Deno.serve(async (req) => {
         user_id: sub.user_id,
         subscription_id: sub.id,
         payment_id: sub.mp_payment_id,
-        charge_id: target,
+        charge_id: target.chargeId,
         reason: "Cobrança indevida após cancelamento",
         reason_details: "Renovação cobrada mesmo após o cliente ter cancelado a assinatura. Estorno automático pelo suporte.",
         status: ok ? "processed" : "rejected",
-        refund_amount: Number(sub.amount ?? 0),
+        refund_amount: Number(target.amount ?? sub.amount ?? 0),
         provider_response: providerResponse,
         requested_at: now,
         processed_at: now,
@@ -193,7 +226,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      results.push({ subscription_id: sub.id, charge_id: target, ok, provider: providerResponse });
+      results.push({ subscription_id: sub.id, charge_id: target.chargeId, email: target.email, ok, provider: providerResponse });
     }
 
     return json({ ok: true, dry_run: dryRun, count: results.length, results });
