@@ -107,6 +107,7 @@ Deno.serve(async (req) => {
   let invoicePending = 0;
   let naoProntos = 0;
   let semPedido = 0;
+  let jaEnviados = 0;
   const erros: Array<{ ml_order_id: string; motivo: string }> = [];
   let processados = 0;
 
