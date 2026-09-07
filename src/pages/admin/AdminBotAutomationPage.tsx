@@ -382,6 +382,12 @@ const normalizeOrder = (row: Record<string, unknown>): ActionOrder => {
     tracking_code: getString(row, ["tracking_code"]),
     tracking_url: getString(row, ["tracking_url"]),
     carrier: getString(row, ["carrier"]),
+    payment_method: getString(row, ["payment_method"]) ?? getString(row, ["c7drop_payment_method"]),
+    c7drop_pix_copy_paste: getString(row, ["c7drop_pix_copy_paste"]),
+    c7drop_pix_key: getString(row, ["c7drop_pix_key"]),
+    c7drop_pix_generated_at: getString(row, ["c7drop_pix_generated_at"]),
+    c7drop_pix_expires_at: getString(row, ["c7drop_pix_expires_at"]),
+    c7drop_pix_renewal_count: Number(row.c7drop_pix_renewal_count ?? 0) || 0,
   };
 };
 
