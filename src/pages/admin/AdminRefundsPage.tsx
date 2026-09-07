@@ -213,15 +213,22 @@ const AdminRefundsPage = () => {
     queryKey: ["admin-refunds-subs", subIds.join(",")],
     enabled: isAdmin && subIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("id, plan, created_at, amount, validapay_charge_id, payment_method")
-        .in("id", subIds);
       const map: Record<string, RefundSubscription> = {};
-      (data || []).forEach((row) => {
-        const sub = row as RefundSubscription;
-        map[sub.id] = sub;
-      });
+      const CHUNK = 100;
+      for (let i = 0; i < subIds.length; i += CHUNK) {
+        const { data, error } = await supabase
+          .from("subscriptions")
+          .select("id, plan, created_at, amount, validapay_charge_id, payment_method")
+          .in("id", subIds.slice(i, i + CHUNK));
+        if (error) {
+          console.error("[admin-refunds] falha ao carregar assinaturas", error);
+          continue;
+        }
+        (data || []).forEach((row) => {
+          const sub = row as RefundSubscription;
+          map[sub.id] = sub;
+        });
+      }
       return map;
     },
   });
