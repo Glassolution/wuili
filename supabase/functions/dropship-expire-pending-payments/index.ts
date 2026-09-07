@@ -60,13 +60,19 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date().toISOString();
-    const { data: orders, error } = await admin
+    const { data: allOrders, error } = await admin
       .from("dropship_orders")
-      .select("id,status,payment_status,payment_reference,pix_expires_at,payment_retry_expires_at,c7drop_cart_ref,metadata")
+      .select("id,status,payment_status,payment_method,c7drop_payment_method,payment_reference,pix_expires_at,payment_retry_expires_at,c7drop_cart_ref,metadata")
       .in("status", ["pix_gerado", "reservando_fornecedor", "reservado_aguardando_pagamento"])
       .eq("payment_status", "pending")
       .or(`pix_expires_at.lte.${now},payment_retry_expires_at.lte.${now}`)
       .limit(100);
+
+    // Pix direto da C7Drop nao expira por aqui: o proprio bot renova o Pix
+    // no checkout do fornecedor quando c7drop_pix_expires_at vence.
+    const orders = (allOrders ?? []).filter((o) =>
+      o.payment_method !== "pix_c7drop" && o.c7drop_payment_method !== "pix_c7drop"
+    );
 
     if (error) return json({ error: error.message }, 500);
 

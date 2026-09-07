@@ -940,6 +940,11 @@ export type Database = {
       }
       dropship_orders: {
         Row: {
+          c7drop_pix_copy_paste: string | null
+          c7drop_pix_expires_at: string | null
+          c7drop_pix_generated_at: string | null
+          c7drop_pix_key: string | null
+          c7drop_pix_renewal_count: number
           c7drop_product_url: string | null
           carrier: string | null
           created_at: string
@@ -983,6 +988,11 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          c7drop_pix_copy_paste?: string | null
+          c7drop_pix_expires_at?: string | null
+          c7drop_pix_generated_at?: string | null
+          c7drop_pix_key?: string | null
+          c7drop_pix_renewal_count?: number
           c7drop_product_url?: string | null
           carrier?: string | null
           created_at?: string
@@ -1026,6 +1036,11 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          c7drop_pix_copy_paste?: string | null
+          c7drop_pix_expires_at?: string | null
+          c7drop_pix_generated_at?: string | null
+          c7drop_pix_key?: string | null
+          c7drop_pix_renewal_count?: number
           c7drop_product_url?: string | null
           carrier?: string | null
           created_at?: string

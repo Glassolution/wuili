@@ -74,6 +74,12 @@ type ActionOrder = {
   tracking_code: string | null;
   tracking_url: string | null;
   carrier: string | null;
+  payment_method?: string | null;
+  c7drop_pix_copy_paste?: string | null;
+  c7drop_pix_key?: string | null;
+  c7drop_pix_generated_at?: string | null;
+  c7drop_pix_expires_at?: string | null;
+  c7drop_pix_renewal_count?: number;
   isTest?: boolean;
 };
 
@@ -376,6 +382,12 @@ const normalizeOrder = (row: Record<string, unknown>): ActionOrder => {
     tracking_code: getString(row, ["tracking_code"]),
     tracking_url: getString(row, ["tracking_url"]),
     carrier: getString(row, ["carrier"]),
+    payment_method: getString(row, ["payment_method"]) ?? getString(row, ["c7drop_payment_method"]),
+    c7drop_pix_copy_paste: getString(row, ["c7drop_pix_copy_paste"]),
+    c7drop_pix_key: getString(row, ["c7drop_pix_key"]),
+    c7drop_pix_generated_at: getString(row, ["c7drop_pix_generated_at"]),
+    c7drop_pix_expires_at: getString(row, ["c7drop_pix_expires_at"]),
+    c7drop_pix_renewal_count: Number(row.c7drop_pix_renewal_count ?? 0) || 0,
   };
 };
 
@@ -1260,6 +1272,11 @@ const ActionOrderRow = ({
     </td>
     <td className="px-3 py-3">
       <AdminBadge tone={ACTION_STATUSES.has(order.status ?? "") ? "danger" : "neutral"}>{statusLabel(order.status ?? "-")}</AdminBadge>
+      {order.payment_method === "pix_c7drop" ? (
+        <p className="mt-1 text-[10.5px] font-semibold text-[#2563EB]">
+          Pix C7 · {order.c7drop_pix_expires_at ? `até ${dateFmt(order.c7drop_pix_expires_at)}` : "45 min"} · {order.c7drop_pix_renewal_count ?? 0}/3
+        </p>
+      ) : null}
     </td>
     <td className="px-3 py-3">
       <div className="flex max-w-[220px] flex-wrap gap-1">
@@ -1411,6 +1428,25 @@ const OrderDetailsDrawer = ({
           <DetailField label="Rastreio" value={order.tracking_code} />
           <DetailField label="Transportadora" value={order.carrier} />
         </section>
+
+        {order.payment_method === "pix_c7drop" ? (
+          <section className="rounded-[10px] border border-[#DDE6F6] bg-[#F8FAFF] px-3 py-3">
+            <p className="text-[12px] font-semibold text-[#171715]">Pix da C7Drop</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <DetailField label="Gerado em" value={dateFmt(order.c7drop_pix_generated_at)} />
+              <DetailField label="Validade estimada" value={order.c7drop_pix_expires_at ? dateFmt(order.c7drop_pix_expires_at) : "45 min após gerar"} />
+              <DetailField label="Renovações" value={`${order.c7drop_pix_renewal_count ?? 0} de 3`} />
+              <DetailField label="Chave Pix" value={order.c7drop_pix_key} />
+            </div>
+            {order.c7drop_pix_copy_paste ? (
+              <p className="mt-2 break-all rounded-[8px] border border-[#EEF1F6] bg-white px-2.5 py-2 text-[11px] leading-4 text-[#4B5563]">
+                {order.c7drop_pix_copy_paste}
+              </p>
+            ) : (
+              <p className="mt-2 text-[11.5px] text-[#7C8493]">Aguardando o bot montar o checkout e gerar o Pix.</p>
+            )}
+          </section>
+        ) : null}
 
         <section>
           <p className="text-[12px] font-semibold text-[#171715]">Motivos da ação</p>

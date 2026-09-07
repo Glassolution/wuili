@@ -336,16 +336,79 @@ const SupplierButton = ({
   );
 };
 
+type C7DropPixState = {
+  copyPaste: string | null;
+  pixKey: string | null;
+  generatedAt: string | null;
+  expiresAt: string | null;
+  renewalCount: number;
+  paymentStatus: string | null;
+  status: string | null;
+};
+
 const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: SupplierPurchaseInfo | null; onClose: () => void; onCreatedPix?: () => void }) => {
   const [draft, setDraft] = useState<SupplierPurchaseDraft | null>(() => (info ? createPurchaseDraft(info) : null));
-  const [pixData, setPixData] = useState<{ qrCode: string | null; qrCodeBase64: string | null; expiresAt: string | null } | null>(null);
+  const [pixOrderId, setPixOrderId] = useState<string | null>(null);
+  const [pix, setPix] = useState<C7DropPixState | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     setDraft(info ? createPurchaseDraft(info) : null);
-    setPixData(null);
+    setPixOrderId(null);
+    setPix(null);
+    setQrDataUrl(null);
     setIsGeneratingQr(false);
+    setIsConfirming(false);
   }, [info]);
+
+  // O bot da Railway grava o Pix da C7Drop no pedido; ficamos ouvindo até chegar.
+  useEffect(() => {
+    if (!pixOrderId) return;
+    let active = true;
+
+    const load = async () => {
+      const { data } = await supabase
+        .from("dropship_orders")
+        .select("status,payment_status,c7drop_pix_copy_paste,c7drop_pix_key,c7drop_pix_generated_at,c7drop_pix_expires_at,c7drop_pix_renewal_count")
+        .eq("id", pixOrderId)
+        .maybeSingle();
+      if (!active || !data) return;
+      setPix({
+        copyPaste: data.c7drop_pix_copy_paste ?? null,
+        pixKey: data.c7drop_pix_key ?? null,
+        generatedAt: data.c7drop_pix_generated_at ?? null,
+        expiresAt: data.c7drop_pix_expires_at ?? null,
+        renewalCount: Number(data.c7drop_pix_renewal_count ?? 0),
+        paymentStatus: data.payment_status ?? null,
+        status: data.status ?? null,
+      });
+    };
+
+    void load();
+    const timer = window.setInterval(load, 6000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [pixOrderId]);
+
+  useEffect(() => {
+    const code = pix?.copyPaste?.trim();
+    if (!code) {
+      setQrDataUrl(null);
+      return;
+    }
+    let active = true;
+    void import("qrcode").then(async (mod) => {
+      const url = await mod.default.toDataURL(code, { width: 320, margin: 1 }).catch(() => null);
+      if (active) setQrDataUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pix?.copyPaste]);
 
   if (!info || !draft) return null;
 
@@ -366,10 +429,9 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
     }
     setIsGeneratingQr(true);
     try {
-      const { data, error } = await supabase.functions.invoke("dropship-request-payment-retry", {
+      const { data, error } = await supabase.functions.invoke("dropship-request-c7drop-pix", {
         body: {
           order_id: info.dropshipOrderId,
-          expires_in_hours: 48,
           payer_document: document,
           payer_name: draft.buyerName || undefined,
           payer_email: draft.buyerEmail || undefined,
@@ -385,14 +447,8 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
           },
         },
       });
-      const response = data as {
-        error?: string;
-        pix_qr_code?: string | null;
-        pix_qr_code_base64?: string | null;
-        expires_at?: string | null;
-      } | null;
+      const response = data as { error?: string } | null;
       if (error || response?.error) {
-        // Erros 4xx da função vêm dentro do context; buscamos a mensagem real.
         let detail = response?.error ?? null;
         // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
         const context = (error as any)?.context;
@@ -403,22 +459,51 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
         throw new Error(detail ?? error?.message ?? "Não foi possível gerar o Pix.");
       }
 
-      setPixData({
-        qrCode: response?.pix_qr_code ?? null,
-        qrCodeBase64: response?.pix_qr_code_base64 ?? null,
-        expiresAt: response?.expires_at ?? null,
-      });
+      setPixOrderId(info.dropshipOrderId);
       onCreatedPix?.();
-      veloToast.success("Pix criado. O bot já pode preparar o carrinho na C7Drop.");
+      veloToast.success("Pedido enviado ao bot. O Pix da C7Drop aparece aqui em instantes.");
     } catch (error) {
       veloToast.error(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
     } finally {
       setIsGeneratingQr(false);
     }
   };
+
+  const handleConfirmPaid = async () => {
+    if (!pixOrderId || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("dropship-confirm-c7drop-pix", {
+        body: { order_id: pixOrderId },
+      });
+      const response = data as { error?: string } | null;
+      if (error || response?.error) {
+        let detail = response?.error ?? null;
+        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
+        const context = (error as any)?.context;
+        if (!detail && context && typeof context.json === "function") {
+          const body = await context.json().catch(() => null);
+          detail = typeof body?.error === "string" ? body.error : null;
+        }
+        throw new Error(detail ?? error?.message ?? "Não foi possível confirmar o pagamento.");
+      }
+      setPix((current) => (current ? { ...current, paymentStatus: "paid", status: "pagamento_confirmado" } : current));
+      onCreatedPix?.();
+      veloToast.success("Pagamento confirmado. O bot vai finalizar o pedido no fornecedor.");
+    } catch (error) {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível confirmar o pagamento.");
+    } finally {
+      setIsConfirming(false);
+    }
+  };
   const supplierPriceLabel = info.supplierPrice ? formatBRL(info.supplierPrice) : "Não informado";
 
-  if (pixData) {
+  if (pixOrderId) {
+    const isPaid = pix?.paymentStatus === "paid";
+    const expiresLabel = pix?.expiresAt
+      ? new Date(pix.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      : null;
+
     return (
       <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]" onClick={onClose}>
         <div
@@ -434,7 +519,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
                 <h2 id="supplier-qr-title" className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#020817]">
-                  Pix da compra
+                  Pix da C7Drop
                 </h2>
               </div>
               <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
@@ -443,35 +528,67 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             </div>
 
             <div className="mt-6 grid place-items-center rounded-[22px] border border-[#E2E8F0] bg-[#F8FAFC] p-5">
-              {pixData.qrCodeBase64 ? (
-                <img src={`data:image/png;base64,${pixData.qrCodeBase64}`} alt="QR Code Pix da compra no fornecedor" className="h-56 w-56" />
-              ) : pixData.qrCode ? (
-                <textarea
-                  readOnly
-                  value={pixData.qrCode}
-                  className="h-32 w-full resize-none rounded-[14px] border border-[#D8E3F8] bg-white p-3 text-[12px] font-semibold text-[#020817] outline-none"
-                />
+              {isPaid ? (
+                <p className="text-center text-[13px] font-black text-[#137443]">Pagamento confirmado. O bot está finalizando o pedido no fornecedor.</p>
+              ) : qrDataUrl ? (
+                <img src={qrDataUrl} alt="QR Code Pix da compra na C7Drop" className="h-56 w-56" />
               ) : (
-                <p className="text-center text-[13px] font-semibold text-[#64748B]">Pix criado, mas o QR não voltou na resposta.</p>
+                <p className="text-center text-[13px] font-semibold text-[#64748B]">
+                  Gerando o Pix na C7Drop... isso leva alguns instantes. Deixe esta janela aberta.
+                </p>
               )}
             </div>
+
+            {!isPaid && pix?.copyPaste ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(pix.copyPaste ?? "");
+                    veloToast.success("Código Pix copiado.");
+                  } catch {
+                    veloToast.error("Não foi possível copiar o código.");
+                  }
+                }}
+                className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] border border-[#C7D7FE] bg-[#EFF6FF] px-4 text-[12px] font-black text-[#1D4ED8] transition hover:bg-[#E0EAFF]"
+              >
+                <Copy size={14} strokeWidth={2} />
+                Copiar código Pix (copia e cola)
+              </button>
+            ) : null}
 
             <div className="mt-5 text-center">
               <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Preço C7Drop</p>
               <p className="mt-1 text-[30px] font-black tracking-[-0.05em] text-[#020817]">{supplierPriceLabel}</p>
             </div>
 
-            <div className="mt-5 rounded-[16px] border border-[#FACC15]/50 bg-[#FEFCE8] px-4 py-3 text-center">
-              <p className="text-[13px] font-black text-[#854D0E]">Pague em até 48h.</p>
-              <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#A16207]">
-                Depois desse prazo, a reserva será removida do carrinho da C7Drop.
-              </p>
-            </div>
+            {!isPaid ? (
+              <div className="mt-5 rounded-[16px] border border-[#FACC15]/50 bg-[#FEFCE8] px-4 py-3 text-center">
+                <p className="text-[13px] font-black text-[#854D0E]">
+                  Validade estimada: 45 minutos{expiresLabel ? ` (até ${expiresLabel})` : ""}.
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#A16207]">
+                  Se vencer, o bot gera um novo Pix automaticamente (até 3 vezes).
+                  {pix?.renewalCount ? ` Renovações até agora: ${pix.renewalCount}.` : ""}
+                </p>
+              </div>
+            ) : null}
+
+            {!isPaid ? (
+              <button
+                type="button"
+                onClick={handleConfirmPaid}
+                disabled={!pix?.copyPaste || isConfirming}
+                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#16A34A] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(22,163,74,0.22)] transition hover:bg-[#15803D] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isConfirming ? "Confirmando..." : "Já paguei"}
+              </button>
+            ) : null}
 
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+              className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
             >
               Fechar
             </button>
@@ -555,7 +672,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
           >
             <ShoppingBag size={15} />
-            {isGeneratingQr ? "Gerando Pix..." : "Comprar"}
+            {isGeneratingQr ? "Gerando Pix..." : "Gerar Pix C7Drop"}
           </button>
         </div>
       </div>
