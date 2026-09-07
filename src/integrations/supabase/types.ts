@@ -1362,6 +1362,33 @@ export type Database = {
         }
         Relationships: []
       }
+      job_locks: {
+        Row: {
+          created_at: string
+          job: string
+          last_result: Json
+          last_run_at: string | null
+          locked_until: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          job: string
+          last_result?: Json
+          last_run_at?: string | null
+          locked_until?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          job?: string
+          last_result?: Json
+          last_run_at?: string | null
+          locked_until?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

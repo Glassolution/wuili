@@ -79,9 +79,19 @@ export function extractShipmentId(mlOrder: MlOrder): string | null {
  */
 export async function fetchAndStoreShippingLabel(
   supabase: SupabaseClient,
-  params: { mlOrderId: string; shipmentId: string; accessToken: string },
+  params: {
+    mlOrderId: string;
+    shipmentId: string;
+    accessToken: string;
+    /** Recebe o motivo tecnico quando a etiqueta nao pode ser obtida. */
+    onFailure?: (reason: string) => void;
+  },
 ): Promise<{ url: string; path: string } | null> {
-  const { mlOrderId, shipmentId, accessToken } = params;
+  const { mlOrderId, shipmentId, accessToken, onFailure } = params;
+  const fail = (reason: string) => {
+    onFailure?.(reason);
+    return null;
+  };
 
   try {
     const res = await mlFetch(
@@ -94,14 +104,15 @@ export async function fetchAndStoreShippingLabel(
       console.warn(
         `[etiqueta] ML ${res.status} para shipment ${shipmentId}: ${detail.slice(0, 200)}`,
       );
-      return null;
+      const m = detail.match(/status is ([a-z_]+)/i);
+      return fail(m ? `shipment_${m[1]}` : `ml_${res.status}`);
     }
 
     const bytes = new Uint8Array(await res.arrayBuffer());
     // Resposta pode vir como JSON de erro com status 200 em alguns casos
     if (bytes.byteLength < 1024) {
       console.warn(`[etiqueta] resposta muito pequena para shipment ${shipmentId}`);
-      return null;
+      return fail("resposta_invalida");
     }
 
     const path = `mercadolivre/${mlOrderId}/${shipmentId}.pdf`;
@@ -111,7 +122,7 @@ export async function fetchAndStoreShippingLabel(
     });
     if (upErr) {
       console.error("[etiqueta] falha no upload:", upErr.message);
-      return null;
+      return fail(`upload_falhou: ${upErr.message}`);
     }
 
     const { data: signed, error: signErr } = await supabase.storage
@@ -119,13 +130,13 @@ export async function fetchAndStoreShippingLabel(
       .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
     if (signErr || !signed?.signedUrl) {
       console.error("[etiqueta] falha ao assinar URL:", signErr?.message);
-      return null;
+      return fail(`assinatura_falhou: ${signErr?.message ?? "desconhecido"}`);
     }
 
     return { url: signed.signedUrl, path };
   } catch (e) {
     console.warn("[etiqueta] erro inesperado:", (e as Error).message);
-    return null;
+    return fail(`erro_inesperado: ${(e as Error).message}`);
   }
 }
 
@@ -133,18 +144,22 @@ export async function fetchAndStoreShippingLabel(
 export async function resolveShippingLabel(
   supabase: SupabaseClient,
   params: { mlOrderId: string; userId: string; mlOrder: MlOrder; accessToken?: string | null },
-): Promise<{ url: string | null; path: string | null }> {
+): Promise<{ url: string | null; path: string | null; reason: string | null }> {
   const shipmentId = extractShipmentId(params.mlOrder);
-  if (!shipmentId) return { url: null, path: null };
+  if (!shipmentId) return { url: null, path: null, reason: "sem_shipment_id" };
 
   const token = params.accessToken ?? (await getMlAccessToken(supabase, params.userId));
-  if (!token) return { url: null, path: null };
+  if (!token) return { url: null, path: null, reason: "sem_token_ml" };
 
+  let reason: string | null = null;
   const result = await fetchAndStoreShippingLabel(supabase, {
     mlOrderId: String(params.mlOrderId),
     shipmentId,
     accessToken: token,
+    onFailure: (r) => {
+      reason = r;
+    },
   });
 
-  return { url: result?.url ?? null, path: result?.path ?? null };
+  return { url: result?.url ?? null, path: result?.path ?? null, reason: result ? null : reason };
 }
