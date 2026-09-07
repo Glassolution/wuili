@@ -336,16 +336,79 @@ const SupplierButton = ({
   );
 };
 
+type C7DropPixState = {
+  copyPaste: string | null;
+  pixKey: string | null;
+  generatedAt: string | null;
+  expiresAt: string | null;
+  renewalCount: number;
+  paymentStatus: string | null;
+  status: string | null;
+};
+
 const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: SupplierPurchaseInfo | null; onClose: () => void; onCreatedPix?: () => void }) => {
   const [draft, setDraft] = useState<SupplierPurchaseDraft | null>(() => (info ? createPurchaseDraft(info) : null));
-  const [pixData, setPixData] = useState<{ qrCode: string | null; qrCodeBase64: string | null; expiresAt: string | null } | null>(null);
+  const [pixOrderId, setPixOrderId] = useState<string | null>(null);
+  const [pix, setPix] = useState<C7DropPixState | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     setDraft(info ? createPurchaseDraft(info) : null);
-    setPixData(null);
+    setPixOrderId(null);
+    setPix(null);
+    setQrDataUrl(null);
     setIsGeneratingQr(false);
+    setIsConfirming(false);
   }, [info]);
+
+  // O bot da Railway grava o Pix da C7Drop no pedido; ficamos ouvindo até chegar.
+  useEffect(() => {
+    if (!pixOrderId) return;
+    let active = true;
+
+    const load = async () => {
+      const { data } = await supabase
+        .from("dropship_orders")
+        .select("status,payment_status,c7drop_pix_copy_paste,c7drop_pix_key,c7drop_pix_generated_at,c7drop_pix_expires_at,c7drop_pix_renewal_count")
+        .eq("id", pixOrderId)
+        .maybeSingle();
+      if (!active || !data) return;
+      setPix({
+        copyPaste: data.c7drop_pix_copy_paste ?? null,
+        pixKey: data.c7drop_pix_key ?? null,
+        generatedAt: data.c7drop_pix_generated_at ?? null,
+        expiresAt: data.c7drop_pix_expires_at ?? null,
+        renewalCount: Number(data.c7drop_pix_renewal_count ?? 0),
+        paymentStatus: data.payment_status ?? null,
+        status: data.status ?? null,
+      });
+    };
+
+    void load();
+    const timer = window.setInterval(load, 6000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [pixOrderId]);
+
+  useEffect(() => {
+    const code = pix?.copyPaste?.trim();
+    if (!code) {
+      setQrDataUrl(null);
+      return;
+    }
+    let active = true;
+    void import("qrcode").then(async (mod) => {
+      const url = await mod.default.toDataURL(code, { width: 320, margin: 1 }).catch(() => null);
+      if (active) setQrDataUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pix?.copyPaste]);
 
   if (!info || !draft) return null;
 
@@ -366,10 +429,9 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
     }
     setIsGeneratingQr(true);
     try {
-      const { data, error } = await supabase.functions.invoke("dropship-request-payment-retry", {
+      const { data, error } = await supabase.functions.invoke("dropship-request-c7drop-pix", {
         body: {
           order_id: info.dropshipOrderId,
-          expires_in_hours: 48,
           payer_document: document,
           payer_name: draft.buyerName || undefined,
           payer_email: draft.buyerEmail || undefined,
@@ -385,14 +447,8 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
           },
         },
       });
-      const response = data as {
-        error?: string;
-        pix_qr_code?: string | null;
-        pix_qr_code_base64?: string | null;
-        expires_at?: string | null;
-      } | null;
+      const response = data as { error?: string } | null;
       if (error || response?.error) {
-        // Erros 4xx da função vêm dentro do context; buscamos a mensagem real.
         let detail = response?.error ?? null;
         // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
         const context = (error as any)?.context;
@@ -403,17 +459,41 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
         throw new Error(detail ?? error?.message ?? "Não foi possível gerar o Pix.");
       }
 
-      setPixData({
-        qrCode: response?.pix_qr_code ?? null,
-        qrCodeBase64: response?.pix_qr_code_base64 ?? null,
-        expiresAt: response?.expires_at ?? null,
-      });
+      setPixOrderId(info.dropshipOrderId);
       onCreatedPix?.();
-      veloToast.success("Pix criado. O bot já pode preparar o carrinho na C7Drop.");
+      veloToast.success("Pedido enviado ao bot. O Pix da C7Drop aparece aqui em instantes.");
     } catch (error) {
       veloToast.error(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
     } finally {
       setIsGeneratingQr(false);
+    }
+  };
+
+  const handleConfirmPaid = async () => {
+    if (!pixOrderId || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("dropship-confirm-c7drop-pix", {
+        body: { order_id: pixOrderId },
+      });
+      const response = data as { error?: string } | null;
+      if (error || response?.error) {
+        let detail = response?.error ?? null;
+        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
+        const context = (error as any)?.context;
+        if (!detail && context && typeof context.json === "function") {
+          const body = await context.json().catch(() => null);
+          detail = typeof body?.error === "string" ? body.error : null;
+        }
+        throw new Error(detail ?? error?.message ?? "Não foi possível confirmar o pagamento.");
+      }
+      setPix((current) => (current ? { ...current, paymentStatus: "paid", status: "pagamento_confirmado" } : current));
+      onCreatedPix?.();
+      veloToast.success("Pagamento confirmado. O bot vai finalizar o pedido no fornecedor.");
+    } catch (error) {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível confirmar o pagamento.");
+    } finally {
+      setIsConfirming(false);
     }
   };
   const supplierPriceLabel = info.supplierPrice ? formatBRL(info.supplierPrice) : "Não informado";
