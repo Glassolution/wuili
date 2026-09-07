@@ -1773,6 +1773,37 @@ Deno.serve(async (req) => {
     // Variação usada no anúncio PRINCIPAL quando caímos no modelo User Products
     // (um anúncio por variação, agrupados pelo mesmo family_name).
     let variacaoPrincipal: Record<string, unknown> | null = null
+
+    // Rede de segurança: se o ML recusar peso/medidas DENTRO da variação
+    // (categorias que não aceitam esses atributos por variação), reenviamos o
+    // mesmo anúncio sem eles — o frete continua correto pelo shipping.dimensions
+    // do item.
+    if (!itemResponse.ok && mlVariations.length > 0 && shippingAttrsVariacao.length > 0) {
+      const msgPeso = causeMessages(itemData)
+      if (msgPeso.includes('seller_package_weight') || msgPeso.includes('seller_package_dimensions')) {
+        console.warn('[ml-publish] Categoria não aceita peso/medidas por variação — reenviando sem esses atributos.')
+        const idsEnvio = new Set(shippingAttrsVariacao.map((a) => String(a.id)))
+        for (const v of mlVariations) {
+          const attrs = (v.attributes as MLAttribute[] | undefined) ?? []
+          const limpos = attrs.filter((a) => !idsEnvio.has(String(a.id)))
+          if (limpos.length > 0) v.attributes = limpos
+          else delete v.attributes
+        }
+        const payloadSemEnvio = {
+          ...(mlPayload as Record<string, unknown>),
+          variations: mlVariations.map(semMetadadosVelo),
+        }
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadSemEnvio),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (sem peso/medidas na variação):', JSON.stringify(itemData).substring(0, 800))
+        if (itemResponse.ok) effectivePayload = payloadSemEnvio as typeof mlPayload
+      }
+    }
+
     if (!itemResponse.ok && mlVariations.length > 0) {
       const msgVar = causeMessages(itemData)
       if (
