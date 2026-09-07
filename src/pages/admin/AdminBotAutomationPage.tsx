@@ -384,7 +384,7 @@ const dateFmt = (value?: string | null) => {
 };
 
 const statusLabel = (status: string) =>
-  status in ORDER_STATUS_LABELS ? ORDER_STATUS_LABELS[status as OrderStatus] : status.replaceAll("_", " ");
+  status in ORDER_STATUS_LABELS ? ORDER_STATUS_LABELS[status as OrderStatus] : status.replace(/_/g, " ");
 
 const severityTone = (severity: Severity): "danger" | "warning" | "neutral" => {
   const normalized = severity.toLowerCase();
