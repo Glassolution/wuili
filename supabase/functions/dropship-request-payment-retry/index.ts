@@ -52,7 +52,11 @@ function firstString(...values: unknown[]): string | null {
   return null;
 }
 
-function resolveAmount(order: JsonRecord) {
+/**
+ * Valor do Pix = custo do fornecedor (produto + frete), NUNCA o preco de venda
+ * no Mercado Livre. Sem custo conhecido, nao geramos cobranca.
+ */
+async function resolveAmount(admin: Supabase, order: JsonRecord): Promise<number | null> {
   const metadata = record(order.metadata);
   const worker = record(metadata.worker);
   const supplierPayment = record(worker.supplier_payment);
@@ -64,8 +68,34 @@ function resolveAmount(order: JsonRecord) {
   const shipping = numberValue(order.frete_real) ?? numberValue(worker.frete_real);
   if (product || shipping) return Number(((product ?? 0) + (shipping ?? 0)).toFixed(2));
 
-  return numberValue(order.total_amount) ?? numberValue(order.preco_ml);
+  // Fallback: custo do catalogo Velo (C7Drop) x quantidade do pedido.
+  const mlOrderId = stringValue(order.ml_order_id);
+  if (!mlOrderId) return null;
+
+  const { data: veloOrder } = await admin
+    .from("orders")
+    .select("cost_price, catalog_product_id")
+    .eq("ml_order_id", mlOrderId)
+    .maybeSingle();
+
+  let unitCost = numberValue(veloOrder?.cost_price);
+  const catalogProductId = stringValue(veloOrder?.catalog_product_id);
+
+  if (!unitCost && catalogProductId) {
+    const { data: catalog } = await admin
+      .from("catalog_products")
+      .select("cost_price")
+      .eq("id", catalogProductId)
+      .maybeSingle();
+    unitCost = numberValue(catalog?.cost_price);
+  }
+
+  if (!unitCost) return null;
+
+  const quantity = numberValue(order.quantidade) ?? 1;
+  return Number((unitCost * quantity).toFixed(2));
 }
+
 
 async function isAdmin(admin: Supabase, userId: string) {
   const { data } = await admin
