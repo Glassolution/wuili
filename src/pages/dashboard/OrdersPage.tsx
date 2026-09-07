@@ -672,7 +672,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
           >
             <ShoppingBag size={15} />
-            {isGeneratingQr ? "Gerando Pix..." : "Comprar"}
+            {isGeneratingQr ? "Gerando Pix..." : "Gerar Pix C7Drop"}
           </button>
         </div>
       </div>
