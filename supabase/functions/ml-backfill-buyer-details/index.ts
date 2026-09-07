@@ -96,7 +96,13 @@ Deno.serve(async (req) => {
           },
         });
         const text = await res.text();
-        probe[nome] = { status: res.status, corpo: text.slice(0, 1500) };
+        let parsed: Json = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch { /* corpo nao-JSON */ }
+        probe[nome] = nome === "shipment" && parsed
+          ? { status: res.status, destination: parsed.destination, receiver_phone_raw: parsed?.receiver_address?.receiver_phone ?? null }
+          : { status: res.status, corpo: text.slice(0, 1200) };
       }
     }
 
