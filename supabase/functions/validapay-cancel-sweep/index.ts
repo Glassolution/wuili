@@ -17,13 +17,18 @@ const json = (b: unknown, s = 200) =>
 const SCOPE =
   "checkouts/write checkouts/read subscriptions/write subscriptions/read pix.cob/read pix.cob/write accounts/read wallet/read wallet/write";
 
-const CANDIDATES = (id: string) => [
+// A ValidaPay encerra recorrência com DELETE /v1/subscriptions/{id}
+// (?immediate=true corta na hora; sem o parâmetro, agenda para o fim do ciclo).
+const CANDIDATES = (id: string, immediate: boolean) => [
   { method: "GET", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: undefined as string | undefined },
-  { method: "POST", path: `/v1/subscriptions/${encodeURIComponent(id)}/cancel`, body: undefined },
-  { method: "PATCH", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: JSON.stringify({ status: "CANCELLED" }) },
-  { method: "PUT", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: JSON.stringify({ status: "CANCELLED" }) },
+  {
+    method: "DELETE",
+    path: `/v1/subscriptions/${encodeURIComponent(id)}${immediate ? "?immediate=true" : ""}`,
+    body: undefined,
+  },
   { method: "DELETE", path: `/v1/subscriptions/${encodeURIComponent(id)}`, body: undefined },
 ];
+
 
 async function tryCancel(subId: string, probe = false) {
   const token = await getValidaPayToken(SCOPE);
