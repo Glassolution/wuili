@@ -234,9 +234,9 @@ Deno.serve(async (req) => {
       merchantName: "Velo",
       externalReference,
       expiresInSeconds: expiresInHours * 60 * 60,
-      payer: {
-        name: firstString(body?.payer_name, orderRow.customer_name) ?? "Cliente Velo",
-        email: firstString(body?.payer_email, orderRow.customer_email, profile?.email) ?? "cliente@velo.com.br",
+        payer: {
+        name: buyerName ?? firstString(orderRow.customer_name) ?? "Cliente Velo",
+        email: buyerEmail ?? firstString(orderRow.customer_email, profile?.email) ?? "cliente@velo.com.br",
         document: payerDocument,
       },
       metadata: {
