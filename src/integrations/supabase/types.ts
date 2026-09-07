@@ -950,6 +950,7 @@ export type Database = {
           customer_phone: string | null
           etiqueta_ml_path: string | null
           etiqueta_ml_url: string | null
+          frete_real: number | null
           id: string
           items: Json
           metadata: Json
@@ -960,8 +961,14 @@ export type Database = {
           order_number: string
           payment_method: string | null
           payment_reference: string | null
+          payment_retry_count: number
+          payment_retry_expires_at: string | null
+          payment_retry_requested_at: string | null
           payment_status: string
+          pix_expires_at: string | null
+          pix_gerado_at: string | null
           preco_ml: number
+          preco_produto: number | null
           quantidade: number
           seller_email: string | null
           shipping_address: Json | null
@@ -986,6 +993,7 @@ export type Database = {
           customer_phone?: string | null
           etiqueta_ml_path?: string | null
           etiqueta_ml_url?: string | null
+          frete_real?: number | null
           id?: string
           items?: Json
           metadata?: Json
@@ -996,8 +1004,14 @@ export type Database = {
           order_number: string
           payment_method?: string | null
           payment_reference?: string | null
+          payment_retry_count?: number
+          payment_retry_expires_at?: string | null
+          payment_retry_requested_at?: string | null
           payment_status?: string
+          pix_expires_at?: string | null
+          pix_gerado_at?: string | null
           preco_ml?: number
+          preco_produto?: number | null
           quantidade?: number
           seller_email?: string | null
           shipping_address?: Json | null
@@ -1022,6 +1036,7 @@ export type Database = {
           customer_phone?: string | null
           etiqueta_ml_path?: string | null
           etiqueta_ml_url?: string | null
+          frete_real?: number | null
           id?: string
           items?: Json
           metadata?: Json
@@ -1032,8 +1047,14 @@ export type Database = {
           order_number?: string
           payment_method?: string | null
           payment_reference?: string | null
+          payment_retry_count?: number
+          payment_retry_expires_at?: string | null
+          payment_retry_requested_at?: string | null
           payment_status?: string
+          pix_expires_at?: string | null
+          pix_gerado_at?: string | null
           preco_ml?: number
+          preco_produto?: number | null
           quantidade?: number
           seller_email?: string | null
           shipping_address?: Json | null
