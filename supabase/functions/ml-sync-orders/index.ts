@@ -52,10 +52,10 @@ function formatMlDateBoundary(parts: ReturnType<typeof getSaoPauloDateParts>) {
   return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}T00:00:00.000${SAO_PAULO_UTC_OFFSET}`;
 }
 
-function getYesterdayTodayRange() {
+function getYesterdayTodayRange(daysBack = 1) {
   const today = getSaoPauloDateParts();
   return {
-    from: formatMlDateBoundary(addCalendarDays(today, -1)),
+    from: formatMlDateBoundary(addCalendarDays(today, -Math.max(1, daysBack))),
     to: formatMlDateBoundary(addCalendarDays(today, 1)),
   };
 }
@@ -74,8 +74,9 @@ function calculateMlOrderTotal(mlOrder: any) {
 async function fetchOrdersCreatedYesterdayAndToday(params: {
   accessToken: string;
   mlUserId: string;
+  daysBack?: number;
 }) {
-  const { from, to } = getYesterdayTodayRange();
+  const { from, to } = getYesterdayTodayRange(params.daysBack ?? 1);
   const orders: any[] = [];
   let total = Infinity;
 
@@ -137,6 +138,7 @@ async function notifyUser(
 async function syncUserOrders(
   adminClient: ReturnType<typeof createClient>,
   userId: string,
+  daysBack = 1,
 ): Promise<Response> {
   try {
     // Fetch user integrations
@@ -204,6 +206,7 @@ async function syncUserOrders(
     const searchResult = await fetchOrdersCreatedYesterdayAndToday({
       accessToken,
       mlUserId: String(mlUserId),
+      daysBack,
     });
     const mlOrders = searchResult.orders;
     console.log(
@@ -574,8 +577,8 @@ serve(async (req) => {
     });
   }
 
-  // Admin bulk mode: { user_ids: string[] } — syncs several users in one call
-  let body: { user_ids?: string[] } = {};
+  // Admin bulk mode: { user_ids: string[], days_back?: number } — syncs several users in one call
+  let body: { user_ids?: string[]; days_back?: number } = {};
   try {
     body = await req.json();
   } catch {
@@ -591,9 +594,10 @@ serve(async (req) => {
       });
     }
 
+    const daysBack = Math.min(Math.max(Number(body.days_back ?? 1) || 1, 1), 14);
     const results = [];
     for (const targetUserId of body.user_ids.slice(0, 10)) {
-      const res = await syncUserOrders(adminClient, targetUserId);
+      const res = await syncUserOrders(adminClient, targetUserId, daysBack);
       const json = await res.json().catch(() => ({}));
       results.push({ user_id: targetUserId, status: res.status, ...json });
     }
