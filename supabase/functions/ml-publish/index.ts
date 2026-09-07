@@ -290,7 +290,12 @@ function buildMlVariations(
   price: number,
   totalQuantity: number,
   pictures: Array<{ source?: string }> = [],
+  // Peso/dimensões da embalagem. Em anúncios COM variação o Mercado Livre lê
+  // essas medidas na variação — o `shipping.dimensions` do item é ignorado.
+  // Sem isso o motor de frete cai na tabela de "pacote grande" (R$170+).
+  shippingAttrs: MLAttribute[] = [],
 ): Array<Record<string, unknown>> {
+
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
 
