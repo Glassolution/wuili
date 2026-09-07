@@ -155,6 +155,7 @@ Deno.serve(async (req) => {
     }
     if (!shipmentId || !READY_STATUSES.has(shippingStatus)) {
       naoProntos++;
+      continue;
     }
 
     processados++;
