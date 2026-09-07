@@ -79,9 +79,19 @@ export function extractShipmentId(mlOrder: MlOrder): string | null {
  */
 export async function fetchAndStoreShippingLabel(
   supabase: SupabaseClient,
-  params: { mlOrderId: string; shipmentId: string; accessToken: string },
+  params: {
+    mlOrderId: string;
+    shipmentId: string;
+    accessToken: string;
+    /** Recebe o motivo tecnico quando a etiqueta nao pode ser obtida. */
+    onFailure?: (reason: string) => void;
+  },
 ): Promise<{ url: string; path: string } | null> {
-  const { mlOrderId, shipmentId, accessToken } = params;
+  const { mlOrderId, shipmentId, accessToken, onFailure } = params;
+  const fail = (reason: string) => {
+    onFailure?.(reason);
+    return null;
+  };
 
   try {
     const res = await mlFetch(
@@ -94,7 +104,8 @@ export async function fetchAndStoreShippingLabel(
       console.warn(
         `[etiqueta] ML ${res.status} para shipment ${shipmentId}: ${detail.slice(0, 200)}`,
       );
-      return null;
+      const m = detail.match(/status is ([a-z_]+)/i);
+      return fail(m ? `shipment_${m[1]}` : `ml_${res.status}`);
     }
 
     const bytes = new Uint8Array(await res.arrayBuffer());
