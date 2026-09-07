@@ -87,7 +87,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const url = new URL(req.url);
+    const inspect = url.searchParams.get("inspect");
+    if (inspect) return json(await inspectSession(inspect));
     const probe = url.searchParams.get("probe");
+
     if (probe) return json(await tryCancel(probe, true));
 
     const body = await req.json().catch(() => ({}));
