@@ -14,6 +14,7 @@
  */
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { resolveShippingLabel } from "./mlShippingLabel.ts";
+import { fetchBuyerDetails } from "./mlBuyerDetails.ts";
 
 export interface BotOrderItem {
   sku_c7drop: string | null;
