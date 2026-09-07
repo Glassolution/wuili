@@ -279,10 +279,12 @@ export async function dispatchOrderToBot(
     ...(label.url ? { shipping_label_wait_alerted_at: null } : {}),
     source: "mercadolivre",
     customer_name: customerName,
-    customer_email: buyer?.email ? String(buyer.email) : null,
-    customer_phone: addr?.receiver_phone ? String(addr.receiver_phone) : null,
+    customer_email: details.email ?? (buyer?.email ? String(buyer.email) : null),
+    customer_phone: details.phone ?? (addr?.receiver_phone ? String(addr.receiver_phone) : null),
     customer_document: customerDocument,
-    shipping_address: Object.keys(addr ?? {}).length > 0 ? addr : null,
+    shipping_address: shippingAddress && Object.keys(shippingAddress).length > 0
+      ? shippingAddress
+      : null,
     metadata: { velo_order_id: orderId, payload },
   };
 
