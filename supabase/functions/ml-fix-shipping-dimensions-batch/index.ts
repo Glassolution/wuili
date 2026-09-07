@@ -156,7 +156,19 @@ async function fixItem(
   const oldShippingDimensions: string | null =
     (item?.shipping?.dimensions as string | undefined) ?? null;
 
-  if (oldShippingDimensions === newShippingDimensions) {
+  // Anúncios COM variação: o ML calcula o frete pelas medidas de cada variação
+  // e ignora as do item. Se faltarem lá, o frete continua na tabela de pacote
+  // grande mesmo com o item corrigido.
+  const variations = Array.isArray(item?.variations)
+    ? (item.variations as Array<{ id: number; attributes?: Array<{ id: string; value_name?: string }> }>)
+    : [];
+  const variationsNeedFix = variations.filter((v) => {
+    const attrs = v.attributes ?? [];
+    const dim = attrs.find((a) => a.id === "SELLER_PACKAGE_DIMENSIONS")?.value_name ?? null;
+    return dim !== newDimensions;
+  });
+
+  if (oldShippingDimensions === newShippingDimensions && variationsNeedFix.length === 0) {
     return {
       outcome: "already_ok",
       oldShippingDimensions,
@@ -185,7 +197,19 @@ async function fixItem(
       shipping: { dimensions: newShippingDimensions },
       attributes: [
         { id: "SELLER_PACKAGE_DIMENSIONS", value_name: newDimensions },
+        { id: "SELLER_PACKAGE_WEIGHT", value_name: `${weightGrams} g` },
       ],
+      ...(variationsNeedFix.length > 0
+        ? {
+          variations: variationsNeedFix.map((v) => ({
+            id: v.id,
+            attributes: [
+              { id: "SELLER_PACKAGE_DIMENSIONS", value_name: newDimensions },
+              { id: "SELLER_PACKAGE_WEIGHT", value_name: `${weightGrams} g` },
+            ],
+          })),
+        }
+        : {}),
     }),
   });
   if (!putRes.ok) {

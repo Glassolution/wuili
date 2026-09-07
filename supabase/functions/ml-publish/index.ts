@@ -290,7 +290,12 @@ function buildMlVariations(
   price: number,
   totalQuantity: number,
   pictures: Array<{ source?: string }> = [],
+  // Peso/dimensões da embalagem. Em anúncios COM variação o Mercado Livre lê
+  // essas medidas na variação — o `shipping.dimensions` do item é ignorado.
+  // Sem isso o motor de frete cai na tabela de "pacote grande" (R$170+).
+  shippingAttrs: MLAttribute[] = [],
 ): Array<Record<string, unknown>> {
+
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
 
@@ -348,12 +353,17 @@ function buildMlVariations(
       .map((c) => stockPorValor.get(String(c.value_name)))
       .find((v) => typeof v === 'number' && v > 0)
     const fotos = fotosDaVariacao(indice)
+    const atributosDaVariacao: MLAttribute[] = [
+      ...(skuRow?.sku ? [{ id: 'SELLER_SKU', value_name: skuRow.sku }] : []),
+      ...shippingAttrs,
+    ]
     const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
       available_quantity: Math.max(1, Math.floor(estoqueDaVariacao ?? perVariation)),
       ...(fotos.length > 0 ? { picture_ids: fotos } : {}),
-      ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
+      ...(atributosDaVariacao.length > 0 ? { attributes: atributosDaVariacao } : {}),
+
       // Metadados internos (removidos antes de enviar ao ML) usados para
       // registrar o anúncio-irmão em user_publications.
       _velo_dimension: guarda.name,
@@ -1330,7 +1340,14 @@ Deno.serve(async (req) => {
     }
     // Exposto no objeto para reaproveitar no payload de shipping abaixo.
     const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
+    // Em anúncios COM variação, o ML calcula o frete pelas medidas da variação
+    // e ignora as do item — por isso as mesmas medidas vão também lá dentro.
+    const shippingAttrsVariacao: MLAttribute[] = [
+      { id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName },
+      { id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName },
+    ]
     console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
+
 
 
 
@@ -1488,6 +1505,7 @@ Deno.serve(async (req) => {
       product.price,
       Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
       pictures,
+      shippingAttrsVariacao,
     )
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
