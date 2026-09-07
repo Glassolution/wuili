@@ -79,7 +79,10 @@ Deno.serve(async (req) => {
     let ok = 0;
     const failures: unknown[] = [];
     for (const s of rows) {
-      const r = await tryCancel(s.validapay_subscription_id as string);
+      // Período já vencido: corta na hora. Ainda vigente: agenda para o fim.
+      const vencida = !s.current_period_end || new Date(s.current_period_end as string).getTime() < Date.now();
+      const r = await tryCancel(s.validapay_subscription_id as string, false, vencida);
+
       if (r.ok) {
         ok++;
         await admin
