@@ -74,6 +74,12 @@ type ActionOrder = {
   tracking_code: string | null;
   tracking_url: string | null;
   carrier: string | null;
+  payment_method: string | null;
+  c7drop_pix_copy_paste: string | null;
+  c7drop_pix_key: string | null;
+  c7drop_pix_generated_at: string | null;
+  c7drop_pix_expires_at: string | null;
+  c7drop_pix_renewal_count: number;
   isTest?: boolean;
 };
 
