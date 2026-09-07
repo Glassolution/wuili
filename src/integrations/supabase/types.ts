@@ -1043,6 +1043,94 @@ export type Database = {
         }
         Relationships: []
       }
+      dropship_worker_alerts: {
+        Row: {
+          code: string
+          created_at: string
+          details: Json
+          id: string
+          message: string
+          order_id: string | null
+          order_number: string | null
+          resolved_at: string | null
+          severity: string
+          worker_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          details?: Json
+          id?: string
+          message: string
+          order_id?: string | null
+          order_number?: string | null
+          resolved_at?: string | null
+          severity?: string
+          worker_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          message?: string
+          order_id?: string | null
+          order_number?: string | null
+          resolved_at?: string | null
+          severity?: string
+          worker_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dropship_worker_alerts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "dropship_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dropship_worker_heartbeats: {
+        Row: {
+          current_order_id: string | null
+          current_order_number: string | null
+          details: Json
+          last_seen_at: string
+          seen_at: string
+          status: string
+          updated_at: string
+          worker_id: string
+        }
+        Insert: {
+          current_order_id?: string | null
+          current_order_number?: string | null
+          details?: Json
+          last_seen_at?: string
+          seen_at?: string
+          status: string
+          updated_at?: string
+          worker_id: string
+        }
+        Update: {
+          current_order_id?: string | null
+          current_order_number?: string | null
+          details?: Json
+          last_seen_at?: string
+          seen_at?: string
+          status?: string
+          updated_at?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dropship_worker_heartbeats_current_order_id_fkey"
+            columns: ["current_order_id"]
+            isOneToOne: false
+            referencedRelation: "dropship_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_suggestions: {
         Row: {
           category: string
