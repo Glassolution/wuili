@@ -423,16 +423,16 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-[#020817]/45 px-4 pb-[calc(128px+env(safe-area-inset-bottom))] pt-4 backdrop-blur-[3px] sm:items-center sm:py-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="supplier-purchase-title"
-        className="max-h-[calc(100vh-48px)] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+        className="flex max-h-[calc(100dvh-144px-env(safe-area-inset-bottom))] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-h-[calc(100dvh-48px)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="h-1.5 bg-[#2563EB]" />
-        <div className="p-6">
+        <div className="min-h-0 overflow-y-auto p-6 pb-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
@@ -485,17 +485,17 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             </section>
           </div>
 
-          <div className="mt-6 flex flex-col gap-2 border-t border-[#E2E8F0] pt-5 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={handleBuy}
-              disabled={isGeneratingQr}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
-            >
-              <ShoppingBag size={15} />
-              {isGeneratingQr ? "Gerando Pix..." : "Comprar"}
-            </button>
-          </div>
+        </div>
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white/95 p-4 backdrop-blur sm:flex sm:justify-end">
+          <button
+            type="button"
+            onClick={handleBuy}
+            disabled={isGeneratingQr}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+          >
+            <ShoppingBag size={15} />
+            {isGeneratingQr ? "Gerando Pix..." : "Comprar"}
+          </button>
         </div>
       </div>
     </div>
