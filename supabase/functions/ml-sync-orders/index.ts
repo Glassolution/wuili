@@ -134,41 +134,11 @@ async function notifyUser(
   if (error) console.warn("[ml-sync-orders] falha ao criar notificacao:", error.message);
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+async function syncUserOrders(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<Response> {
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
-    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
-    const adminClient = createClient(dbUrl, dbKey);
-
-    // Identify user via JWT
-    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const userId = user.id;
-
     // Fetch user integrations
     const { data: integration, error: integrationError } = await adminClient
       .from("user_integrations")
