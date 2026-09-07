@@ -1272,6 +1272,11 @@ const ActionOrderRow = ({
     </td>
     <td className="px-3 py-3">
       <AdminBadge tone={ACTION_STATUSES.has(order.status ?? "") ? "danger" : "neutral"}>{statusLabel(order.status ?? "-")}</AdminBadge>
+      {order.payment_method === "pix_c7drop" ? (
+        <p className="mt-1 text-[10.5px] font-semibold text-[#2563EB]">
+          Pix C7 · {order.c7drop_pix_expires_at ? `até ${dateFmt(order.c7drop_pix_expires_at)}` : "45 min"} · {order.c7drop_pix_renewal_count ?? 0}/3
+        </p>
+      ) : null}
     </td>
     <td className="px-3 py-3">
       <div className="flex max-w-[220px] flex-wrap gap-1">
