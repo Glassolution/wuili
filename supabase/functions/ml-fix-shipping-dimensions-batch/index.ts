@@ -187,6 +187,9 @@ async function fixItem(
   }
 
   // 2) PUT apenas com os campos de frete — nada de título/preço/imagens.
+  // Em anúncios Mercado Envios (me2) `shipping.dimensions` não é editável:
+  // o ML devolve `field_not_updatable` e usa só os atributos de embalagem.
+  const isMe2 = (item?.shipping?.mode as string | undefined) === "me2";
   const putRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
     method: "PUT",
     headers: {
@@ -194,7 +197,7 @@ async function fixItem(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      shipping: { dimensions: newShippingDimensions },
+      ...(isMe2 ? {} : { shipping: { dimensions: newShippingDimensions } }),
       attributes: [
         { id: "SELLER_PACKAGE_DIMENSIONS", value_name: newDimensions },
         { id: "SELLER_PACKAGE_WEIGHT", value_name: `${weightGrams} g` },
