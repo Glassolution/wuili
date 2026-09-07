@@ -390,7 +390,7 @@ Deno.serve(async (req) => {
             order_id: parsed.data.order_id ?? null,
             order_number: parsed.data.order_number ?? null,
             severity: parsed.data.severity,
-            code: parsed.data.code ?? null,
+            code: parsed.data.code,
             message: parsed.data.message,
             details: parsed.data.details ?? {},
           })
