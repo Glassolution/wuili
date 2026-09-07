@@ -178,19 +178,19 @@ Deno.serve(async (req) => {
       let ok = false;
       try {
         const result = await refundCharge(
-          target,
-          Number(sub.amount ?? 0),
+          target.chargeId,
+          Number(target.amount ?? sub.amount ?? 0),
           "CUSTOMER_REQUEST",
         ) as Record<string, unknown>;
         const st = String(result?.status ?? "").toUpperCase();
         ok = ["CONFIRMED", "COMPLETED", "SUCCESS", "PROCESSING"].includes(st) || result?.success === true;
-        providerResponse = { provider: "validapay", chargeId: target, ...result };
+        providerResponse = { provider: "validapay", chargeId: target.chargeId, ...result };
       } catch (e) {
         const err = e as ValidaPayError;
-        providerResponse = { provider: "validapay", chargeId: target, error: err.message, details: err.details ?? null };
+        providerResponse = { provider: "validapay", chargeId: target.chargeId, error: err.message, details: err.details ?? null };
         console.error("refund_logs", JSON.stringify({
           origin: "admin-refund-post-cancel", outcome: "error",
-          subscription_id: sub.id, chargeId: target, message: err.message,
+          subscription_id: sub.id, chargeId: target.chargeId, message: err.message,
         }));
       }
 
@@ -199,11 +199,11 @@ Deno.serve(async (req) => {
         user_id: sub.user_id,
         subscription_id: sub.id,
         payment_id: sub.mp_payment_id,
-        charge_id: target,
+        charge_id: target.chargeId,
         reason: "Cobrança indevida após cancelamento",
         reason_details: "Renovação cobrada mesmo após o cliente ter cancelado a assinatura. Estorno automático pelo suporte.",
         status: ok ? "processed" : "rejected",
-        refund_amount: Number(sub.amount ?? 0),
+        refund_amount: Number(target.amount ?? sub.amount ?? 0),
         provider_response: providerResponse,
         requested_at: now,
         processed_at: now,
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      results.push({ subscription_id: sub.id, charge_id: target, ok, provider: providerResponse });
+      results.push({ subscription_id: sub.id, charge_id: target.chargeId, email: target.email, ok, provider: providerResponse });
     }
 
     return json({ ok: true, dry_run: dryRun, count: results.length, results });
