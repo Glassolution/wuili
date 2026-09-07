@@ -359,10 +359,21 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
       veloToast.error("Este pedido ainda não está conectado ao bot. Sincronize os pedidos e tente novamente.");
       return;
     }
+    const document = draft.buyerDocument.replace(/\D/g, "");
+    if (document.length !== 11 && document.length !== 14) {
+      veloToast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido do comprador.");
+      return;
+    }
     setIsGeneratingQr(true);
     try {
       const { data, error } = await supabase.functions.invoke("dropship-request-payment-retry", {
-        body: { order_id: info.dropshipOrderId, expires_in_hours: 48 },
+        body: {
+          order_id: info.dropshipOrderId,
+          expires_in_hours: 48,
+          payer_document: document,
+          payer_name: draft.buyerName || undefined,
+          payer_email: draft.buyerEmail || undefined,
+        },
       });
       const response = data as {
         error?: string;
@@ -371,8 +382,17 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
         expires_at?: string | null;
       } | null;
       if (error || response?.error) {
-        throw new Error(response?.error ?? error?.message ?? "Não foi possível gerar o Pix.");
+        // Erros 4xx da função vêm dentro do context; buscamos a mensagem real.
+        let detail = response?.error ?? null;
+        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
+        const context = (error as any)?.context;
+        if (!detail && context && typeof context.json === "function") {
+          const body = await context.json().catch(() => null);
+          detail = typeof body?.error === "string" ? body.error : null;
+        }
+        throw new Error(detail ?? error?.message ?? "Não foi possível gerar o Pix.");
       }
+
       setPixData({
         qrCode: response?.pix_qr_code ?? null,
         qrCodeBase64: response?.pix_qr_code_base64 ?? null,
