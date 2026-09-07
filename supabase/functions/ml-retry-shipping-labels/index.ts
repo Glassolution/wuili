@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const { url, path } = await resolveShippingLabel(admin, {
+      const { url, path, reason } = await resolveShippingLabel(admin, {
         mlOrderId,
         userId,
         mlOrder: raw,
@@ -166,12 +166,22 @@ Deno.serve(async (req) => {
           resolvidas++;
           console.log(`[etiqueta-retry] pedido ${mlOrderId} pronto para o bot`);
         }
-      } else {
-        // Sem etiqueta ainda: quase sempre nota fiscal pendente no ML.
+      } else if (reason === "shipment_invoice_pending" || reason === "shipment_pending") {
+        // Nota fiscal ainda nao emitida no ML: situacao normal, nao e erro.
         invoicePending++;
         console.log(
-          `[etiqueta-retry] pedido ${mlOrderId} ainda sem etiqueta (provavel invoice_pending) — nova tentativa na proxima hora`,
+          `[etiqueta-retry] pedido ${mlOrderId}: nota fiscal pendente no ML — nova tentativa na proxima hora`,
         );
+      } else if (ALREADY_SHIPPED_REASONS.has(String(reason))) {
+        // Pedido ja saiu para entrega: etiqueta nao e mais necessaria.
+        jaEnviados++;
+        await admin
+          .from("dropship_orders")
+          .update({ needs_shipping_label: false, updated_at: new Date().toISOString() })
+          .eq("id", row.id);
+        console.log(`[etiqueta-retry] pedido ${mlOrderId} ja enviado (${reason}) — sem etiqueta`);
+      } else {
+        erros.push({ ml_order_id: mlOrderId, motivo: reason ?? "desconhecido" });
       }
     } catch (e) {
       erros.push({ ml_order_id: mlOrderId, motivo: (e as Error).message });
