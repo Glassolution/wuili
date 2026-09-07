@@ -96,6 +96,7 @@ type SupplierPurchaseInfo = {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  buyerDocument: string;
   address: ShippingAddress | null;
 };
 
@@ -103,6 +104,7 @@ type SupplierPurchaseDraft = {
   buyerName: string;
   buyerEmail: string;
   buyerPhone: string;
+  buyerDocument: string;
   zip: string;
   street: string;
   number: string;
@@ -200,6 +202,7 @@ const purchaseInfoFromMlOrder = (order: MlOrderRow): SupplierPurchaseInfo | null
     buyerName: clean(order.buyer_name),
     buyerEmail: clean(order.buyer_email),
     buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
     address: {
       zip: order.buyer_zip,
       street: order.buyer_address,
@@ -225,28 +228,53 @@ const purchaseInfoFromStoreOrder = (order: StoreOrderRow): SupplierPurchaseInfo 
     buyerName: clean(order.buyer_name),
     buyerEmail: clean(order.buyer_email),
     buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
     address: normalizeShippingAddress(order.shipping_address),
   };
 };
 
 const attachDropshipOrderId = async (info: SupplierPurchaseInfo, order: MlOrderRow): Promise<SupplierPurchaseInfo> => {
+  let supplierPrice = info.supplierPrice;
+  let buyerDocument = info.buyerDocument;
+
+  // Custo real do fornecedor: catálogo Velo (C7Drop) x quantidade.
+  if (!supplierPrice && order.catalog_product_id) {
+    const { data: catalog } = await supabase
+      .from("catalog_products")
+      .select("cost_price")
+      .eq("id", order.catalog_product_id)
+      .maybeSingle();
+    const unit = Number(catalog?.cost_price ?? 0);
+    if (unit > 0) supplierPrice = Number((unit * Math.max(1, Number(order.quantity ?? 1))).toFixed(2));
+  }
+
   const mlOrderId = order.ml_order_id ?? order.external_order_id;
-  if (!mlOrderId) return info;
+  if (!mlOrderId) return { ...info, supplierPrice, buyerDocument };
 
   const { data, error } = await supabase
     .from("dropship_orders")
-    .select("id")
+    .select("id, customer_document")
     .eq("ml_order_id", String(mlOrderId))
     .maybeSingle();
 
   if (error) throw error;
-  return { ...info, dropshipOrderId: typeof data?.id === "string" ? data.id : null };
+  if (typeof data?.customer_document === "string" && data.customer_document.trim()) {
+    buyerDocument = data.customer_document.trim();
+  }
+
+  return {
+    ...info,
+    supplierPrice,
+    buyerDocument,
+    dropshipOrderId: typeof data?.id === "string" ? data.id : null,
+  };
 };
 
 const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft => ({
   buyerName: info.buyerName === "—" ? "" : info.buyerName,
   buyerEmail: info.buyerEmail === "—" ? "" : info.buyerEmail,
   buyerPhone: info.buyerPhone === "—" ? "" : info.buyerPhone,
+  buyerDocument: info.buyerDocument ?? "",
   zip: info.address?.zip ?? "",
   street: info.address?.street ?? "",
   number: info.address?.number ?? "",
@@ -255,6 +283,7 @@ const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft 
   city: info.address?.city ?? "",
   state: info.address?.state ?? "",
 });
+
 
 const SupplierButton = ({
   url,
@@ -330,10 +359,21 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
       veloToast.error("Este pedido ainda não está conectado ao bot. Sincronize os pedidos e tente novamente.");
       return;
     }
+    const document = draft.buyerDocument.replace(/\D/g, "");
+    if (document.length !== 11 && document.length !== 14) {
+      veloToast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido do comprador.");
+      return;
+    }
     setIsGeneratingQr(true);
     try {
       const { data, error } = await supabase.functions.invoke("dropship-request-payment-retry", {
-        body: { order_id: info.dropshipOrderId, expires_in_hours: 48 },
+        body: {
+          order_id: info.dropshipOrderId,
+          expires_in_hours: 48,
+          payer_document: document,
+          payer_name: draft.buyerName || undefined,
+          payer_email: draft.buyerEmail || undefined,
+        },
       });
       const response = data as {
         error?: string;
@@ -342,8 +382,17 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
         expires_at?: string | null;
       } | null;
       if (error || response?.error) {
-        throw new Error(response?.error ?? error?.message ?? "Não foi possível gerar o Pix.");
+        // Erros 4xx da função vêm dentro do context; buscamos a mensagem real.
+        let detail = response?.error ?? null;
+        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
+        const context = (error as any)?.context;
+        if (!detail && context && typeof context.json === "function") {
+          const body = await context.json().catch(() => null);
+          detail = typeof body?.error === "string" ? body.error : null;
+        }
+        throw new Error(detail ?? error?.message ?? "Não foi possível gerar o Pix.");
       }
+
       setPixData({
         qrCode: response?.pix_qr_code ?? null,
         qrCodeBase64: response?.pix_qr_code_base64 ?? null,
@@ -465,6 +514,8 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
                 <PurchaseField label="Nome" icon={UserRound} value={draft.buyerName} onChange={(value) => update("buyerName", value)} />
                 <PurchaseField label="E-mail" icon={Mail} value={draft.buyerEmail} onChange={(value) => update("buyerEmail", value)} />
                 <PurchaseField label="Telefone" icon={Phone} value={draft.buyerPhone} onChange={(value) => update("buyerPhone", value)} />
+                <PurchaseField label="CPF / CNPJ" value={draft.buyerDocument} onChange={(value) => update("buyerDocument", value)} />
+
               </div>
             </section>
 
