@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   ArrowLeft,
   ChevronDown,
@@ -54,6 +53,7 @@ import {
 } from "@/lib/collectionsApi";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
+import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -915,7 +915,6 @@ const CatalogoPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
   const { abrirLateral, aberto: atlasAberto } = useAtlasChat();
   const selectionCollectionId = searchParams.get("collectionId");
   const selectionCollectionName = searchParams.get("collectionName") || "coleção";
@@ -945,7 +944,7 @@ const CatalogoPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
+  const { favoritedIds, toggleFavorite: toggleCatalogFavorite } = useCatalogFavorites();
   const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
@@ -971,45 +970,9 @@ const CatalogoPage = () => {
     ? "flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-3 md:overflow-visible"
     : "flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible";
 
-  // Persistência dos favoritos por usuário (localStorage). Chave inclui o id do
-  // usuário para não misturar favoritos entre contas no mesmo dispositivo.
-  const favoritesStorageKey = useMemo(
-    () => `velo-favorites${user?.id ? `-${user.id}` : ""}`,
-    [user?.id],
-  );
-  const favoritesHydrated = useRef(false);
-
-  // Hidrata os favoritos salvos ao montar / trocar de usuário.
-  useEffect(() => {
-    favoritesHydrated.current = false;
-    try {
-      const raw = localStorage.getItem(favoritesStorageKey);
-      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      setFavoritedIds(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
-    } catch {
-      setFavoritedIds([]);
-    }
-    favoritesHydrated.current = true;
-  }, [favoritesStorageKey]);
-
-  // Persiste sempre que a lista muda (após a hidratação, para não sobrescrever o
-  // valor salvo com o estado inicial vazio).
-  useEffect(() => {
-    if (!favoritesHydrated.current) return;
-    try {
-      localStorage.setItem(favoritesStorageKey, JSON.stringify(favoritedIds));
-    } catch {
-      // Armazenamento indisponível (modo privado/quota) — favoritos seguem em memória.
-    }
-  }, [favoritedIds, favoritesStorageKey]);
-
   const toggleFavorite = (productId: string) => {
     const willFavorite = !favoritedIds.includes(productId);
-    setFavoritedIds((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    );
+    toggleCatalogFavorite(productId);
     if (willFavorite) {
       veloToast.success("Adicionado aos favoritos");
     } else {

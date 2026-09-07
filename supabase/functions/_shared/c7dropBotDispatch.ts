@@ -43,6 +43,19 @@ function normalize(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return null;
+}
+
+function onlyDigits(value: string | null): string | null {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits || null;
+}
+
 /** Escolhe a variante do catálogo que corresponde à variação vendida no ML. */
 function pickVariantSku(
   // deno-lint-ignore no-explicit-any -- variants tem formato livre por fornecedor
@@ -217,6 +230,14 @@ export async function dispatchOrderToBot(
       [buyer?.first_name, buyer?.last_name].filter(Boolean).join(" ").trim() ??
       "",
   ).trim() || null;
+  const customerDocument = onlyDigits(firstString(
+    addr?.receiver_document,
+    addr?.document,
+    addr?.cpf,
+    buyer?.identification?.number,
+    buyer?.billing_info?.doc_number,
+    mlOrder?.payments?.[0]?.payer?.identification?.number,
+  ));
 
   // Etiqueta de envio do ML: se ainda não estiver disponível, o pedido é
   // gravado sem etiqueta e marcado com needs_shipping_label = true.
@@ -238,14 +259,17 @@ export async function dispatchOrderToBot(
     preco_ml: payload.preco_ml,
     total_amount: payload.preco_ml,
     items: payload.itens,
+    status: needsManual ? "aguardando_dados_cliente" : "dados_completos",
     needs_manual_sku: needsManual,
     etiqueta_ml_url: label.url,
     etiqueta_ml_path: label.path,
     needs_shipping_label: !label.url,
+    ...(label.url ? { shipping_label_wait_alerted_at: null } : {}),
     source: "mercadolivre",
     customer_name: customerName,
     customer_email: buyer?.email ? String(buyer.email) : null,
     customer_phone: addr?.receiver_phone ? String(addr.receiver_phone) : null,
+    customer_document: customerDocument,
     shipping_address: Object.keys(addr ?? {}).length > 0 ? addr : null,
     metadata: { velo_order_id: orderId, payload },
   };
@@ -322,6 +346,7 @@ export async function retryShippingLabel(
       etiqueta_ml_url: label.url,
       etiqueta_ml_path: label.path,
       needs_shipping_label: false,
+      shipping_label_wait_alerted_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);

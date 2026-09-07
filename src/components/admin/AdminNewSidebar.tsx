@@ -7,6 +7,7 @@ import {
   BadgeDollarSign,
   BarChart3,
   Bell,
+  Bot,
   ChevronDown,
   FileSearch,
   LifeBuoy,
@@ -126,6 +127,7 @@ export const AdminNewSidebar = ({ onOpenSearch }: AdminNewSidebarProps) => {
       items: [
         { label: "Suporte", icon: MessagesSquare, to: "/admin/suporte", tone: "rose", badge: openTickets },
         { label: "Evidências", icon: FileSearch, to: "/admin/evidencias", tone: "teal" },
+        { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot", tone: "amber" },
         { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress", tone: "violet" },
       ],
     },

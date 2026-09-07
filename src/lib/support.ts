@@ -31,15 +31,34 @@ export type SupportImageAttachment = {
   size: number;
 };
 
+export type SupportRedirectShortcut = {
+  label: string;
+  url: string;
+  note: string | null;
+};
+
+export type SupportReplyReference = {
+  author: string;
+  text: string;
+  sender: "user" | "admin" | "ai" | null;
+};
+
 export type ParsedSupportMessage = {
   text: string;
   attachment: SupportImageAttachment | null;
+  redirect: SupportRedirectShortcut | null;
+  reply: SupportReplyReference | null;
 };
 
 const SUPPORT_IMAGE_MARKER = "__VELO_SUPPORT_IMAGE__";
+const SUPPORT_REDIRECT_MARKER = "__VELO_SUPPORT_REDIRECT__";
+const SUPPORT_REPLY_MARKER = "__VELO_SUPPORT_REPLY__";
 export const SUPPORT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 export const SUPPORT_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const SUPPORT_IMAGE_TYPES = new Set(SUPPORT_IMAGE_ACCEPT.split(","));
+
+export const SUPPORT_AUTO_GREETING_MESSAGE =
+  "Oi! Que bom te ver por aqui. Nosso horário de atendimento é de segunda a sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h. Pode deixar sua dúvida por aqui, que em breve alguém vai te responder!";
 
 export const validateSupportImage = (file: File) => {
   if (!SUPPORT_IMAGE_TYPES.has(file.type)) {
@@ -100,8 +119,109 @@ export const removeSupportImage = async (path: string) => {
 export const buildSupportImageMessage = (attachment: SupportImageAttachment, text = "") =>
   `${SUPPORT_IMAGE_MARKER}${JSON.stringify({ text: text.trim(), attachment })}`;
 
+const safeSupportRedirectUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed || !trimmed.startsWith("/") || trimmed.startsWith("//")) return "/dashboard";
+  return trimmed;
+};
+
+export const buildSupportRedirectMessage = ({
+  label,
+  url,
+  note = "",
+}: {
+  label: string;
+  url: string;
+  note?: string;
+}) =>
+  `${SUPPORT_REDIRECT_MARKER}${JSON.stringify({
+    label: label.trim() || "Abrir página",
+    url: safeSupportRedirectUrl(url),
+    note: note.trim() || null,
+  })}`;
+
+const normalizeReplyReference = (reply: SupportReplyReference): SupportReplyReference => ({
+  author: reply.author.trim().slice(0, 80) || "Mensagem",
+  text: reply.text.trim().replace(/\s+/g, " ").slice(0, 180) || "Mensagem sem texto",
+  sender: reply.sender,
+});
+
+export const buildSupportReplyMessage = ({
+  text,
+  reply,
+  attachment = null,
+}: {
+  text: string;
+  reply: SupportReplyReference;
+  attachment?: SupportImageAttachment | null;
+}) =>
+  `${SUPPORT_REPLY_MARKER}${JSON.stringify({
+    text: text.trim(),
+    reply: normalizeReplyReference(reply),
+    attachment,
+  })}`;
+
 export const parseSupportMessage = (value: string): ParsedSupportMessage => {
-  if (!value.startsWith(SUPPORT_IMAGE_MARKER)) return { text: value, attachment: null };
+  if (value.startsWith(SUPPORT_REDIRECT_MARKER)) {
+    try {
+      const parsed = JSON.parse(value.slice(SUPPORT_REDIRECT_MARKER.length)) as {
+        label?: unknown;
+        url?: unknown;
+        note?: unknown;
+      };
+      const label = typeof parsed.label === "string" && parsed.label.trim() ? parsed.label.trim() : "Abrir página";
+      const url = typeof parsed.url === "string" ? safeSupportRedirectUrl(parsed.url) : "/dashboard";
+      const note = typeof parsed.note === "string" && parsed.note.trim() ? parsed.note.trim() : null;
+      return { text: note ?? "", attachment: null, redirect: { label, url, note }, reply: null };
+    } catch {
+      return { text: "Atalho enviado", attachment: null, redirect: null, reply: null };
+    }
+  }
+
+  if (value.startsWith(SUPPORT_REPLY_MARKER)) {
+    try {
+      const parsed = JSON.parse(value.slice(SUPPORT_REPLY_MARKER.length)) as {
+        text?: unknown;
+        reply?: Partial<SupportReplyReference>;
+        attachment?: Partial<SupportImageAttachment> | null;
+      };
+      const reply =
+        parsed.reply && typeof parsed.reply.author === "string" && typeof parsed.reply.text === "string"
+          ? normalizeReplyReference({
+              author: parsed.reply.author,
+              text: parsed.reply.text,
+              sender:
+                parsed.reply.sender === "user" || parsed.reply.sender === "admin" || parsed.reply.sender === "ai"
+                  ? parsed.reply.sender
+                  : null,
+            })
+          : null;
+      const attachment = parsed.attachment;
+      const parsedAttachment =
+        attachment &&
+        typeof attachment.url === "string" &&
+        typeof attachment.path === "string" &&
+        typeof attachment.name === "string"
+          ? {
+              url: attachment.url,
+              path: attachment.path,
+              name: attachment.name,
+              type: typeof attachment.type === "string" ? attachment.type : "image/jpeg",
+              size: typeof attachment.size === "number" ? attachment.size : 0,
+            }
+          : null;
+      return {
+        text: typeof parsed.text === "string" ? parsed.text : "",
+        attachment: parsedAttachment,
+        redirect: null,
+        reply,
+      };
+    } catch {
+      return { text: "Resposta enviada", attachment: null, redirect: null, reply: null };
+    }
+  }
+
+  if (!value.startsWith(SUPPORT_IMAGE_MARKER)) return { text: value, attachment: null, redirect: null, reply: null };
 
   try {
     const parsed = JSON.parse(value.slice(SUPPORT_IMAGE_MARKER.length)) as {
@@ -115,7 +235,7 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       typeof attachment.path !== "string" ||
       typeof attachment.name !== "string"
     ) {
-      return { text: "Imagem enviada", attachment: null };
+      return { text: "Imagem enviada", attachment: null, redirect: null, reply: null };
     }
     return {
       text: typeof parsed.text === "string" ? parsed.text : "",
@@ -126,17 +246,44 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
         type: typeof attachment.type === "string" ? attachment.type : "image/jpeg",
         size: typeof attachment.size === "number" ? attachment.size : 0,
       },
+      redirect: null,
+      reply: null,
     };
   } catch {
-    return { text: "Imagem enviada", attachment: null };
+    return { text: "Imagem enviada", attachment: null, redirect: null, reply: null };
   }
 };
 
 export const supportMessagePreview = (value: string) => {
   const parsed = parseSupportMessage(value);
+  if (parsed.redirect) return `Atalho · ${parsed.redirect.label}`;
+  if (parsed.reply && parsed.text) return `Resposta · ${parsed.text}`;
+  if (parsed.reply) return "Resposta enviada";
   if (parsed.attachment && parsed.text) return `Imagem · ${parsed.text}`;
   if (parsed.attachment) return "Imagem enviada";
   return parsed.text;
+};
+
+export const insertSupportAutoGreeting = async ({
+  ticketId,
+  userId,
+}: {
+  ticketId: string;
+  userId: string;
+}) => {
+  const { data, error } = await supportDb
+    .from("support_messages")
+    .insert({
+      ticket_id: ticketId,
+      user_id: userId,
+      message: SUPPORT_AUTO_GREETING_MESSAGE,
+      sender: "ai",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data?.id as string | undefined;
 };
 
 export const SUPPORT_CATEGORIES: Array<{ key: TicketCategory; label: string; description: string }> = [
@@ -292,6 +439,8 @@ export const createSupportTicket = async (opts: {
     .single();
 
   if (messageError) throw messageError;
+
+  await insertSupportAutoGreeting({ ticketId: ticket.id, userId: opts.userId });
 
   return { ticket, messageId: message.id as string };
 };

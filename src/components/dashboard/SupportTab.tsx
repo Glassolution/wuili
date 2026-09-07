@@ -29,6 +29,7 @@ import {
   shouldAnnounceSupportReply,
   SUPPORT_CATEGORIES,
   buildSupportImageMessage,
+  insertSupportAutoGreeting,
   removeSupportImage,
   supportDb as db,
   uploadSupportImage,
@@ -287,6 +288,8 @@ const SupportTab = () => {
         .single();
 
       if (messageError) throw messageError;
+
+      await insertSupportAutoGreeting({ ticketId: created.id, userId: user.id });
 
       setTickets((prev) => [created, ...prev]);
       setActiveSupportTicketId(created.id);
@@ -665,7 +668,7 @@ const SupportTab = () => {
       {selectedTicket && (
         <TicketChatModal
           ticket={selectedTicket}
-          messages={messages.filter((m) => m.sender !== "ai")}
+          messages={messages}
           loading={messagesLoading}
           sending={sending}
           input={input}

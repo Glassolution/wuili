@@ -13,7 +13,7 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { mlFetch } from "./mlClient.ts";
-import { dispatchOrderToBot } from "./c7dropBotDispatch.ts";
+import { dispatchOrderToBot, retryShippingLabel } from "./c7dropBotDispatch.ts";
 
 
 export const corsHeaders = {
@@ -209,17 +209,38 @@ async function handleOrdersTopic(
 
   const mlOrder = await orderRes.json();
 
+  const normalizedStatus = normalizeMlOrderStatus(mlOrder);
+
+  const { data: existing } = await supabase
+    .from("orders")
+    .select("id,status,tracking_code")
+    .eq("external_order_id", String(mlOrderId))
+    .maybeSingle();
+
+  if (normalizedStatus === "cancelled" || normalizedStatus === "refunded") {
+    if (existing) {
+      await supabase
+        .from("orders")
+        .update({
+          status: normalizedStatus,
+          raw: mlOrder,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+    }
+
+    await markDropshipMlCancellation(supabase, {
+      mlOrderId,
+      normalizedStatus,
+      source: "ml-webhook-queue",
+    });
+
+    return existing ? `order_${normalizedStatus}_${existing.id}` : `skipped_${normalizedStatus}_without_local_order`;
+  }
+
   if (mlOrder.status !== "paid" && mlOrder.payment?.status !== "approved") {
     return "skipped_not_paid";
   }
-
-  // Idempotency
-  const { data: existing } = await supabase
-    .from("orders")
-    .select("id")
-    .eq("external_order_id", String(mlOrderId))
-    .maybeSingle();
-  if (existing) return "already_processed";
 
   const item = mlOrder.order_items?.[0];
   const mlItemId = item?.item?.id as string | undefined;
@@ -252,7 +273,30 @@ async function handleOrdersTopic(
     }
   }
 
+  if (existing) {
+    const labelResolved = await retryShippingLabel(supabase, {
+      mlOrderId: String(mlOrderId),
+      userId: integration.user_id as string,
+      mlOrder: { ...mlOrder, shipping: { ...shipping, receiver_address: shipmentAddr } },
+      accessToken,
+    });
+
+    await supabase
+      .from("orders")
+      .update({
+        status: normalizedStatus,
+        raw: { ...mlOrder, shipping: { ...shipping, receiver_address: shipmentAddr } },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+
+    return labelResolved
+      ? `already_processed_label_resolved_${existing.id}`
+      : `already_processed_${existing.id}`;
+  }
+
   const addr = shipmentAddr;
+  const fullMlOrder = { ...mlOrder, shipping: { ...shipping, receiver_address: shipmentAddr } };
   const buyerName = shipmentReceiverName ?? buyer.nickname ?? buyer.first_name ?? "Comprador";
   const buyerEmail = buyer.email ?? "";
   const buyerPhone = shipmentReceiverPhone ?? buyer.phone?.number
@@ -399,7 +443,7 @@ async function handleOrdersTopic(
         : (legacyVariantId ? "manual_review" : "no_supplier_metadata"),
       fulfillment_error: stockIssue,
       ordered_at: mlOrder.date_created ?? new Date().toISOString(),
-      raw: mlOrder,
+      raw: fullMlOrder,
     })
     .select("id")
     .single();
@@ -423,7 +467,7 @@ async function handleOrdersTopic(
     orderId: newOrder.id as string,
     mlOrderId: String(mlOrderId),
     userId: integration.user_id as string,
-    mlOrder,
+    mlOrder: fullMlOrder,
     precoMl: totalAmount,
     accessToken,
   });
@@ -518,6 +562,101 @@ async function pauseListingOutOfStock(
   console.log(
     `[ml-queue] ${paused.length} anúncio(s) pausado(s) por falta de estoque (${productTitle})`,
   );
+}
+
+function normalizeMlOrderStatus(mlOrder: Record<string, any>) {
+  const rawStatus = String(mlOrder.status ?? "").toLowerCase();
+  const hasRefund = Array.isArray(mlOrder.payments) &&
+    mlOrder.payments.some((payment: any) => {
+      const status = String(payment?.status ?? "").toLowerCase();
+      return status === "refunded" ||
+        status === "charged_back" ||
+        Number(payment?.transaction_amount_refunded ?? 0) > 0;
+    });
+
+  if (hasRefund) return "refunded";
+  if (rawStatus === "cancelled" || rawStatus === "canceled") return "cancelled";
+  if (rawStatus === "paid") return "paid";
+  return "pending";
+}
+
+async function markDropshipMlCancellation(
+  supabase: SupabaseClient,
+  params: {
+    mlOrderId: string;
+    normalizedStatus: "cancelled" | "refunded";
+    source: string;
+  },
+) {
+  const { data: dropship } = await supabase
+    .from("dropship_orders")
+    .select("id,status,payment_status,refund_required,refund_status,order_number,ml_order_id")
+    .eq("ml_order_id", params.mlOrderId)
+    .maybeSingle();
+
+  if (!dropship || ["cancelado", "expirado"].includes(String(dropship.status))) return;
+
+  const paidStatuses = new Set([
+    "pagamento_confirmado",
+    "finalizando_fornecedor",
+    "pedido_concluido",
+    "rastreio_pendente",
+    "rastreio_disponivel",
+  ]);
+  const supplierTouchedStatuses = new Set([
+    "reservando_fornecedor",
+    "reservado_aguardando_pagamento",
+    ...paidStatuses,
+  ]);
+  const refundRequired =
+    paidStatuses.has(String(dropship.status)) ||
+    ["paid", "approved", "confirmed"].includes(String(dropship.payment_status ?? "").toLowerCase());
+  const nextStatus = supplierTouchedStatuses.has(String(dropship.status))
+    ? "cancelamento_pendente"
+    : "cancelado";
+  const reason = params.normalizedStatus === "refunded"
+    ? "Pedido reembolsado no Mercado Livre"
+    : "Pedido cancelado no Mercado Livre";
+
+  await supabase
+    .from("dropship_orders")
+    .update({
+      status: nextStatus,
+      cancel_reason: reason,
+      refund_required: refundRequired,
+      refund_status: refundRequired ? "pending" : "not_required",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", dropship.id);
+
+  await supabase.from("dropship_order_events").insert({
+    order_id: dropship.id,
+    event_type: "ml_order_cancelled",
+    previous_status: dropship.status,
+    new_status: nextStatus,
+    actor: params.source,
+    message: reason,
+    metadata: {
+      ml_order_id: params.mlOrderId,
+      ml_status: params.normalizedStatus,
+      refund_required: refundRequired,
+    },
+  });
+
+  await supabase.from("dropship_worker_alerts").insert({
+    order_id: dropship.id,
+    order_number: dropship.order_number ?? dropship.ml_order_id ?? params.mlOrderId,
+    severity: refundRequired ? "critical" : "warning",
+    code: refundRequired ? "ml_cancelled_refund_required" : "ml_cancelled_cleanup_required",
+    message: refundRequired
+      ? `Pedido ${params.mlOrderId} foi cancelado no ML depois do pagamento; estorno foi marcado como pendente.`
+      : `Pedido ${params.mlOrderId} foi cancelado no ML; worker deve limpar carrinho/reserva se houver.`,
+    details: {
+      ml_order_id: params.mlOrderId,
+      ml_status: params.normalizedStatus,
+      refund_required: refundRequired,
+    },
+  });
 }
 
 

@@ -225,9 +225,10 @@ serve(async (req) => {
 
       if (existing) {
         const trackingCode = shipping?.tracking_number ?? null;
+        const resolvedTrackingCode = trackingCode ?? existing.tracking_code ?? null;
         const updatePayload: Record<string, unknown> = {
           status: normalizedStatus,
-          tracking_code: trackingCode,
+          tracking_code: resolvedTrackingCode,
           raw: { ...fullOrder, shipping },
           updated_at: new Date().toISOString(),
         };
@@ -266,6 +267,57 @@ serve(async (req) => {
             },
           });
         }
+        if (["cancelled", "refunded"].includes(normalizedStatus)) {
+          const { data: dropship } = await adminClient
+            .from("dropship_orders")
+            .select("id,status,payment_status,order_number,ml_order_id")
+            .eq("ml_order_id", mlOrderId)
+            .maybeSingle();
+
+          if (dropship && !["cancelado", "expirado"].includes(String(dropship.status))) {
+            const paidDropshipStatuses = ["pagamento_confirmado", "finalizando_fornecedor", "pedido_concluido", "rastreio_pendente", "rastreio_disponivel"];
+            const supplierTouchedStatuses = ["reservando_fornecedor", "reservado_aguardando_pagamento", ...paidDropshipStatuses];
+            const refundRequired =
+              paidDropshipStatuses.includes(String(dropship.status)) ||
+              ["paid", "approved", "confirmed"].includes(String(dropship.payment_status ?? "").toLowerCase());
+            const nextDropshipStatus = supplierTouchedStatuses.includes(String(dropship.status))
+              ? "cancelamento_pendente"
+              : "cancelado";
+
+            await adminClient
+              .from("dropship_orders")
+              .update({
+                status: nextDropshipStatus,
+                cancel_reason: normalizedStatus === "refunded" ? "Pedido reembolsado no Mercado Livre" : "Pedido cancelado no Mercado Livre",
+                refund_required: refundRequired,
+                refund_status: refundRequired ? "pending" : "not_required",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", dropship.id);
+
+            await adminClient.from("dropship_order_events").insert({
+              order_id: dropship.id,
+              event_type: "ml_order_cancelled",
+              previous_status: dropship.status,
+              new_status: nextDropshipStatus,
+              actor: "ml-sync-orders",
+              message: normalizedStatus === "refunded" ? "Pedido reembolsado no Mercado Livre." : "Pedido cancelado no Mercado Livre.",
+              metadata: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
+            });
+
+            await adminClient.from("dropship_worker_alerts").insert({
+              order_id: dropship.id,
+              order_number: dropship.order_number ?? dropship.ml_order_id ?? mlOrderId,
+              severity: refundRequired ? "critical" : "warning",
+              code: refundRequired ? "ml_cancelled_refund_required" : "ml_cancelled_cleanup_required",
+              message: refundRequired
+                ? `Pedido ${mlOrderId} foi cancelado no ML depois do pagamento; estorno foi marcado como pendente.`
+                : `Pedido ${mlOrderId} foi cancelado no ML; worker deve limpar carrinho/reserva se houver.`,
+              details: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
+            });
+          }
+        }
+
         // Nova tentativa de baixar a etiqueta do ML enquanto ela não existir.
         try {
           await retryShippingLabel(adminClient, {

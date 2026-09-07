@@ -182,10 +182,107 @@ Deno.serve(async (req) => {
       });
     }
 
+    const { data: dropshipRows, error: dropshipError } = await admin
+      .from("dropship_orders")
+      .select("id,user_id,order_number,ml_order_id,metadata,refund_requested_at,refund_status")
+      .eq("refund_required", true)
+      .eq("refund_status", "requested")
+      .order("refund_requested_at", { ascending: true })
+      .limit(200);
+    if (dropshipError) throw dropshipError;
+
+    const dropshipResults: Array<Record<string, unknown>> = [];
+
+    for (const order of dropshipRows ?? []) {
+      const metadata = order.metadata && typeof order.metadata === "object" && !Array.isArray(order.metadata)
+        ? order.metadata as Record<string, unknown>
+        : {};
+      const dropshipRefund = metadata.dropship_refund && typeof metadata.dropship_refund === "object" && !Array.isArray(metadata.dropship_refund)
+        ? metadata.dropship_refund as Record<string, unknown>
+        : {};
+      const providerResponse = dropshipRefund.provider_response && typeof dropshipRefund.provider_response === "object" && !Array.isArray(dropshipRefund.provider_response)
+        ? dropshipRefund.provider_response as ProviderResponse
+        : {};
+      const refundId = String(providerResponse.refundId ?? providerResponse.id ?? "").trim();
+      if (!refundId) continue;
+
+      let statusResp: ProviderResponse | null = null;
+      let fetchError: string | null = null;
+      try {
+        statusResp = (await getRefundStatus(refundId)) as ProviderResponse;
+      } catch (e) {
+        const err = e as ValidaPayError;
+        fetchError = `${err.status ?? ""} ${err.message}`.trim();
+      }
+
+      const raw = (Array.isArray((statusResp as { data?: unknown })?.data)
+        ? ((statusResp as { data: ProviderResponse[] }).data[0] ?? {})
+        : statusResp ?? {}) as ProviderResponse;
+      const newStatus = String(raw.status ?? "").toUpperCase();
+      const mergedMetadata = {
+        ...metadata,
+        dropship_refund: {
+          ...dropshipRefund,
+          provider_status_response: raw,
+          last_checked_at: new Date().toISOString(),
+        },
+      };
+
+      if (["CONFIRMED", "COMPLETED", "SUCCESS"].includes(newStatus)) {
+        await admin.from("dropship_orders").update({
+          refund_status: "succeeded",
+          refund_completed_at: new Date().toISOString(),
+          metadata: mergedMetadata,
+          updated_at: new Date().toISOString(),
+        }).eq("id", order.id);
+        await admin.from("dropship_order_events").insert({
+          order_id: order.id,
+          event_type: "refund_succeeded",
+          actor: "check-pending-refunds",
+          message: "Estorno dropship confirmado pela ValidaPay.",
+          metadata: { refund_id: refundId, provider_response: raw },
+        });
+        dropshipResults.push({ id: order.id, refundId, outcome: "confirmed" });
+        continue;
+      }
+
+      if (["FAILED", "CANCELLED", "REJECTED"].includes(newStatus)) {
+        const reason = String(raw.reason ?? raw.message ?? raw.error ?? "Estorno recusado pela ValidaPay");
+        await admin.from("dropship_orders").update({
+          refund_status: "failed",
+          refund_error: reason,
+          metadata: mergedMetadata,
+          updated_at: new Date().toISOString(),
+        }).eq("id", order.id);
+        await admin.from("dropship_worker_alerts").insert({
+          order_id: order.id,
+          order_number: order.order_number ?? order.ml_order_id ?? order.id,
+          severity: "critical",
+          code: "dropship_refund_failed",
+          message: `Falha ao confirmar estorno do pedido ${order.order_number ?? order.ml_order_id ?? order.id}: ${reason}`,
+          details: { refund_id: refundId, provider_response: raw },
+        });
+        dropshipResults.push({ id: order.id, refundId, outcome: "failed", reason });
+        continue;
+      }
+
+      await admin.from("dropship_orders").update({
+        metadata: mergedMetadata,
+        updated_at: new Date().toISOString(),
+      }).eq("id", order.id);
+      dropshipResults.push({
+        id: order.id,
+        refundId,
+        outcome: fetchError ? "check_error" : "processing",
+        status: newStatus || null,
+        error: fetchError,
+      });
+    }
+
     return json(
       isAdmin
-        ? { success: true, checked: pending.length, results }
-        : { success: true, checked: pending.length },
+        ? { success: true, checked: pending.length, results, dropship_checked: dropshipRows?.length ?? 0, dropship_results: dropshipResults }
+        : { success: true, checked: pending.length, dropship_checked: dropshipRows?.length ?? 0 },
     );
   } catch (err) {
     console.error("check-pending-refunds error", err);

@@ -3,9 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Save, Image as ImageIcon, Sparkles, Package, Box, Ruler, Weight,
-  ChevronDown, TrendingUp, Store, Tag, Layers, Building2
+  ChevronDown, Store, Tag, Layers, Building2
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -94,25 +93,6 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  // ── Mock Sales Data ────────────────────────────────────────────────────────
-  const salesData = [
-    { date: "Fev 01", current: 420, previous: 380 },
-    { date: "Fev 03", current: 450, previous: 410 },
-    { date: "Fev 05", current: 480, previous: 440 },
-    { date: "Fev 07", current: 520, previous: 470 },
-    { date: "Fev 09", current: 490, previous: 450 },
-    { date: "Fev 11", current: 550, previous: 500 },
-    { date: "Fev 13", current: 580, previous: 520 },
-    { date: "Fev 15", current: 620, previous: 560 },
-    { date: "Fev 17", current: 590, previous: 540 },
-    { date: "Fev 19", current: 650, previous: 590 },
-    { date: "Fev 21", current: 680, previous: 610 },
-    { date: "Fev 23", current: 720, previous: 650 },
-    { date: "Fev 25", current: 760, previous: 680 },
-    { date: "Fev 27", current: 800, previous: 720 },
-    { date: "Fev 28", current: 840, previous: 750 },
-  ];
 
   // ── Query ──────────────────────────────────────────────────────────────────
   const { data: product, isLoading } = useQuery({
@@ -476,82 +456,6 @@ const ProductDetailPage = () => {
         {/* Right Column */}
         <div className="flex flex-col gap-6">
           
-          {/* Total Sales */}
-          <div className="rounded-2xl border border-black/[0.05] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} strokeWidth={1.8} className="text-muted-foreground" />
-                <h3 className="text-[13px] font-semibold text-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Vendas totais
-                </h3>
-              </div>
-              <button className="text-[11px] font-medium text-foreground underline decoration-dotted underline-offset-2">
-                Ver detalhes
-              </button>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-[24px] font-bold text-foreground" style={{ letterSpacing: "-0.03em" }}>
-                R$ 840,00
-              </p>
-              <p className="mt-1 text-[11px] text-emerald-600">
-                + 1.34% vs mês passado
-              </p>
-            </div>
-
-            <div className="mt-4 h-[200px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={salesData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                  <CartesianGrid 
-                    strokeDasharray="3 3" 
-                    stroke="#F0F0F0" 
-                    vertical={false}
-                  />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#9CA3AF", fontSize: 11 }}
-                    dy={8}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#9CA3AF", fontSize: 11 }}
-                    tickFormatter={(value) => `$${value}`}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: "#FFFFFF",
-                      border: "1px solid rgba(0,0,0,0.08)",
-                      borderRadius: "8px",
-                      padding: "8px 12px",
-                      fontSize: "12px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
-                    }}
-                    labelStyle={{ color: "#111111", fontWeight: 600, marginBottom: "4px" }}
-                    formatter={(value: number) => [`R$ ${value.toFixed(2)}`, ""]}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="previous" 
-                    stroke="#FDB462" 
-                    strokeWidth={2}
-                    dot={false}
-                    opacity={0.4}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="current" 
-                    stroke="#FB923C" 
-                    strokeWidth={2.5}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
           {/* Product Organization */}
           <div className="rounded-2xl border border-black/[0.05] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
             <h3 className="text-[15px] font-semibold text-foreground" style={{ letterSpacing: "-0.02em" }}>

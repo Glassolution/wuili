@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   BadgeDollarSign,
+  Bot,
   FileSearch,
   LayoutDashboard,
   Menu,
@@ -26,6 +27,7 @@ type AdminSection =
   | "support"
   | "refunds"
   | "evidence"
+  | "automation"
   | "settings";
 
 type AdminShellProps = {
@@ -48,6 +50,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",
+  automation: "Automação BOT",
   settings: "Integrações",
 };
 
@@ -59,6 +62,7 @@ const MOBILE_NAV_ITEMS: Array<{ section: AdminSection; label: string; to: string
   { section: "commissions", label: "Afiliados", to: "/admin/comissoes", icon: BadgeDollarSign },
   { section: "refunds", label: "Reembolsos", to: "/admin/reembolsos", icon: RefreshCcw },
   { section: "evidence", label: "Evidências", to: "/admin/evidencias", icon: FileSearch },
+  { section: "automation", label: "Automação BOT", to: "/admin/automacao-bot", icon: Bot },
   { section: "settings", label: "AliExpress", to: "/admin/aliexpress", icon: PackageSearch },
 ];
 

@@ -90,6 +90,116 @@ const addMonths = (date: Date, months: number) => {
   return d;
 };
 
+async function syncDropshipOrderPayment(
+  payload: WebhookPayload,
+  params: {
+    event: string;
+    eventRowId: string;
+    verifiedStatus: string | null;
+    verifiedAmount: number | null;
+  },
+): Promise<{ handled: boolean; orderId?: string; status?: string }> {
+  const chargeId = payload.chargeId ? String(payload.chargeId) : "";
+  const metadata = payload.metadata ?? {};
+  const kind = String(metadata.kind ?? metadata.type ?? "").toLowerCase();
+  const metadataOrderId =
+    typeof metadata.dropship_order_id === "string"
+      ? metadata.dropship_order_id
+      : typeof metadata.dropshipOrderId === "string"
+        ? metadata.dropshipOrderId
+        : kind === "dropship_order" && typeof metadata.order_id === "string"
+          ? metadata.order_id
+          : null;
+
+  if (!chargeId && !metadataOrderId) return { handled: false };
+
+  let query = admin
+    .from("dropship_orders")
+    .select("id,status,payment_status,metadata")
+    .limit(1);
+
+  query = metadataOrderId ? query.eq("id", metadataOrderId) : query.eq("payment_reference", chargeId);
+
+  const { data: rows, error: findError } = await query;
+  if (findError) throw new Error(`dropship_payment_lookup_failed:${findError.message}`);
+
+  const order = rows?.[0];
+  if (!order) return { handled: false };
+
+  const normalized = String(params.verifiedStatus ?? payload.status ?? "").toUpperCase();
+  const paid = ["PAID", "APPROVED", "CONFIRMED", "AUTHORIZED"].includes(normalized);
+  const failed = ["REJECTED", "CANCELLED", "CANCELED", "EXPIRED", "REFUNDED"].includes(normalized) ||
+    params.event === "payment.failed";
+
+  if (!paid && !failed) {
+    await admin
+      .from("validapay_webhook_events")
+      .update({ processed: true, status: normalized || (payload.status ?? null) })
+      .eq("id", params.eventRowId);
+    return { handled: true, orderId: order.id, status: "pending" };
+  }
+
+  const currentMetadata =
+    order.metadata && typeof order.metadata === "object" && !Array.isArray(order.metadata)
+      ? order.metadata as Record<string, unknown>
+      : {};
+  const validapayMetadata =
+    currentMetadata.validapay && typeof currentMetadata.validapay === "object" && !Array.isArray(currentMetadata.validapay)
+      ? currentMetadata.validapay as Record<string, unknown>
+      : {};
+
+  const patch = {
+    status: paid ? "pagamento_confirmado" : order.status,
+    payment_status: paid ? "paid" : "rejected",
+    payment_method: "pix",
+    payment_reference: chargeId || null,
+    metadata: {
+      ...currentMetadata,
+      validapay: {
+        ...validapayMetadata,
+        charge_id: chargeId || null,
+        event: params.event,
+        status: normalized || null,
+        amount: params.verifiedAmount ?? payload.amount ?? null,
+        webhook_event_id: params.eventRowId,
+        paid_at: paid ? payload.paidAt ?? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      },
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: updateError } = await admin
+    .from("dropship_orders")
+    .update(patch)
+    .eq("id", order.id);
+  if (updateError) throw new Error(`dropship_payment_update_failed:${updateError.message}`);
+
+  await admin.from("dropship_order_events").insert({
+    order_id: order.id,
+    event_type: paid ? "payment_confirmed" : "payment_rejected",
+    previous_status: order.status,
+    new_status: patch.status,
+    actor: "validapay-webhook",
+    message: paid
+      ? "Pagamento Pix confirmado pela ValidaPay; pedido liberado para o worker comprar na C7Drop."
+      : "Pagamento Pix rejeitado/cancelado pela ValidaPay.",
+    metadata: {
+      charge_id: chargeId || null,
+      webhook_event_id: params.eventRowId,
+      status: normalized || null,
+    },
+  });
+
+  await admin
+    .from("validapay_webhook_events")
+    .update({ processed: true, status: normalized || (payload.status ?? null) })
+    .eq("id", params.eventRowId);
+
+  console.log("validapay-webhook: pedido dropship atualizado", order.id, patch.status);
+  return { handled: true, orderId: order.id, status: patch.status };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -195,6 +305,21 @@ Deno.serve(async (req) => {
         console.error("validapay-webhook: não foi possível verificar a cobrança", detail);
         return await fail("charge_verification_failed");
       }
+    }
+
+    const dropshipPayment = await syncDropshipOrderPayment(payload, {
+      event,
+      eventRowId: eventRow.id,
+      verifiedStatus,
+      verifiedAmount,
+    });
+    if (dropshipPayment.handled) {
+      return json({
+        received: true,
+        kind: "dropship_order",
+        order: dropshipPayment.orderId,
+        status: dropshipPayment.status,
+      });
     }
 
     // 2.1) Venda de loja do usuário (checkout público) — não é assinatura.

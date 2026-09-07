@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   ChevronRight,
-  ExternalLink,
+  Copy,
+  Mail,
   MapPin,
   Package,
+  Phone,
   ShoppingBag,
+  type LucideIcon,
+  UserRound,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +57,9 @@ const pageFont = {
   fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif',
 };
 
+const mlOrdersGridClass =
+  "md:grid-cols-[minmax(320px,1.6fr)_minmax(150px,0.75fr)_112px_144px_96px_132px_180px_24px]";
+
 const formatBRL = (value: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
 
@@ -77,6 +84,32 @@ type ShippingAddress = {
   neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
+};
+
+type SupplierPurchaseInfo = {
+  supplierUrl: string;
+  supplierPrice: number | null;
+  dropshipOrderId: string | null;
+  orderCode: string;
+  productTitle: string;
+  quantity: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  address: ShippingAddress | null;
+};
+
+type SupplierPurchaseDraft = {
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  zip: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
 };
 
 const jsonText = (value: Json | undefined): string | null => {
@@ -140,6 +173,12 @@ const getOrderImage = (order: MlOrderRow) => {
   return null;
 };
 
+const shortenTrackingCode = (code: string) => {
+  const trimmed = code.trim();
+  if (trimmed.length <= 14) return trimmed;
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-5)}`;
+};
+
 const supplierHref = (url: string | null | undefined) => {
   const trimmed = url?.trim();
   if (!trimmed) return null;
@@ -148,7 +187,84 @@ const supplierHref = (url: string | null | undefined) => {
   return `https://${trimmed}`;
 };
 
-const SupplierButton = ({ url, compact = false }: { url: string | null | undefined; compact?: boolean }) => {
+const purchaseInfoFromMlOrder = (order: MlOrderRow): SupplierPurchaseInfo | null => {
+  const supplierUrl = supplierHref(order.supplier_url);
+  if (!supplierUrl) return null;
+  return {
+    supplierUrl,
+    supplierPrice: order.cost_price && order.cost_price > 0 ? order.cost_price : null,
+    dropshipOrderId: null,
+    orderCode: getOrderCode(order),
+    productTitle: getProductName(order),
+    quantity: clean(order.quantity),
+    buyerName: clean(order.buyer_name),
+    buyerEmail: clean(order.buyer_email),
+    buyerPhone: clean(order.buyer_phone),
+    address: {
+      zip: order.buyer_zip,
+      street: order.buyer_address,
+      number: order.buyer_number,
+      complement: order.buyer_complement,
+      neighborhood: order.buyer_neighborhood,
+      city: order.buyer_city,
+      state: order.buyer_state,
+    },
+  };
+};
+
+const purchaseInfoFromStoreOrder = (order: StoreOrderRow): SupplierPurchaseInfo | null => {
+  const supplierUrl = supplierHref(order.supplier_url);
+  if (!supplierUrl) return null;
+  return {
+    supplierUrl,
+    supplierPrice: order.supplier_price && order.supplier_price > 0 ? order.supplier_price : null,
+    dropshipOrderId: null,
+    orderCode: order.id,
+    productTitle: order.product_title,
+    quantity: clean(order.quantity),
+    buyerName: clean(order.buyer_name),
+    buyerEmail: clean(order.buyer_email),
+    buyerPhone: clean(order.buyer_phone),
+    address: normalizeShippingAddress(order.shipping_address),
+  };
+};
+
+const attachDropshipOrderId = async (info: SupplierPurchaseInfo, order: MlOrderRow): Promise<SupplierPurchaseInfo> => {
+  const mlOrderId = order.ml_order_id ?? order.external_order_id;
+  if (!mlOrderId) return info;
+
+  const { data, error } = await supabase
+    .from("dropship_orders")
+    .select("id")
+    .eq("ml_order_id", String(mlOrderId))
+    .maybeSingle();
+
+  if (error) throw error;
+  return { ...info, dropshipOrderId: typeof data?.id === "string" ? data.id : null };
+};
+
+const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft => ({
+  buyerName: info.buyerName === "—" ? "" : info.buyerName,
+  buyerEmail: info.buyerEmail === "—" ? "" : info.buyerEmail,
+  buyerPhone: info.buyerPhone === "—" ? "" : info.buyerPhone,
+  zip: info.address?.zip ?? "",
+  street: info.address?.street ?? "",
+  number: info.address?.number ?? "",
+  complement: info.address?.complement ?? "",
+  neighborhood: info.address?.neighborhood ?? "",
+  city: info.address?.city ?? "",
+  state: info.address?.state ?? "",
+});
+
+const SupplierButton = ({
+  url,
+  compact = false,
+  onOpen,
+}: {
+  url: string | null | undefined;
+  compact?: boolean;
+  onOpen: () => void;
+}) => {
   const href = supplierHref(url);
   const classes = compact
     ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-[#2563EB] px-3 text-[11px] font-semibold text-white transition hover:bg-[#1D4ED8]"
@@ -177,21 +293,290 @@ const SupplierButton = ({ url, compact = false }: { url: string | null | undefin
   }
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
+    <button
+      type="button"
       className={classes}
-      onClick={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
     >
       <ShoppingBag size={15} strokeWidth={1.5} />
       Comprar no Fornecedor
-      <ExternalLink size={14} strokeWidth={1.5} />
-    </a>
+    </button>
   );
 };
 
-const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void }) => {
+const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: SupplierPurchaseInfo | null; onClose: () => void; onCreatedPix?: () => void }) => {
+  const [draft, setDraft] = useState<SupplierPurchaseDraft | null>(() => (info ? createPurchaseDraft(info) : null));
+  const [pixData, setPixData] = useState<{ qrCode: string | null; qrCodeBase64: string | null; expiresAt: string | null } | null>(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+
+  useEffect(() => {
+    setDraft(info ? createPurchaseDraft(info) : null);
+    setPixData(null);
+    setIsGeneratingQr(false);
+  }, [info]);
+
+  if (!info || !draft) return null;
+
+  const update = (field: keyof SupplierPurchaseDraft, value: string) => {
+    setDraft((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const handleBuy = async () => {
+    if (isGeneratingQr) return;
+    if (!info.dropshipOrderId) {
+      veloToast.error("Este pedido ainda não está conectado ao bot. Sincronize os pedidos e tente novamente.");
+      return;
+    }
+    setIsGeneratingQr(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("dropship-request-payment-retry", {
+        body: { order_id: info.dropshipOrderId, expires_in_hours: 48 },
+      });
+      const response = data as {
+        error?: string;
+        pix_qr_code?: string | null;
+        pix_qr_code_base64?: string | null;
+        expires_at?: string | null;
+      } | null;
+      if (error || response?.error) {
+        throw new Error(response?.error ?? error?.message ?? "Não foi possível gerar o Pix.");
+      }
+      setPixData({
+        qrCode: response?.pix_qr_code ?? null,
+        qrCodeBase64: response?.pix_qr_code_base64 ?? null,
+        expiresAt: response?.expires_at ?? null,
+      });
+      onCreatedPix?.();
+      veloToast.success("Pix criado. O bot já pode preparar o carrinho na C7Drop.");
+    } catch (error) {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+  const supplierPriceLabel = info.supplierPrice ? formatBRL(info.supplierPrice) : "Não informado";
+
+  if (pixData) {
+    return (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]" onClick={onClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="supplier-qr-title"
+          className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="h-1.5 bg-[#2563EB]" />
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
+                <h2 id="supplier-qr-title" className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#020817]">
+                  Pix da compra
+                </h2>
+              </div>
+              <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 grid place-items-center rounded-[22px] border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+              {pixData.qrCodeBase64 ? (
+                <img src={`data:image/png;base64,${pixData.qrCodeBase64}`} alt="QR Code Pix da compra no fornecedor" className="h-56 w-56" />
+              ) : pixData.qrCode ? (
+                <textarea
+                  readOnly
+                  value={pixData.qrCode}
+                  className="h-32 w-full resize-none rounded-[14px] border border-[#D8E3F8] bg-white p-3 text-[12px] font-semibold text-[#020817] outline-none"
+                />
+              ) : (
+                <p className="text-center text-[13px] font-semibold text-[#64748B]">Pix criado, mas o QR não voltou na resposta.</p>
+              )}
+            </div>
+
+            <div className="mt-5 text-center">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Preço C7Drop</p>
+              <p className="mt-1 text-[30px] font-black tracking-[-0.05em] text-[#020817]">{supplierPriceLabel}</p>
+            </div>
+
+            <div className="mt-5 rounded-[16px] border border-[#FACC15]/50 bg-[#FEFCE8] px-4 py-3 text-center">
+              <p className="text-[13px] font-black text-[#854D0E]">Pague em até 48h.</p>
+              <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#A16207]">
+                Depois desse prazo, a reserva será removida do carrinho da C7Drop.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="supplier-purchase-title"
+        className="max-h-[calc(100vh-48px)] w-full max-w-2xl overflow-y-auto rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="h-1.5 bg-[#2563EB]" />
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
+              <h2 id="supplier-purchase-title" className="mt-1 text-[20px] font-black tracking-[-0.04em] text-[#020817]">
+                Informações do comprador
+              </h2>
+              <p className="mt-1 line-clamp-2 text-[12px] font-medium text-[#64748B]">
+                Confira ou complete os dados antes de comprar: {info.productTitle}
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-3 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 sm:grid-cols-4">
+            <MiniInfo label="Pedido" value={info.orderCode} />
+            <MiniInfo label="Quantidade" value={info.quantity} />
+            <MiniInfo label="Fornecedor" value="C7Drop" />
+            <MiniInfo label="Preço C7Drop" value={supplierPriceLabel} />
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <section>
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#64748B]">
+                <UserRound size={14} />
+                Comprador
+              </div>
+              <div className="space-y-3">
+                <PurchaseField label="Nome" icon={UserRound} value={draft.buyerName} onChange={(value) => update("buyerName", value)} />
+                <PurchaseField label="E-mail" icon={Mail} value={draft.buyerEmail} onChange={(value) => update("buyerEmail", value)} />
+                <PurchaseField label="Telefone" icon={Phone} value={draft.buyerPhone} onChange={(value) => update("buyerPhone", value)} />
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#64748B]">
+                <MapPin size={14} />
+                Entrega
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PurchaseField label="CEP" value={draft.zip} onChange={(value) => update("zip", value)} />
+                <PurchaseField label="Estado" value={draft.state} onChange={(value) => update("state", value)} />
+                <PurchaseField label="Cidade" value={draft.city} onChange={(value) => update("city", value)} />
+                <PurchaseField label="Bairro" value={draft.neighborhood} onChange={(value) => update("neighborhood", value)} />
+                <PurchaseField label="Rua" value={draft.street} onChange={(value) => update("street", value)} className="sm:col-span-2" />
+                <PurchaseField label="Número" value={draft.number} onChange={(value) => update("number", value)} />
+                <PurchaseField label="Complemento" value={draft.complement} onChange={(value) => update("complement", value)} />
+              </div>
+            </section>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-2 border-t border-[#E2E8F0] pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleBuy}
+              disabled={isGeneratingQr}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+            >
+              <ShoppingBag size={15} />
+              {isGeneratingQr ? "Gerando Pix..." : "Comprar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MiniInfo = ({ label, value }: { label: string; value: string }) => (
+  <div className="min-w-0">
+    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+    <p className="mt-1 truncate text-[13px] font-black text-[#020817]">{value}</p>
+  </div>
+);
+
+const PurchaseField = ({
+  label,
+  value,
+  onChange,
+  icon: Icon,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  icon?: LucideIcon;
+  className?: string;
+}) => (
+  <label className={`block min-w-0 ${className}`}>
+    <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">
+      {Icon ? <Icon size={12} /> : null}
+      {label}
+    </span>
+    <input
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-10 w-full rounded-[12px] border border-[#D8E3F8] bg-white px-3 text-[13px] font-semibold text-[#020817] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+      placeholder="-"
+    />
+  </label>
+);
+
+const TrackingCodeBadge = ({ code }: { code: string | null | undefined }) => {
+  const trackingCode = code?.trim();
+
+  if (!trackingCode) {
+    return <span className="text-[13px] font-semibold text-[#A3A3A3]">—</span>;
+  }
+
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(trackingCode);
+      veloToast.success("Código de rastreio copiado.");
+    } catch {
+      veloToast.error("Não foi possível copiar o código.");
+    }
+  };
+
+  return (
+    <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#DBEAFE] bg-[#EFF6FF] px-2.5 py-1 text-[#1D4ED8]" title={trackingCode}>
+      <span className="truncate text-[12px] font-black">{shortenTrackingCode(trackingCode)}</span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[#2563EB] transition hover:bg-white"
+        aria-label="Copiar código de rastreio"
+      >
+        <Copy size={12} strokeWidth={2} />
+      </button>
+    </div>
+  );
+};
+
+const OrderRow = ({
+  order,
+  onSelect,
+  onSupplierPurchase,
+}: {
+  order: MlOrderRow;
+  onSelect: () => void;
+  onSupplierPurchase: (order: MlOrderRow) => Promise<void> | void;
+}) => {
   const image = getOrderImage(order);
 
   return (
@@ -240,6 +625,12 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
             </span>
           </div>
           <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Rastreio</p>
+            <div className="mt-1">
+              <TrackingCodeBadge code={order.tracking_code} />
+            </div>
+          </div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold text-[#8E8E87]">Data</p>
             <p className="mt-1 text-[13px] font-semibold leading-tight text-[#111111]">{formatDate(order.ordered_at ?? order.created_at)}</p>
           </div>
@@ -256,7 +647,7 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
             onSelect();
           }
         }}
-        className="group hidden cursor-pointer grid-cols-1 gap-3 border-b border-[#EFEFEB] bg-white px-4 py-4 outline-none transition hover:bg-[#F7F7F8] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
+        className={`group hidden cursor-pointer grid-cols-1 gap-4 border-b border-[#EFEFEB] bg-white px-4 py-4 outline-none transition hover:bg-[#F7F7F8] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:grid ${mlOrdersGridClass} md:items-center`}
       >
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
@@ -277,25 +668,30 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
           <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
         </div>
 
-        <div>
+        <div className="min-w-0 md:flex md:justify-center">
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
           <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[12px] font-semibold ${getStatusStyle(order.status)}`}>
             {getStatusLabel(order.status)}
           </span>
         </div>
 
-        <div>
+        <div className="min-w-0 md:flex md:justify-center">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Rastreio</p>
+          <TrackingCodeBadge code={order.tracking_code} />
+        </div>
+
+        <div className="min-w-0 md:text-right">
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Valor</p>
           <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total_amount ?? order.sale_price)}</p>
         </div>
 
-        <div>
+        <div className="min-w-0 md:text-right">
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Data</p>
           <p className="text-[13px] font-medium text-[#525252]">{formatDate(order.ordered_at ?? order.created_at)}</p>
         </div>
 
         <div className="flex items-center gap-2 md:justify-end">
-          <SupplierButton url={order.supplier_url} compact />
+          <SupplierButton url={order.supplier_url} compact onOpen={() => onSupplierPurchase(order)} />
         </div>
 
         <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] md:block" />
@@ -307,7 +703,7 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
 const OrderSkeleton = () => (
   <div className="rounded-2xl border border-[#E5E7EB] bg-white">
     {[1, 2, 3, 4].map((item) => (
-      <div key={item} className="grid gap-3 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center">
+      <div key={item} className={`grid gap-4 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 ${mlOrdersGridClass} md:items-center`}>
         <div className="flex items-center gap-3">
           <Skeleton className="h-12 w-12 rounded-lg" />
           <div className="flex-1 space-y-2">
@@ -317,6 +713,7 @@ const OrderSkeleton = () => (
         </div>
         <Skeleton className="h-4 w-28" />
         <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-28 rounded-full" />
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-9 w-40 rounded-lg" />
@@ -341,6 +738,7 @@ type StoreOrderRow = {
   created_at: string;
   catalog_product_id: string | null;
   supplier_url: string | null;
+  supplier_price: number | null;
   /** Variação vendida ("Cor: Azul · Tamanho: G"), quando o produto tem. */
   variant_label: string | null;
   variant_sku: string | null;
@@ -349,6 +747,7 @@ type StoreOrderRow = {
 
 const StoreOrdersList = ({ userId }: { userId: string }) => {
   const [addressOrder, setAddressOrder] = useState<StoreOrderRow | null>(null);
+  const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["store-orders", userId],
     queryFn: async () => {
@@ -359,17 +758,32 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
-      const rows = (data ?? []) as Omit<StoreOrderRow, "supplier_url">[];
+      const rows = (data ?? []) as Omit<StoreOrderRow, "supplier_url" | "supplier_price">[];
       const ids = Array.from(new Set(rows.map((r) => r.catalog_product_id).filter((v): v is string => Boolean(v))));
-      let urlMap = new Map<string, string | null>();
+      let productMap = new Map<string, { url: string | null; cost: number | null }>();
       if (ids.length > 0) {
         const { data: prods } = await supabase
           .from("catalog_products")
-          .select("id,product_url")
+          .select("id,product_url,cost_price")
           .in("id", ids);
-        urlMap = new Map((prods ?? []).map((p) => [p.id as string, (p.product_url as string | null) ?? null]));
+        productMap = new Map(
+          (prods ?? []).map((p) => [
+            p.id as string,
+            {
+              url: (p.product_url as string | null) ?? null,
+              cost: typeof p.cost_price === "number" ? p.cost_price : null,
+            },
+          ]),
+        );
       }
-      return rows.map((r) => ({ ...r, supplier_url: r.catalog_product_id ? urlMap.get(r.catalog_product_id) ?? null : null })) as StoreOrderRow[];
+      return rows.map((r) => {
+        const product = r.catalog_product_id ? productMap.get(r.catalog_product_id) : null;
+        return {
+          ...r,
+          supplier_url: product?.url ?? null,
+          supplier_price: product?.cost ?? null,
+        };
+      }) as StoreOrderRow[];
     },
   });
 
@@ -439,13 +853,22 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
               </span>
               <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
               <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                <SupplierButton url={order.supplier_url} compact />
+                <SupplierButton
+                  url={order.supplier_url}
+                  compact
+                  onOpen={() => {
+                    const info = purchaseInfoFromStoreOrder(order);
+                    if (info) setSupplierPurchaseInfo(info);
+                    else veloToast.error("Este pedido não possui fornecedor vinculado.");
+                  }}
+                />
               </div>
             </div>
           );
         })}
       </div>
       <StoreOrderAddressModal order={addressOrder} onClose={() => setAddressOrder(null)} />
+      <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} />
     </>
   );
 };
@@ -517,6 +940,7 @@ const OrdersPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<OrderTab>("ml");
+  const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
   const syncedRef = useRef(false);
 
   const triggerSync = useMemo(
@@ -724,12 +1148,13 @@ const OrdersPage = () => {
           </div>
         ) : (
           <div data-dashboard-tour="pedidos-lista" className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-2xl md:border md:border-[#E5E7EB] md:bg-white">
-            <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
+            <div className={`hidden gap-4 border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid ${mlOrdersGridClass}`}>
               <span>Produto</span>
               <span>Comprador</span>
-              <span>Status</span>
-              <span>Valor</span>
-              <span>Data</span>
+              <span className="text-center">Status</span>
+              <span className="text-center">Rastreio</span>
+              <span className="text-right">Valor</span>
+              <span className="text-right">Data</span>
               <span className="text-right">Fornecedor</span>
               <span />
             </div>
@@ -742,10 +1167,23 @@ const OrdersPage = () => {
                   if (routeId) navigate(`/dashboard/orders/${encodeURIComponent(routeId)}`);
                   else veloToast.error("Este pedido não possui um identificador válido.");
                 }}
+                onSupplierPurchase={async (selectedOrder) => {
+                  const info = purchaseInfoFromMlOrder(selectedOrder);
+                  if (!info) {
+                    veloToast.error("Este pedido não possui fornecedor vinculado.");
+                    return;
+                  }
+                  try {
+                    setSupplierPurchaseInfo(await attachDropshipOrderId(info, selectedOrder));
+                  } catch {
+                    veloToast.error("Não foi possível localizar este pedido na fila do bot.");
+                  }
+                }}
               />
             ))}
           </div>
         )}
+        <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} onCreatedPix={() => queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user?.id] })} />
       </DashboardPageShell>
     </TooltipProvider>
   );

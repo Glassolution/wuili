@@ -139,11 +139,10 @@ export const ProductCard = ({
           </span>
         )}
 
-        {denseMobile && !collectionSelection && (
+        {!collectionSelection && (
           <ProductFavoriteButton
             isFavorited={isFavorited}
             onToggleFavorite={onToggleFavorite}
-            className="left-2 right-auto md:hidden"
           />
         )}
 
@@ -206,23 +205,10 @@ export const ProductCard = ({
           </span>
         </div>
 
-        <div className={`flex items-center gap-1.5 ${denseMobile ? "mt-2.5" : "mt-2.5"}`}>
-          <button
-            type="button"
-            onClick={onToggleFavorite}
-            className="inline-flex h-[30px] flex-1 items-center justify-center gap-1.5 rounded-[9px] border border-black/[0.1] bg-white px-2.5 text-[10.5px] font-semibold text-[#111111] transition-colors hover:bg-[#F4F4F1]"
-            aria-label={isFavorited ? "Produto favoritado" : "Favoritar produto"}
-          >
-            <Heart
-              size={12}
-              strokeWidth={2}
-              className={isFavorited ? "fill-red-500 text-red-500" : ""}
-            />
-            Favoritar
-          </button>
+        <div className={`flex items-center ${denseMobile ? "mt-2.5" : "mt-2.5"}`}>
           <Link
             to={`/dashboard/catalogo/${product.id}`}
-            className="inline-flex h-[30px] flex-1 items-center justify-center rounded-[9px] bg-[#2563EB] px-3 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+            className="inline-flex h-[30px] w-full items-center justify-center rounded-[9px] bg-[#2563EB] px-3 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
           >
             Ver produto
           </Link>

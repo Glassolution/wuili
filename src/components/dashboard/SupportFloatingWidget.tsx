@@ -189,7 +189,7 @@ const SupportFloatingWidget = () => {
 
         if (!active) return;
         if (error) throw error;
-        setMessages(((data ?? []) as SupportMessage[]).filter((message) => message.sender !== "ai"));
+        setMessages((data ?? []) as SupportMessage[]);
       } catch (error) {
         console.error(error);
         if (active) toast.error("Não foi possível carregar a conversa.");
@@ -212,7 +212,6 @@ const SupportFloatingWidget = () => {
         },
         (payload) => {
           const message = payload.new as SupportMessage;
-          if (message.sender === "ai") return;
           setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
           announceSupportReply(message);
         },

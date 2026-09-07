@@ -96,6 +96,7 @@ const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsRo
 const AdminPanelPage = lazy(() => import("./pages/admin/AdminPanelPage"));
 const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesRoutePage"));
 const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
+const AdminBotAutomationPage = lazy(() => import("./pages/admin/AdminBotAutomationPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
 const queryClient = new QueryClient({
@@ -281,6 +282,7 @@ const App = () => (
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
               <Route path="/admin/vendas" element={<AdminRoute><AdminSalesPage /></AdminRoute>} />
               <Route path="/admin/evidencias" element={<AdminRoute><AdminEvidencePage /></AdminRoute>} />
+              <Route path="/admin/automacao-bot" element={<AdminRoute><AdminBotAutomationPage /></AdminRoute>} />
               <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />

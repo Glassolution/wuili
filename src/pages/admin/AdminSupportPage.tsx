@@ -27,10 +27,13 @@ import {
   Pencil,
   Plug,
   RefreshCcw,
+  Reply,
+  Route,
   Search,
   Send,
   Trash2,
   UserCircle2,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -43,9 +46,12 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { notifyTicketReplyEmail } from "@/lib/supportEmail";
 import {
   buildSupportImageMessage,
+  buildSupportRedirectMessage,
+  buildSupportReplyMessage,
   parseSupportMessage,
   removeSupportImage,
   supportMessagePreview,
+  type SupportReplyReference,
   uploadSupportImage,
   validateSupportImage,
 } from "@/lib/support";
@@ -71,7 +77,7 @@ type AdminTicket = {
   user_avatar_url: string | null;
   last_message: string | null;
   last_message_at: string | null;
-  last_message_sender: "user" | "admin" | null;
+  last_message_sender: "user" | "admin" | "ai" | null;
   message_count: number;
   has_admin_reply: boolean;
 };
@@ -81,7 +87,7 @@ type SupportMessage = {
   ticket_id: string;
   user_id: string;
   message: string;
-  sender: "user" | "admin";
+  sender: "user" | "admin" | "ai";
   created_at: string;
 };
 
@@ -101,6 +107,14 @@ type CustomerContextData = {
 type DirectRefundTarget = {
   ticket: AdminTicket;
   customer: CustomerContextData;
+};
+
+type RedirectDraft = {
+  ticket: AdminTicket;
+  sourceMessage: SupportMessage;
+  label: string;
+  url: string;
+  note: string;
 };
 
 const CATEGORY_META: Record<
@@ -162,6 +176,24 @@ const DATE_OPTIONS: Array<{ value: TicketDateFilter; label: string }> = [
   { value: "today", label: "Hoje" },
   { value: "7d", label: "7 dias" },
   { value: "30d", label: "30 dias" },
+];
+
+const REDIRECT_OPTIONS = [
+  { label: "Início", url: "/dashboard" },
+  { label: "Catálogo", url: "/dashboard/catalogo" },
+  { label: "Pedidos", url: "/dashboard/pedidos" },
+  { label: "Publicações", url: "/dashboard/publicacoes" },
+  { label: "Afiliados", url: "/dashboard/afiliados" },
+  { label: "Imagens com IA", url: "/dashboard/imagens-ia" },
+  { label: "Lojas", url: "/dashboard/integracoes" },
+  { label: "Configurações", url: "/dashboard/configuracoes" },
+  { label: "Config. Perfil", url: "/dashboard/configuracoes?tab=Perfil" },
+  { label: "Config. Lojas", url: "/dashboard/configuracoes?tab=Minhas%20Lojas" },
+  { label: "Config. Integrações", url: "/dashboard/configuracoes?tab=Integra%C3%A7%C3%B5es" },
+  { label: "Config. Plano", url: "/dashboard/configuracoes?tab=Plano" },
+  { label: "Config. Notificações", url: "/dashboard/configuracoes?tab=Notifica%C3%A7%C3%B5es" },
+  { label: "Config. Segurança", url: "/dashboard/configuracoes?tab=Seguran%C3%A7a" },
+  { label: "Config. Suporte", url: "/dashboard/configuracoes?tab=Suporte" },
 ];
 
 const SUPPORT_READ_TICKETS_STORAGE_KEY = "velo:admin-support-read-tickets";
@@ -313,6 +345,7 @@ const AdminSupportPage = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  const [replyTarget, setReplyTarget] = useState<SupportReplyReference | null>(null);
   const [replyImage, setReplyImage] = useState<File | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<TicketView>("all");
@@ -320,6 +353,7 @@ const AdminSupportPage = () => {
   const [dateFilter, setDateFilter] = useState<TicketDateFilter>("all");
   const [mobilePanel, setMobilePanel] = useState<MobileSupportPanel>("inbox");
   const [directRefundTarget, setDirectRefundTarget] = useState<DirectRefundTarget | null>(null);
+  const [redirectDraft, setRedirectDraft] = useState<RedirectDraft | null>(null);
   const [readTickets, setReadTickets] = useState<TicketReadState>(getStoredReadTickets);
 
   const fallbackAdmin = isAdminEmail(user?.email);
@@ -341,6 +375,8 @@ const AdminSupportPage = () => {
   const isAdmin = profile?.role === "admin" || fallbackAdmin;
 
   useEffect(() => {
+    setReply("");
+    setReplyTarget(null);
     setReplyImage(null);
   }, [openTicketId]);
 
@@ -445,8 +481,11 @@ const AdminSupportPage = () => {
       for (const message of allMessages) {
         messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
         const current = lastByTicket.get(message.ticket_id);
-        // Última mensagem do ticket, venha de quem vier (cliente, admin ou IA).
-        if (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime()) {
+        // A saudação automática não deve esconder a dúvida real na fila.
+        if (
+          message.sender !== "ai" &&
+          (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime())
+        ) {
           lastByTicket.set(message.ticket_id, message);
         }
         if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
@@ -667,7 +706,11 @@ const AdminSupportPage = () => {
           ? await uploadSupportImage({ file: replyImage, ticketId: openTicket.id, userId: user.id })
           : null;
         uploadedPath = attachment?.path ?? null;
-        const messageValue = attachment ? buildSupportImageMessage(attachment, trimmed) : trimmed;
+        const messageValue = replyTarget
+          ? buildSupportReplyMessage({ text: trimmed, reply: replyTarget, attachment })
+          : attachment
+            ? buildSupportImageMessage(attachment, trimmed)
+            : trimmed;
         const { data, error } = await (supabase as any)
           .from("support_messages")
           .insert({ ticket_id: openTicket.id, user_id: user.id, message: messageValue, sender: "admin" })
@@ -683,6 +726,7 @@ const AdminSupportPage = () => {
     onSuccess: (message) => {
       if (!message) return;
       setReply("");
+      setReplyTarget(null);
       setReplyImage(null);
       qc.setQueryData<SupportMessage[]>(
         ["admin-support-messages", message.ticket_id],
@@ -706,7 +750,11 @@ const AdminSupportPage = () => {
       const parsed = parseSupportMessage(message.message);
       const trimmed = text.trim();
       if (!trimmed && !parsed.attachment) throw new Error("A mensagem não pode ficar vazia.");
-      const nextMessage = parsed.attachment ? buildSupportImageMessage(parsed.attachment, trimmed) : trimmed;
+      const nextMessage = parsed.reply
+        ? buildSupportReplyMessage({ text: trimmed, reply: parsed.reply, attachment: parsed.attachment })
+        : parsed.attachment
+          ? buildSupportImageMessage(parsed.attachment, trimmed)
+          : trimmed;
       const { data, error } = await (supabase as any)
         .from("support_messages")
         .update({ message: nextMessage })
@@ -751,6 +799,48 @@ const AdminSupportPage = () => {
       toast.success("Mensagem excluída.");
     },
     onError: () => toast.error("Não foi possível excluir a mensagem."),
+  });
+
+  const sendRedirect = useMutation({
+    mutationFn: async (draft: RedirectDraft) => {
+      if (!user?.id) return null;
+      const label = draft.label.trim();
+      const url = draft.url.trim();
+      if (!label || !url.startsWith("/") || url.startsWith("//")) {
+        throw new Error("Escolha uma página interna válida.");
+      }
+
+      const messageValue = buildSupportRedirectMessage({
+        label,
+        url,
+        note: draft.note,
+      });
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .insert({ ticket_id: draft.ticket.id, user_id: user.id, message: messageValue, sender: "admin" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data as SupportMessage;
+    },
+    onSuccess: (message) => {
+      if (!message) return;
+      setRedirectDraft(null);
+      qc.setQueryData<SupportMessage[]>(
+        ["admin-support-messages", message.ticket_id],
+        (previous = []) =>
+          previous.some((item) => item.id === message.id) ? previous : [...previous, message],
+      );
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : "Atalho enviado, mas o email não foi notificado.");
+      });
+      toast.success("Atalho enviado.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o atalho.");
+    },
   });
 
   const closeTicket = useMutation({
@@ -882,6 +972,8 @@ const AdminSupportPage = () => {
             loadingMessages={loadingMessages}
             reply={reply}
             setReply={setReply}
+            replyTarget={replyTarget}
+            onClearReplyTarget={() => setReplyTarget(null)}
             replyImage={replyImage}
             onReplyImage={(file) => {
               const validationError = validateSupportImage(file);
@@ -900,7 +992,31 @@ const AdminSupportPage = () => {
             reopening={reopenTicket.isPending}
             onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
             onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
-            messageActionPending={editMessage.isPending || deleteMessage.isPending}
+            onReplyMessage={(message) => {
+              const preview = supportMessagePreview(message.message).replace(/\s+/g, " ").trim();
+              const author =
+                message.sender === "admin"
+                  ? "Suporte"
+                  : message.sender === "ai"
+                    ? "Atendimento automático"
+                    : openTicket?.user_name || "cliente";
+              setReplyTarget({
+                author,
+                text: preview,
+                sender: message.sender,
+              });
+            }}
+            onRedirectMessage={(message) => {
+              if (!openTicket) return;
+              setRedirectDraft({
+                ticket: openTicket,
+                sourceMessage: message,
+                label: REDIRECT_OPTIONS[0].label,
+                url: REDIRECT_OPTIONS[0].url,
+                note: "",
+              });
+            }}
+            messageActionPending={editMessage.isPending || deleteMessage.isPending || sendRedirect.isPending}
             chatEndRef={chatEndRef}
             onShowCustomerMobile={() => setMobilePanel("customer")}
             className={mobilePanel === "conversation" ? "flex" : "hidden lg:flex"}
@@ -961,8 +1077,146 @@ const AdminSupportPage = () => {
             </div>
           </div>
         )}
+
+        <RedirectShortcutModal
+          draft={redirectDraft}
+          sending={sendRedirect.isPending}
+          onChange={setRedirectDraft}
+          onClose={() => setRedirectDraft(null)}
+          onSend={() => {
+            if (redirectDraft) sendRedirect.mutate(redirectDraft);
+          }}
+        />
       </>
     </AdminShell>
+  );
+};
+
+const RedirectShortcutModal = ({
+  draft,
+  sending,
+  onChange,
+  onClose,
+  onSend,
+}: {
+  draft: RedirectDraft | null;
+  sending: boolean;
+  onChange: (draft: RedirectDraft | null) => void;
+  onClose: () => void;
+  onSend: () => void;
+}) => {
+  if (!draft) return null;
+
+  const selectedPreset = REDIRECT_OPTIONS.find((option) => option.url === draft.url);
+  const preview = supportMessagePreview(draft.sourceMessage.message).replace(/\s+/g, " ").trim();
+  const canSend = draft.label.trim().length > 0 && draft.url.trim().startsWith("/") && !draft.url.trim().startsWith("//");
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#111827]/38 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-[560px] overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F7] px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Redirecionar usuário</p>
+            <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[#111827]">Enviar atalho na conversa</h2>
+            <p className="mt-1 max-w-sm truncate text-[11px] text-[#64748B]">
+              Referência: {preview || "mensagem sem texto"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#E5E7EB] text-[#64748B] transition hover:bg-[#F8FAFC] hover:text-[#111827] disabled:opacity-60"
+            aria-label="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Destino</span>
+              {selectedPreset ? (
+                <span className="truncate rounded-full bg-[#EEF4FF] px-2.5 py-1 text-[10px] font-bold text-[#2563EB]">
+                  {selectedPreset.label}
+                </span>
+              ) : null}
+            </div>
+            <div className="grid max-h-[230px] grid-cols-2 gap-1.5 overflow-y-auto rounded-[14px] border border-[#E5EAF3] bg-[#F8FAFC] p-1.5 sm:grid-cols-3">
+              {REDIRECT_OPTIONS.map((option) => {
+                const selected = option.url === draft.url;
+                return (
+                  <button
+                    key={option.url}
+                    type="button"
+                    onClick={() => onChange({ ...draft, label: option.label, url: option.url })}
+                    className={`min-h-10 rounded-[10px] px-3 py-2 text-left text-[12px] font-semibold transition ${
+                      selected
+                        ? "bg-[#2563EB] text-white shadow-[0_8px_18px_rgba(37,99,235,0.22)]"
+                        : "bg-white text-[#334155] hover:bg-[#EFF6FF] hover:text-[#1D4ED8]"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid gap-3 sm:grid-cols-[0.85fr_1.15fr]">
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Texto do botão</span>
+              <input
+                value={draft.label}
+                onChange={(event) => onChange({ ...draft, label: event.target.value })}
+                placeholder="Abrir pedidos"
+                className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] font-semibold text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Link interno</span>
+              <input
+                value={draft.url}
+                onChange={(event) => onChange({ ...draft, url: event.target.value })}
+                placeholder="/dashboard/pedidos"
+                className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] font-semibold text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Mensagem curta</span>
+            <input
+              value={draft.note}
+              onChange={(event) => onChange({ ...draft, note: event.target.value })}
+              placeholder="Use este atalho para ir direto para a página certa."
+              className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+            />
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-[#EEF2F7] px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-[12px] font-semibold text-[#475569] transition hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={sending || !canSend}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Route size={14} />}
+            Enviar atalho
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1411,6 +1665,8 @@ const ConversationPanel = ({
   loadingMessages,
   reply,
   setReply,
+  replyTarget,
+  onClearReplyTarget,
   replyImage,
   onReplyImage,
   onRemoveReplyImage,
@@ -1422,6 +1678,8 @@ const ConversationPanel = ({
   reopening,
   onEditMessage,
   onDeleteMessage,
+  onReplyMessage,
+  onRedirectMessage,
   messageActionPending,
   chatEndRef,
   onShowCustomerMobile,
@@ -1432,6 +1690,8 @@ const ConversationPanel = ({
   loadingMessages: boolean;
   reply: string;
   setReply: (value: string) => void;
+  replyTarget: SupportReplyReference | null;
+  onClearReplyTarget: () => void;
   replyImage: File | null;
   onReplyImage: (file: File) => void;
   onRemoveReplyImage: () => void;
@@ -1443,6 +1703,8 @@ const ConversationPanel = ({
   reopening: boolean;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
+  onReplyMessage: (message: SupportMessage) => void;
+  onRedirectMessage: (message: SupportMessage) => void;
   messageActionPending: boolean;
   chatEndRef: React.RefObject<HTMLDivElement>;
   onShowCustomerMobile: () => void;
@@ -1568,6 +1830,8 @@ const ConversationPanel = ({
                 customerAvatar={ticket.user_avatar_url}
                 onEditMessage={onEditMessage}
                 onDeleteMessage={onDeleteMessage}
+                onReplyMessage={onReplyMessage}
+                onRedirectMessage={onRedirectMessage}
                 actionPending={messageActionPending}
               />
             ))}
@@ -1588,7 +1852,24 @@ const ConversationPanel = ({
             </div>
             <span className="hidden shrink-0 text-[9.5px] text-[#a0a09a] sm:inline">Enter para enviar</span>
           </div>
+          {replyTarget ? (
+            <div className="mx-3 mt-3 flex items-start gap-2 rounded-[10px] border border-[#dce6f7] border-l-[3px] border-l-[#2563EB] bg-[#f6f8fc] px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-bold leading-4 text-[#2563EB]">{replyTarget.author}</p>
+                <p className="line-clamp-2 text-[11.5px] leading-4 text-[#5f6978]">{replyTarget.text}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClearReplyTarget}
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[#8a94a5] transition hover:bg-white hover:text-[#1f2937]"
+                aria-label="Remover resposta"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : null}
           <textarea
+            aria-label="Responder ticket"
             value={reply}
             onChange={(event) => setReply(event.target.value)}
             onKeyDown={(event) => {
@@ -1649,6 +1930,8 @@ const ThreadMessage = ({
   customerAvatar,
   onEditMessage,
   onDeleteMessage,
+  onReplyMessage,
+  onRedirectMessage,
   actionPending,
 }: {
   message: SupportMessage;
@@ -1658,13 +1941,18 @@ const ThreadMessage = ({
   customerAvatar: string | null;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
+  onReplyMessage: (message: SupportMessage) => void;
+  onRedirectMessage: (message: SupportMessage) => void;
   actionPending: boolean;
 }) => {
   const admin = message.sender === "admin";
+  const automatic = message.sender === "ai";
+  const supportSide = admin || automatic;
   const parsed = parseSupportMessage(message.message);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(parsed.text);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPlacement, setContextMenuPlacement] = useState<"above" | "below">("above");
   const [editWidth, setEditWidth] = useState<number | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1677,6 +1965,16 @@ const ThreadMessage = ({
     window.clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = null;
     longPressStartRef.current = null;
+  };
+
+  const openContextMenu = () => {
+    const rect = bubbleRef.current?.getBoundingClientRect();
+    const estimatedMenuHeight = admin ? 160 : 82;
+    const scrollContainer = bubbleRef.current?.closest(".velo-scroll-oculto");
+    const boundaryTop = scrollContainer?.getBoundingClientRect().top ?? 0;
+    const availableAbove = rect ? rect.top - boundaryTop : Number.POSITIVE_INFINITY;
+    setContextMenuPlacement(availableAbove < estimatedMenuHeight + 14 ? "below" : "above");
+    setContextMenuOpen(true);
   };
 
   useEffect(() => {
@@ -1720,11 +2018,11 @@ const ThreadMessage = ({
       initial={{ opacity: 0, y: 8, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.28, delay: Math.min(index * 0.025, 0.18), ease: [0.22, 1, 0.36, 1] }}
-      className={`flex items-end gap-2 sm:gap-2.5 ${admin ? "justify-end" : "justify-start"}`}
+      className={`group/message flex items-end gap-2 sm:gap-2.5 ${supportSide ? "justify-end" : "justify-start"}`}
       onContextMenu={(event) => {
-        if (!admin || editing) return;
+        if (editing) return;
         event.preventDefault();
-        setContextMenuOpen(true);
+        openContextMenu();
       }}
       onClick={(event) => {
         if (!suppressNextClickRef.current) return;
@@ -1732,11 +2030,11 @@ const ThreadMessage = ({
         suppressNextClickRef.current = false;
       }}
     >
-      {!admin ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
-      <div className={`relative min-w-0 max-w-[86%] sm:max-w-[82%] ${admin ? "items-end" : "items-start"}`}>
-        <div className={`mb-1.5 flex items-center gap-2 px-1 ${admin ? "justify-end" : "justify-start"}`}>
+      {!supportSide ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
+      <div className={`relative min-w-0 max-w-[86%] sm:max-w-[82%] ${supportSide ? "items-end" : "items-start"}`}>
+        <div className={`mb-1.5 flex items-center gap-2 px-1 ${supportSide ? "justify-end" : "justify-start"}`}>
           <span className="truncate text-[9.5px] font-semibold text-[#626977]">
-            {admin ? "Suporte Velo" : customerName || "Usuário"}
+            {automatic ? "Atendimento automático" : admin ? "Suporte Velo" : customerName || "Usuário"}
           </span>
           <span className="shrink-0 text-[8.5px] text-[#a0a5af]">{formatDateTime(message.created_at)}</span>
         </div>
@@ -1744,11 +2042,11 @@ const ThreadMessage = ({
           ref={bubbleRef}
           style={editing && editWidth ? { width: `${editWidth}px` } : undefined}
           onPointerDown={(event) => {
-            if (!admin || editing || event.pointerType === "mouse") return;
+            if (editing || event.pointerType === "mouse") return;
             clearLongPressTimer();
             longPressStartRef.current = { x: event.clientX, y: event.clientY };
             longPressTimerRef.current = window.setTimeout(() => {
-              setContextMenuOpen(true);
+              openContextMenu();
               suppressNextClickRef.current = true;
               longPressTimerRef.current = null;
             }, 520);
@@ -1763,7 +2061,9 @@ const ThreadMessage = ({
           }}
           className={`px-3.5 py-2.5 shadow-[0_3px_12px_rgba(25,35,55,0.055)] sm:px-4 sm:py-3 ${
             admin
-              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] text-white"
+              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
+              : automatic
+                ? "select-none rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
               : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
           }`}
         >
@@ -1802,14 +2102,42 @@ const ThreadMessage = ({
           ) : (
             <SupportMessageMedia
               value={message.message}
-              textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : "text-[#34363b]"}`}
+              textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : automatic ? "text-[#1f3c76]" : "text-[#34363b]"}`}
               imageClassName="max-h-[300px] max-w-full w-full sm:max-h-[340px] sm:max-w-[460px]"
+              tone={admin ? "admin" : "customer"}
             />
           )}
         </div>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (contextMenuOpen) {
+                setContextMenuOpen(false);
+              } else {
+                openContextMenu();
+              }
+            }}
+            className={`absolute right-2 top-7 z-[65] grid h-4 w-4 place-items-center rounded-sm transition ${
+              contextMenuOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 group-hover/message:scale-100 group-hover/message:opacity-100"
+            } ${
+              admin
+                ? "text-white/75 hover:text-white"
+                : automatic
+                  ? "text-[#6681b6] hover:text-[#315cc4]"
+                : "text-[#94A3B8] hover:text-[#64748B]"
+            }`}
+            aria-label="Abrir opções da mensagem"
+          >
+            <ChevronDown size={13} strokeWidth={2.4} />
+          </button>
+        ) : null}
         {contextMenuOpen ? (
           <div
-            className="absolute right-0 top-[calc(100%+6px)] z-[70] w-36 overflow-hidden rounded-[10px] border border-[#e1e5ef] bg-white py-1 shadow-[0_16px_38px_rgba(15,23,42,0.18)]"
+            className={`absolute z-[70] w-44 overflow-hidden rounded-[12px] border border-[#e1e5ef] bg-white py-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.18)] ${
+              contextMenuPlacement === "above" ? "bottom-[calc(100%+6px)] translate-y-10" : "top-[calc(100%+6px)]"
+            } ${supportSide ? "right-0" : "left-0"}`}
             onClick={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.preventDefault()}
           >
@@ -1817,34 +2145,62 @@ const ThreadMessage = ({
               type="button"
               onClick={() => {
                 setContextMenuOpen(false);
-                setEditWidth(bubbleRef.current?.offsetWidth ?? null);
-                setEditing(true);
+                onReplyMessage(message);
               }}
-              disabled={actionPending}
               className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
             >
-              <Pencil size={12} />
-              Editar
+              <Reply size={13} />
+              Responder
             </button>
             <button
               type="button"
               onClick={() => {
                 setContextMenuOpen(false);
-                void deleteCurrentMessage();
+                onRedirectMessage(message);
               }}
               disabled={actionPending}
-              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:opacity-50"
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
             >
-              <Trash2 size={12} />
-              Excluir
+              <Route size={13} />
+              Redirecionar
             </button>
+            {admin ? (
+              <>
+                <div className="my-1 h-px bg-[#eef1f6]" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextMenuOpen(false);
+                    setEditWidth(bubbleRef.current?.offsetWidth ?? null);
+                    setEditing(true);
+                  }}
+                  disabled={actionPending}
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
+                >
+                  <Pencil size={13} />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextMenuOpen(false);
+                    void deleteCurrentMessage();
+                  }}
+                  disabled={actionPending}
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:opacity-50"
+                >
+                  <Trash2 size={13} />
+                  Excluir
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
-        {!admin && customerEmail ? (
+        {!supportSide && customerEmail ? (
           <p className="mt-1 px-1 text-[8.5px] text-[#a3a7b0]">{customerEmail}</p>
         ) : null}
       </div>
-      {admin ? (
+      {supportSide ? (
         <span className="hidden h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)] sm:grid">
           <AtlasAvatarIcon size={21} animated />
         </span>

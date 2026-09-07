@@ -8,6 +8,13 @@
   background: #f6f6f7;
 }
 
+.velo-admin-surface,
+.velo-admin-surface body,
+.velo-admin-surface #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 .velo-admin-root {
   /* superfícies */
   --admin-canvas: #f6f6f7;

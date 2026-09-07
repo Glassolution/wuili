@@ -2,6 +2,7 @@ import { useLayoutEffect, useState, type ReactNode } from "react";
 import {
   BadgeDollarSign,
   BarChart3,
+  Bot,
   FileSearch,
   type LucideIcon,
   MessagesSquare,
@@ -27,6 +28,7 @@ type AdminSection =
   | "support"
   | "refunds"
   | "evidence"
+  | "automation"
   | "settings";
 
 type AdminShellProps = {
@@ -49,6 +51,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",
+  automation: "Automação BOT",
   settings: "Integrações",
 };
 
@@ -62,6 +65,7 @@ const SECTION_ICON: Record<AdminSection, LucideIcon> = {
   support: MessagesSquare,
   refunds: RefreshCcw,
   evidence: FileSearch,
+  automation: Bot,
   settings: Settings2,
 };
 

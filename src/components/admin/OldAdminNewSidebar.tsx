@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
   BadgeDollarSign,
+  Bot,
   ChevronDown,
   FileSearch,
   LayoutDashboard,
@@ -191,6 +192,7 @@ export const OldAdminNewSidebar = () => {
       indicator: "plus",
       items: [
         { label: "Evidências", icon: FileSearch, to: "/admin/evidencias" },
+        { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot" },
         { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress" },
       ],
     },

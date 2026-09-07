@@ -27,6 +27,7 @@ import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
 import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import { proxyImageList } from "@/lib/imageProxy";
+import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
   const [open, setOpen] = useState(false);
@@ -156,7 +157,7 @@ const CatalogoProductDetailPage = () => {
   const [activeImg, setActiveImg] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [favorited, setFavorited] = useState(false);
+  const { favoritedIds, toggleFavorite } = useCatalogFavorites();
   const [relatedIndex, setRelatedIndex] = useState(0);
   const [rawProduct, setRawProduct] = useState<CatalogProductRow | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -331,6 +332,7 @@ const CatalogoProductDetailPage = () => {
   // O preço grande é o de VENDA sugerido, não o que o lojista paga. Custo, lucro
   // e margem ficam explícitos logo abaixo para ninguém confundir os dois valores.
   const estimatedProfit = Math.max(0, product.suggestedPrice - product.price);
+  const favorited = favoritedIds.includes(product.id);
   const marginPercent = product.marginPercent > 0
     ? product.marginPercent
     : product.price > 0
@@ -369,6 +371,15 @@ const CatalogoProductDetailPage = () => {
     }
 
     navigate("/onboarding/idioma", { state: { product: flowProduct, products: [flowProduct] } });
+  };
+
+  const handleToggleFavorite = () => {
+    toggleFavorite(product.id);
+    if (favorited) {
+      veloToast.info("Removido dos favoritos");
+    } else {
+      veloToast.success("Adicionado aos favoritos");
+    }
   };
 
   return (
@@ -417,7 +428,7 @@ const CatalogoProductDetailPage = () => {
                   type="button"
                   aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
                   aria-pressed={favorited}
-                  onClick={() => setFavorited((value) => !value)}
+                  onClick={handleToggleFavorite}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-[#111111] ring-1 ring-black/[0.06] backdrop-blur-sm transition-transform active:scale-95"
                 >
                   <Heart size={18} strokeWidth={2} className={favorited ? "fill-red-500 text-red-500" : ""} />
@@ -649,10 +660,10 @@ const CatalogoProductDetailPage = () => {
                   type="button"
                   aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
                   aria-pressed={favorited}
-                  onClick={() => setFavorited((value) => !value)}
-                  className="mt-1 text-[#2563EB]"
+                  onClick={handleToggleFavorite}
+                  className={`mt-1 transition-colors ${favorited ? "text-red-500" : "text-[#2563EB]"}`}
                 >
-                  <Heart size={20} strokeWidth={1.8} className={favorited ? "fill-[#2563EB]" : ""} />
+                  <Heart size={20} strokeWidth={1.8} className={favorited ? "fill-red-500" : ""} />
                 </button>
               </div>
 

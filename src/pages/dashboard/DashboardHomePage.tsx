@@ -79,8 +79,6 @@ const IMAGE_WIDTH = 1536;
 const CONTENT_SLICE_TOP = 300;
 const CONTENT_OFFSET = 100;
 const HERO_OFFSET = 45;
-const SUPPORT_WHATSAPP_URL =
-  "https://wa.me/5547999286334?text=Oi%2C%20preciso%20de%20ajuda%20com%20a%20minha%20conta%20Velo.";
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -110,7 +108,6 @@ const INTRO = {
   titleTravel: 1.05,
   revealDuration: 0.9,
   promoDelay: 1,
-  supportDelay: 1.14,
   chatDelay: 1.28,
   // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
   // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
@@ -569,45 +566,6 @@ const DashboardHomePage = () => {
               background: "#F5F4F1",
             }}
           />
-
-
-          <motion.a
-            {...revealProps(INTRO.supportDelay, -10)}
-            href={SUPPORT_WHATSAPP_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Abrir WhatsApp do suporte Velo"
-            style={{
-              position: "absolute",
-              right: x(30),
-              top: y(20),
-              width: x(195),
-              height: y(56),
-              borderRadius: fs(18),
-              border: "1px solid rgba(17, 24, 39, 0.09)",
-              background: "rgba(255, 255, 255, 0.97)",
-              boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-              display: "flex",
-              alignItems: "center",
-              gap: fs(12),
-              padding: `0 ${fs(15)}`,
-              textAlign: "left",
-              color: "#101114",
-              textDecoration: "none",
-            }}
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(27), height: fs(27), flex: "0 0 auto" }}>
-              <path d="M4.1 13.3v-1.7a7.9 7.9 0 0 1 15.8 0v1.7M5.5 12.7H4.2c-1 0-1.7.8-1.7 1.7v2.8c0 1 .8 1.7 1.7 1.7h1.3v-6.2Zm13 0h1.3c1 0 1.7.8 1.7 1.7v2.8c0 1-.8 1.7-1.7 1.7h-1.3v-6.2ZM18.5 18.1c-.7 2.1-2.4 3.1-5 3.1" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span style={{ display: "flex", flexDirection: "column", gap: fs(4), minWidth: 0 }}>
-              <span style={{ fontSize: fs(11), fontWeight: 600, color: "rgba(0,0,0,0.47)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                Precisa de ajuda?
-              </span>
-              <span style={{ fontSize: fs(11.8), fontWeight: 800, lineHeight: 1, whiteSpace: "nowrap" }}>
-                +55 47 99928-6334
-              </span>
-            </span>
-          </motion.a>
 
           {/* Histórico das conversas, espelhando o bloco de suporte do canto
               oposto. Só aparece com o chat aberto e com conversa anterior de
