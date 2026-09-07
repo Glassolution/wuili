@@ -13,21 +13,8 @@ const json = (body: unknown, status = 200) =>
 // deno-lint-ignore no-explicit-any -- payload do gateway não é tipado
 type Any = any;
 
-/** Procura recursivamente ids de cobrança (cha_...) e datas associadas no payload. */
-function collectChargeIds(node: Any, out: Set<string>) {
-  if (!node) return;
-  if (typeof node === "string") {
-    if (node.startsWith("cha_")) out.add(node);
-    return;
-  }
-  if (Array.isArray(node)) {
-    for (const n of node) collectChargeIds(n, out);
-    return;
-  }
-  if (typeof node === "object") {
-    for (const v of Object.values(node)) collectChargeIds(v, out);
-  }
-}
+const PAID = ["PAID", "CONFIRMED", "APPROVED", "COMPLETED", "SETTLED"];
+
 
 type ChargeItem = {
   chargeId: string;
