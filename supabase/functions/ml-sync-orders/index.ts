@@ -13,6 +13,105 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const ML_ORDER_PAGE_LIMIT = 50;
+const ML_ORDER_MAX_PAGES = 20;
+const SAO_PAULO_UTC_OFFSET = "-03:00";
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function getSaoPauloDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+  };
+}
+
+function addCalendarDays(
+  parts: ReturnType<typeof getSaoPauloDateParts>,
+  days: number,
+) {
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function formatMlDateBoundary(parts: ReturnType<typeof getSaoPauloDateParts>) {
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}T00:00:00.000${SAO_PAULO_UTC_OFFSET}`;
+}
+
+function getYesterdayTodayRange() {
+  const today = getSaoPauloDateParts();
+  return {
+    from: formatMlDateBoundary(addCalendarDays(today, -1)),
+    to: formatMlDateBoundary(addCalendarDays(today, 1)),
+  };
+}
+
+function calculateMlOrderTotal(mlOrder: any) {
+  const orderItems = Array.isArray(mlOrder?.order_items) ? mlOrder.order_items : [];
+  const itemsTotal = orderItems.reduce((sum: number, orderItem: any) => {
+    const quantity = Number(orderItem?.quantity ?? 1);
+    const unitPrice = Number(orderItem?.unit_price ?? 0);
+    return sum + (Number.isFinite(quantity) ? quantity : 1) * (Number.isFinite(unitPrice) ? unitPrice : 0);
+  }, 0);
+  const total = Number(mlOrder?.total_amount ?? 0);
+  return Number.isFinite(total) && total > 0 ? total : itemsTotal;
+}
+
+async function fetchOrdersCreatedYesterdayAndToday(params: {
+  accessToken: string;
+  mlUserId: string;
+}) {
+  const { from, to } = getYesterdayTodayRange();
+  const orders: any[] = [];
+  let total = Infinity;
+
+  for (
+    let page = 0, offset = 0;
+    page < ML_ORDER_MAX_PAGES && offset < total;
+    page++, offset += ML_ORDER_PAGE_LIMIT
+  ) {
+    const url = new URL("https://api.mercadolibre.com/orders/search");
+    url.searchParams.set("seller", params.mlUserId);
+    url.searchParams.set("limit", String(ML_ORDER_PAGE_LIMIT));
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("sort", "date_desc");
+    url.searchParams.set("order.date_created.from", from);
+    url.searchParams.set("order.date_created.to", to);
+
+    const searchRes = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    });
+
+    if (!searchRes.ok) {
+      const errText = await searchRes.text();
+      throw new Error(`Failed to fetch orders from ML API: ${searchRes.status} ${errText}`);
+    }
+
+    const searchData = await searchRes.json();
+    const results = Array.isArray(searchData.results) ? searchData.results : [];
+    total = Number(searchData.paging?.total ?? results.length);
+    orders.push(...results);
+
+    if (results.length < ML_ORDER_PAGE_LIMIT) break;
+  }
+
+  return { orders, from, to };
+}
+
 async function notifyUser(
   client: ReturnType<typeof createClient>,
   row: {
@@ -131,21 +230,15 @@ serve(async (req) => {
       console.log("[ml-sync-orders] Token refreshed successfully");
     }
 
-    // Fetch last 20 orders from Mercado Livre
-    console.log(`[ml-sync-orders] Fetching orders for seller: ${mlUserId}`);
-    const searchRes = await fetch(
-      `https://api.mercadolibre.com/orders/search?seller=${mlUserId}&limit=20&sort=date_desc`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+    console.log(`[ml-sync-orders] Fetching yesterday/today orders for seller: ${mlUserId}`);
+    const searchResult = await fetchOrdersCreatedYesterdayAndToday({
+      accessToken,
+      mlUserId: String(mlUserId),
+    });
+    const mlOrders = searchResult.orders;
+    console.log(
+      `[ml-sync-orders] Found ${mlOrders.length} orders on Mercado Livre from ${searchResult.from} to ${searchResult.to}`,
     );
-
-    if (!searchRes.ok) {
-      const errText = await searchRes.text();
-      throw new Error(`Failed to fetch orders from ML API: ${searchRes.status} ${errText}`);
-    }
-
-    const searchData = await searchRes.json();
-    const mlOrders = searchData.results ?? [];
-    console.log(`[ml-sync-orders] Found ${mlOrders.length} orders on Mercado Livre`);
 
     let newOrdersCount = 0;
     const syncedOrders = [];
@@ -329,6 +422,24 @@ serve(async (req) => {
         } catch (e) {
           console.warn(`[ml-sync-orders] retry etiqueta ${mlOrderId}:`, (e as Error).message);
         }
+
+        if (normalizedStatus === "paid") {
+          try {
+            const dispatch = await dispatchOrderToBot(adminClient, {
+              orderId: existing.id,
+              mlOrderId,
+              userId,
+              mlOrder: { ...fullOrder, shipping },
+              precoMl: calculateMlOrderTotal(fullOrder),
+              accessToken,
+            });
+            if (!dispatch.dispatched) {
+              console.warn(`[ml-sync-orders] pedido existente ${mlOrderId} nao conectado automaticamente ao bot: ${dispatch.reason}`);
+            }
+          } catch (e) {
+            console.warn(`[ml-sync-orders] envio ao bot falhou para pedido existente ${mlOrderId}:`, (e as Error).message);
+          }
+        }
         continue;
       }
 
@@ -373,7 +484,7 @@ serve(async (req) => {
         }
       }
 
-      const salePrice = Number(item?.unit_price ?? 0) * Number(item?.quantity ?? 1);
+      const salePrice = calculateMlOrderTotal(fullOrder);
       const profit = costPrice ? salePrice - costPrice : null;
 
       // Insert new order
