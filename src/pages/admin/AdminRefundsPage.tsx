@@ -186,15 +186,28 @@ const AdminRefundsPage = () => {
     queryKey: ["admin-refunds-profiles", userIds.join(",")],
     enabled: isAdmin && userIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, email").in("user_id", userIds);
       const map: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }> = {};
-      (data || []).forEach((p) => {
-        const row = p as { user_id: string; display_name: string | null; avatar_url: string | null; email?: string | null };
-        map[row.user_id] = { display_name: row.display_name, avatar_url: row.avatar_url, email: row.email ?? null };
-      });
+      // Busca em lotes: uma única chamada com centenas de IDs estoura o tamanho da URL e volta vazia.
+      const CHUNK = 100;
+      for (let i = 0; i < userIds.length; i += CHUNK) {
+        const slice = userIds.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("user_id, display_name, avatar_url, email")
+          .in("user_id", slice);
+        if (error) {
+          console.error("[admin-refunds] falha ao carregar perfis", error);
+          continue;
+        }
+        (data || []).forEach((p) => {
+          const row = p as { user_id: string; display_name: string | null; avatar_url: string | null; email?: string | null };
+          map[row.user_id] = { display_name: row.display_name, avatar_url: row.avatar_url, email: row.email ?? null };
+        });
+      }
       return map;
     },
   });
+
 
   const { data: subs = {} } = useQuery({
     queryKey: ["admin-refunds-subs", subIds.join(",")],
