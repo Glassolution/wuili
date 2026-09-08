@@ -12,6 +12,8 @@ const json = (body: Record<string, unknown>, status = 200) =>
   });
 
 type Supabase = ReturnType<typeof createClient>;
+type WorkerAudience = "geral" | "admin";
+type WorkerAction = "start" | "stop" | "set_audience";
 
 async function isAdmin(admin: Supabase, userId: string) {
   const { data } = await admin
@@ -50,17 +52,51 @@ Deno.serve(async (req) => {
     if (userError || !userData.user) return json({ error: "Token invalido" }, 401);
     if (!(await isAdmin(admin, userData.user.id))) return json({ error: "Acesso restrito a admins" }, 403);
 
-    const body = await req.json().catch(() => null) as { action?: unknown } | null;
+    const body = await req.json().catch(() => null) as { action?: unknown; audience?: unknown } | null;
     const action = String(body?.action ?? "");
-    if (action !== "start" && action !== "stop") return json({ error: "Acao invalida" }, 400);
+    if (action !== "start" && action !== "stop" && action !== "set_audience") return json({ error: "Acao invalida" }, 400);
+
+    const typedAction = action as WorkerAction;
+    const audience = String(body?.audience ?? "");
+    if (typedAction === "set_audience" && audience !== "geral" && audience !== "admin") {
+      return json({ error: "Publico invalido" }, 400);
+    }
+
+    const settingsPatch: Record<string, unknown> = {
+      id: true,
+      updated_by: userData.user.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (typedAction === "start") settingsPatch.enabled = true;
+    if (typedAction === "stop") settingsPatch.enabled = false;
+    if (typedAction === "set_audience") settingsPatch.audience = audience as WorkerAudience;
+
+    const { data: settings, error: settingsError } = await admin
+      .from("dropship_worker_settings")
+      .upsert(settingsPatch, { onConflict: "id" })
+      .select("enabled,audience,updated_at")
+      .single();
+
+    if (settingsError) return json({ error: settingsError.message }, 500);
+
+    if (typedAction === "set_audience") {
+      return json({
+        ok: true,
+        settings,
+        warning: audience === "admin"
+          ? "Bot visivel apenas para admins."
+          : "Bot visivel para todos quando estiver ligado.",
+      });
+    }
 
     const { data, error } = await admin
       .from("dropship_worker_commands")
       .insert({
-        action,
+        action: typedAction,
         status: "pending",
         requested_by: userData.user.id,
-        message: action === "start"
+        message: typedAction === "start"
           ? "Pedido para ligar o worker registrado."
           : "Pedido para desligar o worker registrado.",
       })
@@ -72,7 +108,10 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       command: data,
-      warning: "Comando registrado. O worker local precisa estar rodando para consumir comandos.",
+      settings,
+      warning: typedAction === "start"
+        ? "Bot ligado. O fluxo automatico volta a aparecer conforme o publico escolhido."
+        : "Bot desligado. A compra no fornecedor voltou para o fluxo manual.",
     });
   } catch (err) {
     console.error("dropship-worker-control erro:", err);

@@ -30,6 +30,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 type WorkerStatus = "starting" | "idle" | "processing" | "stopping" | "offline" | "unknown";
 type Severity = "critical" | "error" | "warning" | "info" | string;
+type WorkerAudience = "geral" | "admin";
+
+type WorkerSettings = {
+  enabled: boolean;
+  audience: WorkerAudience;
+  updated_at: string | null;
+};
 
 type WorkerHeartbeat = {
   id: string;
@@ -89,7 +96,8 @@ type WorkerPanelData = {
   alerts: WorkerAlert[];
   actionOrders: ActionOrder[];
   processedOrders: ActionOrder[];
-  errors: Partial<Record<"worker" | "alerts" | "orders", string>>;
+  settings: WorkerSettings;
+  errors: Partial<Record<"worker" | "alerts" | "orders" | "settings", string>>;
 };
 
 type EditableOrderField = "sku_c7drop" | "c7drop_product_url" | "etiqueta_ml_url";
@@ -97,6 +105,11 @@ type OrdersPanelMode = "action" | "processed";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const REFRESH_INTERVAL_SECONDS = REFRESH_INTERVAL_MS / 1_000;
+const DEFAULT_WORKER_SETTINGS: WorkerSettings = {
+  enabled: true,
+  audience: "geral",
+  updated_at: null,
+};
 
 const ORDER_STATUSES = [
   "aguardando_dados_cliente",
@@ -343,6 +356,16 @@ const normalizeHeartbeat = (row: Record<string, unknown>): WorkerHeartbeat => ({
   last_seen_at: getString(row, ["last_seen_at", "heartbeat_at", "seen_at", "updated_at", "created_at"]),
 });
 
+const normalizeWorkerSettings = (row: Record<string, unknown> | null | undefined): WorkerSettings => {
+  if (!row) return DEFAULT_WORKER_SETTINGS;
+  const audience = row.audience === "admin" ? "admin" : "geral";
+  return {
+    enabled: row.enabled !== false,
+    audience,
+    updated_at: getString(row, ["updated_at"]),
+  };
+};
+
 const normalizeAlert = (row: Record<string, unknown>): WorkerAlert => ({
   id: getString(row, ["id"]) ?? crypto.randomUUID(),
   severity: getString(row, ["severity"]) ?? "info",
@@ -467,7 +490,7 @@ const errorMessage = (error: unknown) => {
 const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
   const errors: WorkerPanelData["errors"] = {};
 
-  const [heartbeatResult, staleResult, alertsResult, filteredOrdersResult, processedOrdersResult] = await Promise.all([
+  const [heartbeatResult, staleResult, alertsResult, filteredOrdersResult, processedOrdersResult, settingsResult] = await Promise.all([
     supabase
       .from("dropship_worker_heartbeats" as never)
       .select("*")
@@ -502,6 +525,11 @@ const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
       .in("status", Array.from(PROCESSED_STATUSES))
       .order("updated_at", { ascending: false })
       .limit(80),
+    supabase
+      .from("dropship_worker_settings" as never)
+      .select("*")
+      .eq("id" as never, true as never)
+      .maybeSingle(),
   ]);
 
   let orderRows = (filteredOrdersResult.data ?? []) as unknown as Record<string, unknown>[];
@@ -510,6 +538,7 @@ const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
   if (heartbeatResult.error) errors.worker = errorMessage(heartbeatResult.error);
   if (alertsResult.error) errors.alerts = errorMessage(alertsResult.error);
   if (processedOrdersResult.error) processedRows = [];
+  if (settingsResult.error) errors.settings = errorMessage(settingsResult.error);
 
   if (filteredOrdersResult.error) {
     const fallbackOrders = await supabase
@@ -529,6 +558,7 @@ const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
   const heartbeatRows = heartbeatResult.error ? [] : ((heartbeatResult.data ?? []) as unknown as Record<string, unknown>[]);
   const alertRows = alertsResult.error ? [] : ((alertsResult.data ?? []) as unknown as Record<string, unknown>[]);
   const staleRows = staleResult.error ? [] : ((staleResult.data ?? []) as unknown as Record<string, unknown>[]);
+  const settingsRow = settingsResult.error ? null : (settingsResult.data as unknown as Record<string, unknown> | null);
   const staleWorkerIds = staleRows
     .map((row) => getString(row, ["worker_id", "id", "instance_id"]))
     .filter((value): value is string => Boolean(value));
@@ -539,6 +569,7 @@ const fetchWorkerPanelData = async (): Promise<WorkerPanelData> => {
     alerts: alertRows.map(normalizeAlert),
     actionOrders: orderRows.map(normalizeOrder).filter(needsAction),
     processedOrders: processedRows.map(normalizeOrder),
+    settings: normalizeWorkerSettings(settingsRow),
     errors,
   };
 };
@@ -574,6 +605,17 @@ const controlWorker = async (action: "start" | "stop") => {
   const response = data as { error?: string; warning?: string } | null;
   if (error || response?.error) {
     throw new Error(response?.error ?? error?.message ?? "Falha ao controlar o bot");
+  }
+  return response;
+};
+
+const setWorkerAudience = async (audience: WorkerAudience) => {
+  const { data, error } = await supabase.functions.invoke("dropship-worker-control", {
+    body: { action: "set_audience", audience },
+  });
+  const response = data as { error?: string; warning?: string } | null;
+  if (error || response?.error) {
+    throw new Error(response?.error ?? error?.message ?? "Falha ao alterar o público do bot");
   }
   return response;
 };
@@ -634,10 +676,21 @@ export default function AdminBotAutomationPage() {
     onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Não foi possível controlar o bot."),
   });
 
+  const workerAudienceMutation = useMutation({
+    mutationFn: setWorkerAudience,
+    onSuccess: (response) => {
+      toast.success(response?.warning ?? "Público do bot atualizado.");
+      void invalidatePanel();
+    },
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Não foi possível alterar o público do bot."),
+  });
+
   const heartbeat = data?.heartbeat ?? null;
   const silentMinutes = minutesSince(heartbeat?.last_seen_at);
   const staleByFunction = heartbeat?.worker_id ? data?.staleWorkerIds.includes(heartbeat.worker_id) : false;
   const online = Boolean(heartbeat && !staleByFunction && silentMinutes !== null && silentMinutes <= 2);
+  const workerSettings = data?.settings ?? DEFAULT_WORKER_SETTINGS;
+  const botEnabled = workerSettings.enabled;
   const workerStatus = online ? heartbeat?.status ?? "unknown" : "offline";
 
   const filteredAlerts = data?.alerts ?? [];
@@ -697,9 +750,12 @@ export default function AdminBotAutomationPage() {
           workerStatus={workerStatus}
           online={online}
           silentMinutes={silentMinutes}
-          error={data?.errors.worker}
+          settings={workerSettings}
+          error={data?.errors.worker ?? data?.errors.settings}
           controlling={workerControlMutation.isPending}
-          onToggle={() => workerControlMutation.mutate(online ? "stop" : "start")}
+          changingAudience={workerAudienceMutation.isPending}
+          onToggle={() => workerControlMutation.mutate(botEnabled ? "stop" : "start")}
+          onAudienceChange={(audience) => workerAudienceMutation.mutate(audience)}
         />
 
         <OrderStatsPanel orders={summaryOrders} loading={isLoading} />
@@ -828,18 +884,24 @@ const StatusPanel = ({
   workerStatus,
   online,
   silentMinutes,
+  settings,
   error,
   controlling,
+  changingAudience,
   onToggle,
+  onAudienceChange,
 }: {
   loading: boolean;
   heartbeat: WorkerHeartbeat | null;
   workerStatus: WorkerStatus;
   online: boolean;
   silentMinutes: number | null;
+  settings: WorkerSettings;
   error?: string;
   controlling: boolean;
+  changingAudience: boolean;
   onToggle: () => void;
+  onAudienceChange: (audience: WorkerAudience) => void;
 }) => (
   <AdminCard className="overflow-hidden border-[#E4E8F0] p-0">
     <div className="flex flex-col gap-3 border-b border-[#EEF1F6] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -855,20 +917,41 @@ const StatusPanel = ({
           <p className="mt-0.5 text-[11.5px] text-[#7C8493]">Atualização automática a cada {REFRESH_INTERVAL_SECONDS}s.</p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col items-start gap-2 sm:items-end">
         {error ? <InlineError text={error} /> : null}
+        <div className="inline-flex h-8 items-center rounded-full border border-[#D8E3F8] bg-[#F8FAFC] p-0.5">
+          {(["geral", "admin"] as const).map((audience) => {
+            const active = settings.audience === audience;
+            return (
+              <button
+                key={audience}
+                type="button"
+                onClick={() => onAudienceChange(audience)}
+                disabled={changingAudience || active}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold capitalize transition disabled:cursor-default ${
+                  active
+                    ? "bg-white text-[#2563EB] shadow-[0_4px_12px_rgba(37,99,235,0.14)]"
+                    : "text-[#7C8493] hover:bg-white/70 hover:text-[#111827]"
+                }`}
+              >
+                <span className={`h-2 w-2 rounded-full ${active ? "bg-[#2563EB]" : "bg-[#CBD5E1]"}`} />
+                {audience}
+              </button>
+            );
+          })}
+        </div>
         <button
           type="button"
           onClick={onToggle}
           disabled={controlling}
           className={
-            online
+            settings.enabled
               ? "inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-[#F1C9C9] bg-white px-3 text-[11.5px] font-semibold text-[#B42318] transition hover:bg-[#FFF7F7] disabled:opacity-60"
               : "inline-flex h-8 items-center gap-1.5 rounded-[9px] bg-[#2563EB] px-3 text-[11.5px] font-semibold text-white transition hover:bg-[#1D4ED8] disabled:opacity-60"
           }
         >
-          {controlling ? <Loader2 size={13} className="animate-spin" /> : online ? <PowerOff size={13} /> : <Power size={13} />}
-          {online ? "Desligar bot" : "Ligar bot"}
+          {controlling ? <Loader2 size={13} className="animate-spin" /> : settings.enabled ? <PowerOff size={13} /> : <Power size={13} />}
+          {settings.enabled ? "Desligar bot" : "Ligar bot"}
         </button>
       </div>
     </div>

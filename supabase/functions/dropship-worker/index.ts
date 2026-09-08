@@ -174,6 +174,10 @@ const AlertSchema = z.object({
   details: z.record(z.unknown()).optional(),
 });
 
+const SettingsSchema = z.object({
+  action: z.literal("get_settings"),
+});
+
 function timingSafeEqual(a: string, b: string) {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -213,6 +217,45 @@ Deno.serve(async (req) => {
 
   try {
     switch (body.action) {
+      case "get_settings": {
+        const parsed = SettingsSchema.safeParse(body);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+
+        const { data, error } = await admin
+          .from("dropship_worker_settings")
+          .select("enabled,audience,updated_at")
+          .eq("id", true)
+          .maybeSingle();
+
+        if (error) return json({ error: error.message }, 500);
+
+        if (data) {
+          return json({
+            settings: {
+              enabled: data.enabled !== false,
+              audience: data.audience === "admin" ? "admin" : "geral",
+              updated_at: data.updated_at ?? null,
+            },
+          });
+        }
+
+        const { data: created, error: createError } = await admin
+          .from("dropship_worker_settings")
+          .insert({ id: true, enabled: true, audience: "geral" })
+          .select("enabled,audience,updated_at")
+          .single();
+
+        if (createError) return json({ error: createError.message }, 500);
+
+        return json({
+          settings: {
+            enabled: created.enabled !== false,
+            audience: created.audience === "admin" ? "admin" : "geral",
+            updated_at: created.updated_at ?? null,
+          },
+        });
+      }
+
       case "list_orders": {
         const parsed = ListSchema.safeParse(body);
         if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);

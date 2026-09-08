@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import { isAdminEmail } from "@/lib/adminAccess";
 
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
@@ -100,6 +101,12 @@ type SupplierPurchaseInfo = {
   address: ShippingAddress | null;
 };
 
+type BotPurchaseAudience = "geral" | "admin";
+type BotPurchaseSettings = {
+  enabled: boolean;
+  audience: BotPurchaseAudience;
+};
+
 type SupplierPurchaseDraft = {
   buyerName: string;
   buyerEmail: string;
@@ -112,6 +119,27 @@ type SupplierPurchaseDraft = {
   neighborhood: string;
   city: string;
   state: string;
+};
+
+const DEFAULT_BOT_PURCHASE_SETTINGS: BotPurchaseSettings = {
+  enabled: true,
+  audience: "geral",
+};
+
+const normalizeBotPurchaseSettings = (row: Record<string, unknown> | null | undefined): BotPurchaseSettings => ({
+  enabled: row?.enabled !== false,
+  audience: row?.audience === "admin" ? "admin" : "geral",
+});
+
+const fetchBotPurchaseSettings = async (): Promise<BotPurchaseSettings> => {
+  const { data, error } = await supabase
+    .from("dropship_worker_settings" as never)
+    .select("enabled,audience")
+    .eq("id" as never, true as never)
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeBotPurchaseSettings(data as unknown as Record<string, unknown> | null);
 };
 
 const jsonText = (value: Json | undefined): string | null => {
@@ -289,10 +317,12 @@ const SupplierButton = ({
   url,
   compact = false,
   onOpen,
+  manual = false,
 }: {
   url: string | null | undefined;
   compact?: boolean;
   onOpen: () => void;
+  manual?: boolean;
 }) => {
   const href = supplierHref(url);
   const classes = compact
@@ -318,6 +348,21 @@ const SupplierButton = ({
           Fornecedor não vinculado
         </TooltipContent>
       </Tooltip>
+    );
+  }
+
+  if (manual) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={classes}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ShoppingBag size={15} strokeWidth={1.5} />
+        Comprar no Fornecedor
+      </a>
     );
   }
 
@@ -721,10 +766,12 @@ const OrderRow = ({
   order,
   onSelect,
   onSupplierPurchase,
+  useBotPurchase,
 }: {
   order: MlOrderRow;
   onSelect: () => void;
   onSupplierPurchase: (order: MlOrderRow) => Promise<void> | void;
+  useBotPurchase: boolean;
 }) => {
   const image = getOrderImage(order);
 
@@ -786,7 +833,7 @@ const OrderRow = ({
         </div>
 
         <div className="mt-4 border-t border-[#EFEFEB] pt-3">
-          <SupplierButton url={order.supplier_url} compact onOpen={() => onSupplierPurchase(order)} />
+          <SupplierButton url={order.supplier_url} compact manual={!useBotPurchase} onOpen={() => onSupplierPurchase(order)} />
         </div>
       </div>
 
@@ -844,7 +891,7 @@ const OrderRow = ({
         </div>
 
         <div className="flex items-center gap-2 md:justify-end">
-          <SupplierButton url={order.supplier_url} compact onOpen={() => onSupplierPurchase(order)} />
+          <SupplierButton url={order.supplier_url} compact manual={!useBotPurchase} onOpen={() => onSupplierPurchase(order)} />
         </div>
 
         <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] md:block" />
@@ -898,7 +945,7 @@ type StoreOrderRow = {
   shipping_address: Json | null;
 };
 
-const StoreOrdersList = ({ userId }: { userId: string }) => {
+const StoreOrdersList = ({ userId, useBotPurchase }: { userId: string; useBotPurchase: boolean }) => {
   const [addressOrder, setAddressOrder] = useState<StoreOrderRow | null>(null);
   const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
   const { data, isLoading } = useQuery({
@@ -1009,6 +1056,7 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
                 <SupplierButton
                   url={order.supplier_url}
                   compact
+                  manual={!useBotPurchase}
                   onOpen={() => {
                     const info = purchaseInfoFromStoreOrder(order);
                     if (info) setSupplierPurchaseInfo(info);
@@ -1089,12 +1137,30 @@ const StoreOrderAddressModal = ({ order, onClose }: { order: StoreOrderRow | nul
 };
 
 const OrdersPage = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<OrderTab>("ml");
   const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
   const syncedRef = useRef(false);
+  const isAdminUser = useMemo(() => {
+    const metadataRole =
+      (user?.app_metadata?.role as string | undefined) ??
+      (user?.user_metadata?.role as string | undefined) ??
+      null;
+    return role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  }, [role, user?.app_metadata?.role, user?.email, user?.user_metadata?.role]);
+
+  const { data: botPurchaseSettings = DEFAULT_BOT_PURCHASE_SETTINGS } = useQuery({
+    queryKey: ["dropship-worker-settings"],
+    queryFn: fetchBotPurchaseSettings,
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
+
+  const useBotPurchase =
+    botPurchaseSettings.enabled &&
+    (botPurchaseSettings.audience === "geral" || isAdminUser);
 
   const triggerSync = useMemo(
     () => () => {
@@ -1286,7 +1352,7 @@ const OrdersPage = () => {
         </div>
 
         {tab === "loja" && user?.id ? (
-          <StoreOrdersList userId={user.id} />
+          <StoreOrdersList userId={user.id} useBotPurchase={useBotPurchase} />
         ) : isLoading ? (
           <OrderSkeleton />
         ) : isEmpty ? (
@@ -1332,6 +1398,7 @@ const OrdersPage = () => {
                     veloToast.error("Não foi possível localizar este pedido na fila do bot.");
                   }
                 }}
+                useBotPurchase={useBotPurchase}
               />
             ))}
           </div>
