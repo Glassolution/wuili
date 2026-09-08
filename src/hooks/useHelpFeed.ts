@@ -70,12 +70,15 @@ export function useHelpFeed() {
       setIsAdmin(false);
       return;
     }
+    // Papel real fica em user_roles — profiles.is_admin pode ser editado pelo
+    // próprio usuário e não pode liberar ações administrativas.
     const { data } = await sb
-      .from("profiles")
-      .select("is_admin")
+      .from("user_roles")
+      .select("role")
       .eq("user_id", user.id)
+      .eq("role", "admin")
       .maybeSingle();
-    setIsAdmin(Boolean(data?.is_admin));
+    setIsAdmin(Boolean(data));
   }, [user]);
 
   const loadFeed = useCallback(async () => {
