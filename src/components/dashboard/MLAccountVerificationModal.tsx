@@ -4,13 +4,16 @@ import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle } from "lucide-react";
 import VideoTutorialModal from "./VideoTutorialModal";
 import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
+import { lerProgressoTutorialMl, salvarProgressoTutorialMl } from "@/lib/mlVerificacaoTutorial";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   /**
    * Chamado quando o usuário conclui o tutorial (etapa 3, "Entendi").
-   * Use para retomar o fluxo de publicação de onde parou.
+   * Quem chama deve retomar a publicação daqui — não basta fechar, senão o
+   * clique em "Entendi" vira um beco sem saída e a pessoa precisa pedir
+   * "Publicar produto" de novo, o que reabria o tutorial do começo.
    */
   onFinish?: () => void;
 };
@@ -157,15 +160,27 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
   const videoOpenRef = useRef(false);
   videoOpenRef.current = videoOpen;
 
+  /*
+    Ao abrir, retomamos o passo mais adiantado que a pessoa já alcançou em vez
+    de voltar ao 1. Quem chegou no 3, saiu para o Mercado Livre e voltou para
+    tentar publicar de novo via este tutorial reabre no 3 — antes ele rebobinava
+    sozinho e a tela parecia "voltar tudo de novo".
+  */
   useEffect(() => {
     if (open) {
-      setStep(1);
+      setStep(lerProgressoTutorialMl().etapa);
       setVisible(true);
     } else {
       setVisible(false);
     }
     setVideoOpen(false);
   }, [open]);
+
+  // Grava o passo alcançado para sobreviver ao descarte da aba no celular.
+  useEffect(() => {
+    if (!open) return;
+    salvarProgressoTutorialMl({ etapa: step });
+  }, [open, step]);
 
   const close = () => {
     setVisible(false);
@@ -192,6 +207,12 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
   }, [open]);
 
   const openMLProfile = () => {
+    /*
+      A marca vai para o disco ANTES de abrir o Mercado Livre: no celular a aba
+      da Velo cai para segundo plano aqui e pode ser descartada pelo sistema
+      antes de qualquer outro efeito rodar.
+    */
+    salvarProgressoTutorialMl({ etapa: 3, visitouMercadoLivre: true });
     window.open(ML_PROFILE_URL, "_blank", "noopener,noreferrer");
     setStep(3);
   };
@@ -199,6 +220,7 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
   const primaryAction = () => {
     if (step === 1) return setStep(2);
     if (step === 2) return openMLProfile();
+    salvarProgressoTutorialMl({ etapa: 3, concluido: true });
     close();
     setTimeout(() => onFinish?.(), 240);
   };

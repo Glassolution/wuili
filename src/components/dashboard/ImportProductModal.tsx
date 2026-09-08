@@ -12,6 +12,7 @@ import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerifica
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { limparProgressoTutorialMl } from "@/lib/mlVerificacaoTutorial";
 import {
   getActiveStore,
   getStorePublishedCount,
@@ -365,6 +366,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       }
 
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
+      // A conta publicou: o tutorial de verificação não precisa mais ser retomado.
+      limparProgressoTutorialMl();
       setStep(4);
       if (activeStore) incrementStorePublishedCount(activeStore.id);
 
@@ -379,6 +382,32 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     } finally {
       setPublishing(false);
     }
+  };
+
+  /*
+    "Entendi" no passo 3 do tutorial: a pessoa está dizendo que terminou a
+    verificação no Mercado Livre. Revalidamos e publicamos na sequência — era
+    exatamente isto que faltava. Antes o botão só fechava o tutorial, ela tinha
+    que pedir "Publicar produto" de novo, e esse clique reabria o tutorial do
+    passo 1: o laço relatado ("aperto e volta tudo de novo").
+
+    Quando o ML ainda não liberou, avisamos com todas as letras em vez de
+    reabrir o tutorial — reabrir era o que fazia a tela parecer resetar.
+  */
+  const handleTutorialFinished = async () => {
+    setMlVerifyModalOpen(false);
+    setCheckingSeller(true);
+    const live = await fetchSellerReady();
+    setCheckingSeller(false);
+
+    if (live === false) {
+      veloToast.error(
+        "O Mercado Livre ainda não confirmou a liberação da sua conta. Isso leva alguns minutos — tente publicar de novo daqui a pouco.",
+      );
+      return;
+    }
+
+    void handlePublish();
   };
 
   const handleContinueFromReview = async () => {
@@ -1115,9 +1144,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
         onClose={() => setMlVerifyModalOpen(false)}
-        // Fechar e concluir apenas fecham. A conta é revalidada no próximo clique
-        // em "Publicar produto" — rechecar aqui reabria o modal na sequência.
-        onFinish={() => setMlVerifyModalOpen(false)}
+        onFinish={() => void handleTutorialFinished()}
       />
 
       {/* ManualCategoryDialog removido: não exibir seletor de categoria manual. */}
