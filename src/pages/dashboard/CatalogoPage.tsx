@@ -851,6 +851,23 @@ const getProductImages = (images: Json | null): string[] => {
   return proxyImageList(raw);
 };
 
+/**
+ * Padrão mínimo do catálogo Velo (espelha o gatilho do banco):
+ * produto ativo, não bloqueado, com estoque, preço válido e pelo menos
+ * 3 fotos distintas. Serve como segunda barreira — se alguma linha antiga
+ * escapar da regra do banco, ela não aparece na vitrine.
+ */
+const MIN_FOTOS_CATALOGO = 3;
+
+const atendePadroesDoCatalogo = (p: CatalogProductRow): boolean => {
+  if (p.is_active === false || p.is_blocked === true) return false;
+  if (toNumber(p.stock_quantity) <= 0) return false;
+  if (toNumber(p.cost_price) <= 0) return false;
+  if (!p.title || !String(p.title).trim()) return false;
+  const fotos = new Set(getProductImages(p.images).filter((url) => url && url.trim()));
+  return fotos.size >= MIN_FOTOS_CATALOGO;
+};
+
 
 
 const getCompactFilterValue = (value: string) =>
