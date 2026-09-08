@@ -297,9 +297,31 @@ const AdminRefundsPage = () => {
       title="Reembolsos"
       subtitle="Contas ativas, pedidos recentes e histórico de reembolsos efetuados."
       actions={
-        <div className="flex items-center gap-2 text-[12px] text-[#8A8A8E]">
-          <RotateCcw size={14} strokeWidth={1.5} />
-          Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
+        <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#8A8A8E]">
+          <span className="flex items-center gap-2">
+            <RotateCcw size={14} strokeWidth={1.5} />
+            Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
+          </span>
+          <button
+            type="button"
+            disabled={postCancel.isPending}
+            onClick={() => postCancel.mutate(true)}
+            className="rounded-md border border-black/10 px-3 py-1.5 text-[12px] font-semibold text-[#171715] disabled:opacity-50"
+          >
+            {postCancel.isPending ? <Loader2 size={12} className="animate-spin" /> : "Verificar cobranças após cancelamento"}
+          </button>
+          <button
+            type="button"
+            disabled={postCancel.isPending}
+            onClick={() => {
+              if (window.confirm("Estornar todas as cobranças feitas depois do cancelamento? Essa ação envia o dinheiro de volta e não pode ser desfeita.")) {
+                postCancel.mutate(false);
+              }
+            }}
+            className="rounded-md bg-[#171715] px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+          >
+            Devolver dinheiro agora
+          </button>
         </div>
       }
     >
