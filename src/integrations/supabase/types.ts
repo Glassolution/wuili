@@ -1208,6 +1208,7 @@ export type Database = {
       }
       dropship_worker_settings: {
         Row: {
+          access_levels: string[]
           audience: string
           enabled: boolean
           id: boolean
@@ -1215,6 +1216,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          access_levels?: string[]
           audience?: string
           enabled?: boolean
           id?: boolean
@@ -1222,6 +1224,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          access_levels?: string[]
           audience?: string
           enabled?: boolean
           id?: boolean
