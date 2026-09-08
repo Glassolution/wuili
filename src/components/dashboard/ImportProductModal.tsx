@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
+import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Package, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -992,61 +992,113 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           </div>
         </div>
 
-        {/* ============== RIGHT — PRODUCT DETAIL ============== */}
-        <div className="hidden w-[300px] shrink-0 flex-col border-l border-[#E5EDFF] bg-[#F8FBFF] md:flex">
-          <div className="flex items-center justify-between px-6 pt-7 pb-4">
-            <h3 className="text-[13px] font-semibold text-[#0A0A0A]">Detalhes do produto</h3>
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-5" style={{ scrollbarWidth: "thin" }}>
-            {/* Image + title */}
-            <div className="flex gap-3">
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white border border-gray-100">
+        {/* ============== RIGHT — FICHA DO PRODUTO ============== */}
+        {/*
+          Antes era uma lista cinza de label/valor: quatro linhas iguais, sem hierarquia,
+          e a coluna parecia um rodapé esquecido. Agora segue a mesma estrutura da
+          referência de painel de pedido — blocos com título próprio, valores em chip
+          quando são estado (plataforma, conta, estoque) e um bloco de totais que fecha
+          no lucro, que é a informação que decide a publicação.
+        */}
+        <aside className="hidden w-[312px] shrink-0 flex-col border-l border-[#E9EDF5] bg-white md:flex">
+          <div className="flex-1 overflow-y-auto px-6 pb-7 pt-7" style={{ scrollbarWidth: "thin" }}>
+
+            <SidebarHeading>Produto</SidebarHeading>
+            <div className="mt-3.5 flex gap-3">
+              <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[12px] border border-[#EDEFF4] bg-[#FAFBFC]">
                 {img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}
               </div>
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-[#0A0A0A] leading-snug line-clamp-2">{title || product.title}</p>
-                <p className="text-[10.5px] text-gray-400 mt-1 truncate">SKU: {product.external_id || product.id.substring(0, 10)}</p>
+              <div className="min-w-0 pt-0.5">
+                <p className="line-clamp-2 text-[12.5px] font-semibold leading-[1.35] text-[#0F172A]">{title || product.title}</p>
+                <p className="mt-1 truncate text-[11px] text-[#94A3B8]">SKU: {product.external_id || product.id.substring(0, 10)}</p>
               </div>
             </div>
+            {product.category ? (
+              <span className="mt-3 inline-flex max-w-full items-center truncate rounded-full border border-[#E7EAF1] bg-white px-2.5 py-[3px] text-[11px] font-medium capitalize text-[#64748B]">
+                {product.category}
+              </span>
+            ) : null}
 
-            {/* Categories */}
-            {product.category && (
-              <div className="flex gap-1.5 flex-wrap">
-                <span className="rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10.5px] font-medium text-gray-600 capitalize">
-                  {product.category}
-                </span>
-              </div>
-            )}
+            <div className="my-5 h-px bg-[#EDEFF4]" />
 
-            {/* Divider */}
-            <div className="h-px bg-gray-200" />
-
-            {/* Info rows */}
-            <div className="space-y-3">
-              <DetailRow label="Plataforma" value={
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-yellow-400" />
+            <SidebarHeading>Detalhes do anúncio</SidebarHeading>
+            <div className="mt-3.5 space-y-2.5">
+              <InfoRow label="Plataforma">
+                <SideChip>
+                  <span className="h-[7px] w-[7px] rounded-full bg-[#FACC15]" />
                   Mercado Livre
-                </span>
-              } />
-              <DetailRow label="Preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
-              <DetailRow label="Estoque" value={`${stockQty} un`} />
-              <DetailRow label="Custo" value={formatBRL(costPrice)} />
-              {step >= 2 && <DetailRow label="Lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />}
+                </SideChip>
+              </InfoRow>
+              <InfoRow label="Conta">
+                {isConnectedToML ? (
+                  <StatusPill tone="ok">
+                    <Check size={11} strokeWidth={2.6} />
+                    Conectada
+                  </StatusPill>
+                ) : (
+                  <StatusPill tone="warn">Desconectada</StatusPill>
+                )}
+              </InfoRow>
+              <InfoRow label="Estoque">
+                {hasStock ? (
+                  <SideChip>
+                    <Package size={12} strokeWidth={1.9} className="text-[#94A3B8]" />
+                    {stockQty} un
+                  </SideChip>
+                ) : (
+                  <StatusPill tone="warn">Sem estoque</StatusPill>
+                )}
+              </InfoRow>
             </div>
 
-            {/* Divider */}
-            <div className="h-px bg-gray-200" />
+            <div className="my-5 h-px bg-[#EDEFF4]" />
 
-            {/* Description preview */}
-            <div>
-              <p className="text-[10.5px] font-medium text-gray-400 uppercase tracking-wide mb-2">Descrição</p>
-              <p className="text-[12px] text-gray-600 leading-relaxed line-clamp-6">
-                {description || "A descrição aparecerá aqui quando for gerada ou escrita."}
-              </p>
+            {/*
+              Bloco de totais no lugar das linhas soltas de preço e custo: venda menos
+              custo, régua tracejada e o lucro fechando embaixo. É a leitura que o
+              usuário faz de qualquer extrato, e o número que ele veio conferir.
+            */}
+            <div className="flex items-baseline justify-between gap-2">
+              <SidebarHeading>Sua margem</SidebarHeading>
+              <span className="shrink-0 text-[11px] font-medium text-[#94A3B8]">{multiplier.toFixed(1)}x o custo</span>
+            </div>
+            <div className="mt-3.5 space-y-2.5">
+              <InfoRow label="Preço de venda">
+                <span className="text-[12.5px] font-semibold text-[#0F172A]">
+                  {formatBRL(sellPrice || costPrice * MULTIPLICADOR_SUGERIDO)}
+                </span>
+              </InfoRow>
+              <InfoRow label="Custo do produto">
+                <span className="text-[12.5px] text-[#475569]">− {formatBRL(costPrice)}</span>
+              </InfoRow>
+            </div>
+            <div className="my-3.5 border-t border-dashed border-[#E2E6EE]" />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12.5px] font-semibold text-[#0F172A]">Lucro por venda</span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <span className={`text-[14px] font-semibold tracking-[-0.01em] ${profit > 0 ? "text-[#16A34A]" : "text-[#DC2626]"}`}>
+                  {formatBRL(profit)}
+                </span>
+                {profit > 0 ? (
+                  <span className="rounded-full bg-[#EAF7EF] px-1.5 py-[2px] text-[10.5px] font-semibold text-[#16A34A]">
+                    {profitMargin}%
+                  </span>
+                ) : null}
+              </span>
+            </div>
+
+            <div className="my-5 h-px bg-[#EDEFF4]" />
+
+            <SidebarHeading>Descrição</SidebarHeading>
+            <div className="mt-3 min-h-[104px] rounded-[12px] bg-[#F6F7F9] p-3.5 text-[12px] leading-[1.65] text-[#475569]">
+              {description ? (
+                <span className="line-clamp-[7]">{description}</span>
+              ) : (
+                <span className="text-[#9AA3B2]">A descrição aparecerá aqui quando for gerada ou escrita.</span>
+              )}
             </div>
           </div>
-        </div>
+        </aside>
 
       </div>
 
@@ -1097,11 +1149,33 @@ const Row = ({ label, value, strong }: { label: string; value: React.ReactNode; 
   </div>
 );
 
-const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex items-center justify-between">
-    <span className="text-[11.5px] text-gray-500">{label}</span>
-    <span className="text-[12px] text-[#0A0A0A]">{value}</span>
+const SidebarHeading = ({ children }: { children: React.ReactNode }) => (
+  <h4 className="text-[13px] font-semibold tracking-[-0.01em] text-[#0F172A]">{children}</h4>
+);
+
+const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="flex min-h-[24px] items-center justify-between gap-3">
+    <span className="text-[11.5px] text-[#8A94A6]">{label}</span>
+    <span className="min-w-0 shrink-0 text-right">{children}</span>
   </div>
+);
+
+/** Valor que é estado, não número: ganha moldura, como na referência. */
+const SideChip = ({ children }: { children: React.ReactNode }) => (
+  <span className="inline-flex items-center gap-1.5 rounded-[7px] border border-[#E7EAF1] bg-[#FAFBFC] px-2 py-[3px] text-[11.5px] font-medium text-[#0F172A]">
+    {children}
+  </span>
+);
+
+const STATUS_PILL_TONES = {
+  ok: "border-[#CDEBD9] bg-[#EAF7EF] text-[#16A34A]",
+  warn: "border-[#FBE3C3] bg-[#FEF6EA] text-[#B45309]",
+} as const;
+
+const StatusPill = ({ tone, children }: { tone: keyof typeof STATUS_PILL_TONES; children: React.ReactNode }) => (
+  <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-[3px] text-[11px] font-semibold ${STATUS_PILL_TONES[tone]}`}>
+    {children}
+  </span>
 );
 
 const PlatformCard = ({
