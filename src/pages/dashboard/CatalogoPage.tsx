@@ -976,7 +976,7 @@ const CatalogoPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 24;
 
   // Quando o Atlas lateral está aberto o espaço do catálogo reduz; diminuímos
   // o número de colunas para os cards ficarem maiores e visualmente confortáveis.
@@ -1111,7 +1111,7 @@ const CatalogoPage = () => {
               .gt("stock_quantity", 0),
           );
           if (favError) throw favError;
-          const byId = new Map((data || []).map((p) => [p.id, p]));
+          const byId = new Map((data || []).filter(atendePadroesDoCatalogo).map((p) => [p.id, p]));
           let ordered = favoritedIds
             .map((id) => byId.get(id))
             .filter((p): p is CatalogProductRow => Boolean(p))
@@ -1142,7 +1142,7 @@ const CatalogoPage = () => {
               .eq("is_blocked", false),
           );
           if (fetchError) throw fetchError;
-          const byId = new Map((data || []).map((p) => [p.id, p]));
+          const byId = new Map((data || []).filter(atendePadroesDoCatalogo).map((p) => [p.id, p]));
           const ordered = atlasResults.ids
             .map((id) => byId.get(id))
             .filter((p): p is CatalogProductRow => Boolean(p))
@@ -1190,6 +1190,7 @@ const CatalogoPage = () => {
           if (fetchError) throw fetchError;
 
           const filtered = (data || [])
+            .filter(atendePadroesDoCatalogo)
             .map(mapProduct)
             .filter((p) => productMatchesSelectedFilters(p, selectedPriceRange, selectedRating));
           setProducts(filtered.slice(start, end + 1));
@@ -1206,7 +1207,10 @@ const CatalogoPage = () => {
             .range(start, end),
         );
         if (fetchError) throw fetchError;
-        setProducts((data || []).map(mapProduct));
+        // A regra das 3 fotos já roda no banco; o filtro local é só rede de
+        // segurança para linhas antigas que tenham escapado.
+        const dentroDoPadrao = (data || []).filter(atendePadroesDoCatalogo);
+        setProducts(dentroDoPadrao.map(mapProduct));
         setTotalCount(count || 0);
       } catch (err: any) {
         console.error("Erro ao buscar produtos do catálogo:", err);
@@ -1243,12 +1247,12 @@ const CatalogoPage = () => {
             .eq("is_active", true)
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
-            .limit(10),
+            .limit(40),
         );
 
 
         if (fetchError) throw fetchError;
-        setRecommendations((data || []).map(mapProduct));
+        setRecommendations((data || []).filter(atendePadroesDoCatalogo).map(mapProduct));
       } catch (err) {
         console.error("Erro ao buscar recomendações:", err);
       }
