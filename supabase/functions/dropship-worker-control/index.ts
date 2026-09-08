@@ -13,7 +13,21 @@ const json = (body: Record<string, unknown>, status = 200) =>
 
 type Supabase = ReturnType<typeof createClient>;
 type WorkerAudience = "geral" | "admin";
-type WorkerAction = "start" | "stop" | "set_audience";
+type WorkerAccessLevel = "gratis" | "base" | "pro" | "business" | "admin";
+type WorkerAction = "start" | "stop" | "set_audience" | "set_access";
+
+const VALID_ACCESS_LEVELS: WorkerAccessLevel[] = ["gratis", "base", "pro", "business", "admin"];
+
+function normalizeAccessLevels(value: unknown): WorkerAccessLevel[] {
+  if (!Array.isArray(value)) return VALID_ACCESS_LEVELS;
+  const unique = new Set<WorkerAccessLevel>();
+  for (const item of value) {
+    if (VALID_ACCESS_LEVELS.includes(item as WorkerAccessLevel)) {
+      unique.add(item as WorkerAccessLevel);
+    }
+  }
+  return Array.from(unique);
+}
 
 async function isAdmin(admin: Supabase, userId: string) {
   const { data } = await admin
@@ -52,15 +66,18 @@ Deno.serve(async (req) => {
     if (userError || !userData.user) return json({ error: "Token invalido" }, 401);
     if (!(await isAdmin(admin, userData.user.id))) return json({ error: "Acesso restrito a admins" }, 403);
 
-    const body = await req.json().catch(() => null) as { action?: unknown; audience?: unknown } | null;
+    const body = await req.json().catch(() => null) as { action?: unknown; audience?: unknown; access_levels?: unknown } | null;
     const action = String(body?.action ?? "");
-    if (action !== "start" && action !== "stop" && action !== "set_audience") return json({ error: "Acao invalida" }, 400);
+    if (action !== "start" && action !== "stop" && action !== "set_audience" && action !== "set_access") return json({ error: "Acao invalida" }, 400);
 
     const typedAction = action as WorkerAction;
     const audience = String(body?.audience ?? "");
     if (typedAction === "set_audience" && audience !== "geral" && audience !== "admin") {
       return json({ error: "Publico invalido" }, 400);
     }
+    const accessLevels = typedAction === "set_access"
+      ? normalizeAccessLevels(body?.access_levels)
+      : null;
 
     const settingsPatch: Record<string, unknown> = {
       id: true,
@@ -71,11 +88,15 @@ Deno.serve(async (req) => {
     if (typedAction === "start") settingsPatch.enabled = true;
     if (typedAction === "stop") settingsPatch.enabled = false;
     if (typedAction === "set_audience") settingsPatch.audience = audience as WorkerAudience;
+    if (typedAction === "set_access") {
+      settingsPatch.access_levels = accessLevels;
+      settingsPatch.audience = accessLevels?.length === 1 && accessLevels[0] === "admin" ? "admin" : "geral";
+    }
 
     const { data: settings, error: settingsError } = await admin
       .from("dropship_worker_settings")
       .upsert(settingsPatch, { onConflict: "id" })
-      .select("enabled,audience,updated_at")
+      .select("enabled,audience,access_levels,updated_at")
       .single();
 
     if (settingsError) return json({ error: settingsError.message }, 500);
@@ -87,6 +108,14 @@ Deno.serve(async (req) => {
         warning: audience === "admin"
           ? "Bot visivel apenas para admins."
           : "Bot visivel para todos quando estiver ligado.",
+      });
+    }
+
+    if (typedAction === "set_access") {
+      return json({
+        ok: true,
+        settings,
+        warning: "Acesso do bot atualizado.",
       });
     }
 

@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { usePlan, type PlanName } from "@/hooks/usePlan";
 
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
@@ -102,9 +103,11 @@ type SupplierPurchaseInfo = {
 };
 
 type BotPurchaseAudience = "geral" | "admin";
+type BotPurchaseAccessLevel = "gratis" | "base" | "pro" | "business" | "admin";
 type BotPurchaseSettings = {
   enabled: boolean;
   audience: BotPurchaseAudience;
+  accessLevels: BotPurchaseAccessLevel[];
 };
 
 type SupplierPurchaseDraft = {
@@ -124,17 +127,39 @@ type SupplierPurchaseDraft = {
 const DEFAULT_BOT_PURCHASE_SETTINGS: BotPurchaseSettings = {
   enabled: true,
   audience: "geral",
+  accessLevels: ["gratis", "base", "pro", "business", "admin"],
 };
 
-const normalizeBotPurchaseSettings = (row: Record<string, unknown> | null | undefined): BotPurchaseSettings => ({
-  enabled: row?.enabled !== false,
-  audience: row?.audience === "admin" ? "admin" : "geral",
-});
+const BOT_PURCHASE_ACCESS_LEVELS: BotPurchaseAccessLevel[] = ["gratis", "base", "pro", "business", "admin"];
+
+const normalizeBotPurchaseSettings = (row: Record<string, unknown> | null | undefined): BotPurchaseSettings => {
+  const audience = row?.audience === "admin" ? "admin" : "geral";
+  const accessLevels = Array.isArray(row?.access_levels)
+    ? row.access_levels.filter((item): item is BotPurchaseAccessLevel =>
+        BOT_PURCHASE_ACCESS_LEVELS.includes(item as BotPurchaseAccessLevel),
+      )
+    : audience === "admin"
+      ? ["admin" as const]
+      : DEFAULT_BOT_PURCHASE_SETTINGS.accessLevels;
+
+  return {
+    enabled: row?.enabled !== false,
+    audience,
+    accessLevels: Array.from(new Set(accessLevels)),
+  };
+};
+
+const planToBotAccess = (plan: PlanName): BotPurchaseAccessLevel => {
+  if (plan === "business") return "business";
+  if (plan === "pro") return "pro";
+  if (plan === "base") return "base";
+  return "gratis";
+};
 
 const fetchBotPurchaseSettings = async (): Promise<BotPurchaseSettings> => {
   const { data, error } = await supabase
     .from("dropship_worker_settings" as never)
-    .select("enabled,audience")
+    .select("enabled,audience,access_levels")
     .eq("id" as never, true as never)
     .maybeSingle();
 
@@ -1138,6 +1163,7 @@ const StoreOrderAddressModal = ({ order, onClose }: { order: StoreOrderRow | nul
 
 const OrdersPage = () => {
   const { user, role } = useAuth();
+  const { plan } = usePlan();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<OrderTab>("ml");
@@ -1158,9 +1184,15 @@ const OrdersPage = () => {
     refetchInterval: 30_000,
   });
 
+  const userAccessLevels = useMemo(() => {
+    const levels = new Set<BotPurchaseAccessLevel>([planToBotAccess(plan)]);
+    if (isAdminUser) levels.add("admin");
+    return levels;
+  }, [isAdminUser, plan]);
+
   const useBotPurchase =
     botPurchaseSettings.enabled &&
-    (botPurchaseSettings.audience === "geral" || isAdminUser);
+    botPurchaseSettings.accessLevels.some((level) => userAccessLevels.has(level));
 
   const triggerSync = useMemo(
     () => () => {

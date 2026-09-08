@@ -31,10 +31,12 @@ import { supabase } from "@/integrations/supabase/client";
 type WorkerStatus = "starting" | "idle" | "processing" | "stopping" | "offline" | "unknown";
 type Severity = "critical" | "error" | "warning" | "info" | string;
 type WorkerAudience = "geral" | "admin";
+type WorkerAccessLevel = "gratis" | "base" | "pro" | "business" | "admin";
 
 type WorkerSettings = {
   enabled: boolean;
   audience: WorkerAudience;
+  access_levels: WorkerAccessLevel[];
   updated_at: string | null;
 };
 
@@ -105,9 +107,17 @@ type OrdersPanelMode = "action" | "processed";
 
 const REFRESH_INTERVAL_MS = 30_000;
 const REFRESH_INTERVAL_SECONDS = REFRESH_INTERVAL_MS / 1_000;
+const WORKER_ACCESS_OPTIONS: Array<{ value: WorkerAccessLevel; label: string }> = [
+  { value: "gratis", label: "Gratuito" },
+  { value: "base", label: "Base" },
+  { value: "pro", label: "Pro" },
+  { value: "business", label: "Business" },
+  { value: "admin", label: "Admin" },
+];
 const DEFAULT_WORKER_SETTINGS: WorkerSettings = {
   enabled: true,
   audience: "geral",
+  access_levels: WORKER_ACCESS_OPTIONS.map((option) => option.value),
   updated_at: null,
 };
 
@@ -359,9 +369,17 @@ const normalizeHeartbeat = (row: Record<string, unknown>): WorkerHeartbeat => ({
 const normalizeWorkerSettings = (row: Record<string, unknown> | null | undefined): WorkerSettings => {
   if (!row) return DEFAULT_WORKER_SETTINGS;
   const audience = row.audience === "admin" ? "admin" : "geral";
+  const accessLevels = Array.isArray(row.access_levels)
+    ? row.access_levels.filter((item): item is WorkerAccessLevel =>
+        WORKER_ACCESS_OPTIONS.some((option) => option.value === item),
+      )
+    : audience === "admin"
+      ? ["admin" as const]
+      : DEFAULT_WORKER_SETTINGS.access_levels;
   return {
     enabled: row.enabled !== false,
     audience,
+    access_levels: Array.from(new Set(accessLevels)),
     updated_at: getString(row, ["updated_at"]),
   };
 };
@@ -609,13 +627,13 @@ const controlWorker = async (action: "start" | "stop") => {
   return response;
 };
 
-const setWorkerAudience = async (audience: WorkerAudience) => {
+const setWorkerAccess = async (accessLevels: WorkerAccessLevel[]) => {
   const { data, error } = await supabase.functions.invoke("dropship-worker-control", {
-    body: { action: "set_audience", audience },
+    body: { action: "set_access", access_levels: accessLevels },
   });
   const response = data as { error?: string; warning?: string } | null;
   if (error || response?.error) {
-    throw new Error(response?.error ?? error?.message ?? "Falha ao alterar o público do bot");
+    throw new Error(response?.error ?? error?.message ?? "Falha ao alterar o acesso do bot");
   }
   return response;
 };
@@ -629,6 +647,7 @@ export default function AdminBotAutomationPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [ordersPanelMode, setOrdersPanelMode] = useState<OrdersPanelMode>("action");
+  const [accessModalOpen, setAccessModalOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-bot-automation-slim"],
@@ -676,13 +695,14 @@ export default function AdminBotAutomationPage() {
     onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Não foi possível controlar o bot."),
   });
 
-  const workerAudienceMutation = useMutation({
-    mutationFn: setWorkerAudience,
+  const workerAccessMutation = useMutation({
+    mutationFn: setWorkerAccess,
     onSuccess: (response) => {
-      toast.success(response?.warning ?? "Público do bot atualizado.");
+      toast.success(response?.warning ?? "Acesso do bot atualizado.");
       void invalidatePanel();
+      setAccessModalOpen(false);
     },
-    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Não foi possível alterar o público do bot."),
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : "Não foi possível alterar o acesso do bot."),
   });
 
   const heartbeat = data?.heartbeat ?? null;
@@ -753,9 +773,17 @@ export default function AdminBotAutomationPage() {
           settings={workerSettings}
           error={data?.errors.worker ?? data?.errors.settings}
           controlling={workerControlMutation.isPending}
-          changingAudience={workerAudienceMutation.isPending}
+          changingAccess={workerAccessMutation.isPending}
           onToggle={() => workerControlMutation.mutate(botEnabled ? "stop" : "start")}
-          onAudienceChange={(audience) => workerAudienceMutation.mutate(audience)}
+          onAccessOpen={() => setAccessModalOpen(true)}
+        />
+
+        <AccessModal
+          open={accessModalOpen}
+          settings={workerSettings}
+          saving={workerAccessMutation.isPending}
+          onClose={() => setAccessModalOpen(false)}
+          onSave={(accessLevels) => workerAccessMutation.mutate(accessLevels)}
         />
 
         <OrderStatsPanel orders={summaryOrders} loading={isLoading} />
@@ -887,9 +915,9 @@ const StatusPanel = ({
   settings,
   error,
   controlling,
-  changingAudience,
+  changingAccess,
   onToggle,
-  onAudienceChange,
+  onAccessOpen,
 }: {
   loading: boolean;
   heartbeat: WorkerHeartbeat | null;
@@ -899,9 +927,9 @@ const StatusPanel = ({
   settings: WorkerSettings;
   error?: string;
   controlling: boolean;
-  changingAudience: boolean;
+  changingAccess: boolean;
   onToggle: () => void;
-  onAudienceChange: (audience: WorkerAudience) => void;
+  onAccessOpen: () => void;
 }) => (
   <AdminCard className="overflow-hidden border-[#E4E8F0] p-0">
     <div className="flex flex-col gap-3 border-b border-[#EEF1F6] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -919,27 +947,18 @@ const StatusPanel = ({
       </div>
       <div className="flex flex-col items-start gap-2 sm:items-end">
         {error ? <InlineError text={error} /> : null}
-        <div className="inline-flex h-8 items-center rounded-full border border-[#D8E3F8] bg-[#F8FAFC] p-0.5">
-          {(["geral", "admin"] as const).map((audience) => {
-            const active = settings.audience === audience;
-            return (
-              <button
-                key={audience}
-                type="button"
-                onClick={() => onAudienceChange(audience)}
-                disabled={changingAudience || active}
-                className={`inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold capitalize transition disabled:cursor-default ${
-                  active
-                    ? "bg-white text-[#2563EB] shadow-[0_4px_12px_rgba(37,99,235,0.14)]"
-                    : "text-[#7C8493] hover:bg-white/70 hover:text-[#111827]"
-                }`}
-              >
-                <span className={`h-2 w-2 rounded-full ${active ? "bg-[#2563EB]" : "bg-[#CBD5E1]"}`} />
-                {audience}
-              </button>
-            );
-          })}
-        </div>
+        <button
+          type="button"
+          onClick={onAccessOpen}
+          disabled={changingAccess}
+          className="inline-flex h-8 items-center gap-2 rounded-full border border-[#D8E3F8] bg-[#F8FAFC] px-3 text-[11.5px] font-semibold text-[#2563EB] transition hover:bg-white disabled:opacity-60"
+        >
+          {changingAccess ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} />}
+          Acesso
+          <span className="rounded-full bg-white px-1.5 py-0.5 text-[10px] text-[#64748B] shadow-[0_2px_8px_rgba(15,23,42,0.08)]">
+            {settings.access_levels.length}
+          </span>
+        </button>
         <button
           type="button"
           onClick={onToggle}
@@ -966,6 +985,107 @@ const StatusPanel = ({
     </div>
   </AdminCard>
 );
+
+const AccessModal = ({
+  open,
+  settings,
+  saving,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  settings: WorkerSettings;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (accessLevels: WorkerAccessLevel[]) => void;
+}) => {
+  const [selected, setSelected] = useState<WorkerAccessLevel[]>(settings.access_levels);
+  const settingsAccessKey = settings.access_levels.join("|");
+
+  useEffect(() => {
+    if (open) setSelected(settings.access_levels);
+  }, [open, settingsAccessKey]);
+
+  if (!open) return null;
+
+  const toggleAccess = (value: WorkerAccessLevel) => {
+    setSelected((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value],
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 backdrop-blur-[3px]">
+      <div className="w-full max-w-md overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.2)]">
+        <div className="h-1.5 bg-[#2563EB]" />
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Acesso</p>
+              <h2 className="mt-1 text-[18px] font-black tracking-[-0.035em] text-[#020817]">Quem pode usar o bot</h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+              aria-label="Fechar"
+            >
+              <X size={17} />
+            </button>
+          </div>
+
+          <div className="mt-5 space-y-2">
+            {WORKER_ACCESS_OPTIONS.map((option) => {
+              const active = selected.includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleAccess(option.value)}
+                  className={`flex h-12 w-full items-center justify-between rounded-[14px] border px-3.5 text-left transition ${
+                    active
+                      ? "border-[#BBD0FF] bg-[#EFF6FF] text-[#1D4ED8]"
+                      : "border-[#E2E8F0] bg-white text-[#334155] hover:border-[#C7D7FE] hover:bg-[#F8FAFC]"
+                  }`}
+                >
+                  <span className="text-[13px] font-bold">{option.label}</span>
+                  <span
+                    className={`grid h-5 w-5 place-items-center rounded-full border ${
+                      active ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-[#CBD5E1] bg-white"
+                    }`}
+                  >
+                    {active ? <CheckCircle2 size={13} /> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 flex items-center justify-end gap-2 border-t border-[#EEF1F6] pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => onSave(selected)}
+              disabled={saving}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:opacity-60"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Salvar acesso
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const OrderStatsPanel = ({ orders, loading }: { orders: ActionOrder[]; loading: boolean }) => {
   const stats = [

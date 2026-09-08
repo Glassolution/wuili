@@ -178,6 +178,22 @@ const SettingsSchema = z.object({
   action: z.literal("get_settings"),
 });
 
+const VALID_ACCESS_LEVELS = ["gratis", "base", "pro", "business", "admin"] as const;
+type WorkerAccessLevel = typeof VALID_ACCESS_LEVELS[number];
+
+function normalizeAccessLevels(value: unknown, audience: unknown): WorkerAccessLevel[] {
+  if (Array.isArray(value)) {
+    const unique = new Set<WorkerAccessLevel>();
+    for (const item of value) {
+      if (VALID_ACCESS_LEVELS.includes(item as WorkerAccessLevel)) {
+        unique.add(item as WorkerAccessLevel);
+      }
+    }
+    return Array.from(unique);
+  }
+  return audience === "admin" ? ["admin"] : [...VALID_ACCESS_LEVELS];
+}
+
 function timingSafeEqual(a: string, b: string) {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -223,7 +239,7 @@ Deno.serve(async (req) => {
 
         const { data, error } = await admin
           .from("dropship_worker_settings")
-          .select("enabled,audience,updated_at")
+          .select("enabled,audience,access_levels,updated_at")
           .eq("id", true)
           .maybeSingle();
 
@@ -234,6 +250,7 @@ Deno.serve(async (req) => {
             settings: {
               enabled: data.enabled !== false,
               audience: data.audience === "admin" ? "admin" : "geral",
+              access_levels: normalizeAccessLevels(data.access_levels, data.audience),
               updated_at: data.updated_at ?? null,
             },
           });
@@ -241,8 +258,8 @@ Deno.serve(async (req) => {
 
         const { data: created, error: createError } = await admin
           .from("dropship_worker_settings")
-          .insert({ id: true, enabled: true, audience: "geral" })
-          .select("enabled,audience,updated_at")
+          .insert({ id: true, enabled: true, audience: "geral", access_levels: [...VALID_ACCESS_LEVELS] })
+          .select("enabled,audience,access_levels,updated_at")
           .single();
 
         if (createError) return json({ error: createError.message }, 500);
@@ -251,6 +268,7 @@ Deno.serve(async (req) => {
           settings: {
             enabled: created.enabled !== false,
             audience: created.audience === "admin" ? "admin" : "geral",
+            access_levels: normalizeAccessLevels(created.access_levels, created.audience),
             updated_at: created.updated_at ?? null,
           },
         });
