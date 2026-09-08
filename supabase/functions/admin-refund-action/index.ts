@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { refundCharge, ValidaPayError } from "../_shared/validapay.ts";
+import { estaPendente, pedidosQueContam, reembolsosBloqueantes } from "../_shared/refundEligibility.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +8,15 @@ const corsHeaders = {
 };
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+/** " (solicitado em 05/09/2026)" — some quando a linha não tem data utilizável. */
+const dataDoPedido = (linha: { requested_at?: string | null; created_at?: string | null }) => {
+  const bruto = linha.requested_at ?? linha.created_at;
+  if (!bruto) return "";
+  const data = new Date(bruto);
+  if (Number.isNaN(data.getTime())) return "";
+  return ` (solicitado em ${data.toLocaleDateString("pt-BR")})`;
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -49,25 +59,30 @@ Deno.serve(async (req) => {
 
     if (!refund_id && action === "approve" && user_id) {
       const directUserId = String(user_id).trim();
-      const REJECTED_STATUSES = ["rejected", "denied", "cancelled", "canceled"];
       const { data: previousRequests } = await admin
         .from("refund_requests")
         .select("*")
         .eq("user_id", directUserId)
         .order("requested_at", { ascending: false })
         .limit(20);
-      const previous = previousRequests ?? [];
-      const pending = previous.find((row) => String(row.status ?? "").toLowerCase() === "pending");
-      const blocking = previous.find((row) => {
-        const status = String(row.status ?? "").toLowerCase();
-        return status !== "pending" && !REJECTED_STATUSES.includes(status);
-      });
+
+      /*
+        Só os pedidos que partiram do cliente (ou do suporte em nome dele)
+        entram na conta. Estorno automático de cobrança duplicada fica de fora
+        nas duas pontas — ver `_shared/refundEligibility.ts`:
+          - não pode bloquear um reembolso legítimo depois;
+          - nem pode ser confundido com uma solicitação pendente e acabar
+            "aprovado" aqui no lugar do pedido real do cliente.
+      */
+      const previous = pedidosQueContam(previousRequests ?? []);
+      const pending = previous.find(estaPendente);
+      const blocking = reembolsosBloqueantes(previous).find((row) => !estaPendente(row));
 
       if (blocking) {
         console.error("admin-refund-action: reembolso bloqueado", { directUserId, status: blocking.status });
         return json(
           {
-            error: `Este cliente já possui um reembolso ${String(blocking.status).toLowerCase() === "processed" ? "concluído" : "em processo"} (solicitado em ${new Date(blocking.requested_at ?? blocking.created_at).toLocaleDateString("pt-BR")}). Não é possível reembolsar novamente.`,
+            error: `Este cliente já possui um reembolso ${String(blocking.status).toLowerCase() === "processed" ? "concluído" : "em processo"}${dataDoPedido(blocking)}. Não é possível reembolsar novamente.`,
           },
           409,
         );
@@ -182,6 +197,28 @@ Deno.serve(async (req) => {
     }).eq("id", refund_id);
 
     if (refundOk && sub) {
+      /*
+        PENDENTE — cancelar a assinatura recorrente na ValidaPay.
+
+        O UPDATE abaixo muda o status APENAS no banco da Velo. O estorno acima
+        devolve a cobrança que já aconteceu, mas a recorrência segue viva no
+        gateway: o cliente pode ser cobrado de novo na próxima fatura, depois
+        de já ter sido reembolsado.
+
+        O cancelamento entra aqui, sobre `sub.validapay_subscription_id`, e
+        quando ele falhar o time precisa ser avisado na hora (incidente em
+        `payment_incidents` + notificação aos admins) em vez de o cliente
+        descobrir sozinho na fatura seguinte.
+
+        Não implementado ainda de propósito: a documentação da ValidaPay não
+        confirma o endpoint de cancelamento. O `_shared/validapay.ts` só expõe
+        GET /v1/subscriptions/{id}, e o webhook apenas RECEBE os eventos
+        `subscription.canceled` / `subscription.cancel_scheduled` — não há
+        nenhuma chamada de saída em todo o repositório para servir de
+        referência. Implementar chutando entre DELETE /v1/subscriptions/{id} e
+        POST /v1/subscriptions/{id}/cancel dispararia alarme falso em toda
+        aprovação. Confirmar método, caminho e escopo OAuth antes de escrever.
+      */
       await admin.from("subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", sub.id);
       const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);

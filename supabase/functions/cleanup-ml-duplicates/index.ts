@@ -1,7 +1,7 @@
 // One-off cleanup: fecha no Mercado Livre os anúncios de linhas
 // user_publications marcadas como 'archived_duplicate' que ainda não foram
 // fechadas (ml_closed_at IS NULL). Segue o mesmo padrão paused -> closed
-// já usado em process-refund e admin-refund-action.
+// já usado em admin-refund-action.
 //
 // Segurança: exige header x-internal-secret == INTERNAL_SECRET.
 // Sem input do usuário — a função descobre as linhas alvo por si só.
@@ -97,7 +97,7 @@ async function closeItem(
     "Content-Type": "application/json",
   };
 
-  // 2) Se estiver ativo, pausar primeiro (mesmo padrão do process-refund)
+  // 2) Se estiver ativo, pausar primeiro (mesmo padrão do admin-refund-action)
   if (currentStatus === "active") {
     const pauseRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
       method: "PUT",

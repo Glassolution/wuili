@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  REFUND_ELIGIBILITY_COLUMNS,
+  estaPendente,
+  reembolsosBloqueantes,
+} from "../_shared/refundEligibility.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,17 +55,16 @@ Deno.serve(async (req) => {
     if (sub.status !== "active") return json({ error: "Apenas assinaturas ativas podem ser reembolsadas" }, 400);
 
     // Bloqueia apenas se já existir uma solicitação em aberto ou já reembolsada.
-    // Pedidos recusados (rejected/denied) permitem nova solicitação.
+    // Pedidos recusados (rejected/denied) permitem nova solicitação, e estornos
+    // que a Velo fez sozinha (cobrança duplicada) não contam — ver
+    // `_shared/refundEligibility.ts`.
     const { data: prevRequests } = await admin
       .from("refund_requests")
-      .select("id, status")
+      .select(REFUND_ELIGIBILITY_COLUMNS)
       .eq("user_id", userId);
-    const REJECTED = ["rejected", "denied", "cancelled", "canceled"];
-    const blocking = (prevRequests ?? []).filter(
-      (r: { status: string | null }) => !REJECTED.includes(String(r.status ?? "").toLowerCase()),
-    );
+    const blocking = reembolsosBloqueantes(prevRequests ?? []);
     if (blocking.length > 0) {
-      const hasPending = blocking.some((r: { status: string | null }) => String(r.status).toLowerCase() === "pending");
+      const hasPending = blocking.some(estaPendente);
       return json(
         {
           error: hasPending
