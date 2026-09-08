@@ -1173,6 +1173,30 @@ export type Database = {
           },
         ]
       }
+      dropship_worker_settings: {
+        Row: {
+          audience: string
+          enabled: boolean
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          audience?: string
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          audience?: string
+          enabled?: boolean
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       feature_suggestions: {
         Row: {
           category: string
