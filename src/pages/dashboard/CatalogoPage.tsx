@@ -21,6 +21,8 @@ import {
   Info,
   Package,
   MoreHorizontal,
+  TrendingUp,
+  Lightbulb,
 } from "lucide-react";
 import {
   AreaChart,
@@ -933,7 +935,6 @@ const CatalogoPage = () => {
   const [categoriasDoBanco, setCategoriasDoBanco] = useState<CategoriaDoBanco[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [recommendationIndex, setRecommendationIndex] = useState(0);
-  const [newsletterEmail, setNewsletterEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState("Todos os preços");
   const [selectedRating, setSelectedRating] = useState<RatingOption>("Todas");
@@ -1688,42 +1689,50 @@ const CatalogoPage = () => {
               </section>
             )}
 
-            <section className="mt-12 overflow-hidden rounded-[28px] bg-[#111111] px-5 py-6 text-white shadow-[0_18px_40px_rgba(17,24,39,0.18)] sm:px-7 sm:py-8">
-              <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            {/*
+              Aqui vivia um bloco de newsletter cujo formulário só chamava
+              preventDefault: o e-mail digitado não ia a lugar nenhum. E é o painel
+              logado, onde a Velo já tem o e-mail da pessoa. No lugar entram os dois
+              caminhos que fazem sentido para quem chegou ao fim da lista sem achar
+              o que queria — e ambos levam a telas que existem.
+            */}
+            <section className="mt-12 overflow-hidden rounded-[28px] bg-[#2563EB] px-5 py-7 text-white shadow-[0_16px_36px_rgba(37,99,235,0.28)] ring-1 ring-inset ring-white/[0.12] sm:px-9 sm:py-9">
+              <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-[420px]">
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/55">
-                    Newsletter
+                  <p className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-white/65">
+                    Não achou o que procurava?
                   </p>
-                  <h2 className="mt-3 text-[34px] font-semibold leading-[0.95] tracking-[-0.06em] text-white sm:text-[42px]">
-                    Quer receber
-                    <br />
-                    novidades primeiro?
+                  {/*
+                    O título seguia a régua do bloco antigo — 42px, leading 0.95 e
+                    tracking -0.06em —, que espremia as letras e destoava do resto da
+                    página. Agora acompanha a escala dos outros títulos do catálogo e
+                    quebra sozinho.
+                  */}
+                  <h2 className="mt-2.5 text-[24px] font-semibold leading-[1.2] tracking-[-0.035em] text-white sm:text-[28px]">
+                    O catálogo cresce toda semana.
                   </h2>
-                  <p className="mt-4 max-w-[360px] text-[14px] leading-6 text-white/70">
-                    Receba novas seleções, produtos em destaque e atualizações do catálogo em primeira mão.
+                  <p className="mt-3 max-w-[360px] text-[14px] leading-6 text-white/80">
+                    Peça o produto que está faltando ou veja o que outros vendedores estão
+                    publicando mais agora.
                   </p>
                 </div>
 
-                <form
-                  className="w-full max-w-[480px]"
-                  onSubmit={(event) => event.preventDefault()}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <input
-                      type="email"
-                      value={newsletterEmail}
-                      onChange={(event) => setNewsletterEmail(event.target.value)}
-                      placeholder="Seu melhor e-mail"
-                      className="h-12 flex-1 rounded-full border border-white/15 bg-white/8 px-4 text-[14px] text-white outline-none placeholder:text-white/45"
-                    />
-                    <button
-                      type="submit"
-                      className="inline-flex h-12 items-center justify-center rounded-full bg-white px-5 text-[14px] font-semibold text-[#111111] transition-opacity hover:opacity-90"
-                    >
-                      Enviar
-                    </button>
-                  </div>
-                </form>
+                <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto lg:shrink-0">
+                  <Link
+                    to="/dashboard/produtos-em-alta"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-[14px] font-semibold text-[#1D4ED8] transition-opacity hover:opacity-90"
+                  >
+                    <TrendingUp size={16} strokeWidth={2} />
+                    Ver produtos em alta
+                  </Link>
+                  <Link
+                    to="/dashboard/sugestoes"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/35 px-5 text-[14px] font-semibold text-white transition-colors hover:bg-white/[0.12]"
+                  >
+                    <Lightbulb size={16} strokeWidth={2} />
+                    Pedir um produto
+                  </Link>
+                </div>
               </div>
             </section>
         </>
