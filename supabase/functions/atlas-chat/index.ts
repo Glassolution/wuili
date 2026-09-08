@@ -277,7 +277,7 @@ const isLostOrUnsure = (message: string) => {
  */
 const offerBeginnerGuideResponse = (nome: string | null = null): AtlasResponse => ({
   message:
-    `Calma${nome ? `, ${nome}` : ""}, travar no começo é normal — quase todo mundo chega assim. 🙂\n\nEu tenho um **guia de iniciante** de 5 passos e faço ele junto com você:\n\n1. Escolher o seu nicho\n2. Separar produtos com estoque e boa margem\n3. Definir onde vender\n4. Conferir o potencial de divulgação\n5. Publicar o seu primeiro anúncio\n\nQuer que eu comece agora? Se preferir, também respondo qualquer dúvida solta antes.`,
+    `Calma${nome ? `, ${nome}` : ""}, travar no começo é normal — quase todo mundo chega assim. 🙂\n\nEu tenho um **guia de iniciante** e faço ele junto com você, um passo de cada vez — começando pelo seu nicho.\n\nQuer que eu comece agora? Se preferir, também respondo qualquer dúvida solta antes.`,
   actions: [
     CONVITE_DO_GUIA,
     { type: "quick_reply", label: "Só tirar uma dúvida", message: "Quero tirar uma dúvida antes" },
@@ -1020,13 +1020,13 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
     if (destaques.length === 0) {
       return {
         message:
-          `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nVamos pelo caminho curto: abre o catálogo e escolhe um produto que te chamou atenção — eu monto o guia em cima dele.`,
+          `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo.${nome ? ` Bora, ${nome}!` : ""} 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nVamos pelo caminho curto: abre o catálogo e escolhe um produto que te chamou atenção — eu monto o guia em cima dele.`,
         actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
       };
     }
     return {
       message:
-        `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nSeparei as categorias que mais saem hoje. Escolhe uma abaixo e eu te levo direto aos produtos dela.`,
+        `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo.${nome ? ` Bora, ${nome}!` : ""} 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nSeparei as categorias que mais saem hoje. Escolhe uma abaixo e eu te levo direto aos produtos dela.`,
       actions: [
         ...destaques.map((categoria) => ({
           type: "navigation" as const,
@@ -1041,7 +1041,7 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
 
   return {
     message:
-      `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nOlhei ${sourceLabel} e separei o que está saindo bem. Escolhe uma opção abaixo, ou me diz outro nicho que você já tem em mente.`,
+      `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo.${nome ? ` Bora, ${nome}!` : ""} 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nOlhei ${sourceLabel} e separei o que está saindo bem. Escolhe uma opção abaixo, ou me diz outro nicho que você já tem em mente.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
@@ -1452,7 +1452,10 @@ const maybeHandleBeginnerGuide = async (
     return askBeginnerNiche(supabase, nome);
   }
 
-  const emPasso = (n: number) => guideWasActive && lastAssistantText.includes(`passo ${n} de 5`);
+  // As etapas passaram a ser identificadas pelo subtítulo: a numeração mudou de 5
+  // para 4 passos e o passo 1 cobre nicho + escolha do produto.
+  const emEtapa = (...subtitulos: string[]) =>
+    guideWasActive && subtitulos.some((subtitulo) => lastAssistantText.includes(subtitulo));
 
   // "Ver outras opções" vale em qualquer etapa que já tenha produto na tela.
   // Tratado antes das etapas específicas porque o botão aparece nos passos 2, 3
@@ -1464,7 +1467,7 @@ const maybeHandleBeginnerGuide = async (
   }
 
   // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
-  if (emPasso(4) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
+  if (emEtapa("potencial de divulgacao") && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
     return guidePublicationStep(supabase, userId, lastProductCards[0], niche, nome);
   }
@@ -1472,7 +1475,7 @@ const maybeHandleBeginnerGuide = async (
   // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
   // 4 (potencial de divulgação).
   if (
-    emPasso(3) &&
+    emEtapa("onde vender", "conectar sua conta") &&
     lastProductCards.length > 0 &&
     (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
   ) {
@@ -1503,7 +1506,7 @@ const maybeHandleBeginnerGuide = async (
 
   // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
   // confirmado -> passo 3, já amarrado ao produto escolhido.
-  if (emPasso(2) && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
     const escolhido = lastProductCards[0];
     return guideProductChosenStep(supabase, userId, {
       id: escolhido.product_id,
@@ -1516,7 +1519,7 @@ const maybeHandleBeginnerGuide = async (
 
   // Quem prefere garimpar sozinho sai da vitrine para a grade inteira, sem
   // perder o guia: o produto escolhido no catálogo volta pelo mesmo caminho.
-  if (emPasso(2) && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
     return {
       message:
         `Fechado${nome ? `, ${nome}` : ""}, vamos pelo catálogo completo.\n\n**Passo 1 de 4 — escolha do produto**\n\nAbre o catálogo, usa os filtros e escolhe o produto que mais te agradar.\n\nQuando você clicar em escolher, eu sigo o guia com ele daqui.`,
@@ -1530,7 +1533,7 @@ const maybeHandleBeginnerGuide = async (
   // Passo 2 sem cards: a vitrine é o caminho. Se o usuário rolou a conversa e
   // perdeu o carrossel de vista, ele pede de volta e o guia manda outro em vez
   // de travar.
-  if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
     if (niche) return guideOpenShowcaseStep(supabase, niche, nome);
   }
@@ -1538,7 +1541,7 @@ const maybeHandleBeginnerGuide = async (
   // Passo 5: usuário avisa que conectou o Mercado Livre.
   // A confirmação é checada no banco antes de comemorar: dizer "conectado" sem
   // conferir levava o usuário até a publicação e o erro só aparecia lá.
-  if (emPasso(5) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
+  if (emEtapa("resumo e publicacao", "revisao final", "conectar antes de publicar") && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
     const productNav = lastActions.find(
       (action): action is NavigationAction =>
         action.type === "navigation" && action.route.includes("/dashboard/catalogo/") && !action.route.includes("publicar=1"),
@@ -1588,7 +1591,7 @@ const maybeHandleBeginnerGuide = async (
   const previousAskedForNiche =
     guideWasActive &&
     !previousValidatedNiche &&
-    (lastAssistantText.includes("passo 1 de 5") ||
+    (lastAssistantText.includes("seu nicho") ||
       lastAssistantText.includes("outro nicho que voce ja tenha em mente"));
 
   // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
