@@ -243,6 +243,30 @@ const AdminRefundsPage = () => {
     onSettled: () => setBusyId(null),
   });
 
+  // Varredura das cobranças feitas depois do cancelamento (estorno em lote).
+  const postCancel = useMutation({
+    mutationFn: async (dryRun: boolean) => {
+      const { data, error } = await supabase.functions.invoke("admin-refund-post-cancel", {
+        body: { dry_run: dryRun },
+      });
+      if (error || (data && data.error)) throw new Error((data && data.error) || error?.message || "Falha");
+      return data as { count: number; dry_run: boolean; results: Array<Record<string, unknown>> };
+    },
+    onSuccess: (data) => {
+      if (data.dry_run) {
+        toast.success(`${data.count} cobrança(s) encontrada(s) para estorno.`);
+        console.log("[post-cancel] prévia", data.results);
+      } else {
+        const ok = data.results.filter((r) => r.ok === true).length;
+        toast.success(`${ok} de ${data.count} cobrança(s) estornada(s).`);
+        console.log("[post-cancel] resultado", data.results);
+        qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
+      }
+    },
+    onError: (e: unknown) => toast.error((e as Error)?.message || "Erro"),
+  });
+
+
   if (loading || loadingProfile) {
     return <VeloLoadingScreen message="Carregando reembolsos..." />;
   }
