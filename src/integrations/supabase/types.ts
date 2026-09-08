@@ -1132,6 +1132,39 @@ export type Database = {
           },
         ]
       }
+      dropship_worker_commands: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          message: string | null
+          processed_at: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          processed_at?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          processed_at?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dropship_worker_heartbeats: {
         Row: {
           current_order_id: string | null
