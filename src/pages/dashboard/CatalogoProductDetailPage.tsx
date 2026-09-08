@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ExternalLink,
   FilePlus2,
   PackagePlus,
   BadgeDollarSign,
@@ -24,7 +23,6 @@ import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/comp
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
-import { veloToast } from "@/components/ui/velo-toast";
 import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import { proxyImageList } from "@/lib/imageProxy";
 
@@ -374,7 +372,7 @@ const CatalogoProductDetailPage = () => {
       <div key={product.id} className="mx-auto min-h-screen w-full max-w-[1200px] animate-fade-in px-5 py-6 sm:px-8 sm:py-8 lg:px-8 lg:py-10">
 
         {/* CABEÇALHO DA PÁGINA */}
-        <div className="mb-5 hidden items-center justify-between px-2 lg:flex">
+        <div className="mb-5 hidden items-center px-2 lg:flex">
           <button
             type="button"
             onClick={() => navigate("/dashboard/catalogo")}
@@ -383,9 +381,6 @@ const CatalogoProductDetailPage = () => {
             <ArrowLeft size={14} strokeWidth={2} />
             <span>Catálogo / {categoryLabel}</span>
           </button>
-          <div className="rounded-full bg-[#F3F3F2] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-            {supplierLabel}
-          </div>
         </div>
 
         {/* SEÇÃO PRINCIPAL (duas colunas) */}
@@ -555,8 +550,8 @@ const CatalogoProductDetailPage = () => {
               macio e sem ícone. Antes eram três botões empilhados ocupando a largura toda —
               a tela terminava numa pilha de barras iguais, sem dizer qual era a ação.
 
-              "Ver no fornecedor" desceu para link: é consulta, não ação da tela, e a
-              referência também não tem um terceiro botão.
+              O link "Ver no fornecedor" saiu da tela: o usuário não precisa chegar ao
+              fornecedor, ele publica pelo catálogo da Velo.
             */}
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
@@ -576,18 +571,6 @@ const CatalogoProductDetailPage = () => {
                 Publicar produto
               </button>
             </div>
-
-            {product.product_url ? (
-              <a
-                href={product.product_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2563EB]"
-              >
-                Ver no fornecedor
-                <ExternalLink size={14} strokeWidth={2} />
-              </a>
-            ) : null}
           </section>
 
         </div>
@@ -726,26 +709,6 @@ const CatalogoProductDetailPage = () => {
                   <FilePlus2 size={16} strokeWidth={1.9} />
                   Criar página de vendas
                 </button>
-                {product.product_url ? (
-                  <a
-                    href={product.product_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-[9px] text-[13px] font-semibold text-[#2563EB] transition hover:bg-[#F5F9FF]"
-                  >
-                    Ver no fornecedor
-                    <ExternalLink size={15} strokeWidth={1.8} />
-                  </a>
-                ) : (
-                  <button
-                  type="button"
-                  onClick={() => veloToast.info("O fornecedor não disponibilizou um link para este produto.")}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-[9px] text-[13px] font-semibold text-[#2563EB] transition hover:bg-[#F5F9FF]"
-                >
-                    Ver no fornecedor
-                    <ExternalLink size={15} strokeWidth={1.8} />
-                  </button>
-                )}
               </div>
 
               <div className="mt-5 space-y-2.5 border-t border-black/[0.08] pt-4 text-[12px] leading-5 text-[#6B6B67]">
