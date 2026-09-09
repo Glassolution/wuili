@@ -4,7 +4,6 @@ import { Navigate } from "react-router-dom";
 import {
   AlertTriangle,
   Bot,
-  Check,
   CheckCircle2,
   Edit3,
   ExternalLink,
@@ -1054,10 +1053,10 @@ const AccessModal = ({
                   <span className="text-[13px] font-bold">{option.label}</span>
                   <span
                     className={`grid h-5 w-5 place-items-center rounded-full border ${
-                      active ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-[#CBD5E1] bg-white"
+                      active ? "border-[#2563EB] bg-[#2563EB]" : "border-[#CBD5E1] bg-white"
                     }`}
                   >
-                    {active ? <Check size={15} strokeWidth={3} /> : null}
+                    {active ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
                   </span>
                 </button>
               );

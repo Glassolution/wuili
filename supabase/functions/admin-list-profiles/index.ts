@@ -8,6 +8,16 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+const cleanText = (value: unknown) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text.length > 0 ? text : null;
+};
+
+const isGenericName = (value: string | null | undefined) => {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return !normalized || normalized === "usuario" || normalized === "usuário";
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -57,15 +67,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Completa e-mails ausentes direto do cadastro de autenticação.
-    const faltando = ids.filter((id) => !map[id]?.email);
+    // Completa nome/e-mail ausentes direto do cadastro de autenticação.
+    const faltando = ids.filter((id) => !map[id]?.email || isGenericName(map[id]?.display_name));
     for (const id of faltando.slice(0, 300)) {
       const { data } = await admin.auth.admin.getUserById(id);
-      if (data?.user?.email) {
+      const authEmail = cleanText(data?.user?.email);
+      const metadata = data?.user?.user_metadata ?? {};
+      const authName =
+        cleanText(metadata.full_name) ??
+        cleanText(metadata.name) ??
+        (authEmail ? cleanText(authEmail.split("@")[0]) : null);
+      if (authEmail || authName) {
         map[id] = {
-          display_name: map[id]?.display_name ?? null,
+          display_name: isGenericName(map[id]?.display_name) ? authName : map[id]?.display_name ?? authName,
           avatar_url: map[id]?.avatar_url ?? null,
-          email: data.user.email,
+          email: map[id]?.email ?? authEmail,
         };
       }
     }

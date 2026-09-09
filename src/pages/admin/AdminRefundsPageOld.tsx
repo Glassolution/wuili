@@ -36,6 +36,7 @@ type SubRow = {
 };
 
 type TabKey = "pending" | "processing" | "eligible" | "approved" | "rejected";
+type UserProfile = { display_name: string | null; avatar_url: string | null; email: string | null };
 
 const REFUND_WINDOW_DAYS = 7;
 
@@ -177,7 +178,7 @@ const AdminRefundsPage = () => {
     enabled: isAdmin && userIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, email").in("user_id", userIds);
-      const map: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }> = {};
+      const map: Record<string, UserProfile> = {};
       (data || []).forEach((p: any) => {
         map[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url, email: (p as any).email ?? null };
       });
@@ -330,27 +331,36 @@ const UserCell = ({
   fallback,
   chargeId,
 }: {
-  p?: { display_name: string | null; avatar_url: string | null; email: string | null };
+  p?: UserProfile;
   fallback: string;
   chargeId?: string | null;
-}) => (
-  <div className="flex items-center gap-3">
-    {p?.avatar_url ? (
-      <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-    ) : (
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
-        <UserRound size={14} strokeWidth={1.5} />
+}) => {
+  const email = p?.email?.trim() || null;
+  const rawName = p?.display_name?.trim() || "";
+  const displayName =
+    rawName && !["usuario", "usuário"].includes(rawName.toLowerCase())
+      ? rawName
+      : email?.split("@")[0] || "Usuário";
+
+  return (
+    <div className="flex items-center gap-3">
+      {p?.avatar_url ? (
+        <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+      ) : (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
+          <UserRound size={14} strokeWidth={1.5} />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="truncate font-semibold text-[#171715]">{displayName}</p>
+        <p className="truncate text-[11px] text-[#8A8A8E]">{email || fallback}</p>
+        <p className="mt-0.5 max-w-[220px] truncate font-mono text-[10.5px] font-semibold text-[#2563EB]">
+          charge_id: {chargeId?.trim() ? chargeId : "—"}
+        </p>
       </div>
-    )}
-    <div className="min-w-0">
-      <p className="truncate font-semibold text-[#171715]">{p?.display_name || "Usuário"}</p>
-      <p className="truncate text-[11px] text-[#8A8A8E]">{p?.email || fallback}</p>
-      <p className="mt-0.5 max-w-[220px] truncate font-mono text-[10.5px] font-semibold text-[#2563EB]">
-        charge_id: {chargeId?.trim() ? chargeId : "—"}
-      </p>
     </div>
-  </div>
-);
+  );
+};
 
 const EmptyRow = ({ text }: { text: string }) => (
   <div className="rounded-2xl border border-dashed border-[#D9DDE7] bg-[#F8FAFC] px-6 py-16 text-center text-[13px] text-[#667085]">{text}</div>
@@ -379,7 +389,7 @@ const EligibleTable = ({
   profiles,
 }: {
   rows: SubRow[];
-  profiles: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }>;
+  profiles: Record<string, UserProfile>;
 }) => {
   if (rows.length === 0) return <EmptyRow text="Nenhuma conta ativa dentro da janela de reembolso." />;
   return (
@@ -433,7 +443,7 @@ const RefundsTable = ({
   onReject,
 }: {
   rows: RefundRow[];
-  profiles: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }>;
+  profiles: Record<string, UserProfile>;
   subs: Record<string, any>;
   variant: "pending" | "processing" | "approved" | "rejected";
   busyId?: string | null;
