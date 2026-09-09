@@ -89,8 +89,91 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({})) as {
       dry_run?: boolean;
       subscription_ids?: string[];
+      inspect_email?: string;
+      inspect_subscription?: string;
+      refund_charge_id?: string;
+      refund_subscription_id?: string;
     };
     const dryRun = body.dry_run === true;
+
+    // Modo diagnóstico: lista cobranças do gateway por e-mail/assinatura.
+    if (body.inspect_email || body.inspect_subscription) {
+      const all = await listRecentCharges(
+        new Date(Date.now() - 60 * 86400_000).toISOString(),
+        90,
+      );
+      const match = all.filter((c) =>
+        (body.inspect_email && String(c.email ?? "").toLowerCase() === body.inspect_email.toLowerCase()) ||
+        (body.inspect_subscription && c.subscriptionId === body.inspect_subscription)
+      );
+      let subscription: unknown = null;
+      if (body.inspect_subscription) {
+        try {
+          subscription = await validaPayFetch(
+            `/v1/subscriptions/${encodeURIComponent(body.inspect_subscription)}`,
+            { method: "GET", scope: "checkouts/read accounts/read" },
+          );
+        } catch (e) {
+          subscription = { error: String(e) };
+        }
+      }
+      return json({ ok: true, scanned: all.length, matches: match, subscription });
+    }
+
+    // Estorno pontual de uma cobrança específica já identificada.
+    if (body.refund_charge_id) {
+      const chargeId = body.refund_charge_id;
+      const { data: sub } = body.refund_subscription_id
+        ? await admin.from("subscriptions").select("*").eq("id", body.refund_subscription_id).maybeSingle()
+        : { data: null as Any };
+      const { data: prior } = await admin
+        .from("refund_requests").select("id,status").eq("charge_id", chargeId)
+        .in("status", ["processed", "pending"]).maybeSingle();
+      if (prior) return json({ ok: true, skipped: "ja_estornada", charge_id: chargeId });
+
+      let providerResponse: Record<string, unknown> | null = null;
+      let ok = false;
+      try {
+        const result = await refundCharge(chargeId, undefined, "CUSTOMER_REQUEST") as Record<string, unknown>;
+        const st = String(result?.status ?? "").toUpperCase();
+        ok = ["CONFIRMED", "COMPLETED", "SUCCESS", "PROCESSING"].includes(st) || result?.success === true;
+        providerResponse = { provider: "validapay", chargeId, ...result };
+      } catch (e) {
+        const err = e as ValidaPayError;
+        providerResponse = { provider: "validapay", chargeId, error: err.message, details: err.details ?? null };
+      }
+
+      if (sub) {
+        const now = new Date().toISOString();
+        await admin.from("refund_requests").insert({
+          user_id: sub.user_id,
+          subscription_id: sub.id,
+          charge_id: chargeId,
+          reason: "Cobrança indevida após cancelamento",
+          reason_details: "Renovação cobrada mesmo após o cancelamento. Estorno integral pelo suporte.",
+          status: ok ? "processed" : "rejected",
+          refund_amount: Number(sub.amount ?? 0),
+          provider_response: providerResponse,
+          requested_at: now,
+          processed_at: now,
+          automated: true,
+          refund_kind: "post_cancel_charge",
+        });
+        if (ok) {
+          await admin.from("subscriptions").update({
+            status: "cancelled", cancel_at_period_end: true, updated_at: now,
+          }).eq("id", sub.id);
+          await admin.from("notifications").insert({
+            user_id: sub.user_id,
+            title: "Cobrança estornada",
+            message: "Identificamos uma cobrança feita após o cancelamento da sua assinatura e já enviamos o estorno integral. O valor volta em até 30 dias, conforme o banco emissor.",
+            type: "refund",
+          });
+        }
+      }
+      return json({ ok, charge_id: chargeId, provider: providerResponse });
+    }
+
 
     // Renovações cobradas depois do cancelamento.
     const { data: events } = await admin
