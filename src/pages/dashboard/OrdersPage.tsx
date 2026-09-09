@@ -128,6 +128,7 @@ type C7DropAccountStatus = {
 type C7DropAccountForm = {
   email: string;
   password: string;
+  confirm_password: string;
   first_name: string;
   last_name: string;
   phone: string;
@@ -833,6 +834,7 @@ const C7DropAccountModal = ({
   const [form, setForm] = useState<C7DropAccountForm>({
     email: account.email ?? "",
     password: "",
+    confirm_password: "",
     first_name: account.first_name ?? "",
     last_name: account.last_name ?? "",
     phone: account.phone ?? "",
@@ -844,6 +846,7 @@ const C7DropAccountModal = ({
     setForm({
       email: account.email ?? "",
       password: "",
+      confirm_password: "",
       first_name: account.first_name ?? "",
       last_name: account.last_name ?? "",
       phone: account.phone ?? "",
@@ -854,7 +857,16 @@ const C7DropAccountModal = ({
   if (!open) return null;
 
   const update = (key: keyof C7DropAccountForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const canSave = form.email && form.password && form.first_name && form.last_name && form.phone && form.document;
+  const passwordMatches = form.password === form.confirm_password;
+  const canSave =
+    form.email &&
+    form.password &&
+    form.confirm_password &&
+    passwordMatches &&
+    form.first_name &&
+    form.last_name &&
+    form.phone &&
+    form.document;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
@@ -888,13 +900,34 @@ const C7DropAccountModal = ({
             ))}
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <PurchaseField label="E-mail do fornecedor" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
-            <PurchaseField label="Senha do fornecedor" value={form.password} onChange={(value) => update("password", value)} type="password" icon={LockKeyhole} />
-            <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
-            <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
-            <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
-            <PurchaseField label="CPF/CNPJ" value={form.document} onChange={(value) => update("document", value)} icon={KeyRound} />
+          <div className="mt-4 space-y-4">
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">1. Conta</p>
+              <p className="mt-1 text-[12px] font-medium text-[#64748B]">
+                Dados usados para entrar ou criar a conta no fornecedor.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
+                <PurchaseField label="Senha da conta" value={form.password} onChange={(value) => update("password", value)} type="password" icon={LockKeyhole} />
+                <PurchaseField label="Confirmar senha" value={form.confirm_password} onChange={(value) => update("confirm_password", value)} type="password" icon={LockKeyhole} />
+              </div>
+              {form.confirm_password && !passwordMatches ? (
+                <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">2. Dados para compra</p>
+              <p className="mt-1 text-[12px] font-medium text-[#64748B]">
+                O bot usa esses dados quando o checkout do fornecedor pedir identificação.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
+                <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
+                <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
+                <PurchaseField label="CPF/CNPJ" value={form.document} onChange={(value) => update("document", value)} icon={KeyRound} />
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 rounded-2xl border border-[#D7E4FF] bg-[#EFF6FF] p-3 text-[12px] font-medium leading-relaxed text-[#475569]">
