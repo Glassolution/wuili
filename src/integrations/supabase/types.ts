@@ -648,6 +648,60 @@ export type Database = {
         }
         Relationships: []
       }
+      c7drop_user_accounts: {
+        Row: {
+          connected_at: string | null
+          created_at: string
+          document: string | null
+          email: string | null
+          first_name: string | null
+          last_name: string | null
+          last_tested_at: string | null
+          password_ciphertext: string | null
+          password_iv: string | null
+          password_tag: string | null
+          phone: string | null
+          signup_payload: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          connected_at?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          last_tested_at?: string | null
+          password_ciphertext?: string | null
+          password_iv?: string | null
+          password_tag?: string | null
+          phone?: string | null
+          signup_payload?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          connected_at?: string | null
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          last_tested_at?: string | null
+          password_ciphertext?: string | null
+          password_iv?: string | null
+          password_tag?: string | null
+          phone?: string | null
+          signup_payload?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       catalog_products: {
         Row: {
           aliexpress_category_id: string | null
