@@ -177,10 +177,33 @@ const AdminRefundsPage = () => {
     queryKey: ["admin-refunds-profiles", userIds.join(",")],
     enabled: isAdmin && userIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, email").in("user_id", userIds);
       const map: Record<string, UserProfile> = {};
+      const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, email").in("user_id", userIds);
       (data || []).forEach((p: any) => {
-        map[p.user_id] = { display_name: p.display_name, avatar_url: p.avatar_url, email: (p as any).email ?? null };
+        map[p.user_id] = { display_name: p.display_name ?? null, avatar_url: p.avatar_url ?? null, email: p.email ?? null };
+      });
+
+      const { data: fnData, error: fnError } = await supabase.functions.invoke("admin-list-profiles", {
+        body: { user_ids: userIds },
+      });
+      if (fnError) {
+        console.error("[admin-refunds] falha ao carregar perfis", fnError);
+        return map;
+      }
+      const extras = ((fnData as { profiles?: Record<string, UserProfile> })?.profiles ?? {}) as Record<string, UserProfile>;
+      Object.entries(extras).forEach(([userId, profile]) => {
+        const base = map[userId];
+        const nomeGenerico = (v: string | null | undefined) => {
+          const n = (v ?? "").trim().toLowerCase();
+          return !n || n === "usuario" || n === "usuário";
+        };
+        map[userId] = base
+          ? {
+              display_name: nomeGenerico(base.display_name) ? profile.display_name ?? base.display_name : base.display_name,
+              avatar_url: base.avatar_url ?? profile.avatar_url,
+              email: base.email ?? profile.email,
+            }
+          : profile;
       });
       return map;
     },
