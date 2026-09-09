@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       .limit(500);
 
     // 1) Monta a lista de assinaturas afetadas.
-    const targets: Array<{ sub: Any; renewedAt: string }> = [];
+    const targets: Array<{ sub: Any; renewedAt: string; explicit?: boolean }> = [];
     const seen = new Set<string>();
     for (const ev of events ?? []) {
       const vpSubId = ev.subscription_id as string | null;
@@ -116,6 +116,18 @@ Deno.serve(async (req) => {
       targets.push({ sub, renewedAt: ev.created_at as string });
     }
 
+    // 1b) Assinaturas informadas explicitamente: nem toda cobrança pós-cancelamento
+    // gerou webhook `subscription.renewed`, então varremos o gateway direto.
+    for (const subId of body.subscription_ids ?? []) {
+      if (targets.some((t) => t.sub.id === subId)) continue;
+      const { data: sub } = await admin
+        .from("subscriptions").select("*").eq("id", subId).maybeSingle();
+      if (!sub?.cancelled_at || !sub.validapay_subscription_id) continue;
+      if (seen.has(sub.validapay_subscription_id)) continue;
+      seen.add(sub.validapay_subscription_id);
+      targets.push({ sub, renewedAt: sub.cancelled_at as string, explicit: true });
+    }
+
     const results: Array<Record<string, unknown>> = [];
     if (!targets.length) return json({ ok: true, dry_run: dryRun, count: 0, results });
 
@@ -125,17 +137,20 @@ Deno.serve(async (req) => {
       .reduce((a, b) => Math.min(a, b));
     const charges = await listRecentCharges(new Date(oldestRenewal - 2 * 86400_000).toISOString());
 
-    for (const { sub, renewedAt } of targets) {
+    for (const { sub, renewedAt, explicit } of targets) {
       const renewedTs = new Date(renewedAt).getTime();
       const candidates = charges
         .filter((c) =>
           c.subscriptionId === sub.validapay_subscription_id &&
           c.chargeId !== sub.validapay_charge_id &&
           PAID.includes(String(c.status ?? "").toUpperCase()) &&
-          Math.abs(new Date(c.createdAt ?? 0).getTime() - renewedTs) < 3 * 86400_000
+          (explicit
+            ? new Date(c.createdAt ?? 0).getTime() > new Date(sub.cancelled_at).getTime()
+            : Math.abs(new Date(c.createdAt ?? 0).getTime() - renewedTs) < 3 * 86400_000)
         )
         .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
       const target = candidates[0];
+
 
       // Essa cobrança específica já foi estornada?
       if (target) {
