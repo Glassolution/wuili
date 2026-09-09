@@ -583,7 +583,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
 
       setPixOrderId(info.dropshipOrderId);
       onCreatedPix?.();
-      veloToast.success("Pedido enviado ao bot. O Pix da C7Drop aparece aqui em instantes.");
+      veloToast.success("Pedido enviado ao bot. O Pix do fornecedor aparece aqui em instantes.");
     } catch (error) {
       veloToast.error(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
     } finally {
@@ -614,7 +614,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
                 <h2 id="supplier-qr-title" className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#020817]">
-                  Pix da C7Drop
+                  Pix do fornecedor
                 </h2>
               </div>
               <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
@@ -626,10 +626,10 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
               {isPaid ? (
                 <p className="text-center text-[13px] font-black text-[#137443]">Pagamento confirmado. O bot está finalizando o pedido no fornecedor.</p>
               ) : qrDataUrl ? (
-                <img src={qrDataUrl} alt="QR Code Pix da compra na C7Drop" className="h-56 w-56" />
+                <img src={qrDataUrl} alt="QR Code Pix da compra no fornecedor" className="h-56 w-56" />
               ) : (
                 <p className="text-center text-[13px] font-semibold text-[#64748B]">
-                  Gerando o Pix na C7Drop... isso leva alguns instantes. Deixe esta janela aberta.
+                  Gerando o Pix no fornecedor... isso leva alguns instantes. Deixe esta janela aberta.
                 </p>
               )}
             </div>
@@ -653,7 +653,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             ) : null}
 
             <div className="mt-5 text-center">
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Preço C7Drop</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Preço do fornecedor</p>
               <p className="mt-1 text-[30px] font-black tracking-[-0.05em] text-[#020817]">{supplierPriceLabel}</p>
             </div>
 
@@ -675,7 +675,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
                   Depois de pagar, aguarde a confirmação automática.
                 </p>
                 <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#15803D]">
-                  O bot acompanha a C7Drop e atualiza o pedido quando o pagamento for identificado.
+                  O bot acompanha o fornecedor e atualiza o pedido quando o pagamento for identificado.
                 </p>
               </div>
             ) : null}
@@ -722,8 +722,8 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
           <div className="mt-5 grid gap-3 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 sm:grid-cols-4">
             <MiniInfo label="Pedido" value={info.orderCode} />
             <MiniInfo label="Quantidade" value={info.quantity} />
-            <MiniInfo label="Fornecedor" value="C7Drop" />
-            <MiniInfo label="Preço C7Drop" value={supplierPriceLabel} />
+            <MiniInfo label="Fornecedor" value="Fornecedor Velo" />
+            <MiniInfo label="Preço do fornecedor" value={supplierPriceLabel} />
           </div>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -767,7 +767,7 @@ const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: Supplier
             className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
           >
             <ShoppingBag size={15} />
-            {isGeneratingQr ? "Gerando Pix..." : "Gerar Pix C7Drop"}
+            {isGeneratingQr ? "Gerando Pix..." : "Gerar Pix do fornecedor"}
           </button>
         </div>
       </div>
