@@ -178,8 +178,16 @@ const SettingsSchema = z.object({
   action: z.literal("get_settings"),
 });
 
+const C7DropCredentialsSchema = z.object({
+  action: z.literal("get_c7drop_credentials"),
+  user_id: z.string().uuid(),
+  order_id: z.string().uuid().optional(),
+});
+
 const VALID_ACCESS_LEVELS = ["gratis", "base", "pro", "business", "admin"] as const;
 type WorkerAccessLevel = typeof VALID_ACCESS_LEVELS[number];
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 function normalizeAccessLevels(value: unknown, audience: unknown): WorkerAccessLevel[] {
   if (Array.isArray(value)) {
@@ -199,6 +207,30 @@ function timingSafeEqual(a: string, b: string) {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
+}
+
+async function encryptionKey() {
+  const secret = Deno.env.get("C7DROP_CREDENTIALS_ENCRYPTION_KEY");
+  if (!secret) throw new Error("C7DROP_CREDENTIALS_ENCRYPTION_KEY nao configurado");
+  const digest = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
+  return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["decrypt"]);
+}
+
+async function decryptText(ciphertext: string, ivText: string) {
+  const key = await encryptionKey();
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: base64ToBytes(ivText) },
+    key,
+    base64ToBytes(ciphertext),
+  );
+  return decoder.decode(decrypted);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
 
 Deno.serve(async (req) => {
@@ -270,6 +302,35 @@ Deno.serve(async (req) => {
             audience: created.audience === "admin" ? "admin" : "geral",
             access_levels: normalizeAccessLevels(created.access_levels, created.audience),
             updated_at: created.updated_at ?? null,
+          },
+        });
+      }
+
+      case "get_c7drop_credentials": {
+        const parsed = C7DropCredentialsSchema.safeParse(body);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+
+        const { data, error } = await admin
+          .from("c7drop_user_accounts")
+          .select("user_id,status,email,password_ciphertext,password_iv,first_name,last_name,phone,document")
+          .eq("user_id", parsed.data.user_id)
+          .maybeSingle();
+
+        if (error) return json({ error: error.message }, 500);
+        if (!data || data.status !== "connected" || !data.password_ciphertext || !data.password_iv) {
+          return json({ credentials: null });
+        }
+
+        const password = await decryptText(data.password_ciphertext, data.password_iv);
+        return json({
+          credentials: {
+            userId: data.user_id,
+            email: data.email,
+            password,
+            firstName: data.first_name,
+            lastName: data.last_name,
+            phone: data.phone,
+            document: data.document,
           },
         });
       }
