@@ -1224,6 +1224,24 @@ Deno.serve(async (req) => {
       value_name: cleanText(productRecord.external_id) || 'SKU-001',
     })
 
+    // 3.1) EMPTY_GTIN_REASON — sem isso o ML aceita a publicação mas deixa o
+    // anúncio em "Inativo para revisar" (status under_review / waiting_for_patch).
+    // Como o catálogo do fornecedor não traz código de barras, declaramos
+    // explicitamente que o produto não tem GTIN cadastrado.
+    {
+      const gtinDef = categoryAttrs.find(a => cleanText(a.id).toUpperCase() === 'EMPTY_GTIN_REASON') as
+        | Record<string, unknown>
+        | undefined
+      const hasGtin = allAttrs.some(a => String(a.id).toUpperCase() === 'GTIN' && cleanText((a as { value_name?: unknown }).value_name))
+      if (gtinDef && !hasGtin) {
+        const values = (gtinDef.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+        const match = values.find(v => /não tem código|nao tem codigo/i.test(cleanText(v?.name)))
+          ?? values.find(v => /outro motivo/i.test(cleanText(v?.name)))
+        if (match?.id) mergeAttribute(allAttrs, { id: 'EMPTY_GTIN_REASON', value_id: match.id })
+      }
+    }
+
+
     // 3.5) PACKAGE_WEIGHT (peso da embalagem para frete)
     let rawWeight = null
     
