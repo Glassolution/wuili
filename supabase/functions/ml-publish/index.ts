@@ -1994,6 +1994,8 @@ Deno.serve(async (req) => {
         // aceitos pelo ML e que não geram penalização de qualidade.
         const defaults: Record<string, MLAttribute> = {
           GTIN:              { id: 'GTIN', value_name: 'Não aplicável' },
+          EMPTY_GTIN_REASON: { id: 'EMPTY_GTIN_REASON', value_name: 'O produto não tem código cadastrado' },
+
           COLOR:             { id: 'COLOR', value_name: 'Preto' },
           MAIN_COLOR:        { id: 'MAIN_COLOR', value_name: 'Preto' },
           SECONDARY_COLOR:   { id: 'SECONDARY_COLOR', value_name: 'Preto' },
