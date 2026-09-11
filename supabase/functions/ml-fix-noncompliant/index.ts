@@ -244,10 +244,30 @@ Deno.serve(async (req) => {
 
     const results: Result[] = [];
     for (const pub of (pubs ?? []) as Pub[]) {
+      let r: Result;
       try {
-        results.push(await processItem(supabase, pub, apply));
+        r = await processItem(supabase, pub, apply);
       } catch (err) {
-        results.push({ ml_item_id: pub.ml_item_id, outcome: "error", error: String(err).slice(0, 300) });
+        r = { ml_item_id: pub.ml_item_id, outcome: "error", error: String(err).slice(0, 300) };
+      }
+      results.push(r);
+      // Registra sempre — inclusive falhas — para que o anúncio não volte à
+      // fila indefinidamente e o histórico mostre o que ainda precisa de ação.
+      if (apply) {
+        const { error: logErr } = await supabase.from("ml_compliance_fixes").insert({
+          kind: "noncompliant_repair",
+          ml_item_id: pub.ml_item_id,
+          publication_id: pub.id,
+          seller_id: pub.user_id,
+          batch: "repair",
+          status: r.outcome === "ok" ? "success" : r.outcome,
+          ml_status_before: r.status_before ?? pub.status,
+          ml_status: r.status_after ?? r.status_before ?? pub.status,
+          before_value: (pub.title ?? "").slice(0, 4000),
+          error_message: r.error ?? null,
+          processed_at: new Date().toISOString(),
+        });
+        if (logErr) console.error("[ml-fix-noncompliant] falha ao registrar histórico:", logErr.message);
       }
       await sleep(GAP_MS);
     }
