@@ -181,20 +181,6 @@ async function processItem(
     .update({ status: out.status_after })
     .eq("id", pub.id);
 
-  await supabase.from("ml_compliance_fixes").insert({
-    kind: "noncompliant_repair",
-    ml_item_id: pub.ml_item_id,
-    publication_id: pub.id,
-    seller_id: pub.user_id,
-    batch: "repair",
-    status: out.outcome === "ok" ? "success" : out.outcome,
-    ml_status_before: statusBefore,
-    ml_status: out.status_after,
-    before_value: String(item.title ?? "").slice(0, 4000),
-    after_value: (needTitle ? san.title : String(item.title ?? "")).slice(0, 4000),
-    error_message: out.error ?? null,
-    processed_at: new Date().toISOString(),
-  });
 
   return out;
 }
