@@ -32,6 +32,7 @@ import {
   insertSupportAutoGreeting,
   removeSupportImage,
   supportDb as db,
+  touchSupportTicket,
   uploadSupportImage,
   validateSupportImage,
   type SupportMessage,
@@ -289,6 +290,7 @@ const SupportTab = () => {
 
       if (messageError) throw messageError;
 
+      await touchSupportTicket(created.id);
       await insertSupportAutoGreeting({ ticketId: created.id, userId: user.id });
 
       setTickets((prev) => [created, ...prev]);
@@ -369,6 +371,7 @@ const SupportTab = () => {
 
       if (error) throw error;
 
+      await touchSupportTicket(selectedTicket.id);
       setMessages((prev) =>
         prev.some((item) => item.id === data.id) ? prev : [...prev, data as SupportMessage],
       );

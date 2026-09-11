@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { notifyTicketReplyEmail } from "@/lib/supportEmail";
+import { touchSupportTicket } from "@/lib/support";
 import {
   useSupplierThreads,
   useSupplierMessages,
@@ -140,7 +141,9 @@ async function fetchAdminTickets(): Promise<AdminTicket[]> {
     .rpc("get_support_tickets_admin", { p_status: "open" });
 
   if (!rpcError && Array.isArray(rpcData)) {
-    return rpcData.map(normalizeTicket);
+    return rpcData
+      .map(normalizeTicket)
+      .sort((a, b) => new Date(b.last_message_at ?? b.updated_at ?? b.created_at).getTime() - new Date(a.last_message_at ?? a.updated_at ?? a.created_at).getTime());
   }
 
   const { data: ticketsData, error: ticketsError } = await (supabase as any)
@@ -214,7 +217,7 @@ async function fetchAdminTickets(): Promise<AdminTicket[]> {
       last_sender: lastMessage?.sender ?? null,
       last_message_at: lastMessage?.created_at ?? null,
     };
-  });
+  }).sort((a, b) => new Date(b.last_message_at ?? b.updated_at ?? b.created_at).getTime() - new Date(a.last_message_at ?? a.updated_at ?? a.created_at).getTime());
 }
 
 // ── Message bubble ────────────────────────────────────────────────────────────
@@ -655,6 +658,7 @@ function AdminSupportPanel() {
         .single();
 
       if (error) throw error;
+      await touchSupportTicket(selectedTicket.id);
       return data as SupportMessage;
     },
     onSuccess: (message) => {

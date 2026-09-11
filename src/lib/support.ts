@@ -333,6 +333,17 @@ export const FAQ_ITEMS: Array<{ question: string; answer: string }> = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const supportDb = supabase as any;
 
+export const touchSupportTicket = async (ticketId: string) => {
+  const { error } = await supportDb
+    .from("support_tickets")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", ticketId);
+
+  if (error) {
+    console.warn("Não foi possível atualizar a atividade do ticket de suporte", error);
+  }
+};
+
 export const protocolo = (id: string) => `SR#${id.replace(/-/g, "").slice(0, 9).toUpperCase()}`;
 
 export const formatTicketDate = (iso: string) =>
@@ -440,6 +451,7 @@ export const createSupportTicket = async (opts: {
 
   if (messageError) throw messageError;
 
+  await touchSupportTicket(ticket.id);
   await insertSupportAutoGreeting({ ticketId: ticket.id, userId: opts.userId });
 
   return { ticket, messageId: message.id as string };

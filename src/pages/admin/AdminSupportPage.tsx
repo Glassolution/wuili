@@ -51,6 +51,7 @@ import {
   parseSupportMessage,
   removeSupportImage,
   supportMessagePreview,
+  touchSupportTicket,
   type SupportReplyReference,
   uploadSupportImage,
   validateSupportImage,
@@ -223,6 +224,8 @@ const isUnreadCustomerMessage = (ticket: AdminTicket, readAt: string | null) => 
   if (!readAt) return true;
   return new Date(ticket.last_message_at).getTime() > new Date(readAt).getTime();
 };
+
+const needsSupportReply = (ticket: Pick<AdminTicket, "last_message_sender">) => ticket.last_message_sender === "user";
 
 const getTicketActivityTime = (ticket: Pick<AdminTicket, "last_message_at" | "updated_at" | "created_at">) => {
   const time = new Date(ticket.last_message_at ?? ticket.updated_at ?? ticket.created_at).getTime();
@@ -522,8 +525,8 @@ const AdminSupportPage = () => {
     return tickets.filter((ticket) => {
       const matchesView =
         view === "all" ||
-        (view === "new" && !ticket.has_admin_reply) ||
-        (view === "in_progress" && ticket.has_admin_reply);
+        (view === "new" && needsSupportReply(ticket)) ||
+        (view === "in_progress" && !needsSupportReply(ticket) && ticket.has_admin_reply);
       const matchesStatus = matchesTicketStatus(ticket, statusFilter);
       const matchesDate = matchesTicketDate(ticket, dateFilter);
       const matchesSearch =
@@ -717,6 +720,7 @@ const AdminSupportPage = () => {
           .select("*")
           .single();
         if (error) throw error;
+        await touchSupportTicket(openTicket.id);
         return data as SupportMessage;
       } catch (error) {
         if (uploadedPath) await removeSupportImage(uploadedPath);
@@ -821,6 +825,7 @@ const AdminSupportPage = () => {
         .select("*")
         .single();
       if (error) throw error;
+      await touchSupportTicket(draft.ticket.id);
       return data as SupportMessage;
     },
     onSuccess: (message) => {
@@ -1333,7 +1338,9 @@ const TicketInbox = ({
               : allTickets.filter((ticket) =>
                   matchesTicketStatus(ticket, statusFilter) &&
                   matchesTicketDate(ticket, dateFilter) &&
-                  (option.value === "new" ? !ticket.has_admin_reply : ticket.has_admin_reply),
+                  (option.value === "new"
+                    ? needsSupportReply(ticket)
+                    : !needsSupportReply(ticket) && ticket.has_admin_reply),
                 ).length;
           return (
             <button

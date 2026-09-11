@@ -38,6 +38,7 @@ import {
   buildSupportImageMessage,
   removeSupportImage,
   supportDb as db,
+  touchSupportTicket,
   uploadSupportImage,
   validateSupportImage,
   type SupportMessage,
@@ -327,6 +328,7 @@ const SupportFloatingWidget = () => {
 
       if (error) throw error;
       const message = data as SupportMessage;
+      await touchSupportTicket(selectedTicket.id);
       setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
       setReplyImage(null);
       setActiveSupportTicketId(selectedTicket.id);
