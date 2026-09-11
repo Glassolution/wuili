@@ -136,12 +136,41 @@ export type ValidaPayCharge = {
   endToEndId?: string;
 };
 
+/** Procura a cobrança na listagem (endpoint liberado para credenciais M2M). */
+async function findChargeInList(chargeId: string, maxPages = 6): Promise<ValidaPayCharge | null> {
+  const scope = "checkouts/read pix.cob/read accounts/read wallet/read";
+  let lastKey: string | null = null;
+  for (let page = 0; page < maxPages; page++) {
+    const qs = new URLSearchParams({ limit: "100" });
+    if (lastKey) qs.set("lastKey", lastKey);
+    // deno-lint-ignore no-explicit-any -- payload do gateway não é tipado
+    const data = await validaPayFetch<any>(`/v1/charges?${qs.toString()}`, { method: "GET", scope });
+    for (const it of data?.items ?? []) {
+      if (String(it.chargeId ?? it.id) === chargeId) {
+        return {
+          chargeId,
+          status: String(it.status ?? ""),
+          amount: Number(it.amount ?? 0),
+          paymentType: it.paymentType ?? undefined,
+          paidAt: it.paidAt ?? undefined,
+          createdAt: it.createdAt ?? undefined,
+          endToEndId: it.endToEndId ?? undefined,
+        };
+      }
+    }
+    lastKey = data?.pagination?.lastKey ?? null;
+    if (!lastKey || data?.pagination?.hasMore === false) break;
+  }
+  return null;
+}
+
 /**
  * Consulta o status real de uma cobrança — usado para validar webhooks.
  *
- * A ValidaPay passou a bloquear o detalhe completo para credenciais M2M
- * (403 M2M_NOT_ALLOWED) e exige GET /v1/charges/{id}/status. Sem esse
- * fallback, pagamentos aprovados ficavam presos em "pendente" na Velo.
+ * A ValidaPay bloqueou o detalhe individual para credenciais M2M
+ * (403 M2M_NOT_ALLOWED). Nesse caso caímos na listagem de cobranças, que
+ * continua liberada. Sem isso, pagamentos aprovados ficavam presos em
+ * "pendente" na Velo mesmo com o dinheiro recebido.
  */
 export async function getCharge(chargeId: string): Promise<ValidaPayCharge> {
   const scope = "pix.cob/read checkouts/read wallet/read accounts/read";
@@ -153,13 +182,12 @@ export async function getCharge(chargeId: string): Promise<ValidaPayCharge> {
   } catch (err) {
     const e = err as ValidaPayError;
     if (e?.status !== 403) throw err;
-    const status = await validaPayFetch<Partial<ValidaPayCharge>>(
-      `/v1/charges/${encodeURIComponent(chargeId)}/status`,
-      { method: "GET", scope },
-    );
-    return { chargeId, ...status } as ValidaPayCharge;
+    const fromList = await findChargeInList(chargeId);
+    if (fromList) return fromList;
+    throw err;
   }
 }
+
 
 /**
  * Devolve (reembolsa) uma cobrança já paga.
