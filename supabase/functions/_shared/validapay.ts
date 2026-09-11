@@ -140,7 +140,10 @@ export type ValidaPayCharge = {
 export async function getCharge(chargeId: string): Promise<ValidaPayCharge> {
   return await validaPayFetch<ValidaPayCharge>(
     `/v1/charges/${encodeURIComponent(chargeId)}`,
-    { method: "GET", scope: "pix.cob/read" },
+    // Cobranças de cartão não são visíveis apenas com pix.cob/read: o gateway
+    // devolve 403 e o pagamento ficava travado em "pendente". Pedimos todos os
+    // escopos de leitura para conseguir conferir qualquer meio de pagamento.
+    { method: "GET", scope: "pix.cob/read checkouts/read wallet/read accounts/read" },
   );
 }
 
