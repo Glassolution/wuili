@@ -88,8 +88,8 @@ export function isSuspiciousImageUrl(url: string): boolean {
 type VisionVerdict = { url: string; clean: boolean; reason?: string }
 
 // Checagem visual via IA: detecta marca d'água, logo de loja, texto promocional
-// sobreposto e arte de catálogo. Fail-open por imagem (se a IA falhar, mantém a
-// decisão heurística), para não travar publicações por indisponibilidade.
+// sobreposto e arte de catálogo. Se a análise não responder, a imagem não é
+// aprovada automaticamente: publicar sem validação expõe a conta do vendedor.
 async function visionCheck(url: string): Promise<VisionVerdict> {
   const raw = await callAI(
     [
@@ -113,12 +113,12 @@ async function visionCheck(url: string): Promise<VisionVerdict> {
     ],
     { maxTokens: 120, timeoutMs: 20000 },
   )
-  if (!raw) return { url, clean: true, reason: 'vision_unavailable' }
+  if (!raw) return { url, clean: false, reason: 'não foi possível validar visualmente a imagem' }
   try {
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
     return { url, clean: parsed?.clean !== false, reason: parsed?.reason }
   } catch {
-    return { url, clean: true, reason: 'vision_unparsed' }
+    return { url, clean: false, reason: 'resposta inválida na validação visual' }
   }
 }
 
@@ -253,7 +253,7 @@ export async function buildSafeDescription(input: DescriptionInput): Promise<str
     return [
       `${input.title}.`,
       '',
-      ...(lines.length ? lines : ['- Produto novo, pronta entrega.']),
+      ...(lines.length ? lines : ['- Produto novo.']),
     ].join('\n')
   }
 

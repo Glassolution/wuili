@@ -1,6 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
-import { filterCleanImages } from '../_shared/ml-content-sanitizer.ts'
+import {
+  buildSafeDescription,
+  filterCleanImages,
+  sanitizeTitle,
+} from '../_shared/ml-content-sanitizer.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 
 
@@ -792,9 +796,9 @@ Deno.serve(async (req) => {
     }
 
     // O ML pausa anúncios cujas fotos sejam artes/infográficos do fornecedor
-    // ("Ajuste o título e/ou substitua as fotos"). Filtramos antes de publicar:
-    // heurística de URL + checagem visual por IA. Fail-open: se sobrarem menos
-    // de 3 fotos limpas, completamos com as originais para não travar a venda.
+    // ("Ajuste o título e/ou substitua as fotos"). Nunca recoloque uma imagem
+    // recusada só para atingir o mínimo: é preferível bloquear a publicação a
+    // criar um anúncio que será penalizado logo depois.
     let publicImages = allPublicImages.slice(0, 6)
     try {
       const filtered = await filterCleanImages(allPublicImages, { useVision: true, max: 6 })
@@ -802,15 +806,20 @@ Deno.serve(async (req) => {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
       }
-      if (filtered.clean.length >= MIN_REQUIRED_IMAGES) {
-        publicImages = filtered.clean
-      } else if (filtered.clean.length > 0) {
-        const rest = allPublicImages.filter(u => !filtered.clean.includes(u))
-        publicImages = [...filtered.clean, ...rest].slice(0, 6)
-        console.warn('[ml-publish] menos de 3 fotos limpas — completando com originais')
+      if (filtered.clean.length < MIN_REQUIRED_IMAGES) {
+        return json({
+          error: `Este produto tem apenas ${filtered.clean.length} foto(s) dentro das diretrizes do Mercado Livre. Escolha outro produto ou adicione pelo menos ${MIN_REQUIRED_IMAGES} fotos limpas, sem textos, selos, marcas d'água ou banners.`,
+          code: 'INSUFFICIENT_COMPLIANT_IMAGES',
+          rejected_images: filtered.rejected.length,
+        }, 409)
       }
+      publicImages = filtered.clean
     } catch (err) {
-      console.warn('[ml-publish] filtro visual de imagens indisponível:', String(err))
+      console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
+      return json({
+        error: 'Não foi possível validar as fotos agora. Tente novamente em alguns minutos; nenhuma publicação foi enviada ao Mercado Livre.',
+        code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
+      }, 503)
     }
 
     console.log('user_id:', user_id)
@@ -962,9 +971,16 @@ Deno.serve(async (req) => {
     }
 
     // === TITLE (max 60 chars) ===
-    const title = product.title.length > 60
-      ? product.title.substring(0, 57) + '...'
-      : product.title
+    // Nunca truncar com reticências: o ML interpreta isso como título copiado
+    // ou incompleto. Também removemos termos promocionais antes da publicação.
+    const titleResult = sanitizeTitle(String(product.title), { maxLength: 60 })
+    const title = titleResult.title
+    if (!title) {
+      return json({ error: 'O título ficou vazio após a validação das diretrizes do Mercado Livre.', code: 'INVALID_TITLE' }, 400)
+    }
+    if (titleResult.removedTerms.length > 0) {
+      console.warn('[ml-publish] termos removidos do título:', titleResult.removedTerms)
+    }
     console.log('Título final:', title, `(${title.length} chars)`)
 
     // Prevent duplicate Mercado Livre listings for the same catalog product.
@@ -2240,10 +2256,15 @@ Deno.serve(async (req) => {
 
 
     // === DESCRIPTION (send only after item creation succeeds) ===
-    const descriptionText = typeof product.description === 'string'
-      ? product.description.trim()
-      : ''
-    console.log('Descrição:', descriptionText)
+    // Nunca envia HTML ou texto copiado diretamente do fornecedor. A descrição
+    // é reescrita a partir dos fatos e atributos já validados para a categoria.
+    const rawDescription = typeof product.description === 'string' ? product.description : ''
+    const descriptionText = await buildSafeDescription({
+      title,
+      attributes: allAttrs,
+      rawDescription,
+    })
+    console.log('Descrição validada:', descriptionText.slice(0, 200))
 
     if (descriptionText.length > 20) {
       try {
