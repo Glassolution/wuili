@@ -111,15 +111,27 @@ async function visionCheck(url: string): Promise<VisionVerdict> {
         ],
       },
     ],
-    { maxTokens: 120, timeoutMs: 20000 },
+    // orçamento alto: o modelo gasta tokens internos antes de responder e um
+    // limite baixo devolve JSON cortado (todas as fotos eram recusadas à toa).
+    { maxTokens: 1200, timeoutMs: 30000 },
   )
   if (!raw) return { url, clean: false, reason: 'não foi possível validar visualmente a imagem' }
-  try {
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-    return { url, clean: parsed?.clean !== false, reason: parsed?.reason }
-  } catch {
-    return { url, clean: false, reason: 'resposta inválida na validação visual' }
+  const text = raw.replace(/```json|```/g, '').trim()
+  // A IA às vezes devolve o JSON embrulhado em texto; extrai o primeiro objeto.
+  const candidate = text.startsWith('{') ? text : (text.match(/\{[\s\S]*\}/)?.[0] ?? '')
+  if (candidate) {
+    try {
+      const parsed = JSON.parse(candidate)
+      return { url, clean: parsed?.clean !== false, reason: parsed?.reason }
+    } catch { /* cai para a leitura textual abaixo */ }
   }
+  // Sem JSON: aceita apenas uma afirmação textual inequívoca de imagem limpa.
+  if (/"?clean"?\s*[:=]\s*true/i.test(text)) return { url, clean: true }
+  if (/"?clean"?\s*[:=]\s*false/i.test(text)) {
+    return { url, clean: false, reason: 'marca d\'água, texto ou arte na imagem' }
+  }
+  console.warn('[ml-sanitizer] veredito visual ilegível:', text.slice(0, 160))
+  return { url, clean: false, reason: 'resposta inválida na validação visual' }
 }
 
 export type ImageFilterResult = {
