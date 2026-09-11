@@ -133,15 +133,33 @@ async function processItem(
   if (needTitle) patch.title = san.title;
   if (needImages) patch.pictures = filtered.clean.map((source) => ({ source }));
 
-  if (Object.keys(patch).length > 0) {
-    const putRes = await mlFetch(`https://api.mercadolibre.com/items/${pub.ml_item_id}`, {
+  const putItem = async (body: Record<string, unknown>) =>
+    await mlFetch(`https://api.mercadolibre.com/items/${pub.ml_item_id}`, {
       method: "PUT",
       headers: { ...auth, "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+      body: JSON.stringify(body),
     });
+
+  if (Object.keys(patch).length > 0) {
+    let putRes = await putItem(patch);
     if (!putRes.ok) {
       const t = await putRes.text();
-      return { ...out, outcome: "ml_error", error: `PUT item ${putRes.status}: ${t.slice(0, 300)}` };
+      // Anúncios com variações (family_name) não aceitam alteração de título
+      // pelo item; nesse caso aplicamos só as fotos e seguimos o reparo.
+      if (t.includes("family_name") && patch.title) {
+        delete patch.title;
+        out.title_fixed = false;
+        out.error = "título não pode ser alterado (anúncio com variações)";
+        if (Object.keys(patch).length > 0) {
+          putRes = await putItem(patch);
+          if (!putRes.ok) {
+            const t2 = await putRes.text();
+            return { ...out, outcome: "ml_error", error: `PUT item ${putRes.status}: ${t2.slice(0, 300)}` };
+          }
+        }
+      } else {
+        return { ...out, outcome: "ml_error", error: `PUT item ${putRes.status}: ${t.slice(0, 300)}` };
+      }
     }
   }
 
