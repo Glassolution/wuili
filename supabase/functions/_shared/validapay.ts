@@ -136,15 +136,29 @@ export type ValidaPayCharge = {
   endToEndId?: string;
 };
 
-/** Consulta o status real de uma cobrança — usado para validar webhooks. */
+/**
+ * Consulta o status real de uma cobrança — usado para validar webhooks.
+ *
+ * A ValidaPay passou a bloquear o detalhe completo para credenciais M2M
+ * (403 M2M_NOT_ALLOWED) e exige GET /v1/charges/{id}/status. Sem esse
+ * fallback, pagamentos aprovados ficavam presos em "pendente" na Velo.
+ */
 export async function getCharge(chargeId: string): Promise<ValidaPayCharge> {
-  return await validaPayFetch<ValidaPayCharge>(
-    `/v1/charges/${encodeURIComponent(chargeId)}`,
-    // Cobranças de cartão não são visíveis apenas com pix.cob/read: o gateway
-    // devolve 403 e o pagamento ficava travado em "pendente". Pedimos todos os
-    // escopos de leitura para conseguir conferir qualquer meio de pagamento.
-    { method: "GET", scope: "pix.cob/read checkouts/read wallet/read accounts/read" },
-  );
+  const scope = "pix.cob/read checkouts/read wallet/read accounts/read";
+  try {
+    return await validaPayFetch<ValidaPayCharge>(
+      `/v1/charges/${encodeURIComponent(chargeId)}`,
+      { method: "GET", scope },
+    );
+  } catch (err) {
+    const e = err as ValidaPayError;
+    if (e?.status !== 403) throw err;
+    const status = await validaPayFetch<Partial<ValidaPayCharge>>(
+      `/v1/charges/${encodeURIComponent(chargeId)}/status`,
+      { method: "GET", scope },
+    );
+    return { chargeId, ...status } as ValidaPayCharge;
+  }
 }
 
 /**
@@ -158,10 +172,8 @@ export async function refundCharge(
   amount?: number,
   reason = "CUSTOMER_REQUEST",
 ) {
-  const charge = await validaPayFetch<ValidaPayCharge>(
-    `/v1/charges/${encodeURIComponent(chargeId)}`,
-    { method: "GET", scope: "pix.cob/read wallet/read wallet/write" },
-  );
+  const charge = await getCharge(chargeId);
+
 
   if (charge?.endToEndId) {
     return await validaPayFetch<Record<string, unknown>>("/v1/wallet/refunds", {
