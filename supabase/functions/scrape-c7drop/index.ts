@@ -507,6 +507,7 @@ Deno.serve(async (req) => {
       blocked,
       skipped_fake_ads: skippedFakeAds,
       no_detail: noDetail,
+      fora_das_diretrizes_ml: naoConformes,
       ran_at: new Date().toISOString(),
     };
 
