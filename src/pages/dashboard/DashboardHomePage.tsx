@@ -240,6 +240,7 @@ const DashboardHomePage = () => {
   const introDecisionMade = useRef<string | null>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const welcomeChatRef = useRef<HTMLDivElement>(null);
+  const historyMenuRef = useRef<HTMLDivElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
   const [introState, setIntroState] = useState<"pending" | "play" | "done">("pending");
@@ -327,7 +328,11 @@ const DashboardHomePage = () => {
     const closeWelcomeChat = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (welcomeChatRef.current?.contains(target) || suggestionListRef.current?.contains(target)) return;
+      if (
+        welcomeChatRef.current?.contains(target) ||
+        historyMenuRef.current?.contains(target) ||
+        suggestionListRef.current?.contains(target)
+      ) return;
 
       setChatActive(false);
       setChatInput("");
@@ -573,6 +578,7 @@ const DashboardHomePage = () => {
           <AnimatePresence>
             {chatActive && temHistorico && (
               <motion.div
+                ref={historyMenuRef}
                 key="atalho-historico"
                 initial={reduceMotion ? false : { opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
