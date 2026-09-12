@@ -3,7 +3,7 @@
 // Determinística (sem IA), em lotes limitados por chamada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
+import { autoFixProduct, complianceColumns } from "../_shared/ml-compliance-precheck.ts";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -42,6 +42,9 @@ Deno.serve(async (req) => {
     let query = supabase
       .from("catalog_products")
       .select("id, title, description, images")
+      // Os menos verificados primeiro: assim o cron avança pelo catálogo
+      // inteiro em vez de reprocessar sempre as mesmas linhas.
+      .order("ml_compliance_checked_at", { ascending: true, nullsFirst: true })
       .limit(limit);
     if (!recheckAll) query = query.eq("ml_compliance_status", "unchecked");
 
@@ -53,11 +56,17 @@ Deno.serve(async (req) => {
     let atualizados = 0;
 
     for (const row of rows ?? []) {
-      const veredito = precheckProduct(row);
+      // Além de verificar, já corrige: título higienizado e descrição reescrita.
+      const corrigido = autoFixProduct(row);
+      const veredito = corrigido.result;
       contagem[veredito.status] = (contagem[veredito.status] ?? 0) + 1;
       const { error: upErr } = await supabase
         .from("catalog_products")
-        .update(complianceColumns(veredito, now))
+        .update({
+          title: corrigido.title || row.title,
+          ...(row.description == null ? {} : { description: corrigido.description }),
+          ...complianceColumns(veredito, now),
+        })
         .eq("id", row.id);
       if (!upErr) atualizados++;
     }

@@ -4,7 +4,7 @@
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { hasEnoughImages, isCellphoneProduct } from "../_shared/catalog-filters.ts";
-import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
+import { autoFixProduct, complianceColumns } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -151,12 +151,13 @@ Deno.serve(async (req) => {
         isBlocked(p.title) || !hasEnoughImages(images) || isCellphoneProduct(p.title, inferCategory(p.title));
       if (blockedFlag) blocked++;
       // Veredito das diretrizes do ML gravado já na chegada do produto.
-      const veredito = precheckProduct({ title: p.title, description: null, images });
+      const corrigido = autoFixProduct({ title: p.title, description: null, images });
+      const veredito = corrigido.result;
       if (veredito.status !== "ok") naoConformes++;
       return {
         source: SOURCE,
         external_id: p.external_id,
-        title: p.title,
+        title: corrigido.title,
         description: null,
         images,
         cost_price: p.price,

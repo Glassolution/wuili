@@ -31,7 +31,7 @@ import {
   isCellphoneProduct,
   hasEnoughImages,
 } from "../_shared/catalog-filters.ts";
-import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
+import { autoFixProduct, complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -461,13 +461,17 @@ Deno.serve(async (req) => {
       // Todo produto que chega já entra no catálogo com o veredito das
       // diretrizes do Mercado Livre gravado, para o lojista saber antes de
       // tentar publicar e para a publicação saber o que precisa reescrever.
-      const veredito = precheckProduct({
+      // Título e descrição já entram corrigidos no catálogo: nada de aviso
+      // para o lojista, o produto chega pronto para publicar.
+      const corrigido = autoFixProduct({
         title: row.title as string,
         description: row.description as string | null,
         images: row.images,
       });
-      if (veredito.status !== "ok") naoConformes++;
-      Object.assign(row, complianceColumns(veredito, now));
+      row.title = corrigido.title;
+      row.description = corrigido.description;
+      if (corrigido.result.status !== "ok") naoConformes++;
+      Object.assign(row, complianceColumns(corrigido.result, now));
       rows.push(row);
     });
 

@@ -6,7 +6,7 @@
 // produtos por rodada e uma checagem visual por item estouraria tempo e custo.
 // A checagem visual continua onde importa de verdade — na `ml-publish`, antes
 // de o anúncio ir ao ar.
-import { isSuspiciousImageUrl, sanitizeTitle } from "./ml-content-sanitizer.ts";
+import { isSuspiciousImageUrl, sanitizeTitle, stripMLHtml } from "./ml-content-sanitizer.ts";
 
 /** Mínimo de fotos que o Mercado Livre exige por anúncio. */
 export const MIN_REQUIRED_IMAGES = 3;
@@ -100,5 +100,45 @@ export function complianceColumns(result: ComplianceResult, checkedAt = new Date
     ml_compliance_issues: result.issues,
     ml_clean_images_count: result.cleanImagesCount,
     ml_compliance_checked_at: checkedAt,
+  };
+}
+
+/**
+ * Reescreve a descrição do fornecedor de forma determinística: tira HTML e
+ * descarta as frases que o Mercado Livre pune (frete, contato, link, preço,
+ * forma de pagamento, menção a outros marketplaces).
+ */
+export function sanitizeDescriptionForCatalog(raw?: string | null): string {
+  const texto = stripMLHtml(String(raw ?? ""));
+  if (!texto.trim()) return "";
+
+  const blocos = texto
+    .split(/\n+/)
+    .flatMap((linha) => linha.split(/(?<=[.!?;])\s+/))
+    .map((frase) => frase.trim())
+    .filter(Boolean)
+    .filter((frase) => !FORBIDDEN_DESCRIPTION_PATTERNS.some(({ re }) => re.test(frase)));
+
+  return blocos.join("\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 3000);
+}
+
+/**
+ * Aplica as correções na chegada do produto: título higienizado, descrição
+ * reescrita e veredito recalculado sobre o conteúdo já corrigido. Nada disso
+ * aparece como aviso para o lojista — o produto entra no catálogo já conforme.
+ */
+export function autoFixProduct(input: {
+  title?: string | null;
+  description?: string | null;
+  images?: unknown;
+}): { title: string; description: string | null; result: ComplianceResult } {
+  const title = sanitizeTitle(String(input.title ?? ""), { maxLength: 60 }).title ||
+    String(input.title ?? "").slice(0, 60);
+  const limpa = sanitizeDescriptionForCatalog(input.description);
+  const description = input.description == null ? null : limpa;
+  return {
+    title,
+    description,
+    result: precheckProduct({ title, description, images: input.images }),
   };
 }
