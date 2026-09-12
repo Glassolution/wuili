@@ -856,6 +856,9 @@ Deno.serve(async (req) => {
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
       }
       if (filtered.clean.length < MIN_REQUIRED_IMAGES) {
+        await registrarVeredictoNoCatalogo(
+          product.id, 'blocked', ['imagens_insuficientes', 'imagens_arte_fornecedor'], filtered.clean.length,
+        )
         return json({
           error: `Este produto tem apenas ${filtered.clean.length} foto(s) dentro das diretrizes do Mercado Livre. Escolha outro produto ou adicione pelo menos ${MIN_REQUIRED_IMAGES} fotos limpas, sem textos, selos, marcas d'água ou banners.`,
           code: 'INSUFFICIENT_COMPLIANT_IMAGES',
