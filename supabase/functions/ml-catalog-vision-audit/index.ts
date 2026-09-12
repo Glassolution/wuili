@@ -6,7 +6,6 @@
 // então produtos já auditados custam praticamente nada para reconferir.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { MIN_REQUIRED_IMAGES } from "../_shared/ml-compliance-precheck.ts";
 import { filterCleanImagesCached } from "../_shared/ml-image-vision.ts";
 
 const json = (body: unknown, status = 200) =>
