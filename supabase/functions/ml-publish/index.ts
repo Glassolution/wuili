@@ -857,8 +857,8 @@ Deno.serve(async (req) => {
     try {
       // Mesma régua (e mesmo cache de vereditos) usada na auditoria do catálogo.
       const visionClient = createClient(
-        Deno.env.get('DB_URL') ?? supabaseUrl,
-        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey,
+        Deno.env.get('DB_URL') ?? supabaseUrl ?? '',
+        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey ?? '',
         { auth: { persistSession: false } },
       )
       const filtered = await filterCleanImagesCached(visionClient, allPublicImages, { max: 6, maxChecks: 10 })
