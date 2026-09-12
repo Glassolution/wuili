@@ -53,8 +53,17 @@ import {
   removeProductFromCollection,
 } from "@/lib/collectionsApi";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { Button } from "@/components/ui/button";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
+
+const TUTORIAL_CATALOGO = {
+  src: "https://www.youtube.com/embed/CtU-zqb0SM4?rel=0&modestbranding=1",
+  aspectPadding: "56.25%",
+  title: "Tutorial do catálogo",
+  description: "Veja como encontrar e importar produtos no catálogo Velo.",
+} as const;
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
