@@ -350,9 +350,15 @@ Deno.serve(async (req) => {
             unchanged++;
             return;
           }
+          // Imagens novas => o veredito de diretrizes precisa ser refeito.
+          const veredito = precheckProduct({
+            title: detail.name ?? "",
+            description: detail.description ?? null,
+            images,
+          });
           const { error: upErr } = await supabase
             .from("catalog_products")
-            .update({ images, scraped_at: now, updated_at: now })
+            .update({ images, scraped_at: now, updated_at: now, ...complianceColumns(veredito, now) })
             .eq("id", row.id);
           if (upErr) {
             errors++;
