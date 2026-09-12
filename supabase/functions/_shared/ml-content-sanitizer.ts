@@ -98,10 +98,12 @@ export async function visionCheck(url: string): Promise<VisionVerdict> {
         content:
           'Você audita imagens de produto para o Mercado Livre. Responda APENAS com JSON: ' +
           '{"clean":true|false,"reason":"..."}. ' +
-          'clean=false se a imagem tiver marca d\'água, logo/nome de loja ou fornecedor, ' +
+          'clean=false APENAS se a imagem tiver marca d\'água, logo/nome de loja ou de fornecedor, ' +
           'texto promocional sobreposto (preço, "oferta", "frete grátis", "compre já"), ' +
-          'selos, colagens/artes de catálogo, molduras ou banners. ' +
-          'clean=true apenas para foto limpa do produto, sem texto e sem marca d\'água.',
+          'infográfico com textos explicativos, moldura com texto ou banner publicitário. ' +
+          'clean=true para foto do produto em fundo limpo, inclusive quando mostra várias cores/ângulos ' +
+          'do mesmo produto lado a lado, sombra, reflexo ou a marca impressa no próprio produto.',
+
       },
       {
         role: 'user',

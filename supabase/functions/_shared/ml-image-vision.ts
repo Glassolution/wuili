@@ -28,7 +28,8 @@ export async function filterCleanImagesCached(
   opts: { max?: number; maxChecks?: number } = {},
 ): Promise<VisionFilterResult> {
   const max = opts.max ?? 6;
-  const maxChecks = opts.maxChecks ?? 10;
+  const maxChecks = opts.maxChecks ?? 14;
+
   const rejected: { url: string; reason: string }[] = [];
   const candidatos: string[] = [];
 
