@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { History, MessageSquare, Trash2 } from "lucide-react";
@@ -25,6 +25,8 @@ type AtlasHistoryMenuProps = {
   activeThreadId: string | null;
   onSelectThread: (threadId: string) => void | Promise<void>;
   onThreadDeleted: (threadId: string) => void;
+  triggerLabel?: string;
+  triggerStyle?: CSSProperties;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -54,6 +56,8 @@ const AtlasHistoryMenu = ({
   activeThreadId,
   onSelectThread,
   onThreadDeleted,
+  triggerLabel,
+  triggerStyle,
 }: AtlasHistoryMenuProps) => {
   const reduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
@@ -174,7 +178,10 @@ const AtlasHistoryMenu = ({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className={`grid h-9 w-9 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4A0FA6]/20 ${
+        style={triggerStyle}
+        className={`items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4A0FA6]/20 ${
+          triggerLabel ? "inline-flex gap-2 px-3.5" : "grid h-9 w-9 place-items-center"
+        } ${
           open ? "bg-black/[0.06] text-[#303030]" : "hover:bg-black/[0.045]"
         }`}
         aria-label="Histórico de conversas"
@@ -182,6 +189,7 @@ const AtlasHistoryMenu = ({
         aria-expanded={open}
       >
         <History className="h-[18px] w-[18px]" strokeWidth={1.8} />
+        {triggerLabel ? <span className="whitespace-nowrap font-bold">{triggerLabel}</span> : null}
       </button>
 
       <AnimatePresence>

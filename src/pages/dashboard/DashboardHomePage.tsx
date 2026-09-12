@@ -583,20 +583,6 @@ const DashboardHomePage = () => {
                   left: x(30),
                   top: y(20),
                   zIndex: 40,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: fs(8),
-                  height: y(56),
-                  // O gatilho do menu tem 36px fixos, enquanto a moldura escala
-                  // com a largura do canvas: sem o piso, ele vazava da pílula em
-                  // telas estreitas.
-                  minHeight: 40,
-                  padding: `0 ${fs(14)}`,
-                  borderRadius: fs(18),
-                  border: "1px solid rgba(17, 24, 39, 0.09)",
-                  background: "rgba(255, 255, 255, 0.97)",
-                  boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-                  color: "#101114",
                 }}
               >
                 <AtlasHistoryMenu
@@ -604,10 +590,18 @@ const DashboardHomePage = () => {
                   activeThreadId={threadId}
                   onSelectThread={abrirConversa}
                   onThreadDeleted={aoApagarConversa}
+                   triggerLabel="Suas conversas"
+                   triggerStyle={{
+                     height: y(56),
+                     minHeight: 40,
+                     borderRadius: fs(18),
+                     border: "1px solid rgba(17, 24, 39, 0.09)",
+                     background: "rgba(255, 255, 255, 0.97)",
+                     boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
+                     color: "#101114",
+                     fontSize: fs(11.8),
+                   }}
                 />
-                <span style={{ fontSize: fs(11.8), fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap" }}>
-                  Suas conversas
-                </span>
               </motion.div>
             )}
           </AnimatePresence>
