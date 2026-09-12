@@ -108,7 +108,8 @@ Deno.serve(async (req) => {
 
       const encrypted = await encryptText(parsed.data.password);
       const now = new Date().toISOString();
-      const status = body.action === "save_credentials" ? "connected" : "signup_requested";
+      const mode = body.action === "save_credentials" ? "connect_existing" : "create_account";
+      const status = "signup_requested";
       const { data, error } = await admin
         .from("c7drop_user_accounts")
         .upsert({
@@ -122,17 +123,16 @@ Deno.serve(async (req) => {
           last_name: parsed.data.last_name.trim(),
           phone: parsed.data.phone.trim(),
           document: parsed.data.document.trim(),
-          signup_payload: body.action === "request_signup"
-            ? {
-                requested_at: now,
-                email: parsed.data.email.trim().toLowerCase(),
-                first_name: parsed.data.first_name.trim(),
-                last_name: parsed.data.last_name.trim(),
-                phone: parsed.data.phone.trim(),
-                document: parsed.data.document.trim(),
-              }
-            : {},
-          connected_at: body.action === "save_credentials" ? now : null,
+          signup_payload: {
+            mode,
+            requested_at: now,
+            email: parsed.data.email.trim().toLowerCase(),
+            first_name: parsed.data.first_name.trim(),
+            last_name: parsed.data.last_name.trim(),
+            phone: parsed.data.phone.trim(),
+            document: parsed.data.document.trim(),
+          },
+          connected_at: null,
           updated_at: now,
         }, { onConflict: "user_id" })
           .select("status,email,first_name,last_name,phone,document,last_tested_at,connected_at,updated_at")
