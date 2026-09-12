@@ -435,6 +435,8 @@ Deno.serve(async (req) => {
     let skippedFakeAds = 0;
     let noDetail = 0;
     let blocked = 0;
+    let naoConformes = 0;
+    const now = new Date().toISOString();
     const rows: Record<string, unknown>[] = [];
     await mapPool(list, CONCURRENCY, async (item) => {
       if (!item.slug || !item.name) return;
