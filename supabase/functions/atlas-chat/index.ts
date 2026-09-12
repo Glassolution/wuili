@@ -978,7 +978,7 @@ const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string
 
   const { data } = await supabase
     .from("user_integrations")
-    .select("access_token,expires_at,platform")
+    .select("access_token,refresh_token,expires_at,platform")
     .eq("user_id", userId)
     .in("platform", ["mercadolivre", "mercado_livre", "ml"])
     .limit(1)
@@ -986,7 +986,13 @@ const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string
 
   const integration = data as MercadoLivreIntegrationRow | null;
   const expiresAt = integration?.expires_at ? new Date(String(integration.expires_at)).getTime() : 0;
-  const tokenValid = Boolean(integration?.access_token) && (!expiresAt || expiresAt > Date.now() + 60_000);
+  // O token do ML dura ~6h e o refresh roda em cron e de novo na hora de
+  // publicar (ml-publish). Exigir expires_at futuro fazia o Atlas dizer "não
+  // estou enxergando a conexão" para quem a tela de Integrações mostrava como
+  // conectado — basta ter access_token + refresh_token para a conta funcionar.
+  const tokenValid =
+    Boolean(integration?.access_token) &&
+    (!expiresAt || expiresAt > Date.now() + 60_000 || Boolean(integration?.refresh_token));
   return { connected: Boolean(integration?.access_token), tokenValid };
 };
 
