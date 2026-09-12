@@ -254,6 +254,45 @@ Deno.serve(async (req) => {
     const limit = Math.min(Number(body?.limit ?? 10), 30);
     const ids: string[] | null = Array.isArray(body?.ml_item_ids) ? body.ml_item_ids.map(String) : null;
 
+    // Modo sonda: testa quais endpoints o ML aceita para alterar o título.
+    if (body?.probe === true && ids?.length) {
+      const { data: ppubs } = await supabase
+        .from("user_publications")
+        .select("id, user_id, ml_item_id, title, status")
+        .in("ml_item_id", ids)
+        .limit(1);
+      const p = (ppubs ?? [])[0] as Pub | undefined;
+      if (!p) return json({ error: "anúncio não encontrado" }, 404);
+      const tk = await getSellerAccessToken(supabase, p.user_id);
+      if (!tk.ok) return json({ error: tk.error }, 400);
+      const h = { Authorization: `Bearer ${tk.accessToken}`, "Content-Type": "application/json" };
+      const it = await (await mlFetch(`https://api.mercadolibre.com/items/${p.ml_item_id}`, { headers: h }))
+        .json().catch(() => ({}));
+      const upid = it?.user_product_id ? String(it.user_product_id) : null;
+      const novo = String(body?.novo_titulo ?? "").trim() || sanitizeTitle(String(it?.title ?? ""), { maxLength: 60 }).title;
+
+      const attempts: Array<{ label: string; url: string; method: string; payload: Record<string, unknown> }> = [
+        { label: "item.title", url: `https://api.mercadolibre.com/items/${p.ml_item_id}`, method: "PUT", payload: { title: novo } },
+        { label: "item.family_name", url: `https://api.mercadolibre.com/items/${p.ml_item_id}`, method: "PUT", payload: { family_name: novo } },
+        { label: "item.title+family", url: `https://api.mercadolibre.com/items/${p.ml_item_id}`, method: "PUT", payload: { title: novo, family_name: novo } },
+      ];
+      if (upid) {
+        attempts.push(
+          { label: "user-product.name", url: `https://api.mercadolibre.com/user-products/${upid}`, method: "PUT", payload: { name: novo } },
+          { label: "user-product.family_name", url: `https://api.mercadolibre.com/user-products/${upid}`, method: "PUT", payload: { family_name: novo } },
+          { label: "user-products.families", url: `https://api.mercadolibre.com/user-products/${upid}/family`, method: "PUT", payload: { family_name: novo } },
+        );
+      }
+
+      const probes: unknown[] = [];
+      for (const a of attempts) {
+        const r = await mlFetch(a.url, { method: a.method, headers: h, body: JSON.stringify(a.payload) });
+        probes.push({ label: a.label, http: r.status, body: (await r.text()).slice(0, 300) });
+        if (r.ok) break;
+      }
+      return json({ probe: true, ml_item_id: p.ml_item_id, user_product_id: upid, novo_titulo: novo, probes });
+    }
+
     // Modo diagnóstico: mostra o motivo real da moderação do ML.
     if (body?.diagnose === true && ids?.length) {
       const { data: dpubs } = await supabase
