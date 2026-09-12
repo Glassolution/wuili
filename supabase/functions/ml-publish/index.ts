@@ -749,11 +749,6 @@ Deno.serve(async (req) => {
 
   try {
     console.log('=== ml-publish START ===')
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return json({ error: 'Nao autorizado.' }, 401)
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
@@ -761,16 +756,35 @@ Deno.serve(async (req) => {
       return json({ error: 'Configuracao do servidor incompleta.' }, 500)
     }
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: userData, error: userError } = await userClient.auth.getUser()
-    if (userError || !userData.user) {
-      return json({ error: 'Token invalido.' }, 401)
-    }
-    const user_id = userData.user.id
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const { product } = body
+
+    // Republicação interna (ml-fix-noncompliant): a rotina de reparo chama esta
+    // função sem JWT do usuário, autenticada pelo token de reparo no header
+    // x-repair-token. Nesse caso o user_id vem no corpo da requisição.
+    const repairToken = Deno.env.get('ML_REPAIR_TOKEN')
+    const isInternalRepair = Boolean(repairToken) &&
+      req.headers.get('x-repair-token') === repairToken &&
+      typeof body?.user_id === 'string' && body.user_id.length > 0
+
+    let user_id: string
+    if (isInternalRepair) {
+      user_id = String(body.user_id)
+      console.log('[ml-publish] republicação interna via repair token, user:', user_id)
+    } else {
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return json({ error: 'Nao autorizado.' }, 401)
+      }
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      })
+      const { data: userData, error: userError } = await userClient.auth.getUser()
+      if (userError || !userData.user) {
+        return json({ error: 'Token invalido.' }, 401)
+      }
+      user_id = userData.user.id
+    }
 
     // === VALIDATION ===
     if (!user_id) return json({ error: 'user_id é obrigatório.' }, 400)
