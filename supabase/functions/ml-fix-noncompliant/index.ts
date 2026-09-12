@@ -435,7 +435,7 @@ Deno.serve(async (req) => {
 
     let query = supabase
       .from("user_publications")
-      .select("id, user_id, ml_item_id, title, status")
+      .select("id, user_id, ml_item_id, title, status, price, catalog_product_id")
       .not("ml_item_id", "is", null);
 
     query = ids
