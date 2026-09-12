@@ -1638,6 +1638,20 @@ const maybeHandleBeginnerGuide = async (
     return askBeginnerNiche(supabase, nome);
   }
 
+  // Rede de segurança do fim do guia: "já conectei" e "pode publicar" nunca
+  // podem cair no modelo. Era aí que o Atlas escrevia a descrição sozinho,
+  // dizia que ia publicar e mandava o usuário para Publicações com outro
+  // produto. Aqui a conexão é conferida no banco e a publicação sai amarrada ao
+  // produto que a pessoa escolheu.
+  if (
+    guideWasActive &&
+    produtoEscolhido &&
+    (saidConnectedMl(lastUserMessage) || wantsToPublish(lastUserMessage))
+  ) {
+    const niche = inferNicheFromConversation(messages, lastUserMessage);
+    return guidePublicationStep(supabase, userId, produtoEscolhido, niche, nome);
+  }
+
   return null;
 };
 
