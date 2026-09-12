@@ -479,7 +479,11 @@ Deno.serve(async (req) => {
           publication_id: pub.id,
           seller_id: pub.user_id,
           batch: "repair",
-          status: r.outcome === "ok" ? "success" : r.outcome,
+          status: r.outcome === "ok" || r.outcome === "republished"
+            ? "success"
+            : r.outcome === "republish_failed"
+            ? "error"
+            : r.outcome,
           ml_status_before: r.status_before ?? pub.status,
           ml_status: r.status_after ?? r.status_before ?? pub.status,
           before_value: (pub.title ?? "").slice(0, 4000),
