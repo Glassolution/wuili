@@ -1740,6 +1740,14 @@ const CatalogoPage = () => {
             </section>
         </>
       </section>
+      <VideoTutorialModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        title={TUTORIAL_CATALOGO.title}
+        description={TUTORIAL_CATALOGO.description}
+        src={TUTORIAL_CATALOGO.src}
+        aspectPadding={TUTORIAL_CATALOGO.aspectPadding}
+      />
     </div>
   );
 };
