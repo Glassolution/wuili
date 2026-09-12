@@ -37,7 +37,62 @@ type Pub = {
   ml_item_id: string;
   title: string | null;
   status: string | null;
+  price: number | null;
+  catalog_product_id: string | null;
 };
+
+// Republica um anúncio que o Mercado Livre encerrou/excluiu e não permite mais
+// editar. Monta o produto a partir do catálogo e chama o ml-publish interno
+// (autenticado pelo token de reparo), que cria um anúncio novo já sanitizado.
+async function republishClosed(
+  supabase: SupabaseClient,
+  pub: Pub,
+): Promise<{ ok: boolean; outcome: string; error?: string }> {
+  if (!pub.catalog_product_id) {
+    return { ok: false, outcome: "republish_failed", error: "sem produto de catálogo vinculado" };
+  }
+  const { data: cat } = await supabase
+    .from("catalog_products")
+    .select("external_id, title, description, images, cost_price, suggested_price, stock_quantity, brand, model, ml_category_id")
+    .eq("external_id", pub.catalog_product_id)
+    .maybeSingle();
+  if (!cat) {
+    return { ok: false, outcome: "republish_failed", error: "produto não encontrado no catálogo" };
+  }
+  if (Number(cat.stock_quantity ?? 0) <= 0) {
+    return { ok: false, outcome: "republish_failed", error: "sem estoque no fornecedor" };
+  }
+  const product = {
+    title: String(cat.title ?? pub.title ?? ""),
+    price: Number(pub.price ?? cat.suggested_price ?? 0),
+    cost_price: cat.cost_price,
+    images: cat.images,
+    description: cat.description,
+    brand: cat.brand,
+    model: cat.model,
+    external_id: cat.external_id,
+    catalog_product_id: cat.external_id,
+    available_quantity: Math.max(1, Number(cat.stock_quantity) || 1),
+    ml_category_id: cat.ml_category_id,
+  };
+  const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/ml-publish`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-repair-token": Deno.env.get("ML_REPAIR_TOKEN") ?? "",
+    },
+    body: JSON.stringify({ user_id: pub.user_id, product }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return {
+      ok: false,
+      outcome: "republish_failed",
+      error: `ml-publish ${res.status}: ${JSON.stringify(data).slice(0, 300)}`,
+    };
+  }
+  return { ok: true, outcome: "republished" };
+}
 
 type Result = {
   ml_item_id: string;
