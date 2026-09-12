@@ -93,11 +93,36 @@ async function processItem(
   const needTitle = Boolean(san.title) && san.title !== item.title;
   out.title_fixed = needTitle;
 
+  // --- motivo oficial da moderação ---
+  // O ML expõe o motivo real da pausa em /moderations/last_moderation/{id}-ITM.
+  // A causa mais comum nos nossos anúncios é FR_EVASION_PRICE_AUTO, apontando a
+  // seção "description" (texto de frete/serviços herdado do fornecedor).
+  let moderationName = "";
+  let moderationSections: string[] = [];
+  try {
+    const modRes = await mlFetch(
+      `https://api.mercadolibre.com/moderations/last_moderation/${pub.ml_item_id}-ITM`,
+      { headers: auth },
+    );
+    if (modRes.ok) {
+      const mods = await modRes.json().catch(() => []);
+      const first = Array.isArray(mods) ? mods[0] : null;
+      moderationName = String(first?.name ?? "");
+      moderationSections = Array.isArray(first?.evidence)
+        ? first.evidence.map((e: { section_name?: string }) => String(e?.section_name ?? ""))
+        : [];
+    }
+  } catch { /* sem motivo explícito, segue com a heurística */ }
+  out.moderation = moderationName || null;
+  const moderationBlamesDescription = moderationSections.includes("description") ||
+    /EVASION|PRICE|CONTACT|SPAM/i.test(moderationName);
+
   // --- descrição ---
   const dRes = await mlFetch(`https://api.mercadolibre.com/items/${pub.ml_item_id}/description`, { headers: auth });
   const current = await dRes.json().catch(() => ({}));
   const rawDesc = String(current?.plain_text ?? current?.text ?? "");
-  const descDirty = Boolean(rawDesc) && (looksLikeMLDom(rawDesc) || rawDesc !== stripMLHtml(rawDesc));
+  const descDirty = Boolean(rawDesc) &&
+    (moderationBlamesDescription || looksLikeMLDom(rawDesc) || rawDesc !== stripMLHtml(rawDesc));
   let safeDesc = "";
   if (descDirty) {
     safeDesc = await buildSafeDescription({
