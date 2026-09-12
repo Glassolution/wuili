@@ -140,37 +140,43 @@ async function processItem(
       body: JSON.stringify(body),
     });
 
-  if (Object.keys(patch).length > 0) {
-    let putRes = await putItem(patch);
+  // Anúncios com a tag user_product_listing têm título e fotos controlados pelo
+  // "produto do vendedor" (MLBU...). Editar o item devolve BODY_INVALID_FIELDS /
+  // family name is invalid — a correção precisa ir para /user-products/{id}.
+  const userProductId = item?.user_product_id ? String(item.user_product_id) : null;
+
+  if (userProductId && Object.keys(patch).length > 0) {
+    const upBody: Record<string, unknown> = {};
+    if (needTitle) {
+      upBody.name = san.title;
+      upBody.family_name = san.title;
+    }
+    if (needImages) upBody.pictures = filtered.clean.map((source) => ({ source }));
+
+    const upRes = await mlFetch(`https://api.mercadolibre.com/user-products/${userProductId}`, {
+      method: "PUT",
+      headers: { ...auth, "Content-Type": "application/json" },
+      body: JSON.stringify(upBody),
+    });
+    if (!upRes.ok) {
+      const tu = await upRes.text();
+      out.title_fixed = false;
+      out.images_fixed = false;
+      return { ...out, outcome: "ml_error", error: `PUT user-product ${upRes.status}: ${tu.slice(0, 300)}` };
+    }
+  } else if (Object.keys(patch).length > 0) {
+    const putRes = await putItem(patch);
     if (!putRes.ok) {
       const t = await putRes.text();
-      // Anúncios com variações pertencem a uma "família": o ML só aceita o novo
-      // título quando ele vem junto de family_name. Tentamos isso antes de
-      // desistir do título.
       if (t.includes("family_name") && patch.title) {
-        const withFamily = { ...patch, family_name: String(patch.title).slice(0, 60) };
-        putRes = await putItem(withFamily);
-        if (!putRes.ok) {
-          const tFamily = await putRes.text();
-          // Última tentativa: só family_name (sem title), que é o campo que o
-          // ML usa como nome do anúncio em famílias.
-          const onlyFamily: Record<string, unknown> = { ...patch, family_name: withFamily.family_name };
-          delete onlyFamily.title;
-          putRes = await putItem(onlyFamily);
-          if (!putRes.ok) {
-            const t2 = await putRes.text();
-            out.title_fixed = false;
-            out.error = `título bloqueado pelo ML (variações): ${tFamily.slice(0, 150)} | ${t2.slice(0, 150)}`;
-            // segue com as fotos, se houver
-            const picturesOnly: Record<string, unknown> = { ...patch };
-            delete picturesOnly.title;
-            if (Object.keys(picturesOnly).length > 0) {
-              const putPics = await putItem(picturesOnly);
-              if (!putPics.ok) {
-                const t3 = await putPics.text();
-                return { ...out, outcome: "ml_error", error: `PUT item ${putPics.status}: ${t3.slice(0, 300)}` };
-              }
-            }
+        delete patch.title;
+        out.title_fixed = false;
+        out.error = "título não pode ser alterado neste anúncio";
+        if (Object.keys(patch).length > 0) {
+          const retry = await putItem(patch);
+          if (!retry.ok) {
+            const t2 = await retry.text();
+            return { ...out, outcome: "ml_error", error: `PUT item ${retry.status}: ${t2.slice(0, 300)}` };
           }
         }
       } else {
