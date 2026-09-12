@@ -20,6 +20,7 @@ import {
   Info,
   Package,
   MoreHorizontal,
+  PlayCircle,
 } from "lucide-react";
 import {
   AreaChart,
