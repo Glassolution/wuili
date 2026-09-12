@@ -162,7 +162,9 @@ async function processItem(
       const tu = await upRes.text();
       out.title_fixed = false;
       out.images_fixed = false;
-      return { ...out, outcome: "ml_error", error: `PUT user-product ${upRes.status}: ${tu.slice(0, 300)}` };
+      // Não abortamos: o motivo mais comum da pausa está na descrição, que
+      // ainda pode ser corrigida mesmo com título/fotos travados pelo ML.
+      out.error = `PUT user-product ${upRes.status}: ${tu.slice(0, 200)}`;
     }
   } else if (Object.keys(patch).length > 0) {
     const putRes = await putItem(patch);
