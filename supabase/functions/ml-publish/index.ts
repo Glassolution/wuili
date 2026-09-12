@@ -2,9 +2,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
 import {
   buildSafeDescription,
-  filterCleanImages,
   sanitizeTitle,
 } from '../_shared/ml-content-sanitizer.ts'
+import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 
 /**
