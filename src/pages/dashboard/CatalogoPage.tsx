@@ -1387,18 +1387,30 @@ const CatalogoPage = () => {
       )}
       <section className="min-w-0 overflow-visible">
         <>
-            <header className="mb-5 flex items-center gap-3 md:mb-6">
-              <button
+            <header className="mb-5 flex items-center justify-between gap-3 md:mb-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+                </button>
+                <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                  Catálogo Velo
+                </h1>
+              </div>
+              <Button
                 type="button"
-                onClick={() => navigate(-1)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
-                aria-label="Voltar"
+                variant="outline"
+                onClick={() => setTutorialOpen(true)}
+                aria-label="Ver tutorial do catálogo"
+                className="hidden sm:inline-flex gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
               >
-                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
-                Catálogo Velo
-              </h1>
+                <PlayCircle aria-hidden="true" size={17} />
+                Ver tutorial
+              </Button>
             </header>
 
             <div
