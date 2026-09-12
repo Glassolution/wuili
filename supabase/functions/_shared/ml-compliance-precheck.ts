@@ -6,7 +6,7 @@
 // produtos por rodada e uma checagem visual por item estouraria tempo e custo.
 // A checagem visual continua onde importa de verdade — na `ml-publish`, antes
 // de o anúncio ir ao ar.
-import { isSuspiciousImageUrl, sanitizeTitle } from "./ml-content-sanitizer.ts";
+import { isSuspiciousImageUrl, sanitizeTitle, stripMLHtml } from "./ml-content-sanitizer.ts";
 
 /** Mínimo de fotos que o Mercado Livre exige por anúncio. */
 export const MIN_REQUIRED_IMAGES = 3;
