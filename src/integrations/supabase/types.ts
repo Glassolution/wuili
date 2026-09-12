@@ -724,6 +724,9 @@ export type Database = {
           ml_compliance_issues: Json
           ml_compliance_status: string
           ml_size_grid_id: string | null
+          ml_vision_checked_at: string | null
+          ml_vision_clean_count: number | null
+          ml_vision_clean_images: Json
           model: string | null
           orders_count: number | null
           original_price: number | null
@@ -762,6 +765,9 @@ export type Database = {
           ml_compliance_issues?: Json
           ml_compliance_status?: string
           ml_size_grid_id?: string | null
+          ml_vision_checked_at?: string | null
+          ml_vision_clean_count?: number | null
+          ml_vision_clean_images?: Json
           model?: string | null
           orders_count?: number | null
           original_price?: number | null
@@ -800,6 +806,9 @@ export type Database = {
           ml_compliance_issues?: Json
           ml_compliance_status?: string
           ml_size_grid_id?: string | null
+          ml_vision_checked_at?: string | null
+          ml_vision_clean_count?: number | null
+          ml_vision_clean_images?: Json
           model?: string | null
           orders_count?: number | null
           original_price?: number | null
@@ -1748,6 +1757,27 @@ export type Database = {
           status?: string
           under_review?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      ml_image_vision_cache: {
+        Row: {
+          checked_at: string
+          clean: boolean
+          reason: string | null
+          url: string
+        }
+        Insert: {
+          checked_at?: string
+          clean: boolean
+          reason?: string | null
+          url: string
+        }
+        Update: {
+          checked_at?: string
+          clean?: boolean
+          reason?: string | null
+          url?: string
         }
         Relationships: []
       }

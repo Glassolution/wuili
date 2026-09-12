@@ -2,9 +2,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
 import {
   buildSafeDescription,
-  filterCleanImages,
   sanitizeTitle,
 } from '../_shared/ml-content-sanitizer.ts'
+import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 
 /**
@@ -35,6 +35,11 @@ async function registrarVeredictoNoCatalogo(
         ml_compliance_issues: issues,
         ml_clean_images_count: cleanImagesCount,
         ml_compliance_checked_at: new Date().toISOString(),
+        ml_vision_clean_count: cleanImagesCount,
+        ml_vision_checked_at: new Date().toISOString(),
+        // Fotos insuficientes: tira o produto do catálogo para ninguém mais
+        // esbarrar no mesmo erro na hora de publicar.
+        ...(status === 'blocked' ? { is_blocked: true } : {}),
       }),
     })
   } catch (err) {
@@ -850,7 +855,13 @@ Deno.serve(async (req) => {
     // criar um anúncio que será penalizado logo depois.
     let publicImages = allPublicImages.slice(0, 6)
     try {
-      const filtered = await filterCleanImages(allPublicImages, { useVision: true, max: 6 })
+      // Mesma régua (e mesmo cache de vereditos) usada na auditoria do catálogo.
+      const visionClient = createClient(
+        Deno.env.get('DB_URL') ?? supabaseUrl ?? '',
+        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey ?? '',
+        { auth: { persistSession: false } },
+      )
+      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, { max: 6, maxChecks: 10 })
       if (filtered.rejected.length) {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))

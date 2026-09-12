@@ -90,7 +90,7 @@ type VisionVerdict = { url: string; clean: boolean; reason?: string }
 // Checagem visual via IA: detecta marca d'água, logo de loja, texto promocional
 // sobreposto e arte de catálogo. Se a análise não responder, a imagem não é
 // aprovada automaticamente: publicar sem validação expõe a conta do vendedor.
-async function visionCheck(url: string): Promise<VisionVerdict> {
+export async function visionCheck(url: string): Promise<VisionVerdict> {
   const raw = await callAI(
     [
       {
