@@ -269,7 +269,22 @@ Deno.serve(async (req) => {
           { headers: h },
         );
         const mod = await modRes.text();
+        const upid = it?.user_product_id ? String(it.user_product_id) : null;
+        const upRes = upid
+          ? await mlFetch(`https://api.mercadolibre.com/user-products/${upid}`, { headers: h })
+          : null;
+        const up = upRes ? (await upRes.text()).slice(0, 1500) : null;
+        const healthRes = await mlFetch(
+          `https://api.mercadolibre.com/items/${p.ml_item_id}/health/actions`,
+          { headers: h },
+        );
+        const health = (await healthRes.text()).slice(0, 1500);
         details.push({
+          user_product_id: upid,
+          user_product_http: upRes?.status ?? null,
+          user_product: up,
+          health_http: healthRes.status,
+          health,
           ml_item_id: p.ml_item_id,
           status: it?.status,
           sub_status: it?.sub_status,
