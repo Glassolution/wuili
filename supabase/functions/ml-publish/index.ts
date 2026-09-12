@@ -35,6 +35,11 @@ async function registrarVeredictoNoCatalogo(
         ml_compliance_issues: issues,
         ml_clean_images_count: cleanImagesCount,
         ml_compliance_checked_at: new Date().toISOString(),
+        ml_vision_clean_count: cleanImagesCount,
+        ml_vision_checked_at: new Date().toISOString(),
+        // Fotos insuficientes: tira o produto do catálogo para ninguém mais
+        // esbarrar no mesmo erro na hora de publicar.
+        ...(status === 'blocked' ? { is_blocked: true } : {}),
       }),
     })
   } catch (err) {
