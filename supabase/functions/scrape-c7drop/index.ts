@@ -450,6 +450,16 @@ Deno.serve(async (req) => {
       const row = buildRowFromDetail(detail, item);
       if (!row) return;
       if (row.is_blocked) blocked++;
+      // Todo produto que chega já entra no catálogo com o veredito das
+      // diretrizes do Mercado Livre gravado, para o lojista saber antes de
+      // tentar publicar e para a publicação saber o que precisa reescrever.
+      const veredito = precheckProduct({
+        title: row.title as string,
+        description: row.description as string | null,
+        images: row.images,
+      });
+      if (veredito.status !== "ok") naoConformes++;
+      Object.assign(row, complianceColumns(veredito, now));
       rows.push(row);
     });
 
