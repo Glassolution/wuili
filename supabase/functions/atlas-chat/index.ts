@@ -1520,11 +1520,11 @@ const maybeHandleBeginnerGuide = async (
     if (!wantsToConnectLater(lastUserMessage)) {
       const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
       if (!mlStatus.connected || !mlStatus.tokenValid) {
-        return guideConnectMlStep(lastProductCards[0], saidConnectedMl(lastUserMessage), nome);
+        return guideConnectMlStep(produtoEscolhido, saidConnectedMl(lastUserMessage), nome);
       }
       if (saidConnectedMl(lastUserMessage)) {
         return validateSocialPotentialStep(
-          lastProductCards[0],
+          produtoEscolhido,
           niche,
           `Conta conectada${nome ? `, ${nome}` : ""}! 🎉 Essa era a parte mais chata de todas, e já ficou pra trás.`,
           nome,
@@ -1532,12 +1532,12 @@ const maybeHandleBeginnerGuide = async (
       }
     }
 
-    return validateSocialPotentialStep(lastProductCards[0], niche, undefined, nome);
+    return validateSocialPotentialStep(produtoEscolhido, niche, undefined, nome);
   }
 
   // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
   // confirmado -> passo 3, já amarrado ao produto escolhido.
-  if (emEtapa("escolha do produto") && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && lastProductCards.length === 1 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
     const escolhido = lastProductCards[0];
     return guideProductChosenStep(supabase, userId, {
       id: escolhido.product_id,
