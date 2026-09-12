@@ -48,14 +48,30 @@ async function republishClosed(
   supabase: SupabaseClient,
   pub: Pub,
 ): Promise<{ ok: boolean; outcome: string; error?: string }> {
-  if (!pub.catalog_product_id) {
-    return { ok: false, outcome: "republish_failed", error: "sem produto de catálogo vinculado" };
+  const COLS =
+    "external_id, title, description, images, cost_price, suggested_price, stock_quantity, brand, model, ml_category_id";
+  let cat: Record<string, unknown> | null = null;
+  if (pub.catalog_product_id) {
+    const { data } = await supabase
+      .from("catalog_products")
+      .select(COLS)
+      .eq("external_id", pub.catalog_product_id)
+      .maybeSingle();
+    cat = data;
   }
-  const { data: cat } = await supabase
-    .from("catalog_products")
-    .select("external_id, title, description, images, cost_price, suggested_price, stock_quantity, brand, model, ml_category_id")
-    .eq("external_id", pub.catalog_product_id)
-    .maybeSingle();
+  if (!cat && pub.title) {
+    // Fallback: anúncios antigos sem vínculo — localiza o produto pelo título.
+    const needle = pub.title.replace(/[%_]/g, " ").trim().slice(0, 40);
+    const { data } = await supabase
+      .from("catalog_products")
+      .select(COLS)
+      .eq("is_active", true)
+      .ilike("title", `%${needle}%`)
+      .gt("stock_quantity", 0)
+      .limit(1)
+      .maybeSingle();
+    cat = data;
+  }
   if (!cat) {
     return { ok: false, outcome: "republish_failed", error: "produto não encontrado no catálogo" };
   }
