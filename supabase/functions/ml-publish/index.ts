@@ -866,6 +866,7 @@ Deno.serve(async (req) => {
         }, 409)
       }
       publicImages = filtered.clean
+      await registrarVeredictoNoCatalogo(product.id, 'ok', [], filtered.clean.length)
     } catch (err) {
       console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
       return json({
