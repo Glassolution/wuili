@@ -1462,6 +1462,10 @@ const maybeHandleBeginnerGuide = async (
   const lastAssistantText = normalizeGuideText(lastAssistant?.content ?? "");
   const lastActions = getLastAssistantActions(messages);
   const lastProductCards = lastActions.filter((action): action is ProductCardAction => action.type === "product_card");
+  // Produto da etapa atual quando o card ainda está na tela; senão, o último
+  // escolhido na conversa. É o que impede o guia de trocar de produto.
+  const produtoEscolhido =
+    lastProductCards.length === 1 ? lastProductCards[0] : findChosenProductCard(messages);
 
   // O guia se identifica pelo marcador "passo N de 4", presente em toda etapa.
   // Antes isso dependia do título "Guia de Iniciante"; qualquer mudança de texto
