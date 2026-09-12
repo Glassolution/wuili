@@ -1015,6 +1015,7 @@ export type Database = {
       }
       dropship_orders: {
         Row: {
+          c7drop_payment_method: string | null
           c7drop_pix_copy_paste: string | null
           c7drop_pix_expires_at: string | null
           c7drop_pix_generated_at: string | null
@@ -1063,6 +1064,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          c7drop_payment_method?: string | null
           c7drop_pix_copy_paste?: string | null
           c7drop_pix_expires_at?: string | null
           c7drop_pix_generated_at?: string | null
@@ -1111,6 +1113,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          c7drop_payment_method?: string | null
           c7drop_pix_copy_paste?: string | null
           c7drop_pix_expires_at?: string | null
           c7drop_pix_generated_at?: string | null
