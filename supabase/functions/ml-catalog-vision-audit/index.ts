@@ -68,7 +68,6 @@ Deno.serve(async (req) => {
 
     let aprovados = 0;
     let bloqueados = 0;
-    let liberados = 0;
 
     for (const row of rows ?? []) {
       const imagens = listaDeImagens(row.images);
@@ -76,7 +75,6 @@ Deno.serve(async (req) => {
       const aprovado = clean.length >= MIN_REQUIRED_IMAGES;
       if (aprovado) aprovados++;
       else bloqueados++;
-      if (aprovado && row.is_blocked) liberados++;
 
       await supabase
         .from("catalog_products")
@@ -87,8 +85,9 @@ Deno.serve(async (req) => {
           ml_clean_images_count: clean.length,
           ml_compliance_status: aprovado ? "ok" : "blocked",
           // Produto sem fotos suficientes some do catálogo em vez de aparecer
-          // e falhar só na hora de publicar.
-          is_blocked: aprovado ? false : true,
+          // e falhar só na hora de publicar. Nunca DESbloqueamos aqui: o
+          // bloqueio pode ter outra causa (conteúdo adulto, celular etc.).
+          ...(aprovado ? {} : { is_blocked: true }),
         })
         .eq("id", row.id);
     }
@@ -104,7 +103,6 @@ Deno.serve(async (req) => {
       auditados: rows?.length ?? 0,
       aprovados,
       bloqueados,
-      liberados,
       pendentes: pendentes ?? 0,
     });
   } catch (err) {
