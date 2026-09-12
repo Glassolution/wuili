@@ -100,7 +100,7 @@ const CHAT_PROMPT_SUGGESTIONS = [
 
 const TUTORIAL_INICIO = {
   src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
-  aspectPadding: "75%",
+  aspectPadding: "62.5%",
   title: "Tutorial de início",
   description: "Veja como dar os primeiros passos na Velo.",
 } as const;
