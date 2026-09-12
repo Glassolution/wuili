@@ -204,6 +204,12 @@ const saidConnectedMl = (message: string) =>
 const wantsToConnectLater = (message: string) =>
   /\b(depois|mais tarde|agora nao|outra hora|pular|pula)\b/.test(normalizeGuideText(message));
 
+/** Pedido de publicar o anúncio, dito de várias formas dentro do guia. */
+const wantsToPublish = (message: string) =>
+  /\b(publicar|publica|publique|publicacao|anunciar|anuncio|subir o anuncio|colocar no ar)\b/.test(
+    normalizeGuideText(message),
+  );
+
 const wantsOtherOptions = (message: string) =>
   /\b(outra|outras|outro|outros|mais opcoes|ver outras|trocar produto)\b/.test(normalizeGuideText(message));
 
