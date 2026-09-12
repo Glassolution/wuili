@@ -4,6 +4,7 @@
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { hasEnoughImages, isCellphoneProduct } from "../_shared/catalog-filters.ts";
+import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
