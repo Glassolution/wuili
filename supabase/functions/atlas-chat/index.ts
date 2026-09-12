@@ -724,6 +724,27 @@ const getLastAssistantMessage = (messages: ChatMessage[]) =>
 const getLastAssistantActions = (messages: ChatMessage[]) =>
   getLastAssistantMessage(messages)?.product_data?.actions ?? [];
 
+/**
+ * Produto escolhido no guia, procurado na conversa inteira.
+ *
+ * Antes o produto só existia enquanto o card estivesse na ÚLTIMA mensagem do
+ * Atlas. Bastava uma resposta livre no meio para o guia perder o produto, cair
+ * no modelo e ele improvisar descrição e mandar o usuário para Publicações com
+ * outro produto. Uma vitrine com vários cards interrompe a busca: ali ainda não
+ * houve escolha.
+ */
+const findChosenProductCard = (messages: ChatMessage[]): ProductCardAction | null => {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "assistant") continue;
+    const cards = (message.product_data?.actions ?? []).filter(
+      (action): action is ProductCardAction => action?.type === "product_card",
+    );
+    if (cards.length === 1) return cards[0];
+    if (cards.length > 1) return null;
+  }
+  return null;
+};
+
 const normalizeSafetyText = (value: string) =>
   normalizeText(value)
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
