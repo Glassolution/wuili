@@ -141,6 +141,7 @@ Deno.serve(async (req) => {
     const existingIds = new Set((existing ?? []).map((r) => r.external_id));
 
     // Upsert em lotes
+    let naoConformes = 0;
     const rows = scraped.map((p) => {
       const images = [p.image_url].filter(Boolean);
       // ML exige no mínimo 3 fotos.
@@ -148,6 +149,9 @@ Deno.serve(async (req) => {
       const blockedFlag =
         isBlocked(p.title) || !hasEnoughImages(images) || isCellphoneProduct(p.title, inferCategory(p.title));
       if (blockedFlag) blocked++;
+      // Veredito das diretrizes do ML gravado já na chegada do produto.
+      const veredito = precheckProduct({ title: p.title, description: null, images });
+      if (veredito.status !== "ok") naoConformes++;
       return {
         source: SOURCE,
         external_id: p.external_id,
@@ -165,6 +169,7 @@ Deno.serve(async (req) => {
         is_blocked: blockedFlag,
         scraped_at: now,
         updated_at: now,
+        ...complianceColumns(veredito, now),
       };
     });
 
@@ -192,6 +197,7 @@ Deno.serve(async (req) => {
       inserted,
       updated,
       blocked,
+      fora_das_diretrizes_ml: naoConformes,
       ran_at: now,
     };
     console.log("[scrape-b2drop] Concluído:", JSON.stringify(summary));
