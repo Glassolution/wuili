@@ -204,6 +204,12 @@ const saidConnectedMl = (message: string) =>
 const wantsToConnectLater = (message: string) =>
   /\b(depois|mais tarde|agora nao|outra hora|pular|pula)\b/.test(normalizeGuideText(message));
 
+/** Pedido de publicar o anúncio, dito de várias formas dentro do guia. */
+const wantsToPublish = (message: string) =>
+  /\b(publicar|publica|publique|publicacao|anunciar|anuncio|subir o anuncio|colocar no ar)\b/.test(
+    normalizeGuideText(message),
+  );
+
 const wantsOtherOptions = (message: string) =>
   /\b(outra|outras|outro|outros|mais opcoes|ver outras|trocar produto)\b/.test(normalizeGuideText(message));
 
@@ -723,6 +729,27 @@ const getLastAssistantMessage = (messages: ChatMessage[]) =>
 
 const getLastAssistantActions = (messages: ChatMessage[]) =>
   getLastAssistantMessage(messages)?.product_data?.actions ?? [];
+
+/**
+ * Produto escolhido no guia, procurado na conversa inteira.
+ *
+ * Antes o produto só existia enquanto o card estivesse na ÚLTIMA mensagem do
+ * Atlas. Bastava uma resposta livre no meio para o guia perder o produto, cair
+ * no modelo e ele improvisar descrição e mandar o usuário para Publicações com
+ * outro produto. Uma vitrine com vários cards interrompe a busca: ali ainda não
+ * houve escolha.
+ */
+const findChosenProductCard = (messages: ChatMessage[]): ProductCardAction | null => {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "assistant") continue;
+    const cards = (message.product_data?.actions ?? []).filter(
+      (action): action is ProductCardAction => action?.type === "product_card",
+    );
+    if (cards.length === 1) return cards[0];
+    if (cards.length > 1) return null;
+  }
+  return null;
+};
 
 const normalizeSafetyText = (value: string) =>
   normalizeText(value)
@@ -1435,6 +1462,10 @@ const maybeHandleBeginnerGuide = async (
   const lastAssistantText = normalizeGuideText(lastAssistant?.content ?? "");
   const lastActions = getLastAssistantActions(messages);
   const lastProductCards = lastActions.filter((action): action is ProductCardAction => action.type === "product_card");
+  // Produto da etapa atual quando o card ainda está na tela; senão, o último
+  // escolhido na conversa. É o que impede o guia de trocar de produto.
+  const produtoEscolhido =
+    lastProductCards.length === 1 ? lastProductCards[0] : findChosenProductCard(messages);
 
   // O guia se identifica pelo marcador "passo N de 4", presente em toda etapa.
   // Antes isso dependia do título "Guia de Iniciante"; qualquer mudança de texto
@@ -1467,16 +1498,16 @@ const maybeHandleBeginnerGuide = async (
   }
 
   // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
-  if (emEtapa("potencial de divulgacao") && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
+  if (emEtapa("potencial de divulgacao") && produtoEscolhido && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    return guidePublicationStep(supabase, userId, lastProductCards[0], niche, nome);
+    return guidePublicationStep(supabase, userId, produtoEscolhido, niche, nome);
   }
 
   // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
   // 4 (potencial de divulgação).
   if (
     emEtapa("onde vender", "conectar sua conta") &&
-    lastProductCards.length > 0 &&
+    produtoEscolhido &&
     (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
   ) {
     // Nicho pode não existir: quem escolheu o produto direto no catálogo nunca
@@ -1489,11 +1520,11 @@ const maybeHandleBeginnerGuide = async (
     if (!wantsToConnectLater(lastUserMessage)) {
       const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
       if (!mlStatus.connected || !mlStatus.tokenValid) {
-        return guideConnectMlStep(lastProductCards[0], saidConnectedMl(lastUserMessage), nome);
+        return guideConnectMlStep(produtoEscolhido, saidConnectedMl(lastUserMessage), nome);
       }
       if (saidConnectedMl(lastUserMessage)) {
         return validateSocialPotentialStep(
-          lastProductCards[0],
+          produtoEscolhido,
           niche,
           `Conta conectada${nome ? `, ${nome}` : ""}! 🎉 Essa era a parte mais chata de todas, e já ficou pra trás.`,
           nome,
@@ -1501,12 +1532,12 @@ const maybeHandleBeginnerGuide = async (
       }
     }
 
-    return validateSocialPotentialStep(lastProductCards[0], niche, undefined, nome);
+    return validateSocialPotentialStep(produtoEscolhido, niche, undefined, nome);
   }
 
   // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
   // confirmado -> passo 3, já amarrado ao produto escolhido.
-  if (emEtapa("escolha do produto") && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && lastProductCards.length === 1 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
     const escolhido = lastProductCards[0];
     return guideProductChosenStep(supabase, userId, {
       id: escolhido.product_id,
@@ -1605,6 +1636,20 @@ const maybeHandleBeginnerGuide = async (
     const niche = findValidatedNiche(lastUserMessage);
     if (niche) return validateNicheStep(supabase, niche, nome);
     return askBeginnerNiche(supabase, nome);
+  }
+
+  // Rede de segurança do fim do guia: "já conectei" e "pode publicar" nunca
+  // podem cair no modelo. Era aí que o Atlas escrevia a descrição sozinho,
+  // dizia que ia publicar e mandava o usuário para Publicações com outro
+  // produto. Aqui a conexão é conferida no banco e a publicação sai amarrada ao
+  // produto que a pessoa escolheu.
+  if (
+    guideWasActive &&
+    produtoEscolhido &&
+    (saidConnectedMl(lastUserMessage) || wantsToPublish(lastUserMessage))
+  ) {
+    const niche = inferNicheFromConversation(messages, lastUserMessage);
+    return guidePublicationStep(supabase, userId, produtoEscolhido, niche, nome);
   }
 
   return null;
