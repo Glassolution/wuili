@@ -134,6 +134,7 @@ type ServiceClient = SupabaseClient<any> | null;
 
 type MercadoLivreIntegrationRow = {
   access_token?: string | null;
+  refresh_token?: string | null;
   expires_at?: string | null;
   platform?: string | null;
 };
