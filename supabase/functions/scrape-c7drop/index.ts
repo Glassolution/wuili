@@ -31,6 +31,7 @@ import {
   isCellphoneProduct,
   hasEnoughImages,
 } from "../_shared/catalog-filters.ts";
+import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
