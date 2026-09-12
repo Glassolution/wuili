@@ -42,6 +42,9 @@ Deno.serve(async (req) => {
     let query = supabase
       .from("catalog_products")
       .select("id, title, description, images")
+      // Os menos verificados primeiro: assim o cron avança pelo catálogo
+      // inteiro em vez de reprocessar sempre as mesmas linhas.
+      .order("ml_compliance_checked_at", { ascending: true, nullsFirst: true })
       .limit(limit);
     if (!recheckAll) query = query.eq("ml_compliance_status", "unchecked");
 
