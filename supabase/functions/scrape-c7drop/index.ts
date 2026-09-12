@@ -31,6 +31,7 @@ import {
   isCellphoneProduct,
   hasEnoughImages,
 } from "../_shared/catalog-filters.ts";
+import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -349,9 +350,15 @@ Deno.serve(async (req) => {
             unchanged++;
             return;
           }
+          // Imagens novas => o veredito de diretrizes precisa ser refeito.
+          const veredito = precheckProduct({
+            title: detail.name ?? "",
+            description: detail.description ?? null,
+            images,
+          });
           const { error: upErr } = await supabase
             .from("catalog_products")
-            .update({ images, scraped_at: now, updated_at: now })
+            .update({ images, scraped_at: now, updated_at: now, ...complianceColumns(veredito, now) })
             .eq("id", row.id);
           if (upErr) {
             errors++;
@@ -434,6 +441,8 @@ Deno.serve(async (req) => {
     let skippedFakeAds = 0;
     let noDetail = 0;
     let blocked = 0;
+    let naoConformes = 0;
+    const now = new Date().toISOString();
     const rows: Record<string, unknown>[] = [];
     await mapPool(list, CONCURRENCY, async (item) => {
       if (!item.slug || !item.name) return;
@@ -449,6 +458,16 @@ Deno.serve(async (req) => {
       const row = buildRowFromDetail(detail, item);
       if (!row) return;
       if (row.is_blocked) blocked++;
+      // Todo produto que chega já entra no catálogo com o veredito das
+      // diretrizes do Mercado Livre gravado, para o lojista saber antes de
+      // tentar publicar e para a publicação saber o que precisa reescrever.
+      const veredito = precheckProduct({
+        title: row.title as string,
+        description: row.description as string | null,
+        images: row.images,
+      });
+      if (veredito.status !== "ok") naoConformes++;
+      Object.assign(row, complianceColumns(veredito, now));
       rows.push(row);
     });
 
@@ -494,6 +513,7 @@ Deno.serve(async (req) => {
       blocked,
       skipped_fake_ads: skippedFakeAds,
       no_detail: noDetail,
+      fora_das_diretrizes_ml: naoConformes,
       ran_at: new Date().toISOString(),
     };
 

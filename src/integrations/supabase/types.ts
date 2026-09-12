@@ -719,6 +719,10 @@ export type Database = {
           margin_percent: number
           ml_category_id: string | null
           ml_category_status: string
+          ml_clean_images_count: number | null
+          ml_compliance_checked_at: string | null
+          ml_compliance_issues: Json
+          ml_compliance_status: string
           ml_size_grid_id: string | null
           model: string | null
           orders_count: number | null
@@ -753,6 +757,10 @@ export type Database = {
           margin_percent: number
           ml_category_id?: string | null
           ml_category_status?: string
+          ml_clean_images_count?: number | null
+          ml_compliance_checked_at?: string | null
+          ml_compliance_issues?: Json
+          ml_compliance_status?: string
           ml_size_grid_id?: string | null
           model?: string | null
           orders_count?: number | null
@@ -787,6 +795,10 @@ export type Database = {
           margin_percent?: number
           ml_category_id?: string | null
           ml_category_status?: string
+          ml_clean_images_count?: number | null
+          ml_compliance_checked_at?: string | null
+          ml_compliance_issues?: Json
+          ml_compliance_status?: string
           ml_size_grid_id?: string | null
           model?: string | null
           orders_count?: number | null
