@@ -144,17 +144,33 @@ async function processItem(
     let putRes = await putItem(patch);
     if (!putRes.ok) {
       const t = await putRes.text();
-      // Anúncios com variações (family_name) não aceitam alteração de título
-      // pelo item; nesse caso aplicamos só as fotos e seguimos o reparo.
+      // Anúncios com variações pertencem a uma "família": o ML só aceita o novo
+      // título quando ele vem junto de family_name. Tentamos isso antes de
+      // desistir do título.
       if (t.includes("family_name") && patch.title) {
-        delete patch.title;
-        out.title_fixed = false;
-        out.error = "título não pode ser alterado (anúncio com variações)";
-        if (Object.keys(patch).length > 0) {
-          putRes = await putItem(patch);
+        const withFamily = { ...patch, family_name: String(patch.title).slice(0, 60) };
+        putRes = await putItem(withFamily);
+        if (!putRes.ok) {
+          const tFamily = await putRes.text();
+          // Última tentativa: só family_name (sem title), que é o campo que o
+          // ML usa como nome do anúncio em famílias.
+          const onlyFamily: Record<string, unknown> = { ...patch, family_name: withFamily.family_name };
+          delete onlyFamily.title;
+          putRes = await putItem(onlyFamily);
           if (!putRes.ok) {
             const t2 = await putRes.text();
-            return { ...out, outcome: "ml_error", error: `PUT item ${putRes.status}: ${t2.slice(0, 300)}` };
+            out.title_fixed = false;
+            out.error = `título bloqueado pelo ML (variações): ${tFamily.slice(0, 150)} | ${t2.slice(0, 150)}`;
+            // segue com as fotos, se houver
+            const picturesOnly: Record<string, unknown> = { ...patch };
+            delete picturesOnly.title;
+            if (Object.keys(picturesOnly).length > 0) {
+              const putPics = await putItem(picturesOnly);
+              if (!putPics.ok) {
+                const t3 = await putPics.text();
+                return { ...out, outcome: "ml_error", error: `PUT item ${putPics.status}: ${t3.slice(0, 300)}` };
+              }
+            }
           }
         }
       } else {
