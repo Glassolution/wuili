@@ -850,7 +850,13 @@ Deno.serve(async (req) => {
     // criar um anúncio que será penalizado logo depois.
     let publicImages = allPublicImages.slice(0, 6)
     try {
-      const filtered = await filterCleanImages(allPublicImages, { useVision: true, max: 6 })
+      // Mesma régua (e mesmo cache de vereditos) usada na auditoria do catálogo.
+      const visionClient = createClient(
+        Deno.env.get('DB_URL') ?? supabaseUrl,
+        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey,
+        { auth: { persistSession: false } },
+      )
+      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, { max: 6, maxChecks: 10 })
       if (filtered.rejected.length) {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
