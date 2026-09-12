@@ -861,23 +861,30 @@ Deno.serve(async (req) => {
         Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey ?? '',
         { auth: { persistSession: false } },
       )
-      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, { max: 6, maxChecks: 10 })
+      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
+        max: 6,
+        maxChecks: Math.max(10, allPublicImages.length),
+      })
       if (filtered.rejected.length) {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
       }
-      if (filtered.clean.length < MIN_REQUIRED_IMAGES) {
+      // O Mercado Livre aceita anúncio com 1 foto. Só bloqueamos quando NENHUMA
+      // foto passa na régua de diretrizes — antes exigíamos 3 e o produto com
+      // 2 fotos boas (mas 9 artes do fornecedor) ficava impossível de publicar.
+      if (filtered.clean.length < 1) {
         await registrarVeredictoNoCatalogo(
           product.id, 'blocked', ['imagens_insuficientes', 'imagens_arte_fornecedor'], filtered.clean.length,
         )
         return json({
-          error: `Este produto tem apenas ${filtered.clean.length} foto(s) dentro das diretrizes do Mercado Livre. Escolha outro produto ou adicione pelo menos ${MIN_REQUIRED_IMAGES} fotos limpas, sem textos, selos, marcas d'água ou banners.`,
+          error: `Nenhuma das fotos deste produto está dentro das diretrizes do Mercado Livre (todas têm texto, selo, marca d'água ou banner do fornecedor). Escolha outro produto ou adicione fotos limpas.`,
           code: 'INSUFFICIENT_COMPLIANT_IMAGES',
           rejected_images: filtered.rejected.length,
         }, 409)
       }
       publicImages = filtered.clean
       await registrarVeredictoNoCatalogo(product.id, 'ok', [], filtered.clean.length)
+
     } catch (err) {
       console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
       return json({

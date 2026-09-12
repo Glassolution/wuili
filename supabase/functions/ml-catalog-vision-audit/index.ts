@@ -71,8 +71,10 @@ Deno.serve(async (req) => {
 
     for (const row of rows ?? []) {
       const imagens = listaDeImagens(row.images);
-      const { clean } = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 10 });
-      const aprovado = clean.length >= MIN_REQUIRED_IMAGES;
+      const { clean } = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 14 });
+      // Mesma régua da publicação: basta uma foto dentro das diretrizes.
+      const aprovado = clean.length >= 1;
+
       if (aprovado) aprovados++;
       else bloqueados++;
 
