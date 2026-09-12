@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BadgePercent, Check, LayoutTemplate, Sparkles } from "lucide-react";
+import { ArrowRight, BadgePercent, Check, LayoutTemplate, PlayCircle, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,8 @@ import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
 import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
 import MobileHome from "@/components/dashboard/MobileHome";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { Button } from "@/components/ui/button";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -95,6 +97,13 @@ const CHAT_PROMPT_SUGGESTIONS = [
   "Escreva uma descrição persuasiva",
   "Me dê uma ideia de negócio",
 ];
+
+const TUTORIAL_INICIO = {
+  src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
+  aspectPadding: "75%",
+  title: "Tutorial de início",
+  description: "Veja como dar os primeiros passos na Velo.",
+} as const;
 
 // Coreografia da introdução, em segundos. Os blocos entram enquanto o título ainda
 // está subindo: a sobreposição é o que faz a sequência ler como um movimento só,
@@ -246,6 +255,7 @@ const DashboardHomePage = () => {
   const [introState, setIntroState] = useState<"pending" | "play" | "done">("pending");
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   /**
    * Existe conversa anterior para mostrar no histórico?
@@ -571,6 +581,35 @@ const DashboardHomePage = () => {
               background: "#F5F4F1",
             }}
           />
+
+          <motion.div
+            {...revealProps(INTRO.promoDelay, -6)}
+            style={{
+              position: "absolute",
+              right: x(30),
+              top: y(20),
+              zIndex: 40,
+            }}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTutorialOpen(true)}
+              aria-label="Ver tutorial de início"
+              className="gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
+              style={{
+                height: y(56),
+                minHeight: 40,
+                borderRadius: fs(18),
+                paddingLeft: fs(15),
+                paddingRight: fs(17),
+                fontSize: fs(11.8),
+              }}
+            >
+              <PlayCircle aria-hidden="true" style={{ width: fs(17), height: fs(17) }} />
+              Ver tutorial
+            </Button>
+          </motion.div>
 
           {/* Histórico das conversas, espelhando o bloco de suporte do canto
               oposto. Só aparece com o chat aberto e com conversa anterior de
@@ -1499,6 +1538,14 @@ const DashboardHomePage = () => {
           ))}
         </div>
       </div>
+      <VideoTutorialModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        title={TUTORIAL_INICIO.title}
+        description={TUTORIAL_INICIO.description}
+        src={TUTORIAL_INICIO.src}
+        aspectPadding={TUTORIAL_INICIO.aspectPadding}
+      />
     </main>
   );
 };
