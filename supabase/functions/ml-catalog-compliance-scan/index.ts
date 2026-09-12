@@ -3,7 +3,7 @@
 // Determinística (sem IA), em lotes limitados por chamada.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
+import { autoFixProduct, complianceColumns } from "../_shared/ml-compliance-precheck.ts";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
