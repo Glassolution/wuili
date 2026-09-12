@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Copy,
   Eye,
@@ -147,15 +148,27 @@ const getPasswordStrength = (password: string) => {
     { key: "uppercase", label: "Maiúsculas", valid: /[A-ZÀ-ÖØ-Þ]/.test(password) },
   ];
   const score = checks.filter((check) => check.valid).length;
-  const label = score >= 4 ? "Forte" : score >= 3 ? "Boa" : score >= 2 ? "Média" : password ? "Fraca" : "Vazia";
-  const color = score >= 3 ? "#2563EB" : score >= 2 ? "#F59E0B" : "#DC2626";
+  const hasMinimumLength = password.length >= 6;
+  const isGood = hasMinimumLength && (score >= 4 || (score >= 3 && password.length >= 7));
+  const label = !password
+    ? "Vazia"
+    : !hasMinimumLength
+      ? "Curta"
+      : isGood
+        ? score >= 4 ? "Forte" : "Boa"
+        : score >= 3
+          ? "Quase boa"
+          : score >= 2
+            ? "Média"
+            : "Fraca";
+  const color = isGood ? "#2563EB" : score >= 2 ? "#F59E0B" : "#DC2626";
 
   return {
     checks,
     score,
     label,
     color,
-    isGood: score >= 3 && password.length >= 6,
+    isGood,
   };
 };
 
@@ -234,6 +247,17 @@ const saveC7DropAccount = async (mode: "connect" | "signup", form: C7DropAccount
   const response = data as { account?: C7DropAccountStatus; error?: string } | null;
   if (error || response?.error) {
     throw new Error(response?.error ?? error?.message ?? "Não foi possível salvar a conta do fornecedor");
+  }
+  return response?.account ?? { status: "not_connected" as const };
+};
+
+const disconnectC7DropAccount = async () => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: { action: "disconnect" },
+  });
+  const response = data as { account?: C7DropAccountStatus; error?: string } | null;
+  if (error || response?.error) {
+    throw new Error(response?.error ?? error?.message ?? "Não foi possível desconectar a conta do fornecedor");
   }
   return response?.account ?? { status: "not_connected" as const };
 };
@@ -821,9 +845,15 @@ const C7DropAccountBanner = ({
 }) => {
   const connected = account.status === "connected";
   const pending = account.status === "signup_requested";
+  const pendingSince = account.updated_at ? new Date(account.updated_at).getTime() : null;
+  const pendingMinutes = pendingSince && !Number.isNaN(pendingSince)
+    ? Math.floor((Date.now() - pendingSince) / 60_000)
+    : null;
+  const pendingDelayed = pending && pendingMinutes !== null && pendingMinutes >= 3;
   const needsManualAction = account.status === "manual_action_required";
   const invalidCredentials = account.status === "invalid_credentials";
   const hasIssue = needsManualAction || invalidCredentials;
+  const hasWarning = hasIssue || pendingDelayed;
   const statusView = connected
     ? {
         badge: "Conta criada",
@@ -833,10 +863,12 @@ const C7DropAccountBanner = ({
       }
     : pending
       ? {
-          badge: "Em criação",
-          badgeClass: "bg-[#EFF6FF] text-[#2563EB] ring-[#BFDBFE]",
-          step: 2,
-          detail: `Na fila do bot${formatStatusDateTime(account.updated_at) ? ` desde ${formatStatusDateTime(account.updated_at)}` : ""}`,
+          badge: pendingDelayed ? "Bot sem resposta" : "Em criação",
+          badgeClass: pendingDelayed ? "bg-[#FFEDD5] text-[#C2410C] ring-[#FDBA74]" : "bg-[#EFF6FF] text-[#2563EB] ring-[#BFDBFE]",
+          step: pendingDelayed ? 1 : 2,
+          detail: pendingDelayed
+            ? `Salva ha ${pendingMinutes} min, mas o bot ainda nao confirmou. Verifique se o worker esta online.`
+            : `Na fila do bot${formatStatusDateTime(account.updated_at) ? ` desde ${formatStatusDateTime(account.updated_at)}` : ""}`,
         }
       : hasIssue
         ? {
@@ -855,13 +887,17 @@ const C7DropAccountBanner = ({
           };
   const title = connected
     ? "Conta do fornecedor conectada"
+    : pendingDelayed
+      ? "O bot ainda não confirmou essa conta"
     : needsManualAction
       ? "Fornecedor pediu validação manual"
       : invalidCredentials
         ? "Revise os dados da conta do fornecedor"
         : "Crie uma conta no fornecedor e automatize seus pedidos direto na Velo";
   const copy = connected
-    ? `O bot vai comprar no fornecedor usando ${account.email ?? "a conta conectada"}, mantendo reembolso e suporte no acesso do vendedor.`
+    ? "O bot vai comprar no fornecedor usando a conta conectada, mantendo reembolso e suporte no acesso do vendedor."
+    : pendingDelayed
+      ? "A solicitação foi salva, mas passou do tempo normal de processamento. Isso costuma acontecer quando o worker do bot não está rodando ou ainda não recebeu o deploy."
     : pending
       ? "Sua solicitação de conta no fornecedor está salva. O bot vai tentar criar a conta e avisar se precisar de validação."
       : needsManualAction
@@ -871,9 +907,9 @@ const C7DropAccountBanner = ({
           : "Conecte uma conta existente ou deixe os dados prontos para criar uma conta. Assim cada vendedor mantém seus próprios pedidos, reembolsos e suporte direto no fornecedor.";
 
   return (
-    <section className={`mb-5 overflow-hidden rounded-2xl border p-4 shadow-[0_14px_34px_rgba(37,99,235,0.08)] md:mb-7 md:flex md:items-center md:justify-between md:gap-5 ${hasIssue ? "border-[#FED7AA] bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFFBEB]" : "border-[#D7E4FF] bg-gradient-to-r from-[#EFF6FF] via-white to-[#F8FAFC]"}`}>
+    <section className={`mb-5 overflow-hidden rounded-2xl border p-4 shadow-[0_14px_34px_rgba(37,99,235,0.08)] md:mb-7 md:flex md:items-center md:justify-between md:gap-5 ${hasWarning ? "border-[#FED7AA] bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFFBEB]" : "border-[#D7E4FF] bg-gradient-to-r from-[#EFF6FF] via-white to-[#F8FAFC]"}`}>
       <div className="flex min-w-0 items-start gap-3">
-        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ${hasIssue ? "bg-[#F97316]" : "bg-[#2563EB]"}`}>
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ${hasWarning ? "bg-[#F97316]" : "bg-[#2563EB]"}`}>
           {connected ? <CheckCircle2 size={20} /> : <UserPlus size={20} />}
         </div>
         <div className="min-w-0">
@@ -888,29 +924,32 @@ const C7DropAccountBanner = ({
           <p className="mt-1 max-w-2xl text-[12.5px] font-medium leading-relaxed text-[#64748B]">
             {copy}
           </p>
+          {!connected ? (
           <div className="mt-3 max-w-xl">
             <div className="grid grid-cols-3 gap-1.5">
               {["Dados salvos", "Bot criando", "Conta pronta"].map((label, index) => {
                 const active = statusView.step >= index + 1;
                 const failed = hasIssue && index >= 1;
+                const delayed = pendingDelayed && index === 1;
                 return (
                   <div key={label} className="min-w-0">
                     <span
                       className={`block h-1.5 rounded-full ${
-                        failed ? "bg-[#FDBA74]" : active ? "bg-[#2563EB]" : "bg-[#E2E8F0]"
+                        failed || delayed ? "bg-[#FDBA74]" : active ? "bg-[#2563EB]" : "bg-[#E2E8F0]"
                       }`}
                     />
-                    <span className={`mt-1 block truncate text-[10px] font-bold ${active || failed ? "text-[#475569]" : "text-[#94A3B8]"}`}>
+                    <span className={`mt-1 block truncate text-[10px] font-bold ${active || failed || delayed ? "text-[#475569]" : "text-[#94A3B8]"}`}>
                       {label}
                     </span>
                   </div>
                 );
               })}
             </div>
-            <p className={`mt-2 text-[11.5px] font-bold ${hasIssue ? "text-[#C2410C]" : connected ? "text-[#15803D]" : "text-[#64748B]"}`}>
+            <p className={`mt-2 text-[11.5px] font-bold ${hasWarning ? "text-[#C2410C]" : connected ? "text-[#15803D]" : "text-[#64748B]"}`}>
               {statusView.detail}
             </p>
           </div>
+          ) : null}
         </div>
       </div>
       <button
@@ -922,6 +961,66 @@ const C7DropAccountBanner = ({
         {connected ? "Gerenciar fornecedor" : hasIssue ? "Corrigir conta" : "Conectar fornecedor"}
       </button>
     </section>
+  );
+};
+
+const C7DropAccountManageModal = ({
+  open,
+  account,
+  disconnecting,
+  onClose,
+  onChangeAccount,
+  onDisconnect,
+}: {
+  open: boolean;
+  account: C7DropAccountStatus;
+  disconnecting: boolean;
+  onClose: () => void;
+  onChangeAccount: () => void;
+  onDisconnect: () => void;
+}) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
+      <div className="w-full max-w-sm overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_22px_58px_rgba(15,23,42,0.18)]">
+        <div className="h-1 bg-[#2563EB]" />
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Fornecedor</p>
+            <h2 className="mt-1 text-[18px] font-black tracking-[-0.04em] text-[#020817]">Gerenciar conta</h2>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="rounded-2xl border border-[#D7E4FF] bg-[#F8FAFC] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#64748B]">Conta conectada</p>
+            <p className="mt-1 truncate text-[14px] font-black text-[#0F172A]">{account.email ?? "Conta C7 conectada"}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onChangeAccount}
+            className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-4 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+          >
+            <KeyRound size={15} />
+            Trocar conta
+          </button>
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={disconnecting}
+            className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-[#FCA5A5] bg-white px-4 text-[13px] font-black text-[#DC2626] transition hover:bg-[#FEF2F2] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <X size={15} />
+            {disconnecting ? "Desconectando..." : "Desconectar"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -939,6 +1038,7 @@ const C7DropAccountModal = ({
   onSave: (mode: "connect" | "signup", form: C7DropAccountForm) => void;
 }) => {
   const [mode, setMode] = useState<"connect" | "signup">("connect");
+  const [step, setStep] = useState<1 | 2>(1);
   const [form, setForm] = useState<C7DropAccountForm>({
     email: account.email ?? "",
     password: "",
@@ -953,6 +1053,8 @@ const C7DropAccountModal = ({
 
   useEffect(() => {
     if (!open) return;
+    setMode("connect");
+    setStep(1);
     setForm({
       email: account.email ?? "",
       password: "",
@@ -969,25 +1071,34 @@ const C7DropAccountModal = ({
   const update = (key: keyof C7DropAccountForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const passwordMatches = form.password === form.confirm_password;
   const passwordStrength = getPasswordStrength(form.password);
-  const canSave =
+  const isSignup = mode === "signup";
+  const loginReady =
     form.email &&
     form.password &&
-    form.confirm_password &&
     passwordStrength.isGood &&
-    passwordMatches &&
+    (!isSignup || (form.confirm_password && passwordMatches));
+  const purchaseReady =
     form.first_name &&
     form.last_name &&
     form.phone &&
     form.document;
+  const canSave = loginReady && purchaseReady;
+  const switchMode = (nextMode: "connect" | "signup") => {
+    setMode(nextMode);
+    setStep(1);
+    if (nextMode === "connect") {
+      setForm((current) => ({ ...current, confirm_password: "" }));
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
-      <div className="flex max-h-[calc(100dvh-48px)] w-full max-w-xl flex-col overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.2)]">
-        <div className="h-1.5 bg-[#2563EB]" />
-        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-5">
+      <div className="flex max-h-[calc(100dvh-48px)] w-full max-w-lg flex-col overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_22px_58px_rgba(15,23,42,0.18)]">
+        <div className="h-1 bg-[#2563EB]" />
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-4">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Fornecedor</p>
-            <h2 className="mt-1 text-[19px] font-black tracking-[-0.04em] text-[#020817]">Conta do fornecedor</h2>
+            <h2 className="mt-1 text-[18px] font-black tracking-[-0.04em] text-[#020817]">Conta do fornecedor</h2>
             <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">O bot usará essa conta para comprar os pedidos desse vendedor.</p>
           </div>
           <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
@@ -995,91 +1106,120 @@ const C7DropAccountModal = ({
           </button>
         </div>
 
-        <div className="overflow-y-auto p-5">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#F1F5F9] p-1">
-            {[
-              { value: "connect", label: "Já tenho conta" },
-              { value: "signup", label: "Criar conta" },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setMode(option.value as "connect" | "signup")}
-                className={`h-10 rounded-xl text-[12px] font-bold transition ${mode === option.value ? "bg-white text-[#2563EB] shadow-[0_6px_16px_rgba(15,23,42,0.08)]" : "text-[#64748B]"}`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 space-y-4">
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3">
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">1. Conta</p>
-              <p className="mt-1 text-[12px] font-medium text-[#64748B]">
-                Dados usados para entrar ou criar a conta no fornecedor.
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
-                <PasswordPurchaseField
-                  label="Senha da conta"
-                  value={form.password}
-                  onChange={(value) => update("password", value)}
-                  visible={showPassword}
-                  onToggleVisible={() => setShowPassword((current) => !current)}
-                />
-                <PasswordPurchaseField
-                  label="Confirmar senha"
-                  value={form.confirm_password}
-                  onChange={(value) => update("confirm_password", value)}
-                  visible={showConfirmPassword}
-                  onToggleVisible={() => setShowConfirmPassword((current) => !current)}
-                />
-              </div>
-              <PasswordStrengthMeter strength={passwordStrength} />
-              {form.password && !passwordStrength.isGood ? (
-                <p className="mt-2 text-[12px] font-bold text-[#DC2626]">
-                  A senha precisa ter pelo menos 6 caracteres e nível Boa.
+        <div className="overflow-y-auto p-4">
+          <div>
+            {step === 1 ? (
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#2563EB]">
+                  {isSignup ? "Criar conta" : "Login do fornecedor"}
                 </p>
-              ) : null}
-              {form.confirm_password && !passwordMatches ? (
-                <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3">
-              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">2. Dados para compra</p>
-              <p className="mt-1 text-[12px] font-medium text-[#64748B]">
-                O bot usa esses dados quando o checkout do fornecedor pedir identificação.
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
-                <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
-                <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
-                <PurchaseField label="CPF/CNPJ" value={form.document} onChange={(value) => update("document", value)} icon={KeyRound} />
+                <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
+                  {isSignup
+                    ? "Escolha o e-mail e a senha para a nova conta."
+                    : "Use o e-mail e a senha da conta já criada."}
+                </p>
+                <div className="mt-4 grid gap-3">
+                  <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
+                  <PasswordPurchaseField
+                    label="Senha da conta"
+                    value={form.password}
+                    onChange={(value) => update("password", value)}
+                    visible={showPassword}
+                    onToggleVisible={() => setShowPassword((current) => !current)}
+                  />
+                  {isSignup ? (
+                    <PasswordPurchaseField
+                      label="Confirmar senha"
+                      value={form.confirm_password}
+                      onChange={(value) => update("confirm_password", value)}
+                      visible={showConfirmPassword}
+                      onToggleVisible={() => setShowConfirmPassword((current) => !current)}
+                    />
+                  ) : null}
+                </div>
+                <PasswordStrengthMeter strength={passwordStrength} />
+                {form.password && !passwordStrength.isGood ? (
+                  <p className="mt-2 text-[12px] font-bold text-[#DC2626]">
+                    Mínimo 6 caracteres: com 6 use os 4 tipos; com 7+ use pelo menos 3 tipos.
+                  </p>
+                ) : null}
+                {form.confirm_password && !passwordMatches ? (
+                  <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
+                ) : null}
+                <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
+                  {isSignup ? "Já tem uma conta?" : "Não tem uma conta?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode(isSignup ? "connect" : "signup")}
+                    className="font-bold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                  >
+                    {isSignup ? "Fazer login" : "Criar conta grátis"}
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-[#D7E4FF] bg-[#EFF6FF] p-3 text-[12px] font-medium leading-relaxed text-[#475569]">
-            {mode === "connect"
-              ? "A senha será criptografada antes de salvar. Depois disso, a tela só mostra o status da conta, nunca a senha."
-              : "A Velo deixará os dados prontos para o bot tentar criar a conta. Se o fornecedor pedir captcha, e-mail ou telefone, o fluxo vai pedir ação manual."}
+            ) : (
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Dados para compra</p>
+                <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
+                  O bot usa esses dados quando o checkout do fornecedor pedir identificação.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
+                  <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
+                  <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
+                  <PurchaseField label="CPF/CNPJ" value={form.document} onChange={(value) => update("document", value)} icon={KeyRound} />
+                </div>
+                <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
+                  <p>
+                    {isSignup ? "Criando uma conta nova" : "Usando uma conta existente"}
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="font-bold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                    >
+                      alterar login
+                    </button>
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-[#EEF1F6] p-5">
-          <button type="button" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={() => onSave(mode, form)}
-            disabled={saving || !canSave}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <KeyRound size={14} />
-            {mode === "connect" ? "Salvar conexão" : "Salvar para criar"}
-          </button>
+        <div className="flex items-center justify-end gap-2 border-t border-[#EEF1F6] px-4 py-3">
+          {step === 1 ? (
+            <>
+              <button type="button" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!loginReady}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Continuar
+                <ChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => setStep(1)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
+                <ChevronLeft size={14} />
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => onSave(mode, form)}
+                disabled={saving || !canSave}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <KeyRound size={14} />
+                {mode === "connect" ? "Salvar conexão" : "Salvar para criar"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1180,7 +1320,7 @@ const PasswordStrengthMeter = ({ strength }: { strength: ReturnType<typeof getPa
     </div>
     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold">
       <span style={{ color: strength.color }}>Força: {strength.label}</span>
-      <span className="text-[#94A3B8]">mínimo Boa</span>
+      <span className="text-[#94A3B8]">mínimo 6 caracteres</span>
     </div>
     <div className="mt-2 flex flex-wrap gap-1.5">
       {strength.checks.map((check) => (
@@ -1611,6 +1751,7 @@ const OrdersPage = () => {
   const [tab, setTab] = useState<OrderTab>("ml");
   const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
   const [c7DropAccountModalOpen, setC7DropAccountModalOpen] = useState(false);
+  const [c7DropAccountManageOpen, setC7DropAccountManageOpen] = useState(false);
   const syncedRef = useRef(false);
   const isAdminUser = useMemo(() => {
     const metadataRole =
@@ -1654,10 +1795,24 @@ const OrdersPage = () => {
     onSuccess: (account) => {
       queryClient.setQueryData(["c7drop-account", user?.id], account);
       setC7DropAccountModalOpen(false);
+      setC7DropAccountManageOpen(false);
       veloToast.success(account.status === "connected" ? "Conta do fornecedor conectada." : "Solicitação de conta no fornecedor salva.");
     },
     onError: (error: unknown) => {
       veloToast.error(error instanceof Error ? error.message : "Não foi possível salvar a conta do fornecedor.");
+    },
+  });
+
+  const c7DropDisconnectMutation = useMutation({
+    mutationFn: () => disconnectC7DropAccount(),
+    onSuccess: (account) => {
+      queryClient.setQueryData(["c7drop-account", user?.id], account);
+      setC7DropAccountManageOpen(false);
+      setC7DropAccountModalOpen(false);
+      veloToast.success("Conta do fornecedor desconectada.");
+    },
+    onError: (error: unknown) => {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível desconectar a conta do fornecedor.");
     },
   });
 
@@ -1851,7 +2006,16 @@ const OrdersPage = () => {
         </div>
 
         {useBotPurchase ? (
-          <C7DropAccountBanner account={c7DropAccount} onOpen={() => setC7DropAccountModalOpen(true)} />
+          <C7DropAccountBanner
+            account={c7DropAccount}
+            onOpen={() => {
+              if (c7DropAccount.status === "connected") {
+                setC7DropAccountManageOpen(true);
+                return;
+              }
+              setC7DropAccountModalOpen(true);
+            }}
+          />
         ) : null}
 
         {tab === "loja" && user?.id ? (
@@ -1906,6 +2070,17 @@ const OrdersPage = () => {
             ))}
           </div>
         )}
+        <C7DropAccountManageModal
+          open={useBotPurchase && c7DropAccountManageOpen && c7DropAccount.status === "connected"}
+          account={c7DropAccount}
+          disconnecting={c7DropDisconnectMutation.isPending}
+          onClose={() => setC7DropAccountManageOpen(false)}
+          onChangeAccount={() => {
+            setC7DropAccountManageOpen(false);
+            setC7DropAccountModalOpen(true);
+          }}
+          onDisconnect={() => c7DropDisconnectMutation.mutate()}
+        />
         <C7DropAccountModal
           open={useBotPurchase && c7DropAccountModalOpen}
           account={c7DropAccount}

@@ -15,9 +15,23 @@ const json = (body: unknown, status = 200) =>
     },
   });
 
+const isC7DropPasswordAccepted = (password: string) => {
+  const checks = [
+    /[a-zà-öø-ÿ]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s]/.test(password),
+    /[A-ZÀ-ÖØ-Þ]/.test(password),
+  ];
+  const score = checks.filter(Boolean).length;
+  return password.length >= 6 && (score >= 4 || (password.length >= 7 && score >= 3));
+};
+
 const AccountSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6).max(200),
+  password: z.string()
+    .min(6)
+    .max(200)
+    .refine(isC7DropPasswordAccepted, "Senha fora do padrão aceito pelo fornecedor"),
   first_name: z.string().min(1).max(80),
   last_name: z.string().min(1).max(80),
   phone: z.string().min(8).max(30),
@@ -27,6 +41,7 @@ const AccountSchema = z.object({
 const StatusSchema = z.object({ action: z.literal("get_status") });
 const SaveSchema = AccountSchema.extend({ action: z.literal("save_credentials") });
 const SignupSchema = AccountSchema.extend({ action: z.literal("request_signup") });
+const DisconnectSchema = z.object({ action: z.literal("disconnect") });
 const WorkerCredentialsSchema = z.object({
   action: z.literal("get_credentials"),
   user_id: z.string().uuid(),
@@ -140,6 +155,19 @@ Deno.serve(async (req) => {
 
       if (error) return json({ error: error.message }, 500);
       return json({ account: sanitizeAccount(data) });
+    }
+
+    if (body.action === "disconnect") {
+      const parsed = DisconnectSchema.safeParse(body);
+      if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+
+      const { error } = await admin
+        .from("c7drop_user_accounts")
+        .delete()
+        .eq("user_id", userId);
+
+      if (error) return json({ error: error.message }, 500);
+      return json({ account: { status: "not_connected" } });
     }
 
     return json({ error: "Acao invalida" }, 400);
