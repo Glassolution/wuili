@@ -309,11 +309,12 @@ Deno.serve(async (req) => {
         const h = { Authorization: `Bearer ${tk.accessToken}` };
         const it = await (await mlFetch(`https://api.mercadolibre.com/items/${p.ml_item_id}`, { headers: h }))
           .json().catch(() => ({}));
+        // Endpoint oficial de moderação: retorna motivo + remédio da pausa.
         const modRes = await mlFetch(
-          `https://api.mercadolibre.com/moderations/infractions/items/${p.ml_item_id}`,
+          `https://api.mercadolibre.com/moderations/last_moderation/${p.ml_item_id}-ITM`,
           { headers: h },
         );
-        const mod = await modRes.text();
+        const mod = (await modRes.text()).slice(0, 2000);
         const upid = it?.user_product_id ? String(it.user_product_id) : null;
         const upRes = upid
           ? await mlFetch(`https://api.mercadolibre.com/user-products/${upid}`, { headers: h })
