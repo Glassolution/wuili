@@ -413,7 +413,7 @@ Deno.serve(async (req) => {
       // Registra sempre — inclusive falhas — para que o anúncio não volte à
       // fila indefinidamente e o histórico mostre o que ainda precisa de ação.
       if (apply) {
-        const { error: logErr } = await supabase.from("ml_compliance_fixes").insert({
+        const { error: logErr } = await supabase.from("ml_compliance_fixes").upsert({
           kind: "noncompliant_repair",
           ml_item_id: pub.ml_item_id,
           publication_id: pub.id,
