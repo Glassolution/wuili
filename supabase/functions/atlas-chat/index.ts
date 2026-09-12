@@ -1498,16 +1498,16 @@ const maybeHandleBeginnerGuide = async (
   }
 
   // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
-  if (emEtapa("potencial de divulgacao") && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
+  if (emEtapa("potencial de divulgacao") && produtoEscolhido && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    return guidePublicationStep(supabase, userId, lastProductCards[0], niche, nome);
+    return guidePublicationStep(supabase, userId, produtoEscolhido, niche, nome);
   }
 
   // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
   // 4 (potencial de divulgação).
   if (
     emEtapa("onde vender", "conectar sua conta") &&
-    lastProductCards.length > 0 &&
+    produtoEscolhido &&
     (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
   ) {
     // Nicho pode não existir: quem escolheu o produto direto no catálogo nunca
