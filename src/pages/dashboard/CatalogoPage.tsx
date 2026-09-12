@@ -975,6 +975,7 @@ const CatalogoPage = () => {
   const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   // Recebe resultados Atlas vindos de outra página (ex: DashboardHomePage)
   useEffect(() => {
     const incoming = (location.state as { atlasResults?: AtlasResults } | null)?.atlasResults;
