@@ -248,6 +248,43 @@ Deno.serve(async (req) => {
     const limit = Math.min(Number(body?.limit ?? 10), 30);
     const ids: string[] | null = Array.isArray(body?.ml_item_ids) ? body.ml_item_ids.map(String) : null;
 
+    // Modo diagnóstico: mostra o motivo real da moderação do ML.
+    if (body?.diagnose === true && ids?.length) {
+      const { data: dpubs } = await supabase
+        .from("user_publications")
+        .select("id, user_id, ml_item_id, title, status")
+        .in("ml_item_id", ids);
+      const details: unknown[] = [];
+      for (const p of (dpubs ?? []) as Pub[]) {
+        const tk = await getSellerAccessToken(supabase, p.user_id);
+        if (!tk.ok) {
+          details.push({ ml_item_id: p.ml_item_id, error: tk.error });
+          continue;
+        }
+        const h = { Authorization: `Bearer ${tk.accessToken}` };
+        const it = await (await mlFetch(`https://api.mercadolibre.com/items/${p.ml_item_id}`, { headers: h }))
+          .json().catch(() => ({}));
+        const modRes = await mlFetch(
+          `https://api.mercadolibre.com/moderations/infractions/items/${p.ml_item_id}`,
+          { headers: h },
+        );
+        const mod = await modRes.text();
+        details.push({
+          ml_item_id: p.ml_item_id,
+          status: it?.status,
+          sub_status: it?.sub_status,
+          tags: it?.tags,
+          title: it?.title,
+          variations: (it?.variations ?? []).length,
+          catalog_listing: it?.catalog_listing,
+          moderation_http: modRes.status,
+          moderation: mod.slice(0, 1200),
+        });
+      }
+      return json({ diagnose: true, details });
+    }
+
+
     let query = supabase
       .from("user_publications")
       .select("id, user_id, ml_item_id, title, status")
