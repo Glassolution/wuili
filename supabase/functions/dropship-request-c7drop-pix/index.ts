@@ -114,7 +114,6 @@ Deno.serve(async (req) => {
       status: "pix_gerado",
       payment_status: "pending",
       payment_method: "pix_c7drop",
-      c7drop_payment_method: "pix_c7drop",
       // Zera o Pix anterior para o bot gerar um novo no checkout da C7Drop.
       c7drop_pix_copy_paste: null,
       c7drop_pix_key: null,

@@ -94,7 +94,6 @@ Deno.serve(async (req) => {
         status: "pagamento_confirmado",
         payment_status: "paid",
         payment_method: "pix_c7drop",
-        c7drop_payment_method: "pix_c7drop",
         updated_at: nowIso,
         metadata: {
           ...metadata,
