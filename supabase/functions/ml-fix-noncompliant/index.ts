@@ -128,13 +128,18 @@ async function processItem(
   const statusBefore = String(item.status ?? "");
   out.status_before = statusBefore;
 
-  if (["closed", "under_review"].includes(statusBefore) === false && statusBefore !== "paused" && statusBefore !== "active" && statusBefore !== "inactive") {
+  if (["closed", "excluded", "under_review"].includes(statusBefore) === false && statusBefore !== "paused" && statusBefore !== "active" && statusBefore !== "inactive") {
     return { ...out, outcome: "skipped" };
   }
-  if (statusBefore === "closed") {
-    // anúncio encerrado pelo ML: só um novo anúncio resolve
+  if (statusBefore === "closed" || statusBefore === "excluded") {
+    // anúncio encerrado/excluído pelo ML: só um novo anúncio resolve
     if (apply) {
       await supabase.from("user_publications").update({ status: "closed" }).eq("id", pub.id);
+      const rep = await republishClosed(supabase, pub);
+      if (rep.ok) {
+        return { ...out, outcome: "republished", status_after: "republished" };
+      }
+      return { ...out, outcome: rep.outcome, error: rep.error, status_after: "closed" };
     }
     return { ...out, outcome: "closed_needs_republish" };
   }
