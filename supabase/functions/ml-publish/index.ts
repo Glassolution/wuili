@@ -7,6 +7,41 @@ import {
 } from '../_shared/ml-content-sanitizer.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 
+/**
+ * Grava no catálogo o veredito das diretrizes apurado na publicação (com
+ * checagem visual, que o scraping não faz). Assim o próximo lojista já vê o
+ * aviso no catálogo em vez de descobrir só ao tentar publicar.
+ */
+async function registrarVeredictoNoCatalogo(
+  productId: string | undefined,
+  status: 'ok' | 'blocked',
+  issues: string[],
+  cleanImagesCount: number,
+) {
+  const url = Deno.env.get('DB_URL') ?? Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('DB_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!productId || !url || !key) return
+  try {
+    await fetch(`${url}/rest/v1/catalog_products?id=eq.${productId}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        ml_compliance_status: status,
+        ml_compliance_issues: issues,
+        ml_clean_images_count: cleanImagesCount,
+        ml_compliance_checked_at: new Date().toISOString(),
+      }),
+    })
+  } catch (err) {
+    console.warn('[ml-publish] não foi possível gravar o veredito de diretrizes:', String(err))
+  }
+}
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
