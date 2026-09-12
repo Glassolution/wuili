@@ -51,7 +51,7 @@ export const usePlan = (): PlanState => {
       // rebaixava quem tinha Pro ativo com uma linha Base criada depois.
       const { data: subs, error: subsError } = await supabase
         .from("subscriptions")
-        .select("plan, status")
+        .select("plan, status, provider")
         .eq("user_id", user.id)
         .in("status", ["active", "paid", "approved", "trialing"]);
 
@@ -68,6 +68,7 @@ export const usePlan = (): PlanState => {
         gratis: 0, base: 1, go: 1, pro: 2, business: 3,
       };
       const best = (subs ?? [])
+        .filter((s) => String((s as { provider?: string | null }).provider ?? "").toLowerCase() !== "sandbox")
         .map((s) => NORMALIZE[s.plan] ?? "gratis")
         .sort((a, b) => RANK[b] - RANK[a])[0];
 

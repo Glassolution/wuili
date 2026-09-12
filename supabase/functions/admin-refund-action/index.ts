@@ -139,11 +139,18 @@ Deno.serve(async (req) => {
 
     // approve
     const { data: sub } = await admin.from("subscriptions").select("*").eq("id", refund.subscription_id).maybeSingle();
+    const isSandboxRefund =
+      String(sub?.provider ?? "").toLowerCase() === "sandbox" ||
+      String(sub?.payment_method ?? "").toLowerCase() === "sandbox" ||
+      String(sub?.validapay_charge_id ?? "").startsWith("sandbox_");
     let providerResponse: Record<string, unknown> | null = null;
     let refundOk = true;
     let refundProcessing = false;
 
-    if (sub?.validapay_charge_id) {
+    if (isSandboxRefund) {
+      providerResponse = { provider: "sandbox", success: true, message: "Reembolso sandbox aprovado sem gateway." };
+      refundOk = true;
+    } else if (sub?.validapay_charge_id) {
       // Estorno de cartão/Pix na ValidaPay (POST /v1/wallet/refunds)
       try {
         const result = await refundCharge(
@@ -183,11 +190,13 @@ Deno.serve(async (req) => {
 
     if (refundOk && sub) {
       await admin.from("subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", sub.id);
-      const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+      if (!isSandboxRefund) {
+        const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+      }
 
       // Derrubar publicações ativas no ML
-      try {
+      if (!isSandboxRefund) try {
         const { data: integ } = await admin.from("user_integrations")
           .select("access_token").eq("user_id", refund.user_id).eq("platform", "mercadolivre").maybeSingle();
         const { data: pubs } = await admin.from("user_publications")

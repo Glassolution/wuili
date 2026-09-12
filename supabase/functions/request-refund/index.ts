@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const { subscription_id, reason, reason_details } = body ?? {};
+    const sandboxRequested = body?.sandbox === true || body?.sandbox === "true";
     if (!subscription_id || !reason) return json({ error: "subscription_id e reason são obrigatórios" }, 400);
     if (!reason_details || String(reason_details).trim().length < 30) {
       return json({ error: "Conte-nos mais sobre o motivo (mínimo 30 caracteres)." }, 400);
@@ -40,6 +41,30 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    let sandboxAllowed = false;
+    if (sandboxRequested) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("is_admin")
+        .eq("user_id", userId)
+        .maybeSingle();
+      sandboxAllowed = profile?.is_admin === true;
+
+      if (!sandboxAllowed) {
+        const { data: role } = await admin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+        sandboxAllowed = role?.role === "admin";
+      }
+
+      if (!sandboxAllowed) {
+        return json({ error: "Sandbox disponível apenas para administradores." }, 403);
+      }
+    }
+
     const { data: sub } = await admin
       .from("subscriptions")
       .select("*")
@@ -48,6 +73,12 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
     if (sub.status !== "active") return json({ error: "Apenas assinaturas ativas podem ser reembolsadas" }, 400);
+    const isSandboxSubscription =
+      String(sub.provider ?? "").toLowerCase() === "sandbox" ||
+      String(sub.payment_method ?? "").toLowerCase() === "sandbox";
+    if (sandboxAllowed && !isSandboxSubscription) {
+      return json({ error: "Sandbox só pode reembolsar assinaturas de teste." }, 400);
+    }
 
     // Bloqueia apenas se já existir uma solicitação em aberto ou já reembolsada.
     // Pedidos recusados (rejected/denied) permitem nova solicitação.
@@ -59,7 +90,7 @@ Deno.serve(async (req) => {
     const blocking = (prevRequests ?? []).filter(
       (r: { status: string | null }) => !REJECTED.includes(String(r.status ?? "").toLowerCase()),
     );
-    if (blocking.length > 0) {
+    if (blocking.length > 0 && !sandboxAllowed) {
       const hasPending = blocking.some((r: { status: string | null }) => String(r.status).toLowerCase() === "pending");
       return json(
         {
@@ -73,7 +104,7 @@ Deno.serve(async (req) => {
 
     // Bloqueia solicitação após a janela de 7 dias
     const daysSinceCreated = (Date.now() - new Date(sub.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceCreated > 7) {
+    if (daysSinceCreated > 7 && !sandboxAllowed) {
       return json(
         { error: "O prazo de 7 dias para solicitar reembolso já expirou." },
         400,
@@ -85,7 +116,7 @@ Deno.serve(async (req) => {
       subscription_id: sub.id,
       payment_id: sub.mp_payment_id,
       reason,
-      reason_details: String(reason_details).trim(),
+      reason_details: `${sandboxAllowed ? "[Sandbox] " : ""}${String(reason_details).trim()}`,
       status: "pending",
       refund_amount: sub.amount,
       requested_at: new Date().toISOString(),
@@ -99,7 +130,7 @@ Deno.serve(async (req) => {
       .update({
         cancel_at_period_end: true,
         cancelled_at: new Date().toISOString(),
-        cancellation_reason: `Reembolso: ${reason}`,
+        cancellation_reason: `${sandboxAllowed ? "Sandbox - " : ""}Reembolso: ${reason}`,
         updated_at: new Date().toISOString(),
       })
       .eq("id", sub.id);

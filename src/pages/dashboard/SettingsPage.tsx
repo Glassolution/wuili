@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { BadgeCheck, Bell, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Sparkles, Store, Trash2, User, Zap } from "lucide-react";
+import { BadgeCheck, Bell, CheckCircle2, CreditCard, FlaskConical, Loader2, Lock, MessageCircle, Plug, Shield, Sparkles, Store, Trash2, User, Zap } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -18,6 +18,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { getAdminPanelStyle, setAdminPanelStyle, type AdminPanelStyle } from "@/lib/adminPanelStyle";
+import { useSandboxMode } from "@/lib/sandboxMode";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
 import {
@@ -55,11 +56,13 @@ const SettingsPage = () => {
   const tabParam = searchParams.get("tab");
   const initialTab: TabId = isTabId(tabParam) ? tabParam : "Perfil";
   const [tab, setTab] = useState<TabId>(initialTab);
+
   useEffect(() => {
     const t = searchParams.get("tab");
     if (isTabId(t) && t !== tab) setTab(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
   const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
 
   useEffect(() => {
@@ -266,6 +269,53 @@ const AdminPanelStyleField = () => {
   );
 };
 
+const SandboxField = ({ accountKey }: { accountKey?: string | null }) => {
+  const [enabled, setEnabled] = useSandboxMode(accountKey);
+  const options = [
+    { label: "Desligada", value: false },
+    { label: "Ligada", value: true },
+  ];
+
+  return (
+    <FieldRow
+      label="Sandbox"
+      desc="Controle reservado para esta conta admin testar assinatura sem pagamento e reembolso fora do prazo."
+      fieldLabel="Modo"
+    >
+      <div className="space-y-2">
+        <div className="grid h-[38px] grid-cols-2 gap-1 rounded-[9px] border border-[#E6E6E6] bg-[#F7F7F7] p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/15 dark:bg-white/5">
+          {options.map((option) => {
+            const active = enabled === option.value;
+            return (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setEnabled(option.value)}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-[6px] text-[12.5px] font-medium transition ${
+                  active
+                    ? option.value
+                      ? "bg-[#2563EB] text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
+                      : "bg-white text-[#111113] shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:bg-white dark:text-black"
+                    : "text-[#8A8A8A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
+                }`}
+              >
+                {option.value && <FlaskConical size={13} />}
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className={`text-[11.5px] leading-[1.4] ${enabled ? "text-[#2563EB]" : "text-[#9A9A9A] dark:text-zinc-500"}`}>
+          {enabled
+            ? "Ligado só para esta conta. O checkout muda para ativação de teste e o reembolso aceita fora dos 7 dias."
+            : "Desligado. Pagamentos e reembolsos seguem as regras normais."}
+        </p>
+      </div>
+    </FieldRow>
+  );
+};
+
 /* ══ Profile ════════════════════════════════════════════ */
 const ProfileTab = () => {
   const { nome, foto, setNome, setFoto } = useProfile();
@@ -376,25 +426,46 @@ const ProfileTab = () => {
     (user?.user_metadata?.role as string | undefined) ??
     null;
   const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
+  const sandboxIdentityEnabled = isAdmin && sandboxEnabled;
 
   return (
     <div data-dashboard-tour="configuracoes-perfil">
       {/* Identidade: foto + nome com selo do plano ao lado; ações de foto abaixo */}
       <div className="pb-5">
         <div className="flex items-center gap-3.5">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#2F2F2F] text-[16px] font-semibold text-white dark:bg-white dark:text-black">
-            {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="h-full w-full object-cover" /> : iniciais}
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-[16px] font-semibold ${
+            sandboxIdentityEnabled
+              ? "bg-blue-50 text-[#2563EB] dark:bg-blue-500/10 dark:text-blue-300"
+              : "bg-[#2F2F2F] text-white dark:bg-white dark:text-black"
+          }`}>
+            {sandboxIdentityEnabled ? <FlaskConical size={21} /> : avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="h-full w-full object-cover" /> : iniciais}
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[#111113] dark:text-white">
-                {nomeEditado || nome || (user?.email?.split("@")[0] ?? "Sua conta")}
+                {sandboxIdentityEnabled ? "Conta Sandbox" : nomeEditado || nome || (user?.email?.split("@")[0] ?? "Sua conta")}
               </p>
-              <PlanSeal />
+              {sandboxIdentityEnabled ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-[3px] text-[11px] font-semibold leading-none text-[#2563EB]">
+                  <FlaskConical size={11} strokeWidth={2.5} />
+                  Sandbox
+                </span>
+              ) : (
+                <PlanSeal />
+              )}
             </div>
-            <p className="mt-0.5 truncate text-[12px] text-[#9A9A9A] dark:text-zinc-400">{user?.email ?? ""}</p>
+            <p className="mt-0.5 truncate text-[12px] text-[#9A9A9A] dark:text-zinc-400">
+              {sandboxIdentityEnabled ? "sandbox@velo.test" : user?.email ?? ""}
+            </p>
           </div>
         </div>
+
+        {sandboxIdentityEnabled && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[12px] leading-[1.45] text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+            Você está testando na Conta Sandbox. Seu nome, e-mail, plano real e cobranças reais não serão alterados.
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => inputRef.current?.click()} className={photoUploadBtn}>
@@ -461,6 +532,8 @@ const ProfileTab = () => {
       {isAdmin && (
         <>
           <AdminPanelStyleField />
+          <div className={rowDivider} />
+          <SandboxField accountKey={user?.id ?? user?.email ?? null} />
           <div className={rowDivider} />
         </>
       )}
@@ -854,6 +927,9 @@ const PLAN_DATA = [
 const PlanTab = () => {
   const upgradeModal = useUpgradeModal();
   const { plan } = usePlan();
+  const { user, role } = useAuth();
+  const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
+  const sandboxPlansEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(user?.email));
   const normalizedPlan = plan;
   const paidPlans = PLAN_DATA.filter((p) => p.id === "base" || p.id === "pro" || p.id === "business");
 
@@ -928,12 +1004,12 @@ const PlanTab = () => {
 
               <PremiumActionButton
                 type="button"
-                disabled={isCurrent}
+                disabled={isCurrent && !sandboxPlansEnabled}
                 onClick={() => openUpgrade(p.id)}
                 background="linear-gradient(180deg,#1F2633 0%,#111722 52%,#0B101A 100%)"
                 className="mt-5 h-10 w-full rounded-[10px] px-4 text-[12.5px] disabled:cursor-default disabled:bg-[#EFEFEF] disabled:text-[#A3A3A3] disabled:shadow-none disabled:hover:translate-y-0 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
               >
-                {isCurrent ? "Plano atual" : "Fazer upgrade"}
+                {sandboxPlansEnabled ? "Testar no Sandbox" : isCurrent ? "Plano atual" : "Fazer upgrade"}
               </PremiumActionButton>
 
               <ul className="mt-5 flex-1 space-y-3">

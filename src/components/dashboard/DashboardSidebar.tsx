@@ -16,6 +16,7 @@ import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
+import { useSandboxMode } from "@/lib/sandboxMode";
 
 type NavItem = {
   id: string;
@@ -141,6 +142,7 @@ const tourTargetByLabel: Record<string, string> = {
 type SidebarSubscription = {
   plan: string | null;
   status: string | null;
+  provider?: string | null;
   is_trial: boolean | null;
   trial_ends_at: string | null;
   current_period_end?: string | null;
@@ -179,17 +181,6 @@ const getTrialEndsAt = (subscription: SidebarSubscription | null) => {
   }
 
   return null;
-};
-
-const getInitials = (name: string, email?: string | null) => {
-  const raw = (name || email || "Velo").trim();
-  const parts = raw.split(/[\s._@-]+/).filter(Boolean);
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 };
 
 // Logo oficial da Velo (public/logo.png): a cesta azul com o "C", gerada a partir
@@ -335,6 +326,7 @@ const DashboardSidebar = () => {
   const upgradeModal = useUpgradeModal();
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
+  const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
   const reduce = !!useReducedMotion();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -356,11 +348,14 @@ const DashboardSidebar = () => {
     user?.email,
   );
   const profileEmail = user?.email || "conta@velo.app";
-  const initials = getInitials(profileName, user?.email);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined) ??
     null;
+  const sandboxIdentityEnabled =
+    sandboxEnabled && (role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email));
+  const visibleProfileName = sandboxIdentityEnabled ? "Conta Sandbox" : profileName;
+  const visibleProfileEmail = sandboxIdentityEnabled ? "sandbox@velo.test" : profileEmail;
 
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
 
@@ -445,9 +440,10 @@ const DashboardSidebar = () => {
       supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("subscriptions")
-        .select("plan,status,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
+        .select("plan,status,provider,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
         .eq("user_id", user.id)
-         .in("status", Array.from(activeSubscriptionStatuses))
+        .or("provider.is.null,provider.neq.sandbox")
+        .in("status", Array.from(activeSubscriptionStatuses))
         .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
         .limit(1)
@@ -582,6 +578,9 @@ const DashboardSidebar = () => {
   }, [location.pathname, location.search]);
 
   const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" || plan === "plus" ? "PRO" : plan === "base" ? "BASE" : plan === "go" ? "GO" : "GRATIS";
+  const profileMenuPlanLabel = sandboxIdentityEnabled ? "SANDBOX" : planLabel;
+  const profileMenuPlanStyle =
+    sandboxIdentityEnabled ? styles.profilePanelSandboxBadge : plan === "gratis" ? styles.profilePanelMutedBadge : styles.profilePanelBadge;
   const normalizedPlan = plan === "plus" ? "pro" : plan;
   const trialTimeLeft = formatTrialTimeLeft(getTrialEndsAt(subscription), now);
   const showUpgradeCard = Boolean(trialTimeLeft) || !["base", "pro", "business"].includes(normalizedPlan);
@@ -723,7 +722,7 @@ const DashboardSidebar = () => {
             style={styles.profileCard}
           >
             <span style={styles.avatar}>
-              {foto && !avatarFailed ? (
+              {foto && !avatarFailed && !sandboxIdentityEnabled ? (
                 <img
                   src={foto}
                   alt=""
@@ -731,12 +730,16 @@ const DashboardSidebar = () => {
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <UserRound size={17} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
+                sandboxIdentityEnabled ? (
+                  <ShieldCheck size={17} strokeWidth={1.9} color="#2563EB" />
+                ) : (
+                  <UserRound size={17} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
+                )
               )}
             </span>
             <span style={styles.profileText}>
-              <span style={styles.profileName}>{profileName}</span>
-              <span style={styles.profileEmail}>{profileEmail}</span>
+              <span style={styles.profileName}>{visibleProfileName}</span>
+              <span style={styles.profileEmail}>{visibleProfileEmail}</span>
             </span>
             <span aria-hidden="true" style={styles.profileChevrons}>
               <MoreVertical size={16} strokeWidth={2} />
@@ -755,6 +758,29 @@ const DashboardSidebar = () => {
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: -6, scale: 0.99 }}
               transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
+              <div style={styles.profileMenuIdentity} aria-hidden="true">
+                <span style={{ ...styles.profileMenuAvatar, ...(sandboxIdentityEnabled ? styles.profileMenuSandboxAvatar : null) }}>
+                  {sandboxIdentityEnabled ? (
+                    <ShieldCheck size={15} strokeWidth={2.1} color="#FFFFFF" />
+                  ) : foto && !avatarFailed ? (
+                    <img
+                      src={foto}
+                      alt=""
+                      onError={() => setAvatarFailed(true)}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <UserRound size={15} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
+                  )}
+                </span>
+                <span style={styles.profileMenuIdentityText}>
+                  <span style={styles.profileMenuIdentityName}>{visibleProfileName}</span>
+                  <span style={styles.profileMenuIdentityEmail}>{visibleProfileEmail}</span>
+                </span>
+              </div>
+
+              <div style={styles.profileMenuDivider} />
+
               <button
                 className="velo-profile-menu-row"
                 type="button"
@@ -779,9 +805,9 @@ const DashboardSidebar = () => {
                   <CreditCard size={15} strokeWidth={1.9} style={styles.profileMenuIcon} />
                   <span style={styles.profileMenuLabel}>Assinatura</span>
                 </span>
-                <span style={plan === "gratis" ? styles.profilePanelMutedBadge : styles.profilePanelBadge}>
-                  {plan !== "gratis" ? <Sparkles size={10} strokeWidth={2.2} /> : null}
-                  {planLabel}
+                <span style={profileMenuPlanStyle}>
+                  {sandboxIdentityEnabled || plan !== "gratis" ? <Sparkles size={10} strokeWidth={2.2} /> : null}
+                  {profileMenuPlanLabel}
                 </span>
               </button>
 

@@ -57,7 +57,7 @@ const dismissFullscreenToast = (id?: ToastId) => {
   return true;
 };
 
-const iconBase = "text-white";
+const iconBase = "!text-white";
 const pillCircle =
   "flex h-6 w-6 items-center justify-center rounded-full bg-[#2A2A2A] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]";
 
@@ -65,7 +65,7 @@ const LoadingIcon = () => <Loader2 size={18} strokeWidth={2} className={`${iconB
 
 const SuccessIcon = () => (
   <span className={pillCircle}>
-    <Check size={16} strokeWidth={2.2} className={iconBase} />
+    <Check size={16} strokeWidth={2.2} className={iconBase} style={{ color: "#FFFFFF", stroke: "#FFFFFF" }} />
   </span>
 );
 
@@ -181,7 +181,7 @@ export const VeloToaster = (props: ToasterProps) => {
               "group toast !w-auto max-w-[min(calc(100vw-32px),560px)] !rounded-full !border !border-white/10 !bg-[#0A0A0A] !px-5 !py-3 !shadow-[0_18px_48px_rgba(0,0,0,0.42)] !backdrop-blur-0 before:absolute before:inset-[1px] before:rounded-full before:border before:border-white/[0.07] before:content-[''] flex items-center gap-3 overflow-hidden",
             title: "!text-[14px] !font-medium !leading-[18px] !text-white",
             description: "hidden",
-            icon: "relative z-[1] shrink-0",
+            icon: "relative z-[1] shrink-0 !text-white [&_svg]:!text-white [&_svg]:!stroke-white",
             actionButton:
               "!relative !z-[1] !ml-2 !rounded-none !bg-transparent !px-4 !py-0 !text-[14px] !font-medium !leading-[18px] !text-white/90 hover:!text-white !border-l !border-white/20",
             cancelButton: "hidden",

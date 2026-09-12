@@ -6,6 +6,8 @@ import {
   CheckCircle2,
   ChevronRight,
   Copy,
+  Eye,
+  EyeOff,
   KeyRound,
   LockKeyhole,
   Mail,
@@ -121,6 +123,8 @@ type C7DropAccountStatus = {
   last_name?: string | null;
   phone?: string | null;
   document?: string | null;
+  message?: string | null;
+  last_tested_at?: string | null;
   connected_at?: string | null;
   updated_at?: string | null;
 };
@@ -133,6 +137,26 @@ type C7DropAccountForm = {
   last_name: string;
   phone: string;
   document: string;
+};
+
+const getPasswordStrength = (password: string) => {
+  const checks = [
+    { key: "letters", label: "Letras", valid: /[a-zà-öø-ÿ]/.test(password) },
+    { key: "numbers", label: "Números", valid: /\d/.test(password) },
+    { key: "symbols", label: "Símbolos", valid: /[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s]/.test(password) },
+    { key: "uppercase", label: "Maiúsculas", valid: /[A-ZÀ-ÖØ-Þ]/.test(password) },
+  ];
+  const score = checks.filter((check) => check.valid).length;
+  const label = score >= 4 ? "Forte" : score >= 3 ? "Boa" : score >= 2 ? "Média" : password ? "Fraca" : "Vazia";
+  const color = score >= 3 ? "#2563EB" : score >= 2 ? "#F59E0B" : "#DC2626";
+
+  return {
+    checks,
+    score,
+    label,
+    color,
+    isGood: score >= 3 && password.length >= 6,
+  };
 };
 
 type SupplierPurchaseDraft = {
@@ -241,6 +265,18 @@ const addressLines = (address: ShippingAddress | null) => {
   return [street, address.complement, address.neighborhood, cityState, address.zip ? `CEP ${address.zip}` : null]
     .map((line) => line?.trim())
     .filter((line): line is string => Boolean(line));
+};
+
+const formatStatusDateTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 const addressEntries = (address: ShippingAddress | null) => {
@@ -785,24 +821,96 @@ const C7DropAccountBanner = ({
 }) => {
   const connected = account.status === "connected";
   const pending = account.status === "signup_requested";
+  const needsManualAction = account.status === "manual_action_required";
+  const invalidCredentials = account.status === "invalid_credentials";
+  const hasIssue = needsManualAction || invalidCredentials;
+  const statusView = connected
+    ? {
+        badge: "Conta criada",
+        badgeClass: "bg-[#DCFCE7] text-[#15803D] ring-[#86EFAC]",
+        step: 3,
+        detail: `Pronta${formatStatusDateTime(account.connected_at ?? account.updated_at) ? ` em ${formatStatusDateTime(account.connected_at ?? account.updated_at)}` : ""}`,
+      }
+    : pending
+      ? {
+          badge: "Em criação",
+          badgeClass: "bg-[#EFF6FF] text-[#2563EB] ring-[#BFDBFE]",
+          step: 2,
+          detail: `Na fila do bot${formatStatusDateTime(account.updated_at) ? ` desde ${formatStatusDateTime(account.updated_at)}` : ""}`,
+        }
+      : hasIssue
+        ? {
+            badge: needsManualAction ? "Ação manual" : "Problema",
+            badgeClass: "bg-[#FFEDD5] text-[#C2410C] ring-[#FDBA74]",
+            step: 1,
+            detail: formatStatusDateTime(account.last_tested_at ?? account.updated_at)
+              ? `Última tentativa em ${formatStatusDateTime(account.last_tested_at ?? account.updated_at)}`
+              : "O bot tentou e parou nesse status",
+          }
+        : {
+            badge: "Não conectada",
+            badgeClass: "bg-[#F1F5F9] text-[#64748B] ring-[#E2E8F0]",
+            step: 0,
+            detail: "Preencha os dados para iniciar",
+          };
+  const title = connected
+    ? "Conta do fornecedor conectada"
+    : needsManualAction
+      ? "Fornecedor pediu validação manual"
+      : invalidCredentials
+        ? "Revise os dados da conta do fornecedor"
+        : "Crie uma conta no fornecedor e automatize seus pedidos direto na Velo";
+  const copy = connected
+    ? `O bot vai comprar no fornecedor usando ${account.email ?? "a conta conectada"}, mantendo reembolso e suporte no acesso do vendedor.`
+    : pending
+      ? "Sua solicitação de conta no fornecedor está salva. O bot vai tentar criar a conta e avisar se precisar de validação."
+      : needsManualAction
+        ? account.message ?? "O fornecedor pediu uma validação manual antes de liberar a conta."
+        : invalidCredentials
+          ? account.message ?? "Os dados salvos não permitiram conectar. Abra o formulário, confira e salve novamente."
+          : "Conecte uma conta existente ou deixe os dados prontos para criar uma conta. Assim cada vendedor mantém seus próprios pedidos, reembolsos e suporte direto no fornecedor.";
 
   return (
-    <section className="mb-5 overflow-hidden rounded-2xl border border-[#D7E4FF] bg-gradient-to-r from-[#EFF6FF] via-white to-[#F8FAFC] p-4 shadow-[0_14px_34px_rgba(37,99,235,0.08)] md:mb-7 md:flex md:items-center md:justify-between md:gap-5">
+    <section className={`mb-5 overflow-hidden rounded-2xl border p-4 shadow-[0_14px_34px_rgba(37,99,235,0.08)] md:mb-7 md:flex md:items-center md:justify-between md:gap-5 ${hasIssue ? "border-[#FED7AA] bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFFBEB]" : "border-[#D7E4FF] bg-gradient-to-r from-[#EFF6FF] via-white to-[#F8FAFC]"}`}>
       <div className="flex min-w-0 items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#2563EB] text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)]">
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ${hasIssue ? "bg-[#F97316]" : "bg-[#2563EB]"}`}>
           {connected ? <CheckCircle2 size={20} /> : <UserPlus size={20} />}
         </div>
         <div className="min-w-0">
-          <p className="text-[15px] font-black tracking-[-0.04em] text-[#0F172A]">
-            {connected ? "Conta do fornecedor conectada" : "Crie uma conta no fornecedor e automatize seus pedidos direto na Velo"}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-black tracking-[-0.04em] text-[#0F172A]">
+              {title}
+            </p>
+            <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-black uppercase tracking-[0.08em] ring-1 ${statusView.badgeClass}`}>
+              {statusView.badge}
+            </span>
+          </div>
           <p className="mt-1 max-w-2xl text-[12.5px] font-medium leading-relaxed text-[#64748B]">
-            {connected
-              ? `O bot vai comprar no fornecedor usando ${account.email ?? "a conta conectada"}, mantendo reembolso e suporte no acesso do vendedor.`
-              : pending
-                ? "Sua solicitação de conta no fornecedor está salva. Se o fornecedor pedir validação manual, você será avisado antes do bot usar a conta."
-                : "Conecte uma conta existente ou deixe os dados prontos para criar uma conta. Assim cada vendedor mantém seus próprios pedidos, reembolsos e suporte direto no fornecedor."}
+            {copy}
           </p>
+          <div className="mt-3 max-w-xl">
+            <div className="grid grid-cols-3 gap-1.5">
+              {["Dados salvos", "Bot criando", "Conta pronta"].map((label, index) => {
+                const active = statusView.step >= index + 1;
+                const failed = hasIssue && index >= 1;
+                return (
+                  <div key={label} className="min-w-0">
+                    <span
+                      className={`block h-1.5 rounded-full ${
+                        failed ? "bg-[#FDBA74]" : active ? "bg-[#2563EB]" : "bg-[#E2E8F0]"
+                      }`}
+                    />
+                    <span className={`mt-1 block truncate text-[10px] font-bold ${active || failed ? "text-[#475569]" : "text-[#94A3B8]"}`}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={`mt-2 text-[11.5px] font-bold ${hasIssue ? "text-[#C2410C]" : connected ? "text-[#15803D]" : "text-[#64748B]"}`}>
+              {statusView.detail}
+            </p>
+          </div>
         </div>
       </div>
       <button
@@ -811,7 +919,7 @@ const C7DropAccountBanner = ({
         className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[12.5px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] md:mt-0 md:w-auto md:shrink-0"
       >
         <KeyRound size={15} />
-        {connected ? "Gerenciar fornecedor" : "Conectar fornecedor"}
+        {connected ? "Gerenciar fornecedor" : hasIssue ? "Corrigir conta" : "Conectar fornecedor"}
       </button>
     </section>
   );
@@ -840,6 +948,8 @@ const C7DropAccountModal = ({
     phone: account.phone ?? "",
     document: account.document ?? "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -858,10 +968,12 @@ const C7DropAccountModal = ({
 
   const update = (key: keyof C7DropAccountForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const passwordMatches = form.password === form.confirm_password;
+  const passwordStrength = getPasswordStrength(form.password);
   const canSave =
     form.email &&
     form.password &&
     form.confirm_password &&
+    passwordStrength.isGood &&
     passwordMatches &&
     form.first_name &&
     form.last_name &&
@@ -908,9 +1020,27 @@ const C7DropAccountModal = ({
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
-                <PurchaseField label="Senha da conta" value={form.password} onChange={(value) => update("password", value)} type="password" icon={LockKeyhole} />
-                <PurchaseField label="Confirmar senha" value={form.confirm_password} onChange={(value) => update("confirm_password", value)} type="password" icon={LockKeyhole} />
+                <PasswordPurchaseField
+                  label="Senha da conta"
+                  value={form.password}
+                  onChange={(value) => update("password", value)}
+                  visible={showPassword}
+                  onToggleVisible={() => setShowPassword((current) => !current)}
+                />
+                <PasswordPurchaseField
+                  label="Confirmar senha"
+                  value={form.confirm_password}
+                  onChange={(value) => update("confirm_password", value)}
+                  visible={showConfirmPassword}
+                  onToggleVisible={() => setShowConfirmPassword((current) => !current)}
+                />
               </div>
+              <PasswordStrengthMeter strength={passwordStrength} />
+              {form.password && !passwordStrength.isGood ? (
+                <p className="mt-2 text-[12px] font-bold text-[#DC2626]">
+                  A senha precisa ter pelo menos 6 caracteres e nível Boa.
+                </p>
+              ) : null}
               {form.confirm_password && !passwordMatches ? (
                 <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
               ) : null}
@@ -991,6 +1121,80 @@ const PurchaseField = ({
       placeholder="-"
     />
   </label>
+);
+
+const PasswordPurchaseField = ({
+  label,
+  value,
+  onChange,
+  visible,
+  onToggleVisible,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggleVisible: () => void;
+}) => {
+  const Icon = visible ? EyeOff : Eye;
+
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">
+        <LockKeyhole size={12} />
+        {label}
+      </span>
+      <span className="relative block">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 w-full rounded-[12px] border border-[#D8E3F8] bg-white px-3 pr-10 text-[13px] font-semibold text-[#020817] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+          placeholder="-"
+        />
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+          aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+        >
+          <Icon size={15} strokeWidth={2} />
+        </button>
+      </span>
+    </label>
+  );
+};
+
+const PasswordStrengthMeter = ({ strength }: { strength: ReturnType<typeof getPasswordStrength> }) => (
+  <div className="mt-3">
+    <div className="grid grid-cols-4 gap-1">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <span
+          key={index}
+          className="h-1.5 rounded-full transition"
+          style={{
+            backgroundColor: index < strength.score ? strength.color : "#E2E8F0",
+          }}
+        />
+      ))}
+    </div>
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold">
+      <span style={{ color: strength.color }}>Força: {strength.label}</span>
+      <span className="text-[#94A3B8]">mínimo Boa</span>
+    </div>
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {strength.checks.map((check) => (
+        <span
+          key={check.key}
+          className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+            check.valid ? "bg-[#EFF6FF] text-[#2563EB]" : "bg-[#F8FAFC] text-[#94A3B8]"
+          }`}
+        >
+          {check.label}
+        </span>
+      ))}
+    </div>
+  </div>
 );
 
 const TrackingCodeBadge = ({ code }: { code: string | null | undefined }) => {

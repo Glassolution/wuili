@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await admin
         .from("c7drop_user_accounts")
-        .select("status,email,first_name,last_name,phone,document,last_tested_at,connected_at,updated_at")
+        .select("status,email,first_name,last_name,phone,document,signup_payload,last_tested_at,connected_at,updated_at")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
           connected_at: body.action === "save_credentials" ? now : null,
           updated_at: now,
         }, { onConflict: "user_id" })
-        .select("status,email,first_name,last_name,phone,document,last_tested_at,connected_at,updated_at")
+          .select("status,email,first_name,last_name,phone,document,last_tested_at,connected_at,updated_at")
         .single();
 
       if (error) return json({ error: error.message }, 500);
@@ -187,6 +187,16 @@ async function decryptText(ciphertext: string, ivText: string) {
 
 function sanitizeAccount(row: Record<string, unknown> | null) {
   if (!row) return { status: "not_connected" };
+  const signupPayload =
+    row.signup_payload && typeof row.signup_payload === "object" && !Array.isArray(row.signup_payload)
+      ? row.signup_payload as Record<string, unknown>
+      : {};
+  const workerResult =
+    signupPayload.worker_result && typeof signupPayload.worker_result === "object" && !Array.isArray(signupPayload.worker_result)
+      ? signupPayload.worker_result as Record<string, unknown>
+      : {};
+  const message = typeof workerResult.message === "string" ? workerResult.message : null;
+
   return {
     status: row.status,
     email: row.email,
@@ -194,6 +204,7 @@ function sanitizeAccount(row: Record<string, unknown> | null) {
     last_name: row.last_name,
     phone: row.phone,
     document: row.document,
+    message,
     last_tested_at: row.last_tested_at,
     connected_at: row.connected_at,
     updated_at: row.updated_at,

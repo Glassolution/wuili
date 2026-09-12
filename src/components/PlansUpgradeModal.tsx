@@ -4,6 +4,11 @@ import { toast } from "sonner";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { VeloLogo } from "@/components/VeloLogo";
 import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { useSandboxMode } from "@/lib/sandboxMode";
+import { createLocalSandboxSubscription } from "@/lib/localSandbox";
 
 
 
@@ -331,9 +336,12 @@ type ModalProps = {
 };
 
 const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
+  const { session, role } = useAuth();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
+  const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
+  const sandboxPurchaseEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(session?.user?.email));
 
 
   useEffect(() => {
@@ -350,6 +358,22 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
     if (checkingOutPlanId) return;
     setCheckingOutPlanId(planId);
     try {
+      if (sandboxPurchaseEnabled) {
+        try {
+          const { data, error } = await supabase.functions.invoke("admin-sandbox-subscription", {
+            body: { plan: planId, cycle },
+          });
+          if (error || !data?.success) throw new Error(data?.error || data?.message || "Função Sandbox indisponível.");
+        } catch (error) {
+          if (!import.meta.env.DEV) throw error;
+          createLocalSandboxSubscription(session?.user?.id ?? session?.user?.email ?? null, planId, cycle);
+        }
+        toast.success("Assinatura Sandbox ativada sem cobrança.");
+        setCheckingOutPlanId(null);
+        onClose();
+        return;
+      }
+
       const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
       if (res.ok) return;
       setCheckingOutPlanId(null);
@@ -357,7 +381,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
     } catch (error) {
       console.error("checkout error", error);
       setCheckingOutPlanId(null);
-      toast.error("Não foi possível gerar o pagamento.");
+      toast.error(sandboxPurchaseEnabled ? "Não foi possível ativar o Sandbox." : "Não foi possível gerar o pagamento.");
     }
   };
 
@@ -428,7 +452,9 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
               Escolha o plano que combina com você
             </h2>
             <p className="mt-2 text-[14px] leading-5 text-[#8A8A86]">
-              O checkout continua seguro via Mercado Pago.
+              {sandboxPurchaseEnabled
+                ? "Sandbox ligado: escolha um plano de teste sem cobrança real."
+                : "O checkout continua seguro via Mercado Pago."}
             </p>
           </div>
           <button
@@ -494,8 +520,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                       </span>
                     ) : null}
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
-                      {priceParts.main}
-                      <span className="text-[#9CA3AF]">{priceParts.cents}</span>
+                      {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
+                      <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
                     </span>
                     {originalPrice ? (
                       <span className="whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-[0_2px_5px_rgba(16,185,129,0.10)]">
@@ -515,10 +541,10 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                   {checkingOutPlanId === plan.id ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Redirecionando...
+                      {sandboxPurchaseEnabled ? "Ativando..." : "Redirecionando..."}
                     </span>
                   ) : (
-                    <>Assinar {plan.name.replace("Plano ", "")}</>
+                    <>{sandboxPurchaseEnabled ? "Testar" : "Assinar"} {plan.name.replace("Plano ", "")}</>
                   )}
                 </PremiumActionButton>
 

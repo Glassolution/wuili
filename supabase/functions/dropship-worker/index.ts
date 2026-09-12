@@ -184,6 +184,22 @@ const C7DropCredentialsSchema = z.object({
   order_id: z.string().uuid().optional(),
 });
 
+const C7DropSignupListSchema = z.object({
+  action: z.literal("list_c7drop_signup_requests"),
+  updated_since: z.string().datetime().optional(),
+  include_manual: z.boolean().default(false),
+  limit: z.number().int().min(1).max(100).default(25),
+  offset: z.number().int().min(0).default(0),
+});
+
+const C7DropSignupUpdateSchema = z.object({
+  action: z.literal("update_c7drop_signup"),
+  user_id: z.string().uuid(),
+  status: z.enum(["signup_requested", "connected", "manual_action_required", "invalid_credentials"]),
+  message: z.string().max(1000).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
 const VALID_ACCESS_LEVELS = ["gratis", "base", "pro", "business", "admin"] as const;
 type WorkerAccessLevel = typeof VALID_ACCESS_LEVELS[number];
 const encoder = new TextEncoder();
@@ -333,6 +349,132 @@ Deno.serve(async (req) => {
             document: data.document,
           },
         });
+      }
+
+      case "list_c7drop_signup_requests": {
+        const parsed = C7DropSignupListSchema.safeParse(body);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { updated_since, include_manual, limit, offset } = parsed.data;
+        const statuses = include_manual ? ["signup_requested", "manual_action_required"] : ["signup_requested"];
+
+        let q = admin
+          .from("c7drop_user_accounts")
+          .select("user_id,status,email,password_ciphertext,password_iv,first_name,last_name,phone,document,signup_payload,last_tested_at,connected_at,created_at,updated_at")
+          .in("status", statuses)
+          .order("updated_at", { ascending: true })
+          .range(offset, offset + limit - 1);
+
+        if (updated_since) q = q.gte("updated_at", updated_since);
+
+        const { data, error } = await q;
+        if (error) return json({ error: error.message }, 500);
+
+        const requests = await Promise.all((data ?? []).map(async (row) => {
+          let password: string | null = null;
+          if (row.password_ciphertext && row.password_iv) {
+            password = await decryptText(row.password_ciphertext, row.password_iv);
+          }
+
+          return {
+            userId: row.user_id,
+            status: row.status,
+            email: row.email,
+            password,
+            firstName: row.first_name,
+            lastName: row.last_name,
+            phone: row.phone,
+            document: row.document,
+            signupPayload: row.signup_payload ?? {},
+            lastTestedAt: row.last_tested_at ?? null,
+            connectedAt: row.connected_at ?? null,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+          };
+        }));
+
+        return json({ requests });
+      }
+
+      case "update_c7drop_signup": {
+        const parsed = C7DropSignupUpdateSchema.safeParse(body);
+        if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400);
+        const { user_id, status, message, metadata } = parsed.data;
+        const now = new Date().toISOString();
+
+        const { data: current, error: findError } = await admin
+          .from("c7drop_user_accounts")
+          .select("user_id,status,email,signup_payload")
+          .eq("user_id", user_id)
+          .maybeSingle();
+
+        if (findError) return json({ error: findError.message }, 500);
+        if (!current) return json({ error: "Conta do fornecedor não encontrada" }, 404);
+
+        const previousPayload =
+          current.signup_payload && typeof current.signup_payload === "object" && !Array.isArray(current.signup_payload)
+            ? current.signup_payload as Record<string, unknown>
+            : {};
+
+        const resultPayload = {
+          ...previousPayload,
+          worker_result: {
+            status,
+            message: message ?? null,
+            metadata: metadata ?? {},
+            updated_at: now,
+          },
+        };
+
+        const { data: updated, error: updateError } = await admin
+          .from("c7drop_user_accounts")
+          .update({
+            status,
+            signup_payload: resultPayload,
+            last_tested_at: now,
+            connected_at: status === "connected" ? now : null,
+            updated_at: now,
+          })
+          .eq("user_id", user_id)
+          .select("user_id,status,email,first_name,last_name,phone,document,last_tested_at,connected_at,updated_at")
+          .single();
+
+        if (updateError) return json({ error: updateError.message }, 500);
+
+        const notification =
+          status === "connected"
+            ? {
+                title: "Conta do fornecedor pronta",
+                message: "O bot criou e conectou sua conta do fornecedor. As próximas compras podem usar esse acesso.",
+              }
+            : status === "manual_action_required"
+              ? {
+                  title: "Fornecedor pediu ação manual",
+                  message: message ?? "O fornecedor pediu uma validação manual antes de liberar a conta.",
+                }
+              : status === "invalid_credentials"
+                ? {
+                    title: "Conta do fornecedor não conectou",
+                    message: message ?? "Confira os dados da conta do fornecedor e tente novamente.",
+                  }
+                : null;
+
+        if (notification) {
+          await admin.from("notifications").insert({
+            user_id,
+            type: "supplier_account",
+            title: notification.title,
+            message: notification.message,
+            action_url: "/dashboard/pedidos",
+            metadata: {
+              provider: "c7drop",
+              status,
+              previous_status: current.status ?? null,
+              worker_metadata: metadata ?? {},
+            },
+          });
+        }
+
+        return json({ account: updated });
       }
 
       case "list_orders": {
