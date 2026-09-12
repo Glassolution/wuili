@@ -425,7 +425,7 @@ Deno.serve(async (req) => {
           before_value: (pub.title ?? "").slice(0, 4000),
           error_message: r.error ?? null,
           processed_at: new Date().toISOString(),
-        });
+        }, { onConflict: "kind,ml_item_id" });
         if (logErr) console.error("[ml-fix-noncompliant] falha ao registrar histórico:", logErr.message);
       }
       await sleep(GAP_MS);
