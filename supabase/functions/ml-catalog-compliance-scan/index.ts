@@ -53,11 +53,17 @@ Deno.serve(async (req) => {
     let atualizados = 0;
 
     for (const row of rows ?? []) {
-      const veredito = precheckProduct(row);
+      // Além de verificar, já corrige: título higienizado e descrição reescrita.
+      const corrigido = autoFixProduct(row);
+      const veredito = corrigido.result;
       contagem[veredito.status] = (contagem[veredito.status] ?? 0) + 1;
       const { error: upErr } = await supabase
         .from("catalog_products")
-        .update(complianceColumns(veredito, now))
+        .update({
+          title: corrigido.title || row.title,
+          ...(row.description == null ? {} : { description: corrigido.description }),
+          ...complianceColumns(veredito, now),
+        })
         .eq("id", row.id);
       if (!upErr) atualizados++;
     }
