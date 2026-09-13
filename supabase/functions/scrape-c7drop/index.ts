@@ -479,12 +479,33 @@ Deno.serve(async (req) => {
       `[scrape-c7drop] Prontos p/ upsert: ${rows.length} (skipFakes=${skippedFakeAds}, semDetalhe=${noDetail}, blocked=${blocked})`,
     );
 
-    // Detecta insert vs update.
+    // Detecta insert vs update + preserva o bloqueio da auditoria visual.
     const { data: existing } = await supabase
       .from("catalog_products")
-      .select("external_id")
+      .select("external_id,is_blocked,images,ml_vision_clean_count")
       .eq("source", SOURCE);
     const existingIds = new Set((existing ?? []).map((r) => r.external_id));
+    const anteriores = new Map(
+      (existing ?? []).map((r) => [r.external_id as string, r]),
+    );
+
+    // O produto reprovado na auditoria visual (0 fotos dentro das diretrizes)
+    // não pode voltar ao catálogo só porque o scraper rodou de novo: ele some
+    // do catálogo e reaparece no dia seguinte para falhar na publicação.
+    // Só reabrimos quando as fotos realmente mudaram — e aí pedimos nova auditoria.
+    for (const row of rows) {
+      const anterior = anteriores.get(row.external_id as string);
+      if (!anterior || anterior.ml_vision_clean_count !== 0) continue;
+      const mesmasFotos =
+        JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
+      if (mesmasFotos) {
+        row.is_blocked = true;
+      } else {
+        (row as Record<string, unknown>).ml_vision_clean_count = null;
+        (row as Record<string, unknown>).ml_vision_checked_at = null;
+      }
+    }
+
 
     let inserted = 0;
     let updated = 0;
