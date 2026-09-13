@@ -105,7 +105,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [translated, setTranslated] = useState(false);
 
   // Platforms (review step)
-  const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
+  const [platforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
     ml: true,
     shopee: false,
     tiktok: false,
