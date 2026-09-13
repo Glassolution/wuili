@@ -1,7 +1,7 @@
 // Reconcilia estornos que ficaram travados em PROCESSING na ValidaPay.
 // Consulta o status real de cada estorno e atualiza o registro na Velo.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
