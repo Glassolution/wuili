@@ -1220,8 +1220,34 @@ const StatusBadge = ({ status, compact = false }: { status: SupportTicket["statu
   </span>
 );
 
-const SupportBubble = ({ message }: { message: SupportMessage }) => {
+const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; onRefundClick?: () => void }) => {
   const isUser = message.sender === "user";
+
+  if (!isUser && parseSupportMessage(message.message).refundPrompt) {
+    return (
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
+          <AtlasAvatarIcon size={24} animated={false} />
+        </span>
+        <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
+          <p className="text-[13px] leading-5 text-[#111827]">
+            Entendemos a sua solicitação de reembolso ou cancelamento. Nosso horário de atendimento é de segunda a
+            sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h — nossa equipe pode te ajudar por aqui
+            antes de qualquer decisão.
+          </p>
+          <button
+            type="button"
+            onClick={onRefundClick}
+            className="mt-2.5 flex h-9 w-full items-center justify-center rounded-[10px] bg-[#DC2626] text-[12.5px] font-bold text-white transition hover:bg-[#B91C1C]"
+          >
+            Pedir reembolso
+          </button>
+          <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isUser) {
     return (
