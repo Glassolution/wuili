@@ -19,6 +19,8 @@ import {
   Scale,
   ShieldCheck,
   Tag,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
