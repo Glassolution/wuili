@@ -92,6 +92,7 @@ const SupportFloatingWidget = () => {
   const [refundStep, setRefundStep] = useState<null | "reason" | "confirm">(null);
   const [refundReason, setRefundReason] = useState("");
   const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundTutorial, setRefundTutorial] = useState<RefundTutorial | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const openTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "open"), [tickets]);
