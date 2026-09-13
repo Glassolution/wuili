@@ -90,7 +90,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     porque a ficha do produto não mostra mais preço sugerido nem margem — a sugestão
     aparece aqui, e o número exibido tem que ser exatamente o que o slider já aplicou.
   */
-  const [multiplier, setMultiplier] = useState(MULTIPLICADOR_SUGERIDO);
+  const [, setMultiplier] = useState(MULTIPLICADOR_SUGERIDO);
 
   // AI description
   const [description, setDescription] = useState("");
@@ -178,10 +178,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   const costPrice = product?.cost_price ?? 0;
   const totalCost = costPrice;
-
-  const recalcPrice = (mult: number) => {
-    setSellPrice(Math.round(costPrice * mult * 100) / 100);
-  };
 
   const handlePriceChange = (val: string) => {
     if (val === "") {
