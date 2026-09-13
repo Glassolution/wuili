@@ -329,16 +329,10 @@ const CatalogoProductDetailPage = () => {
   const catalogMetrics = getProductCatalogMetrics(product);
   const socialProofCount = catalogMetrics.ordersCount ?? catalogMetrics.reviewsCount;
   const [costPriceMain, costPriceCents = "00"] = formatPrice(product.price).split(",");
-  // O preço grande é o de VENDA sugerido, não o que o lojista paga. Custo, lucro
-  // e margem ficam explícitos logo abaixo para ninguém confundir os dois valores.
-  const estimatedProfit = Math.max(0, product.suggestedPrice - product.price);
+  // A página mostra apenas o custo real do fornecedor. Preço sugerido e margem
+  // só entram na conversa no modal de publicação, onde o lojista define o preço
+  // de venda de verdade.
   const favorited = favoritedIds.includes(product.id);
-  const marginPercent = product.marginPercent > 0
-    ? product.marginPercent
-    : product.price > 0
-      ? (estimatedProfit / product.price) * 100
-      : 0;
-  const marginLabel = marginPercent > 0 ? `${marginPercent.toFixed(0)}%` : "estimada";
   const categoryLabel = formatCategoryLabel(product.category);
   const supplierLabel = product.supplier_name ?? "Fornecedor verificado";
   const productCharacteristics = [
@@ -682,32 +676,23 @@ const CatalogoProductDetailPage = () => {
                 </div>
               )}
 
+              {/*
+                Um preço só, e é o custo real do fornecedor — nada de preço sugerido
+                aqui, para não parecer que a sugestão é o preço de verdade. A sugestão
+                de venda e a margem aparecem só no momento de publicar (modal de
+                importação, passo de precificação).
+              */}
               <div className="mt-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-[#8A8A86]">
-                  Por quanto você pode vender
+                  Preço do fornecedor
                 </p>
                 <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1.5">
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
-                    {formatPrice(product.suggestedPrice)}
-                  </span>
-                  <span className="mb-0.5 rounded-[6px] bg-[#F1F1EF] px-2 py-0.5 text-[11px] font-semibold text-[#111]">
-                    Margem {marginLabel}
+                    {formatPrice(product.price)}
                   </span>
                 </div>
-
-                <div className="mt-3 grid grid-cols-2 divide-x divide-black/[0.07] rounded-[12px] border border-black/[0.07] bg-[#FAFAF9]">
-                  <div className="px-3.5 py-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A8A86]">Você paga ao fornecedor</p>
-                    <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#111]">{formatPrice(product.price)}</p>
-                  </div>
-                  <div className="px-3.5 py-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A8A86]">Seu lucro por venda</p>
-                    <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#111]">{formatPrice(estimatedProfit)}</p>
-                  </div>
-                </div>
-
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
-                  Sugestão da Velo — você define o preço final antes de publicar.
+                  Você define o seu preço de venda na hora de publicar.
                 </p>
               </div>
 
@@ -922,13 +907,8 @@ const CatalogoProductDetailPage = () => {
                       )}
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-[15px] font-bold text-[#111]">
-                          {formatPrice(p.suggestedPrice)}
+                          {formatPrice(p.price)}
                         </span>
-                        {p.originalPrice && (
-                          <span className="text-[11.5px] text-[#9CA3AF] line-through">
-                            {formatPrice(p.originalPrice)}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </Link>
