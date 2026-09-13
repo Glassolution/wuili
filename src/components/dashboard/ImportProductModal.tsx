@@ -1051,32 +1051,4 @@ const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) 
   </div>
 );
 
-const PlatformCard = ({
-  name, status, selected, disabled, onToggle,
-}: {
-  name: string; status: string; selected: boolean; disabled?: boolean; onToggle: () => void;
-}) => (
-  <button
-    onClick={onToggle}
-    disabled={disabled}
-    className={`relative rounded-xl border p-3 text-center transition-all ${
-      selected
-        ? "border-[#2563EB] bg-[#EFF6FF]"
-        : disabled
-        ? "border-gray-200 opacity-50 cursor-not-allowed"
-        : "border-gray-200 hover:border-[#93C5FD]"
-    }`}
-  >
-    {selected && (
-      <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#2563EB]">
-        <Check size={9} strokeWidth={3} className="text-white" />
-      </span>
-    )}
-    <p className={`text-[12.5px] font-semibold ${selected ? "text-[#2563EB]" : disabled ? "text-gray-500" : "text-[#0A0A0A]"}`}>
-      {name}
-    </p>
-    <p className="text-[10.5px] text-gray-400 mt-0.5">{status}</p>
-  </button>
-);
-
 export default ImportProductModal;
