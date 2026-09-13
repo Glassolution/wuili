@@ -79,6 +79,26 @@ type Retorno = {
   /** Frase que explica em que a seleção se baseou, para o cabeçalho. */
   resumo: string;
   respostas: RespostasDoQuiz;
+  /** Troca a seleção por outra rodada de produtos do mesmo nicho. */
+  recarregar: () => void;
+};
+
+/**
+ * Embaralhamento estável por usuário e por rodada.
+ *
+ * Sem isso a mesma lista aparecia para todo mundo: a pontuação depende só do
+ * perfil, e perfis iguais geram a mesma ordem. O ruído é pequeno o bastante
+ * para não jogar produto ruim para cima, e grande o bastante para duas contas
+ * do mesmo nicho verem vitrines diferentes.
+ */
+const ruidoEstavel = (produtoId: string, userId: string | null, rodada: number) => {
+  const texto = `${produtoId}|${userId ?? "anon"}|${rodada}`;
+  let hash = 2166136261;
+  for (let i = 0; i < texto.length; i += 1) {
+    hash ^= texto.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
 };
 
 export const useProdutosRecomendados = (
