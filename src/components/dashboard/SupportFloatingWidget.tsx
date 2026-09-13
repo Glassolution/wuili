@@ -369,6 +369,41 @@ const SupportFloatingWidget = () => {
     }
   };
 
+  const handleConfirmRefund = async () => {
+    if (!user?.id || !selectedTicket || refundSubmitting) return;
+    const reason = refundReason.trim() || "Não informado";
+
+    setRefundSubmitting(true);
+    try {
+      const { data, error } = await db
+        .from("support_messages")
+        .insert({
+          ticket_id: selectedTicket.id,
+          user_id: user.id,
+          message: `Solicitação de reembolso confirmada. Motivo: ${reason}. (Usuário ciente de que o estorno pode levar até 72h após a aprovação.)`,
+          sender: "user",
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+
+      await db.from("support_tickets").update({ category: "reembolso" }).eq("id", selectedTicket.id);
+      await touchSupportTicket(selectedTicket.id);
+      setMessages((current) => (current.some((item) => item.id === data.id) ? current : [...current, data as SupportMessage]));
+      setTickets((current) =>
+        current.map((ticket) => (ticket.id === selectedTicket.id ? { ...ticket, category: "reembolso" } : ticket)),
+      );
+      setRefundStep(null);
+      setRefundReason("");
+      toast.success("Pedido de reembolso registrado. Nossa equipe vai analisar e responder por aqui.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível registrar o pedido. Tente novamente.");
+    } finally {
+      setRefundSubmitting(false);
+    }
+  };
+
   const openMessagesFor = (ticketId: string) => {
     setSelectedTicketId(ticketId);
     setReplyImage(null);
