@@ -48,17 +48,31 @@ export type ParsedSupportMessage = {
   attachment: SupportImageAttachment | null;
   redirect: SupportRedirectShortcut | null;
   reply: SupportReplyReference | null;
+  refundPrompt: boolean;
 };
 
 const SUPPORT_IMAGE_MARKER = "__VELO_SUPPORT_IMAGE__";
 const SUPPORT_REDIRECT_MARKER = "__VELO_SUPPORT_REDIRECT__";
 const SUPPORT_REPLY_MARKER = "__VELO_SUPPORT_REPLY__";
+const SUPPORT_REFUND_PROMPT_MARKER = "__VELO_REFUND_PROMPT__";
 export const SUPPORT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 export const SUPPORT_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 const SUPPORT_IMAGE_TYPES = new Set(SUPPORT_IMAGE_ACCEPT.split(","));
 
 export const SUPPORT_AUTO_GREETING_MESSAGE =
   "Oi! Que bom te ver por aqui. Nosso horário de atendimento é de segunda a sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h. Pode deixar sua dúvida por aqui, que em breve alguém vai te responder!";
+
+/** Detecta intenção de reembolso/cancelamento em mensagens do usuário. */
+export const messageHasRefundIntent = (text: string) => {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+  return /(reembols|estorn|devolv|cancel)/.test(normalized);
+};
+
+/** Cartão automático exibido quando o usuário pede reembolso/cancelamento no chat. */
+export const buildRefundPromptMessage = () => SUPPORT_REFUND_PROMPT_MARKER;
 
 export const validateSupportImage = (file: File) => {
   if (!SUPPORT_IMAGE_TYPES.has(file.type)) {
@@ -162,6 +176,10 @@ export const buildSupportReplyMessage = ({
   })}`;
 
 export const parseSupportMessage = (value: string): ParsedSupportMessage => {
+  if (value.startsWith(SUPPORT_REFUND_PROMPT_MARKER)) {
+    return { text: "", attachment: null, redirect: null, reply: null, refundPrompt: true };
+  }
+
   if (value.startsWith(SUPPORT_REDIRECT_MARKER)) {
     try {
       const parsed = JSON.parse(value.slice(SUPPORT_REDIRECT_MARKER.length)) as {
@@ -172,9 +190,9 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       const label = typeof parsed.label === "string" && parsed.label.trim() ? parsed.label.trim() : "Abrir página";
       const url = typeof parsed.url === "string" ? safeSupportRedirectUrl(parsed.url) : "/dashboard";
       const note = typeof parsed.note === "string" && parsed.note.trim() ? parsed.note.trim() : null;
-      return { text: note ?? "", attachment: null, redirect: { label, url, note }, reply: null };
+      return { text: note ?? "", attachment: null, redirect: { label, url, note }, reply: null, refundPrompt: false };
     } catch {
-      return { text: "Atalho enviado", attachment: null, redirect: null, reply: null };
+      return { text: "Atalho enviado", attachment: null, redirect: null, reply: null, refundPrompt: false };
     }
   }
 
@@ -215,13 +233,14 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
         attachment: parsedAttachment,
         redirect: null,
         reply,
+        refundPrompt: false,
       };
     } catch {
-      return { text: "Resposta enviada", attachment: null, redirect: null, reply: null };
+      return { text: "Resposta enviada", attachment: null, redirect: null, reply: null, refundPrompt: false };
     }
   }
 
-  if (!value.startsWith(SUPPORT_IMAGE_MARKER)) return { text: value, attachment: null, redirect: null, reply: null };
+  if (!value.startsWith(SUPPORT_IMAGE_MARKER)) return { text: value, attachment: null, redirect: null, reply: null, refundPrompt: false };
 
   try {
     const parsed = JSON.parse(value.slice(SUPPORT_IMAGE_MARKER.length)) as {
@@ -235,7 +254,7 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       typeof attachment.path !== "string" ||
       typeof attachment.name !== "string"
     ) {
-      return { text: "Imagem enviada", attachment: null, redirect: null, reply: null };
+      return { text: "Imagem enviada", attachment: null, redirect: null, reply: null, refundPrompt: false };
     }
     return {
       text: typeof parsed.text === "string" ? parsed.text : "",
@@ -248,14 +267,16 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       },
       redirect: null,
       reply: null,
+      refundPrompt: false,
     };
   } catch {
-    return { text: "Imagem enviada", attachment: null, redirect: null, reply: null };
+    return { text: "Imagem enviada", attachment: null, redirect: null, reply: null, refundPrompt: false };
   }
 };
 
 export const supportMessagePreview = (value: string) => {
   const parsed = parseSupportMessage(value);
+  if (parsed.refundPrompt) return "Solicitação de reembolso";
   if (parsed.redirect) return `Atalho · ${parsed.redirect.label}`;
   if (parsed.reply && parsed.text) return `Resposta · ${parsed.text}`;
   if (parsed.reply) return "Resposta enviada";

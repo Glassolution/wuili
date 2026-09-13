@@ -16,7 +16,7 @@ export const SupportMessageMedia = ({
   imageClassName = "max-h-[300px] w-full max-w-[420px]",
   tone = "customer",
 }: SupportMessageMediaProps) => {
-  const { text, attachment, redirect, reply } = parseSupportMessage(value);
+  const { text, attachment, redirect, reply, refundPrompt } = parseSupportMessage(value);
   const [open, setOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const adminTone = tone === "admin";
@@ -29,6 +29,14 @@ export const SupportMessageMedia = ({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
+
+  if (refundPrompt) {
+    return (
+      <p className={`text-[12px] font-semibold ${adminTone ? "text-white" : "text-[#B91C1C]"}`}>
+        Cartão de retenção de reembolso exibido ao usuário
+      </p>
+    );
+  }
 
   return (
     <>
