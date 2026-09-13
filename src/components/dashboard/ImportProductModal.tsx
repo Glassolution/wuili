@@ -319,7 +319,13 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     if (!planLimits.canPublishProducts) {
-      setUpgradeModalOpen(true);
+      // Limite do Pro continua no modal de limite; plano grátis abre o modal
+      // animado de planos (mesmo usado no restante do app).
+      if (planLimits.plan === "pro" && planLimits.productLimitReached) {
+        setUpgradeModalOpen(true);
+      } else {
+        upgradeModal.open({ defaultPlan: "base" });
+      }
       return;
     }
 
@@ -425,7 +431,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       return;
     }
 
-    setStep(3);
+    // Plano grátis: abre direto o modal animado de planos (não um passo extra).
+    upgradeModal.open({ defaultPlan: "base" });
   };
 
   if (!open && !visible) return null;
