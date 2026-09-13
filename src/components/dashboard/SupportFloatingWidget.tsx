@@ -432,7 +432,7 @@ const SupportFloatingWidget = () => {
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.985 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
             style={{ width: panelWidth }}
-            className="mb-3 flex h-[min(620px,calc(100svh-170px))] max-h-[680px] flex-col overflow-hidden rounded-[24px] border border-white/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] md:h-[min(660px,calc(100svh-84px))]"
+            className="relative mb-3 flex h-[min(620px,calc(100svh-170px))] max-h-[680px] flex-col overflow-hidden rounded-[24px] border border-white/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] md:h-[min(660px,calc(100svh-84px))]"
             aria-label="Central de suporte"
           >
             {tab === "messages" ? (
@@ -551,6 +551,7 @@ const SupportFloatingWidget = () => {
                         setComposingNewConversation(false);
                       }}
                       onCreateTicket={handleCreateTicketFromChat}
+                      onOpenRefundFlow={() => setRefundStep("reason")}
                     />
                   )}
 
