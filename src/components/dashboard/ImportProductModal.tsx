@@ -560,16 +560,18 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
                 {/* Connection status */}
                 {isConnectedToML === false && (
-                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
-                    <div>
-                      <p className="text-[13px] font-medium text-[#0A0A0A]">Conecte sua conta</p>
-                      <p className="text-[11.5px] text-gray-500 mt-0.5">É necessário para publicar anúncios</p>
-                    </div>
+                  <div className="rounded-xl border border-red-200 bg-red-50/60 px-4 py-3.5">
+                    <p className="text-[13px] font-semibold text-red-600">
+                      Você precisa conectar a sua conta do Mercado Livre
+                    </p>
+                    <p className="text-[11.5px] text-red-500/90 mt-1">
+                      É aí que o seu anúncio vai ser publicado. Leva menos de 1 minuto.
+                    </p>
                     <button
                       onClick={handleConnectML}
-                      className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                      className="mt-3 w-full rounded-lg bg-[#2563EB] px-3.5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                     >
-                      Conectar
+                      Conectar minha conta do Mercado Livre
                     </button>
                   </div>
                 )}
