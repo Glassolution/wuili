@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Paperclip,
+  PlayCircle,
   Search,
   Send,
   Sparkles,
@@ -48,6 +49,8 @@ import {
   type SupportTicket,
 } from "@/lib/support";
 import { supabase } from "@/integrations/supabase/client";
+import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
