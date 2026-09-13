@@ -3897,6 +3897,15 @@ export type Database = {
           schedule: string
         }[]
       }
+      get_catalog_product_popularity: {
+        Args: { p_id: string }
+        Returns: {
+          percentile: number
+          publications_count: number
+          recent_count: number
+          sellers_count: number
+        }[]
+      }
       get_customer_orders: {
         Args: { p_email: string; p_slug: string }
         Returns: {
