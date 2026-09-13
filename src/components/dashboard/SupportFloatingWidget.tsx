@@ -820,6 +820,7 @@ const SupportMessages = ({
   onStartNewConversation,
   onCancelNewConversation,
   onCreateTicket,
+  onOpenRefundFlow,
 }: {
   tickets: SupportTicket[];
   ticketsLoading: boolean;
@@ -847,6 +848,7 @@ const SupportMessages = ({
   onStartNewConversation: () => void;
   onCancelNewConversation: () => void;
   onCreateTicket: () => void;
+  onOpenRefundFlow: () => void;
 }) => {
   const replyFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -866,7 +868,7 @@ const SupportMessages = ({
           {messagesLoading && <LoadingLine label="Carregando conversa..." />}
           {!messagesLoading && messages.length === 0 && <EmptyLine label="A conversa deste ticket ainda está vazia." />}
           {messages.map((message) => (
-            <SupportBubble key={message.id} message={message} />
+            <SupportBubble key={message.id} message={message} onRefundClick={onOpenRefundFlow} />
           ))}
           {sendingReply && <TypingBubble />}
           {closed && (
