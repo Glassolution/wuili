@@ -772,19 +772,16 @@ const CatalogoProductDetailPage = () => {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-[#8A8A86]">
                   Preço do fornecedor
                 </p>
-                <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1.5">
+                <div className="mt-1.5 flex items-center justify-between gap-3">
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
                     {formatPrice(product.price)}
                   </span>
+                  {popularity ? <PopularityTrendBadge popularity={popularity} /> : null}
                 </div>
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
                 </p>
-                {estimatedMarginPercent > 0 ? (
-                  <div className="mt-2">
-                    <MarginTrendBadge marginPercent={estimatedMarginPercent} />
-                  </div>
-                ) : null}
+
               </div>
 
               <div className="mt-5 space-y-1.5 border-t border-black/[0.08] pt-5">
