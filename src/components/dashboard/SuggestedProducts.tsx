@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Package } from "lucide-react";
 import {
-  TrendUp,
   ShoppingBag as PhShoppingBag,
   Sparkle as PhSparkle,
   DeviceMobile,
