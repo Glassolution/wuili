@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AlertCircle, Heart, Star } from "lucide-react";
+import { AlertCircle, Heart, Star, TrendingDown, TrendingUp } from "lucide-react";
 
 export interface Product {
   id: string;
@@ -27,6 +27,39 @@ export const formatReviewCount = (count: number) => {
     return `${(count / 1000).toFixed(1)}k`;
   }
   return String(count);
+};
+
+/*
+  Selo de margem: compara o custo do fornecedor com um preço de venda sugerido
+  (o dobro do custo por padrão, ou a sugestão da Velo quando ela é maior). A
+  porcentagem é o lucro sobre o custo — vendendo pelo dobro, são 100%.
+  Verde/subindo = margem boa (≥ 100%); vermelho/descendo = margem apertada.
+*/
+export const MarginTrendBadge = ({ cost, suggested }: { cost: number; suggested: number }) => {
+  if (!cost || cost <= 0 || !suggested || suggested <= cost) return null;
+  const markup = Math.round(((suggested - cost) / cost) * 100);
+  const good = markup >= 100;
+  return (
+    <div
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 ${
+        good ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
+      }`}
+      title={
+        good
+          ? `Margem boa: vendendo por ${formatPrice(suggested)} (o dobro do custo), você lucra ${markup}% em cima do que pagou.`
+          : `Margem apertada: vendendo por ${formatPrice(suggested)}, o lucro é de ${markup}% sobre o custo.`
+      }
+    >
+      {good ? (
+        <TrendingUp size={13} className="text-[#16A34A]" aria-hidden="true" />
+      ) : (
+        <TrendingDown size={13} className="text-[#DC2626]" aria-hidden="true" />
+      )}
+      <span className={`text-[12px] font-semibold ${good ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
+        {markup}%
+      </span>
+    </div>
+  );
 };
 
 export const getMockRating = (productId: string) => {
@@ -200,7 +233,8 @@ export const ProductCard = ({
             )}
           </div>
 
-          <span className={`shrink-0 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
+          <span className={`flex shrink-0 items-center gap-1.5 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
+            <MarginTrendBadge cost={product.preco} suggested={product.preco * 2} />
             {formatPrice(product.preco)}
           </span>
         </div>
