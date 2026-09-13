@@ -973,45 +973,18 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div className="min-w-0">
                 <p className="text-[12.5px] font-semibold text-[#0A0A0A] leading-snug line-clamp-2">{title || product.title}</p>
-                <p className="text-[10.5px] text-gray-400 mt-1 truncate">SKU: {product.external_id || product.id.substring(0, 10)}</p>
               </div>
             </div>
-
-            {/* Categories */}
-            {product.category && (
-              <div className="flex gap-1.5 flex-wrap">
-                <span className="rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10.5px] font-medium text-gray-600 capitalize">
-                  {product.category}
-                </span>
-              </div>
-            )}
 
             {/* Divider */}
             <div className="h-px bg-gray-200" />
 
-            {/* Info rows */}
+            {/* Info rows — só o essencial para decidir */}
             <div className="space-y-3">
-              <DetailRow label="Plataforma" value={
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-yellow-400" />
-                  Mercado Livre
-                </span>
-              } />
-              <DetailRow label="Preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
+              <DetailRow label="Custo para você" value={formatBRL(costPrice)} />
+              <DetailRow label="Seu preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
+              <DetailRow label="Seu lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />
               <DetailRow label="Estoque" value={`${stockQty} un`} />
-              <DetailRow label="Custo" value={formatBRL(costPrice)} />
-              {step >= 2 && <DetailRow label="Lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />}
-            </div>
-
-            {/* Divider */}
-            <div className="h-px bg-gray-200" />
-
-            {/* Description preview */}
-            <div>
-              <p className="text-[10.5px] font-medium text-gray-400 uppercase tracking-wide mb-2">Descrição</p>
-              <p className="text-[12px] text-gray-600 leading-relaxed line-clamp-6">
-                {description || "A descrição aparecerá aqui quando for gerada ou escrita."}
-              </p>
             </div>
           </div>
         </div>
