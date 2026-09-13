@@ -675,6 +675,33 @@ const SupportFloatingWidget = () => {
                           className="mt-2.5 max-h-24 min-h-[64px] w-full resize-none rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 text-[12.5px] leading-5 text-[#111827] outline-none placeholder:text-[#9CA3AF] focus:border-[#2563EB]"
                         />
 
+                        <div className="mt-3 rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] p-2.5">
+                          <p className="px-1 text-[11px] font-semibold leading-4 text-[#6B7280]">
+                            Se você ainda estiver com dúvidas, temos vídeos tutoriais que podem ajudar:
+                          </p>
+                          <ul className="mt-1.5 space-y-1">
+                            {tutorialsForReason(refundReason).map((tutorial) => (
+                              <li key={tutorial.src}>
+                                <button
+                                  type="button"
+                                  onClick={() => setRefundTutorial(tutorial)}
+                                  className="flex w-full items-center gap-2 rounded-[9px] px-1.5 py-1.5 text-left transition hover:bg-white"
+                                >
+                                  <PlayCircle size={17} className="shrink-0 text-[#2563EB]" aria-hidden="true" />
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-[12px] font-bold text-[#111827]">
+                                      {tutorial.title}
+                                    </span>
+                                    <span className="block truncate text-[10.5px] text-[#9CA3AF]">
+                                      {tutorial.description}
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => {
