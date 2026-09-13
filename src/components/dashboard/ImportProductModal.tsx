@@ -607,77 +607,32 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[10.5px] text-gray-400 text-right mt-1.5">{titleLength}/{MAX_TITLE_LENGTH}</p>
                 </div>
 
-                {/* Pricing — minimal rows */}
+                {/* Pricing — o mais simples possível: custo → preço → lucro */}
                 <div className="space-y-3">
-                  <p className="text-[12px] font-medium text-gray-600">Precificação</p>
+                  <p className="text-[12px] font-medium text-gray-600">Seu preço de venda</p>
 
                   {/*
-                    A ficha do produto agora mostra só o custo. É aqui, no momento em que a
-                    pessoa decide publicar, que ela descobre por quanto a Velo sugere vender
-                    e quanto sobra — e aqui o número é editável, então a sugestão é ponto de
-                    partida em vez de promessa.
+                    A ficha do produto mostra só o custo. Aqui, na hora de publicar, a
+                    pessoa vê a sugestão da Velo e quanto sobra por venda — em linguagem
+                    direta, sem multiplicador nem caixas empilhadas.
                   */}
                   <div className="rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <p className="text-[12px] leading-[1.5] text-[#475569]">
+                    <p className="text-[12px] leading-[1.6] text-[#475569]">
+                      Este produto custa{" "}
+                      <span className="font-semibold text-[#0F172A]">{formatBRL(costPrice)}</span> para você.{" "}
                       A Velo sugere vender por{" "}
                       <span className="font-semibold text-[#0F172A]">
                         {formatBRL(costPrice * MULTIPLICADOR_SUGERIDO)}
-                      </span>{" "}
-                      — {MULTIPLICADOR_SUGERIDO.toString().replace(".", ",")}x o custo. Ajuste abaixo até o preço que
-                      você quer praticar.
+                      </span>
+                      , mas quem decide o preço é você.
                     </p>
-                  </div>
-
-                  <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
-                    <Row label="Custo do produto" value={formatBRL(costPrice)} />
-                  </div>
-
-                  {/* Multiplier */}
-                  <div className="rounded-xl border border-[#DCE7FA] p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[12px] font-medium text-gray-600">Multiplicador</span>
-                      <span className="text-[13px] font-semibold text-[#0A0A0A]">{multiplier.toFixed(1)}x</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min="1.5"
-                        max="5.0"
-                        step="0.1"
-                        value={multiplier}
-                        onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v); }}
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 slider"
-                        style={{
-                          background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb 100%)`
-                        }}
-                      />
-                      <style>{`
-                        .slider::-webkit-slider-thumb {
-                          appearance: none;
-                          height: 18px;
-                          width: 18px;
-                          border-radius: 50%;
-                          background: ${ACCENT};
-                          cursor: pointer;
-                          border: 2px solid white;
-                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-                        }
-                        .slider::-moz-range-thumb {
-                          height: 18px;
-                          width: 18px;
-                          border-radius: 50%;
-                          background: ${ACCENT};
-                          cursor: pointer;
-                          border: 2px solid white;
-                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-                        }
-                      `}</style>
-                    </div>
                   </div>
 
                   {/* Sell price */}
                   <div>
-                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">Preço de venda</label>
+                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">
+                      Por quanto você quer vender?
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">R$</span>
                       <input
@@ -686,14 +641,14 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         min="0"
                         value={sellPrice || ""}
                         onChange={(e) => handlePriceChange(e.target.value)}
-                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
+                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-3 text-[15px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
                       />
                     </div>
                   </div>
 
                   {/* Profit single line */}
                   <div className="flex items-center justify-between rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <span className="text-[12px] text-[#64748B]">Lucro por venda</span>
+                    <span className="text-[12px] text-[#64748B]">Você lucra por venda</span>
                     <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0F172A]" : "text-red-500"}`}>
                       {formatBRL(profit)} <span className="text-[11px] font-medium text-gray-400 ml-1">· {profitMargin}%</span>
                     </span>
