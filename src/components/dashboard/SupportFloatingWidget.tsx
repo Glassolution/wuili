@@ -56,6 +56,44 @@ import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
 type WidgetTab = "home" | "messages" | "help";
 
+/** Vídeo tutorial oferecido no fluxo de retenção de reembolso. */
+type RefundTutorial = {
+  src: string;
+  aspectPadding: string;
+  title: string;
+  description: string;
+  /** Motivos (chips) em que este vídeo aparece em primeiro lugar na fila. */
+  match: readonly string[];
+};
+
+const REFUND_TUTORIALS: readonly RefundTutorial[] = [
+  {
+    src: "https://www.youtube.com/embed/CtU-zqb0SM4?rel=0&modestbranding=1",
+    aspectPadding: "56.25%",
+    title: "Tutorial do catálogo",
+    description: "Veja como encontrar e importar bons produtos no catálogo Velo.",
+    match: ["Não consegui vender"],
+  },
+  TUTORIAL_CONTA_VENDEDOR,
+  {
+    src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
+    aspectPadding: "62.5%",
+    title: "Tutorial de início",
+    description: "Veja como dar os primeiros passos na Velo.",
+    match: ["Achei caro", "Estou sem tempo"],
+  },
+] as const;
+
+/** Fila de tutoriais ordenada pela dor informada: o mais relevante vem primeiro. */
+function tutorialsForReason(reason: string): RefundTutorial[] {
+  const normalized = reason.trim().toLowerCase();
+  return [...REFUND_TUTORIALS].sort((a, b) => {
+    const aMatch = a.match.some((m) => normalized.includes(m.toLowerCase())) ? 0 : 1;
+    const bMatch = b.match.some((m) => normalized.includes(m.toLowerCase())) ? 0 : 1;
+    return aMatch - bMatch;
+  });
+}
+
 const panelWidth = "min(400px, calc(100vw - 24px))";
 
 const firstNameFrom = (name: string) => {
@@ -1349,7 +1387,7 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
         <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
           <p className="text-[13px] leading-5 text-[#111827]">
-            Entendemos a sua solicitação de reembolso ou cancelamento. Nosso horário de atendimento é de segunda a
+            Entendemos a sua solicitação de reembolso ou cancelamento. Nossa equipe pode te ajudar por aqui antes
             sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h — nossa equipe pode te ajudar por aqui
             antes de qualquer decisão.
           </p>
