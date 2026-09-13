@@ -90,7 +90,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     porque a ficha do produto não mostra mais preço sugerido nem margem — a sugestão
     aparece aqui, e o número exibido tem que ser exatamente o que o slider já aplicou.
   */
-  const [multiplier, setMultiplier] = useState(MULTIPLICADOR_SUGERIDO);
+  const [, setMultiplier] = useState(MULTIPLICADOR_SUGERIDO);
 
   // AI description
   const [description, setDescription] = useState("");
@@ -105,7 +105,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [translated, setTranslated] = useState(false);
 
   // Platforms (review step)
-  const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
+  const [platforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
     ml: true,
     shopee: false,
     tiktok: false,
@@ -178,10 +178,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   const costPrice = product?.cost_price ?? 0;
   const totalCost = costPrice;
-
-  const recalcPrice = (mult: number) => {
-    setSellPrice(Math.round(costPrice * mult * 100) / 100);
-  };
 
   const handlePriceChange = (val: string) => {
     if (val === "") {
@@ -489,7 +485,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div>
                 <h2 className="text-[15px] font-semibold text-[#0F172A] leading-tight">Importar produto</h2>
-                <p className="text-[12.5px] text-[#64748B] mt-0.5">Revise, precifique e publique com o fluxo atual da Velo.</p>
+                <p className="text-[12.5px] text-[#64748B] mt-0.5">Em 2 passos rápidos seu produto estará à venda no Mercado Livre.</p>
               </div>
             </div>
             <button
@@ -560,16 +556,18 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
                 {/* Connection status */}
                 {isConnectedToML === false && (
-                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
-                    <div>
-                      <p className="text-[13px] font-medium text-[#0A0A0A]">Conecte sua conta</p>
-                      <p className="text-[11.5px] text-gray-500 mt-0.5">É necessário para publicar anúncios</p>
-                    </div>
+                  <div className="rounded-xl border border-red-200 bg-red-50/60 px-4 py-3.5">
+                    <p className="text-[13px] font-semibold text-red-600">
+                      Você precisa conectar a sua conta do Mercado Livre
+                    </p>
+                    <p className="text-[11.5px] text-red-500/90 mt-1">
+                      É aí que o seu anúncio vai ser publicado. Leva menos de 1 minuto.
+                    </p>
                     <button
                       onClick={handleConnectML}
-                      className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                      className="mt-3 w-full rounded-lg bg-[#2563EB] px-3.5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                     >
-                      Conectar
+                      Conectar minha conta do Mercado Livre
                     </button>
                   </div>
                 )}
@@ -605,77 +603,32 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[10.5px] text-gray-400 text-right mt-1.5">{titleLength}/{MAX_TITLE_LENGTH}</p>
                 </div>
 
-                {/* Pricing — minimal rows */}
+                {/* Pricing — o mais simples possível: custo → preço → lucro */}
                 <div className="space-y-3">
-                  <p className="text-[12px] font-medium text-gray-600">Precificação</p>
+                  <p className="text-[12px] font-medium text-gray-600">Seu preço de venda</p>
 
                   {/*
-                    A ficha do produto agora mostra só o custo. É aqui, no momento em que a
-                    pessoa decide publicar, que ela descobre por quanto a Velo sugere vender
-                    e quanto sobra — e aqui o número é editável, então a sugestão é ponto de
-                    partida em vez de promessa.
+                    A ficha do produto mostra só o custo. Aqui, na hora de publicar, a
+                    pessoa vê a sugestão da Velo e quanto sobra por venda — em linguagem
+                    direta, sem multiplicador nem caixas empilhadas.
                   */}
                   <div className="rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <p className="text-[12px] leading-[1.5] text-[#475569]">
+                    <p className="text-[12px] leading-[1.6] text-[#475569]">
+                      Este produto custa{" "}
+                      <span className="font-semibold text-[#0F172A]">{formatBRL(costPrice)}</span> para você.{" "}
                       A Velo sugere vender por{" "}
                       <span className="font-semibold text-[#0F172A]">
                         {formatBRL(costPrice * MULTIPLICADOR_SUGERIDO)}
-                      </span>{" "}
-                      — {MULTIPLICADOR_SUGERIDO.toString().replace(".", ",")}x o custo. Ajuste abaixo até o preço que
-                      você quer praticar.
+                      </span>
+                      , mas quem decide o preço é você.
                     </p>
-                  </div>
-
-                  <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
-                    <Row label="Custo do produto" value={formatBRL(costPrice)} />
-                  </div>
-
-                  {/* Multiplier */}
-                  <div className="rounded-xl border border-[#DCE7FA] p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[12px] font-medium text-gray-600">Multiplicador</span>
-                      <span className="text-[13px] font-semibold text-[#0A0A0A]">{multiplier.toFixed(1)}x</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min="1.5"
-                        max="5.0"
-                        step="0.1"
-                        value={multiplier}
-                        onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v); }}
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 slider"
-                        style={{
-                          background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb 100%)`
-                        }}
-                      />
-                      <style>{`
-                        .slider::-webkit-slider-thumb {
-                          appearance: none;
-                          height: 18px;
-                          width: 18px;
-                          border-radius: 50%;
-                          background: ${ACCENT};
-                          cursor: pointer;
-                          border: 2px solid white;
-                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-                        }
-                        .slider::-moz-range-thumb {
-                          height: 18px;
-                          width: 18px;
-                          border-radius: 50%;
-                          background: ${ACCENT};
-                          cursor: pointer;
-                          border: 2px solid white;
-                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-                        }
-                      `}</style>
-                    </div>
                   </div>
 
                   {/* Sell price */}
                   <div>
-                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">Preço de venda</label>
+                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">
+                      Por quanto você quer vender?
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">R$</span>
                       <input
@@ -684,14 +637,14 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         min="0"
                         value={sellPrice || ""}
                         onChange={(e) => handlePriceChange(e.target.value)}
-                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
+                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-3 text-[15px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
                       />
                     </div>
                   </div>
 
                   {/* Profit single line */}
                   <div className="flex items-center justify-between rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <span className="text-[12px] text-[#64748B]">Lucro por venda</span>
+                    <span className="text-[12px] text-[#64748B]">Você lucra por venda</span>
                     <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0F172A]" : "text-red-500"}`}>
                       {formatBRL(profit)} <span className="text-[11px] font-medium text-gray-400 ml-1">· {profitMargin}%</span>
                     </span>
@@ -708,42 +661,36 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[12.5px] text-gray-500 mt-1">Escolha onde publicar e finalize a descrição.</p>
                 </div>
 
-                {/* Platforms — pick where to publish */}
+                {/* Platforms — hoje a publicação é só no Mercado Livre */}
                 <div>
                   <div className="flex items-center gap-1.5 mb-2.5">
                     <Store size={12} className="text-gray-500" />
-                    <p className="text-[12px] font-medium text-gray-600">Publicar em</p>
+                    <p className="text-[12px] font-medium text-gray-600">Onde seu anúncio vai aparecer</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <PlatformCard
-                      name="Mercado Livre"
-                      status={isConnectedToML ? "Conectado" : "Desconectado"}
-                      disabled={!isConnectedToML}
-                      selected={platforms.ml && !!isConnectedToML}
-                      onToggle={() => { if (isConnectedToML) setPlatforms(p => ({ ...p, ml: !p.ml })); }}
-                    />
-                    <PlatformCard
-                      name="Shopee"
-                      status="Em breve"
-                      disabled
-                      selected={false}
-                      onToggle={() => {}}
-                    />
-                    <PlatformCard
-                      name="TikTok Shop"
-                      status="Em breve"
-                      disabled
-                      selected={false}
-                      onToggle={() => {}}
-                    />
+                  <div className="flex items-center gap-3 rounded-xl border border-[#2563EB] bg-[#EFF6FF] px-4 py-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#2563EB]">Mercado Livre</p>
+                      <p className="text-[11px] text-gray-500">
+                        {isConnectedToML ? "Conta conectada — tudo certo para publicar" : "Conta ainda não conectada"}
+                      </p>
+                    </div>
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB]">
+                      <Check size={11} strokeWidth={3} className="text-white" />
+                    </span>
                   </div>
                   {!isConnectedToML && (
-                    <button
-                      onClick={handleConnectML}
-                    className="mt-2.5 text-[11.5px] font-medium text-[#2563EB] underline hover:no-underline"
-                    >
-                      Conectar Mercado Livre
-                    </button>
+                    <div className="mt-2.5 rounded-xl border border-red-200 bg-red-50/60 px-4 py-3">
+                      <p className="text-[12.5px] font-semibold text-red-600">
+                        Você precisa conectar a sua conta do Mercado Livre
+                      </p>
+                      <button
+                        onClick={handleConnectML}
+                        className="mt-2.5 w-full rounded-lg bg-[#2563EB] px-3.5 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                      >
+                        Conectar minha conta do Mercado Livre
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -1026,45 +973,18 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div className="min-w-0">
                 <p className="text-[12.5px] font-semibold text-[#0A0A0A] leading-snug line-clamp-2">{title || product.title}</p>
-                <p className="text-[10.5px] text-gray-400 mt-1 truncate">SKU: {product.external_id || product.id.substring(0, 10)}</p>
               </div>
             </div>
-
-            {/* Categories */}
-            {product.category && (
-              <div className="flex gap-1.5 flex-wrap">
-                <span className="rounded-md bg-white border border-gray-200 px-2 py-0.5 text-[10.5px] font-medium text-gray-600 capitalize">
-                  {product.category}
-                </span>
-              </div>
-            )}
 
             {/* Divider */}
             <div className="h-px bg-gray-200" />
 
-            {/* Info rows */}
+            {/* Info rows — só o essencial para decidir */}
             <div className="space-y-3">
-              <DetailRow label="Plataforma" value={
-                <span className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-yellow-400" />
-                  Mercado Livre
-                </span>
-              } />
-              <DetailRow label="Preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
+              <DetailRow label="Custo para você" value={formatBRL(costPrice)} />
+              <DetailRow label="Seu preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
+              <DetailRow label="Seu lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />
               <DetailRow label="Estoque" value={`${stockQty} un`} />
-              <DetailRow label="Custo" value={formatBRL(costPrice)} />
-              {step >= 2 && <DetailRow label="Lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />}
-            </div>
-
-            {/* Divider */}
-            <div className="h-px bg-gray-200" />
-
-            {/* Description preview */}
-            <div>
-              <p className="text-[10.5px] font-medium text-gray-400 uppercase tracking-wide mb-2">Descrição</p>
-              <p className="text-[12px] text-gray-600 leading-relaxed line-clamp-6">
-                {description || "A descrição aparecerá aqui quando for gerada ou escrita."}
-              </p>
             </div>
           </div>
         </div>
@@ -1129,34 +1049,6 @@ const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) 
     <span className="text-[11.5px] text-gray-500">{label}</span>
     <span className="text-[12px] text-[#0A0A0A]">{value}</span>
   </div>
-);
-
-const PlatformCard = ({
-  name, status, selected, disabled, onToggle,
-}: {
-  name: string; status: string; selected: boolean; disabled?: boolean; onToggle: () => void;
-}) => (
-  <button
-    onClick={onToggle}
-    disabled={disabled}
-    className={`relative rounded-xl border p-3 text-center transition-all ${
-      selected
-        ? "border-[#2563EB] bg-[#EFF6FF]"
-        : disabled
-        ? "border-gray-200 opacity-50 cursor-not-allowed"
-        : "border-gray-200 hover:border-[#93C5FD]"
-    }`}
-  >
-    {selected && (
-      <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#2563EB]">
-        <Check size={9} strokeWidth={3} className="text-white" />
-      </span>
-    )}
-    <p className={`text-[12.5px] font-semibold ${selected ? "text-[#2563EB]" : disabled ? "text-gray-500" : "text-[#0A0A0A]"}`}>
-      {name}
-    </p>
-    <p className="text-[10.5px] text-gray-400 mt-0.5">{status}</p>
-  </button>
 );
 
 export default ImportProductModal;
