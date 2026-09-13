@@ -619,8 +619,11 @@ const DashboardLayoutInner = () => {
   // Tour do Atlas: primeira visita, começa no Início do desktop, só depois que o
   // onboarding fechou e a entrada do dashboard terminou. Depois de aberto, é o
   // próprio tour que navega pelas páginas de cada seção.
+  // TEMPORÁRIO: tour desativado para testes — reative removendo a linha abaixo.
+  const TOUR_TEMPORARILY_DISABLED = true;
   const [tourAberto, setTourAberto] = useState(false);
   useEffect(() => {
+    if (TOUR_TEMPORARILY_DISABLED) return;
     if (!user?.id || isMobile || showOnboarding || entrada !== "idle") return;
     if (location.pathname !== "/dashboard" || !hasPendingTour(user.id)) return;
     const timer = window.setTimeout(() => setTourAberto(true), 400);
