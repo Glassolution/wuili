@@ -570,7 +570,10 @@ const CatalogoProductDetailPage = () => {
                     {costPriceCents}
                   </sup>
                 </span>
-                {popularity ? <PopularityTrendBadge popularity={popularity} /> : null}
+                <MarginTrendBadge
+                  cost={product.price}
+                  suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
+                />
               </div>
               <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
 
@@ -734,7 +737,10 @@ const CatalogoProductDetailPage = () => {
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
                     {formatPrice(product.price)}
                   </span>
-                  {popularity ? <PopularityTrendBadge popularity={popularity} /> : null}
+                  <MarginTrendBadge
+                    cost={product.price}
+                    suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
+                  />
                 </div>
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
