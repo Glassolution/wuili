@@ -41,6 +41,8 @@ type LinhaDoCatalogo = {
   images: unknown;
   rating: number | null;
   orders_count: number | null;
+  scraped_at: string | null;
+  updated_at: string | null;
 };
 
 /** Quantos cards entram no carrossel. */
@@ -53,6 +55,27 @@ const QUANTIDADE_DE_CARDS = 8;
  * estreito, e a seleção parece uma busca, não uma recomendação.
  */
 const MAXIMO_POR_CATEGORIA = 3;
+
+/** Histórico compartilhado pelos carrosséis criados durante esta sessão. */
+const produtosVistosPorSelecao = new Map<string, Set<string>>();
+
+const historicoDaSelecao = (userId: string | null, termos: string) => {
+  const chave = `${userId ?? "anon"}|${termos || "perfil"}`;
+  const existente = produtosVistosPorSelecao.get(chave);
+  if (existente) return existente;
+  const novo = new Set<string>();
+  produtosVistosPorSelecao.set(chave, novo);
+  return novo;
+};
+
+/** Produtos atualizados recentemente ganham prioridade sem apagar qualidade. */
+const bonusDeAtualidade = (linha: LinhaDoCatalogo) => {
+  const data = linha.scraped_at ?? linha.updated_at;
+  if (!data) return 0;
+  const idadeEmDias = Math.max(0, (Date.now() - new Date(data).getTime()) / 86_400_000);
+  if (!Number.isFinite(idadeEmDias)) return 0;
+  return Math.max(0, 35 - idadeEmDias * 1.5);
+};
 
 /** Mesmo tratamento de imagem do catálogo: o campo vem como json ou string. */
 const primeiraImagem = (images: unknown): string | null => {
@@ -124,15 +147,14 @@ export const useProdutosRecomendados = (
   // Guarda o piso de tempo só na primeira busca: reconsultas silenciosas não
   // precisam segurar o esqueleto de novo.
   const jaBuscouRef = useRef(false);
-  // Ids já mostrados nas rodadas anteriores, para o botão trazer coisa nova.
-  const jaVistosRef = useRef<Set<string>>(new Set());
+  // Inclui produtos mostrados por carrosséis anteriores da mesma categoria.
+  const jaVistosRef = useRef<Set<string>>(historicoDaSelecao(userId, chaveDosTermos));
 
-  // Trocar de nicho começa a contagem de novo: o histórico de vistos era do
-  // nicho anterior e não deve esconder produtos do novo.
+  // Cada nicho mantém seu histórico; voltar a ele não repete a primeira leva.
   useEffect(() => {
-    jaVistosRef.current = new Set();
+    jaVistosRef.current = historicoDaSelecao(userId, chaveDosTermos);
     setRodada(0);
-  }, [chaveDosTermos]);
+  }, [chaveDosTermos, userId]);
 
   useEffect(() => {
     let ativo = true;
@@ -148,7 +170,8 @@ export const useProdutosRecomendados = (
         const base = () =>
           supabase
             .from("catalog_products")
-            .select("id,title,category,cost_price,images,rating,orders_count")
+            .select("id,title,category,cost_price,images,rating,orders_count,scraped_at,updated_at")
+            .eq("is_active", true)
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .not("category", "in", `(${CATEGORIAS_EXCLUIDAS.map((c) => `"${c}"`).join(",")})`);
@@ -156,12 +179,20 @@ export const useProdutosRecomendados = (
         // Três consultas: o nicho confirmado na conversa, o nicho do cadastro e
         // a geral. As duas últimas são só rede de segurança — entram apenas se o
         // nicho não render cards suficientes.
-        const [doNichoDaConversa, doNichoDoQuiz, gerais] = await Promise.all([
+        const [melhoresDoNicho, recentesDoNicho, doNichoDoQuiz, gerais] = await Promise.all([
           termos.length > 0
             ? withFreshSupabaseSession(() =>
                 base()
                   .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
                   .order("orders_count", { ascending: false, nullsFirst: false })
+                  .limit(160),
+              )
+            : Promise.resolve({ data: [], error: null }),
+          termos.length > 0
+            ? withFreshSupabaseSession(() =>
+                base()
+                  .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
+                  .order("scraped_at", { ascending: false, nullsFirst: false })
                   .limit(160),
               )
             : Promise.resolve({ data: [], error: null }),
@@ -173,11 +204,15 @@ export const useProdutosRecomendados = (
           ),
         ]);
 
-        if (doNichoDaConversa.error) throw doNichoDaConversa.error;
+        if (melhoresDoNicho.error) throw melhoresDoNicho.error;
+        if (recentesDoNicho.error) throw recentesDoNicho.error;
         if (doNichoDoQuiz.error) throw doNichoDoQuiz.error;
         if (gerais.error) throw gerais.error;
 
-        const linhasDoNicho = (doNichoDaConversa.data as LinhaDoCatalogo[]) ?? [];
+        const linhasDoNicho = [
+          ...(((melhoresDoNicho.data as LinhaDoCatalogo[]) ?? [])),
+          ...(((recentesDoNicho.data as LinhaDoCatalogo[]) ?? [])),
+        ];
         const linhasDoQuiz = (doNichoDoQuiz.data as LinhaDoCatalogo[]) ?? [];
         const linhasGerais = (gerais.data as LinhaDoCatalogo[]) ?? [];
         const idsDoNichoDaConversa = new Set(linhasDoNicho.map((linha) => linha.id));
@@ -215,17 +250,17 @@ export const useProdutosRecomendados = (
             const pontos =
               pontuarProdutoParaPerfil(produto, respostas, { produtoId: linha.id, userId }) +
               bonusDoNicho +
+              bonusDeAtualidade(linha) +
               ruidoEstavel(linha.id, userId, rodada) * 45;
             return { produto, pontos };
           })
           .filter((item): item is { produto: Omit<ProdutoRecomendado, "motivo">; pontos: number } => Boolean(item))
           .sort((a, b) => b.pontos - a.pontos);
 
-        // Rodadas seguintes tiram o que já foi mostrado; se o catálogo do nicho
-        // acabar, a lista recomeça em vez de ficar vazia.
+        // Nunca repete um produto já mostrado nesta categoria durante a sessão.
         const vistos = jaVistosRef.current;
         const inéditos = ranqueados.filter(({ produto }) => !vistos.has(produto.id));
-        const pool = inéditos.length >= QUANTIDADE_DE_CARDS ? inéditos : (vistos.clear(), ranqueados);
+        const pool = inéditos;
 
         // Passa uma vez respeitando o teto por categoria e, se ainda faltar
         // card, completa com o resto na ordem da pontuação.
