@@ -265,7 +265,13 @@ export const ProductCard = ({
           </div>
 
           <span className={`flex shrink-0 items-center gap-1.5 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
-            <MarginTrendBadge cost={product.preco} suggested={product.preco * 2} />
+            <MarginTrendBadge
+              cost={product.preco}
+              suggested={product.preco * 2}
+              seed={product.id}
+              rating={product.rating}
+              ordersCount={product.ordersCount}
+            />
             {formatPrice(product.preco)}
           </span>
         </div>
