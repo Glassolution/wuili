@@ -19,6 +19,8 @@ import {
   Scale,
   ShieldCheck,
   Tag,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
@@ -143,6 +145,38 @@ const PRODUCT_IMPORT_BUTTON_STYLE = getPremiumActionButtonStyle({
 
 const formatCategoryLabel = (category: string | null | undefined) =>
   category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : "Produto";
+
+/*
+  Selo de margem ao lado do preço do fornecedor: ícone de tendência subindo em
+  verde quando a margem estimada é boa, descendo em vermelho quando é apertada.
+  A estimativa usa a sugestão interna de preço da Velo apenas como referência de
+  cálculo — o valor sugerido continua sem aparecer aqui, só no modal de publicação.
+  Margem >= 50% sobre o custo é considerada boa para o produto.
+*/
+const MarginTrendBadge = ({ marginPercent }: { marginPercent: number }) => {
+  const good = marginPercent >= 50;
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 ${
+        good ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
+      }`}
+      title={
+        good
+          ? "Margem estimada boa para vender este produto"
+          : "Margem estimada apertada — avalie bem o preço de venda"
+      }
+    >
+      {good ? (
+        <TrendingUp size={13} className="text-[#16A34A]" aria-hidden="true" />
+      ) : (
+        <TrendingDown size={13} className="text-[#DC2626]" aria-hidden="true" />
+      )}
+      <span className={`text-[11px] font-semibold ${good ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
+        Margem estimada de até {marginPercent}% — {good ? "boa para vender" : "apertada"}
+      </span>
+    </div>
+  );
+};
 
 const formatWeight = (weight: number | null) => {
   if (typeof weight !== "number" || Number.isNaN(weight) || weight <= 0) return "Não informado";
@@ -332,6 +366,13 @@ const CatalogoProductDetailPage = () => {
   // A página mostra apenas o custo real do fornecedor. Preço sugerido e margem
   // só entram na conversa no modal de publicação, onde o lojista define o preço
   // de venda de verdade.
+  // Margem estimada: diferença entre a sugestão interna da Velo e o custo real,
+  // em % sobre o custo. Só alimenta o selo de tendência — o valor sugerido não
+  // aparece na página.
+  const estimatedMarginPercent =
+    product.price > 0 && product.suggestedPrice > product.price
+      ? Math.round(((product.suggestedPrice - product.price) / product.price) * 100)
+      : Math.max(Math.round(product.marginPercent), 0);
   const favorited = favoritedIds.includes(product.id);
   const categoryLabel = formatCategoryLabel(product.category);
   const supplierLabel = product.supplier_name ?? "Fornecedor verificado";
@@ -530,6 +571,11 @@ const CatalogoProductDetailPage = () => {
                 </sup>
               </span>
               <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
+              {estimatedMarginPercent > 0 ? (
+                <div className="mt-2">
+                  <MarginTrendBadge marginPercent={estimatedMarginPercent} />
+                </div>
+              ) : null}
 
               {/*
                 O espaço entre o preço e os botões estava vazio. A referência preenche essa
@@ -694,6 +740,11 @@ const CatalogoProductDetailPage = () => {
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
                 </p>
+                {estimatedMarginPercent > 0 ? (
+                  <div className="mt-2">
+                    <MarginTrendBadge marginPercent={estimatedMarginPercent} />
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-5 space-y-1.5 border-t border-black/[0.08] pt-5">
