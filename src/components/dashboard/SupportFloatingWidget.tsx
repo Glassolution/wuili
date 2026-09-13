@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Paperclip,
+  PlayCircle,
   Search,
   Send,
   Sparkles,
@@ -48,10 +49,50 @@ import {
   type SupportTicket,
 } from "@/lib/support";
 import { supabase } from "@/integrations/supabase/client";
+import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
 type WidgetTab = "home" | "messages" | "help";
+
+/** Vídeo tutorial oferecido no fluxo de retenção de reembolso. */
+type RefundTutorial = {
+  src: string;
+  aspectPadding: string;
+  title: string;
+  description: string;
+  /** Motivos (chips) em que este vídeo aparece em primeiro lugar na fila. */
+  match: readonly string[];
+};
+
+const REFUND_TUTORIALS: readonly RefundTutorial[] = [
+  {
+    src: "https://www.youtube.com/embed/CtU-zqb0SM4?rel=0&modestbranding=1",
+    aspectPadding: "56.25%",
+    title: "Tutorial do catálogo",
+    description: "Veja como encontrar e importar bons produtos no catálogo Velo.",
+    match: ["Não consegui vender"],
+  },
+  { ...TUTORIAL_CONTA_VENDEDOR, match: ["Problemas técnicos"] },
+  {
+    src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
+    aspectPadding: "62.5%",
+    title: "Tutorial de início",
+    description: "Veja como dar os primeiros passos na Velo.",
+    match: ["Achei caro", "Estou sem tempo"],
+  },
+] as const;
+
+/** Fila de tutoriais ordenada pela dor informada: o mais relevante vem primeiro. */
+function tutorialsForReason(reason: string): RefundTutorial[] {
+  const normalized = reason.trim().toLowerCase();
+  return [...REFUND_TUTORIALS].sort((a, b) => {
+    const aMatch = a.match.some((m) => normalized.includes(m.toLowerCase())) ? 0 : 1;
+    const bMatch = b.match.some((m) => normalized.includes(m.toLowerCase())) ? 0 : 1;
+    return aMatch - bMatch;
+  });
+}
 
 const panelWidth = "min(400px, calc(100vw - 24px))";
 
@@ -89,6 +130,7 @@ const SupportFloatingWidget = () => {
   const [refundStep, setRefundStep] = useState<null | "reason" | "confirm">(null);
   const [refundReason, setRefundReason] = useState("");
   const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundTutorial, setRefundTutorial] = useState<RefundTutorial | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const openTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "open"), [tickets]);
@@ -633,6 +675,33 @@ const SupportFloatingWidget = () => {
                           className="mt-2.5 max-h-24 min-h-[64px] w-full resize-none rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 text-[12.5px] leading-5 text-[#111827] outline-none placeholder:text-[#9CA3AF] focus:border-[#2563EB]"
                         />
 
+                        <div className="mt-3 rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] p-2.5">
+                          <p className="px-1 text-[11px] font-semibold leading-4 text-[#6B7280]">
+                            Se você ainda estiver com dúvidas, temos vídeos tutoriais que podem ajudar:
+                          </p>
+                          <ul className="mt-1.5 space-y-1">
+                            {tutorialsForReason(refundReason).map((tutorial) => (
+                              <li key={tutorial.src}>
+                                <button
+                                  type="button"
+                                  onClick={() => setRefundTutorial(tutorial)}
+                                  className="flex w-full items-center gap-2 rounded-[9px] px-1.5 py-1.5 text-left transition hover:bg-white"
+                                >
+                                  <PlayCircle size={17} className="shrink-0 text-[#2563EB]" aria-hidden="true" />
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-[12px] font-bold text-[#111827]">
+                                      {tutorial.title}
+                                    </span>
+                                    <span className="block truncate text-[10.5px] text-[#9CA3AF]">
+                                      {tutorial.description}
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -692,6 +761,15 @@ const SupportFloatingWidget = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <VideoTutorialModal
+              open={refundTutorial !== null}
+              onClose={() => setRefundTutorial(null)}
+              title={refundTutorial?.title ?? ""}
+              description={refundTutorial?.description ?? ""}
+              src={refundTutorial?.src ?? ""}
+              aspectPadding={refundTutorial?.aspectPadding ?? "56.25%"}
+            />
           </motion.section>
         )}
       </AnimatePresence>
@@ -1345,9 +1423,8 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
         <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
           <p className="text-[13px] leading-5 text-[#111827]">
-            Entendemos a sua solicitação de reembolso ou cancelamento. Nosso horário de atendimento é de segunda a
-            sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h — nossa equipe pode te ajudar por aqui
-            antes de qualquer decisão.
+            Entendemos a sua solicitação de reembolso ou cancelamento. Nossa equipe pode te ajudar por aqui antes
+            de qualquer decisão.
           </p>
           <button
             type="button"
