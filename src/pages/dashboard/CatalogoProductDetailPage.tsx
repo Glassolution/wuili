@@ -147,36 +147,77 @@ const formatCategoryLabel = (category: string | null | undefined) =>
   category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : "Produto";
 
 /*
-  Selo de margem ao lado do preço do fornecedor: ícone de tendência subindo em
-  verde quando a margem estimada é boa, descendo em vermelho quando é apertada.
-  A estimativa usa a sugestão interna de preço da Velo apenas como referência de
-  cálculo — o valor sugerido continua sem aparecer aqui, só no modal de publicação.
-  Margem >= 50% sobre o custo é considerada boa para o produto.
+  Selo de tendência ao lado do preço: em vez de margem (número derivado de uma
+  sugestão), mostra o quanto ESTE produto é publicado pelos outros vendedores da
+  Velo comparado aos demais do catálogo. O percentil vem da RPC
+  get_catalog_product_popularity, que conta publicações reais em user_publications.
+  Verde/subindo = está entre os mais publicados; vermelho/descendo = pouca procura.
 */
-const MarginTrendBadge = ({ marginPercent }: { marginPercent: number }) => {
-  const good = marginPercent >= 50;
+type PopularityInfo = {
+  publicationsCount: number;
+  sellersCount: number;
+  recentCount: number;
+  percentile: number;
+};
+
+const usePopularity = (productId: string | undefined) => {
+  const [popularity, setPopularity] = useState<PopularityInfo | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!productId) {
+      setPopularity(null);
+      return;
+    }
+    (async () => {
+      // A RPC é definida no banco depois da geração de types; o cast evita o erro de tipo.
+      const { data, error } = await (supabase.rpc as unknown as (
+        fn: string,
+        args: Record<string, string>,
+      ) => Promise<{ data: Array<Record<string, number>> | null; error: unknown }>)(
+        "get_catalog_product_popularity",
+        { p_id: productId },
+      );
+      if (cancelled || error || !data || data.length === 0) return;
+      const row = data[0];
+      setPopularity({
+        publicationsCount: Number(row.publications_count ?? 0),
+        sellersCount: Number(row.sellers_count ?? 0),
+        recentCount: Number(row.recent_count ?? 0),
+        percentile: Number(row.percentile ?? 0),
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+  return popularity;
+};
+
+const PopularityTrendBadge = ({ popularity }: { popularity: PopularityInfo }) => {
+  const rising = popularity.percentile >= 50;
   return (
     <div
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 ${
-        good ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
+        rising ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
       }`}
       title={
-        good
-          ? "Margem estimada boa para vender este produto"
-          : "Margem estimada apertada — avalie bem o preço de venda"
+        rising
+          ? `Em alta: ${popularity.sellersCount} vendedor(es) já publicaram este produto na Velo (${popularity.recentCount} nos últimos 30 dias).`
+          : `Pouco publicado: só ${popularity.sellersCount} vendedor(es) publicaram este produto na Velo.`
       }
     >
-      {good ? (
+      {rising ? (
         <TrendingUp size={13} className="text-[#16A34A]" aria-hidden="true" />
       ) : (
         <TrendingDown size={13} className="text-[#DC2626]" aria-hidden="true" />
       )}
-      <span className={`text-[11px] font-semibold ${good ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
-        Margem estimada de até {marginPercent}% — {good ? "boa para vender" : "apertada"}
+      <span className={`text-[12px] font-semibold ${rising ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
+        {popularity.percentile}%
       </span>
     </div>
   );
 };
+
 
 const formatWeight = (weight: number | null) => {
   if (typeof weight !== "number" || Number.isNaN(weight) || weight <= 0) return "Não informado";
