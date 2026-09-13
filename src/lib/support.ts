@@ -176,6 +176,10 @@ export const buildSupportReplyMessage = ({
   })}`;
 
 export const parseSupportMessage = (value: string): ParsedSupportMessage => {
+  if (value.startsWith(SUPPORT_REFUND_PROMPT_MARKER)) {
+    return { text: "", attachment: null, redirect: null, reply: null, refundPrompt: true };
+  }
+
   if (value.startsWith(SUPPORT_REDIRECT_MARKER)) {
     try {
       const parsed = JSON.parse(value.slice(SUPPORT_REDIRECT_MARKER.length)) as {
@@ -186,9 +190,9 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       const label = typeof parsed.label === "string" && parsed.label.trim() ? parsed.label.trim() : "Abrir página";
       const url = typeof parsed.url === "string" ? safeSupportRedirectUrl(parsed.url) : "/dashboard";
       const note = typeof parsed.note === "string" && parsed.note.trim() ? parsed.note.trim() : null;
-      return { text: note ?? "", attachment: null, redirect: { label, url, note }, reply: null };
+      return { text: note ?? "", attachment: null, redirect: { label, url, note }, reply: null, refundPrompt: false };
     } catch {
-      return { text: "Atalho enviado", attachment: null, redirect: null, reply: null };
+      return { text: "Atalho enviado", attachment: null, redirect: null, reply: null, refundPrompt: false };
     }
   }
 
@@ -229,13 +233,14 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
         attachment: parsedAttachment,
         redirect: null,
         reply,
+        refundPrompt: false,
       };
     } catch {
-      return { text: "Resposta enviada", attachment: null, redirect: null, reply: null };
+      return { text: "Resposta enviada", attachment: null, redirect: null, reply: null, refundPrompt: false };
     }
   }
 
-  if (!value.startsWith(SUPPORT_IMAGE_MARKER)) return { text: value, attachment: null, redirect: null, reply: null };
+  if (!value.startsWith(SUPPORT_IMAGE_MARKER)) return { text: value, attachment: null, redirect: null, reply: null, refundPrompt: false };
 
   try {
     const parsed = JSON.parse(value.slice(SUPPORT_IMAGE_MARKER.length)) as {
@@ -249,7 +254,7 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       typeof attachment.path !== "string" ||
       typeof attachment.name !== "string"
     ) {
-      return { text: "Imagem enviada", attachment: null, redirect: null, reply: null };
+      return { text: "Imagem enviada", attachment: null, redirect: null, reply: null, refundPrompt: false };
     }
     return {
       text: typeof parsed.text === "string" ? parsed.text : "",
@@ -262,14 +267,16 @@ export const parseSupportMessage = (value: string): ParsedSupportMessage => {
       },
       redirect: null,
       reply: null,
+      refundPrompt: false,
     };
   } catch {
-    return { text: "Imagem enviada", attachment: null, redirect: null, reply: null };
+    return { text: "Imagem enviada", attachment: null, redirect: null, reply: null, refundPrompt: false };
   }
 };
 
 export const supportMessagePreview = (value: string) => {
   const parsed = parseSupportMessage(value);
+  if (parsed.refundPrompt) return "Solicitação de reembolso";
   if (parsed.redirect) return `Atalho · ${parsed.redirect.label}`;
   if (parsed.reply && parsed.text) return `Resposta · ${parsed.text}`;
   if (parsed.reply) return "Resposta enviada";
