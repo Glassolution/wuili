@@ -30,6 +30,14 @@ export const SupportMessageMedia = ({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
 
+  if (refundPrompt) {
+    return (
+      <p className={`text-[12px] font-semibold ${adminTone ? "text-white" : "text-[#B91C1C]"}`}>
+        Cartão de retenção de reembolso exibido ao usuário
+      </p>
+    );
+  }
+
   return (
     <>
       {redirect ? (
