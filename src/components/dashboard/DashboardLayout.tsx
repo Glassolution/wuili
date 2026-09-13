@@ -396,7 +396,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   // azul em cima nem a barra de abas embaixo, que roubavam duas faixas da
   // conversa e deixavam dois cabeçalhos empilhados.
   const isAtlasRoute = location.pathname.startsWith("/dashboard/atlas");
-  const displayName = user?.user_metadata?.full_name ?? user?.email ?? "Velo";
+  const displayName = nome || user?.email || "Velo";
   const initials = displayName
     .split(/[\s._\-@]+/)
     .filter(Boolean)
