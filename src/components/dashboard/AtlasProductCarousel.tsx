@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, PackageSearch, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageSearch, RefreshCw, Star } from "lucide-react";
 
 import { useAtlasChat, type NichoDaVitrine } from "@/contexts/AtlasChatContext";
 import { useProdutosRecomendados, type ProdutoRecomendado } from "@/hooks/useProdutosRecomendados";
