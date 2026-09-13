@@ -178,7 +178,23 @@ Deno.serve(async (req) => {
       };
     });
 
+    // Mantém fora do catálogo o produto reprovado na auditoria visual (0 fotos
+    // dentro das diretrizes), a menos que as fotos tenham mudado — nesse caso
+    // ele volta para a fila de auditoria.
+    for (const row of rows as Record<string, unknown>[]) {
+      const anterior = anteriores.get(row.external_id as string);
+      if (!anterior || anterior.ml_vision_clean_count !== 0) continue;
+      const mesmasFotos =
+        JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
+      if (mesmasFotos) row.is_blocked = true;
+      else {
+        row.ml_vision_clean_count = null;
+        row.ml_vision_checked_at = null;
+      }
+    }
+
     // upsert em lotes de 200
+
     const BATCH = 200;
     for (let i = 0; i < rows.length; i += BATCH) {
       const slice = rows.slice(i, i + BATCH);
