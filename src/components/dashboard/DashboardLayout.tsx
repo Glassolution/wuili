@@ -1,4 +1,5 @@
-import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
 import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
@@ -18,6 +19,9 @@ import OnboardingModal, {
   shouldShowOnboarding,
 } from "@/components/onboarding/OnboardingModal";
 import { CHAVE_RESPOSTAS_DO_QUIZ } from "@/lib/perfilDoQuiz";
+import { ENTRADA_POS_ONBOARDING } from "@/lib/dashboardIntro";
+import AtlasTour from "@/components/tour/AtlasTour";
+import { hasPendingTour, markTourPending, markTourSeen } from "@/components/tour/tourState";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -520,7 +524,9 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         }`}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <PageErrorBoundary>
+        {/* key pela rota: um erro numa página não pode ficar preso na tela quando
+            a pessoa (ou o tour do Atlas) navega para outra. */}
+        <PageErrorBoundary key={location.pathname}>
           {isAccountPage ? (
             <MobileAccountPage
               displayName={displayName}
@@ -561,20 +567,34 @@ const DashboardLayoutInner = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { aberto: atlasAberto } = useAtlasChat();
+  const { aberto: atlasAberto, enviar: enviarParaAtlas } = useAtlasChat();
   const isMobile = useIsMobile();
   // Exibição do novo onboarding em modal — gating próprio, independente do
   // estado de loja/perfil no Supabase. Abre no primeiro acesso após o cadastro
   // e não reaparece depois de concluído (flag em localStorage por usuário).
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // Entrada da moldura (sidebar + faixa do plano) depois do onboarding:
+  // "waiting" enquanto o modal está na frente, "play" durante a coreografia.
+  const [entrada, setEntrada] = useState<"idle" | "waiting" | "play">("idle");
+  const entradaTimer = useRef<number | null>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!user?.id) {
       setShowOnboarding(false);
       return;
     }
-    setShowOnboarding(shouldShowOnboarding(user));
+    const mostrar = shouldShowOnboarding(user);
+    setShowOnboarding(mostrar);
+    if (mostrar) setEntrada("waiting");
   }, [user]);
+
+  useEffect(
+    () => () => {
+      if (entradaTimer.current !== null) window.clearTimeout(entradaTimer.current);
+    },
+    [],
+  );
 
   // Chamado ao concluir o onboarding.
   const handleOnboardingComplete = (respostas: Record<string, string>) => {
@@ -590,8 +610,51 @@ const DashboardLayoutInner = () => {
     void supabase.auth.updateUser({
       data: { velo_onboarding_pending: false, [CHAVE_RESPOSTAS_DO_QUIZ]: respostas },
     });
+    markTourPending(user.id);
     setShowOnboarding(false);
+    setEntrada("play");
+    entradaTimer.current = window.setTimeout(() => setEntrada("idle"), ENTRADA_POS_ONBOARDING.total * 1000);
   };
+
+  // Tour do Atlas: primeira visita, começa no Início do desktop, só depois que o
+  // onboarding fechou e a entrada do dashboard terminou. Depois de aberto, é o
+  // próprio tour que navega pelas páginas de cada seção.
+  const [tourAberto, setTourAberto] = useState(false);
+  useEffect(() => {
+    if (!user?.id || isMobile || showOnboarding || entrada !== "idle") return;
+    if (location.pathname !== "/dashboard" || !hasPendingTour(user.id)) return;
+    const timer = window.setTimeout(() => setTourAberto(true), 400);
+    return () => window.clearTimeout(timer);
+  }, [user?.id, isMobile, showOnboarding, entrada, location.pathname]);
+
+  const fecharTour = () => {
+    if (user?.id) markTourSeen(user.id);
+    setTourAberto(false);
+  };
+
+  // Pergunta escolhida no fim do tour: abre o chat já com o Atlas respondendo.
+  const perguntarAoAtlas = (pergunta: string) => {
+    fecharTour();
+    void enviarParaAtlas(pergunta);
+  };
+
+  // Se a pessoa escreveu direto no chat durante o último passo, o chat abre e o
+  // tour sai da frente.
+  useEffect(() => {
+    if (atlasAberto && tourAberto) fecharTour();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reage só à abertura do chat
+  }, [atlasAberto]);
+
+  // Moldura escondida enquanto o onboarding está aberto; na conclusão ela entra
+  // por último, depois do conteúdo da home.
+  const molduraAnimada = (delay: number, from: { x?: number; y?: number }) => ({
+    initial: false as const,
+    animate: entrada === "waiting" ? { opacity: 0, ...from } : { opacity: 1, x: 0, y: 0 },
+    transition:
+      entrada === "play" && !reduceMotion
+        ? { delay, duration: ENTRADA_POS_ONBOARDING.duration, ease: [0.22, 1, 0.36, 1] as const }
+        : { duration: 0 },
+  });
 
   useEffect(() => {
     if (!user?.id) return;
@@ -734,7 +797,9 @@ const DashboardLayoutInner = () => {
         </div>
         <NotificationBannerStack />
         {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
-        {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+        <AnimatePresence>
+          {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} />}
+        </AnimatePresence>
       </div>
     );
   }
@@ -767,15 +832,20 @@ const DashboardLayoutInner = () => {
         }}
       >
         {/* Sidebar - fora da moldura branca */}
-        <div className="hidden h-full min-h-0 shrink-0 md:block">
+        <motion.div
+          className="hidden h-full min-h-0 shrink-0 md:block"
+          {...molduraAnimada(ENTRADA_POS_ONBOARDING.sidebar, { x: -20 })}
+        >
           <DashboardSidebar />
-        </div>
+        </motion.div>
 
         {/* Área principal com header e conteúdo */}
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
               da sidebar (a sidebar continua ocupando a altura total). */}
-          <FreePlanBanner isVisible={showFreePlanBanner} />
+          <motion.div className="shrink-0" {...molduraAnimada(ENTRADA_POS_ONBOARDING.banner, { y: -12 })}>
+            <FreePlanBanner isVisible={showFreePlanBanner} />
+          </motion.div>
           {/* Header - no shell cinza */}
           {showDesktopHeader && <DashboardHeader />}
           {/* Main content area - sem moldura externa */}
@@ -794,7 +864,9 @@ const DashboardLayoutInner = () => {
                     : "transparent",
               }}
             >
-              <PageErrorBoundary>
+              {/* key pela rota: um erro numa página não pode ficar preso na tela quando
+                  a pessoa (ou o tour do Atlas) navega para outra. */}
+              <PageErrorBoundary key={location.pathname}>
                 <PageOutlet />
               </PageErrorBoundary>
             </main>
@@ -803,7 +875,10 @@ const DashboardLayoutInner = () => {
           </div>
         </div>
       </div>
-      {showOnboarding && <OnboardingModal onComplete={handleOnboardingComplete} />}
+      <AnimatePresence>
+        {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} />}
+      </AnimatePresence>
+      {!isMobile && <AtlasTour open={tourAberto} onClose={fecharTour} onAsk={perguntarAoAtlas} />}
       <NotificationBannerStack />
       {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
     </div>

@@ -1,40 +1,43 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   ArrowLeft,
-  ArrowRight,
+  BadgeCheck,
   Check,
+  CircleDashed,
   Code2,
+  Compass,
   Cpu,
-  Eye,
   Facebook,
   FileX,
-  HelpCircle,
+  HeartPulse,
   Home,
   Instagram,
   LayoutGrid,
   LayoutPanelTop,
-  HeartPulse,
-  MonitorSmartphone,
   MoreHorizontal,
   Music2,
   Package,
-  Palette,
   PanelsTopLeft,
   Rocket,
-  ShoppingCart,
+  ShieldCheck,
   Shirt,
   Sparkles,
   Store,
   Tag,
   Tags,
   Target,
+  TrendingUp,
+  Truck,
   Users,
   Wrench,
-  X,
   Youtube,
   type LucideIcon,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { ENTRADA_POS_ONBOARDING } from "@/lib/dashboardIntro";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Novo onboarding da Velo em modal de 3 etapas (substitui o antigo fluxo de
 // cadastro). Puramente frontend: as respostas ficam em estado local e NÃO são
@@ -62,95 +65,98 @@ type StepConfig = {
   questions: Question[];
 };
 
+// Os `id` e `value` abaixo são lidos por src/lib/perfilDoQuiz.ts para montar a
+// vitrine de produtos recomendados — mude só textos e ícones sem revisar lá.
 const STEPS: StepConfig[] = [
   {
-    title: "Conte sobre você",
-    subtitle: "Nos ajude a entender seu negócio para te atendermos melhor",
+    title: "Sobre você",
+    subtitle: "Queremos entender de onde você está partindo",
     questions: [
       {
         id: "mercadoLivre",
-        label: "Você já tem uma conta ativa no Mercado Livre?",
+        label: "Você já tem conta de vendedor no Mercado Livre?",
         options: [
-          { value: "sim", label: "Sim", description: "Já vendo ou já criei minha conta", icon: Check },
-          { value: "nao", label: "Não", description: "Ainda não tenho conta no Mercado Livre", icon: X },
+          { value: "sim", label: "Sim, já tenho", description: "Mesmo que ainda não tenha vendido", icon: BadgeCheck },
+          { value: "nao", label: "Ainda não", description: "Sem problema, te ajudamos a criar", icon: CircleDashed },
         ],
       },
       {
         id: "perfil",
-        label: "O que melhor te descreve?",
+        label: "Qual frase descreve melhor o seu momento?",
         options: [
-          { value: "dropshipper", label: "Sou dropshipper", description: "Vendo produtos sem estoque próprio", icon: ShoppingCart },
-          { value: "marca", label: "Tenho uma marca / loja própria", description: "Vendo meus próprios produtos", icon: Store },
-          { value: "agencia", label: "Sou agência / freelancer", description: "Gerencio lojas para outras pessoas", icon: Users },
-          { value: "explorando", label: "Só estou explorando", description: "Quero conhecer a plataforma antes de decidir", icon: Eye },
+          { value: "dropshipper", label: "Vendo sem estoque", description: "O fornecedor envia direto ao cliente", icon: Truck },
+          { value: "marca", label: "Tenho marca ou loja", description: "Vendo produtos meus ou que eu compro", icon: Store },
+          { value: "agencia", label: "Cuido de lojas de clientes", description: "Sou agência ou freelancer", icon: Users },
+          { value: "explorando", label: "Estou conhecendo", description: "Quero entender antes de começar", icon: Compass },
         ],
       },
       {
         id: "produtos",
-        label: "Quantos produtos você vende atualmente?",
+        label: "Quantos produtos você tem à venda hoje?",
         options: [
-          { value: "nenhum", label: "Nenhum ainda, estou começando", description: "Vou publicar meus primeiros produtos", icon: Rocket },
-          { value: "1-10", label: "1–10 produtos", description: "Operação pequena, começando a crescer", icon: Tag },
-          { value: "10-50", label: "10–50 produtos", description: "Operação em expansão", icon: Tags },
-          { value: "50+", label: "50+ produtos", description: "Operação consolidada, alto volume", icon: Package },
+          { value: "nenhum", label: "Nenhum ainda", description: "O primeiro vai ser com a Velo", icon: Rocket },
+          { value: "1-10", label: "De 1 a 10", description: "Estou dando os primeiros passos", icon: Tag },
+          { value: "10-50", label: "De 11 a 50", description: "Minha operação está crescendo", icon: Tags },
+          { value: "50+", label: "Mais de 50", description: "Já tenho uma operação consolidada", icon: Package },
         ],
       },
     ],
   },
   {
-    title: "Qual seu maior desafio?",
-    subtitle: "Vamos focar no que mais importa pra você",
+    title: "Seu desafio",
+    subtitle: "Não existe resposta certa — conte o que mais pesa hoje",
     questions: [
       {
         id: "dificuldade",
-        label: "Com o que você mais tem dificuldade?",
+        label: "O que mais te impede de vender mais hoje?",
         options: [
-          { value: "anuncios", label: "Criar anúncios que convertem", description: "Escrever títulos e descrições que vendem", icon: LayoutPanelTop },
-          { value: "testar", label: "Testar produtos rápido o suficiente", description: "Validar produtos com agilidade", icon: Target },
-          { value: "trafego", label: "Conseguir tráfego que converte", description: "Atrair visitantes prontos para comprar", icon: MonitorSmartphone },
-          { value: "profissional", label: "Deixar minha loja com cara profissional", description: "Passar credibilidade para o cliente", icon: Palette },
+          { value: "anuncios", label: "Anúncios que convencem", description: "Título, fotos e descrição", icon: LayoutPanelTop },
+          { value: "testar", label: "Achar o produto certo", description: "Demoro a saber o que vende", icon: Target },
+          { value: "trafego", label: "Ser encontrado", description: "Meus anúncios têm poucas visitas", icon: TrendingUp },
+          { value: "profissional", label: "Passar confiança", description: "Quero parecer mais profissional", icon: ShieldCheck },
         ],
       },
       {
         id: "metodoAtual",
         label: "Como você cria seus anúncios hoje?",
         options: [
-          { value: "manual", label: "Manualmente no Mercado Livre", description: "Crio tudo à mão, um por um", icon: Wrench },
-          { value: "outra-ferramenta", label: "Usando outra ferramenta", description: "Já uso algum app ou plataforma", icon: PanelsTopLeft },
-          { value: "sem-anuncios", label: "Ainda não tenho anúncios", description: "Estou começando do zero", icon: FileX },
-          { value: "desenvolvedor", label: "Uso um desenvolvedor", description: "Alguém técnico cuida disso pra mim", icon: Code2 },
+          { value: "manual", label: "Faço tudo à mão", description: "Um por um, no Mercado Livre", icon: Wrench },
+          { value: "outra-ferramenta", label: "Uso outra ferramenta", description: "Um app ou plataforma me ajuda", icon: PanelsTopLeft },
+          { value: "sem-anuncios", label: "Ainda não criei", description: "O primeiro vai ser com a Velo", icon: FileX },
+          { value: "desenvolvedor", label: "Alguém faz por mim", description: "Um desenvolvedor ou minha equipe", icon: Code2 },
         ],
       },
     ],
   },
   {
-    title: "Vamos personalizar sua experiência",
-    subtitle: "Quase lá — só mais algumas perguntas",
+    title: "Sua loja",
+    subtitle: "Com isso, a Velo já separa produtos com a sua cara",
     questions: [
       {
         id: "nicho",
-        label: "Qual o nicho da sua loja?",
+        label: "Que tipo de produto você quer vender?",
         optional: true,
         options: [
-          { value: "geral", label: "Geral / multi-nicho", description: "Um pouco de cada categoria", icon: LayoutGrid },
-          { value: "beleza", label: "Beleza & skincare", description: "Cosméticos, skincare e cuidados", icon: Sparkles },
-          { value: "moda", label: "Moda & vestuário", description: "Roupas, calçados e acessórios", icon: Shirt },
-          { value: "tech", label: "Tech & gadgets", description: "Eletrônicos e novidades", icon: Cpu },
-          { value: "casa", label: "Casa & cozinha", description: "Utilidades e decoração", icon: Home },
-          { value: "saude", label: "Saúde & fitness", description: "Suplementos e bem-estar", icon: HeartPulse },
-          { value: "outro", label: "Outro", description: "Meu nicho não está na lista", icon: MoreHorizontal },
+          { value: "beleza", label: "Beleza e skincare", description: "", icon: Sparkles },
+          { value: "moda", label: "Moda e acessórios", description: "", icon: Shirt },
+          { value: "tech", label: "Tech e gadgets", description: "", icon: Cpu },
+          { value: "casa", label: "Casa e cozinha", description: "", icon: Home },
+          { value: "saude", label: "Saúde e fitness", description: "", icon: HeartPulse },
+          { value: "geral", label: "Um pouco de tudo", description: "", icon: LayoutGrid },
+          { value: "outro", label: "Outro nicho", description: "", icon: MoreHorizontal },
         ],
       },
       {
         id: "origem",
-        label: "Onde você conheceu a Velo?",
+        label: "Como você conheceu a Velo?",
+        optional: true,
         options: [
-          { value: "facebook", label: "Facebook", description: "Anúncio ou página no Facebook", icon: Facebook },
-          { value: "instagram", label: "Instagram", description: "Post, reels ou anúncio no Instagram", icon: Instagram },
-          { value: "tiktok", label: "TikTok", description: "Vídeo ou anúncio no TikTok", icon: Music2 },
-          { value: "youtube", label: "YouTube", description: "Vídeo ou anúncio no YouTube", icon: Youtube },
-          { value: "indicacao", label: "Indicação de alguém", description: "Alguém me recomendou a Velo", icon: Users },
-          { value: "outro", label: "Outro", description: "Cheguei por outro caminho", icon: MoreHorizontal },
+          { value: "instagram", label: "Instagram", description: "", icon: Instagram },
+          { value: "tiktok", label: "TikTok", description: "", icon: Music2 },
+          { value: "youtube", label: "YouTube", description: "", icon: Youtube },
+          { value: "facebook", label: "Facebook", description: "", icon: Facebook },
+          { value: "indicacao", label: "Indicação", description: "", icon: Users },
+          { value: "outro", label: "Outro lugar", description: "", icon: MoreHorizontal },
         ],
       },
     ],
@@ -236,416 +242,709 @@ type OnboardingModalProps = {
 // Easing "ease-out expo" — sensação suave/premium usada nas transições de etapa.
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// ── Paleta do quiz (split-screen) — ISOLADA a esta tela ──────────────────────
-const ELECTRIC_BLUE = "#005EFE";
-
-// Painel esquerdo: cor sólida pedida para o onboarding.
-const brandPanelStyle: CSSProperties = {
-  background: ELECTRIC_BLUE,
-};
+// ── Paleta do onboarding — ISOLADA a esta tela ───────────────────────────────
+const ELECTRIC_BLUE = "#0B5FFF";
+const INK = "#111111";
+const MUTED = "#6B6B6B";
+const SERIF = '"Instrument Serif", "Iowan Old Style", "Times New Roman", serif';
+const SANS = '"Inter", system-ui, -apple-system, sans-serif';
 
 /*
-  Marca em versão branca com o "C" vazado — o painel do onboarding é azul sólido,
-  e a cesta azul padrão sumiria nele. Gerada a partir de public/logo.png; para
-  atualizar, basta regerar mantendo o vazado.
+  Ilustração de fundo em tela cheia (paisagem, como na referência). Basta
+  colocar a arte neste caminho em public/. Enquanto o arquivo não existir, a
+  tela usa o céu azul desenhado em CSS abaixo — a imagem só é aplicada depois
+  de carregar, então nunca aparece quebrada.
 */
-const ONBOARDING_MARK_SRC = "/onboarding-velo-mark.png";
+const BACKGROUND_SRC = "/assets/onboarding-fundo.jpg";
 
-const OnboardingBrandLogo = ({ size = "md", variant = "light" }: { size?: "sm" | "md"; variant?: "light" | "dark" }) => {
-  const isLight = variant === "light";
-  const iconSize = size === "md" ? 42 : 30;
-  const fontSize = size === "md" ? 22 : 16;
-  const gap = size === "md" ? 10 : 8;
+// Logo oficial da Velo (a mesma da sidebar): cesta azul com o "C". Aparece no
+// cabeçalho e, maior, como ilustração do card de boas-vindas.
+const VELO_LOGO_SRC = "/logo.png";
 
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap }}>
-      <img
-        src={ONBOARDING_MARK_SRC}
-        alt=""
-        style={{
-          width: iconSize,
-          height: iconSize,
-          display: "block",
-          objectFit: "contain",
-          filter: isLight ? "none" : "brightness(0)",
-          flexShrink: 0,
-        }}
-      />
-      <span
-        style={{
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", sans-serif',
-          fontSize,
-          fontWeight: 700,
-          letterSpacing: "-0.04em",
-          color: isLight ? "#FFFFFF" : "#0A0A0A",
-          lineHeight: 1,
-        }}
-      >
-        Velo
-      </span>
-    </div>
-  );
+const useBackgroundImage = (src: string) => {
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => setLoaded(true);
+    img.src = src;
+    return () => {
+      img.onload = null;
+    };
+  }, [src]);
+  return loaded;
 };
 
-const OnboardingDecor = () => (
-  <div className="pointer-events-none absolute bottom-10 left-12 right-12 z-0 hidden h-[210px] lg:block" aria-hidden="true">
-    <div className="absolute bottom-0 left-[56%] h-[86px] w-[6px] rounded-full bg-white/35" />
-    <div className="absolute bottom-[82px] left-[calc(56%-28px)] h-[48px] w-[62px] rounded-[12px] border border-white/35 bg-white/95 shadow-[18px_22px_34px_rgba(0,36,120,0.20)]" />
-    <div className="absolute bottom-[132px] left-[18%] flex h-[58px] w-[160px] items-center gap-3 rounded-2xl border border-white/18 bg-white/12 px-4 backdrop-blur-sm">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-[#005EFE]">
-        <Package size={18} strokeWidth={2} />
-      </span>
-      <span className="space-y-1">
-        <span className="block h-2 w-16 rounded-full bg-white/80" />
-        <span className="block h-2 w-24 rounded-full bg-white/35" />
-      </span>
-    </div>
-    <div className="absolute bottom-[42px] left-[30%] flex h-[52px] w-[142px] items-center gap-3 rounded-2xl border border-white/16 bg-white/10 px-4 backdrop-blur-sm">
-      <span className="grid h-8 w-8 place-items-center rounded-xl bg-white/95 text-[#005EFE]">
-        <Rocket size={16} strokeWidth={2} />
-      </span>
-      <span className="space-y-1">
-        <span className="block h-2 w-20 rounded-full bg-white/72" />
-        <span className="block h-2 w-14 rounded-full bg-white/30" />
-      </span>
-    </div>
-    <div className="absolute bottom-[14px] left-[56%] h-[8px] w-[90px] -translate-x-1/2 rounded-full bg-[#003EA8]/30 blur-[2px]" />
+// Céu azul profundo com nuvens difusas — fallback enquanto não há ilustração.
+const SkyBackdrop = () => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          "linear-gradient(180deg, #0E2A8A 0%, #1E4FC4 34%, #4F82E3 58%, #A9C3F0 78%, #E9E3D6 100%)",
+      }}
+    />
+    {[
+      { left: "-6%", top: "30%", w: 520, h: 260, o: 0.9 },
+      { left: "58%", top: "8%", w: 460, h: 340, o: 0.85 },
+      { left: "72%", top: "44%", w: 560, h: 260, o: 0.75 },
+      { left: "18%", top: "62%", w: 700, h: 280, o: 0.7 },
+      { left: "-10%", top: "78%", w: 620, h: 260, o: 0.8 },
+    ].map((c, i) => (
+      <div
+        key={i}
+        className="absolute rounded-full"
+        style={{
+          left: c.left,
+          top: c.top,
+          width: c.w,
+          height: c.h,
+          opacity: c.o,
+          // Só gradiente, sem `filter: blur`: o degradê já nasce macio, e o blur
+          // obrigava a GPU a redesenhar nuvens enormes a cada quadro (em tela
+          // retina a animação caía para poucos quadros por segundo).
+          background:
+            "radial-gradient(closest-side, #FFF6E6 0%, rgba(255,246,230,0.62) 40%, rgba(255,246,230,0.22) 72%, rgba(255,246,230,0) 100%)",
+        }}
+      />
+    ))}
   </div>
 );
 
-// Cards de opção (painel direito, fundo claro). Seleção = borda azul + leve
-// tom de fundo azulado + seta à direita.
-const optionCardStyle = (selected: boolean): CSSProperties =>
-  selected
-    ? {
-        background: "#EEF5FF",
-        border: `1.5px solid ${ELECTRIC_BLUE}`,
-        boxShadow: "0 10px 28px rgba(0,94,254,0.13)",
-      }
-    : {
-        background: "#FFFFFF",
-        border: "1.5px solid #E5EAF2",
-        boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
-      };
-
-// Container quadrado do ícone à esquerda do card. Sem a antiga paleta rotativa
-// (azul/verde/laranja/roxo): o ícone é preto sobre cinza neutro, e a cor fica
-// reservada ao estado selecionado.
-const ICON_CHIP_BG = "#F1F3F7";
-const ICON_CHIP_FG = "#0A0A0A";
-
-const iconChipStyle = (selected: boolean): CSSProperties =>
-  selected
-    ? { background: ELECTRIC_BLUE, border: `1.5px solid ${ELECTRIC_BLUE}`, color: "#FFFFFF" }
-    : { background: ICON_CHIP_BG, border: `1.5px solid ${ICON_CHIP_BG}`, color: ICON_CHIP_FG };
-
 // ── Fluxo linear: uma pergunta por tela ──────────────────────────────────────
-// As 3 macro-etapas do stepper continuam sendo o agrupamento visual/lógico, mas
-// a navegação interna passa a ser por pergunta individual. Cada pergunta guarda
-// o índice da etapa a que pertence para destacar o stepper corretamente.
+// As 3 macro-etapas continuam sendo o agrupamento visual/lógico, mas a navegação
+// interna é por pergunta individual. Cada pergunta guarda o índice da etapa.
 type FlatQuestion = Question & { stepIndex: number };
 const FLAT_QUESTIONS: FlatQuestion[] = STEPS.flatMap((s, stepIndex) =>
   s.questions.map((q) => ({ ...q, stepIndex })),
 );
 
-// Tempo que o card selecionado fica visível (animação) antes do avanço
-// automático para a próxima pergunta.
-const ADVANCE_MS = 2500;
-
 const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
-  // Navegação por PERGUNTA (não mais por etapa). `index` aponta para a pergunta
-  // atual no fluxo linear; a macro-etapa é derivada dela.
+  // Tela de boas-vindas antes da primeira pergunta.
+  const [started, setStarted] = useState(false);
+  // Navegação por PERGUNTA. `index` aponta para a pergunta atual no fluxo
+  // linear; a macro-etapa é derivada dela.
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
-  // Nonce incrementado a cada clique: reinicia a barra de progresso mesmo quando
-  // o usuário reclica a MESMA opção (o `selected` não muda, mas o timer sim).
-  const [selectionNonce, setSelectionNonce] = useState(0);
   const reduce = useReducedMotion();
+  // O hook só acorda depois do primeiro render; a leitura direta evita um
+  // quadro do layout de desktop piscando no celular.
+  const isMobileHook = useIsMobile();
+  const isMobile = isMobileHook || (typeof window !== "undefined" && window.innerWidth < 768);
+  const backgroundLoaded = useBackgroundImage(BACKGROUND_SRC);
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   const question = FLAT_QUESTIONS[index];
   const currentStepIndex = question.stepIndex;
   const currentStep = STEPS[currentStepIndex];
+  const isLastQuestion = index === FLAT_QUESTIONS.length - 1;
+  const selectedValue = answers[question.id];
+  const canContinue = Boolean(selectedValue) || Boolean(question.optional);
+  const continueLabel = !selectedValue && question.optional ? "Pular" : isLastQuestion ? "Concluir" : "Continuar";
+  // Perguntas com muitas opções usam cards compactos (só ícone + rótulo).
+  const compact = question.options.length > 4;
 
-  // Refs para leitura estável dentro do timer de avanço (evita closures velhas).
-  const indexRef = useRef(index);
-  const answersRef = useRef(answers);
-  useEffect(() => {
-    indexRef.current = index;
-  }, [index]);
-  useEffect(() => {
-    answersRef.current = answers;
-  }, [answers]);
-
-  // Timer do avanço automático.
-  const advanceTimer = useRef<number | null>(null);
-  const clearAdvance = () => {
-    if (advanceTimer.current !== null) {
-      window.clearTimeout(advanceTimer.current);
-      advanceTimer.current = null;
-    }
+  // Selecionar só marca a opção; quem avança é o botão "Continuar".
+  const select = (questionId: string, value: string) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
-  // Garante que nenhum timer pendente sobreviva ao desmontar do modal.
-  useEffect(() => clearAdvance, []);
 
-  // Avança para a próxima pergunta — ou conclui o quiz na última.
-  const advance = () => {
-    clearAdvance();
-    if (indexRef.current >= FLAT_QUESTIONS.length - 1) {
-      onComplete(answersRef.current);
+  const handleContinue = () => {
+    if (!canContinue) return;
+    if (isLastQuestion) {
+      onComplete(answers);
       return;
     }
     setDirection(1);
     setIndex((value) => value + 1);
   };
 
-  // Clique numa opção: aplica a seleção e agenda o avanço automático após a
-  // animação de ~2,5s. Reclicar (mesma ou outra opção) reinicia o timer.
-  const select = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-    setSelectionNonce((n) => n + 1);
-    clearAdvance();
-    advanceTimer.current = window.setTimeout(advance, ADVANCE_MS);
-  };
-
-  // "Voltar" já existia no fluxo anterior — preservado, agora por pergunta.
+  // Voltar por pergunta; na primeira, volta para as boas-vindas.
   const handleBack = () => {
-    clearAdvance();
     setDirection(-1);
+    if (index === 0) {
+      setStarted(false);
+      return;
+    }
     setIndex((value) => Math.max(0, value - 1));
   };
 
+  const handleStart = () => {
+    setDirection(1);
+    setStarted(true);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
+
+  // Na primeira abertura o conteúdo do card espera o card assentar antes de
+  // entrar; nas trocas de pergunta a sequência começa quase imediatamente.
+  const isFirstEntrance = useRef(true);
+  useEffect(() => {
+    isFirstEntrance.current = false;
+  }, []);
+
   // Slide + fade direcional do conteúdo (respeitando reduced-motion).
   const contentVariants: Variants = {
-    initial: (dir: number) => ({ opacity: 0, x: reduce ? 0 : dir >= 0 ? 30 : -30 }),
+    initial: (dir: number) => ({ opacity: 0, x: reduce || isFirstEntrance.current ? 0 : dir >= 0 ? 24 : -24 }),
     animate: {
       opacity: 1,
       x: 0,
       transition: {
-        duration: reduce ? 0.001 : 0.32,
+        duration: reduce ? 0.001 : 0.34,
         ease: EASE,
-        staggerChildren: reduce ? 0 : 0.05,
-        delayChildren: reduce ? 0 : 0.03,
+        staggerChildren: reduce ? 0 : isFirstEntrance.current ? 0.09 : 0.035,
+        delayChildren: reduce ? 0 : isFirstEntrance.current ? 0.55 : 0.04,
       },
     },
     exit: (dir: number) => ({
       opacity: 0,
-      x: reduce ? 0 : dir >= 0 ? -30 : 30,
-      transition: { duration: reduce ? 0.001 : 0.22, ease: EASE },
+      x: reduce ? 0 : dir >= 0 ? -24 : 24,
+      transition: { duration: reduce ? 0.001 : 0.2, ease: EASE },
     }),
   };
 
-  const optionVariants: Variants = {
-    initial: { opacity: 0, y: reduce ? 0 : 10 },
-    animate: { opacity: 1, y: 0, transition: { duration: reduce ? 0.001 : 0.26, ease: EASE } },
+  // Cada elemento sobe alguns pixels enquanto aparece. Só opacidade e
+  // transform — propriedades que a GPU compõe sem redesenhar. O desfoque de
+  // entrada (`filter: blur`) foi tirado: redesenhava cada texto e card a cada
+  // quadro, por cima do vidro, e derrubava a fluidez.
+  const itemVariants: Variants = {
+    initial: { opacity: 0, y: reduce ? 0 : 14 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reduce ? 0.001 : 0.7, ease: EASE },
+    },
   };
 
-  return (
-    <motion.div
-      className="fixed inset-0 z-[120] flex overflow-hidden bg-white"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Onboarding da Velo"
-      initial={reduce ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: reduce ? 0.001 : 0.2 }}
-    >
-      {/* ── Painel esquerdo (marca) ──────────────────────────────────────────
-          ~35% da largura no desktop; no mobile vira uma faixa compacta no topo
-          (logo + headline reduzida), sem o rodapé decorativo. */}
-      <aside
-        className="relative hidden shrink-0 flex-col overflow-hidden p-8 text-white lg:flex lg:w-[35%] lg:max-w-[480px] lg:p-12"
-        style={brandPanelStyle}
+  // A ilustração ganha também um leve crescimento, para ser o primeiro foco.
+  const illustrationVariants: Variants = {
+    initial: { opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.9 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { duration: reduce ? 0.001 : 0.9, ease: EASE },
+    },
+  };
+
+  // ── Celular: tela cheia e botão fixo embaixo ─────────────────────────────────
+  // Sem o card de vidro: no celular a moldura ocupava espaço demais e espremia as
+  // opções. O céu da Velo vira o fundo da tela inteira, o conteúdo fica
+  // centralizado e a ação principal presa no rodapé, ao alcance do polegar.
+  // O céu é azul da metade para cima e clareia embaixo: por isso título e marca
+  // são brancos, o texto do rodapé é escuro e as opções são cards de vidro claro.
+  if (isMobile) {
+    const mobileButton = (label: string, onClick: () => void, enabled = true) => (
+      <motion.button
+        variants={itemVariants}
+        type="button"
+        onClick={onClick}
+        disabled={!enabled}
+        whileTap={reduce || !enabled ? undefined : { scale: 0.98 }}
+        className={`h-[56px] w-full rounded-full text-[17px] font-medium transition-colors duration-200 ${
+          enabled ? "bg-[#0B5FFF] text-white active:bg-[#0A52DD]" : "bg-white/60 text-[#111111]/35"
+        }`}
+        style={
+          enabled
+            ? { boxShadow: "0 10px 24px rgba(11,95,255,0.22)" }
+            : undefined
+        }
       >
-        <div className="relative z-10">
-          <OnboardingBrandLogo size="md" variant="light" />
+        {label}
+      </motion.button>
+    );
+
+    return (
+      <motion.div
+        className="fixed inset-0 z-[120] flex flex-col overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Onboarding da Velo"
+        data-velo-flat-buttons=""
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: reduce ? 0.001 : ENTRADA_POS_ONBOARDING.modalExit, ease: "easeInOut" } }}
+        transition={{ duration: reduce ? 0.001 : 0.5, ease: "easeOut" }}
+        style={{ fontFamily: SANS, background: "#1E4FC4" }}
+      >
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <SkyBackdrop />
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
+            style={{ backgroundImage: `url("${BACKGROUND_SRC}")`, opacity: backgroundLoaded ? 1 : 0 }}
+          />
+          {/* Véu azul na metade de cima: na tela estreita as nuvens caem atrás do
+              título e do subtítulo brancos e roubavam o contraste. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(14,42,138,0.42) 0%, rgba(20,60,170,0.34) 45%, rgba(30,79,196,0.12) 68%, rgba(30,79,196,0) 80%)",
+            }}
+          />
         </div>
 
-        <div className="relative z-10 flex flex-1 flex-col justify-center pb-28 pt-10">
-          <h1 className="text-[34px] font-bold leading-[1.1] tracking-[-0.02em] xl:text-[40px]">
-            Vamos montar sua
-            <br />
-            operação de vendas.
-          </h1>
-          <p className="mt-4 max-w-[320px] text-[15px] leading-relaxed text-white/70">
-            Algumas perguntas rápidas para a Velo se ajustar ao seu negócio — do
-            catálogo aos anúncios.
-          </p>
-
-          {/* Stepper vertical reaproveitando os títulos das etapas. */}
-          <ol className="mt-10 space-y-4">
-            {STEPS.map((s, stepIdx) => {
-              const active = stepIdx === currentStepIndex;
-              const done = stepIdx < currentStepIndex;
-              return (
-                <li key={s.title} className="flex items-center gap-3">
-                  <span
-                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border text-[13px] font-semibold transition-colors duration-300 ${
-                      active
-                        ? "border-white bg-white text-[#005EFE]"
-                        : done
-                        ? "border-white/70 bg-white/20 text-white"
-                        : "border-white/30 text-white/50"
-                    }`}
-                  >
-                    {done ? <Check size={14} strokeWidth={2.4} /> : stepIdx + 1}
-                  </span>
-                  <span
-                    className={`text-[14px] transition-colors duration-300 ${
-                      active ? "font-semibold text-white" : "text-white/55"
-                    }`}
-                  >
-                    {s.title}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-
-        <OnboardingDecor />
-      </aside>
-
-      {/* ── Painel direito (perguntas) ───────────────────────────────────────
-          Fundo claro, ocupa o restante da largura. Uma pergunta por tela: em
-          alturas normais o conteúdo cabe sem scroll; overflow-y-auto é só uma
-          rede de segurança para viewports muito baixas (nunca corta conteúdo). */}
-      <section className="relative flex min-w-0 flex-1 flex-col overflow-y-auto bg-[#FBFCFF]">
-        {/* Cabeçalho do painel: logo (só no mobile, já que o painel de marca
-            está oculto) + link de ajuda no canto superior direito. */}
-        <div className="z-20 flex shrink-0 items-center justify-between px-6 pt-6 sm:px-10 lg:absolute lg:left-0 lg:right-0 lg:top-0 lg:px-14">
-          <div className="lg:hidden">
-            <OnboardingBrandLogo size="sm" variant="dark" />
-          </div>
-          <span className="hidden lg:block" />
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#64748B] transition-colors hover:text-[#0A0A0A] sm:text-[14px]"
-          >
-            <HelpCircle size={15} strokeWidth={1.8} />
-            Precisando de ajuda?
-          </button>
-        </div>
-
-        <div className="mx-auto flex w-full max-w-[620px] flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:px-4 lg:py-20">
-          {/* Título + subtítulo da MACRO-etapa (anima só quando a etapa muda). */}
-          <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" custom={direction}>
+          {!started ? (
             <motion.div
-              key={currentStepIndex}
-              className="shrink-0"
-              initial={reduce ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
-              transition={{ duration: reduce ? 0.001 : 0.28, ease: EASE }}
-            >
-              <p className="text-[13px] font-semibold text-[#0A0A0A]">
-                Etapa {currentStepIndex + 1} de {STEPS.length}
-              </p>
-              <h2 className="mt-2 text-[26px] font-bold tracking-[-0.02em] text-[#0F172A] sm:text-[28px]">
-                {currentStep.title}
-              </h2>
-              <p className="mt-1.5 text-[14px] text-[#64748B] sm:text-[15px]">
-                {currentStep.subtitle}
-              </p>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* UMA pergunta por tela (slide/fade direcional). */}
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.fieldset
-              key={index}
-              className="mt-8 flex flex-col"
+              key="welcome"
               custom={direction}
               variants={contentVariants}
               initial="initial"
               animate="animate"
               exit="exit"
+              className="relative z-10 flex min-h-0 flex-1 flex-col px-5"
+              style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}
             >
-              <legend className="mb-3 text-[14px] font-semibold text-[#0F172A] sm:text-[15px]">
-                {question.label}
-                {question.optional ? (
-                  <span className="ml-2 text-[13px] font-normal text-[#94A3B8]">(opcional)</span>
-                ) : null}
-              </legend>
-              {/* Cards horizontais empilhados: ícone quadrado à esquerda
-                  (outline/sólido conforme seleção), título + descrição em duas
-                  linhas, seta à direita e barra de progresso do avanço, ambas
-                  só no card selecionado. */}
-              <div className={question.options.length > 4 ? "grid grid-cols-1 gap-3 xl:grid-cols-2" : "flex flex-col gap-3"}>
-                {question.options.map((option, optionIndex) => {
-                  const selected = answers[question.id] === option.value;
-                  const Icon = option.icon;
-                  return (
-                    <motion.button
-                      key={option.value}
-                      type="button"
-                      variants={optionVariants}
-                      onClick={() => select(question.id, option.value)}
-                      aria-pressed={selected}
-                      whileTap={reduce ? undefined : { scale: 0.99 }}
-                      style={optionCardStyle(selected)}
-                      className={`group relative flex min-h-[72px] items-center gap-4 overflow-hidden rounded-[16px] px-5 py-3.5 text-left transition-[background-color,border-color,box-shadow,transform] duration-200 ${
-                        selected ? "" : "hover:border-[#D4D4D8] hover:-translate-y-0.5"
-                      }`}
-                    >
-                      <span
-                        className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] transition-colors duration-200"
-                        style={iconChipStyle(selected)}
-                      >
-                        <Icon size={19} strokeWidth={selected ? 2 : 1.85} />
-                      </span>
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="text-[14px] font-semibold leading-tight text-[#0F172A] sm:text-[15px]">
-                          {option.label}
-                        </span>
-                        <span className="mt-0.5 text-[12.5px] font-normal leading-snug text-[#71717A] sm:text-[13px]">
-                          {option.description}
-                        </span>
-                      </span>
-                      {/* Seta visível só no selecionado (referência). */}
-                      <ArrowRight
-                        size={18}
-                        strokeWidth={2}
-                        className={`shrink-0 text-[#005EFE] transition-opacity duration-200 ${
-                          selected ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      {/* Barra de progresso: preenche em ~2,5s e, ao completar,
-                          o avanço automático dispara. `selectionNonce` na key faz
-                          reiniciar mesmo ao reclicar a mesma opção. */}
-                      {selected ? (
-                        <motion.span
-                          key={selectionNonce}
-                          className="pointer-events-none absolute bottom-0 left-0 h-[3px] bg-[#005EFE]"
-                          initial={{ width: "0%" }}
-                          animate={{ width: "100%" }}
-                          transition={{ duration: reduce ? 0.001 : ADVANCE_MS / 1000, ease: "linear" }}
-                        />
-                      ) : null}
-                    </motion.button>
-                  );
-                })}
+              <div className="flex h-14 shrink-0 items-center justify-end" style={{ marginTop: "env(safe-area-inset-top)" }}>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="px-1 py-2 text-[14px] font-medium text-white/90 transition-opacity active:opacity-60"
+                  style={{ textShadow: "0 1px 2px rgba(0,0,0,0.12)" }}
+                >
+                  Sair
+                </button>
               </div>
-            </motion.fieldset>
-          </AnimatePresence>
 
-          {/* Rodapé: apenas "Voltar" (o botão "Avançar" foi removido — o avanço
-              é automático após a seleção). */}
-          <div className="mt-4 flex shrink-0 items-center">
-            {index > 0 ? (
-              <motion.button
-                type="button"
-                onClick={handleBack}
-                whileTap={reduce ? undefined : { scale: 0.97 }}
-                className="inline-flex items-center gap-2 text-[14px] font-medium text-[#64748B] transition-colors hover:text-[#0F172A]"
+              <div className="flex flex-1 flex-col items-center justify-center">
+                <motion.img
+                  variants={illustrationVariants}
+                  src={VELO_LOGO_SRC}
+                  alt=""
+                  style={{ filter: "drop-shadow(0 14px 18px rgba(11,95,255,0.22))" }}
+                  className="block h-[92px] w-[92px] object-contain"
+                />
+                <motion.span
+                  variants={itemVariants}
+                  className="mt-3 text-[54px] font-extrabold leading-none text-white"
+                  style={{ letterSpacing: "-0.05em", textShadow: "0 2px 18px rgba(8,22,70,0.25)" }}
+                >
+                  Velo
+                </motion.span>
+              </div>
+
+              <motion.p
+                variants={itemVariants}
+                className="mx-auto mb-5 max-w-[300px] text-center text-[15px] leading-[1.45]"
+                style={{ color: "#52525B" }}
               >
-                <ArrowLeft size={16} strokeWidth={1.8} />
-                Voltar
-              </motion.button>
-            ) : null}
-          </div>
+                Responda <span style={{ color: INK, fontWeight: 500 }}>{FLAT_QUESTIONS.length} perguntas rápidas</span> para a Velo
+                se ajustar ao seu negócio
+              </motion.p>
+              {mobileButton("Começar", handleStart)}
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`q-${index}`}
+              custom={direction}
+              variants={contentVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="relative z-10 flex min-h-0 flex-1 flex-col"
+            >
+              {/* Topo: voltar + progresso. */}
+              <div
+                className="flex h-14 shrink-0 items-center justify-between px-3"
+                style={{ marginTop: "env(safe-area-inset-top)" }}
+              >
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  aria-label="Voltar"
+                  className="grid h-10 w-10 place-items-center rounded-full text-white transition-colors active:bg-white/15"
+                >
+                  <ArrowLeft size={20} strokeWidth={1.9} />
+                </button>
+                <div className="flex items-center gap-1.5" aria-label={`Pergunta ${index + 1} de ${FLAT_QUESTIONS.length}`}>
+                  {FLAT_QUESTIONS.map((q, i) => (
+                    <span
+                      key={q.id}
+                      className="h-[4px] rounded-full transition-all duration-300"
+                      style={{
+                        width: i === index ? 20 : 6,
+                        background: i <= index ? "#FFFFFF" : "rgba(255,255,255,0.32)",
+                      }}
+                    />
+                  ))}
+                </div>
+                <span className="w-10" />
+              </div>
+
+              {/* Conteúdo: centralizado quando cabe, rola sem barra quando não. */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="my-auto py-6">
+                  <motion.div variants={itemVariants} className="text-center">
+                    <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/70">
+                      {currentStep.title}
+                    </p>
+                    <h2
+                      className="mx-auto mt-3 max-w-[320px] text-[27px] font-semibold leading-[1.15] text-white"
+                      style={{ letterSpacing: "-0.03em", textShadow: "0 2px 16px rgba(8,22,70,0.22)" }}
+                    >
+                      {question.label}
+                    </h2>
+                    <p className="mx-auto mt-2.5 max-w-[300px] text-[15px] leading-snug text-white/85" style={{ textShadow: "0 1px 10px rgba(8,22,70,0.3)" }}>
+                      {question.optional ? "Opcional · " : ""}
+                      {currentStep.subtitle}
+                    </p>
+                  </motion.div>
+
+                  <div role="radiogroup" aria-label={question.label} className={`mt-8 flex flex-col ${compact ? "gap-2" : "gap-2.5"}`}>
+                    {question.options.map((option) => {
+                      const selected = selectedValue === option.value;
+                      const Icon = option.icon;
+                      return (
+                        <motion.button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          variants={itemVariants}
+                          onClick={() => select(question.id, option.value)}
+                          whileTap={reduce ? undefined : { scale: 0.985 }}
+                          className={`flex w-full items-center gap-3.5 rounded-[20px] px-4 text-left transition-[background-color,box-shadow] duration-200 ${
+                            compact ? "min-h-[54px] py-2" : "min-h-[72px] py-3"
+                          }`}
+                          style={{
+                            // Branco quase opaco em vez de vidro: sete cards com
+                            // backdrop-filter entrando em cascata pesavam no celular.
+                            background: selected ? "#FFFFFF" : "rgba(255,255,255,0.82)",
+                            boxShadow: selected
+                              ? `inset 0 0 0 2px ${ELECTRIC_BLUE}, 0 10px 26px rgba(8,22,70,0.18)`
+                              : "0 6px 18px rgba(8,22,70,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)",
+                          }}
+                        >
+                          <span
+                            className={`grid shrink-0 place-items-center rounded-full transition-colors duration-200 ${
+                              compact ? "h-9 w-9" : "h-10 w-10"
+                            }`}
+                            style={
+                              selected
+                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
+                                : { background: "rgba(17,17,17,0.05)", color: "#27272A" }
+                            }
+                          >
+                            <Icon size={18} strokeWidth={1.8} />
+                          </span>
+                          <span className="flex min-w-0 flex-1 flex-col">
+                            <span className="text-[16px] font-medium leading-tight" style={{ color: INK }}>
+                              {option.label}
+                            </span>
+                            {option.description && !compact ? (
+                              <span className="mt-0.5 text-[13.5px] leading-snug" style={{ color: MUTED }}>
+                                {option.description}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span
+                            className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full transition-all duration-200"
+                            style={
+                              selected
+                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
+                                : { boxShadow: "inset 0 0 0 1.5px rgba(17,17,17,0.18)", color: "transparent" }
+                            }
+                            aria-hidden="true"
+                          >
+                            <Check size={13} strokeWidth={3} />
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="shrink-0 px-5 pt-3"
+                style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}
+              >
+                {mobileButton(continueLabel, handleContinue, canContinue)}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[120] overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Onboarding da Velo"
+      // Botões chapados: desliga o relevo global (brilho no topo + sombra) do index.css.
+      data-velo-flat-buttons=""
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      // Saída: desbota revelando o dashboard, que começa a entrar por baixo.
+      exit={{ opacity: 0, transition: { duration: reduce ? 0.001 : ENTRADA_POS_ONBOARDING.modalExit, ease: "easeInOut" } }}
+      transition={{ duration: reduce ? 0.001 : 0.5, ease: "easeOut" }}
+      style={{ fontFamily: SANS, background: "#1E4FC4" }}
+    >
+      {/* ── Fundo em tela cheia ───────────────────────────────────────────────
+          Parado de propósito: o card de vidro desfoca o que está atrás dele, e
+          um fundo em movimento obrigava esse desfoque a ser refeito a cada
+          quadro — era o que travava a animação. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <SkyBackdrop />
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
+          style={{
+            backgroundImage: `url("${BACKGROUND_SRC}")`,
+            opacity: backgroundLoaded ? 1 : 0,
+          }}
+        />
+      </div>
+
+      {/* ── Cabeçalho: marca à esquerda, "Sair" à direita ───────────────────── */}
+      <motion.header
+        className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-6 pt-6 sm:px-14 sm:pt-8"
+        initial={reduce ? false : { opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduce ? 0.001 : 0.8, delay: reduce ? 0 : 0.3, ease: EASE }}
+      >
+        <div className="flex items-center gap-2.5">
+          <img src={VELO_LOGO_SRC} alt="" className="block h-[34px] w-[34px] object-contain" />
+          <span
+            className="text-[20px] font-semibold leading-none text-white"
+            style={{ letterSpacing: "-0.03em", textShadow: "0 1px 2px rgba(0,0,0,0.12)" }}
+          >
+            Velo
+          </span>
         </div>
-      </section>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="rounded-full px-2 py-1 text-[14px] font-medium text-white/95 transition-opacity hover:opacity-75"
+          style={{ textShadow: "0 1px 2px rgba(0,0,0,0.12)" }}
+        >
+          Sair
+        </button>
+      </motion.header>
+
+      {/* ── Card de vidro centralizado ──────────────────────────────────────── */}
+      <div className="relative z-10 flex h-full w-full items-center justify-center px-4 py-20">
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 28 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduce ? undefined : { opacity: 0, y: -12, transition: { duration: 0.45, ease: EASE } }}
+          transition={{ duration: reduce ? 0.001 : 0.9, delay: reduce ? 0 : 0.15, ease: EASE }}
+          // Largura única nas boas-vindas e nas perguntas: animar a largura de
+          // um card com vidro refazia o desfoque a cada quadro.
+          className="relative flex max-h-full w-full max-w-[468px] flex-col overflow-hidden rounded-[26px]"
+          style={{
+            minHeight: "min(632px, 100%)",
+            background:
+              "linear-gradient(180deg, rgba(236,240,250,0.62) 0%, rgba(246,245,242,0.84) 45%, rgba(241,243,248,0.92) 100%)",
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            border: "1px solid rgba(255,255,255,0.55)",
+            boxShadow: "0 30px 80px rgba(8,22,70,0.22), inset 0 1px 0 rgba(255,255,255,0.7)",
+          }}
+        >
+          <AnimatePresence mode="wait" custom={direction}>
+            {!started ? (
+              <motion.div
+                key="welcome"
+                custom={direction}
+                variants={contentVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="flex flex-1 flex-col items-center justify-center px-10 py-14 text-center"
+              >
+                <motion.img
+                  variants={illustrationVariants}
+                  src={VELO_LOGO_SRC}
+                  alt=""
+                  style={{ filter: "drop-shadow(0 14px 18px rgba(11,95,255,0.22))" }}
+                  className="mb-5 block h-[112px] w-[112px] object-contain"
+                />
+                <motion.h1
+                  variants={itemVariants}
+                  className="max-w-[300px] text-[31px] leading-[1.12]"
+                  style={{ fontFamily: SERIF, color: INK, letterSpacing: "-0.01em", fontWeight: 400 }}
+                >
+                  Boas-vindas! Vamos começar configurando sua conta
+                </motion.h1>
+                <motion.p
+                  variants={itemVariants}
+                  className="mt-3 max-w-[272px] text-[13.5px] leading-[1.45]"
+                  style={{ color: MUTED }}
+                >
+                  Responda algumas perguntas rápidas para a Velo se ajustar ao seu negócio e publicar seu primeiro anúncio
+                </motion.p>
+                <motion.button
+                  variants={itemVariants}
+                  type="button"
+                  onClick={handleStart}
+                  whileTap={reduce ? undefined : { scale: 0.97 }}
+                  className="mt-9 h-[50px] w-[168px] rounded-full bg-[#0B5FFF] text-[14px] font-medium text-white transition-colors duration-200 hover:bg-[#0A52DD]"
+                >
+                  Começar
+                </motion.button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={`q-${index}`}
+                custom={direction}
+                variants={contentVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-6 sm:px-8 sm:pb-8"
+              >
+                {/* Topo: voltar + progresso por macro-etapa. */}
+                <div className="flex shrink-0 items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    aria-label="Voltar"
+                    className="grid h-8 w-8 place-items-center rounded-full text-[#3F3F46] transition-colors hover:bg-black/[0.05]"
+                  >
+                    <ArrowLeft size={17} strokeWidth={1.8} />
+                  </button>
+                  <div className="flex items-center gap-1.5" aria-label={`Etapa ${currentStepIndex + 1} de ${STEPS.length}`}>
+                    {STEPS.map((s, stepIdx) => (
+                      <span
+                        key={s.title}
+                        className="h-[4px] rounded-full transition-all duration-300"
+                        style={{
+                          width: stepIdx === currentStepIndex ? 22 : 8,
+                          background: stepIdx <= currentStepIndex ? ELECTRIC_BLUE : "rgba(17,17,17,0.14)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="w-8 text-right text-[12px] tabular-nums" style={{ color: MUTED }}>
+                    {index + 1}/{FLAT_QUESTIONS.length}
+                  </span>
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col justify-center py-6">
+                  <motion.div variants={itemVariants} className="shrink-0 text-center">
+                    <p className="text-[12px] font-medium uppercase tracking-[0.08em]" style={{ color: MUTED }}>
+                      {currentStep.title}
+                    </p>
+                    <h2
+                      className="mx-auto mt-2 max-w-[360px] text-[26px] leading-[1.15]"
+                      style={{ fontFamily: SERIF, color: INK, fontWeight: 400 }}
+                    >
+                      {question.label}
+                    </h2>
+                    <p className="mx-auto mt-2 max-w-[340px] text-[13px] leading-snug" style={{ color: MUTED }}>
+                      {question.optional ? "Opcional · " : ""}
+                      {currentStep.subtitle}
+                    </p>
+                  </motion.div>
+
+                  {/* Opções em grade de 2 colunas, conteúdo centralizado. A
+                      seleção só marca o card; o avanço é no "Continuar". */}
+                  <div
+                    role="radiogroup"
+                    aria-label={question.label}
+                    // Rolagem só como rede de segurança em telas muito baixas, sem
+                    // barra visível: na entrada os cards nascem deslocados/desfocados
+                    // e estouravam a área por um instante, piscando a barra.
+                    className="-mx-1 mt-7 grid min-h-0 grid-cols-2 gap-2.5 overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    {question.options.map((option, optionIndex) => {
+                      const selected = selectedValue === option.value;
+                      const Icon = option.icon;
+                      // Quantidade ímpar: o último card ocupa a linha inteira.
+                      const spanFull = optionIndex === question.options.length - 1 && question.options.length % 2 === 1;
+                      return (
+                        <motion.button
+                          key={option.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          variants={itemVariants}
+                          onClick={() => select(question.id, option.value)}
+                          whileTap={reduce ? undefined : { scale: 0.98 }}
+                          className={`relative flex flex-col items-center justify-center rounded-[18px] text-center outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-[#0B5FFF]/40 ${
+                            compact ? "min-h-[88px] gap-2 px-3 py-3" : "min-h-[128px] gap-2.5 px-4 py-4"
+                          } ${spanFull ? "col-span-2" : ""} ${selected ? "" : "hover:bg-white/90"}`}
+                          style={
+                            selected
+                              ? {
+                                  background: "#FFFFFF",
+                                  border: `1.5px solid ${ELECTRIC_BLUE}`,
+                                  boxShadow: "0 0 0 4px rgba(11,95,255,0.10)",
+                                }
+                              : {
+                                  background: "rgba(255,255,255,0.6)",
+                                  border: "1.5px solid rgba(17,17,17,0.06)",
+                                }
+                          }
+                        >
+                          {/* Marca de seleção no canto. */}
+                          <span
+                            className="absolute right-2.5 top-2.5 grid h-[18px] w-[18px] place-items-center rounded-full transition-all duration-200"
+                            style={
+                              selected
+                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF", transform: "scale(1)", opacity: 1 }
+                                : { background: ELECTRIC_BLUE, color: "#FFFFFF", transform: "scale(0.6)", opacity: 0 }
+                            }
+                            aria-hidden="true"
+                          >
+                            <Check size={11} strokeWidth={3} />
+                          </span>
+                          <span
+                            className={`grid shrink-0 place-items-center rounded-full transition-colors duration-200 ${
+                              compact ? "h-9 w-9" : "h-11 w-11"
+                            }`}
+                            style={
+                              selected
+                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
+                                : { background: "rgba(17,17,17,0.05)", color: "#27272A" }
+                            }
+                          >
+                            <Icon size={compact ? 17 : 20} strokeWidth={1.8} />
+                          </span>
+                          <span className="flex flex-col items-center">
+                            <span className="text-[13.5px] font-medium leading-tight" style={{ color: INK }}>
+                              {option.label}
+                            </span>
+                            {option.description && !compact ? (
+                              <span className="mt-1 text-[12px] leading-snug" style={{ color: MUTED }}>
+                                {option.description}
+                              </span>
+                            ) : null}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <motion.button
+                  variants={itemVariants}
+                  type="button"
+                  onClick={handleContinue}
+                  disabled={!canContinue}
+                  whileTap={reduce || !canContinue ? undefined : { scale: 0.98 }}
+                  className={`h-[50px] w-full shrink-0 rounded-full text-[14px] font-medium transition-colors duration-200 ${
+                    canContinue
+                      ? "bg-[#0B5FFF] text-white hover:bg-[#0A52DD]"
+                      : "cursor-not-allowed bg-black/[0.07] text-black/35"
+                  }`}
+                >
+                  {continueLabel}
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
