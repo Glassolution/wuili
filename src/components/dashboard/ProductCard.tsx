@@ -249,8 +249,7 @@ export const ProductCard = ({
           </Link>
         </h2>
 
-        {/* Uma linha só de informação: nota à esquerda, custo à direita. O preço
-            de venda sugerido e a margem vivem na página do produto. */}
+        {/* Uma linha só de informação: nota à esquerda, custo à direita. */}
         <div className="mt-1 flex items-center justify-between gap-2">
           <div className={`flex min-w-0 items-center gap-1 ${denseMobile ? "text-[9.5px] md:text-[10.5px]" : "text-[10.5px]"}`}>
             {hasMetrics && rating !== null && (
@@ -264,14 +263,7 @@ export const ProductCard = ({
             )}
           </div>
 
-          <span className={`flex shrink-0 items-center gap-1.5 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
-            <MarginTrendBadge
-              cost={product.preco}
-              suggested={product.preco * 2}
-              seed={product.id}
-              rating={product.rating}
-              ordersCount={product.ordersCount}
-            />
+          <span className={`shrink-0 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
             {formatPrice(product.preco)}
           </span>
         </div>
