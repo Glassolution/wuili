@@ -485,7 +485,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div>
                 <h2 className="text-[15px] font-semibold text-[#0F172A] leading-tight">Importar produto</h2>
-                <p className="text-[12.5px] text-[#64748B] mt-0.5">Revise, precifique e publique com o fluxo atual da Velo.</p>
+                <p className="text-[12.5px] text-[#64748B] mt-0.5">Em 2 passos rápidos seu produto estará à venda no Mercado Livre.</p>
               </div>
             </div>
             <button
@@ -661,42 +661,36 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[12.5px] text-gray-500 mt-1">Escolha onde publicar e finalize a descrição.</p>
                 </div>
 
-                {/* Platforms — pick where to publish */}
+                {/* Platforms — hoje a publicação é só no Mercado Livre */}
                 <div>
                   <div className="flex items-center gap-1.5 mb-2.5">
                     <Store size={12} className="text-gray-500" />
-                    <p className="text-[12px] font-medium text-gray-600">Publicar em</p>
+                    <p className="text-[12px] font-medium text-gray-600">Onde seu anúncio vai aparecer</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <PlatformCard
-                      name="Mercado Livre"
-                      status={isConnectedToML ? "Conectado" : "Desconectado"}
-                      disabled={!isConnectedToML}
-                      selected={platforms.ml && !!isConnectedToML}
-                      onToggle={() => { if (isConnectedToML) setPlatforms(p => ({ ...p, ml: !p.ml })); }}
-                    />
-                    <PlatformCard
-                      name="Shopee"
-                      status="Em breve"
-                      disabled
-                      selected={false}
-                      onToggle={() => {}}
-                    />
-                    <PlatformCard
-                      name="TikTok Shop"
-                      status="Em breve"
-                      disabled
-                      selected={false}
-                      onToggle={() => {}}
-                    />
+                  <div className="flex items-center gap-3 rounded-xl border border-[#2563EB] bg-[#EFF6FF] px-4 py-3">
+                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#2563EB]">Mercado Livre</p>
+                      <p className="text-[11px] text-gray-500">
+                        {isConnectedToML ? "Conta conectada — tudo certo para publicar" : "Conta ainda não conectada"}
+                      </p>
+                    </div>
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB]">
+                      <Check size={11} strokeWidth={3} className="text-white" />
+                    </span>
                   </div>
                   {!isConnectedToML && (
-                    <button
-                      onClick={handleConnectML}
-                    className="mt-2.5 text-[11.5px] font-medium text-[#2563EB] underline hover:no-underline"
-                    >
-                      Conectar Mercado Livre
-                    </button>
+                    <div className="mt-2.5 rounded-xl border border-red-200 bg-red-50/60 px-4 py-3">
+                      <p className="text-[12.5px] font-semibold text-red-600">
+                        Você precisa conectar a sua conta do Mercado Livre
+                      </p>
+                      <button
+                        onClick={handleConnectML}
+                        className="mt-2.5 w-full rounded-lg bg-[#2563EB] px-3.5 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                      >
+                        Conectar minha conta do Mercado Livre
+                      </button>
+                    </div>
                   )}
                 </div>
 
