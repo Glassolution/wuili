@@ -37,7 +37,7 @@ const CardEsqueleto = ({ largura }: { largura: number }) => (
 const AtlasProductCarousel = ({ nicho = null, compacto = false }: Props) => {
   const navigate = useNavigate();
   const { selecionarProduto, enviando } = useAtlasChat();
-  const { produtos, carregando, erro, resumo } = useProdutosRecomendados(nicho ?? null);
+  const { produtos, carregando, erro, resumo, recarregar } = useProdutosRecomendados(nicho ?? null);
 
   const trilhoRef = useRef<HTMLDivElement>(null);
   const escolhendoRef = useRef(false);
