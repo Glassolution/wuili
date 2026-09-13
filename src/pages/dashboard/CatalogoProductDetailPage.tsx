@@ -147,72 +147,35 @@ const formatCategoryLabel = (category: string | null | undefined) =>
   category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : "Produto";
 
 /*
-  Selo de tendência ao lado do preço: em vez de margem (número derivado de uma
-  sugestão), mostra o quanto ESTE produto é publicado pelos outros vendedores da
-  Velo comparado aos demais do catálogo. O percentil vem da RPC
-  get_catalog_product_popularity, que conta publicações reais em user_publications.
-  Verde/subindo = está entre os mais publicados; vermelho/descendo = pouca procura.
+  Selo de margem ao lado do preço: compara o custo do fornecedor com um preço
+  sugerido de dobro (custo × 2, ou a sugestão da Velo quando ela existe e é
+  maior que isso). A porcentagem é a margem sobre a venda: quanto do preço
+  final sobra depois de pagar o produto. Verde/subindo = margem boa (≥ 50%);
+  vermelho/descendo = margem apertada. O valor sugerido em si não aparece aqui
+  — só no modal de publicação.
 */
-type PopularityInfo = {
-  publicationsCount: number;
-  sellersCount: number;
-  recentCount: number;
-  percentile: number;
-};
-
-const usePopularity = (productId: string | undefined) => {
-  const [popularity, setPopularity] = useState<PopularityInfo | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    if (!productId) {
-      setPopularity(null);
-      return;
-    }
-    (async () => {
-      // A RPC é definida no banco depois da geração de types; o cast evita o erro de tipo.
-      const { data, error } = await (supabase.rpc as unknown as (
-        fn: string,
-        args: Record<string, string>,
-      ) => Promise<{ data: Array<Record<string, number>> | null; error: unknown }>)(
-        "get_catalog_product_popularity",
-        { p_id: productId },
-      );
-      if (cancelled || error || !data || data.length === 0) return;
-      const row = data[0];
-      setPopularity({
-        publicationsCount: Number(row.publications_count ?? 0),
-        sellersCount: Number(row.sellers_count ?? 0),
-        recentCount: Number(row.recent_count ?? 0),
-        percentile: Number(row.percentile ?? 0),
-      });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [productId]);
-  return popularity;
-};
-
-const PopularityTrendBadge = ({ popularity }: { popularity: PopularityInfo }) => {
-  const rising = popularity.percentile >= 50;
+const MarginTrendBadge = ({ cost, suggested }: { cost: number; suggested: number }) => {
+  if (!cost || cost <= 0 || !suggested || suggested <= cost) return null;
+  const margin = Math.round(((suggested - cost) / suggested) * 100);
+  const good = margin >= 50;
   return (
     <div
       className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
-        rising ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
+        good ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
       }`}
       title={
-        rising
-          ? `Em alta: ${popularity.sellersCount} vendedor(es) já publicaram este produto na Velo (${popularity.recentCount} nos últimos 30 dias).`
-          : `Pouco publicado: só ${popularity.sellersCount} vendedor(es) publicaram este produto na Velo.`
+        good
+          ? `Margem boa: vendendo por ${formatPrice(suggested)} (o dobro do custo), ${margin}% do valor é lucro.`
+          : `Margem apertada: vendendo por ${formatPrice(suggested)}, só ${margin}% do valor é lucro.`
       }
     >
-      {rising ? (
+      {good ? (
         <TrendingUp size={13} className="text-[#16A34A]" aria-hidden="true" />
       ) : (
         <TrendingDown size={13} className="text-[#DC2626]" aria-hidden="true" />
       )}
-      <span className={`text-[12px] font-semibold ${rising ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
-        {popularity.percentile}%
+      <span className={`text-[12px] font-semibold ${good ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
+        {margin}%
       </span>
     </div>
   );
@@ -240,8 +203,6 @@ const CatalogoProductDetailPage = () => {
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
   const descRef = useRef<HTMLDivElement>(null);
-  // Quanto os outros vendedores da Velo estão publicando este produto.
-  const popularity = usePopularity(id);
 
   // O Atlas manda o usuário para cá com ?publicar=1 no fim do guia de iniciante:
   // o modal de publicação abre sozinho para ele não ter que procurar o botão.
@@ -609,7 +570,10 @@ const CatalogoProductDetailPage = () => {
                     {costPriceCents}
                   </sup>
                 </span>
-                {popularity ? <PopularityTrendBadge popularity={popularity} /> : null}
+                <MarginTrendBadge
+                  cost={product.price}
+                  suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
+                />
               </div>
               <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
 
@@ -773,7 +737,10 @@ const CatalogoProductDetailPage = () => {
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
                     {formatPrice(product.price)}
                   </span>
-                  {popularity ? <PopularityTrendBadge popularity={popularity} /> : null}
+                  <MarginTrendBadge
+                    cost={product.price}
+                    suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
+                  />
                 </div>
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
