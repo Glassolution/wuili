@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
@@ -79,6 +79,26 @@ type Retorno = {
   /** Frase que explica em que a seleção se baseou, para o cabeçalho. */
   resumo: string;
   respostas: RespostasDoQuiz;
+  /** Troca a seleção por outra rodada de produtos do mesmo nicho. */
+  recarregar: () => void;
+};
+
+/**
+ * Embaralhamento estável por usuário e por rodada.
+ *
+ * Sem isso a mesma lista aparecia para todo mundo: a pontuação depende só do
+ * perfil, e perfis iguais geram a mesma ordem. O ruído é pequeno o bastante
+ * para não jogar produto ruim para cima, e grande o bastante para duas contas
+ * do mesmo nicho verem vitrines diferentes.
+ */
+const ruidoEstavel = (produtoId: string, userId: string | null, rodada: number) => {
+  const texto = `${produtoId}|${userId ?? "anon"}|${rodada}`;
+  let hash = 2166136261;
+  for (let i = 0; i < texto.length; i += 1) {
+    hash ^= texto.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
 };
 
 export const useProdutosRecomendados = (
@@ -90,6 +110,8 @@ export const useProdutosRecomendados = (
   const [produtos, setProdutos] = useState<ProdutoRecomendado[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  /** Cada clique em "Ver outros produtos" avança a rodada e troca a seleção. */
+  const [rodada, setRodada] = useState(0);
 
   const respostas = useMemo(() => lerRespostasDoQuiz(user), [user]);
   const resumo = useMemo(() => resumoDoPerfil(respostas), [respostas]);
@@ -102,6 +124,15 @@ export const useProdutosRecomendados = (
   // Guarda o piso de tempo só na primeira busca: reconsultas silenciosas não
   // precisam segurar o esqueleto de novo.
   const jaBuscouRef = useRef(false);
+  // Ids já mostrados nas rodadas anteriores, para o botão trazer coisa nova.
+  const jaVistosRef = useRef<Set<string>>(new Set());
+
+  // Trocar de nicho começa a contagem de novo: o histórico de vistos era do
+  // nicho anterior e não deve esconder produtos do novo.
+  useEffect(() => {
+    jaVistosRef.current = new Set();
+    setRodada(0);
+  }, [chaveDosTermos]);
 
   useEffect(() => {
     let ativo = true;
@@ -123,22 +154,22 @@ export const useProdutosRecomendados = (
             .not("category", "in", `(${CATEGORIAS_EXCLUIDAS.map((c) => `"${c}"`).join(",")})`);
 
         // Três consultas: o nicho confirmado na conversa, o nicho do cadastro e
-        // a geral. A geral entra como complemento porque um nicho estreito pode
-        // ter poucos produtos com estoque, e o carrossel ficaria com dois cards.
+        // a geral. As duas últimas são só rede de segurança — entram apenas se o
+        // nicho não render cards suficientes.
         const [doNichoDaConversa, doNichoDoQuiz, gerais] = await Promise.all([
           termos.length > 0
             ? withFreshSupabaseSession(() =>
                 base()
                   .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
                   .order("orders_count", { ascending: false, nullsFirst: false })
-                  .limit(60),
+                  .limit(160),
               )
             : Promise.resolve({ data: [], error: null }),
           categorias.length > 0
-            ? withFreshSupabaseSession(() => base().in("category", categorias).limit(60))
+            ? withFreshSupabaseSession(() => base().in("category", categorias).limit(120))
             : Promise.resolve({ data: [], error: null }),
           withFreshSupabaseSession(() =>
-            base().order("orders_count", { ascending: false, nullsFirst: false }).limit(60),
+            base().order("orders_count", { ascending: false, nullsFirst: false }).limit(120),
           ),
         ]);
 
@@ -146,16 +177,21 @@ export const useProdutosRecomendados = (
         if (doNichoDoQuiz.error) throw doNichoDoQuiz.error;
         if (gerais.error) throw gerais.error;
 
-        const idsDoNichoDaConversa = new Set(
-          ((doNichoDaConversa.data as LinhaDoCatalogo[]) ?? []).map((linha) => linha.id),
-        );
+        const linhasDoNicho = (doNichoDaConversa.data as LinhaDoCatalogo[]) ?? [];
+        const linhasDoQuiz = (doNichoDoQuiz.data as LinhaDoCatalogo[]) ?? [];
+        const linhasGerais = (gerais.data as LinhaDoCatalogo[]) ?? [];
+        const idsDoNichoDaConversa = new Set(linhasDoNicho.map((linha) => linha.id));
+
+        // Precisão do guia: com nicho escolhido, a vitrine é só do nicho. As
+        // outras listas só completam quando o nicho tem pouco estoque — antes
+        // elas entravam sempre e enchiam a vitrine de produto fora do assunto.
+        const temNichoSuficiente = termos.length > 0 && linhasDoNicho.length >= QUANTIDADE_DE_CARDS * 2;
+        const fonte = temNichoSuficiente
+          ? linhasDoNicho
+          : [...linhasDoNicho, ...linhasDoQuiz, ...linhasGerais];
 
         const porId = new Map<string, LinhaDoCatalogo>();
-        for (const linha of [
-          ...((doNichoDaConversa.data as LinhaDoCatalogo[]) ?? []),
-          ...((doNichoDoQuiz.data as LinhaDoCatalogo[]) ?? []),
-          ...((gerais.data as LinhaDoCatalogo[]) ?? []),
-        ]) {
+        for (const linha of fonte) {
           if (!porId.has(linha.id)) porId.set(linha.id, linha);
         }
 
@@ -177,18 +213,26 @@ export const useProdutosRecomendados = (
             // as respostas do cadastro.
             const bonusDoNicho = idsDoNichoDaConversa.has(linha.id) ? 100 : 0;
             const pontos =
-              pontuarProdutoParaPerfil(produto, respostas, { produtoId: linha.id, userId }) + bonusDoNicho;
+              pontuarProdutoParaPerfil(produto, respostas, { produtoId: linha.id, userId }) +
+              bonusDoNicho +
+              ruidoEstavel(linha.id, userId, rodada) * 45;
             return { produto, pontos };
           })
           .filter((item): item is { produto: Omit<ProdutoRecomendado, "motivo">; pontos: number } => Boolean(item))
           .sort((a, b) => b.pontos - a.pontos);
+
+        // Rodadas seguintes tiram o que já foi mostrado; se o catálogo do nicho
+        // acabar, a lista recomeça em vez de ficar vazia.
+        const vistos = jaVistosRef.current;
+        const inéditos = ranqueados.filter(({ produto }) => !vistos.has(produto.id));
+        const pool = inéditos.length >= QUANTIDADE_DE_CARDS ? inéditos : (vistos.clear(), ranqueados);
 
         // Passa uma vez respeitando o teto por categoria e, se ainda faltar
         // card, completa com o resto na ordem da pontuação.
         const escolhidos: Array<Omit<ProdutoRecomendado, "motivo">> = [];
         const usados = new Set<string>();
         const porCategoria = new Map<string, number>();
-        for (const { produto } of ranqueados) {
+        for (const { produto } of pool) {
           if (escolhidos.length >= QUANTIDADE_DE_CARDS) break;
           const quantos = porCategoria.get(produto.categoria) ?? 0;
           if (quantos >= MAXIMO_POR_CATEGORIA) continue;
@@ -196,7 +240,7 @@ export const useProdutosRecomendados = (
           escolhidos.push(produto);
           usados.add(produto.id);
         }
-        for (const { produto } of ranqueados) {
+        for (const { produto } of pool) {
           if (escolhidos.length >= QUANTIDADE_DE_CARDS) break;
           if (usados.has(produto.id)) continue;
           escolhidos.push(produto);
@@ -215,6 +259,7 @@ export const useProdutosRecomendados = (
 
         if (!ativo) return;
         jaBuscouRef.current = true;
+        for (const produto of selecionados) jaVistosRef.current.add(produto.id);
         setProdutos(selecionados);
         setCarregando(false);
       } catch (e) {
@@ -228,7 +273,9 @@ export const useProdutosRecomendados = (
     return () => {
       ativo = false;
     };
-  }, [chaveDosTermos, respostas, tempoMinimoMs, userId]);
+  }, [chaveDosTermos, respostas, rodada, tempoMinimoMs, userId]);
 
-  return { produtos, carregando, erro, resumo, respostas };
+  const recarregar = useCallback(() => setRodada((atual) => atual + 1), []);
+
+  return { produtos, carregando, erro, resumo, respostas, recarregar };
 };
