@@ -26,7 +26,10 @@ import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import {
   CATEGORY_LABEL,
   ACTIVE_SUPPORT_TICKET_EVENT,
+  buildRefundPromptMessage,
   createSupportTicket,
+  messageHasRefundIntent,
+  parseSupportMessage,
   FAQ_ITEMS,
   formatTicketDate,
   formatTicketTime,
@@ -83,6 +86,9 @@ const SupportFloatingWidget = () => {
   const [composingNewConversation, setComposingNewConversation] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [helpQuery, setHelpQuery] = useState("");
+  const [refundStep, setRefundStep] = useState<null | "reason" | "confirm">(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const openTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "open"), [tickets]);
