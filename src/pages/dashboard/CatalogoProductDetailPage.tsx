@@ -745,8 +745,6 @@ const CatalogoProductDetailPage = () => {
                     <MarginTrendBadge marginPercent={estimatedMarginPercent} />
                   </div>
                 ) : null}
-                <p className="hidden">
-                </p>
               </div>
 
               <div className="mt-5 space-y-1.5 border-t border-black/[0.08] pt-5">
