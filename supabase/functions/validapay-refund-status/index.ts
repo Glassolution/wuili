@@ -83,8 +83,26 @@ Deno.serve(async (req) => {
           ? ((node as { items: Record<string, unknown>[] }).items[0] ?? {})
           : {};
         const status = String(node.status ?? item.status ?? "").toUpperCase();
-        const done = DONE.includes(status) || node.success === true;
+        let done = DONE.includes(status) || node.success === true;
         const failed = FAILED.includes(status);
+        let chargeStatus: string | null = null;
+
+        // O endpoint de estornos costuma travar em PROCESSING. A cobrança é a
+        // fonte que realmente comprova a devolução do dinheiro.
+        if (!done && !failed && r.charge_id) {
+          try {
+            const charge = await getCharge(String(r.charge_id)) as Record<string, unknown>;
+            const cNode = (charge?.data ?? charge) as Record<string, unknown>;
+            chargeStatus = String(cNode.status ?? "").toUpperCase() || null;
+            const refunded = Number(cNode.refundedAmount ?? cNode.refunded_amount ?? 0);
+            if (
+              (chargeStatus && ["REFUNDED", "PARTIALLY_REFUNDED", "CHARGEBACK"].includes(chargeStatus)) ||
+              refunded > 0
+            ) {
+              done = true;
+            }
+          } catch (_e) { /* sem detalhe da cobrança: segue como processando */ }
+        }
 
         if (done) confirmados++;
         else if (failed) falhos++;
