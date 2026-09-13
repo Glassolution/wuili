@@ -761,6 +761,15 @@ const SupportFloatingWidget = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <VideoTutorialModal
+              open={refundTutorial !== null}
+              onClose={() => setRefundTutorial(null)}
+              title={refundTutorial?.title ?? ""}
+              description={refundTutorial?.description ?? ""}
+              src={refundTutorial?.src ?? ""}
+              aspectPadding={refundTutorial?.aspectPadding ?? "56.25%"}
+            />
           </motion.section>
         )}
       </AnimatePresence>
