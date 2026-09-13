@@ -74,7 +74,7 @@ const REFUND_TUTORIALS: readonly RefundTutorial[] = [
     description: "Veja como encontrar e importar bons produtos no catálogo Velo.",
     match: ["Não consegui vender"],
   },
-  TUTORIAL_CONTA_VENDEDOR,
+  { ...TUTORIAL_CONTA_VENDEDOR, match: ["Problemas técnicos"] },
   {
     src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
     aspectPadding: "62.5%",
