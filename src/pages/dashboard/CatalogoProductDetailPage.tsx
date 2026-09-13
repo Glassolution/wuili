@@ -366,6 +366,13 @@ const CatalogoProductDetailPage = () => {
   // A página mostra apenas o custo real do fornecedor. Preço sugerido e margem
   // só entram na conversa no modal de publicação, onde o lojista define o preço
   // de venda de verdade.
+  // Margem estimada: diferença entre a sugestão interna da Velo e o custo real,
+  // em % sobre o custo. Só alimenta o selo de tendência — o valor sugerido não
+  // aparece na página.
+  const estimatedMarginPercent =
+    product.price > 0 && product.suggestedPrice > product.price
+      ? Math.round(((product.suggestedPrice - product.price) / product.price) * 100)
+      : Math.max(Math.round(product.marginPercent), 0);
   const favorited = favoritedIds.includes(product.id);
   const categoryLabel = formatCategoryLabel(product.category);
   const supplierLabel = product.supplier_name ?? "Fornecedor verificado";
@@ -564,6 +571,11 @@ const CatalogoProductDetailPage = () => {
                 </sup>
               </span>
               <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
+              {estimatedMarginPercent > 0 ? (
+                <div className="mt-2">
+                  <MarginTrendBadge marginPercent={estimatedMarginPercent} />
+                </div>
+              ) : null}
 
               {/*
                 O espaço entre o preço e os botões estava vazio. A referência preenche essa
