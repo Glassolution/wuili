@@ -579,6 +579,119 @@ const SupportFloatingWidget = () => {
               />
               <WidgetNavButton tab="help" label="Ajuda" icon={HelpCircle} active={tab === "help"} onClick={setTab} />
             </nav>
+
+            <AnimatePresence>
+              {refundStep && (
+                <motion.div
+                  key="refund-modal"
+                  initial={prefersReducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
+                  className="absolute inset-0 z-10 grid place-items-center bg-black/45 p-4"
+                  onClick={() => !refundSubmitting && setRefundStep(null)}
+                >
+                  <motion.div
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 14, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
+                    className="w-full max-w-[330px] rounded-[20px] bg-white p-5 shadow-2xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {refundStep === "reason" ? (
+                      <>
+                        <h3 className="text-[16px] font-bold tracking-[-0.02em] text-[#111827]">
+                          Antes de continuar, o que aconteceu?
+                        </h3>
+                        <p className="mt-1.5 text-[12.5px] leading-5 text-[#6B7280]">
+                          Conte o motivo do reembolso — seu feedback nos ajuda a melhorar. Se preferir, nossa equipe
+                          pode tentar resolver o problema com você agora mesmo por aqui no chat.
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {["Não consegui vender", "Problemas técnicos", "Achei caro", "Estou sem tempo"].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => setRefundReason(chip)}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                refundReason === chip
+                                  ? "border-[#DC2626] bg-[#FEF2F2] text-[#B91C1C]"
+                                  : "border-[#E5E7EB] text-[#6B7280] hover:border-[#D1D5DB]"
+                              }`}
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+
+                        <textarea
+                          value={refundReason}
+                          onChange={(event) => setRefundReason(event.target.value)}
+                          placeholder="Descreva o motivo..."
+                          className="mt-2.5 max-h-24 min-h-[64px] w-full resize-none rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 text-[12.5px] leading-5 text-[#111827] outline-none placeholder:text-[#9CA3AF] focus:border-[#2563EB]"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRefundStep(null);
+                            setRefundReason("");
+                            toast.success("Perfeito! Nossa equipe segue com você aqui no chat para resolver.");
+                          }}
+                          className="mt-3 flex h-10 w-full items-center justify-center rounded-[12px] bg-[#2563EB] text-[13px] font-bold text-white transition hover:bg-[#1D4ED8]"
+                        >
+                          Falar com a equipe
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRefundStep("confirm")}
+                          className="mt-2 flex h-9 w-full items-center justify-center rounded-[12px] text-[12.5px] font-bold text-[#DC2626] transition hover:bg-[#FEF2F2]"
+                        >
+                          Continuar com o reembolso
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-[16px] font-bold tracking-[-0.02em] text-[#111827]">
+                          Confirmar pedido de reembolso
+                        </h3>
+                        <div className="mt-3 rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-3.5 py-3">
+                          <p className="text-[12.5px] font-semibold leading-5 text-[#991B1B]">
+                            Atenção: após a análise e aprovação da equipe, o reembolso pode levar até 72 horas para
+                            cair na sua conta.
+                          </p>
+                        </div>
+                        {refundReason.trim() && (
+                          <p className="mt-2.5 text-[12px] leading-5 text-[#6B7280]">
+                            <span className="font-semibold text-[#111827]">Motivo:</span> {refundReason.trim()}
+                          </p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleConfirmRefund}
+                          disabled={refundSubmitting}
+                          className="mt-3.5 flex h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[13px] font-bold text-white transition hover:bg-[#B91C1C] disabled:opacity-60"
+                        >
+                          {refundSubmitting && <Loader2 size={15} className="animate-spin" />}
+                          Confirmar pedido de reembolso
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRefundStep("reason")}
+                          disabled={refundSubmitting}
+                          className="mt-2 flex h-9 w-full items-center justify-center rounded-[12px] text-[12.5px] font-semibold text-[#6B7280] transition hover:bg-[#F3F4F6]"
+                        >
+                          Voltar
+                        </button>
+                      </>
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.section>
         )}
       </AnimatePresence>
