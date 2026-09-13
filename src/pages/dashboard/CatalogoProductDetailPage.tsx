@@ -605,18 +605,17 @@ const CatalogoProductDetailPage = () => {
               verdade (ImportProductModal, passo "Precificação").
             */}
             <div className="mt-5 border-t border-black/[0.08] pt-5">
-              <span className="text-[32px] font-normal leading-none tracking-[-0.03em] text-[#111111]">
-                {costPriceMain}
-                <sup className="ml-0.5 align-super text-[16px] font-normal leading-none tracking-[-0.01em]">
-                  {costPriceCents}
-                </sup>
-              </span>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-[32px] font-normal leading-none tracking-[-0.03em] text-[#111111]">
+                  {costPriceMain}
+                  <sup className="ml-0.5 align-super text-[16px] font-normal leading-none tracking-[-0.01em]">
+                    {costPriceCents}
+                  </sup>
+                </span>
+                {popularity ? <PopularityTrendBadge popularity={popularity} /> : null}
+              </div>
               <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
-              {estimatedMarginPercent > 0 ? (
-                <div className="mt-2">
-                  <MarginTrendBadge marginPercent={estimatedMarginPercent} />
-                </div>
-              ) : null}
+
 
               {/*
                 O espaço entre o preço e os botões estava vazio. A referência preenche essa
