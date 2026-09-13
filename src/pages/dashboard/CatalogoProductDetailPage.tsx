@@ -740,6 +740,13 @@ const CatalogoProductDetailPage = () => {
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
                 </p>
+                {estimatedMarginPercent > 0 ? (
+                  <div className="mt-2">
+                    <MarginTrendBadge marginPercent={estimatedMarginPercent} />
+                  </div>
+                ) : null}
+                <p className="hidden">
+                </p>
               </div>
 
               <div className="mt-5 space-y-1.5 border-t border-black/[0.08] pt-5">
