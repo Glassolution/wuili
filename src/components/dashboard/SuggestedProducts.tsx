@@ -263,13 +263,11 @@ const VitrineCard = ({
         <div
           className="shrink-0 h-7 w-7 rounded-full grid place-items-center transition-transform duration-200 group-hover:scale-110"
           style={{
-            background: isHighMargin ? "#ECFDF5" : isBestseller ? "#EFF6FF" : "#F5F3FF",
+            background: isBestseller ? "#EFF6FF" : "#F5F3FF",
           }}
-          title={isHighMargin ? "Alta margem" : isBestseller ? "Mais vendido" : "Sugestão"}
+          title={isBestseller ? "Mais vendido" : "Sugestão"}
         >
-          {isHighMargin ? (
-            <TrendUp size={14} weight="duotone" color="#059669" />
-          ) : isBestseller ? (
+          {isBestseller ? (
             <PhShoppingBag size={14} weight="duotone" color="#3B82F6" />
           ) : (
             <PhSparkle size={14} weight="duotone" color="#7C3AED" />
