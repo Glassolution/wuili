@@ -22,7 +22,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
+import { formatPrice, formatReviewCount, getProductCatalogMetrics, MarginTrendBadge } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
@@ -145,42 +145,6 @@ const PRODUCT_IMPORT_BUTTON_STYLE = getPremiumActionButtonStyle({
 
 const formatCategoryLabel = (category: string | null | undefined) =>
   category ? category.charAt(0).toUpperCase() + category.slice(1).toLowerCase() : "Produto";
-
-/*
-  Selo de margem ao lado do preço: compara o custo do fornecedor com um preço
-  sugerido de dobro (custo × 2, ou a sugestão da Velo quando ela existe e é
-  maior que isso). A porcentagem é a margem sobre a venda: quanto do preço
-  final sobra depois de pagar o produto. Verde/subindo = margem boa (≥ 50%);
-  vermelho/descendo = margem apertada. O valor sugerido em si não aparece aqui
-  — só no modal de publicação.
-*/
-const MarginTrendBadge = ({ cost, suggested }: { cost: number; suggested: number }) => {
-  if (!cost || cost <= 0 || !suggested || suggested <= cost) return null;
-  const margin = Math.round(((suggested - cost) / suggested) * 100);
-  const good = margin >= 50;
-  return (
-    <div
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${
-        good ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
-      }`}
-      title={
-        good
-          ? `Margem boa: vendendo por ${formatPrice(suggested)} (o dobro do custo), ${margin}% do valor é lucro.`
-          : `Margem apertada: vendendo por ${formatPrice(suggested)}, só ${margin}% do valor é lucro.`
-      }
-    >
-      {good ? (
-        <TrendingUp size={13} className="text-[#16A34A]" aria-hidden="true" />
-      ) : (
-        <TrendingDown size={13} className="text-[#DC2626]" aria-hidden="true" />
-      )}
-      <span className={`text-[12px] font-semibold ${good ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
-        {margin}%
-      </span>
-    </div>
-  );
-};
-
 
 const formatWeight = (weight: number | null) => {
   if (typeof weight !== "number" || Number.isNaN(weight) || weight <= 0) return "Não informado";
