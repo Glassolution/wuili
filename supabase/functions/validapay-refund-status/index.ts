@@ -108,7 +108,15 @@ Deno.serve(async (req) => {
         else if (failed) falhos++;
         else aindaProcessando++;
 
-        results.push({ id: r.id, refundId, status, done, failed, amount: r.refund_amount });
+        results.push({
+          id: r.id,
+          refundId,
+          status,
+          chargeStatus,
+          done,
+          failed,
+          amount: r.refund_amount,
+        });
 
         if (!dryRun && (done || failed)) {
           const nowIso = new Date().toISOString();
