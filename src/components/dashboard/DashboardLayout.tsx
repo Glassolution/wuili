@@ -374,7 +374,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const { plan, loading: planLoading } = usePlan();
-  const { foto } = useProfile();
+  const { nome, foto } = useProfile();
   const [showStartModeModal, setShowStartModeModal] = useState(false);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
