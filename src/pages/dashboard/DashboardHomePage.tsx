@@ -8,7 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
-import { hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
+import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
+import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
@@ -116,8 +117,9 @@ const INTRO = {
   titleTravelDelay: 0.56,
   titleTravel: 1.05,
   revealDuration: 0.9,
-  promoDelay: 1,
+  // O chat vem logo depois do título; o atalho do tutorial entra junto dos cards.
   chatDelay: 1.28,
+  promoDelay: 1.5,
   // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
   // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
   // em vez de quase juntas.
@@ -252,7 +254,10 @@ const DashboardHomePage = () => {
   const historyMenuRef = useRef<HTMLDivElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
-  const [introState, setIntroState] = useState<"pending" | "play" | "done">("pending");
+  // "waiting": o onboarding está na frente da home. A intro fica guardada para
+  // tocar quando ele fecha — antes ela rodava escondida atrás do modal e a pessoa
+  // caía numa tela já parada.
+  const [introState, setIntroState] = useState<"pending" | "waiting" | "play" | "done">("pending");
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -308,11 +313,34 @@ const DashboardHomePage = () => {
     // home não repete a introdução, mas recarregar o site ou reentrar na conta sim.
     introDecisionMade.current = userId;
 
+    if (user && shouldShowOnboarding(user)) {
+      setIntroState("waiting");
+      return;
+    }
+
     const shouldPlay = !reduceMotion && !hasPlayedDashboardIntro(userId);
     if (shouldPlay) markDashboardIntroAsPlayed(userId);
 
     setIntroState(shouldPlay ? "play" : "done");
-  }, [reduceMotion, user?.id]);
+  }, [reduceMotion, user]);
+
+  useEffect(() => {
+    if (introState !== "waiting" || !user?.id) return;
+    const userId = user.id;
+    let timer: number | undefined;
+    const aoConcluirOnboarding = () => {
+      // Espera o modal começar a desbotar para a home entrar por baixo dele.
+      timer = window.setTimeout(() => {
+        markDashboardIntroAsPlayed(userId);
+        setIntroState(reduceMotion ? "done" : "play");
+      }, reduceMotion ? 0 : ENTRADA_POS_ONBOARDING.homeStart * 1000);
+    };
+    window.addEventListener(ONBOARDING_COMPLETED_EVENT, aoConcluirOnboarding);
+    return () => {
+      window.removeEventListener(ONBOARDING_COMPLETED_EVENT, aoConcluirOnboarding);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [introState, reduceMotion, user?.id]);
 
   useEffect(() => {
     if (!chatActive) return;
@@ -522,7 +550,7 @@ const DashboardHomePage = () => {
   });
 
 
-  if (introState === "pending") {
+  if (introState === "pending" || introState === "waiting") {
     return (
       <main
         aria-hidden="true"
@@ -698,6 +726,7 @@ const DashboardHomePage = () => {
           <motion.div
             {...revealProps(INTRO.chatDelay, 14)}
             ref={welcomeChatRef}
+            data-dashboard-tour="home-atlas-chat"
             role="search"
             aria-label="Assistente Atlas"
             aria-expanded={chatActive}
@@ -915,6 +944,14 @@ const DashboardHomePage = () => {
             title="Adicionar produto"
             className="rounded-[18%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(10,10,10,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
             style={buttonStyle(500, 520, 80, 79, 0, { background: "transparent" })}
+          />
+
+          {/* Alvo do tour do Atlas: moldura invisível sobre os dois cards de
+              primeiros passos, que são desenho da imagem de fundo. */}
+          <div
+            aria-hidden="true"
+            data-dashboard-tour="home-primeiros-passos"
+            style={{ position: "absolute", left: x(84), top: y(318), width: x(1372), height: y(312), pointerEvents: "none" }}
           />
 
           <span style={textStyle(813, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>02</span>

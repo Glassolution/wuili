@@ -285,6 +285,7 @@ const SidebarCategory = ({
         data-active={childActive ? "true" : "false"}
         aria-expanded={open}
         aria-controls={submenuId}
+        data-dashboard-tour={item.id}
         className="velo-nav-item"
         onClick={() => onOpenChange(!open)}
         style={btnStyle}
