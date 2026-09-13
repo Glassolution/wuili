@@ -201,8 +201,16 @@ const AtlasProductCarousel = ({ nicho = null, compacto = false }: Props) => {
       </div>
 
       {!carregando && (
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="text-[11px] text-[#9A9A94]">Toque no produto para seguir com ele</span>
+          <button
+            type="button"
+            onClick={recarregar}
+            className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-[#2563EB] hover:underline"
+          >
+            <RefreshCw size={13} strokeWidth={2.2} aria-hidden />
+            Ver outros produtos
+          </button>
           <button
             type="button"
             onClick={() => navigate("/dashboard/catalogo")}
