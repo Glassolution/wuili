@@ -240,6 +240,8 @@ const CatalogoProductDetailPage = () => {
   const [descExpanded, setDescExpanded] = useState(false);
   const [descOverflows, setDescOverflows] = useState(false);
   const descRef = useRef<HTMLDivElement>(null);
+  // Quanto os outros vendedores da Velo estão publicando este produto.
+  const popularity = usePopularity(id);
 
   // O Atlas manda o usuário para cá com ?publicar=1 no fim do guia de iniciante:
   // o modal de publicação abre sozinho para ele não ter que procurar o botão.
