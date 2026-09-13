@@ -1388,8 +1388,7 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
           <p className="text-[13px] leading-5 text-[#111827]">
             Entendemos a sua solicitação de reembolso ou cancelamento. Nossa equipe pode te ajudar por aqui antes
-            sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h — nossa equipe pode te ajudar por aqui
-            antes de qualquer decisão.
+            de qualquer decisão.
           </p>
           <button
             type="button"
