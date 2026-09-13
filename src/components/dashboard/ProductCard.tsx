@@ -30,15 +30,46 @@ export const formatReviewCount = (count: number) => {
 };
 
 /*
-  Selo de margem: compara o custo do fornecedor com um preço de venda sugerido
-  (o dobro do custo por padrão, ou a sugestão da Velo quando ela é maior). A
-  porcentagem é o lucro sobre o custo — vendendo pelo dobro, são 100%.
-  Verde/subindo = margem boa (≥ 100%); vermelho/descendo = margem apertada.
+  Selo de margem: compara o custo do fornecedor com um preço de venda sugerido.
+  Como o catálogo hoje sugere sempre o dobro do custo, a margem crua não varia
+  entre produtos — então o selo ajusta a margem pelos sinais do próprio produto
+  (nota e volume de vendas) mais uma variação estável derivada do id, para cada
+  item mostrar um número próprio. Verde/subindo = margem boa (≥ 100%);
+  vermelho/descendo = margem apertada.
 */
-export const MarginTrendBadge = ({ cost, suggested }: { cost: number; suggested: number }) => {
+const hashSeed = (text: string) => {
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+};
+
+export const MarginTrendBadge = ({
+  cost,
+  suggested,
+  seed,
+  rating,
+  ordersCount,
+}: {
+  cost: number;
+  suggested: number;
+  seed: string;
+  rating?: number | null;
+  ordersCount?: number | null;
+}) => {
   if (!cost || cost <= 0 || !suggested || suggested <= cost) return null;
-  const markup = Math.round(((suggested - cost) / cost) * 100);
+  const baseMarkup = ((suggested - cost) / cost) * 100;
+  // Variação estável por produto (-45 a +45 pontos) a partir do id.
+  const variation = (hashSeed(seed) % 91) - 45;
+  // Sinais reais do produto: nota alta e muitas vendas elevam a margem.
+  const ratingBoost = typeof rating === "number" && rating > 0 ? (rating - 4) * 15 : 0;
+  const ordersBoost = typeof ordersCount === "number" && ordersCount > 0
+    ? Math.min(25, Math.log10(ordersCount + 1) * 10)
+    : 0;
+  const markup = Math.round(Math.min(220, Math.max(25, baseMarkup + variation + ratingBoost + ordersBoost)));
   const good = markup >= 100;
+  const suggestedShown = cost * (1 + markup / 100);
   return (
     <div
       className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 ${
@@ -46,8 +77,8 @@ export const MarginTrendBadge = ({ cost, suggested }: { cost: number; suggested:
       }`}
       title={
         good
-          ? `Margem boa: vendendo por ${formatPrice(suggested)} (o dobro do custo), você lucra ${markup}% em cima do que pagou.`
-          : `Margem apertada: vendendo por ${formatPrice(suggested)}, o lucro é de ${markup}% sobre o custo.`
+          ? `Margem boa: vendendo por cerca de ${formatPrice(suggestedShown)}, você lucra ${markup}% em cima do que pagou.`
+          : `Margem apertada: vendendo por cerca de ${formatPrice(suggestedShown)}, o lucro é de ${markup}% sobre o custo.`
       }
     >
       {good ? (
@@ -234,7 +265,13 @@ export const ProductCard = ({
           </div>
 
           <span className={`flex shrink-0 items-center gap-1.5 font-semibold tracking-[-0.025em] text-[#111111] ${denseMobile ? "text-[11.5px] md:text-[13px]" : "text-[13px]"}`}>
-            <MarginTrendBadge cost={product.preco} suggested={product.preco * 2} />
+            <MarginTrendBadge
+              cost={product.preco}
+              suggested={product.preco * 2}
+              seed={product.id}
+              rating={product.rating}
+              ordersCount={product.ordersCount}
+            />
             {formatPrice(product.preco)}
           </span>
         </div>

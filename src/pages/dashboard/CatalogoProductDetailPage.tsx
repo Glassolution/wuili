@@ -535,6 +535,9 @@ const CatalogoProductDetailPage = () => {
                 <MarginTrendBadge
                   cost={product.price}
                   suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
+                  seed={product.id}
+                  rating={product.rating}
+                  ordersCount={product.ordersCount}
                 />
               </div>
               <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
@@ -702,6 +705,9 @@ const CatalogoProductDetailPage = () => {
                   <MarginTrendBadge
                     cost={product.price}
                     suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
+                    seed={product.id}
+                    rating={product.rating}
+                    ordersCount={product.ordersCount}
                   />
                 </div>
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
