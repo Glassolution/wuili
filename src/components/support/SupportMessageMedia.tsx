@@ -16,7 +16,7 @@ export const SupportMessageMedia = ({
   imageClassName = "max-h-[300px] w-full max-w-[420px]",
   tone = "customer",
 }: SupportMessageMediaProps) => {
-  const { text, attachment, redirect, reply } = parseSupportMessage(value);
+  const { text, attachment, redirect, reply, refundPrompt } = parseSupportMessage(value);
   const [open, setOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const adminTone = tone === "admin";
