@@ -286,6 +286,12 @@ const SupportFloatingWidget = () => {
         firstMessage: attachment ? buildSupportImageMessage(attachment, message) : message,
       });
 
+      if (messageHasRefundIntent(message)) {
+        await db
+          .from("support_messages")
+          .insert({ ticket_id: ticket.id, user_id: user.id, message: buildRefundPromptMessage(), sender: "ai" });
+      }
+
       setTickets((current) => [ticket, ...current.filter((item) => item.id !== ticket.id)]);
       setSelectedTicketId(ticket.id);
       setMessages([]);
@@ -338,6 +344,21 @@ const SupportFloatingWidget = () => {
       setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
       setReplyImage(null);
       setActiveSupportTicketId(selectedTicket.id);
+
+      // Intenção de reembolso/cancelamento: exibe o cartão de retenção uma vez por conversa.
+      const alreadyPrompted = messages.some((item) => parseSupportMessage(item.message).refundPrompt);
+      if (messageHasRefundIntent(text) && !alreadyPrompted) {
+        const { data: promptMessage } = await db
+          .from("support_messages")
+          .insert({ ticket_id: selectedTicket.id, user_id: user.id, message: buildRefundPromptMessage(), sender: "ai" })
+          .select("*")
+          .single();
+        if (promptMessage) {
+          setMessages((current) =>
+            current.some((item) => item.id === promptMessage.id) ? current : [...current, promptMessage as SupportMessage],
+          );
+        }
+      }
     } catch (error) {
       if (uploadedPath) await removeSupportImage(uploadedPath);
       console.error(error);
