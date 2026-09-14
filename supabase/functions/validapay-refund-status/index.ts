@@ -126,7 +126,22 @@ Deno.serve(async (req) => {
           await admin.from("refund_requests").update({
             status: done ? "processed" : "failed",
             processed_at: done ? nowIso : null,
-            provider_response: { ...pr, status, reconciled_at: nowIso, reconciled_payload: info },
+            provider_response: {
+              ...pr,
+              // Quando a cobrança já consta estornada, o dinheiro voltou:
+              // gravamos CONFIRMED para o painel não mostrar "em processo".
+              status: done ? "CONFIRMED" : status,
+              refund_endpoint_status: status,
+              confirmed_by_charge: confirmadoPelaCobranca ? chargeStatus : null,
+              reconciled_at: nowIso,
+              reconciled_payload: info,
+              provider_status_response: {
+                ...(typeof pr.provider_status_response === "object" && pr.provider_status_response
+                  ? pr.provider_status_response as Record<string, unknown>
+                  : {}),
+                status: done ? "CONFIRMED" : status,
+              },
+            },
             updated_at: nowIso,
           }).eq("id", r.id);
 
