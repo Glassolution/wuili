@@ -131,54 +131,60 @@ const ProductDetailPage = () => {
   });
 
   // ── Local State ────────────────────────────────────────────────────────────
+  // Apenas campos que realmente são salvos: título e preço vão para o Mercado
+  // Livre; o custo interno fica só na Velo.
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("Experience unparalleled performance with this premium product, featuring advanced technology and seamless functionality. Perfect for handling intensive tasks, creative projects, and professional use.");
   const [retailPrice, setRetailPrice] = useState(0);
-  const [wholesalePrice, setWholesalePrice] = useState(0);
-  const [stock, setStock] = useState(150);
-  const [weight, setWeight] = useState(5);
-  const [length, setLength] = useState(40);
-  const [shippingType, setShippingType] = useState<"physical" | "digital">("physical");
-  const [category, setCategory] = useState("Laptop");
-  const [type, setType] = useState("Electronic");
-  const [vendor, setVendor] = useState("");
-  const [channel, setChannel] = useState("Fikri Store");
+  const [costPrice, setCostPrice] = useState(0);
 
   useEffect(() => {
     if (product) {
       setTitle(product.title);
       setRetailPrice(product.price ?? 0);
-      setWholesalePrice(product.cost_price ?? 0);
+      setCostPrice(product.cost_price ?? 0);
     }
   }, [product]);
 
   // ── Mutation ───────────────────────────────────────────────────────────────
+  // A edge function ml-update-listing atualiza o anúncio no Mercado Livre e só
+  // depois grava em user_publications.
   const updateMutation = useMutation({
     onMutate: () => {
-      const toastId = veloToast.loading("Salvando produto...");
+      const toastId = veloToast.loading("Sincronizando com Mercado Livre...");
       return { toastId };
     },
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("user_publications" as any)
-        // `status` fica de fora: quem define é o Mercado Livre, e o cron
-        // ml-sync-listings-status sobrescreveria qualquer valor salvo aqui.
-        .update({
+      const { data, error } = await supabase.functions.invoke("ml-update-listing", {
+        body: {
+          publication_id: id,
           title,
           price: retailPrice,
-          cost_price: wholesalePrice,
-        })
-        .eq("id", id)
-        .eq("user_id", user!.id);
-      if (error) throw error;
+          cost_price: costPrice,
+        },
+      });
+      if (error) {
+        const detalhe = await (error as { context?: { json?: () => Promise<{ error?: string }> } })
+          .context?.json?.()
+          .catch(() => null);
+        throw new Error(detalhe?.error || "Não foi possível atualizar o anúncio no Mercado Livre.");
+      }
+      const resposta = data as { ok?: boolean; error?: string; warnings?: string[] };
+      if (!resposta?.ok) throw new Error(resposta?.error || "Não foi possível atualizar o anúncio.");
+      return resposta;
     },
-    onSuccess: (_data, _variables, context) => {
+    onSuccess: (resposta, _variables, context) => {
       queryClient.invalidateQueries({ queryKey: ["publication", id] });
       queryClient.invalidateQueries({ queryKey: ["user-publications"] });
-      veloToast.success("Produto atualizado com sucesso.", { id: context?.toastId });
+      queryClient.invalidateQueries({ queryKey: ["ml-item-details"] });
+      const aviso = resposta?.warnings?.[0];
+      if (aviso) {
+        veloToast.error(`${aviso} As demais alterações foram aplicadas.`, { id: context?.toastId });
+      } else {
+        veloToast.success("Anúncio atualizado no Mercado Livre.", { id: context?.toastId });
+      }
     },
     onError: (error, _variables, context) => {
-      const message = error instanceof Error ? error.message : "Erro ao atualizar produto.";
+      const message = error instanceof Error ? error.message : "Erro ao atualizar anúncio.";
       veloToast.error(message, { id: context?.toastId });
     },
   });
