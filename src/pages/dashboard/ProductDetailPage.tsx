@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft, Save, Image as ImageIcon, Sparkles, Package, Box, Ruler, Weight,
-  ChevronDown, Store, Tag, Layers, Building2
-} from "lucide-react";
+import { ArrowLeft, Save, Image as ImageIcon, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
