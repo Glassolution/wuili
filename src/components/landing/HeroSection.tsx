@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HeroCard from "./HeroCard";
-const heroDashboard = "/hero.png";
+const heroDashboard = "/hero.webp";
 
 const CheckIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="flex-shrink-0 mt-[1px]">
@@ -31,7 +31,7 @@ const HeroSection = () => {
   const handleCTA = () => {
     if (loading) return;
     setLoading(true);
-    setTimeout(() => navigate("/cadastro"), 2000);
+    setTimeout(() => navigate("/login"), 2000);
   };
 
   return (
@@ -116,7 +116,7 @@ const HeroSection = () => {
               ) : "Criar minha loja"}
             </button>
             <button
-              onClick={() => navigate("/cadastro")}
+              onClick={() => navigate("/login")}
               className="text-[15px] font-[400] text-[#737373] transition-all duration-[150ms] hover:text-[#0A0A0A] hover:underline underline-offset-2"
             >
               Ver demonstração

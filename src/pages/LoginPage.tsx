@@ -1,264 +1,846 @@
-import { type FormEvent, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { type FormEvent, useEffect, useRef, useState } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { Eye, EyeOff, Mail } from "lucide-react";
-import { VeloLogo } from "@/components/VeloLogo";
+import { veloToast } from "@/components/ui/velo-toast";
+import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
+import { Eye, EyeOff } from "lucide-react";
 
+/* ─── Email check ─────────────────────────────────────────────────────────── */
+async function checkEmailExists(email: string): Promise<boolean | null> {
+  try {
+    // Nunca deixar a tela presa em "Verificando...": limite de 6s.
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000));
+    const request = supabase.functions
+      .invoke("auth-email-exists", { body: { email: email.toLowerCase().trim() } })
+      .then((res) => res);
+
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error) return null;
+    return result.data?.exists ?? false;
+  } catch {
+    return null;
+  }
+}
+
+const ease = [0.22, 1, 0.36, 1] as const;
+const slideDown = {
+  initial: { opacity: 0, y: -10, height: 0, filter: "blur(3px)" },
+  animate: { opacity: 1, y: 0, height: "auto", filter: "blur(0px)" },
+  exit: { opacity: 0, y: -10, height: 0, filter: "blur(3px)" },
+  transition: { duration: 0.38, ease },
+};
+
+/*
+  Entrada da coluna do formulário: os blocos sobem em cascata em vez de a tela inteira
+  aparecer de uma vez. `staggerChildren` cuida do encadeamento; cada bloco só precisa
+  declarar `variants={fadeUp}`.
+*/
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease } },
+};
+const semMovimento = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.2 } } };
+/*
+  O card do mobile entra com um scale mínimo além do deslocamento: é o que faz ele
+  parecer que "assenta" sobre o fundo escuro em vez de só deslizar. 0.985 é de
+  propósito discreto — acima disso a borda arredondada visivelmente deforma.
+*/
+const cardEntrada = {
+  hidden: { opacity: 0, y: 22, scale: 0.985 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease } },
+};
+
+/*
+  Mesmas pilhas de fonte da landing (src/pages/Index.tsx). Elas precisam ser declaradas
+  aqui de novo porque index.css força "Hanken Grotesk" no body e em h1–h6 — sem o
+  font-family explícito, o título desta página cai no Hanken e destoa da landing inteira.
+*/
+const FONTE_TEXTO =
+  "[font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif]";
+// Título: mesmo tratamento das headlines da landing — Inter em peso leve, tracking
+// fechado e sem o character variant "cv11" herdado do body.
+const FONTE_TITULO =
+  "font-light tracking-[-0.03em] antialiased [font-family:Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]";
+/*
+  O card é a exceção pedida: campo, botão e rótulo continuam na fonte de interface, que é
+  o que se lê melhor em texto pequeno e em caixa de entrada.
+*/
+const FONTE_FORMULARIO =
+  "[font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe_UI',sans-serif]";
+
+const AVISO_ESTILO = {
+  erro: "border-[#FBD5D5] bg-[#FEF3F2] text-[#B42318]",
+  info: "border-[#C7DBFE] bg-[#EFF5FF] text-[#1D4ED8]",
+  ok: "border-[#BBF0D0] bg-[#F0FDF4] text-[#15803D]",
+} as const;
+
+const AvisoIcone = ({ tipo }: { tipo: "erro" | "info" | "ok" }) => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-[1px] shrink-0">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.45" strokeWidth="1.3" />
+    {tipo === "ok" ? (
+      <path d="M5 8.2 7 10.2l4-4.4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" />
+    ) : tipo === "erro" ? (
+      <path d="M8 4.6v4.1M8 11.1v.3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    ) : (
+      <path d="M8 7.4v4.1M8 4.6v.3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.7" />
+    )}
+  </svg>
+);
+
+/* ─── Google SVG ──────────────────────────────────────────────────────────── */
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+  </svg>
+);
+
+/* ─── Painel da direita ───────────────────────────────────────────────────── */
+// Print do dashboard salvo em public/. O nome tem espaço, por isso o %20.
+// Carrossel do painel da direita. Os nomes dos arquivos têm espaço, daí o %20.
+const SHOWCASE = [
+  {
+    image: "/login%2001.png",
+    title: "Um catálogo pronto para vender",
+    description: "Produtos validados de fornecedores brasileiros, com custo e avaliação na mesma tela.",
+  },
+  {
+    image: "/login%2002.png",
+    title: "Páginas de venda criadas por IA",
+    description: "Título, descrição e layout prontos em minutos — você só revisa e publica.",
+  },
+  {
+    image: "/login%2003.png",
+    title: "Saiba quanto vai lucrar antes de publicar",
+    description: "Custo do fornecedor, preço sugerido e lucro por venda, calculados para você.",
+  },
+  {
+    image: "/login%203.png",
+    title: "Veja o que cada produto está vendendo",
+    description: "Acompanhe as vendas do mês, o status de cada anúncio e publique de novo em um clique.",
+  },
+];
+const SLIDE_INTERVAL = 3800;
+
+const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
+  if (resetMode) {
+    return {
+      title: "Recupere seu acesso",
+      subtitle: "Enviaremos um link para você redefinir a senha e voltar para a Velo.",
+    };
+  }
+  if (step === "signup") {
+    return {
+      title: "Crie sua conta Velo",
+      subtitle: "Leva menos de um minuto para começar a vender sem estoque.",
+    };
+  }
+  if (step === "login") {
+    return {
+      title: "Bem-vindo de volta",
+      subtitle: "Entre com a sua senha para continuar de onde parou.",
+    };
+  }
+  return {
+    title: "Entre na Velo",
+    subtitle: "Use seu e-mail para continuar. A gente identifica se você já tem conta.",
+  };
+};
+
+/* ─── Page ────────────────────────────────────────────────────────────────── */
 const LoginPage = () => {
   const { user, loading: authLoading } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [resetMode, setResetMode] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
 
-  // If already logged in, redirect to dashboard
-  if (!authLoading && user) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const [step, setStep]                   = useState<"initial" | "login" | "signup">("initial");
+  const [emailLocked, setEmailLocked]     = useState(false);
+  const [email, setEmail]                 = useState("");
+  const [password, setPassword]           = useState("");
+  const [nome, setNome]                   = useState("");
+  const [showPw, setShowPw]               = useState(false);
+  const [loading, setLoading]             = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [resetMode, setResetMode]         = useState(false);
+  const [acceptTerms, setAcceptTerms]     = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [slide, setSlide]                 = useState(0);
+  /*
+    Todo retorno desta tela (erro, aviso, confirmação) aparece aqui dentro do card, e não
+    mais como toast. Num formulário o feedback tem que nascer ao lado do campo que o
+    causou — a pílula no canto da tela obriga a pessoa a procurar o que deu errado, e some
+    sozinha antes de ela terminar de ler.
+  */
+  const [aviso, setAviso] = useState<{ tipo: "erro" | "info" | "ok"; texto: string } | null>(null);
 
-  const handleLogin = async (e: FormEvent) => {
+  /*
+    Digitar já é a resposta ao aviso, então ele sai na primeira tecla. Isso mora no
+    onChange, e não num efeito com [email, password, nome] nas dependências: o efeito
+    disparava no mesmo ciclo em que o aviso acabava de ser posto e a limpeza corria contra
+    ele. Trocar de etapa NÃO limpa — "este e-mail já possui conta" e "link enviado"
+    existem justamente para sobreviver à troca.
+  */
+  const aoDigitar = (definir: (valor: string) => void) => (evento: { target: { value: string } }) => {
+    setAviso(null);
+    definir(evento.target.value);
+  };
+
+  /*
+    Segura o último aviso durante o fechamento: se o conteúdo saísse junto com o estado, o
+    texto piscaria para fora antes de a caixa terminar de colapsar.
+  */
+  const ultimoAviso = useRef(aviso);
+  if (aviso) ultimoAviso.current = aviso;
+  const avisoVisivel = aviso ?? ultimoAviso.current;
+
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const nomeRef     = useRef<HTMLInputElement>(null);
+
+  /* ── Auth ── */
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    const toastId = veloToast.loading("Conectando com o Google...", { fullscreen: true, minDuration: 3000 });
+    try {
+      const [result] = await Promise.all([
+        supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: `${window.location.origin}/dashboard`, skipBrowserRedirect: true },
+        }),
+        veloToast.waitForMinimum(toastId),
+      ]);
+      veloToast.dismiss(toastId);
+      if (result.error) { setAviso({ tipo: "erro", texto: result.error.message }); setGoogleLoading(false); return; }
+      if (result.data.url) { window.location.assign(result.data.url); return; }
+      setAviso({ tipo: "erro", texto: "Não foi possível iniciar o acesso com o Google." });
+      setGoogleLoading(false);
+    } catch (error) {
+      await veloToast.waitForMinimum(toastId);
+      veloToast.dismiss(toastId);
+      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const toastId = veloToast.loading("Entrando...", { fullscreen: true, minDuration: 3000 });
+    try {
+      const [{ data, error }] = await Promise.all([
+        supabase.auth.signInWithPassword({ email: email.trim(), password }),
+        veloToast.waitForMinimum(toastId),
+      ]);
+      veloToast.dismiss(toastId);
+      if (error) { setAviso({ tipo: "erro", texto: error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message }); return; }
+      if (data.session || data.user) {
+        // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
+        navigate("/dashboard", { replace: true }); return;
+      }
+      setAviso({ tipo: "erro", texto: "Não foi possível concluir o login." });
+    } catch (error) {
+      await veloToast.waitForMinimum(toastId);
+      veloToast.dismiss(toastId);
+      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
+    } finally { setLoading(false); }
+  };
+
+  const handleSignUp = async (e: FormEvent) => {
+    e.preventDefault();
+    // No cadastro direto o e-mail não passou pela validação da etapa inicial.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
+    if (nome.trim().length < 2) { setAviso({ tipo: "erro", texto: "Informe seu nome." }); return; }
+    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Senha precisa ter pelo menos 8 caracteres." }); return; }
+    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Você precisa aceitar os Termos de Uso." }); return; }
+    if (!acceptPrivacy) { setAviso({ tipo: "erro", texto: "Você precisa aceitar a Política de Privacidade." }); return; }
+    setLoading(true);
+    const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
+    const [{ data, error }] = await Promise.all([
+      supabase.auth.signUp({
+        email: email.trim(), password,
+        options: { data: { full_name: nome.trim(), velo_onboarding_pending: true }, emailRedirectTo: `${window.location.origin}/setup` },
+      }),
+      veloToast.waitForMinimum(toastId),
+    ]);
+    veloToast.dismiss(toastId);
     if (error) {
       setLoading(false);
-      toast.error(error.message === "Invalid login credentials"
-        ? "Email ou senha incorretos. Tente novamente."
-        : error.message);
+      if (error.message === "User already registered") {
+        setStep("login");
+        setAviso({ tipo: "info", texto: "Este e-mail já possui conta. Entre com sua senha." });
+        window.setTimeout(() => passwordRef.current?.focus(), 120);
+        return;
+      }
+      setAviso({ tipo: "erro", texto: error.message });
+      return;
     }
-    // On success: onAuthStateChange will update `user` in context,
-    // which triggers the guard above to redirect to /dashboard.
-    // Do NOT call navigate() here — it fires before user state is set,
-    // causing DashboardLayout to see user=null and bounce back to /login.
+    if (data.user) {
+      await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
+      // Marca o onboarding como pendente para este usuário: garante que o modal
+      // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
+      markOnboardingPending(data.user.id);
+      // Se a sessão foi criada (auto-confirm), segue para o onboarding.
+      // Caso contrário (confirmação por e-mail pendente), volta o botão ao
+      // estado normal e informa o usuário para conferir o e-mail.
+      if (data.session) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      setAviso({ tipo: "ok", texto: "Conta criada. Confirme seu e-mail para continuar." });
+    }
+    setLoading(false);
   };
 
   const handleReset = async (e: FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) { toast.error("Digite seu email"); return; }
+    if (!email.trim()) { setAviso({ tipo: "erro", texto: "Digite seu e-mail." }); return; }
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    // Sem toast de "enviando": o próprio botão já troca o rótulo enquanto a chamada corre.
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Email de recuperação enviado! Verifique sua caixa de entrada.");
+    if (error) { setAviso({ tipo: "erro", texto: error.message }); return; }
     setResetMode(false);
+    setStep("initial");
+    setAviso({ tipo: "ok", texto: "Link de recuperação enviado. Confira seu e-mail." });
   };
 
-  const handleGoogleLogin = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    });
-    if (error) toast.error(error.message);
+  const handleEmailContinue = async () => {
+    const clean = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
+    setCheckingEmail(true);
+    const exists = await checkEmailExists(clean);
+    setCheckingEmail(false);
+    // Veio pela detecção de e-mail: o campo já está resolvido, então trava para não confundir.
+    setEmailLocked(true);
+    if (exists === null) {
+      // Não deu para confirmar: seguimos para o cadastro. Se o e-mail já existir,
+      // o próprio signUp devolve "User already registered" e leva para o login.
+      setEmailLocked(false);
+      setStep("signup");
+      setAviso({ tipo: "info", texto: "Não consegui confirmar o cadastro agora. Se você já tem conta, use \"Já tenho conta\"." });
+      return;
+    }
+    setStep(exists ? "login" : "signup");
+
   };
+
+  // Cadastro escolhido de propósito, sem passar pela detecção: o e-mail continua editável.
+  const irParaCadastro = () => {
+    setAviso(null);
+    setEmailLocked(false);
+    setPassword("");
+    setStep("signup");
+  };
+
+  const voltarParaInicio = () => {
+    setAviso(null);
+    setEmailLocked(false);
+    setPassword("");
+    setNome("");
+    setStep("initial");
+  };
+
+  useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
+  useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 320);     }, [step]);
+
+  // Troca de slide sozinha; clicar num ponto reinicia a contagem.
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setSlide((current) => (current + 1) % SHOWCASE.length),
+      SLIDE_INTERVAL,
+    );
+    return () => window.clearInterval(timer);
+  }, [slide]);
+
+  if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
+
+  const copy = getCopy(step, resetMode);
+  // Cadastro alcançado pelo link, e não pela detecção de e-mail.
+  const cadastroDireto = step === "signup" && !emailLocked;
+  const mostraSocial = step === "initial" || cadastroDireto;
+  const inputCls =
+    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
+  const primaryBtnCls =
+    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-10">
+    <main
+      // Desliga o relevo "Pilot" dos botões sólidos (index.css): aqui o botão é
+      // chapado. Sem isto o `hover:bg-[#1D4ED8]` casa com `button[class*="bg-[#1"]`
+      // e o brilho volta pelo CSS global.
+      data-velo-flat-buttons
+      /* Azul chapado, o mesmo #0B1B3D do hero da landing. Sem degradê: o brilho radial
+         não dizia nada sobre a marca e podia estar em qualquer produto. */
+      className={`relative flex min-h-screen bg-[#0B1B3D] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
+    >
+      {/* ── Coluna do formulário ─────────────────────────────────────────── */}
+      <div className="relative flex w-full flex-col px-5 pb-10 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
+        <div className="flex flex-1 flex-col justify-center py-6 lg:py-12">
+          {/*
+            No celular a marca faz parte do mesmo bloco do título: fora dele, o
+            `justify-center` do miolo abria um vão morto entre uma coisa e outra e a parte
+            de cima ficava com cara de conteúdo faltando. No desktop ela volta a ficar
+            ancorada no canto superior esquerdo — daí o absolute, que repete exatamente o
+            gutter da coluna (left-16 = px-16, top-12 = py-12).
+          */}
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease }}
+            className="mx-auto mb-8 w-fit lg:absolute lg:left-16 lg:top-12 lg:mx-0 lg:mb-0"
+          >
+            <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
+              <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
+              {/* Mesma métrica do logotipo da landing. No desktop só o ícone, como sempre foi. */}
+              <span className="text-[26px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
+                Velo
+              </span>
+            </Link>
+          </motion.div>
 
-      {/* ── Background layer ── */}
-      <div className="absolute inset-0">
-        {/* Subtle radial vignette */}
-        <div
-          className="absolute left-1/2 top-1/2 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.06] blur-[100px]"
-          style={{ background: "radial-gradient(circle, #ffffff 0%, transparent 70%)" }}
-        />
-      </div>
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            animate="show"
+            className="mx-auto w-full max-w-[420px]"
+          >
+            {/*
+              A dupla título+subtítulo troca junto com a etapa: `key` no copy faz o texto
+              antigo sair e o novo entrar, em vez de mudar de conteúdo no mesmo lugar.
+            */}
+            <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={copy.title}
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                  transition={{ duration: 0.26, ease }}
+                >
+                  <h1 className={`text-center text-[30px] leading-[1.12] text-white lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
+                    {copy.title}
+                  </h1>
+                  <p className="mx-auto mt-2.5 max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
+                    {copy.subtitle}
+                  </p>
 
-      {/* ── Center card ── */}
-      <div className="relative z-10 flex w-full max-w-[860px] overflow-hidden rounded-[28px] border border-white/[0.06] bg-[#111] shadow-[0_32px_80px_rgba(0,0,0,0.5)]">
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
 
-        {/* ── Left: Form ── */}
-        <div className="w-full px-8 py-10 sm:w-[420px] sm:min-w-[420px] sm:px-12 sm:py-12">
-          {/* Logo */}
-          <div className="mb-8">
-            <VeloLogo size="lg" variant="light" />
-          </div>
+            {/*
+              No celular o formulário vira um card branco sobre o fundo escuro — é ele que
+              dá a profundidade que faltava. A partir de lg o card some por completo: a
+              coluna já é branca e a moldura viraria caixa dentro de caixa.
+            */}
+            <motion.div
+              variants={reduceMotion ? semMovimento : cardEntrada}
+              className={`mt-7 rounded-[24px] bg-white p-5 shadow-[0_28px_70px_-24px_rgba(2,8,23,0.75)] ring-1 ring-white/10 lg:mt-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none lg:ring-0 ${FONTE_FORMULARIO}`}
+            >
 
-          {/* Header */}
-          <h1 className="mb-1 font-['Manrope'] text-[1.5rem] font-bold tracking-[-0.02em] text-white">
-            {resetMode ? "Recuperar senha" : "Bem-vindo de volta!"}
-          </h1>
-          <p className="mb-7 font-['Manrope'] text-[13px] text-white/45">
-            {resetMode
-              ? "Digite seu email para receber o link de recuperação"
-              : "Estamos felizes em te ver novamente"}
-          </p>
-
-          {/* Tab toggle */}
-          {!resetMode && (
-            <div className="mb-6 flex rounded-full border border-white/[0.08] bg-white/[0.03] p-[3px]">
-              <div className="flex-1 rounded-full bg-white py-[7px] text-center font-['Manrope'] text-[12px] font-semibold text-black">
-                Login
-              </div>
-              <Link
-                to="/cadastro"
-                className="flex-1 rounded-full py-[7px] text-center font-['Manrope'] text-[12px] font-medium text-white/40 transition hover:text-white/70"
-              >
-                Sign Up
-              </Link>
+            {/*
+              Colapso em CSS puro, e não com AnimatePresence: este bloco vive dentro do card,
+              que é um motion com `variants`, e um filho animado ali herda o contexto de
+              variantes do container (que tem staggerChildren). Uma caixa que só abre e fecha
+              não precisa disso — a transição em CSS é independente do ciclo do framer e
+              continua valendo com JS ocupado. max-height em vez de grid-template-rows porque
+              o Safari do iPhone só interpola grid-template-rows do 17.2 em diante, e o alvo
+              aqui é justamente o celular.
+            */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                aviso ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
+              }`}
+            >
+              {avisoVisivel && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className={`mb-4 flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3 text-[13px] font-medium leading-[1.5] lg:mb-0 lg:mt-7 ${AVISO_ESTILO[avisoVisivel.tipo]}`}
+                >
+                  <AvisoIcone tipo={avisoVisivel.tipo} />
+                  <span>{avisoVisivel.texto}</span>
+                </div>
+              )}
             </div>
-          )}
 
-          <form onSubmit={resetMode ? handleReset : handleLogin} className="flex flex-col gap-3">
-            {/* Email */}
-            <div className="relative">
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="Seu email"
-                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-[13px] pr-11 font-['Manrope'] text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/20 focus:bg-white/[0.07]"
-              />
-              <Mail size={15} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20" />
-            </div>
-
-            {/* Password */}
-            {!resetMode && (
-              <div className="relative">
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  placeholder="Sua senha"
-                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-[13px] pr-11 font-['Manrope'] text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/20 focus:bg-white/[0.07]"
-                />
+            {!resetMode && mostraSocial && (
+              <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
                 <button
                   type="button"
-                  onClick={() => setShowPw(!showPw)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 transition hover:text-white/40"
+                  onClick={handleGoogleLogin}
+                  disabled={googleLoading}
+                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 lg:mt-7"
                 >
-                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                  <GoogleIcon />
+                  {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
                 </button>
-              </div>
+
+                <div className="my-6 flex items-center gap-4">
+                  <span className="h-px flex-1 bg-[#E9EDF3]" />
+                  <span className="text-[13px] text-[#94A3B8]">
+                    {cadastroDireto ? "ou cadastre-se com e-mail" : "ou entre com e-mail"}
+                  </span>
+                  <span className="h-px flex-1 bg-[#E9EDF3]" />
+                </div>
+              </motion.div>
             )}
 
-            {/* Remember + Forgot */}
-            {!resetMode && (
-              <div className="flex items-center justify-between py-1">
-                <label className="flex cursor-pointer items-center gap-2">
+            <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
+            {resetMode ? (
+              <form onSubmit={handleReset} className="space-y-4 lg:mt-7">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={aoDigitar(setEmail)}
+                  required
+                  placeholder="Endereço de e-mail"
+                  className={inputCls}
+                />
+                <button type="submit" disabled={loading} className={primaryBtnCls}>
+                  {loading ? "Enviando..." : "Enviar link de recuperação"}
+                </button>
+                <p className="text-center text-[14px] text-[#64748B]">
                   <button
                     type="button"
-                    onClick={() => setRemember(!remember)}
-                    className={`flex h-[16px] w-[16px] items-center justify-center rounded-full border transition ${
-                      remember ? "border-white bg-white" : "border-white/20 bg-transparent"
-                    }`}
+                    onClick={() => { setAviso(null); setResetMode(false); }}
+                    className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                   >
-                    {remember && (
-                      <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
-                        <path d="M4 8l3 3 5-6" stroke="black" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
+                    Voltar para o login
                   </button>
-                  <span className="font-['Manrope'] text-[11px] text-white/40">Lembrar de mim</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setResetMode(true)}
-                  className="font-['Manrope'] text-[11px] font-semibold text-white/70 transition hover:text-white"
+                </p>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (step === "initial") void handleEmailContinue();
+                    // No cadastro direto o e-mail fica fora do <form> do cadastro:
+                    // sem isto, dar Enter no campo não faria nada.
+                    else if (cadastroDireto) void handleSignUp(e);
+                  }}
+                  className="space-y-4"
                 >
-                  Esqueceu a senha?
-                </button>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={aoDigitar(setEmail)}
+                    placeholder="Endereço de e-mail"
+                    readOnly={emailLocked}
+                    // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
+                    // não pela ordem das classes na string.
+                    className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F5F9] text-[#64748B]" : ""}`}
+                  />
+
+                  {step === "initial" && (
+                    <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
+                      {checkingEmail ? "Verificando..." : "Continuar"}
+                    </button>
+                  )}
+                </form>
+
+                <AnimatePresence mode="wait">
+                  {step === "login" && (
+                    <motion.form
+                      key="login"
+                      {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
+                      onSubmit={handleSignIn}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <input
+                            ref={passwordRef}
+                            type={showPw ? "text" : "password"}
+                            value={password}
+                            onChange={aoDigitar(setPassword)}
+                            required
+                            placeholder="Senha"
+                            className={`${inputCls} pr-11`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPw((c) => !c)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                            aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                          >
+                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => { setAviso(null); setResetMode(true); }}
+                          className="text-[14px] font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                        >
+                          Esqueceu a senha?
+                        </button>
+
+                        <button type="submit" disabled={loading} className={primaryBtnCls}>
+                          {loading ? "Entrando..." : "Entrar"}
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
+
+                  {step === "signup" && (
+                    <motion.form
+                      key="signup"
+                      {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
+                      onSubmit={handleSignUp}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-4">
+                        <input
+                          ref={nomeRef}
+                          type="text"
+                          value={nome}
+                          onChange={aoDigitar(setNome)}
+                          required
+                          placeholder="Nome completo"
+                          className={inputCls}
+                        />
+
+                        <div className="relative">
+                          <input
+                            type={showPw ? "text" : "password"}
+                            value={password}
+                            onChange={aoDigitar(setPassword)}
+                            required
+                            placeholder="Senha com 8+ caracteres"
+                            className={`${inputCls} pr-11`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPw((c) => !c)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                            aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                          >
+                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                          </button>
+                        </div>
+
+                        <div className="space-y-2.5 pt-1">
+                          <LegalCheckbox
+                            checked={acceptTerms}
+                            onChange={setAcceptTerms}
+                            label={
+                              <>
+                                Li e aceito os{" "}
+                                <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                                  Termos de Uso
+                                </Link>
+                              </>
+                            }
+                          />
+                          <LegalCheckbox
+                            checked={acceptPrivacy}
+                            onChange={setAcceptPrivacy}
+                            label={
+                              <>
+                                Li e aceito a{" "}
+                                <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                                  Política de Privacidade
+                                </Link>
+                              </>
+                            }
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={loading || !acceptTerms || !acceptPrivacy}
+                          className={primaryBtnCls}
+                        >
+                          {loading ? "Criando conta..." : "Criar conta grátis"}
+                        </button>
+                      </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+
+                <p className="pt-2 text-center text-[14px] text-[#64748B]">
+                  {step === "initial" && (
+                    <>
+                      Ainda não tem conta?{" "}
+                      <button
+                        type="button"
+                        onClick={irParaCadastro}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                      >
+                        Criar conta grátis
+                      </button>
+                    </>
+                  )}
+
+                  {step === "login" && (
+                    <>
+                      Não é você?{" "}
+                      <button
+                        type="button"
+                        onClick={voltarParaInicio}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                      >
+                        Trocar e-mail
+                      </button>
+                    </>
+                  )}
+
+                  {step === "signup" && (
+                    <>
+                      Já tem uma conta?{" "}
+                      <button
+                        type="button"
+                        onClick={voltarParaInicio}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                      >
+                        Entrar
+                      </button>
+                    </>
+                  )}
+                </p>
               </div>
             )}
+            </motion.div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary btn-primary--md mt-1 w-full"
-            >
-              {loading ? "Aguarde..." : resetMode ? "Enviar link" : "Login"}
-            </button>
-          </form>
-
-          {/* Divider */}
-          {!resetMode && (
-            <>
-              <div className="my-5 flex items-center gap-4">
-                <div className="h-px flex-1 bg-white/[0.06]" />
-                <span className="font-['Manrope'] text-[10px] font-medium uppercase tracking-wider text-white/25">ou</span>
-                <div className="h-px flex-1 bg-white/[0.06]" />
-              </div>
-
-              <button
-                onClick={handleGoogleLogin}
-                className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] py-[12px] font-['Manrope'] text-[12px] font-medium text-white/60 transition hover:border-white/15 hover:bg-white/[0.06] hover:text-white"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Entrar com Google
-              </button>
-            </>
-          )}
-
-          {resetMode && (
-            <button
-              onClick={() => setResetMode(false)}
-              className="mt-5 w-full text-center font-['Manrope'] text-[12px] text-white/40 transition hover:text-white"
-            >
-              ← Voltar para login
-            </button>
-          )}
+            </motion.div>
+          </motion.div>
         </div>
 
-        {/* ── Right: Info panel ── */}
-        <div className="hidden flex-1 border-l border-white/[0.06] sm:flex sm:flex-col sm:justify-between sm:p-10">
-          <div>
-            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04]">
-              <svg width="22" height="22" viewBox="0 0 48 48" fill="none"><path d="M33 18 A11 11 0 1 0 33 30" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/><path d="M30 26 L34 30 L38 26" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>
-            </div>
-            <h2 className="mb-3 font-['Manrope'] text-[1.25rem] font-bold leading-[1.2] tracking-[-0.02em] text-white">
-              Sua operação de e-commerce no piloto automático.
-            </h2>
-            <p className="font-['Manrope'] text-[13px] leading-[1.7] text-white/40">
-              Produtos de dropshipping com alta margem, anúncios criados por IA e publicados no Mercado Livre e Shopee em segundos.
-            </p>
-          </div>
+        {/*
+          Saída de emergência de quem travou no login. Só no celular: no desktop a coluna
+          da direita já ocupa esse papel de "tem mais coisa aqui".
+        */}
+        <Link
+          to="/docs"
+          className="mx-auto mb-6 w-fit text-[13px] font-semibold text-white/70 underline underline-offset-4 transition hover:text-white lg:hidden"
+        >
+          Precisa de ajuda?
+        </Link>
 
-          {/* Stats */}
-          <div className="mt-8 grid grid-cols-3 gap-4">
-            {[
-              { value: "4s", label: "Tempo médio de resposta" },
-              { value: "98%", label: "Taxa de satisfação" },
-              { value: "24/7", label: "IA operando" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                <div className="font-['Manrope'] text-[1.25rem] font-bold text-white">{s.value}</div>
-                <div className="mt-1 font-['Manrope'] text-[10px] leading-[1.4] text-white/30">{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom quote */}
-          <div className="mt-8 rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
-            <p className="font-['Manrope'] text-[12px] italic leading-[1.6] text-white/50">
-              "Faturei R$ 3.200 no primeiro mês sem saber nada de e-commerce. A IA fez tudo — eu só aprovei."
-            </p>
-            <div className="mt-3 flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-white/[0.08]" />
-              <span className="font-['Manrope'] text-[10px] text-white/35">Camila S. — São Paulo, SP</span>
-            </div>
-          </div>
-        </div>
+        <p className="text-center text-[12.5px] leading-[1.6] text-white/45 lg:text-left lg:text-[#94A3B8]">
+          Ao continuar, você concorda com a{" "}
+          <Link to="/politica-de-privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
+            Política de Privacidade
+          </Link>{" "}
+          e os{" "}
+          <Link to="/termos-de-servico" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
+            Termos de Uso
+          </Link>
+          .
+        </p>
       </div>
 
-      {/* ── Bottom copyright ── */}
-      <p className="absolute bottom-5 left-1/2 -translate-x-1/2 font-['Manrope'] text-[10px] text-white/20">
-        © 2025 Velo. Todos os direitos reservados.
-      </p>
-    </div>
+      {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
+      <motion.aside
+        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6, ease, delay: 0.1 }}
+        className="hidden w-1/2 flex-col items-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-4 pb-10 pt-6 lg:flex"
+      >
+        {/* Sem moldura: os próprios prints já vêm com card e canto arredondado.
+            Altura fixa para os dois slides porque as proporções são diferentes
+            (um em pé, outro deitado) — assim a legenda não pula de lugar. */}
+        {/* -mx-4 cancela o respiro lateral do aside só nesta faixa: o print
+            aproveita a largura inteira do painel; a legenda continua recuada.
+            `flex-1` em vez de altura fixa: o print fica com todo o espaço que
+            sobra depois da legenda, em qualquer altura de tela. Centralizado
+            nos dois eixos: como as proporções são diferentes, alinhar pela base
+            ou pelo topo jogava toda a sobra para um lado só. */}
+        <div className="relative -mx-4 flex min-h-0 w-[calc(100%+32px)] flex-1 items-center justify-center">
+          {/* Sem `mode="wait"`: os dois prints coexistem durante a troca, um
+              saindo para a esquerda enquanto o outro entra pela direita. Com
+              wait, a imagem ficava meio segundo atrás da legenda. */}
+          <AnimatePresence initial={false}>
+            <motion.img
+              key={SHOWCASE[slide].image}
+              src={SHOWCASE[slide].image}
+              alt={SHOWCASE[slide].title}
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 70 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -70 }}
+              transition={{ duration: 0.5, ease }}
+              // `inset-0 m-auto` centraliza nos dois eixos: como as proporções
+              // são diferentes, os prints deitados sobram espaço em cima e
+              // embaixo — dividido em partes iguais, em vez de todo de um lado.
+              className="absolute inset-0 m-auto max-h-full max-w-full object-contain"
+            />
+          </AnimatePresence>
+        </div>
+
+        <div className="mt-8 shrink-0 text-center">
+          {/* Sem AnimatePresence na legenda de propósito: com `mode="wait"` ela
+              sumia por um instante entre um slide e outro. */}
+          <motion.div
+            key={SHOWCASE[slide].title}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease }}
+            className="min-h-[92px]"
+          >
+            <h2 className={`text-[24px] leading-[1.15] text-[#0F172A] ${FONTE_TITULO}`}>
+              {SHOWCASE[slide].title}
+            </h2>
+            <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-[1.6] text-[#64748B]">
+              {SHOWCASE[slide].description}
+            </p>
+          </motion.div>
+
+          <div className="mt-7 flex items-center justify-center gap-2">
+            {SHOWCASE.map((item, index) => (
+              <button
+                key={item.image}
+                type="button"
+                onClick={() => setSlide(index)}
+                aria-label={`Ver ${item.title}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === slide ? "w-7 bg-[#2563EB]" : "w-4 bg-[#D6DDE8] hover:bg-[#BCC6D6]"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </motion.aside>
+    </main>
   );
 };
+
+const LegalCheckbox = ({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: React.ReactNode;
+}) => (
+  <label className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-[1.5] text-[#64748B]">
+    <span className="relative mt-[1px] flex h-4 w-4 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer h-4 w-4 cursor-pointer appearance-none rounded-[4px] border border-[#CBD5E1] bg-white transition checked:border-[#2563EB] checked:bg-[#2563EB]"
+      />
+      {checked && (
+        <svg viewBox="0 0 12 12" className="pointer-events-none absolute h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="2.5,6.5 5,9 9.5,3.5" />
+        </svg>
+      )}
+    </span>
+    <span>{label}</span>
+  </label>
+);
 
 export default LoginPage;

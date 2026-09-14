@@ -1,0 +1,1477 @@
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChartNoAxesColumnIncreasing,
+  ChevronDown,
+  ChevronRight,
+  CircleDollarSign,
+  FilePlus2,
+  FileSliders,
+  Grid2X2,
+  Image as ImageIcon,
+  Info,
+  List,
+  Loader2,
+  Lock,
+  PackageOpen,
+  Search,
+  SlidersHorizontal,
+  Star,
+  Store,
+  Tag,
+  ShoppingCart,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
+import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
+import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePlan } from "@/hooks/usePlan";
+import { supabase } from "@/integrations/supabase/client";
+import { veloToast } from "@/components/ui/velo-toast";
+import type { ExampleProduct } from "@/types/onboarding";
+import { isAdminEmail } from "@/lib/adminAccess";
+
+type Period = "today" | "week" | "month";
+type SortBy = "score" | "demand" | "margin" | "rating" | "recent" | "price_asc" | "price_desc";
+
+type TrendingProductsRpcArgs = {
+  niche: string | null;
+  period: Period;
+  sort_by: SortBy;
+  page: number;
+  page_size: number;
+};
+
+type TrendingProduct = {
+  id: string;
+  title: string;
+  image: string | null;
+  images: unknown;
+  category: string | null;
+  brand: string | null;
+  suggested_price: number | null;
+  cost_price: number | null;
+  original_price: number | null;
+  margin_percent: number | null;
+  rating: number | null;
+  orders_count: number | null;
+  stock_quantity: number | null;
+  scraped_at: string | null;
+  demand_score: number | null;
+  margin_score: number | null;
+  ease_score: number | null;
+  viral_score: number | null;
+  score: number | null;
+  velo_orders_count?: number | null;
+  velo_units_sold?: number | null;
+  velo_revenue?: number | null;
+  velo_publications_count?: number | null;
+  velo_recent_orders?: number | null;
+  external_sales?: number | null;
+  total_count: number | null;
+};
+
+type TrendingProductsRpcClient = {
+  rpc: (
+    fn: "get_trending_products",
+    args: TrendingProductsRpcArgs,
+  ) => Promise<{ data: TrendingProduct[] | null; error: { message?: string } | null }>;
+};
+
+const PAGE_SIZE = 20;
+const FALLBACK_IMG = "/placeholder.svg";
+const PRESETS_STORAGE_KEY = "velo-trending-products-presets";
+
+type FilterRangeKey = "price" | "sales" | "revenue" | "shopProducts" | "productImages" | "variants";
+type FilterRange = { min: string; max: string };
+type FilterRanges = Record<FilterRangeKey, FilterRange>;
+
+type ProductFilterPreset = {
+  id: string;
+  name: string;
+  searchQuery: string;
+  selectedCategories: string[];
+  filterRanges: FilterRanges;
+  sortBy: SortBy;
+  createdAt: string;
+};
+
+const emptyFilterRanges: FilterRanges = {
+  price: { min: "", max: "" },
+  sales: { min: "", max: "" },
+  revenue: { min: "", max: "" },
+  shopProducts: { min: "", max: "" },
+  productImages: { min: "", max: "" },
+  variants: { min: "", max: "" },
+};
+
+const sortOptions: Array<{ label: string; value: SortBy }> = [
+  { label: "Mais vendidos", value: "demand" },
+  { label: "Ranking Velo", value: "score" },
+  { label: "Maior margem", value: "margin" },
+  { label: "Melhor avaliação", value: "rating" },
+  { label: "Mais recente", value: "recent" },
+  { label: "Menor preço", value: "price_asc" },
+  { label: "Maior preço", value: "price_desc" },
+];
+
+const filterMetricRows: Array<{ key: FilterRangeKey; label: string; icon: LucideIcon }> = [
+  { key: "price", label: "Preço", icon: Tag },
+  { key: "sales", label: "Vendas", icon: ShoppingCart },
+  { key: "revenue", label: "Receita", icon: CircleDollarSign },
+  { key: "shopProducts", label: "Produtos da loja", icon: Store },
+  { key: "productImages", label: "Imagens do produto", icon: ImageIcon },
+  { key: "variants", label: "Variações", icon: SlidersHorizontal },
+];
+
+const filterCategories = [
+  { label: "Eletrônicos", value: "Eletrônicos" },
+  { label: "Automotivo e Motos", value: "Automotivo" },
+  { label: "Bebê e Maternidade", value: "Bebê" },
+  { label: "Beleza e Cuidados", value: "Beleza" },
+  { label: "Livros, Revistas e Áudio", value: "Livros" },
+  { label: "Colecionáveis", value: "Colecionáveis" },
+  { label: "Computadores e Escritório", value: "Informática" },
+  { label: "Acessórios de Moda", value: "Moda" },
+  { label: "Alimentos e Bebidas", value: "Alimentos" },
+  { label: "Casa e Decoração", value: "Casa" },
+  { label: "Saúde e Bem-estar", value: "Saúde" },
+  { label: "Ferramentas", value: "Ferramentas" },
+];
+
+const formatBRL = (value: number | null | undefined) =>
+  Number(value ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const formatNumber = (value: number | null | undefined) =>
+  Number(value ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+
+const formatPercent = (value: number | null | undefined) =>
+  `${Number(value ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+
+// Gera uma sequência pseudo-aleatória determinística (mesmo seed = mesmo resultado,
+// sem re-sortear a cada render). Usado só como decoração visual do card bloqueado —
+// não existe série histórica real vinda do Supabase para este gráfico.
+const seededSparklineValues = (seed: string, points = 14): number[] => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const next = () => {
+    h = (h * 1103515245 + 12345) >>> 0;
+    return (h % 1000) / 1000;
+  };
+
+  let value = 34 + next() * 18;
+  const values: number[] = [];
+  for (let i = 0; i < points; i++) {
+    value += (next() - 0.4) * 13;
+    value = Math.max(8, Math.min(92, value));
+    values.push(value);
+  }
+  values[values.length - 1] = Math.min(96, values[values.length - 1] + 14);
+  return values;
+};
+
+const ProductSparkline = ({ seed }: { seed: string }) => {
+  const values = useMemo(() => seededSparklineValues(seed), [seed]);
+  const width = 108;
+  const height = 34;
+  const step = width / (values.length - 1);
+  const points = values.map((v, i) => `${i * step},${height - (v / 100) * height}`).join(" ");
+  const lastX = (values.length - 1) * step;
+  const lastY = height - (values[values.length - 1] / 100) * height;
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="shrink-0" fill="none" aria-hidden="true">
+      <polyline points={points} stroke="#2563EB" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="#2563EB" />
+    </svg>
+  );
+};
+
+/*
+  Barra de volume da tabela desbloqueada.
+
+  Deliberadamente NÃO é o `ProductSparkline`: aquela linha é gerada por semente
+  pseudo-aleatória (ver comentário acima) e sempre termina subindo — no card
+  borrado passa como textura, mas ao lado de preço e vendas reais viraria um
+  gráfico de tendência inventado para todo produto. Não existe série histórica
+  no `get_trending_products` para desenhar a linha de verdade.
+
+  Esta barra usa o dado real que existe: faturamento mensal do produto medido
+  contra o maior da página.
+*/
+const SalesVolumeBar = ({ value, max }: { value: number; max: number }) => {
+  if (!Number.isFinite(value) || value <= 0 || max <= 0) return null;
+
+  const percent = Math.max(4, Math.min(100, (value / max) * 100));
+
+  return (
+    <div
+      className="mx-auto mt-2 h-1.5 w-[92px] overflow-hidden rounded-full bg-[#E8EDF7]"
+      role="img"
+      aria-label={`Faturamento mensal equivalente a ${Math.round(percent)}% do maior desta página`}
+    >
+      <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${percent}%` }} />
+    </div>
+  );
+};
+
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "Sem data";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
+
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const getMarginPercent = (product: TrendingProduct) => {
+  if (product.margin_percent !== null && product.margin_percent !== undefined) {
+    return Number(product.margin_percent);
+  }
+
+  const price = Number(product.suggested_price ?? product.original_price ?? 0);
+  const cost = Number(product.cost_price ?? 0);
+  if (!price || !cost) return 0;
+
+  return ((price - cost) / price) * 100;
+};
+
+const getDropshippingVerdict = (marginPercent: number, demand: number, rating: number, stock: number | null) => {
+  if (marginPercent >= 35 && demand >= 25 && (rating >= 4 || rating === 0)) {
+    return {
+      title: "Forte candidato",
+      description: "Combina margem, demanda e avaliação em uma faixa boa para validar uma oferta.",
+    };
+  }
+
+  if (marginPercent >= 20 && demand >= 8) {
+    return {
+      title: "Bom para testar",
+      description: "Tem sinais suficientes para entrar em uma validação pequena antes de escalar.",
+    };
+  }
+
+  if (stock !== null && stock <= 0) {
+    return {
+      title: "Estoque fraco",
+      description: "Antes de vender, confirme disponibilidade e reposição para evitar ruptura.",
+    };
+  }
+
+  if (marginPercent < 15) {
+    return {
+      title: "Margem apertada",
+      description: "Pode vender, mas há pouco espaço para tráfego, descontos e imprevistos.",
+    };
+  }
+
+  return {
+    title: "Precisa validar demanda",
+    description: "Use este produto em testes de nicho, criativo e preço antes de assumir escala.",
+  };
+};
+
+const cloneFilterRanges = (ranges: Partial<Record<FilterRangeKey, Partial<FilterRange>>>): FilterRanges => ({
+  price: { min: ranges.price?.min ?? "", max: ranges.price?.max ?? "" },
+  sales: { min: ranges.sales?.min ?? "", max: ranges.sales?.max ?? "" },
+  revenue: { min: ranges.revenue?.min ?? "", max: ranges.revenue?.max ?? "" },
+  shopProducts: { min: ranges.shopProducts?.min ?? "", max: ranges.shopProducts?.max ?? "" },
+  productImages: { min: ranges.productImages?.min ?? "", max: ranges.productImages?.max ?? "" },
+  variants: { min: ranges.variants?.min ?? "", max: ranges.variants?.max ?? "" },
+});
+
+const readSavedPresets = (): ProductFilterPreset[] => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(PRESETS_STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((preset): preset is ProductFilterPreset => {
+      if (!preset || typeof preset !== "object") return false;
+      const candidate = preset as Partial<ProductFilterPreset>;
+      return (
+        typeof candidate.id === "string" &&
+        typeof candidate.name === "string" &&
+        typeof candidate.searchQuery === "string" &&
+        Array.isArray(candidate.selectedCategories) &&
+        typeof candidate.filterRanges === "object" &&
+        typeof candidate.sortBy === "string" &&
+        typeof candidate.createdAt === "string"
+      );
+    });
+  } catch {
+    return [];
+  }
+};
+
+const getImageFromPayload = (images: unknown): string | null => {
+  if (Array.isArray(images)) {
+    const first = images.find((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return first ?? null;
+  }
+
+  if (typeof images === "string") {
+    const trimmed = images.trim();
+    if (!trimmed) return null;
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      return getImageFromPayload(parsed);
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return null;
+};
+
+const getProductImage = (product: TrendingProduct) =>
+  product.image || getImageFromPayload(product.images) || FALLBACK_IMG;
+
+const getImageCount = (product: TrendingProduct) => {
+  if (Array.isArray(product.images)) {
+    return Math.max(1, product.images.filter((item) => typeof item === "string" && item.trim().length > 0).length);
+  }
+
+  if (typeof product.images === "string" && product.images.trim()) {
+    try {
+      const parsed = JSON.parse(product.images);
+      return Array.isArray(parsed) ? Math.max(1, parsed.length) : 1;
+    } catch {
+      return 1;
+    }
+  }
+
+  return product.image ? 1 : 0;
+};
+
+const toOnboardingProduct = (product: TrendingProduct): ExampleProduct => ({
+  id: product.id,
+  title: product.title,
+  price: Number(product.cost_price ?? product.suggested_price ?? product.original_price ?? 0),
+  imageUrl: getProductImage(product),
+});
+
+const primeFirstStoreOnboarding = (product: TrendingProduct) => {
+  const flowProduct = toOnboardingProduct(product);
+
+  try {
+    sessionStorage.setItem("velo-example-product", JSON.stringify(flowProduct));
+    sessionStorage.setItem("velo-example-products", JSON.stringify([flowProduct]));
+    sessionStorage.setItem("velo-store-language", "Português (Brasil)");
+    sessionStorage.setItem("velo-customer-persona", "Comprador Prático");
+    sessionStorage.setItem("velo-sales-angle", "Uma Escolha Inteligente");
+  } catch {
+    // O fluxo também recebe o produto por state; storage é continuidade entre reloads.
+  }
+
+  return flowProduct;
+};
+
+const SalesPageSoonModal = ({ product, onClose }: { product: TrendingProduct; onClose: () => void }) => (
+  <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
+    <section className="w-full max-w-[460px] overflow-hidden rounded-[26px] bg-white text-[#111827] shadow-[0_30px_100px_rgba(15,23,42,0.28)]">
+      <div className="flex items-center justify-between border-b border-black/[0.06] bg-[#F4F5F7] px-6 py-5">
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#8A93A3]">Em breve</p>
+          <h2 className="mt-1 text-[22px] font-semibold tracking-[-0.045em]">Página de vendas individual</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[#7B8494] transition hover:bg-black/[0.05] hover:text-[#111827]"
+          aria-label="Fechar"
+        >
+          <X size={19} strokeWidth={1.7} />
+        </button>
+      </div>
+      <div className="p-6">
+        <div className="flex gap-4 rounded-[18px] border border-black/[0.08] bg-[#FAFAFA] p-3">
+          <img src={getProductImage(product)} alt="" className="h-16 w-16 rounded-[14px] bg-white object-contain" />
+          <div className="min-w-0">
+            <p className="line-clamp-2 text-[14px] font-semibold leading-5 text-[#111827]">{product.title}</p>
+            <p className="mt-1 text-[12px] text-[#7B8494]">A loja atual será preservada.</p>
+          </div>
+        </div>
+        <p className="mt-5 text-[14px] leading-6 text-[#667085]">
+          A criação de páginas individuais por produto ainda será escopada. Por enquanto, continue usando a sua loja ativa e o editor principal.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 h-11 w-full rounded-[14px] bg-[#2563EB] text-[14px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+        >
+          Entendi
+        </button>
+      </div>
+    </section>
+  </div>
+);
+
+const TrendingProductsPage = () => {
+  const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const [products, setProducts] = useState<TrendingProduct[]>([]);
+  const [niche, setNiche] = useState<string | null>(null);
+  const period: Period = "week";
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
+  const [filterRanges, setFilterRanges] = useState<FilterRanges>(() => cloneFilterRanges(emptyFilterRanges));
+  const [savedPresets, setSavedPresets] = useState<ProductFilterPreset[]>(() => readSavedPresets());
+  const [presetName, setPresetName] = useState("");
+  const [expandedProductId, setExpandedProductId] = useState<string | null>(null);
+  const [selectedFilterCategories, setSelectedFilterCategories] = useState<string[]>(() =>
+    filterCategories.map((category) => category.value),
+  );
+  const [sortBy, setSortBy] = useState<SortBy>("demand");
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [salesPageSoonProduct, setSalesPageSoonProduct] = useState<TrendingProduct | null>(null);
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined);
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const { plan: currentPlan } = usePlan();
+  // Mesma regra de "plano gratuito" usada em StoreProjectsPage: gratis/go ficam
+  // bloqueados, admin nunca é bloqueado.
+  const isFreePlan = !isAdmin && (currentPlan === "gratis" || currentPlan === "go");
+
+  const normalizedSearchQuery = appliedSearchQuery.trim().toLocaleLowerCase("pt-BR");
+  const visibleProducts = useMemo(() => {
+    if (!normalizedSearchQuery) return products;
+
+    return products.filter((product) =>
+      [product.title, product.category, product.brand]
+        .filter((value): value is string => typeof value === "string")
+        .some((value) => value.toLocaleLowerCase("pt-BR").includes(normalizedSearchQuery)),
+    );
+  }, [normalizedSearchQuery, products]);
+  /*
+    Maior faturamento mensal entre os produtos visíveis. É a régua da barra de
+    vendas da tabela: cada produto aparece em proporção ao líder da página.
+    Vem de dado real (preço × vendas), não de série gerada.
+  */
+  const maiorFaturamentoDaPagina = useMemo(
+    () =>
+      visibleProducts.reduce((maior, product) => {
+        const preco = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
+        const vendas = Number(product.velo_units_sold ?? 0) > 0
+          ? Number(product.velo_units_sold ?? 0)
+          : Number(product.orders_count ?? product.external_sales ?? 0);
+        return Math.max(maior, preco * vendas);
+      }, 0),
+    [visibleProducts],
+  );
+  const totalCount = products[0]?.total_count ?? products.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const displayedCount = loading ? PAGE_SIZE : visibleProducts.length;
+  const allFilterCategoriesSelected = selectedFilterCategories.length === filterCategories.length;
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchTrendingProducts = async () => {
+      setError(null);
+      setLoading(true);
+
+      const { data, error: rpcError } = await (supabase as unknown as TrendingProductsRpcClient).rpc("get_trending_products", {
+        niche,
+        period,
+        sort_by: sortBy,
+        page,
+        page_size: PAGE_SIZE,
+      });
+
+      if (!mounted) return;
+
+      if (rpcError) {
+        setProducts([]);
+        setError(rpcError.message || "Não foi possível carregar os produtos em alta.");
+        setLoading(false);
+        return;
+      }
+
+      setProducts(data ?? []);
+      setLoading(false);
+    };
+
+    fetchTrendingProducts();
+
+    return () => {
+      mounted = false;
+    };
+  }, [niche, page, sortBy]);
+
+  const resetPage = () => setPage(1);
+
+  const persistPresets = (nextPresets: ProductFilterPreset[]) => {
+    setSavedPresets(nextPresets);
+
+    try {
+      window.localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(nextPresets));
+    } catch {
+      veloToast.error("Não foi possível salvar o preset neste navegador.");
+    }
+  };
+
+  const applySearch = () => {
+    setAppliedSearchQuery(searchQuery.trim());
+    setPage(1);
+  };
+
+  const updateFilterRange = (key: FilterRangeKey, edge: keyof FilterRange, value: string) => {
+    setFilterRanges((current) => ({
+      ...current,
+      [key]: {
+        ...current[key],
+        [edge]: value,
+      },
+    }));
+  };
+
+  const toggleProductDetails = (productId: string) => {
+    setExpandedProductId((current) => (current === productId ? null : productId));
+  };
+
+  const toggleFilterCategory = (value: string) => {
+    setSelectedFilterCategories((current) =>
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+    );
+  };
+
+  const toggleAllFilterCategories = () => {
+    setSelectedFilterCategories((current) =>
+      current.length === filterCategories.length ? [] : filterCategories.map((category) => category.value),
+    );
+  };
+
+  const applyFilters = () => {
+    const nextNiche = allFilterCategoriesSelected ? null : selectedFilterCategories[0] ?? null;
+    setAppliedSearchQuery(searchQuery.trim());
+    setNiche(nextNiche);
+    setPage(1);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setAppliedSearchQuery("");
+    setSelectedFilterCategories(filterCategories.map((category) => category.value));
+    setFilterRanges(cloneFilterRanges(emptyFilterRanges));
+    setNiche(null);
+    setPage(1);
+  };
+
+  const saveCurrentPreset = () => {
+    const trimmedName = presetName.trim();
+    const nextPreset: ProductFilterPreset = {
+      id: crypto.randomUUID(),
+      name: trimmedName || `Preset ${savedPresets.length + 1}`,
+      searchQuery: searchQuery.trim(),
+      selectedCategories: [...selectedFilterCategories],
+      filterRanges: cloneFilterRanges(filterRanges),
+      sortBy,
+      createdAt: new Date().toISOString(),
+    };
+
+    persistPresets([nextPreset, ...savedPresets].slice(0, 12));
+    setPresetName("");
+    veloToast.success("Preset salvo.");
+  };
+
+  const applyPreset = (preset: ProductFilterPreset) => {
+    const nextCategories = preset.selectedCategories.filter((value) =>
+      filterCategories.some((category) => category.value === value),
+    );
+
+    setSearchQuery(preset.searchQuery);
+    setAppliedSearchQuery(preset.searchQuery);
+    setSelectedFilterCategories(nextCategories.length > 0 ? nextCategories : filterCategories.map((category) => category.value));
+    setFilterRanges(cloneFilterRanges(preset.filterRanges));
+    setSortBy(preset.sortBy);
+    setNiche(nextCategories.length === filterCategories.length ? null : nextCategories[0] ?? null);
+    setPage(1);
+    setPresetsOpen(false);
+    veloToast.success("Preset aplicado.");
+  };
+
+  const deletePreset = (presetId: string) => {
+    persistPresets(savedPresets.filter((preset) => preset.id !== presetId));
+    veloToast.success("Preset removido.");
+  };
+
+  const refresh = async () => {
+    setError(null);
+
+    const { data, error: rpcError } = await (supabase as unknown as TrendingProductsRpcClient).rpc("get_trending_products", {
+      niche,
+      period,
+      sort_by: sortBy,
+      page,
+      page_size: PAGE_SIZE,
+    });
+
+    if (rpcError) {
+      setError(rpcError.message || "Não foi possível atualizar o ranking.");
+      veloToast.error("Não foi possível atualizar Produtos em Alta.");
+    } else {
+      setProducts(data ?? []);
+      veloToast.success("Ranking atualizado.");
+    }
+
+  };
+
+  const goToOnboardingWithProduct = (product: TrendingProduct) => {
+    const flowProduct = primeFirstStoreOnboarding(product);
+    navigate("/onboarding/preparando-produto", { state: { product: flowProduct, products: [flowProduct] } });
+  };
+
+  const [mlProduct, setMlProduct] = useState<CatalogProduct | null>(null);
+
+  const handlePublishToMl = (product: TrendingProduct) => {
+    setMlProduct({
+      id: product.id,
+      title: product.title,
+      description: null,
+      images: product.images,
+      cost_price: Number(product.cost_price ?? 0),
+      suggested_price: Number(product.suggested_price ?? product.original_price ?? 0),
+      margin_percent: Number(product.margin_percent ?? 0),
+      category: product.category,
+      source: "velo",
+      stock_quantity: product.stock_quantity,
+      brand: product.brand,
+    });
+  };
+
+  const handleCreateStore = (product: TrendingProduct) => {
+    const activeStore = getActiveStore();
+    if (activeStore) {
+      navigate("/minha-loja/editor");
+      return;
+    }
+
+    goToOnboardingWithProduct(product);
+  };
+
+  const [creatingSalesPageId, setCreatingSalesPageId] = useState<string | null>(null);
+  const [wizardProduct, setWizardProduct] = useState<TrendingProduct | null>(null);
+
+  const handleCreateSalesPage = (product: TrendingProduct) => {
+    if (creatingSalesPageId) return;
+    // Abre o mesmo wizard usado em Minha Loja, travado em "página de vendas"
+    // e com o produto vindo de Produtos em Alta já pré-selecionado.
+    setWizardProduct(product);
+  };
+
+  const handleProjectCreated = (projectId: string) => {
+    setWizardProduct(null);
+    setCreatingSalesPageId(null);
+    navigate(`/minha-loja/editor/${projectId}`, { state: { projectId } });
+  };
+
+  return (
+    <div className="-m-5 min-h-[calc(100%+2.5rem)] bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
+      <style>
+        {`
+          @keyframes veloProductDetail {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+
+          @keyframes veloFilterPanel {
+            from {
+              opacity: 0;
+              transform: translateY(-14px) scaleY(0.985);
+              clip-path: inset(0 0 100% 0);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scaleY(1);
+              clip-path: inset(0 0 0 0);
+            }
+          }
+
+          @keyframes veloFilterItem {
+            from {
+              opacity: 0;
+              transform: translateY(8px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          .velo-filter-panel {
+            transform-origin: top center;
+            animation: veloFilterPanel 300ms cubic-bezier(.2,.82,.2,1) both;
+          }
+
+          .velo-filter-item {
+            opacity: 0;
+            animation: veloFilterItem 260ms cubic-bezier(.2,.82,.2,1) both;
+          }
+        `}
+      </style>
+      <div className="flex w-full flex-col bg-white">
+        <section className="bg-white">
+          <div className="flex min-h-12 items-center gap-3 border-b border-black/[0.06] bg-[#FFF7F7] px-7 py-2.5 text-[12px] font-medium text-[#4B5563]">
+            <AlertTriangle size={16} strokeWidth={1.5} className="shrink-0 text-[#EAB308]" />
+            <p className="line-clamp-2">
+              Produtos em alta usam sinais de demanda, margem e atividade recente para ajudar você a encontrar oportunidades com mais rapidez.
+            </p>
+          </div>
+
+          {isFreePlan ? (
+            <div className="flex items-center gap-3 border-b border-black/[0.06] bg-[#FFF7ED] px-7 py-3 text-[12px] font-medium text-[#9A5B13]">
+              <Lock size={16} strokeWidth={1.8} className="shrink-0 text-[#C77923]" />
+              <p>
+                Nome, imagens e link de origem dos produtos ficam ocultos no plano gratuito.{" "}
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard/planos")}
+                  className="font-semibold underline underline-offset-2 hover:text-[#7A4610]"
+                >
+                  Escolha um plano para desbloquear todos os recursos
+                </button>
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex min-h-[62px] flex-col gap-3 border-b border-black/[0.06] px-7 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <header className="flex min-w-0 items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                aria-label="Voltar"
+              >
+                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                Produtos em Alta
+              </h1>
+            </header>
+            <div className="inline-flex h-9 shrink-0 overflow-hidden rounded-full border border-black/[0.08] bg-white text-[12px] shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
+              <span className="flex items-center border-r border-black/[0.06] px-4 font-semibold text-[#667085]">Produtos listados</span>
+              <span className="flex items-center px-4 font-semibold text-emerald-600">{formatNumber(totalCount)}</span>
+            </div>
+          </div>
+
+
+          <div className="flex min-h-[56px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 lg:flex-row lg:items-center lg:justify-between">
+            <form
+              className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                applySearch();
+              }}
+            >
+              <div className="relative min-w-[260px] flex-1 lg:max-w-[560px]">
+                <Search size={15} strokeWidth={1.7} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#A0A7B4]" />
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  aria-label="Buscar produtos"
+                  placeholder="Buscar produtos..."
+                  className="h-9 w-full rounded-full border border-black/[0.07] bg-white pl-9 pr-4 text-[12px] font-medium text-[#111111] outline-none placeholder:text-[#A0A7B4]"
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-[#F1F3F7] px-4 text-[12px] font-semibold text-[#2F3747] transition hover:bg-[#EAEDF3]"
+              >
+                Buscar
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((current) => !current)}
+                aria-expanded={filtersOpen}
+                className={`inline-flex h-9 items-center justify-center gap-2 rounded-full border px-4 text-[12px] font-semibold shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition duration-200 ${
+                  filtersOpen ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_10px_22px_rgba(37,99,235,0.22)]" : "border-black/[0.07] bg-white text-[#111111] hover:bg-[#FAFAF9]"
+                }`}
+              >
+                <SlidersHorizontal size={14} strokeWidth={1.7} className={`transition-transform duration-300 ${filtersOpen ? "rotate-90" : ""}`} />
+                Filtros
+              </button>
+            </form>
+
+            <div className="relative flex shrink-0 items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setPresetsOpen((current) => !current)}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.045)] transition hover:bg-[#FAFAF9] hover:text-[#111111]"
+                aria-label="Importar ou criar presets de filtros"
+                title="Importar ou criar presets de filtros"
+              >
+                <FileSliders size={15} strokeWidth={1.7} />
+                Presets
+                <ChevronDown size={13} strokeWidth={1.7} className="text-[#8A93A3]" />
+              </button>
+
+              {presetsOpen ? (
+                <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[320px] rounded-[12px] border border-black/[0.08] bg-white p-3 text-[#111827] shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[12px] font-semibold">Presets de busca</p>
+                    <span className="text-[11px] font-medium text-[#8A93A3]">{savedPresets.length}/12</span>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={presetName}
+                      onChange={(event) => setPresetName(event.target.value)}
+                      placeholder="Nome do preset"
+                      className="h-9 min-w-0 flex-1 rounded-full border border-black/[0.08] px-3 text-[12px] font-medium outline-none placeholder:text-[#A0A7B4] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveCurrentPreset}
+                      className="h-9 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+                    >
+                      Salvar
+                    </button>
+                  </div>
+
+                  <div className="mt-3 max-h-[220px] space-y-2 overflow-y-auto pr-1">
+                    {savedPresets.length === 0 ? (
+                      <p className="rounded-[9px] bg-[#F6F7F9] px-3 py-3 text-[12px] font-medium text-[#6B7280]">
+                        Salve uma busca para reutilizar nicho, filtros, categorias e ordenação.
+                      </p>
+                    ) : (
+                      savedPresets.map((preset) => (
+                        <div key={preset.id} className="rounded-[9px] border border-black/[0.06] p-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-[12px] font-semibold text-[#111827]">{preset.name}</p>
+                              <p className="mt-0.5 truncate text-[11px] font-medium text-[#8A93A3]">
+                                {preset.searchQuery || "Sem termo"} · {preset.selectedCategories.length} categorias
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => deletePreset(preset.id)}
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#8A93A3] transition hover:bg-[#F4F4F5] hover:text-[#111827]"
+                              aria-label={`Remover preset ${preset.name}`}
+                            >
+                              <X size={14} strokeWidth={1.8} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => applyPreset(preset)}
+                            className="mt-2 h-8 w-full rounded-[8px] bg-[#F1F3F7] text-[12px] font-semibold text-[#111827] transition hover:bg-[#E8EAF0]"
+                          >
+                            Aplicar preset
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {filtersOpen ? (
+            <div className="velo-filter-panel overflow-hidden border-b border-black/[0.06] bg-white px-7 py-7">
+              <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.94fr)] lg:gap-10">
+                <div>
+                  <div className="velo-filter-item flex items-center gap-1.5 text-[15px] font-semibold text-[#2B2F3A]" style={{ animationDelay: "60ms" }}>
+                    <span>Filtros</span>
+                    <Info size={13} strokeWidth={1.8} className="text-[#C0C6D2]" />
+                  </div>
+
+                  <div className="mt-6 space-y-3.5">
+                    {filterMetricRows.map(({ key, label, icon: Icon }, index) => (
+                      <div
+                        key={label}
+                        className="velo-filter-item grid grid-cols-[26px_minmax(0,1fr)] gap-3 sm:grid-cols-[26px_minmax(0,1fr)_minmax(0,1fr)] sm:items-center sm:gap-4"
+                        style={{ animationDelay: `${95 + index * 34}ms` }}
+                      >
+                        <Icon size={15} strokeWidth={1.8} className="mt-2.5 text-[#747B8B] sm:mt-0" />
+                        <label className="relative block">
+                          <span className="sr-only">{label} mínimo</span>
+                          <input
+                            value={filterRanges[key].min}
+                            onChange={(event) => updateFilterRange(key, "min", event.target.value)}
+                            inputMode="numeric"
+                            placeholder={label}
+                            className="h-9 w-full rounded-[9px] border border-black/[0.07] bg-white pl-3 pr-12 text-[12px] font-medium text-[#111827] outline-none transition placeholder:text-[#B7BEC9] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
+                          />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-[#4B5563]">
+                            MÍN
+                          </span>
+                        </label>
+                        <label className="relative col-start-2 block sm:col-start-auto">
+                          <span className="sr-only">{label} máximo</span>
+                          <input
+                            value={filterRanges[key].max}
+                            onChange={(event) => updateFilterRange(key, "max", event.target.value)}
+                            inputMode="numeric"
+                            placeholder={label}
+                            className="h-9 w-full rounded-[9px] border border-black/[0.07] bg-white pl-3 pr-12 text-[12px] font-medium text-[#111827] outline-none transition placeholder:text-[#B7BEC9] focus:border-black/30 focus:ring-4 focus:ring-black/[0.06]"
+                          />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase text-[#4B5563]">
+                            MÁX
+                          </span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-black/[0.07] lg:border-l lg:pl-10">
+                  <div className="velo-filter-item flex items-center gap-2 text-[15px] font-semibold text-[#2B2F3A]" style={{ animationDelay: "95ms" }}>
+                    <span>Categorias</span>
+                    <span className="rounded-[5px] bg-[#FFF4E5] px-1.5 py-0.5 text-[10px] font-bold text-[#C77923]">BETA</span>
+                  </div>
+
+                  <div className="mt-6 max-h-[282px] space-y-3 overflow-y-auto pr-3">
+                    <button
+                      type="button"
+                      onClick={toggleAllFilterCategories}
+                      className="velo-filter-item flex w-full items-center gap-3 text-left text-[12px] font-medium text-[#3C4353] transition hover:text-[#111827]"
+                      style={{ animationDelay: "130ms" }}
+                    >
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition ${
+                          allFilterCategoriesSelected ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-[#C7CEDA] bg-white text-transparent"
+                        }`}
+                      >
+                        <Check size={12} strokeWidth={2.2} />
+                      </span>
+                      <span>{allFilterCategoriesSelected ? "Desmarcar tudo" : "Selecionar tudo"}</span>
+                    </button>
+
+                    {filterCategories.map((category, index) => {
+                      const checked = selectedFilterCategories.includes(category.value);
+
+                      return (
+                        <button
+                          key={category.value}
+                          type="button"
+                          onClick={() => toggleFilterCategory(category.value)}
+                          className="velo-filter-item flex w-full items-center gap-3 text-left text-[12px] font-medium text-[#3C4353] transition hover:text-[#111827]"
+                          style={{ animationDelay: `${162 + index * 24}ms` }}
+                        >
+                          <span
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border transition ${
+                              checked ? "border-[#2563EB] bg-[#2563EB] text-white" : "border-[#C7CEDA] bg-white text-transparent"
+                            }`}
+                          >
+                            <Check size={12} strokeWidth={2.2} />
+                          </span>
+                          <span>{category.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="velo-filter-item mt-7 flex items-center gap-6" style={{ animationDelay: "270ms" }}>
+                <div className="h-px flex-1 bg-black/[0.08]" />
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#7D8493] transition hover:text-[#111827]"
+                >
+                  Filtros avançados
+                  <ChevronDown size={13} strokeWidth={1.7} />
+                </button>
+                <div className="h-px flex-1 bg-black/[0.08]" />
+              </div>
+
+              <div className="velo-filter-item mt-7 flex justify-end gap-3" style={{ animationDelay: "310ms" }}>
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="h-9 rounded-[9px] border border-black/[0.07] bg-white px-4 text-[12px] font-semibold text-[#4B5563] shadow-[0_4px_12px_rgba(15,23,42,0.04)] transition hover:bg-[#FAFAF9] hover:text-[#111827]"
+                >
+                  Limpar filtro
+                </button>
+                <button
+                  type="button"
+                  onClick={applyFilters}
+                  className="h-9 rounded-[9px] bg-[#2563EB] px-5 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
+                >
+                  Buscar
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex min-h-[54px] flex-col gap-2 border-b border-black/[0.06] px-7 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="group relative flex h-9 items-center gap-2 rounded-full border border-black/[0.07] bg-white px-3 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                <span className="text-[12px] font-medium text-[#8A93A3]">Ordenar por</span>
+                <select
+                  value={sortBy}
+                  onChange={(event) => {
+                    setSortBy(event.target.value as SortBy);
+                    resetPage();
+                  }}
+                  className="h-full min-w-[130px] appearance-none bg-transparent pr-7 text-[12px] font-semibold text-[#111111] outline-none"
+                >
+                  {sortOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={13} strokeWidth={1.6} className="pointer-events-none absolute right-3 text-[#8A93A3]" />
+              </label>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+              <div className="flex items-center gap-1 rounded-full border border-black/[0.07] bg-white p-1 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                <button type="button" className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-[#F1F3F7] text-[#111111]" aria-label="Visualização em lista">
+                  <List size={15} strokeWidth={1.7} />
+                </button>
+                <button type="button" className="flex h-7 w-7 items-center justify-center rounded-[7px] text-[#8A93A3]" aria-label="Visualização em grade">
+                  <Grid2X2 size={14} strokeWidth={1.7} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex min-h-[54px] flex-col gap-2 px-7 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-[12px] text-[#667085]">
+              <span>Mostrando</span>
+              <span className="rounded-[9px] bg-[#EEF1F7] px-3 py-1.5 font-semibold text-[#111827]">{displayedCount}</span>
+              <span>de {formatNumber(totalCount)}</span>
+            </div>
+            <div className="flex items-center gap-2 text-[12px] font-medium text-[#667085]">
+              <span>Página</span>
+              <span className="rounded-[9px] bg-[#EEF1F7] px-3 py-1.5 font-semibold text-[#111827]">{page}</span>
+              <span>de {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1 || loading}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#F2F4F7] text-[#8A93A3] transition hover:bg-white hover:text-[#111111] disabled:cursor-not-allowed disabled:opacity-35"
+                aria-label="Página anterior"
+              >
+                <ArrowLeft size={13} strokeWidth={1.6} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page >= totalPages || loading}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-[9px] bg-[#F2F4F7] text-[#8A93A3] transition hover:bg-white hover:text-[#111111] disabled:cursor-not-allowed disabled:opacity-35"
+                aria-label="Próxima página"
+              >
+                <ArrowRight size={13} strokeWidth={1.6} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="overflow-hidden border-t border-black/[0.06] bg-white">
+          {loading ? (
+            <div className="flex min-h-[430px] flex-col items-center justify-center gap-3 text-[#667085]">
+              <Loader2 size={26} strokeWidth={1.5} className="animate-spin" />
+              <span className="text-[13px] font-medium">Buscando produtos em alta...</span>
+            </div>
+          ) : error ? (
+            <div className="flex min-h-[430px] flex-col items-center justify-center px-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <X size={22} strokeWidth={1.6} />
+              </div>
+              <h3 className="mt-4 text-[18px] font-semibold tracking-[-0.03em]">Não foi possível carregar</h3>
+              <p className="mt-2 max-w-[420px] text-[13px] leading-6 text-[#667085]">{error}</p>
+              <button
+                type="button"
+                onClick={refresh}
+                className="mt-5 inline-flex h-10 items-center justify-center rounded-[13px] bg-[#2563EB] px-4 text-[13px] font-semibold text-white"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : visibleProducts.length === 0 ? (
+            <div className="flex min-h-[430px] flex-col items-center justify-center px-6 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F3F1] text-[#111111]">
+                <PackageOpen size={23} strokeWidth={1.5} />
+              </div>
+              <h3 className="mt-4 text-[18px] font-semibold tracking-[-0.03em]">
+                {appliedSearchQuery ? "Nenhum produto encontrado para a busca" : "Nenhum produto encontrado"}
+              </h3>
+              <p className="mt-2 max-w-[420px] text-[13px] leading-6 text-[#667085]">
+                Tente trocar o termo, nicho, período ou ordenação para encontrar novas oportunidades.
+              </p>
+            </div>
+          ) : isFreePlan ? (
+            <div className="space-y-3 px-7 py-5">
+              {visibleProducts.map((product, index) => {
+                const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
+                const cost = Number(product.cost_price ?? 0);
+                const profit = price - cost;
+                const marginPercent = getMarginPercent(product);
+                const markup = cost > 0 ? price / cost : null;
+                const rank = index + 1;
+                const badgeClass =
+                  rank === 1
+                    ? "bg-[#F5A623] text-white"
+                    : rank === 2
+                      ? "bg-[#9AA6B2] text-white"
+                      : rank === 3
+                        ? "bg-[#F97316] text-white"
+                        : "bg-[#EEF0F3] text-[#4B5563]";
+
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-4 rounded-2xl border border-black/[0.08] bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)]"
+                  >
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center self-center rounded-full text-[14px] font-bold leading-none tabular-nums ${badgeClass}`}
+                    >
+                      {rank}
+                    </span>
+
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[14px] bg-[#F1F2F4]">
+                      <Lock size={18} strokeWidth={1.9} className="text-[#9AA0AC]" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="select-none truncate text-[14px] font-semibold text-[#111827] blur-[6px]">{product.title}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] font-medium text-[#6B7280]">
+                        <span>
+                          Custo: <span className="font-semibold text-[#111827]">{formatBRL(cost)}</span>
+                        </span>
+                        <span>
+                          Venda: <span className="font-semibold text-[#111827]">{formatBRL(price)}</span>
+                        </span>
+                        {markup ? (
+                          <span className="rounded-full bg-[#F1F2F4] px-2 py-0.5 text-[11px] font-semibold text-[#111827]">
+                            {markup.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x markup
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="hidden shrink-0 text-right sm:block">
+                      <p className="flex items-center justify-end gap-1 text-[11px] font-semibold text-[#8A93A3]">
+                        <ChartNoAxesColumnIncreasing size={12} strokeWidth={2} />
+                        LUCRO
+                      </p>
+                      <p className="text-[15px] font-bold text-[#111827]">{formatBRL(profit)}</p>
+                    </div>
+
+                    <div className="hidden shrink-0 text-right md:block">
+                      <p className="text-[11px] font-semibold text-[#8A93A3]">% MARGEM</p>
+                      <p className="text-[15px] font-bold text-[#111827]">{formatPercent(marginPercent)}</p>
+                    </div>
+
+                    <ProductSparkline seed={product.id} />
+
+                    <ChevronDown size={16} strokeWidth={2} className="hidden shrink-0 text-[#9AA0AC] sm:block" />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="overflow-hidden">
+              <table className="w-full table-fixed border-collapse">
+                <colgroup>
+                  <col className="w-[36%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[8%]" />
+                </colgroup>
+                <thead>
+                  <tr className="h-12 border-b border-black/[0.06] bg-white text-left text-[12px] font-semibold text-[#596174]">
+                    <th className="px-5 py-3">Produto</th>
+                    <th className="px-3 py-3 text-center">
+                      <span className="inline-flex items-center justify-center gap-1">Preço <ChevronDown size={13} strokeWidth={1.8} /></span>
+                    </th>
+                    <th className="px-3 py-3 text-center">
+                      <span className="inline-flex items-center justify-center gap-1">Vendas mensais <ChevronDown size={13} strokeWidth={1.8} /></span>
+                    </th>
+                    <th className="px-3 py-3 text-center">
+                      <span className="inline-flex items-center justify-center gap-1">Fornecedor <Info size={13} strokeWidth={1.8} className="text-[#B5BDCB]" /></span>
+                    </th>
+                    <th className="px-3 py-3 text-center">
+                      <span className="inline-flex items-center justify-center gap-1">Avaliação <ChevronDown size={13} strokeWidth={1.8} /></span>
+                    </th>
+                    <th className="px-3 py-3 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleProducts.map((product) => {
+                    const veloSales = Number(product.velo_units_sold ?? 0);
+                    const veloOrders = Number(product.velo_orders_count ?? 0);
+                    const veloStores = Number(product.velo_publications_count ?? 0);
+                    const marketSales = Number(product.external_sales ?? 0);
+                    const demand = veloSales > 0 ? veloSales : Number(product.orders_count ?? marketSales ?? 0);
+                    const rating = Number(product.rating ?? 0);
+                    const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
+                    const cost = Number(product.cost_price ?? 0);
+                    const profit = price - cost;
+                    const marginPercent = getMarginPercent(product);
+                    const monthlyRevenue = price * demand;
+                    const imageCount = getImageCount(product);
+                    const supplierLabel = product.brand || product.category || "Fornecedor Velo";
+                    const supplierMeta = product.brand && product.category ? product.category : "Produtos selecionados";
+                    const stock = product.stock_quantity;
+                    const verdict = getDropshippingVerdict(marginPercent, demand, rating, stock);
+                    const isExpanded = expandedProductId === product.id;
+                    const signalRows = [
+                      { label: "Demanda", value: Number(product.demand_score ?? demand), hint: `${formatNumber(demand)} vendas` },
+                      { label: "Margem", value: Number(product.margin_score ?? marginPercent), hint: formatPercent(marginPercent) },
+                      { label: "Facilidade", value: Number(product.ease_score ?? 0), hint: "Operação" },
+                      { label: "Viral", value: Number(product.viral_score ?? 0), hint: "Criativo" },
+                    ];
+
+                    return (
+                      <Fragment key={product.id}>
+                        <tr className="h-[92px] border-b border-black/[0.06] bg-white transition hover:bg-[#FBFCFE]">
+                          <td className="px-5 py-4">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => toggleProductDetails(product.id)}
+                                aria-expanded={isExpanded}
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-[#F4F4F5] hover:text-[#111827]"
+                                aria-label={isExpanded ? "Fechar detalhes do produto" : "Ver detalhes do produto"}
+                              >
+                                <ChevronRight size={16} strokeWidth={2.1} className={`transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
+                              </button>
+                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[4px] border border-black/[0.04] bg-white">
+                                <img
+                                  src={getProductImage(product)}
+                                  alt=""
+                                  className={`h-full w-full object-contain p-1 ${isFreePlan ? "scale-125 blur-[6px]" : ""}`}
+                                />
+                                {isFreePlan ? (
+                                  <span className="absolute inset-0 flex items-center justify-center bg-white/45">
+                                    <Lock size={14} strokeWidth={2.1} className="text-[#111827]" />
+                                  </span>
+                                ) : null}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleProductDetails(product.id)}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <span
+                                    className={`min-w-0 truncate text-[13px] font-semibold leading-5 text-[#111827] ${
+                                      isFreePlan ? "select-none blur-[5px]" : ""
+                                    }`}
+                                  >
+                                    {product.title}
+                                  </span>
+                                  <ChartNoAxesColumnIncreasing size={14} strokeWidth={1.8} className="shrink-0 text-[#2563EB]" />
+                                </div>
+                                <div className="mt-1 flex min-w-0 items-center gap-4 text-[12px] font-medium text-[#111827]">
+                                  <span>{imageCount || 1} {imageCount === 1 ? "imagem" : "imagens"}</span>
+                                  <span>1 variante</span>
+                                </div>
+                              </button>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4 text-center align-middle">
+                            <p className="whitespace-nowrap text-[14px] font-semibold text-[#111827]">{formatBRL(price)}</p>
+                          </td>
+                          <td className="px-3 py-4 text-center align-middle">
+                            <p className="whitespace-nowrap text-[14px] font-semibold text-[#2B2F3A]">{formatBRL(monthlyRevenue)}</p>
+                            <SalesVolumeBar value={monthlyRevenue} max={maiorFaturamentoDaPagina} />
+                            {veloSales > 0 ? (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-semibold text-[#111827]">
+                                {formatNumber(veloSales)} vendas na Velo
+                                <span className="ml-1 font-medium text-[#7E8798]">({formatNumber(veloOrders)} pedidos)</span>
+                              </p>
+                            ) : (
+                              <p className="mt-1 whitespace-nowrap text-[12px] font-medium text-[#7E8798]">
+                                ~{formatNumber(marketSales)} vendas no Mercado Livre
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-4 align-middle">
+                            <div className="mx-auto flex w-full max-w-[245px] min-w-0 items-center justify-start gap-3">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#F1F2F4] text-[10px] font-bold uppercase text-[#111827]">
+                                {supplierLabel.slice(0, 2)}
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <p className="truncate text-[13px] font-semibold leading-5 text-[#111827]">{supplierLabel}</p>
+                                <p className="truncate text-[12px] font-medium text-[#111827]">{supplierMeta}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4 text-center align-middle">
+                            <span className="inline-flex max-w-full items-center justify-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[#2B2F3A]">
+                              {rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"}
+                              <Star size={14} fill="#111827" stroke="none" />
+                              <span className="truncate font-medium text-[#7E8798]">({formatNumber(Number(product.score ?? 0))})</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-4 align-middle">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
+                                disabled={creatingSalesPageId === product.id}
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111827] transition hover:bg-[#F4F4F5] disabled:opacity-60"
+                                aria-label={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
+                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
+                              >
+                                {creatingSalesPageId === product.id ? (
+                                  <Loader2 size={15} className="animate-spin" />
+                                ) : isFreePlan ? (
+                                  <Lock size={14} strokeWidth={1.9} />
+                                ) : (
+                                  <FilePlus2 size={15} strokeWidth={1.8} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8]"
+                                aria-label="Publicar no Mercado Livre"
+                                title={isFreePlan ? "Disponível apenas com um plano ativo" : "Publicar no Mercado Livre"}
+                              >
+                                {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={15} strokeWidth={1.8} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr className="border-b border-black/[0.06] bg-[#FAFAFA]">
+                            <td colSpan={6} className="px-5 py-0">
+                              <div className="py-5 [animation:veloProductDetail_220ms_ease-out]">
+                                <div className="grid gap-5 lg:grid-cols-[minmax(260px,0.75fr)_minmax(0,1.45fr)_minmax(260px,0.8fr)]">
+                                  <div className="flex gap-4">
+                                    <div className="relative h-[118px] w-[118px] shrink-0 overflow-hidden rounded-[8px] border border-black/[0.06] bg-white">
+                                      <img
+                                        src={getProductImage(product)}
+                                        alt=""
+                                        className={`h-full w-full object-contain p-3 ${isFreePlan ? "scale-125 blur-[10px]" : ""}`}
+                                      />
+                                      {isFreePlan ? (
+                                        <span className="absolute inset-0 flex items-center justify-center bg-white/45">
+                                          <Lock size={22} strokeWidth={1.9} className="text-[#111827]" />
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p
+                                        className={`line-clamp-3 text-[15px] font-semibold leading-6 text-[#111827] ${
+                                          isFreePlan ? "select-none blur-[6px]" : ""
+                                        }`}
+                                      >
+                                        {product.title}
+                                      </p>
+                                      <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#4B5563]">
+                                        {product.category ? <span className="rounded-full bg-white px-2.5 py-1">{product.category}</span> : null}
+                                        {product.brand ? <span className="rounded-full bg-white px-2.5 py-1">{product.brand}</span> : null}
+                                        <span className="rounded-full bg-white px-2.5 py-1">{imageCount || 1} imagens</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                    {[
+                                      { label: "Preço sugerido", value: formatBRL(price), hint: "valor de venda" },
+                                      { label: "Custo estimado", value: formatBRL(cost), hint: "base do fornecedor" },
+                                      { label: "Lucro bruto", value: formatBRL(profit), hint: "antes de taxas e tráfego" },
+                                      { label: "Margem", value: formatPercent(marginPercent), hint: "saúde da oferta" },
+                                      { label: "Receita mensal", value: formatBRL(monthlyRevenue), hint: "preço x vendas" },
+                                      { label: "Estoque", value: stock === null ? "Sem dado" : formatNumber(stock), hint: "risco de ruptura" },
+                                      { label: "Avaliação", value: rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "Sem nota", hint: "prova de satisfação" },
+                                       { label: "Vendas na Velo", value: formatNumber(veloSales), hint: `${formatNumber(veloOrders)} pedidos reais` },
+                                       { label: "Lojas vendendo", value: formatNumber(veloStores), hint: "usuários que publicaram" },
+                                       { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },
+                                    ].map((metric) => (
+                                      <div key={metric.label} className="rounded-[8px] border border-black/[0.06] bg-white p-3">
+                                        <p className="text-[11px] font-semibold text-[#7E8798]">{metric.label}</p>
+                                        <p className="mt-1 truncate text-[14px] font-semibold text-[#111827]">{metric.value}</p>
+                                        <p className="mt-1 truncate text-[11px] font-medium text-[#8A93A3]">{metric.hint}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  <div className="rounded-[8px] border border-black/[0.06] bg-white p-4">
+                                    <p className="text-[12px] font-semibold text-[#7E8798]">Diagnóstico dropshipping</p>
+                                    <h3 className="mt-1 text-[18px] font-semibold text-[#111827]">{verdict.title}</h3>
+                                    <p className="mt-2 text-[12px] leading-5 text-[#667085]">{verdict.description}</p>
+                                    <div className="mt-4 space-y-2.5">
+                                      {signalRows.map((signal) => {
+                                        const signalValue = Math.max(0, Math.min(100, signal.value));
+
+                                        return (
+                                          <div key={signal.label}>
+                                            <div className="flex items-center justify-between text-[11px] font-semibold text-[#4B5563]">
+                                              <span>{signal.label}</span>
+                                              <span>{signal.hint}</span>
+                                            </div>
+                                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#ECEEF2]">
+                                              <div className="h-full rounded-full bg-[#2563EB]" style={{ width: `${signalValue}%` }} />
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F4F4F5]"
+                                      >
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <FilePlus2 size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Criar página"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                        className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+                                      >
+                                        {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={14} strokeWidth={1.8} />}
+                                        {isFreePlan ? "Disponível no plano pago" : "Publicar no Mercado Livre"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+        </section>
+      </div>
+
+      {salesPageSoonProduct ? (
+        <SalesPageSoonModal product={salesPageSoonProduct} onClose={() => setSalesPageSoonProduct(null)} />
+      ) : null}
+
+      <ProjectCreationWizard
+        open={!!wizardProduct}
+        onClose={() => setWizardProduct(null)}
+        lockedTipo="pagina_venda"
+        preselectedProductIds={wizardProduct ? [wizardProduct.id] : []}
+        onCreated={handleProjectCreated}
+      />
+
+      <ImportProductModal open={!!mlProduct} onClose={() => setMlProduct(null)} product={mlProduct} />
+    </div>
+  );
+};
+
+export default TrendingProductsPage;

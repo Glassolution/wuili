@@ -1,0 +1,1 @@
+UPDATE public.catalog_products SET supplier_name = 'AliExpress' WHERE source = 'aliexpress' AND (supplier_name IS NULL OR supplier_name = '');

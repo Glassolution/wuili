@@ -57,5 +57,5 @@ FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Seed initial suppliers
 INSERT INTO public.suppliers (name, type, is_active) VALUES
-  ('CJ Dropshipping', 'cj', true),
+  ('C7Drop', 'c7drop', true),
   ('Zendrop', 'zendrop', false);

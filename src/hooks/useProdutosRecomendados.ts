@@ -1,0 +1,316 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
+import type { NichoDaVitrine } from "@/contexts/AtlasChatContext";
+import {
+  CATEGORIAS_EXCLUIDAS,
+  categoriasDoPerfil,
+  lerRespostasDoQuiz,
+  motivoDaRecomendacao,
+  pontuarProdutoParaPerfil,
+  resumoDoPerfil,
+  type RespostasDoQuiz,
+} from "@/lib/perfilDoQuiz";
+
+/**
+ * Seleção de produtos do guia, cruzando o quiz de cadastro com o catálogo.
+ *
+ * Vive num hook, e não dentro do componente, porque a mesma seleção aparece em
+ * dois lugares: no painel lateral do Atlas e no chat em tela cheia. Antes essa
+ * lógica morava no modal da vitrine — quando a vitrine virou carrossel dentro
+ * da conversa, a busca ficou aqui para os dois renderizadores usarem a mesma.
+ */
+
+export type ProdutoRecomendado = {
+  id: string;
+  nome: string;
+  categoria: string;
+  preco: number;
+  imagem: string;
+  rating: number | null;
+  ordersCount: number | null;
+  motivo: string;
+};
+
+type LinhaDoCatalogo = {
+  id: string;
+  title: string | null;
+  category: string | null;
+  cost_price: number | null;
+  images: unknown;
+  rating: number | null;
+  orders_count: number | null;
+  scraped_at: string | null;
+  updated_at: string | null;
+};
+
+/** Quantos cards entram no carrossel. */
+const QUANTIDADE_DE_CARDS = 8;
+
+/**
+ * Teto de produtos da mesma categoria.
+ *
+ * Sem isso o carrossel enche de oito variações do mesmo item quando o nicho é
+ * estreito, e a seleção parece uma busca, não uma recomendação.
+ */
+const MAXIMO_POR_CATEGORIA = 3;
+
+/** Histórico compartilhado pelos carrosséis criados durante esta sessão. */
+const produtosVistosPorSelecao = new Map<string, Set<string>>();
+
+const historicoDaSelecao = (userId: string | null, termos: string) => {
+  const chave = `${userId ?? "anon"}|${termos || "perfil"}`;
+  const existente = produtosVistosPorSelecao.get(chave);
+  if (existente) return existente;
+  const novo = new Set<string>();
+  produtosVistosPorSelecao.set(chave, novo);
+  return novo;
+};
+
+/** Produtos atualizados recentemente ganham prioridade sem apagar qualidade. */
+const bonusDeAtualidade = (linha: LinhaDoCatalogo) => {
+  const data = linha.scraped_at ?? linha.updated_at;
+  if (!data) return 0;
+  const idadeEmDias = Math.max(0, (Date.now() - new Date(data).getTime()) / 86_400_000);
+  if (!Number.isFinite(idadeEmDias)) return 0;
+  return Math.max(0, 35 - idadeEmDias * 1.5);
+};
+
+/** Mesmo tratamento de imagem do catálogo: o campo vem como json ou string. */
+const primeiraImagem = (images: unknown): string | null => {
+  const lista = Array.isArray(images)
+    ? images
+    : typeof images === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(images);
+            return Array.isArray(parsed) ? parsed : [images];
+          } catch {
+            return [images];
+          }
+        })()
+      : [];
+  const primeira = lista.find((item) => typeof item === "string" && item.startsWith("http"));
+  return typeof primeira === "string" ? primeira : null;
+};
+
+type Retorno = {
+  produtos: ProdutoRecomendado[];
+  carregando: boolean;
+  erro: string | null;
+  /** Frase que explica em que a seleção se baseou, para o cabeçalho. */
+  resumo: string;
+  respostas: RespostasDoQuiz;
+  /** Troca a seleção por outra rodada de produtos do mesmo nicho. */
+  recarregar: () => void;
+};
+
+/**
+ * Embaralhamento estável por usuário e por rodada.
+ *
+ * Sem isso a mesma lista aparecia para todo mundo: a pontuação depende só do
+ * perfil, e perfis iguais geram a mesma ordem. O ruído é pequeno o bastante
+ * para não jogar produto ruim para cima, e grande o bastante para duas contas
+ * do mesmo nicho verem vitrines diferentes.
+ */
+const ruidoEstavel = (produtoId: string, userId: string | null, rodada: number) => {
+  const texto = `${produtoId}|${userId ?? "anon"}|${rodada}`;
+  let hash = 2166136261;
+  for (let i = 0; i < texto.length; i += 1) {
+    hash ^= texto.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
+};
+
+export const useProdutosRecomendados = (
+  nicho: NichoDaVitrine | null,
+  /** Piso de tempo do esqueleto, para a busca não piscar e sumir. */
+  tempoMinimoMs = 900,
+): Retorno => {
+  const { user } = useAuth();
+  const [produtos, setProdutos] = useState<ProdutoRecomendado[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  /** Cada clique em "Ver outros produtos" avança a rodada e troca a seleção. */
+  const [rodada, setRodada] = useState(0);
+
+  const respostas = useMemo(() => lerRespostasDoQuiz(user), [user]);
+  const resumo = useMemo(() => resumoDoPerfil(respostas), [respostas]);
+  // Só os termos importam para a busca; o objeto do nicho muda de identidade a
+  // cada render do chat e reiniciaria a consulta sem necessidade.
+  const termosDoNicho = useMemo(() => nicho?.catalogTerms ?? [], [nicho]);
+  const chaveDosTermos = termosDoNicho.join("|");
+  const userId = user?.id ?? null;
+
+  // Guarda o piso de tempo só na primeira busca: reconsultas silenciosas não
+  // precisam segurar o esqueleto de novo.
+  const jaBuscouRef = useRef(false);
+  // Inclui produtos mostrados por carrosséis anteriores da mesma categoria.
+  const jaVistosRef = useRef<Set<string>>(historicoDaSelecao(userId, chaveDosTermos));
+
+  // Cada nicho mantém seu histórico; voltar a ele não repete a primeira leva.
+  useEffect(() => {
+    jaVistosRef.current = historicoDaSelecao(userId, chaveDosTermos);
+    setRodada(0);
+  }, [chaveDosTermos, userId]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    const buscar = async () => {
+      const abertoEm = Date.now();
+      setCarregando(true);
+      setErro(null);
+      try {
+        const categorias = categoriasDoPerfil(respostas);
+        const termos = chaveDosTermos ? chaveDosTermos.split("|") : [];
+
+        const base = () =>
+          supabase
+            .from("catalog_products")
+            .select("id,title,category,cost_price,images,rating,orders_count,scraped_at,updated_at")
+            .eq("is_active", true)
+            .eq("is_blocked", false)
+            .gt("stock_quantity", 0)
+            .not("category", "in", `(${CATEGORIAS_EXCLUIDAS.map((c) => `"${c}"`).join(",")})`);
+
+        // Três consultas: o nicho confirmado na conversa, o nicho do cadastro e
+        // a geral. As duas últimas são só rede de segurança — entram apenas se o
+        // nicho não render cards suficientes.
+        const [melhoresDoNicho, recentesDoNicho, doNichoDoQuiz, gerais] = await Promise.all([
+          termos.length > 0
+            ? withFreshSupabaseSession(() =>
+                base()
+                  .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
+                  .order("orders_count", { ascending: false, nullsFirst: false })
+                  .limit(160),
+              )
+            : Promise.resolve({ data: [], error: null }),
+          termos.length > 0
+            ? withFreshSupabaseSession(() =>
+                base()
+                  .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
+                  .order("scraped_at", { ascending: false, nullsFirst: false })
+                  .limit(160),
+              )
+            : Promise.resolve({ data: [], error: null }),
+          categorias.length > 0
+            ? withFreshSupabaseSession(() => base().in("category", categorias).limit(120))
+            : Promise.resolve({ data: [], error: null }),
+          withFreshSupabaseSession(() =>
+            base().order("orders_count", { ascending: false, nullsFirst: false }).limit(120),
+          ),
+        ]);
+
+        if (melhoresDoNicho.error) throw melhoresDoNicho.error;
+        if (recentesDoNicho.error) throw recentesDoNicho.error;
+        if (doNichoDoQuiz.error) throw doNichoDoQuiz.error;
+        if (gerais.error) throw gerais.error;
+
+        const linhasDoNicho = [
+          ...(((melhoresDoNicho.data as LinhaDoCatalogo[]) ?? [])),
+          ...(((recentesDoNicho.data as LinhaDoCatalogo[]) ?? [])),
+        ];
+        const linhasDoQuiz = (doNichoDoQuiz.data as LinhaDoCatalogo[]) ?? [];
+        const linhasGerais = (gerais.data as LinhaDoCatalogo[]) ?? [];
+        const idsDoNichoDaConversa = new Set(linhasDoNicho.map((linha) => linha.id));
+
+        // Precisão do guia: com nicho escolhido, a vitrine é só do nicho. As
+        // outras listas só completam quando o nicho tem pouco estoque — antes
+        // elas entravam sempre e enchiam a vitrine de produto fora do assunto.
+        const temNichoSuficiente = termos.length > 0 && linhasDoNicho.length >= QUANTIDADE_DE_CARDS * 2;
+        const fonte = temNichoSuficiente
+          ? linhasDoNicho
+          : [...linhasDoNicho, ...linhasDoQuiz, ...linhasGerais];
+
+        const porId = new Map<string, LinhaDoCatalogo>();
+        for (const linha of fonte) {
+          if (!porId.has(linha.id)) porId.set(linha.id, linha);
+        }
+
+        const ranqueados = [...porId.values()]
+          .map((linha) => {
+            const imagem = primeiraImagem(linha.images);
+            if (!imagem) return null;
+            const produto = {
+              id: linha.id,
+              nome: linha.title || "Produto do catálogo Velo",
+              categoria: linha.category || "Produto",
+              preco: linha.cost_price || 0,
+              imagem,
+              rating: linha.rating,
+              ordersCount: linha.orders_count,
+            };
+            // O bônus mantém o nicho confirmado no topo sem descartar o perfil:
+            // a ordem final é nicho primeiro, e dentro dele o que combina com
+            // as respostas do cadastro.
+            const bonusDoNicho = idsDoNichoDaConversa.has(linha.id) ? 100 : 0;
+            const pontos =
+              pontuarProdutoParaPerfil(produto, respostas, { produtoId: linha.id, userId }) +
+              bonusDoNicho +
+              bonusDeAtualidade(linha) +
+              ruidoEstavel(linha.id, userId, rodada) * 45;
+            return { produto, pontos };
+          })
+          .filter((item): item is { produto: Omit<ProdutoRecomendado, "motivo">; pontos: number } => Boolean(item))
+          .sort((a, b) => b.pontos - a.pontos);
+
+        // Nunca repete um produto já mostrado nesta categoria durante a sessão.
+        const vistos = jaVistosRef.current;
+        const inéditos = ranqueados.filter(({ produto }) => !vistos.has(produto.id));
+        const pool = inéditos;
+
+        // Passa uma vez respeitando o teto por categoria e, se ainda faltar
+        // card, completa com o resto na ordem da pontuação.
+        const escolhidos: Array<Omit<ProdutoRecomendado, "motivo">> = [];
+        const usados = new Set<string>();
+        const porCategoria = new Map<string, number>();
+        for (const { produto } of pool) {
+          if (escolhidos.length >= QUANTIDADE_DE_CARDS) break;
+          const quantos = porCategoria.get(produto.categoria) ?? 0;
+          if (quantos >= MAXIMO_POR_CATEGORIA) continue;
+          porCategoria.set(produto.categoria, quantos + 1);
+          escolhidos.push(produto);
+          usados.add(produto.id);
+        }
+        for (const { produto } of pool) {
+          if (escolhidos.length >= QUANTIDADE_DE_CARDS) break;
+          if (usados.has(produto.id)) continue;
+          escolhidos.push(produto);
+          usados.add(produto.id);
+        }
+
+        const selecionados = escolhidos.map((produto) => ({
+          ...produto,
+          motivo: motivoDaRecomendacao(produto, respostas),
+        }));
+
+        if (!jaBuscouRef.current) {
+          const restante = tempoMinimoMs - (Date.now() - abertoEm);
+          if (restante > 0) await new Promise((resolve) => setTimeout(resolve, restante));
+        }
+
+        if (!ativo) return;
+        jaBuscouRef.current = true;
+        for (const produto of selecionados) jaVistosRef.current.add(produto.id);
+        setProdutos(selecionados);
+        setCarregando(false);
+      } catch (e) {
+        if (!ativo) return;
+        setErro(e instanceof Error ? e.message : "Não consegui carregar os produtos agora");
+        setCarregando(false);
+      }
+    };
+
+    void buscar();
+    return () => {
+      ativo = false;
+    };
+  }, [chaveDosTermos, respostas, rodada, tempoMinimoMs, userId]);
+
+  const recarregar = useCallback(() => setRodada((atual) => atual + 1), []);
+
+  return { produtos, carregando, erro, resumo, respostas, recarregar };
+};

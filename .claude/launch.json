@@ -2,18 +2,23 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "calc-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/luisfelipexavier/Desktop/calc/calc-instant-carousel"],
+      "port": 3000
+    },
+    {
       "name": "Vite Dev Server",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 8080,
-      "cwd": "/Users/luisfelipexavier/Desktop/Velo/wuili"
+      "autoPort": true
     },
     {
       "name": "Vite Preview",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview"],
-      "port": 4173,
-      "cwd": "/Users/luisfelipexavier/Desktop/Velo/wuili"
+      "port": 4173
     }
   ]
 }

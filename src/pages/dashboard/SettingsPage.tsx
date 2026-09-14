@@ -1,18 +1,43 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Bell, Camera, CheckCircle2, CreditCard, Loader2, Lock, MessageCircle, Plug, Shield, Store, User } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BadgeCheck, Bell, CheckCircle2, CreditCard, FlaskConical, Loader2, Lock, MessageCircle, Plug, Shield, Sparkles, Store, Trash2, User, Zap } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { isAdminEmail } from "@/lib/adminAccess";
 import { supabase } from "@/integrations/supabase/client";
-import PlanBadge from "@/components/PlanBadge";
 import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
+import { PlanBadgeIcon, useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { PremiumActionButton } from "@/components/PremiumActionButton";
+import RefundSection from "@/components/dashboard/RefundSection";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { toast } from "sonner";
+import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
+import { veloToast } from "@/components/ui/velo-toast";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import { getAdminPanelStyle, setAdminPanelStyle, type AdminPanelStyle } from "@/lib/adminPanelStyle";
+import { useSandboxMode } from "@/lib/sandboxMode";
+import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
+import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCE_OPTIONS,
+  fetchNotificationPreferences,
+  saveNotificationPreferences,
+  type NotificationPreferenceKey,
+  type NotificationPreferences,
+} from "@/lib/notifications";
 
-type TabId = "Perfil" | "Minhas Lojas" | "Integrações" | "Plano" | "Notificações" | "Segurança" | "Suporte";
+type TabId =
+  | "Perfil"
+  | "Minhas Lojas"
+  | "Integrações"
+  | "Plano"
+  | "Notificações"
+  | "Segurança"
+  | "Suporte";
 
 const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Perfil", icon: User },
@@ -24,21 +49,21 @@ const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
   { id: "Suporte", icon: MessageCircle, separatorBefore: true },
 ];
 
+const isTabId = (value: string | null): value is TabId => NAV.some((item) => item.id === value);
+
 const SettingsPage = () => {
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TabId) || "Perfil";
+  const tabParam = searchParams.get("tab");
+  const initialTab: TabId = isTabId(tabParam) ? tabParam : "Perfil";
   const [tab, setTab] = useState<TabId>(initialTab);
+
   useEffect(() => {
-    const t = searchParams.get("tab") as TabId | null;
-    if (t && t !== tab) setTab(t);
+    const t = searchParams.get("tab");
+    if (isTabId(t) && t !== tab) setTab(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
-  const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  const { nome, foto } = useProfile();
-  const { user } = useAuth();
 
-  const iniciais = (nome || user?.email || "U")
-    .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+  const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
 
   useEffect(() => {
     mobileTabRefs.current[tab]?.scrollIntoView({
@@ -48,91 +73,62 @@ const SettingsPage = () => {
     });
   }, [tab]);
 
+  // Largura única para toda a tela. Antes o Plano usava 980 e as demais abas
+  // 720, e como a classe ficava no wrapper externo, trocar de aba mexia no
+  // título e na barra de abas junto. A régua da página não pode depender da
+  // aba aberta.
+  const contentMaxWidth = "max-w-[720px]";
+
   return (
-    <div className="md:flex md:overflow-hidden md:rounded-2xl md:border md:border-[#EBEBEB] md:bg-[#F5F5F5] md:dark:border-white/10 md:dark:bg-[#111111]" style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
-      {/* Sidebar 240px */}
-      <aside className="hidden md:flex w-[240px] shrink-0 flex-col bg-white border-r border-[#E5E5E5] dark:bg-[#0f0f0f] dark:border-white/10">
-        <div className="p-5 border-b border-[#F0F0F0] dark:border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-base font-bold overflow-hidden">
-              {foto ? <img src={foto} alt="" className="w-full h-full object-cover" /> : iniciais}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-bold text-[#0A0A0A] dark:text-white truncate">{nome || "Usuário"}</p>
-              <div className="mt-1"><PlanBadge size="sm" /></div>
-            </div>
-          </div>
-        </div>
-
-        <nav className="p-3 space-y-1">
-          {NAV.map((item) => {
-            const active = tab === item.id;
-            const Icon = item.icon;
-            return (
-              <div key={item.id}>
-                {item.separatorBefore && <div className="my-2 border-t border-[#F0F0F0] dark:border-white/10" />}
-                <button
-                  onClick={() => setTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[14px] transition-colors ${
-                    active
-                      ? "bg-[#F0F0F0] text-[#0A0A0A] font-medium dark:bg-white/10 dark:text-white"
-                      : "text-[#737373] hover:bg-[#F5F5F5] dark:text-zinc-400 dark:hover:bg-white/5"
-                  }`}
-                >
-                  <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-                  {item.id}
-                </button>
-              </div>
-            );
-          })}
-        </nav>
-      </aside>
-
+    <div className={`mx-auto w-full ${contentMaxWidth}`} style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
       {/* Main */}
-      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:p-8">
-        <div className="mb-4 rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:hidden">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-base font-bold text-white dark:bg-white dark:text-black">
-              {foto ? <img src={foto} alt="" className="h-full w-full object-cover" /> : iniciais}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[16px] font-bold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
-              <div className="mt-1"><PlanBadge size="sm" /></div>
-            </div>
-          </div>
+      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6">
+        <div className="mb-4">
+          <h1 className="text-[19px] font-semibold tracking-[-0.015em] text-[#111113] dark:text-white sm:text-[20px]">
+            Configurações
+          </h1>
+          <p className="mt-0.5 text-[12.5px] text-[#9A9A9A] dark:text-zinc-400">
+            Gerencie seu perfil, lojas e preferências da conta.
+          </p>
         </div>
 
-        {/* Mobile tab pills */}
-        <div className="-mx-3 mb-4 overflow-x-auto px-3 pb-1 md:hidden [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
-          <div className="inline-flex min-w-full gap-1 rounded-2xl border border-[#2A2A2A] bg-[#141414] p-1 shadow-sm">
+        {/* Abas de configuração (estilo sublinhado) */}
+        <div className="mb-6 border-b border-[#EDEDED] dark:border-white/10">
+          <div className="flex w-full items-center justify-between gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
             {NAV.map((item) => {
               const active = tab === item.id;
-              const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   ref={(node) => { mobileTabRefs.current[item.id] = node; }}
                   onClick={() => setTab(item.id)}
-                  className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-[13px] font-semibold whitespace-nowrap transition-colors ${
-                    active ? "bg-white text-[#0A0A0A] shadow-sm" : "bg-transparent text-white hover:bg-white/5"
+                  className={`relative min-w-max flex-1 whitespace-nowrap px-1 pb-2 pt-1 text-center text-[12.5px] transition-colors ${
+                    active
+                      ? "font-semibold text-[#111113] dark:text-white"
+                      : "font-normal text-[#9A9A9A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
                   }`}
                 >
-                  <Icon size={14} />
                   {item.id}
+                  {active && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[#111113] dark:bg-white" />}
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className={`mx-auto ${tab === "Suporte" ? "max-w-[760px]" : "max-w-[600px]"} rounded-2xl border border-[#EFEFEF] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900 sm:p-5 md:p-8`}>
+        <div className="w-full">
           {tab === "Perfil"        && <ProfileTab />}
           {tab === "Minhas Lojas"  && <StoresTab />}
           {tab === "Integrações"   && <IntegrationsTab />}
           {tab === "Plano"         && <PlanTab />}
           {tab === "Notificações"  && <NotificationsTab />}
           {tab === "Segurança"     && <SecurityTab />}
-          {tab === "Suporte"       && <SupportTab />}
+          {tab === "Suporte"       && (
+            <div className="space-y-6">
+              <SupportTab />
+              <RefundSection />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -140,34 +136,222 @@ const SettingsPage = () => {
 };
 
 /* ──── shared field styles ──── */
-const labelCls = "block text-[12px] font-medium text-[#737373] dark:text-zinc-400 uppercase tracking-[0.05em] mb-2";
-const inputCls =
-  "w-full h-11 px-3.5 rounded-[10px] border border-[#E5E5E5] bg-white text-[15px] text-[#0A0A0A] placeholder:text-[#A3A3A3] outline-none transition focus:border-black focus:shadow-[0_0_0_3px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-[#0f0f0f] dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white dark:focus:shadow-[0_0_0_3px_rgba(255,255,255,0.14)]";
-const primaryBtn =
-  "inline-flex items-center justify-center px-7 py-3 rounded-full bg-black text-white text-[14px] font-medium hover:opacity-85 transition-opacity dark:bg-white dark:text-black";
 const secondaryBtn =
   "inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-black text-[14px] font-medium text-black bg-transparent hover:bg-black hover:text-white transition-colors dark:border-white dark:text-white dark:hover:bg-white dark:hover:text-black";
 const divider = "my-6 border-t border-[#F0F0F0] dark:border-white/10";
 
+/* ──── mockup profile: underline fields + solid/outline buttons ──── */
+const fieldLabel = "block text-[13px] font-bold text-[#111113] mb-2 dark:text-white";
+const underlineInput =
+  "w-full h-10 bg-transparent border-0 border-b border-[#E2E2E2] px-0 text-[15px] text-[#0A0A0A] placeholder:text-[#B3B3B3] outline-none transition focus:border-[#2563EB] dark:border-white/15 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-[#60A5FA]";
+const saveBtn =
+  "inline-flex items-center justify-center rounded-[6px] bg-[#2563EB] px-6 py-2 text-[13px] font-medium text-white transition hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8]";
+const cancelBtn =
+  "inline-flex items-center justify-center rounded-[6px] border border-[#DFDFDF] bg-white px-6 py-2 text-[13px] font-medium text-[#111113] transition hover:border-[#111113] dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white";
+
+/* ──── enterprise settings: linhas de duas colunas + input com borda ──── */
+const rowDivider = "border-t border-[#EDEDED] dark:border-white/10";
+const enterpriseInput =
+  "w-full h-[38px] rounded-[9px] border border-[#E6E6E6] bg-white px-3 text-[13px] text-[#111113] shadow-[0_1px_2px_rgba(0,0,0,0.03)] placeholder:text-[#B5B5B5] outline-none transition focus:border-[#2563EB] dark:border-white/15 dark:bg-transparent dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-[#60A5FA]";
+const inputLabel = "mb-1.5 block text-[12px] font-medium tracking-[-0.005em] text-[#4A4A4A] dark:text-zinc-400";
+const photoUploadBtn =
+  "inline-flex items-center justify-center rounded-[9px] bg-[#2563EB] px-3.5 py-[7px] text-[12.5px] font-medium text-white transition hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8]";
+const photoRemoveBtn =
+  "inline-flex items-center justify-center rounded-[9px] border border-[#E6E6E6] bg-white px-3.5 py-[7px] text-[12.5px] font-medium text-[#111113] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#111113] dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:border-white";
+
+/* Linha de configuração: rótulo (semibold) + descrição em cinza à esquerda,
+   campo com micro-label à direita. Empilha no mobile. */
+const FieldRow = ({
+  label,
+  desc,
+  fieldLabel: fieldLabelText,
+  children,
+}: {
+  label: string;
+  desc: string;
+  fieldLabel?: string;
+  children: React.ReactNode;
+}) => (
+  <div className="flex flex-col gap-2.5 py-5 md:flex-row md:items-center md:justify-between md:gap-10">
+    <div className="md:max-w-[330px]">
+      <p className="text-[13px] font-semibold tracking-[-0.005em] text-[#111113] dark:text-white">{label}</p>
+      <p className="mt-0.5 text-[12px] leading-[1.45] text-[#9A9A9A] dark:text-zinc-400">{desc}</p>
+    </div>
+    <div className="w-full md:w-[300px] md:shrink-0">
+      {fieldLabelText && <label className={inputLabel}>{fieldLabelText}</label>}
+      {children}
+    </div>
+  </div>
+);
+
+/* Selo do plano exibido ao lado do nome. Assinantes ganham o selo colorido do
+   plano; quem não tem assinatura vê apenas o texto "Gratuito". */
+const PLAN_BADGE: Record<string, { label: string; className: string }> = {
+  go: {
+    label: "Go",
+    className:
+      "border-white/85 bg-gradient-to-br from-[#fbfbfa] via-[#ececea] to-[#c8c8c4] text-[#383835] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]",
+  },
+  base: {
+    label: "Base",
+    className:
+      "border-white/85 bg-gradient-to-br from-[#fbfbfa] via-[#ececea] to-[#c8c8c4] text-[#383835] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]",
+  },
+  pro: {
+    label: "Pro",
+    className:
+      "border-white/75 bg-gradient-to-br from-[#9287ff] via-[#6953ef] to-[#4925df] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.38)]",
+  },
+  business: {
+    label: "Business",
+    className:
+      "border-white/70 bg-gradient-to-br from-[#313131] via-[#181818] to-[#050505] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]",
+  },
+};
+
+const PlanSeal = () => {
+  const { plan, status, loading } = usePlan();
+  if (loading) return null;
+
+  const badge = status === "active" ? PLAN_BADGE[plan] : undefined;
+
+  if (!badge) {
+    return (
+      <span className="text-[12px] font-medium text-[#9A9A9A] dark:text-zinc-400">Gratuito</span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-[3px] text-[11px] font-semibold leading-none ${badge.className}`}
+    >
+      <BadgeCheck size={11} strokeWidth={2.5} />
+      {badge.label}
+    </span>
+  );
+};
+
+const AdminPanelStyleField = () => {
+  const [selectedStyle, setSelectedStyle] = useState<AdminPanelStyle>(() => getAdminPanelStyle());
+  const options: Array<{ label: "Old" | "Atual"; value: AdminPanelStyle }> = [
+    { label: "Old", value: "old" },
+    { label: "Atual", value: "current" },
+  ];
+
+  const handleStyleChange = (style: AdminPanelStyle) => {
+    setSelectedStyle(style);
+    setAdminPanelStyle(style);
+  };
+
+  return (
+    <FieldRow label="Estilo de painel admin" desc="Controle reservado para administradores." fieldLabel="Versão">
+      <div className="grid h-[38px] grid-cols-2 gap-1 rounded-[9px] border border-[#E6E6E6] bg-[#F7F7F7] p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/15 dark:bg-white/5">
+        {options.map((option) => {
+          const active = selectedStyle === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => handleStyleChange(option.value)}
+              className={`rounded-[6px] text-[12.5px] font-medium transition ${
+                active
+                  ? "bg-white text-[#111113] shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:bg-white dark:text-black"
+                  : "text-[#8A8A8A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </FieldRow>
+  );
+};
+
+const SandboxField = ({ accountKey }: { accountKey?: string | null }) => {
+  const [enabled, setEnabled] = useSandboxMode(accountKey);
+  const options = [
+    { label: "Desligada", value: false },
+    { label: "Ligada", value: true },
+  ];
+
+  return (
+    <FieldRow
+      label="Sandbox"
+      desc="Controle reservado para esta conta admin testar assinatura sem pagamento e reembolso fora do prazo."
+      fieldLabel="Modo"
+    >
+      <div className="space-y-2">
+        <div className="grid h-[38px] grid-cols-2 gap-1 rounded-[9px] border border-[#E6E6E6] bg-[#F7F7F7] p-1 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/15 dark:bg-white/5">
+          {options.map((option) => {
+            const active = enabled === option.value;
+            return (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setEnabled(option.value)}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-[6px] text-[12.5px] font-medium transition ${
+                  active
+                    ? option.value
+                      ? "bg-[#2563EB] text-white shadow-[0_2px_8px_rgba(37,99,235,0.25)]"
+                      : "bg-white text-[#111113] shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:bg-white dark:text-black"
+                    : "text-[#8A8A8A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
+                }`}
+              >
+                {option.value && <FlaskConical size={13} />}
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className={`text-[11.5px] leading-[1.4] ${enabled ? "text-[#2563EB]" : "text-[#9A9A9A] dark:text-zinc-500"}`}>
+          {enabled
+            ? "Ligado só para esta conta. O checkout muda para ativação de teste e o reembolso aceita fora dos 7 dias."
+            : "Desligado. Pagamentos e reembolsos seguem as regras normais."}
+        </p>
+      </div>
+    </FieldRow>
+  );
+};
+
 /* ══ Profile ════════════════════════════════════════════ */
 const ProfileTab = () => {
   const { nome, foto, setNome, setFoto } = useProfile();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [nomeEditado, setNomeEditado] = useState(nome);
   const [telefone, setTelefone] = useState("");
+  const [telefoneOriginal, setTelefoneOriginal] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [fotoPreview, setFotoPreview] = useState<string | null>(foto);
   const [fotoFile, setFotoFile] = useState<string | null>(null);
+  const [fotoRemovida, setFotoRemovida] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const iniciais = (nomeEditado || user?.email || "U")
-    .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setFotoPreview(url);
-    setFotoFile(url);
+    if (file.size > 900_000) {
+      veloToast.error("Escolha uma imagem menor que 900 KB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      setFotoPreview(url);
+      setFotoFile(url);
+      setFotoRemovida(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoverFoto = () => {
+    setFotoPreview(null);
+    setFotoFile(null);
+    setFotoRemovida(true);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   useEffect(() => {
@@ -178,106 +362,201 @@ const ProfileTab = () => {
       .eq("user_id", user.id)
       .single()
       .then(({ data }) => {
-        if (data?.whatsapp) setTelefone(data.whatsapp);
+        if (data?.whatsapp) {
+          setTelefone(data.whatsapp);
+          setTelefoneOriginal(data.whatsapp);
+        }
       });
   }, [user?.id]);
 
-  const handleSalvar = async () => {
-    if (user?.id) {
-      await supabase
-        .from("profiles")
-        .upsert({
-          user_id: user.id,
-          display_name: nomeEditado,
-          whatsapp: telefone,
-        });
-    }
-    setNome(nomeEditado);
-    if (fotoFile) setFoto(fotoFile);
+  const handleCancelar = () => {
+    setNomeEditado(nome);
+    setTelefone(telefoneOriginal);
+    setFotoPreview(foto);
+    setFotoFile(null);
+    setFotoRemovida(false);
   };
 
-  const avatarSrc = fotoPreview ?? foto;
+  const handleSalvar = async () => {
+    const toastId = veloToast.loading("Salvando configurações...");
+    try {
+      if (user?.id) {
+        const profilePayload = {
+          display_name: nomeEditado,
+          whatsapp: telefone,
+          ...(fotoRemovida ? { avatar_url: null } : fotoFile ? { avatar_url: fotoFile } : {}),
+        };
+
+        const { data: updated, error } = await supabase
+          .from("profiles")
+          .update(profilePayload)
+          .eq("user_id", user.id)
+          .select("user_id");
+
+        if (error) throw error;
+
+        if (!updated || updated.length === 0) {
+          const { error: insertError } = await supabase.from("profiles").insert({
+            user_id: user.id,
+            ...profilePayload,
+          });
+
+          if (insertError) throw insertError;
+        }
+      }
+
+      setNome(nomeEditado);
+      if (fotoRemovida) setFoto("");
+      else if (fotoFile) setFoto(fotoFile);
+      setFotoRemovida(false);
+      setFotoFile(null);
+      veloToast.success("Configurações salvas com sucesso.", { id: toastId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível salvar as configurações.";
+      veloToast.error(message, { id: toastId });
+    }
+  };
+
+  const avatarSrc = fotoRemovida ? null : (fotoPreview ?? foto);
+  // Fallback de iniciais quando não há foto (evita imagem padrão externa quebrada).
+  const iniciais = (nome || user?.email || "U")
+    .split(/[\s@]/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+  const metadataRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined) ??
+    null;
+  const isAdmin = role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
+  const sandboxIdentityEnabled = isAdmin && sandboxEnabled;
 
   return (
-    <div>
-      {/* Avatar header */}
-      <div className="flex flex-col items-center text-center pb-2">
-        <div className="relative">
-          <div className="w-[72px] h-[72px] rounded-full bg-black text-white flex items-center justify-center text-[24px] font-bold overflow-hidden">
-            {avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="w-full h-full object-cover" /> : iniciais}
+    <div data-dashboard-tour="configuracoes-perfil">
+      {/* Identidade: foto + nome com selo do plano ao lado; ações de foto abaixo */}
+      <div className="pb-5">
+        <div className="flex items-center gap-3.5">
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-[16px] font-semibold ${
+            sandboxIdentityEnabled
+              ? "bg-blue-50 text-[#2563EB] dark:bg-blue-500/10 dark:text-blue-300"
+              : "bg-[#2F2F2F] text-white dark:bg-white dark:text-black"
+          }`}>
+            {sandboxIdentityEnabled ? <FlaskConical size={21} /> : avatarSrc ? <img src={avatarSrc} alt="Foto de perfil" className="h-full w-full object-cover" /> : iniciais}
           </div>
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white shadow-md hover:opacity-90"
-            aria-label="Trocar foto"
-          >
-            <Camera size={13} />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[#111113] dark:text-white">
+                {sandboxIdentityEnabled ? "Conta Sandbox" : nomeEditado || nome || (user?.email?.split("@")[0] ?? "Sua conta")}
+              </p>
+              {sandboxIdentityEnabled ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-[3px] text-[11px] font-semibold leading-none text-[#2563EB]">
+                  <FlaskConical size={11} strokeWidth={2.5} />
+                  Sandbox
+                </span>
+              ) : (
+                <PlanSeal />
+              )}
+            </div>
+            <p className="mt-0.5 truncate text-[12px] text-[#9A9A9A] dark:text-zinc-400">
+              {sandboxIdentityEnabled ? "sandbox@velo.test" : user?.email ?? ""}
+            </p>
+          </div>
+        </div>
+
+        {sandboxIdentityEnabled && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[12px] leading-[1.45] text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+            Você está testando na Conta Sandbox. Seu nome, e-mail, plano real e cobranças reais não serão alterados.
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => inputRef.current?.click()} className={photoUploadBtn}>
+            Enviar foto
           </button>
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
+          <button type="button" onClick={handleRemoverFoto} className={photoRemoveBtn}>
+            Remover
+          </button>
         </div>
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="mt-3 text-[13px] text-[#737373] underline underline-offset-2 hover:text-black dark:text-zinc-400 dark:hover:text-white"
-        >
-          Trocar foto
-        </button>
-        <div className="mt-3 flex items-center gap-2.5">
-          <p className="text-[20px] font-bold text-[#0A0A0A] dark:text-white">{nome || "Usuário"}</p>
-          <PlanBadge size="sm" />
-        </div>
+        <p className="mt-1.5 text-[11.5px] text-[#9A9A9A] dark:text-zinc-400">Formato quadrado (1:1), até 900 KB.</p>
+
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFoto} />
       </div>
 
-      <div className={divider} />
+      <div className={rowDivider} />
 
-      {/* Form */}
-      <div className="space-y-5">
-        <div>
-          <label className={labelCls}>Nome</label>
-          <input className={inputCls} value={nomeEditado} onChange={(e) => setNomeEditado(e.target.value)} />
+      {/* Linhas de duas colunas */}
+      <FieldRow label="Nome" desc="Como você aparece na sua conta e nas suas lojas." fieldLabel="Nome completo">
+        <input
+          className={enterpriseInput}
+          placeholder="Seu nome"
+          value={nomeEditado}
+          onChange={(e) => setNomeEditado(e.target.value)}
+        />
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      <FieldRow label="Telefone" desc="Usado para contato e recuperação da sua conta." fieldLabel="Telefone">
+        <input
+          className={enterpriseInput}
+          placeholder="(00) 00000-0000"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+        />
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      <FieldRow label="CPF/CNPJ" desc="Necessário para emissão de notas fiscais e repasses." fieldLabel="Documento">
+        <input
+          className={enterpriseInput}
+          placeholder="000.000.000-00"
+          value={cpfCnpj}
+          onChange={(e) => setCpfCnpj(e.target.value)}
+        />
+      </FieldRow>
+
+      <div className={rowDivider} />
+
+      <FieldRow label="E-mail" desc="Endereço de login da conta. Não pode ser alterado por aqui." fieldLabel="E-mail">
+        <div className="relative">
+          <input
+            readOnly
+            value={user?.email ?? ""}
+            className={`${enterpriseInput} cursor-not-allowed pr-8 text-[#8A8A8A] dark:text-zinc-400`}
+          />
+          <Lock size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B5B5B5]" />
         </div>
+      </FieldRow>
 
-        <div>
-          <label className={labelCls}>Email</label>
-          <div className="relative">
-            <input
-              readOnly
-              value={user?.email ?? ""}
-              className={`${inputCls} pr-10 bg-[#FAFAFA] text-[#737373] cursor-not-allowed dark:bg-zinc-950 dark:text-zinc-400`}
-            />
-            <Lock size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#A3A3A3]" />
-          </div>
-        </div>
+      <div className={rowDivider} />
 
-        <div>
-          <label className={labelCls}>Telefone</label>
-          <input className={inputCls} value={telefone} onChange={(e) => setTelefone(e.target.value)} />
-        </div>
+      {isAdmin && (
+        <>
+          <AdminPanelStyleField />
+          <div className={rowDivider} />
+          <SandboxField accountKey={user?.id ?? user?.email ?? null} />
+          <div className={rowDivider} />
+        </>
+      )}
 
-        <div>
-          <label className={labelCls}>CPF/CNPJ</label>
-          <input className={inputCls} defaultValue="" placeholder="000.000.000-00" />
-        </div>
-      </div>
-
-      <div className={divider} />
-
-      <div className="flex justify-end">
-        <button onClick={handleSalvar} className={primaryBtn}>Salvar alterações</button>
+      {/* Ações */}
+      <div className="mt-6 flex items-center justify-end gap-2.5">
+        <button onClick={handleCancelar} className={cancelBtn}>Cancelar</button>
+        <button onClick={handleSalvar} className={saveBtn}>Salvar alterações</button>
       </div>
     </div>
   );
 };
 
 /* ══ Stores ═════════════════════════════════════════════ */
-const StoresTab = () => (
+const LegacyStoresTab = () => (
   <div className="space-y-4">
-    <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Minhas lojas</h2>
+    <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Minhas lojas</h2>
     <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Gerencie as lojas conectadas à sua conta.</p>
 
     <div className="p-4 rounded-2xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <p className="font-bold text-[#0A0A0A] dark:text-white">Velo</p>
+          <p className="font-normal text-[#0A0A0A] dark:text-white">Velo</p>
           <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativa</span>
         </div>
       </div>
@@ -292,11 +571,138 @@ const StoresTab = () => (
 );
 
 /* ══ Integrations ════════════════════════════════════════ */
+const formatProjectDate = (value: string) =>
+  new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+
+/* Os projetos (lojas completas e páginas de venda) moram no Supabase, em
+   user_projects. Antes esta aba lia uma lista do localStorage escrita pelo
+   onboarding, então quem criava página com IA continuava vendo "nenhuma loja". */
+const StoresTab = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<UserProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    setLoading(true);
+    setErro(null);
+
+    void (async () => {
+      try {
+        const data = await fetchUserProjects();
+        if (!active) return;
+        setProjects(
+          [...data].sort(
+            (a, b) => new Date(b.last_edited_at).getTime() - new Date(a.last_edited_at).getTime(),
+          ),
+        );
+      } catch (error) {
+        console.error("Falha ao carregar projetos:", error);
+        if (active) setErro("Não foi possível carregar suas lojas agora.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  return (
+    <div>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white">Minhas lojas</h2>
+      <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
+        Lojas completas e páginas de venda criadas pela sua conta.
+      </p>
+
+      <div className="mt-5 space-y-2.5">
+        {loading ? (
+          <div className="flex items-center gap-2 py-10 text-[13px] text-[#9A9A9A]">
+            <Loader2 size={14} className="animate-spin" />
+            Carregando suas lojas...
+          </div>
+        ) : erro ? (
+          <div className="rounded-2xl border border-[#F0D2D2] bg-[#FEF6F6] p-5 text-[13px] text-[#B42318] dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+            {erro}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#D8DEE9] bg-[#F8FAFC] p-6 text-center dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-[13px] font-medium text-[#111113] dark:text-white">Nenhuma loja criada ainda.</p>
+            <p className="mt-1 text-[12.5px] text-[#697386] dark:text-zinc-400">
+              Crie uma loja completa ou uma página de venda com IA para ela aparecer aqui.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/minha-loja")}
+              className="mt-4 inline-flex h-9 items-center justify-center rounded-[9px] bg-[#2563EB] px-4 text-[12.5px] font-medium text-white transition hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8]"
+            >
+              Criar projeto
+            </button>
+          </div>
+        ) : (
+          projects.map((project) => {
+            const isLoja = project.tipo_projeto === "loja_completa";
+            const publicado = project.status === "publicado";
+            return (
+              <button
+                key={project.id}
+                type="button"
+                onClick={() =>
+                  navigate(`/minha-loja/editor/${project.id}`, {
+                    state: { projectId: project.id, sourceId: project.source_id },
+                  })
+                }
+                className="flex w-full items-center gap-3 rounded-2xl border border-[#E5E5E5] p-4 text-left transition hover:border-[#111113] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-white/40 sm:p-5"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#F4F4F5] text-[#6B6B70] dark:bg-white/5 dark:text-zinc-300">
+                  {isLoja ? <Store size={17} /> : <Sparkles size={17} />}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium text-[#0A0A0A] dark:text-white">
+                    {project.nome || (isLoja ? "Minha loja" : "Página de venda")}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11.5px] text-[#9A9A9A] dark:text-zinc-500">
+                    {isLoja ? "Loja completa" : "Página de venda"} · editada em{" "}
+                    {formatProjectDate(project.last_edited_at)}
+                  </span>
+                </span>
+
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    publicado
+                      ? "bg-[#ECFDF3] text-[#15803D] dark:bg-emerald-500/15 dark:text-emerald-300"
+                      : "bg-[#F4F4F5] text-[#6B6B70] dark:bg-white/10 dark:text-zinc-300"
+                  }`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {publicado ? "Publicada" : "Rascunho"}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+};
+
 type Integration = { platform: string; label: string; connected: boolean; loading?: boolean; comingSoon?: boolean };
 
 const IntegrationsTab = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin" || isAdminEmail(user?.email);
   const planLimits = usePlanLimits();
+  // Integrações ficam liberadas em todos os planos, inclusive no gratuito.
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([
     { platform: "mercadolivre", label: "Mercado Livre", connected: false, loading: true },
@@ -324,64 +730,127 @@ const IntegrationsTab = () => {
   }, [user]);
 
   const handleConnect = async (platform: string) => {
-    if (planLimits.loading) return;
-
-    if (!planLimits.canConnectMarketplace) {
-      setUpgradeModalOpen(true);
+    if (platform === "mercadolivre" && user) {
+      const toastId = veloToast.loading("Conectando com o Mercado Livre...");
+      try {
+        // Nova aba: a pessoa autoriza no Mercado Livre e volta para esta tela.
+        salvarRetornoMl({ origem: "config" });
+        await startMercadoLivreOAuth({ novaAba: true });
+        veloToast.dismiss(toastId);
+      } catch (err) {
+        veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre", { id: toastId });
+        return;
+      }
       return;
     }
 
-    if (platform === "mercadolivre" && user) {
-      const { data, error } = await supabase.functions.invoke("ml-connect");
-      const authUrl = data?.authUrl ?? data?.auth_url;
-      if (error || !authUrl) {
-        toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
-        return;
+    if (platform !== "mercadolivre") {
+      if (planLimits.loading) return;
+
+      if (!planLimits.canConnectMarketplace) {
+        setUpgradeModalOpen(true);
       }
-      window.location.href = authUrl;
     }
   };
 
+  const handleDisconnect = async (platform: string) => {
+    if (platform !== "mercadolivre" || !user) return;
+
+    setIntegrations((prev) =>
+      prev.map((item) => (item.platform === platform ? { ...item, loading: true } : item))
+    );
+    const toastId = veloToast.loading("Desconectando Mercado Livre...");
+    const { error } = await supabase
+      .from("user_integrations")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("platform", platform);
+
+    if (error) {
+      veloToast.error("Não foi possível desconectar o Mercado Livre", { id: toastId });
+      setIntegrations((prev) =>
+        prev.map((item) => (item.platform === platform ? { ...item, loading: false } : item))
+      );
+      return;
+    }
+
+    veloToast.success("Mercado Livre desconectado", { id: toastId });
+    setIntegrations((prev) =>
+      prev.map((item) => (item.platform === platform ? { ...item, connected: false, loading: false } : item))
+    );
+  };
+  const marketplaceUpgradeTargetPlan: "pro" | "business" = planLimits.plan === "pro" ? "business" : "pro";
+  const marketplaceUpgradeBenefits = marketplaceUpgradeTargetPlan === "business"
+    ? ["Marketplaces ilimitados", "Produtos ilimitados", "Analytics premium", "Processamento prioritário"]
+    : ["Até 2 marketplaces", "Publicação automática", "Monitoramento básico 24h", "Suporte prioritário"];
+
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Integrações</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Conecte suas plataformas de venda.</p>
+      <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Integrações</h2>
+      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Conecte suas plataformas de venda e recebimento.</p>
 
+      {isAdmin && (
+        <div className="mb-4">
+          <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Pagamentos</h3>
+          <MercadoPagoIntegrationCard />
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="mb-4">
+          <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Loja</h3>
+          <ShopifyIntegrationCard />
+        </div>
+      )}
+
+      <h3 className="mb-2 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Marketplaces</h3>
+
+      <div className="relative">
       <div className="space-y-2.5">
         {integrations.map((i) => (
           <div
             key={i.platform}
             title={i.comingSoon ? "Disponível em breve" : undefined}
-            className={`flex items-center justify-between p-4 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 ${
+            className={`flex flex-col gap-3 rounded-xl border border-[#E5E5E5] p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between ${
               i.comingSoon ? "bg-[#F7F7F7] dark:bg-zinc-900" : ""
             }`}
           >
-            <div className="flex items-center gap-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E5E5E5] bg-white p-1 dark:border-white/10 dark:bg-white">
                 <PlatformLogo platform={i.label} size={38} />
               </span>
-              <span className="text-[14px] font-medium text-[#0A0A0A] dark:text-white">{i.label}</span>
+              <span className="min-w-0 truncate text-[14px] font-normal text-[#0A0A0A] dark:text-white">{i.label}</span>
             </div>
             {i.loading ? (
               <Loader2 size={16} className="animate-spin text-[#A3A3A3] dark:text-zinc-400" />
             ) : i.comingSoon ? (
-              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-[#E5E5E5] text-[#737373] dark:bg-zinc-800 dark:text-zinc-400 font-semibold">
+              <span className="flex w-fit items-center gap-1.5 rounded-full bg-[#E5E5E5] px-2.5 py-1 text-[11px] font-normal text-[#737373] dark:bg-zinc-800 dark:text-zinc-400">
                 Em breve
               </span>
             ) : i.connected ? (
-              <span className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-black text-white dark:bg-white dark:text-black font-semibold">
-                <CheckCircle2 size={12} /> Conectado
-              </span>
+              <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-[#2563EB] px-2.5 py-1 text-[11px] font-semibold text-white dark:bg-[#2563EB] dark:text-white">
+                  <CheckCircle2 size={12} /> Conectado
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDisconnect(i.platform)}
+                  className="shrink-0 rounded-full border border-[#E5E5E5] bg-white px-3 py-1 text-[11px] font-semibold text-[#0A0A0A] transition hover:border-[#0A0A0A] dark:border-white/10 dark:bg-zinc-950 dark:text-white dark:hover:border-white"
+                >
+                  Desconectar
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => handleConnect(i.platform)}
-                className="text-[12px] px-3.5 py-1.5 rounded-full bg-black text-white dark:bg-white dark:text-black font-medium hover:opacity-85 transition-opacity"
+                className="w-full rounded-full bg-[#2563EB] px-3.5 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-[#1D4ED8] dark:bg-[#2563EB] dark:text-white dark:hover:bg-[#1D4ED8] sm:w-auto"
               >
                 Conectar +
               </button>
             )}
           </div>
         ))}
+      </div>
       </div>
 
       <p className="mt-4 text-[11px] text-[#A3A3A3] dark:text-zinc-400">
@@ -393,7 +862,9 @@ const IntegrationsTab = () => {
         onClose={() => setUpgradeModalOpen(false)}
         title="Limite de marketplaces atingido"
         message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
-        cta="Ver planos"
+        cta={marketplaceUpgradeTargetPlan === "business" ? "Upgrade Business" : "Desbloquear operação completa"}
+        targetPlan={marketplaceUpgradeTargetPlan}
+        benefits={marketplaceUpgradeBenefits}
       />
     </div>
   );
@@ -401,78 +872,155 @@ const IntegrationsTab = () => {
 
 /* ══ Plan ════════════════════════════════════════════════ */
 const PLAN_DATA = [
-  { id: "gratis", name: "Free", price: "R$0", period: "/mês", features: ["Até 10 produtos", "1 loja conectada", "Suporte por email"] },
-  { id: "plus",   name: "Plus", price: "R$59", period: "/mês", features: ["Produtos ilimitados", "3 lojas conectadas", "IA para descrições", "Suporte prioritário"] },
-  { id: "pro",    name: "Pro",  price: "R$129", period: "/mês", features: ["Tudo do Plus", "Lojas ilimitadas", "Automação completa", "Suporte dedicado"] },
+  {
+    id: "gratis",
+    name: "Grátis",
+    price: "R$0",
+    period: "/mês",
+    description: "Para explorar a Velo sem compromisso antes de começar a vender.",
+    features: ["Exploração do catálogo", "Dashboard demonstrativo", "IA básica de teste"],
+  },
+  {
+    id: "base",
+    name: "Base",
+    price: "R$39,90",
+    period: "/mês",
+    description: "Pra quem quer começar a vender sem travar no operacional.",
+    features: [
+      "Até 50 produtos publicados",
+      "1 marketplace conectado",
+      "1 página de vendas por IA",
+      "Catálogo validado completo",
+      "Analytics básico",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: "R$79,80",
+    period: "/mês",
+    description: "Para validar produtos, publicar com segurança e operar com IA sem complexidade.",
+    features: [
+      "Até 30 produtos publicados",
+      "Até 2 marketplaces conectados",
+      "Até 3 agentes IA",
+      "Automações limitadas",
+      "Analytics básico",
+    ],
+  },
+  {
+    id: "business",
+    name: "Business",
+    price: "R$159,60",
+    period: "/mês",
+    description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
+    features: [
+      "Produtos ilimitados",
+      "Marketplaces ilimitados",
+      "Agentes IA ilimitados",
+      "Automações ilimitadas",
+      "IA estratégica avançada",
+    ],
+  },
 ];
 
 const PlanTab = () => {
+  const upgradeModal = useUpgradeModal();
   const { plan } = usePlan();
-  const current = PLAN_DATA.find((p) => p.id === plan) ?? PLAN_DATA[0];
+  const { user, role } = useAuth();
+  const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
+  const sandboxPlansEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(user?.email));
+  const normalizedPlan = plan;
+  const paidPlans = PLAN_DATA.filter((p) => p.id === "base" || p.id === "pro" || p.id === "business");
+
+  const openUpgrade = (planId: string) => {
+    upgradeModal.open({ defaultPlan: planId === "business" ? "business" : planId === "base" ? "base" : "pro" });
+  };
 
   return (
-    <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Seu plano</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Gerencie sua assinatura e veja os planos disponíveis.</p>
-
-      {/* Current plan card */}
-      <div className="rounded-2xl border-[1.5px] border-black p-4 mb-6 dark:border-white dark:bg-zinc-950 sm:p-6">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h3 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white">Plano {current.name}</h3>
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Ativo</span>
-            </div>
-            <p className="text-[13px] text-[#737373] dark:text-zinc-400 mt-1">Renovação em 15 dias</p>
-          </div>
-          <p className="text-[24px] font-black text-[#0A0A0A] dark:text-white leading-none">
-            {current.price}<span className="text-[13px] text-[#737373] dark:text-zinc-400 font-normal">{current.period}</span>
+    <div className="pb-10">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-[19px] font-semibold tracking-[-0.02em] text-[#111113] dark:text-white">
+            Escolha seu plano
+          </h2>
+          <p className="mt-1 max-w-[520px] text-[13px] leading-relaxed text-[#737373] dark:text-zinc-400">
+            Compare os três planos atuais da Velo e escolha o nível ideal para sua operação.
           </p>
         </div>
-        <ul className="space-y-2 mb-5">
-          {current.features.map((f) => (
-            <li key={f} className="flex items-center gap-2 text-[13px] text-[#0A0A0A] dark:text-white">
-              <CheckCircle2 size={14} className="text-black dark:text-white" /> {f}
-            </li>
-          ))}
-        </ul>
-        <button className={primaryBtn}>
-          {plan === "pro" ? "Gerenciar assinatura" : "Fazer upgrade"}
-        </button>
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#E8E8E8] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#3F3F46] shadow-[0_10px_24px_rgba(15,15,15,0.04)] dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200">
+          <Zap size={12} fill="currentColor" />
+          Planos atuais
+        </span>
       </div>
 
-      {/* Available plans */}
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Outros planos</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {PLAN_DATA.map((p) => {
-          const isCurrent = p.id === plan;
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {paidPlans.map((p) => {
+          const isCurrent = p.id === normalizedPlan;
+          const isPro = p.id === "pro";
           return (
-            <div
+            <article
               key={p.id}
-              className={`rounded-xl p-4 ${isCurrent ? "border-2 border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-950" : "border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950"}`}
+              className={`relative flex min-h-[440px] flex-col rounded-[24px] border bg-white p-5 shadow-[0_18px_54px_rgba(15,15,15,0.055)] transition duration-200 dark:bg-zinc-950 ${
+                isPro
+                  ? "border-[#111113] ring-1 ring-black/10"
+                  : isCurrent
+                    ? "border-[#111113] dark:border-white"
+                    : "border-[#E8E8E8] dark:border-white/10"
+              }`}
             >
-              <p className="text-[13px] font-bold text-[#0A0A0A] dark:text-white">{p.name}</p>
-              <p className="text-[20px] font-black text-[#0A0A0A] dark:text-white mt-1">
-                {p.price}<span className="text-[11px] text-[#737373] dark:text-zinc-400 font-normal">{p.period}</span>
+              {isPro ? (
+                <span aria-hidden="true" className="absolute inset-x-5 top-0 h-[3px] rounded-b-full bg-[#111113]" />
+              ) : null}
+
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  {/* Mesmo selo do modal de planos, importado de lá para os dois
+                      não divergirem. */}
+                  <PlanBadgeIcon variant={p.id as "base" | "pro" | "business"} />
+                  <h3 className="mt-5 text-[19px] font-semibold tracking-[-0.02em] text-[#111113] dark:text-white">
+                    {p.name}
+                  </h3>
+                </div>
+                {isCurrent ? (
+                  <span className="rounded-full bg-[#111113] px-2.5 py-1 text-[10px] font-semibold text-white dark:bg-white dark:text-black">
+                    Atual
+                  </span>
+                ) : isPro ? (
+                  <span className="rounded-full bg-[#F2F2F2] px-2.5 py-1 text-[10px] font-semibold text-[#111113] dark:bg-white/10 dark:text-white">
+                    Mais escolhido
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-4 min-h-[54px] text-[13px] leading-relaxed text-[#737373] dark:text-zinc-400">
+                {p.description}
               </p>
-              <ul className="mt-3 space-y-1.5">
-                {p.features.slice(0, 3).map((f) => (
-                  <li key={f} className="text-[11px] text-[#737373] dark:text-zinc-400 flex items-start gap-1.5">
-                    <CheckCircle2 size={11} className="text-black dark:text-white mt-0.5 shrink-0" /> <span>{f}</span>
+
+              <div className="mt-5 flex items-end gap-1 text-[#111113] dark:text-white">
+                <span className="text-[34px] font-semibold leading-none tracking-[-0.045em]">{p.price}</span>
+                <span className="pb-1 text-[12px] text-[#737373] dark:text-zinc-400">{p.period}</span>
+              </div>
+
+              <PremiumActionButton
+                type="button"
+                disabled={isCurrent && !sandboxPlansEnabled}
+                onClick={() => openUpgrade(p.id)}
+                background="linear-gradient(180deg,#1F2633 0%,#111722 52%,#0B101A 100%)"
+                className="mt-5 h-10 w-full rounded-[10px] px-4 text-[12.5px] disabled:cursor-default disabled:bg-[#EFEFEF] disabled:text-[#A3A3A3] disabled:shadow-none disabled:hover:translate-y-0 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+              >
+                {sandboxPlansEnabled ? "Testar no Sandbox" : isCurrent ? "Plano atual" : "Fazer upgrade"}
+              </PremiumActionButton>
+
+              <ul className="mt-5 flex-1 space-y-3">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-[12px] leading-snug text-[#27272A] dark:text-zinc-200">
+                    <BadgeCheck size={14} className="mt-0.5 shrink-0 text-[#111113] dark:text-white" fill="currentColor" strokeWidth={1.8} />
+                    <span>{f}</span>
                   </li>
                 ))}
               </ul>
-              <button
-                disabled={isCurrent}
-                className={`mt-4 w-full py-2 rounded-full text-[12px] font-medium ${
-                  isCurrent
-                    ? "bg-[#F0F0F0] text-[#A3A3A3] cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-500"
-                    : "bg-black text-white hover:opacity-85 transition-opacity dark:bg-white dark:text-black"
-                }`}
-              >
-                {isCurrent ? "Plano atual" : "Selecionar"}
-              </button>
-            </div>
+            </article>
           );
         })}
       </div>
@@ -482,84 +1030,173 @@ const PlanTab = () => {
 
 /* ══ Notifications ═══════════════════════════════════════ */
 const NotificationsTab = () => {
-  const [toggles, setToggles] = useState([true, true, true, false, true]);
-  const labels = ["Nova venda", "Produto publicado", "Erro de publicação", "Pedido em trânsito", "Relatório semanal"];
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES);
+  const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<NotificationPreferenceKey | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    fetchNotificationPreferences(user.id)
+      .then((prefs) => {
+        if (!cancelled) setPreferences(prefs);
+      })
+      .catch((error) => {
+        console.warn("[notifications] nao foi possivel carregar preferencias:", error);
+        if (!cancelled) veloToast.error("Nao foi possivel carregar suas preferencias.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const togglePreference = async (key: NotificationPreferenceKey) => {
+    if (!user?.id || savingKey) return;
+    const next = { ...preferences, [key]: !preferences[key] };
+    const previous = preferences;
+    setPreferences(next);
+    setSavingKey(key);
+    try {
+      await saveNotificationPreferences(user.id, next);
+    } catch (error) {
+      console.warn("[notifications] nao foi possivel salvar preferencias:", error);
+      setPreferences(previous);
+      veloToast.error("Nao foi possivel salvar essa preferencia.");
+    } finally {
+      setSavingKey(null);
+    }
+  };
 
   return (
     <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">Escolha quando quer ser avisado.</p>
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Notificações</h2>
+          <p className="text-[13px] text-[#737373] dark:text-zinc-400">Escolha quando quer ser avisado.</p>
+        </div>
+        {loading && <Loader2 size={17} className="mt-1 animate-spin text-[#9A9A9A]" />}
+      </div>
 
       <div className="space-y-2.5">
-        {labels.map((l, i) => (
-          <div key={l} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-            <span className="text-[14px] font-medium text-[#0A0A0A] dark:text-white">{l}</span>
+        {NOTIFICATION_PREFERENCE_OPTIONS.map((option) => {
+          const checked = preferences[option.key];
+          const isSaving = savingKey === option.key;
+          return (
+          <div key={option.key} className="flex items-center justify-between gap-5 rounded-xl border border-[#E5E5E5] p-3.5 dark:border-zinc-800 dark:bg-zinc-950">
+            <span className="min-w-0">
+              <span className="block text-[14px] font-medium text-[#0A0A0A] dark:text-white">{option.label}</span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-[#8A8A8A] dark:text-zinc-500">{option.description}</span>
+            </span>
             <button
-              onClick={() => setToggles((prev) => prev.map((v, j) => (j === i ? !v : v)))}
-              className={`w-11 h-6 rounded-full transition-colors relative ${toggles[i] ? "bg-black dark:bg-white" : "bg-[#E5E5E5] dark:bg-zinc-700"}`}
-              aria-label={`Toggle ${l}`}
+              type="button"
+              disabled={loading || Boolean(savingKey)}
+              onClick={() => void togglePreference(option.key)}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-wait disabled:opacity-60 ${
+                checked ? "bg-[#2563EB] dark:bg-[#2563EB]" : "bg-[#E5E5E5] dark:bg-zinc-700"
+              }`}
+              aria-pressed={checked}
+              aria-label={`Alternar ${option.label}`}
             >
-              <div className={`absolute top-1 w-4 h-4 rounded-full transition-all ${toggles[i] ? "left-6 bg-white dark:bg-black" : "left-1 bg-white dark:bg-zinc-300"}`} />
+              <span
+                className={`absolute top-1 h-4 w-4 rounded-full transition-all ${
+                  checked ? "left-6 bg-white dark:bg-white" : "left-1 bg-white dark:bg-zinc-300"
+                } ${isSaving ? "scale-90" : ""}`}
+              />
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 };
 
 /* ══ Security ════════════════════════════════════════════ */
-const SecurityTab = () => (
-  <div className="space-y-7">
-    <div>
-      <h2 className="text-[18px] font-bold text-[#0A0A0A] dark:text-white mb-1">Alterar senha</h2>
-      <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-4">Use uma senha forte que você não usa em outros lugares.</p>
-      <div className="space-y-4">
-        {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
-          <div key={l}>
-            <label className={labelCls}>{l}</label>
-            <input type="password" className={inputCls} />
-          </div>
-        ))}
-      </div>
-      <div className="mt-5">
-        <button className={primaryBtn}>Atualizar senha</button>
-      </div>
-    </div>
+const sectionTitle = "text-[16px] font-bold text-[#111113] dark:text-white";
 
-    <div className={divider} />
+const SecurityTab = () => {
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
 
-    <div>
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Autenticação de dois fatores</h3>
-      <div className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-        <span className="text-[14px] text-[#0A0A0A] dark:text-white">2FA ativado</span>
-        <div className="w-11 h-6 rounded-full bg-[#E5E5E5] dark:bg-zinc-700 relative">
-          <div className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white" />
+  const handleExcluirConta = async () => {
+    if (deleting) return;
+    if (!window.confirm("Tem certeza? Essa acao nao pode ser desfeita. Sua conta e todos os dados serao excluidos permanentemente.")) return;
+    if (!window.confirm("Confirmacao final: excluir sua conta agora?")) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", { body: {} });
+      if (error) throw error;
+      await supabase.auth.signOut();
+      veloToast.success("Sua conta foi excluida.");
+      navigate("/", { replace: true });
+    } catch (e) {
+      console.error("[delete-account] falha", e);
+      veloToast.error("Nao foi possivel excluir a conta. Tente novamente.");
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Alterar senha */}
+      <div>
+        <h2 className={sectionTitle}>Alterar senha</h2>
+        <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">Use uma senha forte que voce nao usa em outros lugares.</p>
+        <div className="mt-6 space-y-6">
+          {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
+            <div key={l}>
+              <label className={fieldLabel}>{l}</label>
+              <input type="password" placeholder="••••••••" className={underlineInput} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-7">
+          <button className={saveBtn}>Salvar</button>
         </div>
       </div>
-    </div>
 
-    <div className={divider} />
+      <div className={divider} />
 
-    <div>
-      <h3 className="text-[14px] font-bold text-[#0A0A0A] dark:text-white mb-3">Sessões ativas</h3>
-      <div className="space-y-2">
-        {[
-          { device: "Chrome — São Paulo", active: true },
-          { device: "Safari — iPhone",    active: false },
-        ].map((s) => (
-          <div key={s.device} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950">
-            <span className="text-[14px] text-[#0A0A0A] dark:text-white">{s.device}</span>
-            {s.active ? (
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black text-white font-semibold dark:bg-white dark:text-black">Atual</span>
-            ) : (
-              <button className="text-[12px] text-[#0A0A0A] dark:text-white font-medium underline underline-offset-2 hover:opacity-70">Encerrar</button>
-            )}
+      {/* 2FA */}
+      <div>
+        <h3 className={sectionTitle}>Autenticacao de dois fatores</h3>
+        <div className="mt-4 flex items-center justify-between border-b border-black/[0.08] pb-4 dark:border-white/10">
+          <span className="text-[14px] text-[#171717] dark:text-white">2FA ativado</span>
+          <div className="relative h-6 w-11 rounded-full bg-[#E5E5E5] dark:bg-zinc-700">
+            <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white" />
           </div>
-        ))}
+        </div>
+      </div>
+
+      <div className={divider} />
+
+      {/* Excluir conta */}
+      <div>
+        <h3 className={sectionTitle}>Excluir conta</h3>
+        <p className="mt-1 max-w-[520px] text-[13px] leading-relaxed text-[#737373] dark:text-zinc-400">
+          Ao excluir sua conta, todos os seus dados serao removidos permanentemente. Esta acao nao pode ser desfeita.
+        </p>
+        <button
+          type="button"
+          onClick={handleExcluirConta}
+          disabled={deleting}
+          className="mt-5 inline-flex items-center gap-2 rounded-[10px] border border-[#ef4444]/55 bg-white px-7 py-3 text-[14px] font-semibold text-[#ef4444] transition hover:bg-[#ef4444] hover:text-white disabled:opacity-60 dark:bg-transparent"
+        >
+          <Trash2 size={16} /> {deleting ? "Excluindo..." : "Excluir conta"}
+        </button>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default SettingsPage;

@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const { subscription_id, reason, reason_details } = body ?? {};
+    const sandboxRequested = body?.sandbox === true || body?.sandbox === "true";
     if (!subscription_id || !reason) return json({ error: "subscription_id e reason são obrigatórios" }, 400);
     if (!reason_details || String(reason_details).trim().length < 30) {
       return json({ error: "Conte-nos mais sobre o motivo (mínimo 30 caracteres)." }, 400);
@@ -40,6 +41,30 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    let sandboxAllowed = false;
+    if (sandboxRequested) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("is_admin")
+        .eq("user_id", userId)
+        .maybeSingle();
+      sandboxAllowed = profile?.is_admin === true;
+
+      if (!sandboxAllowed) {
+        const { data: role } = await admin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+        sandboxAllowed = role?.role === "admin";
+      }
+
+      if (!sandboxAllowed) {
+        return json({ error: "Sandbox disponível apenas para administradores." }, 403);
+      }
+    }
+
     const { data: sub } = await admin
       .from("subscriptions")
       .select("*")
@@ -48,27 +73,68 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
     if (sub.status !== "active") return json({ error: "Apenas assinaturas ativas podem ser reembolsadas" }, 400);
+    const isSandboxSubscription =
+      String(sub.provider ?? "").toLowerCase() === "sandbox" ||
+      String(sub.payment_method ?? "").toLowerCase() === "sandbox";
+    if (sandboxAllowed && !isSandboxSubscription) {
+      return json({ error: "Sandbox só pode reembolsar assinaturas de teste." }, 400);
+    }
 
-    // Bloqueia múltiplos pedidos pendentes para a mesma assinatura
-    const { data: existing } = await admin
+    // Bloqueia apenas se já existir uma solicitação em aberto ou já reembolsada.
+    // Pedidos recusados (rejected/denied) permitem nova solicitação.
+    const { data: prevRequests } = await admin
       .from("refund_requests")
       .select("id, status")
-      .eq("subscription_id", sub.id)
-      .in("status", ["pending", "reembolso_solicitado"])
-      .maybeSingle();
-    if (existing) return json({ error: "Já existe um pedido de reembolso em análise para esta assinatura." }, 409);
+      .eq("user_id", userId);
+    const REJECTED = ["rejected", "denied", "cancelled", "canceled"];
+    const blocking = (prevRequests ?? []).filter(
+      (r: { status: string | null }) => !REJECTED.includes(String(r.status ?? "").toLowerCase()),
+    );
+    if (blocking.length > 0 && !sandboxAllowed) {
+      const hasPending = blocking.some((r: { status: string | null }) => String(r.status).toLowerCase() === "pending");
+      return json(
+        {
+          error: hasPending
+            ? "Você já tem uma solicitação de reembolso em análise."
+            : "Você já teve um reembolso processado anteriormente. Não é possível solicitar novamente.",
+        },
+        409,
+      );
+    }
+
+    // Bloqueia solicitação após a janela de 7 dias
+    const daysSinceCreated = (Date.now() - new Date(sub.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSinceCreated > 7 && !sandboxAllowed) {
+      return json(
+        { error: "O prazo de 7 dias para solicitar reembolso já expirou." },
+        400,
+      );
+    }
 
     const { data: refund, error: insErr } = await admin.from("refund_requests").insert({
       user_id: userId,
       subscription_id: sub.id,
       payment_id: sub.mp_payment_id,
       reason,
-      reason_details: String(reason_details).trim(),
+      reason_details: `${sandboxAllowed ? "[Sandbox] " : ""}${String(reason_details).trim()}`,
       status: "pending",
       refund_amount: sub.amount,
       requested_at: new Date().toISOString(),
     }).select().single();
     if (insErr) return json({ error: insErr.message }, 500);
+
+    // Pedido de reembolso = cancelamento da assinatura. Marcamos para não
+    // renovar já na solicitação; a aprovação encerra e estorna de fato.
+    await admin
+      .from("subscriptions")
+      .update({
+        cancel_at_period_end: true,
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: `${sandboxAllowed ? "Sandbox - " : ""}Reembolso: ${reason}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sub.id);
+
 
     // Notificar todos os admins (in-app)
     try {

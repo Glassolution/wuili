@@ -36,7 +36,7 @@ const DashboardInfoPage = ({ title, description, primaryAction, stats, items, su
     <div className="card-wuili p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
-          <h2 className="text-2xl font-black text-foreground">{title}</h2>
+          <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
         </div>
         <button className="rounded-xl bg-black px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-85 dark:bg-white dark:text-black">
@@ -49,7 +49,7 @@ const DashboardInfoPage = ({ title, description, primaryAction, stats, items, su
       {stats.map((stat) => (
         <div key={stat.label} className="card-wuili p-5">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground/80">{stat.label}</p>
-          <p className="mt-2 text-2xl font-black text-foreground">{stat.value}</p>
+          <p className="mt-2 text-2xl font-semibold text-foreground">{stat.value}</p>
           <p className="mt-1 text-xs text-muted-foreground">{stat.hint}</p>
         </div>
       ))}
@@ -58,7 +58,7 @@ const DashboardInfoPage = ({ title, description, primaryAction, stats, items, su
     <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
       <div className="card-wuili overflow-hidden">
         <div className="border-b border-border px-5 py-4">
-          <h3 className="text-sm font-bold text-foreground">Itens recentes</h3>
+          <h3 className="text-sm font-semibold text-foreground">Itens recentes</h3>
         </div>
         <div>
           {items.map((item) => (
@@ -79,7 +79,7 @@ const DashboardInfoPage = ({ title, description, primaryAction, stats, items, su
       </div>
 
       <div className="card-wuili p-5">
-        <h3 className="text-sm font-bold text-foreground">Resumo</h3>
+        <h3 className="text-sm font-semibold text-foreground">Resumo</h3>
         <div className="mt-4 space-y-3">
           {summary.map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3">

@@ -4,7 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
+import { PremiumActionButton } from "@/components/PremiumActionButton";
+import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
 
 const PLANS = [
   {
@@ -12,39 +14,52 @@ const PLANS = [
     name: "Grátis",
     price: "R$ 0",
     period: "/mês",
-    features: ["Explore o catálogo gratuitamente", "Configure preços", "Chat com IA básico"],
+    features: [
+      "Exploração do catálogo validado",
+      "3 imagens com IA por mês",
+      "1 influencer de IA para TikTok",
+      "10 mensagens por dia com o Atlas",
+      "Sem publicação no Mercado Livre",
+      "Sem páginas de venda nem lojas",
+    ],
     current: true,
   },
   {
     id: "pro",
     name: "Pro",
-    price: "R$ 99,90",
+    price: "R$ 79,80",
     period: "/mês",
     features: [
-      "Publique e venda no Mercado Livre",
-      "Produtos ilimitados",
-      "Até 2 marketplaces",
-      "Chat com IA avançado",
-      "Publicação automática",
-      "Relatórios completos",
-      "Suporte prioritário",
+      "Até 300 anúncios ativos no Mercado Livre",
+      "300 publicações por mês",
+      "Publicação em lote e com variações",
+      "Sincronização automática de preço e estoque",
+      "Até 2 marketplaces conectados",
+      "10 páginas de venda e 3 lojas por IA",
+      "100 imagens e 10 vídeos com IA por mês",
+      "10 influencers de IA para TikTok",
+      "150 mensagens por dia com o Atlas",
+      "Relatórios financeiros e suporte prioritário",
     ],
-    highlight: true,
   },
   {
     id: "business",
     name: "Business",
-    price: "R$ 149,90",
+    price: "R$ 159,60",
     period: "/mês",
     features: [
-      "Escale suas vendas sem limites",
-      "Tudo do Pro",
+      "Anúncios no Mercado Livre ilimitados",
+      "Sem teto mensal de publicação",
       "Marketplaces ilimitados",
-      "API access",
-      "Automações de entrega",
-      "Analytics em tempo real",
+      "Páginas de venda e lojas ilimitadas",
+      "300 imagens e 30 vídeos com IA por mês",
+      "30 influencers de IA para TikTok",
+      "400 mensagens por dia com o Atlas",
+      "Analytics premium e insights automáticos",
+      "Processamento prioritário",
       "Suporte dedicado",
     ],
+    highlight: true,
   },
 ];
 
@@ -70,14 +85,32 @@ const PlansPage = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("profiles")
-      .select("plano")
-      .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.plano) setCurrentPlan(data.plano === "plus" ? "pro" : data.plano);
-      });
+    let active = true;
+    Promise.all([
+      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
+      supabase
+        .from("subscriptions")
+        .select("plan,status")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]).then(([profileResult, subResult]) => {
+      if (!active) return;
+      const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
+      // Prefer active subscription plan over profiles.plano (fica desatualizado
+      // se o webhook do MP não sincronizar o perfil).
+      if (sub?.plan) {
+        const p = sub.plan === "plus" ? "pro" : sub.plan;
+        setCurrentPlan(String(p));
+        return;
+      }
+      if (profileResult.data?.plano) {
+        setCurrentPlan(profileResult.data.plano === "plus" ? "pro" : profileResult.data.plano);
+      }
+    });
+    return () => { active = false; };
   }, [user]);
 
   // When arriving from landing CTA, show toast and clear param
@@ -101,7 +134,19 @@ const PlansPage = () => {
     }
 
     setCheckoutState("loading");
+    const toastId = toast.loading("Abrindo checkout seguro...");
 
+    // Gateway atual: ValidaPay (checkout hospedado, Pix + cartão).
+    const validapay = await startValidaPayCheckout(plan as VelloPlanId, "monthly");
+    if (validapay.ok) {
+      toast.success("Redirecionando para o pagamento...", { id: toastId });
+      return;
+    }
+    toast.error(validapay.error ?? "Não foi possível gerar o pagamento.", { id: toastId });
+    setCheckoutState("idle");
+    return;
+
+    // eslint-disable-next-line no-unreachable
     try {
       const payload: Record<string, unknown> = {
         plan,
@@ -111,7 +156,7 @@ const PlansPage = () => {
       // For credit card, generate token via MP SDK
       if (selectedMethod === "credit_card") {
         if (!MP_PUBLIC_KEY || MP_PUBLIC_KEY.includes("PLACEHOLDER")) {
-          toast.error("Chave pública do Mercado Pago não configurada");
+          toast.error("Chave pública do Mercado Pago não configurada.", { id: toastId });
           setCheckoutState("idle");
           return;
         }
@@ -130,7 +175,7 @@ const PlansPage = () => {
         });
 
         if (!cardTokenRes?.id) {
-          toast.error("Erro ao processar cartão. Verifique os dados.");
+          toast.error("Erro ao processar cartão. Verifique os dados.", { id: toastId });
           setCheckoutState("idle");
           return;
         }
@@ -148,22 +193,22 @@ const PlansPage = () => {
       if (data.status === "approved") {
         setCheckoutState("success");
         setCurrentPlan(plan);
-        toast.success("Pagamento aprovado! Plano ativado 🎉");
+        toast.success("Pagamento aprovado. Plano ativado com sucesso.", { id: toastId });
       } else if (data.pix_qr_code_base64) {
         setPixData({
           qr_code_base64: data.pix_qr_code_base64,
           copy_paste: data.pix_copy_paste,
         });
         setCheckoutState("pix_pending");
-        toast.info("QR Code Pix gerado! Escaneie para pagar.");
+        toast.info("QR Code Pix gerado. Escaneie para pagar.", { id: toastId });
       } else {
         setCheckoutState("error");
-        toast.error("Pagamento não aprovado. Tente novamente.");
+        toast.error("Pagamento não aprovado. Tente novamente.", { id: toastId });
       }
     } catch (err: unknown) {
       console.error("Checkout error:", err);
       setCheckoutState("error");
-      toast.error("Erro ao processar pagamento");
+      toast.error("Erro ao processar pagamento.", { id: toastId });
     }
   };
 
@@ -171,7 +216,7 @@ const PlansPage = () => {
     if (pixData?.copy_paste) {
       navigator.clipboard.writeText(pixData.copy_paste);
       setCopied(true);
-      toast.success("Código Pix copiado!");
+      toast.success("Código Pix copiado.");
       setTimeout(() => setCopied(false), 3000);
     }
   };
@@ -179,7 +224,7 @@ const PlansPage = () => {
   return (
     <div className="space-y-6">
       <div className="card-wuili p-6">
-        <h2 className="text-2xl font-black text-foreground">Planos</h2>
+        <h2 className="text-2xl font-semibold text-foreground">Planos</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Escolha o plano ideal para o seu negócio.
         </p>
@@ -199,14 +244,14 @@ const PlansPage = () => {
               }`}
             >
               {plan.highlight && (
-                <span className="absolute -top-3 left-4 rounded-full bg-black px-3 py-1 text-xs font-bold text-white dark:bg-white dark:text-black">
+                <span className="absolute -top-3 left-4 rounded-full bg-black px-3 py-1 text-xs font-normal text-white dark:bg-white dark:text-black">
                   Recomendado
                 </span>
               )}
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-foreground">{plan.price}</span>
+                  <span className="text-3xl font-semibold text-foreground">{plan.price}</span>
                   <span className="text-sm text-muted-foreground">{plan.period}</span>
                 </div>
               </div>
@@ -223,10 +268,10 @@ const PlansPage = () => {
                   <CheckCircle2 size={16} /> Plano atual
                 </div>
               ) : plan.id !== "gratis" ? (
-                <button
+                <PremiumActionButton
                   onClick={() => handleCheckout(plan.id)}
                   disabled={checkoutState === "loading"}
-                  className="btn-primary btn-primary--md w-full"
+                  className="h-10 w-full rounded-xl px-4 text-sm"
                 >
                   {checkoutState === "loading" ? (
                     <span className="flex items-center justify-center gap-2">
@@ -235,7 +280,7 @@ const PlansPage = () => {
                   ) : (
                     "Assinar agora"
                   )}
-                </button>
+                </PremiumActionButton>
               ) : null}
             </div>
           );
@@ -245,7 +290,7 @@ const PlansPage = () => {
       {/* Payment method selector */}
       {currentPlan === "gratis" && (
         <div className="card-wuili p-6 space-y-4">
-          <h3 className="text-lg font-bold text-foreground">Forma de pagamento</h3>
+          <h3 className="text-lg font-semibold text-foreground">Forma de pagamento</h3>
           <div className="flex gap-3">
             <button
               onClick={() => setSelectedMethod("pix")}
@@ -323,7 +368,7 @@ const PlansPage = () => {
       {/* PIX QR Code modal */}
       {checkoutState === "pix_pending" && pixData && (
         <div className="card-wuili p-6 space-y-4 text-center">
-          <h3 className="text-lg font-bold text-foreground">Escaneie o QR Code para pagar</h3>
+          <h3 className="text-lg font-semibold text-foreground">Escaneie o QR Code para pagar</h3>
           <p className="text-sm text-muted-foreground">Abra o app do seu banco e escaneie o código abaixo</p>
           {pixData.qr_code_base64 && (
             <div className="flex justify-center">
@@ -351,7 +396,7 @@ const PlansPage = () => {
       {checkoutState === "success" && (
         <div className="card-wuili p-6 text-center space-y-2">
           <CheckCircle2 size={48} className="mx-auto text-black dark:text-white" />
-          <h3 className="text-lg font-bold text-foreground">Pagamento aprovado!</h3>
+          <h3 className="text-lg font-semibold text-foreground">Pagamento aprovado!</h3>
           <p className="text-sm text-muted-foreground">Seu plano está ativo. Aproveite!</p>
         </div>
       )}

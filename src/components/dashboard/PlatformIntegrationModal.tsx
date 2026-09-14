@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { X, Network } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import PlatformLogo from "./PlatformLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 
 type Platform = {
   id: string;
@@ -71,18 +72,12 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
   const connectML = async () => {
     if (!user) return;
 
-    if (!planLimits.loading && !connectedML && !planLimits.canConnectMarketplace) {
-      setUpgradeModalOpen(true);
+    try {
+      await startMercadoLivreOAuth();
+    } catch (err) {
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
       return;
     }
-
-    const { data, error } = await supabase.functions.invoke("ml-connect");
-    const authUrl = data?.authUrl ?? data?.auth_url;
-    if (error || !authUrl) {
-      toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
-      return;
-    }
-    window.location.href = authUrl;
   };
 
   const disconnectML = async () => {
@@ -95,19 +90,23 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
       .eq("platform", "mercadolivre");
 
     if (error) {
-      toast.error("Não foi possível desconectar o Mercado Livre");
+      veloToast.error("Não foi possível desconectar o Mercado Livre");
       return;
     }
 
     setConnectedML(false);
     void planLimits.refreshUsage();
-    toast.success("Mercado Livre desconectado");
+    veloToast.success("Mercado Livre desconectado");
   };
 
   if (!open) return null;
 
   const available = initialPlatforms.filter(p => p.section === "available");
   const comingSoon = initialPlatforms.filter(p => p.section === "coming_soon");
+  const marketplaceUpgradeTargetPlan: "pro" | "business" = planLimits.plan === "pro" ? "business" : "pro";
+  const marketplaceUpgradeBenefits = marketplaceUpgradeTargetPlan === "business"
+    ? ["Marketplaces ilimitados", "Produtos ilimitados", "Analytics premium", "Processamento prioritário"]
+    : ["Até 2 marketplaces", "Publicação automática", "Monitoramento básico 24h", "Suporte prioritário"];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -124,7 +123,7 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
               <p className="text-xs text-muted-foreground">Conecte suas plataformas de venda.</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} aria-label="Fechar" className="text-muted-foreground hover:text-foreground transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -212,7 +211,9 @@ const PlatformIntegrationModal = ({ open, onClose }: Props) => {
         onClose={() => setUpgradeModalOpen(false)}
         title="Limite de marketplaces atingido"
         message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
-        cta="Ver planos"
+        cta={marketplaceUpgradeTargetPlan === "business" ? "Upgrade Business" : "Desbloquear operação completa"}
+        targetPlan={marketplaceUpgradeTargetPlan}
+        benefits={marketplaceUpgradeBenefits}
       />
     </div>
   );

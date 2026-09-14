@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { VeloLogo } from "@/components/VeloLogo";
 
@@ -37,11 +37,11 @@ const ResetPasswordPage = () => {
         } else {
           const { data } = await supabase.auth.getSession();
           if (!data.session) {
-            toast.error("Link de recuperação inválido ou expirado.");
+            veloToast.error("Link de recuperação inválido ou expirado.");
           }
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Não foi possível validar o link.");
+        veloToast.error(error instanceof Error ? error.message : "Não foi possível validar o link.");
       } finally {
         if (!cancelled) setSessionReady(true);
       }
@@ -58,25 +58,26 @@ const ResetPasswordPage = () => {
     event.preventDefault();
 
     if (password.length < 8) {
-      toast.error("A senha precisa ter pelo menos 8 caracteres.");
+      veloToast.error("A senha precisa ter pelo menos 8 caracteres.");
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error("As senhas não conferem.");
+      veloToast.error("As senhas não conferem.");
       return;
     }
 
     setLoading(true);
+    const toastId = veloToast.loading("Atualizando senha...");
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      veloToast.error(error.message, { id: toastId });
       return;
     }
 
-    toast.success("Senha atualizada com sucesso.");
+    veloToast.success("Senha atualizada com sucesso.", { id: toastId });
     await supabase.auth.signOut();
     navigate("/login", { replace: true });
   };

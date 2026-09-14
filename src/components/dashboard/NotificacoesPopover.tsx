@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bell, CheckCircle2, Info, RefreshCcw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { VeloMark } from "@/components/VeloLogo";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,9 +35,21 @@ type Notif = {
 function mapType(type: string): NotifType {
   if (type === "warning")           return "warning";
   if (type === "error")             return "error";
+  if (type === "publication_error") return "error";
+  if (type === "publish_error")     return "error";
   if (type === "fulfillment_error") return "error";
   if (type === "low_balance")       return "warning";
+  if (type === "billing")           return "success";
+  if (type === "payment")           return "success";
+  if (type === "payment_confirmed") return "success";
+  if (type === "subscription_active") return "success";
   if (type === "success")           return "success";
+  if (type === "new_sale")          return "success";
+  if (type === "product_published") return "success";
+  if (type === "publication_success") return "success";
+  if (type === "product_activated") return "success";
+  if (type === "product_paused")    return "warning";
+  if (type === "order_in_transit")  return "info";
   return "info";
 }
 
@@ -68,6 +81,13 @@ function toNotif(n: DBNotif): Notif {
   };
 }
 
+const hasExternalAction = (actionUrl: string | null) =>
+  !!actionUrl && /^https?:\/\//i.test(actionUrl) && !/\/dashboard\/produtos(?:\/|$|\?)/i.test(actionUrl);
+
+const openExternalAction = (actionUrl: string) => {
+  window.open(actionUrl, "_blank", "noopener,noreferrer");
+};
+
 // ── Icon / style maps ─────────────────────────────────────────────────────────
 
 const icones: Record<NotifType, typeof Bell> = {
@@ -82,6 +102,19 @@ const iconeCls: Record<NotifType, string> = {
   error:   "bg-destructive/10 text-destructive",
   info:    "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200",
   success: "bg-success-light text-success",
+};
+
+const isPaymentType = (type: string, title: string, message: string) => {
+  const normalized = type.toLowerCase();
+  return (
+    normalized === "billing" ||
+    normalized === "payment" ||
+    normalized === "payment_confirmed" ||
+    normalized === "subscription_active" ||
+    title.toLowerCase().includes("pagamento") ||
+    title.toLowerCase().includes("assinatura") ||
+    message.toLowerCase().includes("cobrança")
+  );
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -180,7 +213,7 @@ const NotificacoesPopover = () => {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="relative">
-        <Bell size={18} className="text-muted-foreground" />
+        <Bell size={22} strokeWidth={1.5} style={{ color: "#6B7280" }} />
         {naoLidas > 0 && (
           <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center">
             {naoLidas > 9 ? "9+" : naoLidas}
@@ -228,6 +261,7 @@ const NotificacoesPopover = () => {
             )}
             {notifs.map((n) => {
               const Icon = icones[n.tipo];
+              const payment = isPaymentType(rawNotifs.find((item) => item.id === n.id)?.type ?? "", n.titulo, n.descricao);
               return (
                 <div
                   key={n.id}
@@ -238,7 +272,7 @@ const NotificacoesPopover = () => {
                   <div
                     className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconeCls[n.tipo]}`}
                   >
-                    <Icon size={14} />
+                    {payment ? <VeloMark size={22} tone="solid" /> : <Icon size={14} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
@@ -257,12 +291,12 @@ const NotificacoesPopover = () => {
                       {n.descricao}
                     </p>
                     <p className="text-[10px] text-muted-foreground/60 mt-1">{n.tempo}</p>
-                    {n.actionUrl && (
+                    {hasExternalAction(n.actionUrl) && (
                       <button
                         type="button"
                         onClick={() => {
                           markRead.mutate(n.id);
-                          window.open(n.actionUrl!, "_blank", "noopener,noreferrer");
+                          openExternalAction(n.actionUrl!);
                         }}
                         className="mt-2 text-[11px] font-bold text-foreground underline underline-offset-2"
                       >

@@ -5,7 +5,7 @@ const platformData: Record<string, { url: string }> = {
   Shopee:     { url: "/brand/shopee.png" },
   eBay:       { url: "https://cdn.simpleicons.org/ebay/E53238" },
   Shopify:    { url: "/brand/shopify-ia.png" },
-  "CJ Dropshipping": { url: "/brand/cj.png" },
+  C7Drop: { url: "/velo-logo.svg" },
   Lazada:     { url: "https://cdn.simpleicons.org/lazada/0F146D" },
   WooCommerce:{ url: "https://cdn.simpleicons.org/woocommerce/96588A" },
   Etsy:       { url: "https://cdn.simpleicons.org/etsy/F16521" },
@@ -37,7 +37,7 @@ const PlatformLogo = ({ platform, color, size = 18 }: Props) => {
 
   return (
     <span
-      className="flex shrink-0 items-center justify-center rounded-md text-white font-black"
+      className="flex shrink-0 items-center justify-center rounded-md text-white font-semibold"
       style={{ width: size, height: size, backgroundColor: color ?? "#888", fontSize: size * 0.35 }}
     >
       {fallbackLetters}

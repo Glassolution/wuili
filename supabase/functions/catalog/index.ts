@@ -46,7 +46,9 @@ Deno.serve(async (req) => {
         ].join(","),
         { count: "exact" }
       )
+      .eq("source", "c7drop")
       .eq("is_active", true)
+      .eq("is_blocked", false)
       .gt("stock_quantity", 0)
       .order("orders_count", { ascending: false })
       .range(offset, offset + limit - 1);

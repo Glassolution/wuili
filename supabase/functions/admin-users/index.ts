@@ -35,12 +35,13 @@ const getProfileUserId = (profile: ProfileRow) => profile.user_id ?? profile.id;
 
 async function isAdmin(adminClient: ReturnType<typeof createClient>, userId: string) {
   const { data } = await adminClient
-    .from("profiles")
+    .from("user_roles")
     .select("role")
-    .or(`id.eq.${userId},user_id.eq.${userId}`)
+    .eq("user_id", userId)
+    .eq("role", "admin")
     .maybeSingle();
 
-  return data?.role === "admin";
+  return !!data;
 }
 
 async function loadProfiles(adminClient: ReturnType<typeof createClient>): Promise<ProfileRow[]> {
@@ -87,31 +88,86 @@ Deno.serve(async (req) => {
       return json({ error: "Acesso restrito a admins" }, 403);
     }
 
-    const profiles = await loadProfiles(adminClient);
-    const userIds = profiles.map(getProfileUserId).filter(Boolean);
+    // Quando o cliente pede apenas alguns usuários (ex.: fallback do suporte),
+    // evitamos varrer os milhares de usuários do projeto.
+    let requestedIds: string[] = [];
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (Array.isArray(body?.user_ids)) {
+          requestedIds = body.user_ids.filter((id: unknown) => typeof id === "string");
+        }
+      } catch {
+        /* corpo vazio */
+      }
+    }
 
-    const [subsRes, integrationsRes, ordersRes] = await Promise.all([
-      userIds.length
-        ? adminClient
-            .from("subscriptions")
-            .select("id,user_id,plan,amount,status,created_at,updated_at")
-            .in("user_id", userIds)
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
-      userIds.length
-        ? adminClient
-            .from("user_integrations")
-            .select("user_id,platform")
-            .in("user_id", userIds)
-            .eq("platform", "mercadolivre")
-        : Promise.resolve({ data: [], error: null }),
-      userIds.length
-        ? adminClient.from("orders").select("user_id").in("user_id", userIds)
-        : Promise.resolve({ data: [], error: null }),
+    // deno-lint-ignore no-explicit-any -- usuários do auth têm shape heterogêneo
+    const authUsers: any[] = [];
+    if (requestedIds.length > 0) {
+      const found = await Promise.all(
+        requestedIds.map(async (id) => {
+          const { data } = await adminClient.auth.admin.getUserById(id);
+          return data?.user ?? null;
+        })
+      );
+      authUsers.push(...found.filter(Boolean));
+    } else {
+      const perPage = 1000;
+      for (let page = 1; ; page += 1) {
+        const { data, error: authError } = await adminClient.auth.admin.listUsers({ page, perPage });
+        if (authError) throw authError;
+        authUsers.push(...data.users);
+        if (data.users.length < perPage) break;
+      }
+    }
+
+    const userIds = authUsers.map((u) => u.id).filter(Boolean);
+
+    // A URL do PostgREST estoura (Invalid URL) com milhares de ids em .in().
+    // Buscamos em lotes paralelos e concatenamos os resultados.
+    const CHUNK = 150;
+    // deno-lint-ignore no-explicit-any -- retornos heterogêneos das tabelas
+    const fetchChunked = async (build: (ids: string[]) => any): Promise<any[]> => {
+      const slices: string[][] = [];
+      for (let i = 0; i < userIds.length; i += CHUNK) slices.push(userIds.slice(i, i + CHUNK));
+      const results = await Promise.all(slices.map((ids) => build(ids)));
+      const rows: any[] = [];
+      for (const { data, error } of results) {
+        if (error) throw error;
+        rows.push(...(data ?? []));
+      }
+      return rows;
+    };
+
+
+    const [profilesRows, subsRows, integrationsRows, ordersRows] = await Promise.all([
+      fetchChunked((ids) =>
+        adminClient.from("profiles").select("id,user_id,display_name,avatar_url,created_at").in("user_id", ids)
+      ),
+      fetchChunked((ids) =>
+        adminClient
+          .from("subscriptions")
+          .select("id,user_id,plan,amount,status,created_at,updated_at")
+          .in("user_id", ids)
+          .order("created_at", { ascending: false })
+      ),
+      fetchChunked((ids) =>
+        adminClient.from("user_integrations").select("user_id,platform").in("user_id", ids).eq("platform", "mercadolivre")
+      ),
+      fetchChunked((ids) => adminClient.from("orders").select("user_id").in("user_id", ids)),
     ]);
 
-    const error = subsRes.error ?? integrationsRes.error ?? ordersRes.error;
-    if (error) throw error;
+    const profilesRes = { data: profilesRows };
+    const subsRes = { data: subsRows };
+    const integrationsRes = { data: integrationsRows };
+    const ordersRes = { data: ordersRows };
+
+    const profileByUserId = new Map<string, any>();
+    for (const profile of (profilesRes.data ?? [])) {
+      const pId = profile.user_id ?? profile.id;
+      if (pId) profileByUserId.set(pId, profile);
+    }
 
     const latestSubByUser = new Map<string, SubscriptionRow>();
     for (const subscription of (subsRes.data ?? []) as SubscriptionRow[]) {
@@ -133,26 +189,33 @@ Deno.serve(async (req) => {
     }
 
     return json(
-      profiles.map((profile) => {
-        const profileUserId = getProfileUserId(profile);
-        const subscription = latestSubByUser.get(profileUserId);
+      authUsers.map((authUser) => {
+        const userId = authUser.id;
+        const profile = profileByUserId.get(userId);
+        const subscription = latestSubByUser.get(userId);
+
+        const name = profile?.full_name ?? profile?.display_name ?? authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? authUser.email ?? null;
+        const email = authUser.email ?? profile?.email ?? null;
+        const avatarUrl = profile?.avatar_url ?? authUser.user_metadata?.avatar_url ?? null;
 
         return {
-          user_id: profileUserId,
-          name: profile.full_name ?? profile.display_name ?? profile.email ?? null,
-          email: profile.email ?? null,
-          avatar_url: profile.avatar_url ?? null,
+          user_id: userId,
+          name,
+          email,
+          avatar_url: avatarUrl,
           plan: subscription?.plan ?? null,
           subscription_status: subscription?.status ?? null,
-          created_at: profile.created_at,
-          ml_connected: mlConnectedUsers.has(profileUserId),
-          orders_count: ordersByUser.get(profileUserId) ?? 0,
+          created_at: authUser.created_at || profile?.created_at || new Date().toISOString(),
+          ml_connected: mlConnectedUsers.has(userId),
+          orders_count: ordersByUser.get(userId) ?? 0,
         };
       })
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[admin-users] error:", message);
-    return json({ error: "Erro interno" }, 500);
+    const message = error instanceof Error
+      ? error.message
+      : (typeof error === "object" ? JSON.stringify(error) : String(error));
+    console.error("[admin-users] error:", message, error);
+    return json({ error: "Erro interno", detail: message }, 500);
   }
 });

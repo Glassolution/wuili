@@ -2,3 +2,15 @@ node_modules
 .env
 .env.local
 .env.*.local
+.vercel
+supabase/.temp/
+dist/
+dist-ssr/
+*.local
+email-previews/
+public/email-previews/
+.claude/
+
+# Dumps locais de teste do catalogo/scraper
+catalog_test.json
+img_test.json

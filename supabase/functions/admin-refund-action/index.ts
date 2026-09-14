@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { refundCharge, ValidaPayError } from "../_shared/validapay.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,11 +30,92 @@ Deno.serve(async (req) => {
     );
     const { data: roleRow } = await admin
       .from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle();
-    if (!roleRow) return json({ error: "Acesso restrito a administradores" }, 403);
+    if (!roleRow) {
+      console.error("admin-refund-action: caller sem papel admin", callerId);
+      return json({ error: "Acesso restrito a administradores" }, 403);
+    }
 
-    const { refund_id, action } = await req.json();
-    if (!refund_id || !["approve", "reject"].includes(action)) {
-      return json({ error: "refund_id e action (approve|reject) obrigatórios" }, 400);
+    const body = await req.json().catch(() => ({}));
+    let { refund_id } = body as { refund_id?: string | null };
+    const { action, user_id, reason, reason_details } = body as {
+      action?: string;
+      user_id?: string | null;
+      reason?: string | null;
+      reason_details?: string | null;
+    };
+    if (!["approve", "reject"].includes(String(action))) {
+      return json({ error: "action (approve|reject) obrigatório" }, 400);
+    }
+
+    if (!refund_id && action === "approve" && user_id) {
+      const directUserId = String(user_id).trim();
+      const REJECTED_STATUSES = ["rejected", "denied", "cancelled", "canceled"];
+      const { data: previousRequests } = await admin
+        .from("refund_requests")
+        .select("*")
+        .eq("user_id", directUserId)
+        .order("requested_at", { ascending: false })
+        .limit(20);
+      const previous = previousRequests ?? [];
+      const pending = previous.find((row) => String(row.status ?? "").toLowerCase() === "pending");
+      const blocking = previous.find((row) => {
+        const status = String(row.status ?? "").toLowerCase();
+        return status !== "pending" && !REJECTED_STATUSES.includes(status);
+      });
+
+      if (blocking) {
+        console.error("admin-refund-action: reembolso bloqueado", { directUserId, status: blocking.status });
+        return json(
+          {
+            error: `Este cliente já possui um reembolso ${String(blocking.status).toLowerCase() === "processed" ? "concluído" : "em processo"} (solicitado em ${new Date(blocking.requested_at ?? blocking.created_at).toLocaleDateString("pt-BR")}). Não é possível reembolsar novamente.`,
+          },
+          409,
+        );
+      }
+
+      if (pending) {
+        refund_id = pending.id;
+      } else {
+        const { data: subscription } = await admin
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", directUserId)
+          .in("status", ["active", "paid", "approved", "authorized"])
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!subscription) {
+          console.error("admin-refund-action: sem assinatura ativa", directUserId);
+          return json({ error: "Nenhuma assinatura ativa encontrada para este cliente." }, 404);
+        }
+
+        const now = new Date().toISOString();
+        const { data: created, error: createErr } = await admin
+          .from("refund_requests")
+          .insert({
+            user_id: directUserId,
+            subscription_id: subscription.id,
+            payment_id: subscription.mp_payment_id,
+            charge_id: subscription.validapay_charge_id,
+            reason: reason || "Reembolso direto pelo suporte",
+            reason_details:
+              reason_details ||
+              "Reembolso direto aprovado pelo suporte administrativo após confirmação manual.",
+            status: "pending",
+            refund_amount: Number(subscription.amount ?? 0),
+            requested_at: now,
+            automated: true,
+            refund_kind: "admin_direct",
+          })
+          .select("*")
+          .single();
+        if (createErr) return json({ error: createErr.message }, 500);
+        refund_id = created.id;
+      }
+    }
+
+    if (!refund_id) {
+      return json({ error: "refund_id ou user_id são obrigatórios para aprovar reembolso" }, 400);
     }
 
     const { data: refund } = await admin.from("refund_requests").select("*").eq("id", refund_id).maybeSingle();
@@ -57,33 +139,64 @@ Deno.serve(async (req) => {
 
     // approve
     const { data: sub } = await admin.from("subscriptions").select("*").eq("id", refund.subscription_id).maybeSingle();
-    let providerResponse: unknown = null;
+    const isSandboxRefund =
+      String(sub?.provider ?? "").toLowerCase() === "sandbox" ||
+      String(sub?.payment_method ?? "").toLowerCase() === "sandbox" ||
+      String(sub?.validapay_charge_id ?? "").startsWith("sandbox_");
+    let providerResponse: Record<string, unknown> | null = null;
     let refundOk = true;
-    const MP = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
-    if (MP && sub?.mp_payment_id) {
-      const r = await fetch(`https://api.mercadopago.com/v1/payments/${sub.mp_payment_id}/refunds`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${MP}`, "Content-Type": "application/json", "X-Idempotency-Key": `refund-${sub.id}-${Date.now()}` },
-        body: JSON.stringify({}),
-      });
-      providerResponse = await r.json();
-      refundOk = r.ok;
+    let refundProcessing = false;
+
+    if (isSandboxRefund) {
+      providerResponse = { provider: "sandbox", success: true, message: "Reembolso sandbox aprovado sem gateway." };
+      refundOk = true;
+    } else if (sub?.validapay_charge_id) {
+      // Estorno de cartão/Pix na ValidaPay (POST /v1/wallet/refunds)
+      try {
+        const result = await refundCharge(
+          sub.validapay_charge_id,
+          Number(refund.refund_amount ?? sub.amount),
+          "CUSTOMER_REQUEST",
+        ) as Record<string, unknown>;
+        const st = String(result?.status ?? "").toUpperCase();
+        refundProcessing = st === "PROCESSING";
+        refundOk = st === "CONFIRMED" || st === "COMPLETED" || st === "SUCCESS" || refundProcessing || result?.success === true;
+        providerResponse = { provider: "validapay", ...result };
+      } catch (e) {
+        const err = e as ValidaPayError;
+        refundOk = false;
+        providerResponse = { provider: "validapay", error: err.message, details: err.details ?? null };
+        console.error("refund_logs", JSON.stringify({ origin: "admin-refund-action", outcome: "error", message: err.message }));
+      }
+    } else {
+      const MP = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+      if (MP && sub?.mp_payment_id) {
+        const r = await fetch(`https://api.mercadopago.com/v1/payments/${sub.mp_payment_id}/refunds`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${MP}`, "Content-Type": "application/json", "X-Idempotency-Key": `refund-${sub.id}-${Date.now()}` },
+          body: JSON.stringify({}),
+        });
+        providerResponse = await r.json();
+        refundOk = r.ok;
+      }
     }
 
     await admin.from("refund_requests").update({
       status: refundOk ? "processed" : "rejected",
-      provider_response: providerResponse as Record<string, unknown> | null,
+      provider_response: providerResponse,
       processed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq("id", refund_id);
 
     if (refundOk && sub) {
       await admin.from("subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", sub.id);
-      const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+      if (!isSandboxRefund) {
+        const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+      }
 
       // Derrubar publicações ativas no ML
-      try {
+      if (!isSandboxRefund) try {
         const { data: integ } = await admin.from("user_integrations")
           .select("access_token").eq("user_id", refund.user_id).eq("platform", "mercadolivre").maybeSingle();
         const { data: pubs } = await admin.from("user_publications")
@@ -114,12 +227,12 @@ Deno.serve(async (req) => {
       user_id: refund.user_id,
       title: refundOk ? "Reembolso aprovado" : "Falha ao processar reembolso",
       message: refundOk
-        ? "Seu reembolso foi aprovado e o valor será creditado em até 7 dias úteis."
+        ? "Seu reembolso foi aprovado. O estorno foi enviado ao banco emissor do cartão e pode levar até 30 dias para aparecer na sua fatura (normalmente entra na próxima fatura)."
         : "Não foi possível processar o reembolso. Entre em contato com o suporte.",
       type: "refund",
     });
 
-    return json({ success: refundOk, providerResponse });
+    return json({ success: refundOk, processing: refundProcessing, providerResponse });
   } catch (err) {
     console.error("admin-refund-action:", err);
     return json({ error: "Erro interno", message: String(err) }, 500);

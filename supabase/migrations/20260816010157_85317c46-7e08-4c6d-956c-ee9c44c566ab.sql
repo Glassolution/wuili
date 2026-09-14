@@ -1,0 +1,1 @@
+ALTER TABLE public.affiliates ALTER COLUMN is_active SET DEFAULT false;

@@ -23,8 +23,14 @@ serve(async (req) => {
 
   try {
     const { messages, mode } = await req.json();
+
+    // Preferimos o Gemini direto (GEMINI_API_KEY) — não depende dos créditos do
+    // gateway da Lovable. Se só houver LOVABLE_API_KEY, usamos o gateway como fallback.
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!GEMINI_API_KEY && !LOVABLE_API_KEY) {
+      throw new Error("Nenhuma chave de IA configurada (defina GEMINI_API_KEY)");
+    }
 
     const normalizedMessages = (messages || []).map((m: { role: string; content: string }) => ({
       role: m.role === "ai" ? "assistant" : m.role,
@@ -37,27 +43,31 @@ serve(async (req) => {
         m.content.includes("Gere uma descrição de produto persuasiva e completa para o Mercado Livre")
       );
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: isProductDescriptionMode
-            ? normalizedMessages
-            : [
-                { role: "system", content: SYSTEM_PROMPT },
-                ...normalizedMessages,
-              ],
-          temperature: isProductDescriptionMode ? 0.7 : 0.8,
-          max_tokens: isProductDescriptionMode ? 1800 : 1024,
-        }),
-      }
-    );
+    const chatMessages = isProductDescriptionMode
+      ? normalizedMessages
+      : [{ role: "system", content: SYSTEM_PROMPT }, ...normalizedMessages];
+
+    const useGemini = !!GEMINI_API_KEY;
+    // Ambos endpoints são compatíveis com o formato OpenAI (mesmo body/resposta).
+    const endpoint = useGemini
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const apiKey = useGemini ? GEMINI_API_KEY : LOVABLE_API_KEY;
+    const model = useGemini ? "gemini-2.5-flash" : "google/gemini-2.5-flash";
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: chatMessages,
+        temperature: isProductDescriptionMode ? 0.7 : 0.8,
+        max_tokens: isProductDescriptionMode ? 1800 : 1024,
+      }),
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -67,13 +77,14 @@ serve(async (req) => {
         );
       }
       if (response.status === 402) {
+        // Mensagem genérica: não expor detalhe de billing/créditos ao cliente.
         return new Response(
-          JSON.stringify({ error: "Créditos esgotados. Adicione fundos na sua conta." }),
+          JSON.stringify({ error: "Serviço de IA temporariamente indisponível. Tente novamente em instantes." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       const text = await response.text();
-      console.error("AI gateway error:", response.status, text);
+      console.error("AI gateway error:", useGemini ? "gemini" : "lovable", response.status, text);
       return new Response(
         JSON.stringify({ error: "Erro no serviço de IA" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

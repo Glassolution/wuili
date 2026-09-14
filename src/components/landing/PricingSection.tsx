@@ -35,69 +35,64 @@ type Plan = {
   prefix?: string;
   features: Feature[];
   note?: string;
+  highlight?: boolean;
 };
 
 const plans: Plan[] = [
   {
-    id: "gratis",
-    name: "Grátis",
-    price: "0",
+    id: "base",
+    name: "Base",
+    price: "39,90",
     currency: "R$",
     period: "BRL / mês",
-    desc: "Explore o catálogo gratuitamente",
-    cta: "Criar conta grátis",
+    desc: "Pra quem quer começar a vender sem travar no operacional.",
+    cta: "Assinar Base",
     ctaStyle: "outlined",
     features: [
-      { icon: Sparkles, text: "IA para criação de anúncios" },
-      { icon: MessageSquare, text: "Chat com IA básico" },
-      { icon: Store, text: "1 marketplace conectado" },
-      { icon: Image, text: "Catálogo liberado para explorar" },
-      { icon: Mic, text: "Sem suporte prioritário" },
+      { icon: Zap, text: "Até 50 anúncios ativos no Mercado Livre (50 publicações por mês), já com preço e margem calculados" },
+      { icon: Sparkles, text: "1 página de vendas gerada por IA por mês · 20 imagens com IA por mês" },
+      { icon: RefreshCw, text: "Publicação uma a uma — sem lote, variações ou sincronização automática de estoque" },
+      { icon: Store, text: "Loja completa: não incluída neste plano" },
+      { icon: Layers, text: "Acesso completo ao catálogo validado da Velo" },
+      { icon: Globe, text: "Subdomínio grátis (seunome.velo.store)" },
     ],
-    note: "Ideal para quem está começando.",
   },
   {
     id: "pro",
     name: "Pro",
-    price: "99,90",
+    price: "79,80",
     currency: "R$",
     period: "BRL / mês",
-    desc: "Publique e venda no Mercado Livre",
-    cta: "Fazer upgrade para o Pro",
+    desc: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
+    cta: "Assinar Pro",
     ctaStyle: "filled",
     features: [
-      { icon: Zap, text: "IA avançada com auto-publicação" },
-      { icon: Globe, text: "Até 2 marketplaces" },
-      { icon: RefreshCw, text: "Monitoramento de preços 24h" },
-      { icon: Brain, text: "Memória de operação entre sessões" },
-      { icon: Bot, text: "Respostas automáticas a compradores" },
-      { icon: BarChart3, text: "Relatórios financeiros" },
-      { icon: Layers, text: "Suporte prioritário" },
+      { icon: Zap, text: "Até 300 anúncios ativos no Mercado Livre, com publicação em lote e variações" },
+      { icon: Sparkles, text: "10 páginas de vendas por IA · 100 imagens e 10 vídeos com IA por mês" },
+      { icon: Store, text: "3 lojas completas geradas por IA — dá pra separar por nicho, se quiser" },
+      { icon: Globe, text: "Domínio próprio grátis" },
+      { icon: RefreshCw, text: "Atualização automática de preço e estoque nos produtos publicados" },
+      { icon: Headphones, text: "Suporte prioritário" },
     ],
+    highlight: true,
+    note: "Mais escolhido pelos vendedores da Velo.",
   },
   {
     id: "business",
     name: "Business",
-    price: "149,90",
+    price: "159,60",
     currency: "R$",
     period: "BRL / mês",
-    desc: "Escale suas vendas sem limites",
-    cta: "Fazer upgrade para Business",
+    desc: "Pra quem já vive disso e quer parar de contar produto.",
+    cta: "Assinar Business",
     ctaStyle: "filled",
-    prefix: "Tudo do Pro, incluindo:",
     features: [
-      { icon: TrendingUp, text: "Mais automações de operação" },
-      { icon: Sparkles, text: "Modelo de IA avançado" },
-      { icon: Bot, text: "Agentes de venda ilimitados" },
-      { icon: BarChart3, text: "Analytics em tempo real" },
-      { icon: Store, text: "Marketplaces ilimitados" },
-      { icon: Globe, text: "API access" },
-      { icon: Image, text: "Automações de entrega e rastreio" },
-      { icon: Brain, text: "O máximo de memória e contexto" },
-      { icon: ShieldCheck, text: "Acesso antecipado a novos recursos" },
-      { icon: Headphones, text: "Suporte dedicado" },
+      { icon: Zap, text: "Anúncios ilimitados no Mercado Livre, sem teto mensal de publicação" },
+      { icon: Sparkles, text: "Páginas de vendas ilimitadas · 300 imagens e 30 vídeos com IA por mês" },
+      { icon: Store, text: "Lojas completas ilimitadas" },
+      { icon: Globe, text: "Domínio próprio grátis em todas as lojas" },
+      { icon: Headphones, text: "Suporte prioritário com atendimento dedicado" },
     ],
-    note: "Sem limites, mas sujeito a diretrizes de uso justo.",
   },
 ];
 
@@ -114,11 +109,11 @@ const PricingSection = () => {
 
     setTimeout(() => {
       if (planId === "gratis") {
-        navigate(user ? "/dashboard" : "/cadastro");
+        navigate(user ? "/checkout?plan=pro" : "/login");
       } else if (user) {
         navigate(`/checkout?plan=${planId}`);
       } else {
-        navigate(`/cadastro?next=/checkout&plan=${planId}`);
+        navigate("/login");
       }
     }, 3000);
   };
@@ -144,37 +139,53 @@ const PricingSection = () => {
 
         {/* Cards */}
         <div className="grid grid-cols-1 gap-0 md:grid-cols-3">
-          {plans.map((plan, idx) => (
-            <div
-              key={plan.name}
-              className={`flex flex-col border border-white/[0.08] px-7 py-8 ${
-                idx === 0
-                  ? "rounded-t-[20px] md:rounded-l-[20px] md:rounded-tr-none"
-                  : idx === 2
-                    ? "rounded-b-[20px] md:rounded-r-[20px] md:rounded-bl-none"
-                    : ""
-              }`}
-            >
+          {plans.map((plan, idx) => {
+            const highlighted = !!plan.highlight;
+            const primaryText = highlighted ? "text-black" : "text-white";
+            const secondaryText = highlighted ? "text-black/55" : "text-white/60";
+            const mutedText = highlighted ? "text-black/40" : "text-white/40";
+            return (
+              <div
+                key={plan.name}
+                className={`relative flex flex-col border px-7 py-8 transition duration-300 hover:-translate-y-1 ${
+                  highlighted
+                    ? "z-[1] border-white bg-white shadow-[0_28px_90px_rgba(255,255,255,0.14)] md:-mt-5 md:rounded-[24px] md:py-10"
+                    : "border-white/[0.08]"
+                } ${
+                  idx === 0
+                    ? "rounded-t-[20px] md:rounded-l-[20px] md:rounded-tr-none"
+                    : idx === 2
+                      ? highlighted
+                        ? "rounded-b-[20px] md:rounded-[24px]"
+                        : "rounded-b-[20px] md:rounded-r-[20px] md:rounded-bl-none"
+                      : ""
+                }`}
+              >
+                {highlighted && (
+                  <div className="absolute right-6 top-6 rounded-full bg-black px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">
+                    Mais escolhido
+                  </div>
+                )}
               {/* Plan name */}
-              <h3 className="mb-5 font-['Manrope'] text-[1.375rem] font-bold tracking-[-0.01em] text-white">
+              <h3 className={`mb-5 font-['Manrope'] text-[1.375rem] font-bold tracking-[-0.01em] ${primaryText}`}>
                 {plan.name}
               </h3>
 
               {/* Price */}
               <div className="mb-1 flex items-baseline gap-[6px]">
-                <span className="font-['Manrope'] text-[0.9375rem] font-medium text-white/60">
+                <span className={`font-['Manrope'] text-[0.9375rem] font-medium ${secondaryText}`}>
                   {plan.currency}
                 </span>
-                <span className="font-['Manrope'] text-[3rem] font-bold leading-none tracking-[-0.04em] text-white">
+                <span className={`font-['Manrope'] text-[3rem] font-bold leading-none tracking-[-0.04em] ${primaryText}`}>
                   {plan.price}
                 </span>
-                <span className="font-['Manrope'] text-[0.8125rem] font-medium leading-tight text-white/40">
+                <span className={`font-['Manrope'] text-[0.8125rem] font-medium leading-tight ${mutedText}`}>
                   {plan.period}
                 </span>
               </div>
 
               {/* Description */}
-              <p className="mb-6 font-['Manrope'] text-[0.875rem] font-semibold leading-[1.4] text-white">
+              <p className={`mb-6 font-['Manrope'] text-[0.875rem] font-semibold leading-[1.4] ${primaryText}`}>
                 {plan.desc}
               </p>
 
@@ -185,7 +196,9 @@ const PricingSection = () => {
                 className={`group relative mb-8 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full py-[13px] font-['Manrope'] text-[0.875rem] font-semibold transition-all duration-500 disabled:cursor-wait disabled:opacity-100 ${
                   loadingPlan === plan.id ? "animate-pricing-cta-breathe" : ""
                 } ${
-                  plan.ctaStyle === "filled"
+                  highlighted
+                    ? "border-none bg-black text-white hover:bg-black/85"
+                    : plan.ctaStyle === "filled"
                     ? "border-none bg-white text-black hover:bg-white/90"
                     : "border border-white/[0.15] bg-transparent text-white/70 hover:border-white/30 hover:text-white"
                 }`}
@@ -204,8 +217,8 @@ const PricingSection = () => {
                 )}
 
                 {loadingPlan === plan.id ? (
-                  <span className={`relative z-[1] flex items-center gap-3 ${plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
-                    <span aria-hidden="true" className={`pricing-cta-loader ${plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
+                  <span className={`relative z-[1] flex items-center gap-3 ${highlighted ? "text-white" : plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
+                    <span aria-hidden="true" className={`pricing-cta-loader ${highlighted ? "text-white" : plan.ctaStyle === "filled" ? "text-black" : "text-white"}`}>
                       <span />
                       <span />
                       <span />
@@ -219,7 +232,7 @@ const PricingSection = () => {
 
               {/* Features prefix */}
               {plan.prefix && (
-                <p className="mb-4 font-['Manrope'] text-[0.8125rem] font-bold text-white">
+                <p className={`mb-4 font-['Manrope'] text-[0.8125rem] font-bold ${primaryText}`}>
                   {plan.prefix}
                 </p>
               )}
@@ -229,9 +242,9 @@ const PricingSection = () => {
                 {plan.features.map((f) => (
                   <div
                     key={f.text}
-                    className="flex items-center gap-3 font-['Manrope'] text-[0.8125rem] text-white/75"
+                    className={`flex items-center gap-3 font-['Manrope'] text-[0.8125rem] ${highlighted ? "text-black/70" : "text-white/75"}`}
                   >
-                    <f.icon size={16} className="flex-shrink-0 text-white/45" strokeWidth={1.8} />
+                    <f.icon size={16} className={`flex-shrink-0 ${highlighted ? "text-emerald-600" : "text-white/45"}`} strokeWidth={1.8} />
                     {f.text}
                   </div>
                 ))}
@@ -239,12 +252,13 @@ const PricingSection = () => {
 
               {/* Note */}
               {plan.note && (
-                <p className="mt-auto pt-8 font-['Manrope'] text-[0.75rem] text-white/35">
+                <p className={`mt-auto pt-8 font-['Manrope'] text-[0.75rem] ${highlighted ? "text-black/35" : "text-white/35"}`}>
                   {plan.note}
                 </p>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

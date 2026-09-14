@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
-  ExternalLink, Package, ShoppingBag, Pause, Play, AlertCircle, Calendar,
+  Search, ChevronDown, Grid3x3, List, Package, ExternalLink, ArrowUpRight, MoreHorizontal, Pencil, Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
+import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import { veloToast } from "@/components/ui/velo-toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Publication = {
@@ -20,390 +22,408 @@ type Publication = {
   user_id: string;
   published_at: string | null;
   created_at: string;
+  catalog_product_id: string | null;
+  cj_product_url: string | null;
+  supplier_url: string | null;
 };
 
-type TabFilter = "all" | "mercadolivre" | "error";
+type TabFilter = "all" | "active" | "draft" | "archived";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const formatDate = (iso: string | null) => {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+const normalizeExternalUrl = (value: string | null | undefined) => {
+  const url = value?.trim();
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return null;
+  return `https://${url}`;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Ativo",
-  pending: "Pendente",
-  paused: "Pausado",
-  error: "Erro",
+const openExternal = (url: string | null, missingMessage: string) => {
+  if (!url) {
+    veloToast.info(missingMessage);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  active:  "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
-  pending: "bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-300 dark:border-yellow-500/30",
-  paused:  "bg-gray-100 text-gray-500 border border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
-  error:   "bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30",
-};
-
-// ─── Skeleton row ─────────────────────────────────────────────────────────────
-const SkeletonRow = () => (
-  <tr className="border-b border-border">
-    {[56, 160, 80, 70, 70, 90, 90].map((w, i) => (
-      <td key={i} className="px-4 py-3">
-        <Skeleton style={{ width: w, height: 14 }} className="rounded" />
-      </td>
-    ))}
-  </tr>
-);
-
-const MobileSkeletonCard = () => (
-  <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
-    <div className="flex gap-3">
-      <Skeleton className="h-20 w-20 shrink-0 rounded-xl" />
-      <div className="min-w-0 flex-1 space-y-2">
-        <Skeleton className="h-4 w-11/12 rounded" />
-        <Skeleton className="h-4 w-7/12 rounded" />
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
-        </div>
-      </div>
-    </div>
-  </div>
-);
+const isUuid = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const PublicationsPage = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<TabFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
 
   // ── Query ──────────────────────────────────────────────────────────────────
-  const { data: publications, isLoading } = useQuery({
+  const { data: publications, isLoading, refetch } = useQuery({
     queryKey: ["user-publications", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .from("user_publications")
         .select("*")
         .eq("user_id", user!.id)
         .order("published_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as Publication[];
+
+      const rows = (data ?? []) as Omit<Publication, "supplier_url">[];
+      const catalogIds = Array.from(new Set(rows.map((row) => row.catalog_product_id).filter((value): value is string => Boolean(value))));
+      const supplierMap = new Map<string, string | null>();
+
+      const uuidIds = catalogIds.filter(isUuid);
+      if (uuidIds.length > 0) {
+        const { data: products } = await supabase
+          .from("catalog_products")
+          .select("id,external_id,product_url")
+          .in("id", uuidIds);
+        (products ?? []).forEach((product) => {
+          supplierMap.set(product.id, product.product_url ?? null);
+          supplierMap.set(product.external_id, product.product_url ?? null);
+        });
+      }
+
+      if (catalogIds.length > 0) {
+        const { data: productsByExternalId } = await supabase
+          .from("catalog_products")
+          .select("id,external_id,product_url")
+          .in("external_id", catalogIds);
+        (productsByExternalId ?? []).forEach((product) => {
+          supplierMap.set(product.id, product.product_url ?? null);
+          supplierMap.set(product.external_id, product.product_url ?? null);
+        });
+      }
+
+      return rows.map((row) => ({
+        ...row,
+        supplier_url: row.catalog_product_id ? supplierMap.get(row.catalog_product_id) ?? row.cj_product_url ?? null : row.cj_product_url ?? null,
+      })) as Publication[];
     },
   });
 
-  // ── Toggle status mutation ─────────────────────────────────────────────────
-  const toggleMutation = useMutation({
-    mutationFn: async ({ id, currentStatus }: { id: string; currentStatus: string }) => {
-      const newStatus = currentStatus === "active" ? "paused" : "active";
-      const { error } = await supabase
-        .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .update({ status: newStatus })
-        .eq("id", id);
-      if (error) throw error;
-      return newStatus;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user-publications", user?.id] }),
-  });
+  const handleDeletePublication = async (pub: Publication) => {
+    if (!user?.id || deletingId) return;
+    const confirmed = window.confirm(`Excluir "${pub.title}" da sua lista de publicações?`);
+    if (!confirmed) return;
+
+    setDeletingId(pub.id);
+    const { error } = await supabase
+      .from("user_publications")
+      .delete()
+      .eq("id", pub.id)
+      .eq("user_id", user.id);
+    setDeletingId(null);
+
+    if (error) {
+      veloToast.error("Não foi possível excluir a publicação.");
+      return;
+    }
+
+    veloToast.success("Publicação excluída.");
+    void refetch();
+  };
 
   const all = publications ?? [];
+  const activeCount = all.filter((p) => p.status === "active").length;
+  const draftCount = all.filter((p) => p.status === "pending").length;
+  const archivedCount = all.filter((p) =>
+    ["paused", "closed", "inactive", "under_review", "archived_duplicate"].includes(p.status),
+  ).length;
 
   // ── Filter ─────────────────────────────────────────────────────────────────
   const filtered = all.filter(p => {
-    if (tab === "error") return p.status === "error";
-    // "mercadolivre" — all current publications are from ML
+    // Tab filter
+    if (tab === "active" && p.status !== "active") return false;
+    if (tab === "draft" && p.status !== "pending") return false;
+    if (tab === "archived" &&
+      !["paused", "closed", "inactive", "under_review", "archived_duplicate"].includes(p.status)) {
+      return false;
+    }
+    
+    // Search filter
+    if (searchQuery && !p.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    
     return true;
   });
 
-  const activeCount = all.filter(p => p.status === "active").length;
-  const errorCount = all.filter(p => p.status === "error").length;
-
-  // ── Tabs config ────────────────────────────────────────────────────────────
-  const tabs: { key: TabFilter; label: string; count?: number }[] = [
-    { key: "all", label: "Todas", count: all.length },
-    { key: "mercadolivre", label: "Mercado Livre" },
-    { key: "error", label: "Com erro", count: errorCount },
-  ];
+  // ── Badge presets por status real do ML ────────────────────────────────────
+  const statusPresets: Record<string, { label: string; wrap: string; dot: string }> = {
+    active:             { label: "Ativo",           wrap: "bg-emerald-50 text-emerald-700",   dot: "bg-emerald-500" },
+    pending:            { label: "Rascunho",        wrap: "bg-gray-100 text-gray-600",        dot: "bg-gray-400" },
+    paused:             { label: "Pausado",         wrap: "bg-amber-50 text-amber-700",       dot: "bg-amber-500" },
+    under_review:       { label: "Em revisão",      wrap: "bg-blue-50 text-blue-700",         dot: "bg-blue-500" },
+    inactive:           { label: "Inativo",         wrap: "bg-gray-100 text-gray-500",        dot: "bg-gray-400" },
+    closed:             { label: "Encerrado",       wrap: "bg-rose-50 text-rose-700",         dot: "bg-rose-500" },
+    archived_duplicate: { label: "Duplicado",       wrap: "bg-gray-100 text-gray-500",        dot: "bg-gray-400" },
+  };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div>
-          <h2 className="text-[22px] font-bold tracking-tight text-foreground sm:text-2xl">Publicações</h2>
-          <p className="text-[12px] text-muted-foreground sm:text-sm">
-            Acompanhe seus anúncios publicados e resolva ajustes rápido.
-          </p>
+    <DashboardPageShell
+      title="Publicações"
+      className="overflow-visible"
+      panelClassName="overflow-visible"
+      style={{ fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif' }}
+    >
+      <div className="mobile-hide-scrollbar mb-5 flex gap-2 overflow-x-auto md:mb-7 md:items-center xl:overflow-visible" data-dashboard-tour="publicacoes-filtros">
+        <div className="relative min-w-[220px] flex-1 md:flex-none xl:w-[240px] xl:flex-shrink-0">
+          <Search size={16} strokeWidth={1.8} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E87]" />
+          <input
+            type="text"
+            placeholder="Buscar publicação"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-9 w-full rounded-full border border-black/[0.08] bg-white pl-9 pr-3 text-[12px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(17,17,17,0.035)] outline-none transition-all duration-200 placeholder:text-[#8E8E87] hover:border-black/15"
+          />
         </div>
-        {activeCount > 0 && (
-          <span className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-            {activeCount} ativas
-          </span>
-        )}
-      </div>
 
-      <div className="grid grid-cols-3 gap-2 md:hidden">
         {[
-          { label: "Todas", value: all.length },
-          { label: "Ativas", value: activeCount },
-          { label: "Erros", value: errorCount },
+          { key: "all" as TabFilter, label: "Status", value: "Todos", count: all.length },
+          { key: "active" as TabFilter, label: "Ativos", value: activeCount.toString(), count: activeCount },
+          { key: "draft" as TabFilter, label: "Rascunhos", value: draftCount.toString(), count: draftCount },
+          { key: "archived" as TabFilter, label: "Arquivados", value: archivedCount.toString(), count: archivedCount },
         ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-border bg-card px-3 py-2.5 shadow-sm">
-            <p className="text-[11px] font-medium text-muted-foreground">{item.label}</p>
-            {isLoading ? (
-              <Skeleton className="mt-1 h-6 w-10 rounded" />
-            ) : (
-              <p className="mt-0.5 text-[22px] font-semibold leading-none text-foreground">{item.value}</p>
-            )}
-          </div>
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setTab(item.key)}
+            className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 text-[12px] font-semibold transition-all duration-200 ${
+              tab === item.key
+                ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.16)]"
+                : "border-black/[0.08] bg-white text-[#111111] hover:border-black/15 hover:bg-[#F7F7F8]"
+            }`}
+          >
+            <span className={tab === item.key ? "text-white/65" : "text-[#8E8E87]"}>{item.label}</span>
+            <span>{item.key === "all" ? item.value : item.count}</span>
+            <ChevronDown size={14} strokeWidth={1.8} />
+          </button>
         ))}
+
+        <div className="hidden xl:block xl:flex-1" />
+
+        <div className="hidden shrink-0 items-center gap-1 rounded-full border border-black/[0.08] bg-white p-1 shadow-[0_8px_18px_rgba(17,17,17,0.035)] sm:flex">
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            className={`grid h-8 w-8 place-items-center rounded-full transition-colors ${
+              viewMode === "grid" ? "bg-[#EFEFEB] text-[#111111]" : "text-[#8E8E87] hover:bg-[#F7F7F8]"
+            }`}
+            aria-label="Visualizar em grade"
+          >
+            <Grid3x3 size={15} strokeWidth={1.9} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            className={`grid h-8 w-8 place-items-center rounded-full transition-colors ${
+              viewMode === "list" ? "bg-[#EFEFEB] text-[#111111]" : "text-[#8E8E87] hover:bg-[#F7F7F8]"
+            }`}
+            aria-label="Visualizar em lista"
+          >
+            <List size={15} strokeWidth={1.9} />
+          </button>
+        </div>
       </div>
 
-      {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-      <div className="-mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0" style={{ scrollbarWidth: "none" }}>
-        <div className="inline-flex min-w-full gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm sm:min-w-0">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              aria-pressed={tab === t.key}
-              className={[
-                "flex shrink-0 items-center justify-center rounded-xl px-3.5 py-2 text-[13px] font-semibold transition-colors sm:text-sm",
-                tab === t.key
-                  ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              ].join(" ")}
-            >
-              {t.label}
-              {t.count !== undefined && t.count > 0 && (
-                <span className={[
-                  "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                  tab === t.key ? "bg-background/15 text-background" : "bg-muted text-muted-foreground",
-                ].join(" ")}>
-                  {t.count}
-                </span>
-              )}
-            </button>
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="aspect-square w-full rounded-[3px] bg-[#ECECE9]" />
+              <div className="mt-5 h-3 w-24 rounded-full bg-[#E4E4E1]" />
+              <div className="mt-3 h-4 w-4/5 rounded-full bg-[#E4E4E1]" />
+              <div className="mt-2 h-4 w-2/3 rounded-full bg-[#E4E4E1]" />
+            </div>
           ))}
         </div>
-      </div>
-
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
-      <div className="space-y-3 md:hidden">
-        {isLoading
-          ? Array.from({ length: 3 }).map((_, i) => <MobileSkeletonCard key={i} />)
-          : filtered.length === 0
-          ? (
-            <div className="rounded-2xl border border-border bg-card px-5 py-12 text-center shadow-sm">
-              <ShoppingBag size={38} className="mx-auto text-muted-foreground/30" />
-              <p className="mt-3 text-sm font-semibold text-foreground">Nenhuma publicação encontrada</p>
-              <p className="mx-auto mt-1 max-w-[260px] text-xs leading-relaxed text-muted-foreground">
-                Importe um produto do catálogo para publicar e acompanhar por aqui.
-              </p>
-            </div>
-          )
-          : filtered.map(pub => {
+      ) : filtered.length === 0 ? (
+        <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
+            <Package size={21} strokeWidth={1.7} />
+          </div>
+          <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhuma publicação encontrada</p>
+          <p className="mt-1 text-[12px] font-medium text-[#777771]">Ajuste os filtros ou publique um produto pelo Catálogo Velo.</p>
+        </div>
+      ) : viewMode === "list" ? (
+        <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+          {filtered.map((pub, index) => {
             const status = pub.status || "pending";
-            const isActive = status === "active";
-            const isError = status === "error";
-            const profit = (pub.price ?? 0) - (pub.cost_price ?? 0);
+            const preset = statusPresets[status] ?? statusPresets.pending;
+            const retailPrice = pub.price ?? 0;
+            const mlHref = normalizeExternalUrl(pub.permalink);
 
             return (
-              <article key={pub.id} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-                <div className="flex gap-3 p-3">
-                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted/70">
-                    {pub.thumbnail
-                      ? <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-cover" loading="lazy" />
-                      : <Package size={18} className="text-muted-foreground/40" />
-                    }
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">
-                        {pub.title}
-                      </p>
-                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${STATUS_STYLE[status] ?? STATUS_STYLE.pending}`}>
-                        {isError && <AlertCircle size={10} />}
-                        {STATUS_LABEL[status] ?? status}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-full border border-yellow-200 bg-yellow-50 px-2 py-0.5 text-[10.5px] font-semibold text-yellow-700 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-300">
-                        Mercado Livre
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground">
-                        <Calendar size={10} />
-                        {formatDate(pub.published_at)}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-muted/60 px-3 py-2">
-                        <p className="text-[10px] font-medium text-muted-foreground">Preço</p>
-                        <p className="mt-0.5 truncate text-[13px] font-bold text-foreground">{formatBRL(pub.price ?? 0)}</p>
-                      </div>
-                      <div className="rounded-xl bg-muted/60 px-3 py-2">
-                        <p className="text-[10px] font-medium text-muted-foreground">Lucro</p>
-                        <p className={`mt-0.5 truncate text-[13px] font-bold ${profit >= 0 ? "text-emerald-600 dark:text-emerald-300" : "text-red-500 dark:text-red-300"}`}>
-                          {formatBRL(profit)}
-                        </p>
-                      </div>
-                    </div>
+              <button
+                key={pub.id}
+                type="button"
+                onClick={() => openExternal(mlHref, "O anúncio do Mercado Livre ainda não possui link disponível.")}
+                data-dashboard-tour={index === 0 ? "publicacoes-card" : undefined}
+                className="group grid w-full grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[#EFEFEB] p-3 text-left transition-colors last:border-b-0 hover:bg-[#F7F7F8]"
+              >
+                <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+                  {pub.thumbnail ? (
+                    <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-contain p-1 mix-blend-multiply" />
+                  ) : (
+                    <Package size={18} strokeWidth={1.8} className="text-[#9CA3AF]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="truncate text-[13px] font-semibold tracking-[-0.03em] text-[#111111] group-hover:text-[#2563EB]">
+                    {pub.title}
+                  </h3>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[12px] font-semibold tracking-[-0.025em] text-[#111111]">{formatBRL(retailPrice)}</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold ${preset.wrap}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${preset.dot}`} />
+                      {preset.label}
+                    </span>
+                    <span className="rounded-full bg-[#EFEFEB] px-2 py-0.5 text-[9px] font-medium text-[#6A6A64]">Mercado Livre</span>
                   </div>
                 </div>
+                <ArrowUpRight size={16} strokeWidth={2} className="text-[#8E8E87] transition-colors group-hover:text-[#2563EB]" />
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-7 overflow-visible md:grid-cols-3 md:gap-x-5 md:gap-y-9 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {filtered.map((pub, index) => {
+            const status = pub.status || "pending";
+            const preset = statusPresets[status] ?? statusPresets.pending;
+            const retailPrice = pub.price ?? 0;
+            const wholesalePrice = pub.cost_price ?? 0;
+            const mlHref = normalizeExternalUrl(pub.permalink);
+            const supplierUrl = normalizeExternalUrl(pub.supplier_url ?? pub.cj_product_url);
+            const deleting = deletingId === pub.id;
 
-                <div className="grid grid-cols-2 gap-2 border-t border-border bg-muted/20 p-2">
-                  {pub.permalink ? (
-                    <a
-                      href={pub.permalink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted"
-                    >
-                      <ExternalLink size={13} />
-                      Ver anúncio
-                    </a>
-                  ) : (
-                    <span className="inline-flex min-h-10 items-center justify-center rounded-xl border border-border bg-muted px-3 text-[12px] font-semibold text-muted-foreground">
-                      Sem link
-                    </span>
-                  )}
+            return (
+              <article
+                key={pub.id}
+                data-dashboard-tour={index === 0 ? "publicacoes-card" : undefined}
+                className="group min-w-0 bg-transparent transition-all duration-200 hover:-translate-y-0.5"
+              >
+                <div className="relative aspect-square overflow-hidden rounded-[3px] bg-[#EFEFEC]">
                   <button
-                    onClick={() => toggleMutation.mutate({ id: pub.id, currentStatus: status })}
-                    disabled={toggleMutation.isPending || isError}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
+                    type="button"
+                    onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                    className="block h-full w-full"
+                    aria-label={`Abrir publicação ${pub.title}`}
                   >
-                    {isActive ? <Pause size={13} /> : <Play size={13} />}
-                    {isActive ? "Pausar" : "Ativar"}
+                    {pub.thumbnail ? (
+                      <img
+                        src={pub.thumbnail}
+                        alt={pub.title}
+                        className="h-full w-full object-contain p-4 mix-blend-multiply transition-transform duration-500 group-hover:scale-[1.035] md:p-5"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <span className="grid h-full w-full place-items-center text-[#9CA3AF]">
+                        <Package size={30} strokeWidth={1.6} />
+                      </span>
+                    )}
                   </button>
+                  <span className={`absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[9px] font-semibold backdrop-blur-sm ${preset.wrap}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${preset.dot}`} />
+                    {preset.label}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setOpenActionId((current) => current === pub.id ? null : pub.id)}
+                    className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full border border-black/10 bg-white/95 text-[#111111] shadow-[0_4px_12px_rgba(17,24,39,0.12)] backdrop-blur-sm transition-transform hover:text-[#2563EB] active:scale-90"
+                    aria-label="Mais ações"
+                  >
+                    <MoreHorizontal size={15} strokeWidth={2} />
+                  </button>
+                  {openActionId === pub.id ? (
+                    <div className="absolute right-2 top-11 z-20 w-32 overflow-hidden rounded-xl border border-black/10 bg-white py-1 text-[#111111] shadow-[0_12px_30px_rgba(17,24,39,0.16)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          navigate(`/dashboard/publicacoes/${pub.id}`);
+                        }}
+                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[11px] font-semibold transition hover:bg-[#F7F7F8]"
+                      >
+                        <Pencil size={13} strokeWidth={1.9} />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenActionId(null);
+                          void handleDeletePublication(pub);
+                        }}
+                        disabled={deleting}
+                        className="flex h-9 w-full items-center gap-2 px-3 text-left text-[11px] font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <Trash2 size={13} strokeWidth={1.9} />
+                        {deleting ? "Excluindo" : "Excluir"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="pt-3">
+                  <div className="text-[12px] font-semibold tracking-[-0.025em] text-[#111111]">
+                    {formatBRL(retailPrice)}
+                    {wholesalePrice > 0 ? (
+                      <span className="ml-1.5 text-[10px] font-medium text-[#777771]">custo {formatBRL(wholesalePrice)}</span>
+                    ) : null}
+                  </div>
+
+                  <h2 className="mt-1 line-clamp-2 min-h-[36px] text-[13px] font-semibold leading-[18px] tracking-[-0.03em] text-[#111111] transition-colors group-hover:text-[#2563EB]">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/publicacoes/${pub.id}`)}
+                      className="text-left"
+                    >
+                      {pub.title}
+                    </button>
+                  </h2>
+
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1">
+                    <span className="rounded-full bg-[#EFEFEB] px-1.5 py-0.5 text-[8.5px] font-medium text-[#6A6A64]">
+                      Mercado Livre
+                    </span>
+                    <span className="rounded-full bg-[#EFEFEB] px-1.5 py-0.5 text-[8.5px] font-medium text-[#6A6A64]">
+                      {pub.ml_item_id ? `ML ${pub.ml_item_id.slice(0, 8)}` : "Sem ID ML"}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openExternal(mlHref, "O anúncio do Mercado Livre ainda não possui link disponível.")}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111111] transition-colors hover:bg-[#F4F4F1]"
+                      aria-label="Abrir anúncio no Mercado Livre"
+                    >
+                      <ExternalLink size={13} strokeWidth={1.9} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openExternal(supplierUrl, "Este produto ainda não possui link de fornecedor.")}
+                      className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#2563EB] px-2.5 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+                    >
+                      Ver no fornecedor
+                      <ArrowUpRight size={12} strokeWidth={2} />
+                    </button>
+                  </div>
                 </div>
               </article>
             );
-          })
-        }
-      </div>
-
-      <div className="hidden overflow-hidden rounded-xl border border-border md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/40">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Produto</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Plataforma</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Preço</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Data</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading
-              ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
-              : filtered.length === 0
-              ? (
-                <tr>
-                  <td colSpan={6}>
-                    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-                      <ShoppingBag size={40} className="text-muted-foreground/30" />
-                      <p className="text-sm font-medium text-foreground">Nenhuma publicação ainda</p>
-                      <p className="text-xs text-muted-foreground max-w-xs">
-                        Importe um produto do catálogo para começar.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )
-              : filtered.map(pub => {
-                const status = pub.status || "pending";
-                const isActive = status === "active";
-                const isError = status === "error";
-                const profit = (pub.price ?? 0) - (pub.cost_price ?? 0);
-
-                return (
-                  <tr key={pub.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                    {/* Produto */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted/60 shrink-0 overflow-hidden flex items-center justify-center">
-                          {pub.thumbnail
-                            ? <img src={pub.thumbnail} alt={pub.title} className="w-full h-full object-cover" loading="lazy" />
-                            : <Package size={16} className="text-muted-foreground/40" />
-                          }
-                        </div>
-                        <p className="text-xs font-medium text-foreground line-clamp-2 max-w-[220px]">
-                          {pub.title}
-                        </p>
-                      </div>
-                    </td>
-
-                    {/* Plataforma */}
-                    <td className="px-4 py-3">
-                      <span className="rounded-full bg-yellow-50 border border-yellow-200 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
-                        Mercado Livre
-                      </span>
-                    </td>
-
-                    {/* Preço */}
-                    <td className="px-4 py-3">
-                      <p className="text-xs font-semibold text-foreground">{formatBRL(pub.price ?? 0)}</p>
-                      {profit !== 0 && (
-                        <p className={`text-[11px] mt-0.5 ${profit > 0 ? "text-emerald-600" : "text-red-500"}`}>
-                          Lucro {formatBRL(profit)}
-                        </p>
-                      )}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_STYLE[status] ?? STATUS_STYLE.pending}`}>
-                        {isError && <AlertCircle size={10} />}
-                        {STATUS_LABEL[status] ?? status}
-                      </span>
-                    </td>
-
-                    {/* Data */}
-                    <td className="px-4 py-3">
-                      <p className="text-xs text-muted-foreground">{formatDate(pub.published_at)}</p>
-                    </td>
-
-                    {/* Ações */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {pub.permalink && (
-                          <a
-                            href={pub.permalink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
-                          >
-                            <ExternalLink size={11} />
-                            Ver anúncio
-                          </a>
-                        )}
-                        <button
-                          onClick={() => toggleMutation.mutate({ id: pub.id, currentStatus: status })}
-                          disabled={toggleMutation.isPending || isError}
-                          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          title={isActive ? "Pausar" : "Ativar"}
-                        >
-                          {isActive ? <Pause size={11} /> : <Play size={11} />}
-                          {isActive ? "Pausar" : "Ativar"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
+          })}
+        </div>
+      )}
+    </DashboardPageShell>
   );
 };
 

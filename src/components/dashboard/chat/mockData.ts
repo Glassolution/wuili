@@ -3,8 +3,8 @@ import type { Conversation } from './types';
 export const MOCK_CONVERSATIONS: Conversation[] = [
   {
     id: '1',
-    supplierName: 'CJ Dropshipping',
-    supplierInitials: 'CJ',
+    supplierName: 'C7Drop',
+    supplierInitials: 'C7',
     supplierColor: '#EA580C',
     productName: 'Kit Organizador de Gaveta',
     status: 'online',
@@ -41,8 +41,8 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       {
         id: 'm6', sender: 'supplier', type: 'link', dateGroup: 'Hoje',
         content: 'Confira nosso catálogo completo:',
-        linkUrl: 'https://cjdropshipping.com',
-        linkTitle: 'CJ Dropshipping — Catálogo 2024',
+        linkUrl: 'https://c7drop.com.br',
+        linkTitle: 'C7Drop — Catálogo',
         timestamp: '14:30',
       },
       {

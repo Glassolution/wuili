@@ -38,7 +38,7 @@ export default function ConversationList({
     <div className="flex h-full flex-col border-r border-[#EBEBEB] dark:border-zinc-800 bg-white dark:bg-zinc-900">
       {/* Header */}
       <div className="border-b border-[#EBEBEB] dark:border-zinc-800 px-4 pb-3 pt-4">
-        <h2 className="mb-3 font-['Manrope'] text-[15px] font-bold text-[#0A0A0A] dark:text-white">
+        <h2 className="mb-3 font-['Manrope'] text-[15px] font-semibold text-[#0A0A0A] dark:text-white">
           Fornecedores
         </h2>
         <div className="relative">
@@ -73,7 +73,7 @@ export default function ConversationList({
               {/* Avatar with status dot */}
               <div className="relative shrink-0">
                 <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-semibold text-white"
                   style={{ backgroundColor: conv.supplierColor }}
                 >
                   {conv.supplierInitials}
@@ -84,7 +84,7 @@ export default function ConversationList({
               {/* Content */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-1">
-                  <p className={`truncate font-['Manrope'] text-[13.5px] font-semibold text-[#0A0A0A] dark:text-white`}>
+                  <p className={`truncate font-['Manrope'] text-[13.5px] font-normal text-[#0A0A0A] dark:text-white`}>
                     {conv.supplierName}
                   </p>
                   <span className="shrink-0 text-[11px] text-[#A3A3A3] dark:text-zinc-500">{conv.lastTime}</span>

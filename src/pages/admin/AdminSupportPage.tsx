@@ -1,22 +1,86 @@
-import { useEffect, useMemo, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- As tabelas de suporte ainda não constam nos tipos gerados do Supabase; os resultados são normalizados nos tipos locais abaixo. */
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Lock, MessageCircle, Send, UserRound } from "lucide-react";
-import { toast } from "sonner";
+import { motion } from "framer-motion";
+import {
+  Activity,
+  AlertTriangle,
+  Archive,
+  ArrowLeft,
+  Bug,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  CreditCard,
+  Hash,
+  HandCoins,
+  Inbox,
+  Loader2,
+  Lock,
+  Mail,
+  MessageCircle,
+  MonitorSmartphone,
+  MoreHorizontal,
+  Paperclip,
+  Pencil,
+  Plug,
+  RefreshCcw,
+  Reply,
+  Route,
+  Search,
+  Send,
+  Trash2,
+  UserCircle2,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { AdminShell } from "@/components/admin/AdminShell";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { VeloLogo } from "@/components/VeloLogo";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { notifyTicketReplyEmail } from "@/lib/supportEmail";
+import {
+  buildSupportImageMessage,
+  buildSupportRedirectMessage,
+  buildSupportReplyMessage,
+  parseSupportMessage,
+  removeSupportImage,
+  supportMessagePreview,
+  touchSupportTicket,
+  type SupportReplyReference,
+  uploadSupportImage,
+  validateSupportImage,
+} from "@/lib/support";
+import SupportImagePreview from "@/components/support/SupportImagePreview";
+import SupportMessageMedia from "@/components/support/SupportMessageMedia";
+
+type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
+type TicketView = "all" | "new" | "in_progress";
+type TicketStatusFilter = "all" | "open" | "closed";
+type TicketDateFilter = "all" | "today" | "7d" | "30d";
+type MobileSupportPanel = "inbox" | "conversation" | "customer";
 
 type AdminTicket = {
   id: string;
   user_id: string;
   status: "open" | "closed";
+  category: TicketCategory;
+  subject: string | null;
   created_at: string;
   updated_at: string;
   user_name: string | null;
   user_email: string | null;
+  user_avatar_url: string | null;
   last_message: string | null;
   last_message_at: string | null;
+  last_message_sender: "user" | "admin" | "ai" | null;
+  message_count: number;
+  has_admin_reply: boolean;
 };
 
 type SupportMessage = {
@@ -24,26 +88,278 @@ type SupportMessage = {
   ticket_id: string;
   user_id: string;
   message: string;
-  sender: "user" | "admin";
+  sender: "user" | "admin" | "ai";
   created_at: string;
+};
+
+type CustomerContextData = {
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  plan: string | null;
+  subscription_status: string | null;
+  subscription_started_at: string | null;
+  customer_since: string | null;
+  last_seen_at: string | null;
+  payment_method: string | null;
+  user_agent: string | null;
+};
+
+type DirectRefundTarget = {
+  ticket: AdminTicket;
+  customer: CustomerContextData;
+};
+
+type RedirectDraft = {
+  ticket: AdminTicket;
+  sourceMessage: SupportMessage;
+  label: string;
+  url: string;
+  note: string;
+};
+
+const CATEGORY_META: Record<
+  TicketCategory,
+  { label: string; icon: LucideIcon; dot: string; badge: string }
+> = {
+  financeiro: {
+    label: "Financeiro",
+    icon: CreditCard,
+    dot: "bg-[#64748b]",
+    badge: "border-[#dfe4ea] bg-[#f4f6f8] text-[#596273]",
+  },
+  bug: {
+    label: "Bug / Erro",
+    icon: Bug,
+    dot: "bg-[#ef5b67]",
+    badge: "border-[#f5d6d9] bg-[#fff2f3] text-[#b8434d]",
+  },
+  integracao: {
+    label: "Integração",
+    icon: Plug,
+    dot: "bg-[#4f7cff]",
+    badge: "border-[#d9e2ff] bg-[#f1f5ff] text-[#4164c7]",
+  },
+  conta: {
+    label: "Conta",
+    icon: UserCircle2,
+    dot: "bg-[#8b6ee8]",
+    badge: "border-[#e4def7] bg-[#f7f4ff] text-[#7158bd]",
+  },
+  reembolso: {
+    label: "Reembolso",
+    icon: Archive,
+    dot: "bg-[#e49a31]",
+    badge: "border-[#f1dfbf] bg-[#fff8e9] text-[#a46a17]",
+  },
+  outros: {
+    label: "Outros",
+    icon: AlertTriangle,
+    dot: "bg-[#8a8f98]",
+    badge: "border-[#e2e3e5] bg-[#f5f5f5] text-[#686d76]",
+  },
+};
+
+const VIEW_OPTIONS: Array<{ value: TicketView; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "new", label: "Novos" },
+  { value: "in_progress", label: "Em andamento" },
+];
+
+const STATUS_OPTIONS: Array<{ value: TicketStatusFilter; label: string }> = [
+  { value: "all", label: "Abertos e fechados" },
+  { value: "open", label: "Abertos" },
+  { value: "closed", label: "Fechados" },
+];
+
+const DATE_OPTIONS: Array<{ value: TicketDateFilter; label: string }> = [
+  { value: "all", label: "Todos os dias" },
+  { value: "today", label: "Hoje" },
+  { value: "7d", label: "7 dias" },
+  { value: "30d", label: "30 dias" },
+];
+
+const REDIRECT_OPTIONS = [
+  { label: "Início", url: "/dashboard" },
+  { label: "Catálogo", url: "/dashboard/catalogo" },
+  { label: "Pedidos", url: "/dashboard/pedidos" },
+  { label: "Publicações", url: "/dashboard/publicacoes" },
+  { label: "Afiliados", url: "/dashboard/afiliados" },
+  { label: "Imagens com IA", url: "/dashboard/imagens-ia" },
+  { label: "Lojas", url: "/dashboard/integracoes" },
+  { label: "Configurações", url: "/dashboard/configuracoes" },
+  { label: "Config. Perfil", url: "/dashboard/configuracoes?tab=Perfil" },
+  { label: "Config. Lojas", url: "/dashboard/configuracoes?tab=Minhas%20Lojas" },
+  { label: "Config. Integrações", url: "/dashboard/configuracoes?tab=Integra%C3%A7%C3%B5es" },
+  { label: "Config. Plano", url: "/dashboard/configuracoes?tab=Plano" },
+  { label: "Config. Notificações", url: "/dashboard/configuracoes?tab=Notifica%C3%A7%C3%B5es" },
+  { label: "Config. Segurança", url: "/dashboard/configuracoes?tab=Seguran%C3%A7a" },
+  { label: "Config. Suporte", url: "/dashboard/configuracoes?tab=Suporte" },
+];
+
+const SUPPORT_READ_TICKETS_STORAGE_KEY = "velo:admin-support-read-tickets";
+
+type FilterOption<T extends string> = {
+  value: T;
+  label: string;
+};
+
+type TicketReadState = Record<string, string>;
+
+const getStoredReadTickets = (): TicketReadState => {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = JSON.parse(window.localStorage?.getItem(SUPPORT_READ_TICKETS_STORAGE_KEY) ?? "{}");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    return Object.fromEntries(
+      Object.entries(stored).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
+  } catch {
+    return {};
+  }
+};
+
+const isUnreadCustomerMessage = (ticket: AdminTicket, readAt: string | null) => {
+  if (ticket.last_message_sender !== "user" || !ticket.last_message_at) return false;
+  if (!readAt) return true;
+  return new Date(ticket.last_message_at).getTime() > new Date(readAt).getTime();
+};
+
+const needsSupportReply = (ticket: Pick<AdminTicket, "last_message_sender">) => ticket.last_message_sender === "user";
+
+const getTicketActivityTime = (ticket: Pick<AdminTicket, "last_message_at" | "updated_at" | "created_at">) => {
+  const time = new Date(ticket.last_message_at ?? ticket.updated_at ?? ticket.created_at).getTime();
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const matchesTicketStatus = (ticket: AdminTicket, status: TicketStatusFilter) =>
+  status === "all" || ticket.status === status;
+
+const matchesTicketDate = (ticket: AdminTicket, dateFilter: TicketDateFilter) => {
+  if (dateFilter === "all") return true;
+  const activity = getTicketActivityTime(ticket);
+  if (!activity) return false;
+  const now = Date.now();
+  if (dateFilter === "today") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return activity >= today.getTime();
+  }
+  const days = dateFilter === "7d" ? 7 : 30;
+  return activity >= now - days * 24 * 60 * 60 * 1000;
 };
 
 const formatDateTime = (value: string | null) => {
   if (!value) return "Sem data";
-
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sem data";
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  })
+    .format(date)
+    .replace(".", "");
 };
+
+const relativeTime = (value: string | null) => {
+  if (!value) return "Sem atividade";
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "Sem atividade";
+  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+  if (minutes < 1) return "agora";
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h atrás`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "ontem" : `${days} dias atrás`;
+};
+
+const elapsedTime = (value: string | null) => {
+  if (!value) return "Não informado";
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "Não informado";
+  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+  if (minutes < 2) return "menos de 2 minutos";
+  if (minutes < 60) return `${minutes} minutos`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? "1 hora" : `${hours} horas`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return days === 1 ? "1 dia" : `${days} dias`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? "1 mês" : `${months} meses`;
+  const years = Math.floor(months / 12);
+  return years === 1 ? "1 ano" : `${years} anos`;
+};
+
+const formatPlan = (plan: string | null) => {
+  const normalized = (plan ?? "gratuito").toLowerCase();
+  if (normalized === "business") return "Business";
+  if (normalized === "pro") return "Pro";
+  if (["base", "starter"].includes(normalized)) return "Base";
+  if (["free", "gratis", "gratuito"].includes(normalized)) return "Gratuito";
+  return plan || "Não informado";
+};
+
+const formatSubscriptionStatus = (status: string | null) => {
+  const normalized = (status ?? "").toLowerCase();
+  if (["active", "paid", "approved", "authorized"].includes(normalized)) return "Ativa";
+  if (["pending", "in_process", "waiting_payment"].includes(normalized)) return "Pendente";
+  if (["cancelled", "canceled", "inactive"].includes(normalized)) return "Cancelada";
+  if (["past_due", "overdue"].includes(normalized)) return "Em atraso";
+  return status || "Sem assinatura";
+};
+
+const formatPaymentMethod = (method: string | null) => {
+  const normalized = (method ?? "").toLowerCase();
+  if (!normalized) return "Não informado";
+  if (normalized.includes("pix")) return "Pix";
+  if (normalized.includes("credit") || normalized.includes("credito") || normalized.includes("cartao")) return "Cartão de crédito";
+  if (normalized.includes("debit") || normalized.includes("debito")) return "Cartão de débito";
+  if (normalized.includes("boleto")) return "Boleto";
+  return method ?? "Não informado";
+};
+
+const formatDevice = (userAgent: string | null) => {
+  if (!userAgent) return "Não identificado";
+  if (/mobile|android|iphone|ipad|ipod|windows phone/i.test(userAgent)) return "Celular";
+  return "PC";
+};
+
+const formatPreviousTickets = (count: number) => {
+  if (count <= 0) return "Não";
+  if (count === 1) return "Sim, 1 ticket anterior";
+  return `Sim, ${count} tickets anteriores`;
+};
+
+const getInitials = (name?: string | null, email?: string | null) =>
+  (name || email || "Velo")
+    .split(/[\s._@-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 
 const AdminSupportPage = () => {
   const { user, loading } = useAuth();
   const qc = useQueryClient();
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  const [replyTarget, setReplyTarget] = useState<SupportReplyReference | null>(null);
+  const [replyImage, setReplyImage] = useState<File | null>(null);
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<TicketView>("all");
+  const [statusFilter, setStatusFilter] = useState<TicketStatusFilter>("open");
+  const [dateFilter, setDateFilter] = useState<TicketDateFilter>("all");
+  const [mobilePanel, setMobilePanel] = useState<MobileSupportPanel>("inbox");
+  const [directRefundTarget, setDirectRefundTarget] = useState<DirectRefundTarget | null>(null);
+  const [redirectDraft, setRedirectDraft] = useState<RedirectDraft | null>(null);
+  const [readTickets, setReadTickets] = useState<TicketReadState>(getStoredReadTickets);
+
+  const fallbackAdmin = isAdminEmail(user?.email);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ["admin-profile", user?.id],
@@ -54,83 +370,327 @@ const AdminSupportPage = () => {
         .select("role, display_name")
         .or(`id.eq.${user!.id},user_id.eq.${user!.id}`)
         .maybeSingle();
-
       if (error) throw error;
       return data as { role: string | null; display_name: string | null } | null;
     },
   });
 
-  const isAdmin = profile?.role === "admin";
-
-  const { data: tickets = [], isLoading: loadingTickets } = useQuery({
-    queryKey: ["admin-support-tickets"],
-    enabled: !!user?.id && isAdmin,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .rpc("get_support_tickets_admin", { p_status: "open" });
-
-      if (error) throw error;
-      return (data ?? []) as AdminTicket[];
-    },
-  });
-
-  const selectedTicket = useMemo(
-    () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0] ?? null,
-    [selectedTicketId, tickets]
-  );
+  const isAdmin = profile?.role === "admin" || fallbackAdmin;
 
   useEffect(() => {
-    if (!selectedTicketId && tickets[0]?.id) {
-      setSelectedTicketId(tickets[0].id);
+    setReply("");
+    setReplyTarget(null);
+    setReplyImage(null);
+  }, [openTicketId]);
+
+  const { data: tickets = [], isLoading: loadingTickets } = useQuery({
+    queryKey: ["admin-support-tickets-crm"],
+    enabled: !!user?.id && isAdmin,
+    queryFn: async () => {
+      const { data: ticketsData, error: ticketsError } = await (supabase as any)
+        .from("support_tickets")
+        .select("id,user_id,status,category,subject,created_at,updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (ticketsError) throw ticketsError;
+      const ticketsList = (ticketsData ?? []) as any[];
+      if (ticketsList.length === 0) return [] as AdminTicket[];
+
+      const ticketIds = ticketsList.map((ticket) => ticket.id);
+      const userIds = Array.from(new Set(ticketsList.map((ticket) => ticket.user_id)));
+      const profilesByUser = new Map<
+        string,
+        { display_name: string | null; email: string | null; avatar_url: string | null }
+      >();
+
+      const { data: profilesData } = await (supabase as any)
+        .from("profiles")
+        .select("user_id,display_name,email,full_name,avatar_url")
+        .in("user_id", userIds);
+
+      for (const item of (profilesData ?? []) as any[]) {
+        profilesByUser.set(item.user_id, {
+          display_name: item.full_name ?? item.display_name ?? null,
+          email: item.email ?? null,
+          avatar_url: item.avatar_url ?? null,
+        });
+      }
+
+      const needsFallback = userIds.filter((userId) => {
+        const item = profilesByUser.get(userId);
+        return !item?.email || !item.display_name || !item.avatar_url;
+      });
+
+      if (needsFallback.length > 0) {
+        try {
+          // Nunca deixa a lista de tickets travar caso a função demore.
+          const adminData = await Promise.race([
+            supabase.functions
+              .invoke("admin-users", { body: { user_ids: needsFallback } })
+              .then((res) => res.data),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]);
+
+          const responseUsers =
+            adminData && typeof adminData === "object" && "users" in adminData
+              ? (adminData as { users?: unknown }).users
+              : null;
+          const list = Array.isArray(adminData) ? adminData : Array.isArray(responseUsers) ? responseUsers : [];
+          for (const item of list as Array<{
+            user_id?: string;
+            id?: string;
+            display_name?: string | null;
+            full_name?: string | null;
+            name?: string | null;
+            email?: string | null;
+            avatar_url?: string | null;
+          }>) {
+            const userId = item.user_id ?? item.id;
+            if (!userId) continue;
+            const existing = profilesByUser.get(userId);
+            profilesByUser.set(userId, {
+              display_name: existing?.display_name ?? item.display_name ?? item.full_name ?? item.name ?? null,
+              email: existing?.email ?? item.email ?? null,
+              avatar_url: existing?.avatar_url ?? item.avatar_url ?? null,
+            });
+          }
+        } catch (error) {
+          console.warn("admin-users fallback failed", error);
+        }
+      }
+
+      // Busca TODAS as mensagens em lotes: o PostgREST corta em 1000 linhas por
+      // requisição e, sem paginar, tickets antigos ficavam sem `last_message_at`
+      // e caíam para `updated_at`, bagunçando a ordenação por última mensagem.
+      const PAGE_SIZE = 1000;
+      const allMessages: SupportMessage[] = [];
+      for (let page = 0; ; page += 1) {
+        const { data: pageData, error: pageError } = await (supabase as any)
+          .from("support_messages")
+          .select("id,ticket_id,user_id,message,sender,created_at")
+          .in("ticket_id", ticketIds)
+          .order("created_at", { ascending: false })
+          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+        if (pageError) break;
+        const rows = (pageData ?? []) as SupportMessage[];
+        allMessages.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+      }
+
+      const lastByTicket = new Map<string, SupportMessage>();
+      const messageCountByTicket = new Map<string, number>();
+      const adminReplyByTicket = new Set<string>();
+
+      for (const message of allMessages) {
+        messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
+        const current = lastByTicket.get(message.ticket_id);
+        // A saudação automática não deve esconder a dúvida real na fila.
+        if (
+          message.sender !== "ai" &&
+          (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime())
+        ) {
+          lastByTicket.set(message.ticket_id, message);
+        }
+        if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
+      }
+
+
+      return ticketsList.map((ticket) => {
+        const customer = profilesByUser.get(ticket.user_id);
+        const lastMessage = lastByTicket.get(ticket.id);
+        return {
+          id: ticket.id,
+          user_id: ticket.user_id,
+          status: ticket.status,
+          category: (ticket.category ?? "outros") as TicketCategory,
+          subject: ticket.subject ?? null,
+          created_at: ticket.created_at,
+          updated_at: ticket.updated_at,
+          user_name: customer?.display_name ?? null,
+          user_email: customer?.email ?? null,
+          user_avatar_url: customer?.avatar_url ?? null,
+          last_message: lastMessage ? supportMessagePreview(lastMessage.message) : null,
+          last_message_at: lastMessage?.created_at ?? null,
+          last_message_sender: lastMessage?.sender ?? null,
+          message_count: messageCountByTicket.get(ticket.id) ?? 0,
+          has_admin_reply: adminReplyByTicket.has(ticket.id),
+        } satisfies AdminTicket;
+      }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
+    },
+    retry: false,
+  });
+
+  const visibleTickets = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return tickets.filter((ticket) => {
+      const matchesView =
+        view === "all" ||
+        (view === "new" && needsSupportReply(ticket)) ||
+        (view === "in_progress" && !needsSupportReply(ticket) && ticket.has_admin_reply);
+      const matchesStatus = matchesTicketStatus(ticket, statusFilter);
+      const matchesDate = matchesTicketDate(ticket, dateFilter);
+      const matchesSearch =
+        !term ||
+        [
+          ticket.user_name,
+          ticket.user_email,
+          ticket.subject,
+          ticket.last_message,
+          CATEGORY_META[ticket.category].label,
+        ].some((value) => value?.toLowerCase().includes(term));
+      return matchesView && matchesStatus && matchesDate && matchesSearch;
+    });
+  }, [dateFilter, search, statusFilter, tickets, view]);
+
+  useEffect(() => {
+    if (visibleTickets.length === 0) {
+      setOpenTicketId(null);
+      return;
     }
-  }, [selectedTicketId, tickets]);
+    if (!visibleTickets.some((ticket) => ticket.id === openTicketId)) {
+      setOpenTicketId(visibleTickets[0].id);
+    }
+  }, [openTicketId, visibleTickets]);
+
+  useEffect(() => {
+    if (!openTicketId && mobilePanel !== "inbox") {
+      setMobilePanel("inbox");
+    }
+  }, [mobilePanel, openTicketId]);
+
+  const openTicket = useMemo(
+    () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
+    [openTicketId, tickets],
+  );
+  const previousTicketCount = useMemo(() => {
+    if (!openTicket) return 0;
+    return tickets.filter((ticket) => ticket.user_id === openTicket.user_id && ticket.id !== openTicket.id).length;
+  }, [openTicket, tickets]);
+
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(SUPPORT_READ_TICKETS_STORAGE_KEY, JSON.stringify(readTickets));
+    } catch {
+      // Mantém o suporte funcionando mesmo quando o navegador bloqueia storage.
+    }
+  }, [readTickets]);
+
+  useEffect(() => {
+    if (!openTicket?.last_message_at) return;
+    setReadTickets((current) => {
+      const previous = current[openTicket.id];
+      if (previous && new Date(previous).getTime() >= new Date(openTicket.last_message_at as string).getTime()) {
+        return current;
+      }
+      return { ...current, [openTicket.id]: openTicket.last_message_at as string };
+    });
+  }, [openTicket?.id, openTicket?.last_message_at]);
+
+  const { data: customerContext, isLoading: loadingCustomerContext } = useQuery({
+    queryKey: ["admin-support-customer-context", openTicket?.user_id],
+    enabled: !!openTicket?.user_id && isAdmin,
+    queryFn: async (): Promise<CustomerContextData> => {
+      const userId = openTicket!.user_id;
+      const [profileResult, subscriptionsResult, sessionResult] = await Promise.all([
+        (supabase as any)
+          .from("profiles")
+          .select("user_id,display_name,avatar_url,plano,created_at")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        (supabase as any)
+          .from("subscriptions")
+          .select("plan,status,created_at,updated_at,payment_method")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(20),
+        (supabase as any)
+          .from("user_sessions")
+          .select("last_seen_at,user_agent")
+          .eq("user_id", userId)
+          .order("last_seen_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (profileResult.error) console.warn("Não foi possível carregar o perfil do atendimento", profileResult.error);
+      if (subscriptionsResult.error) console.warn("Não foi possível carregar a assinatura do atendimento", subscriptionsResult.error);
+      if (sessionResult.error) console.warn("Não foi possível carregar a atividade do atendimento", sessionResult.error);
+
+      const profileRow = profileResult.data as any | null;
+      const subscriptionRows = (subscriptionsResult.data ?? []) as Array<{
+        plan: string | null;
+        status: string | null;
+        created_at: string | null;
+        updated_at: string | null;
+        payment_method: string | null;
+      }>;
+      const activeStatuses = new Set(["active", "paid", "approved", "authorized"]);
+      const subscription =
+        subscriptionRows.find((item) => activeStatuses.has((item.status ?? "").toLowerCase())) ??
+        subscriptionRows[0] ??
+        null;
+
+      return {
+        name: profileRow?.display_name ?? openTicket?.user_name ?? null,
+        email: openTicket?.user_email ?? null,
+        avatar_url: profileRow?.avatar_url ?? openTicket?.user_avatar_url ?? null,
+        plan: subscription?.plan ?? profileRow?.plano ?? null,
+        subscription_status: subscription?.status ?? null,
+        subscription_started_at: subscription?.created_at ?? null,
+        customer_since: profileRow?.created_at ?? null,
+        last_seen_at: sessionResult.data?.last_seen_at ?? openTicket?.last_message_at ?? openTicket?.updated_at ?? null,
+        payment_method: subscription?.payment_method ?? null,
+        user_agent: sessionResult.data?.user_agent ?? null,
+      };
+    },
+    retry: false,
+  });
 
   const { data: messages = [], isLoading: loadingMessages } = useQuery({
-    queryKey: ["admin-support-messages", selectedTicket?.id],
-    enabled: !!selectedTicket?.id && isAdmin,
+    queryKey: ["admin-support-messages", openTicket?.id],
+    enabled: !!openTicket?.id && isAdmin,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("support_messages")
         .select("*")
-        .eq("ticket_id", selectedTicket!.id)
+        .eq("ticket_id", openTicket!.id)
         .order("created_at", { ascending: true });
-
       if (error) throw error;
       return (data ?? []) as SupportMessage[];
     },
   });
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (loadingMessages) return;
+    const scrollToBottom = () => chatEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    scrollToBottom();
+    const frame = window.requestAnimationFrame(scrollToBottom);
+    const timeout = window.setTimeout(scrollToBottom, 80);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [chatEndRef, loadingMessages, messages.length, openTicketId]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
     const channel = supabase
-      .channel("admin-support")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "support_tickets" },
-        () => {
-          void qc.invalidateQueries({ queryKey: ["admin-support-tickets"] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "support_tickets" },
-        () => {
-          void qc.invalidateQueries({ queryKey: ["admin-support-tickets"] });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "support_messages" },
-        (payload) => {
-          const message = payload.new as SupportMessage;
-          void qc.invalidateQueries({ queryKey: ["admin-support-tickets"] });
+      .channel("admin-support-crm")
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_tickets" }, () => {
+        void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_messages" }, (payload) => {
+        const message = payload.new as SupportMessage;
+        void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+        if (payload.eventType === "INSERT") {
           qc.setQueryData<SupportMessage[]>(
             ["admin-support-messages", message.ticket_id],
-            (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
+            (previous = []) => (previous.some((item) => item.id === message.id) ? previous : [...previous, message]),
           );
+        } else {
+          void qc.invalidateQueries({ queryKey: ["admin-support-messages", message.ticket_id] });
         }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -141,30 +701,47 @@ const AdminSupportPage = () => {
   const sendReply = useMutation({
     mutationFn: async () => {
       const trimmed = reply.trim();
-      if (!trimmed || !selectedTicket?.id || !user?.id) return null;
+      if ((!trimmed && !replyImage) || !openTicket?.id || !user?.id) return null;
 
-      const { data, error } = await (supabase as any)
-        .from("support_messages")
-        .insert({
-          ticket_id: selectedTicket.id,
-          user_id: user.id,
-          message: trimmed,
-          sender: "admin",
-        })
-        .select("*")
-        .single();
-
-      if (error) throw error;
-      return data as SupportMessage;
+      let uploadedPath: string | null = null;
+      try {
+        const attachment = replyImage
+          ? await uploadSupportImage({ file: replyImage, ticketId: openTicket.id, userId: user.id })
+          : null;
+        uploadedPath = attachment?.path ?? null;
+        const messageValue = replyTarget
+          ? buildSupportReplyMessage({ text: trimmed, reply: replyTarget, attachment })
+          : attachment
+            ? buildSupportImageMessage(attachment, trimmed)
+            : trimmed;
+        const { data, error } = await (supabase as any)
+          .from("support_messages")
+          .insert({ ticket_id: openTicket.id, user_id: user.id, message: messageValue, sender: "admin" })
+          .select("*")
+          .single();
+        if (error) throw error;
+        await touchSupportTicket(openTicket.id);
+        return data as SupportMessage;
+      } catch (error) {
+        if (uploadedPath) await removeSupportImage(uploadedPath);
+        throw error;
+      }
     },
     onSuccess: (message) => {
       if (!message) return;
       setReply("");
+      setReplyTarget(null);
+      setReplyImage(null);
       qc.setQueryData<SupportMessage[]>(
         ["admin-support-messages", message.ticket_id],
-        (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
+        (previous = []) =>
+          previous.some((item) => item.id === message.id) ? previous : [...previous, message],
       );
-      void qc.invalidateQueries({ queryKey: ["admin-support-tickets"] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas o email não foi notificado.");
+      });
     },
     onError: (error) => {
       console.error(error);
@@ -172,239 +749,1539 @@ const AdminSupportPage = () => {
     },
   });
 
+  const editMessage = useMutation({
+    mutationFn: async ({ message, text }: { message: SupportMessage; text: string }) => {
+      const parsed = parseSupportMessage(message.message);
+      const trimmed = text.trim();
+      if (!trimmed && !parsed.attachment) throw new Error("A mensagem não pode ficar vazia.");
+      const nextMessage = parsed.reply
+        ? buildSupportReplyMessage({ text: trimmed, reply: parsed.reply, attachment: parsed.attachment })
+        : parsed.attachment
+          ? buildSupportImageMessage(parsed.attachment, trimmed)
+          : trimmed;
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .update({ message: nextMessage })
+        .eq("id", message.id)
+        .eq("sender", "admin")
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data as SupportMessage;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData<SupportMessage[]>(
+        ["admin-support-messages", updated.ticket_id],
+        (previous = []) => previous.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      toast.success("Mensagem atualizada.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível editar a mensagem.");
+    },
+  });
+
+  const deleteMessage = useMutation({
+    mutationFn: async (message: SupportMessage) => {
+      const parsed = parseSupportMessage(message.message);
+      const { error } = await (supabase as any)
+        .from("support_messages")
+        .delete()
+        .eq("id", message.id)
+        .eq("sender", "admin");
+      if (error) throw error;
+      if (parsed.attachment?.path) await removeSupportImage(parsed.attachment.path);
+      return message;
+    },
+    onSuccess: (removed) => {
+      qc.setQueryData<SupportMessage[]>(
+        ["admin-support-messages", removed.ticket_id],
+        (previous = []) => previous.filter((item) => item.id !== removed.id),
+      );
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      toast.success("Mensagem excluída.");
+    },
+    onError: () => toast.error("Não foi possível excluir a mensagem."),
+  });
+
+  const sendRedirect = useMutation({
+    mutationFn: async (draft: RedirectDraft) => {
+      if (!user?.id) return null;
+      const label = draft.label.trim();
+      const url = draft.url.trim();
+      if (!label || !url.startsWith("/") || url.startsWith("//")) {
+        throw new Error("Escolha uma página interna válida.");
+      }
+
+      const messageValue = buildSupportRedirectMessage({
+        label,
+        url,
+        note: draft.note,
+      });
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .insert({ ticket_id: draft.ticket.id, user_id: user.id, message: messageValue, sender: "admin" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      await touchSupportTicket(draft.ticket.id);
+      return data as SupportMessage;
+    },
+    onSuccess: (message) => {
+      if (!message) return;
+      setRedirectDraft(null);
+      qc.setQueryData<SupportMessage[]>(
+        ["admin-support-messages", message.ticket_id],
+        (previous = []) =>
+          previous.some((item) => item.id === message.id) ? previous : [...previous, message],
+      );
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : "Atalho enviado, mas o email não foi notificado.");
+      });
+      toast.success("Atalho enviado.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o atalho.");
+    },
+  });
+
   const closeTicket = useMutation({
     mutationFn: async () => {
-      if (!selectedTicket?.id) return;
-
+      if (!openTicket?.id) return;
       const { error } = await (supabase as any)
         .from("support_tickets")
         .update({ status: "closed" })
-        .eq("id", selectedTicket.id);
-
+        .eq("id", openTicket.id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Ticket marcado como resolvido.");
-      setSelectedTicketId(null);
-      void qc.invalidateQueries({ queryKey: ["admin-support-tickets"] });
+      setOpenTicketId(null);
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
     },
-    onError: (error) => {
-      console.error(error);
-      toast.error("Não foi possível resolver o ticket.");
-    },
+    onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7F7F7]">
-        <Loader2 className="h-7 w-7 animate-spin text-[#0A0A0A]" />
-      </div>
-    );
-  }
+  const reopenTicket = useMutation({
+    mutationFn: async () => {
+      if (!openTicket?.id) return;
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ status: "open" })
+        .eq("id", openTicket.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ticket reaberto.");
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+    },
+    onError: () => toast.error("Não foi possível reabrir o ticket."),
+  });
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  const directRefund = useMutation({
+    mutationFn: async (target: DirectRefundTarget) => {
+      const { data, error } = await supabase.functions.invoke("admin-refund-action", {
+        body: {
+          action: "approve",
+          user_id: target.ticket.user_id,
+          reason: "Reembolso direto pelo suporte",
+          reason_details: `Reembolso direto confirmado no suporte pelo admin no ticket #${target.ticket.id.slice(0, 8)} para ${target.customer.email || "cliente sem e-mail"}.`,
+        },
+      });
+      if (error || (data && data.error)) {
+        // supabase-js esconde o corpo do erro atrás de "non-2xx status code";
+        // aqui lemos a resposta real para mostrar o motivo ao admin.
+        let detail = (data && data.error) || "";
+        const response = (error as { context?: Response } | null)?.context;
+        if (!detail && response && typeof response.json === "function") {
+          try {
+            const body = await response.clone().json();
+            detail = body?.error || body?.message || "";
+          } catch {
+            /* corpo não é JSON */
+          }
+        }
+        throw new Error(detail || error?.message || "Não foi possível processar o reembolso.");
+      }
+      return data;
+    },
 
-  if (loadingProfile) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7F7F7]">
-        <Loader2 className="h-7 w-7 animate-spin text-[#0A0A0A]" />
-      </div>
-    );
-  }
+    onSuccess: () => {
+      toast.success("Reembolso enviado para processamento.");
+      void qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
+      void qc.invalidateQueries({ queryKey: ["admin-subs-eligible"] });
+      void qc.invalidateQueries({ queryKey: ["admin-pending-counts"] });
+      void qc.invalidateQueries({ queryKey: ["admin-support-customer-context", directRefundTarget?.ticket.user_id] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível processar o reembolso.");
+    },
+    onSettled: () => setDirectRefundTarget(null),
+  });
+
+  if (loading) return <VeloLoadingScreen message="Carregando suporte..." />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (loadingProfile) return <VeloLoadingScreen message="Carregando suporte..." />;
 
   if (!isAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F7F7F7] p-6">
-        <div className="w-full max-w-md rounded-3xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F5F5]">
+      <div className="flex min-h-screen items-center justify-center bg-white p-6 text-[#181817]">
+        <div className="w-full max-w-md rounded-3xl border border-[#e6e6e2] bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f2f2ef]">
             <Lock size={21} />
           </div>
-          <h1 className="mt-5 text-[20px] font-bold text-[#0A0A0A]">Acesso restrito</h1>
-          <p className="mt-2 text-[14px] leading-6 text-[#737373]">
-            Esta página é exclusiva para usuários com role admin em profiles.
-          </p>
+          <h1 className="mt-5 text-[20px] font-bold">Acesso restrito</h1>
+          <p className="mt-2 text-[14px] leading-6 text-[#777772]">Esta página é exclusiva para administradores.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] p-5 text-[#0A0A0A] md:p-8">
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-3xl border border-[#E5E5E5] bg-white px-6 py-5 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            <VeloLogo size="sm" variant="dark" />
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A3A3A3]">Admin</p>
-              <h1 className="text-[24px] font-black tracking-tight">Suporte humano</h1>
-            </div>
-          </div>
-          <div className="rounded-full bg-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-white">
-            {tickets.length} tickets abertos
-          </div>
-        </header>
+    <AdminShell active="support" userId={user.id} fullBleed>
+      <>
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f7f7f5] lg:grid lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+          <MobileSupportTabs
+            active={mobilePanel}
+            hasTicket={!!openTicket}
+            openTickets={tickets.filter((ticket) => ticket.status === "open").length}
+            onChange={setMobilePanel}
+          />
+          <TicketInbox
+            tickets={visibleTickets}
+            allTickets={tickets}
+            loading={loadingTickets}
+            selectedId={openTicketId}
+            onSelect={(id) => {
+              setOpenTicketId(id);
+              setMobilePanel("conversation");
+            }}
+            search={search}
+            onSearch={setSearch}
+            view={view}
+            onView={setView}
+            statusFilter={statusFilter}
+            onStatusFilter={setStatusFilter}
+            dateFilter={dateFilter}
+            onDateFilter={setDateFilter}
+            readTickets={readTickets}
+            className={mobilePanel === "inbox" ? "flex" : "hidden lg:flex"}
+          />
 
-        <main className="grid min-h-[calc(100vh-180px)] gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
-          <aside className="overflow-hidden rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
-            <div className="border-b border-[#F0F0F0] px-5 py-4">
-              <p className="text-[15px] font-bold">Fila de atendimento</p>
-              <p className="mt-0.5 text-[12px] text-[#737373]">Tickets abertos em tempo real</p>
-            </div>
+          <ConversationPanel
+            ticket={openTicket}
+            messages={messages}
+            loadingMessages={loadingMessages}
+            reply={reply}
+            setReply={setReply}
+            replyTarget={replyTarget}
+            onClearReplyTarget={() => setReplyTarget(null)}
+            replyImage={replyImage}
+            onReplyImage={(file) => {
+              const validationError = validateSupportImage(file);
+              if (validationError) {
+                toast.error(validationError);
+                return;
+              }
+              setReplyImage(file);
+            }}
+            onRemoveReplyImage={() => setReplyImage(null)}
+            onSend={() => sendReply.mutate()}
+            sending={sendReply.isPending}
+            onResolve={() => closeTicket.mutate()}
+            resolving={closeTicket.isPending}
+            onReopen={() => reopenTicket.mutate()}
+            reopening={reopenTicket.isPending}
+            onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
+            onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
+            onReplyMessage={(message) => {
+              const preview = supportMessagePreview(message.message).replace(/\s+/g, " ").trim();
+              const author =
+                message.sender === "admin"
+                  ? "Suporte"
+                  : message.sender === "ai"
+                    ? "Atendimento automático"
+                    : openTicket?.user_name || "cliente";
+              setReplyTarget({
+                author,
+                text: preview,
+                sender: message.sender,
+              });
+            }}
+            onRedirectMessage={(message) => {
+              if (!openTicket) return;
+              setRedirectDraft({
+                ticket: openTicket,
+                sourceMessage: message,
+                label: REDIRECT_OPTIONS[0].label,
+                url: REDIRECT_OPTIONS[0].url,
+                note: "",
+              });
+            }}
+            messageActionPending={editMessage.isPending || deleteMessage.isPending || sendRedirect.isPending}
+            chatEndRef={chatEndRef}
+            onShowCustomerMobile={() => setMobilePanel("customer")}
+            className={mobilePanel === "conversation" ? "flex" : "hidden lg:flex"}
+          />
 
-            <div className="max-h-[calc(100vh-260px)] overflow-y-auto p-3">
-              {loadingTickets ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-5 w-5 animate-spin" />
+          <CustomerContextPanel
+            ticket={openTicket}
+            customer={customerContext ?? null}
+            loading={loadingCustomerContext}
+            refunding={directRefund.isPending}
+            previousTicketCount={previousTicketCount}
+            onDirectRefund={(ticket, customer) => setDirectRefundTarget({ ticket, customer })}
+            onBackMobile={() => setMobilePanel("conversation")}
+            className={mobilePanel === "customer" ? "flex" : "hidden lg:flex"}
+          />
+        </div>
+
+        {directRefundTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/35 p-4 backdrop-blur-[2px]">
+            <div className="w-full max-w-md rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EFF6FF] text-[#2563EB]">
+                  <HandCoins size={19} strokeWidth={2} />
                 </div>
-              ) : tickets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
-                  <MessageCircle className="h-8 w-8 text-[#D4D4D4]" />
-                  <p className="mt-3 text-[14px] font-semibold">Nenhum ticket aberto</p>
-                  <p className="mt-1 text-[12px] text-[#737373]">Novas solicitações aparecerão aqui.</p>
+                <div className="min-w-0">
+                  <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-[#171715]">Dar reembolso agora?</h2>
+                  <p className="mt-1 text-[12.5px] leading-5 text-[#667085]">
+                    Isso vai processar automaticamente o reembolso da assinatura ativa deste cliente.
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {tickets.map((ticket) => {
-                    const active = ticket.id === selectedTicket?.id;
-
-                    return (
-                      <button
-                        key={ticket.id}
-                        onClick={() => setSelectedTicketId(ticket.id)}
-                        className={[
-                          "w-full rounded-2xl border p-4 text-left transition",
-                          active
-                            ? "border-[#0A0A0A] bg-[#FAFAFA]"
-                            : "border-transparent hover:border-[#E5E5E5] hover:bg-[#FAFAFA]",
-                        ].join(" ")}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-[14px] font-bold">{ticket.user_name || "Usuário"}</p>
-                            <p className="truncate text-[12px] text-[#737373]">{ticket.user_email || "Email indisponível"}</p>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-emerald-700">
-                            open
-                          </span>
-                        </div>
-                        <p className="mt-3 line-clamp-2 text-[12px] leading-5 text-[#525252]">
-                          {ticket.last_message || "Ticket aberto sem mensagens ainda."}
-                        </p>
-                        <p className="mt-3 text-[11px] text-[#A3A3A3]">
-                          Aberto em {formatDateTime(ticket.created_at)}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </aside>
-
-          <section className="flex min-h-[560px] flex-col overflow-hidden rounded-3xl border border-[#E5E5E5] bg-white shadow-sm">
-            {selectedTicket ? (
-              <>
-                <div className="flex flex-col gap-3 border-b border-[#F0F0F0] px-5 py-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#0A0A0A] text-white">
-                      <UserRound size={18} />
-                    </div>
-                    <div>
-                      <p className="text-[15px] font-bold">{selectedTicket.user_name || "Usuário"}</p>
-                      <p className="text-[12px] text-[#737373]">{selectedTicket.user_email || "Email indisponível"}</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => closeTicket.mutate()}
-                    disabled={closeTicket.isPending}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-[#0A0A0A] px-4 py-2 text-[13px] font-semibold text-[#0A0A0A] transition hover:bg-[#0A0A0A] hover:text-white disabled:opacity-50"
-                  >
-                    {closeTicket.isPending ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                    Marcar como resolvido
-                  </button>
-                </div>
-
-                <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFAFA] p-5">
-                  {loadingMessages ? (
-                    <div className="flex h-full items-center justify-center">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="flex h-full items-center justify-center text-center text-[13px] text-[#737373]">
-                      O usuário ainda não enviou mensagens neste ticket.
-                    </div>
-                  ) : (
-                    messages.map((message) => (
-                      <AdminChatBubble key={message.id} msg={message} />
-                    ))
-                  )}
-                </div>
-
-                <div className="border-t border-[#F0F0F0] bg-white p-4">
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={reply}
-                      onChange={(event) => setReply(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          sendReply.mutate();
-                        }
-                      }}
-                      placeholder="Digite a resposta para o usuário..."
-                      className="min-h-[48px] flex-1 resize-none rounded-2xl border border-[#E5E5E5] bg-white px-4 py-3 text-[14px] leading-5 outline-none transition focus:border-[#0A0A0A]"
-                    />
-                    <button
-                      onClick={() => sendReply.mutate()}
-                      disabled={sendReply.isPending || !reply.trim()}
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0A0A0A] text-white transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="Enviar resposta"
-                    >
-                      {sendReply.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
-                <MessageCircle className="h-10 w-10 text-[#D4D4D4]" />
-                <p className="mt-4 text-[17px] font-bold">Selecione um ticket</p>
-                <p className="mt-1 text-[13px] text-[#737373]">A conversa completa aparecerá aqui.</p>
               </div>
-            )}
-          </section>
-        </main>
-      </div>
-    </div>
+
+              <div className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] px-4 py-3 text-[12px] text-[#475569]">
+                <p className="font-semibold text-[#171715]">{directRefundTarget.customer.name || "Cliente sem nome"}</p>
+                <p className="mt-0.5">{directRefundTarget.customer.email || "E-mail não informado"}</p>
+                <p className="mt-2 text-[11px] text-[#64748B]">Ticket #{directRefundTarget.ticket.id.slice(0, 8)}</p>
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDirectRefundTarget(null)}
+                  disabled={directRefund.isPending}
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-[12px] font-semibold text-[#475569] transition hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => directRefund.mutate(directRefundTarget)}
+                  disabled={directRefund.isPending}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:opacity-70"
+                >
+                  {directRefund.isPending ? <Loader2 size={14} className="animate-spin" /> : <HandCoins size={14} />}
+                  Confirmar reembolso
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <RedirectShortcutModal
+          draft={redirectDraft}
+          sending={sendRedirect.isPending}
+          onChange={setRedirectDraft}
+          onClose={() => setRedirectDraft(null)}
+          onSend={() => {
+            if (redirectDraft) sendRedirect.mutate(redirectDraft);
+          }}
+        />
+      </>
+    </AdminShell>
   );
 };
 
-const AdminChatBubble = ({ msg }: { msg: SupportMessage }) => {
-  const isAdmin = msg.sender === "admin";
+const RedirectShortcutModal = ({
+  draft,
+  sending,
+  onChange,
+  onClose,
+  onSend,
+}: {
+  draft: RedirectDraft | null;
+  sending: boolean;
+  onChange: (draft: RedirectDraft | null) => void;
+  onClose: () => void;
+  onSend: () => void;
+}) => {
+  if (!draft) return null;
+
+  const selectedPreset = REDIRECT_OPTIONS.find((option) => option.url === draft.url);
+  const preview = supportMessagePreview(draft.sourceMessage.message).replace(/\s+/g, " ").trim();
+  const canSend = draft.label.trim().length > 0 && draft.url.trim().startsWith("/") && !draft.url.trim().startsWith("//");
 
   return (
-    <div className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
-      <div
-        className={[
-          "max-w-[72%] rounded-2xl px-4 py-2.5 text-[14px] leading-6 shadow-sm",
-          isAdmin
-            ? "rounded-br-md bg-[#0A0A0A] text-white"
-            : "rounded-bl-md bg-white text-[#0A0A0A]",
-        ].join(" ")}
-      >
-        <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.08em] ${isAdmin ? "text-white/60" : "text-[#A3A3A3]"}`}>
-          {isAdmin ? "Admin" : "Usuário"}
-        </p>
-        <p className="whitespace-pre-wrap">{msg.message}</p>
-        <p className={`mt-1 text-[10px] ${isAdmin ? "text-white/50" : "text-[#A3A3A3]"}`}>
-          {formatDateTime(msg.created_at)}
-        </p>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#111827]/38 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-[560px] overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F7] px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Redirecionar usuário</p>
+            <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[#111827]">Enviar atalho na conversa</h2>
+            <p className="mt-1 max-w-sm truncate text-[11px] text-[#64748B]">
+              Referência: {preview || "mensagem sem texto"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#E5E7EB] text-[#64748B] transition hover:bg-[#F8FAFC] hover:text-[#111827] disabled:opacity-60"
+            aria-label="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Destino</span>
+              {selectedPreset ? (
+                <span className="truncate rounded-full bg-[#EEF4FF] px-2.5 py-1 text-[10px] font-bold text-[#2563EB]">
+                  {selectedPreset.label}
+                </span>
+              ) : null}
+            </div>
+            <div className="grid max-h-[230px] grid-cols-2 gap-1.5 overflow-y-auto rounded-[14px] border border-[#E5EAF3] bg-[#F8FAFC] p-1.5 sm:grid-cols-3">
+              {REDIRECT_OPTIONS.map((option) => {
+                const selected = option.url === draft.url;
+                return (
+                  <button
+                    key={option.url}
+                    type="button"
+                    onClick={() => onChange({ ...draft, label: option.label, url: option.url })}
+                    className={`min-h-10 rounded-[10px] px-3 py-2 text-left text-[12px] font-semibold transition ${
+                      selected
+                        ? "bg-[#2563EB] text-white shadow-[0_8px_18px_rgba(37,99,235,0.22)]"
+                        : "bg-white text-[#334155] hover:bg-[#EFF6FF] hover:text-[#1D4ED8]"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid gap-3 sm:grid-cols-[0.85fr_1.15fr]">
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Texto do botão</span>
+              <input
+                value={draft.label}
+                onChange={(event) => onChange({ ...draft, label: event.target.value })}
+                placeholder="Abrir pedidos"
+                className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] font-semibold text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Link interno</span>
+              <input
+                value={draft.url}
+                onChange={(event) => onChange({ ...draft, url: event.target.value })}
+                placeholder="/dashboard/pedidos"
+                className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] font-semibold text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Mensagem curta</span>
+            <input
+              value={draft.note}
+              onChange={(event) => onChange({ ...draft, note: event.target.value })}
+              placeholder="Use este atalho para ir direto para a página certa."
+              className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+            />
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-[#EEF2F7] px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-[12px] font-semibold text-[#475569] transition hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={sending || !canSend}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Route size={14} />}
+            Enviar atalho
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
+const MobileSupportTabs = ({
+  active,
+  hasTicket,
+  openTickets,
+  onChange,
+}: {
+  active: MobileSupportPanel;
+  hasTicket: boolean;
+  openTickets: number;
+  onChange: (panel: MobileSupportPanel) => void;
+}) => {
+  const items: Array<{ value: MobileSupportPanel; label: string; count?: number; disabled?: boolean }> = [
+    { value: "inbox", label: "Fila", count: openTickets },
+    { value: "conversation", label: "Conversa", disabled: !hasTicket },
+    { value: "customer", label: "Cliente", disabled: !hasTicket },
+  ];
+
+  return (
+    <div className="shrink-0 border-b border-[#e1e1dd] bg-[#f7f7f5] px-3 py-2 lg:hidden">
+      <div className="grid grid-cols-3 gap-1 rounded-[12px] border border-[#deded9] bg-white p-1 shadow-[0_1px_2px_rgba(20,20,16,0.035)]">
+        {items.map((item) => {
+          const selected = active === item.value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => onChange(item.value)}
+              disabled={item.disabled}
+              className={`flex h-9 min-w-0 items-center justify-center gap-1 rounded-[9px] px-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                selected ? "bg-[#20201e] text-white" : "text-[#686862] hover:bg-[#f1f1ee] hover:text-[#20201e]"
+              }`}
+            >
+              <span className="truncate">{item.label}</span>
+              {item.count && item.count > 0 ? (
+                <span className={`rounded-full px-1.5 text-[9px] ${selected ? "bg-white/18 text-white" : "bg-[#ecece8] text-[#5d5d57]"}`}>
+                  {item.count > 99 ? "99+" : item.count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const TicketInbox = ({
+  tickets,
+  allTickets,
+  loading,
+  selectedId,
+  onSelect,
+  search,
+  onSearch,
+  view,
+  onView,
+  statusFilter,
+  onStatusFilter,
+  dateFilter,
+  onDateFilter,
+  readTickets,
+  className = "flex",
+}: {
+  tickets: AdminTicket[];
+  allTickets: AdminTicket[];
+  loading: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  search: string;
+  onSearch: (value: string) => void;
+  view: TicketView;
+  onView: (value: TicketView) => void;
+  statusFilter: TicketStatusFilter;
+  onStatusFilter: (value: TicketStatusFilter) => void;
+  dateFilter: TicketDateFilter;
+  onDateFilter: (value: TicketDateFilter) => void;
+  readTickets: TicketReadState;
+  className?: string;
+}) => (
+  <aside className={`${className} min-h-0 flex-1 flex-col border-r border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
+    <div className="border-b border-[#e7e7e3] px-3 pb-3 pt-3 sm:px-4 sm:pt-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[#deded9] bg-white text-[#333330] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <Inbox size={16} strokeWidth={1.8} />
+          </div>
+          <div>
+            <h1 className="text-[15px] font-semibold tracking-[-0.02em] text-[#1d1d1b]">Caixa de entrada</h1>
+            <p className="text-[10.5px] text-[#969690]">
+              {allTickets.filter((ticket) => ticket.status === "open").length} tickets abertos
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <label className="mt-3 flex h-9 items-center gap-2 rounded-[9px] border border-[#deded9] bg-white px-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] focus-within:border-[#aeb9d6] focus-within:ring-2 focus-within:ring-[#dfe6f8]">
+        <Search size={14} className="text-[#9a9a94]" />
+        <input
+          value={search}
+          onChange={(event) => onSearch(event.target.value)}
+          placeholder="Buscar cliente ou motivo"
+          className="min-w-0 flex-1 bg-transparent text-[12px] text-[#252522] outline-none placeholder:text-[#a0a09a]"
+        />
+      </label>
+
+      <div className="mt-3 flex gap-1 overflow-x-auto">
+        {VIEW_OPTIONS.map((option) => {
+          const count =
+            option.value === "all"
+              ? allTickets.filter((ticket) => matchesTicketStatus(ticket, statusFilter) && matchesTicketDate(ticket, dateFilter)).length
+              : allTickets.filter((ticket) =>
+                  matchesTicketStatus(ticket, statusFilter) &&
+                  matchesTicketDate(ticket, dateFilter) &&
+                  (option.value === "new"
+                    ? needsSupportReply(ticket)
+                    : !needsSupportReply(ticket) && ticket.has_admin_reply),
+                ).length;
+          return (
+            <button
+              key={option.value}
+              onClick={() => onView(option.value)}
+              className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-[10.5px] font-medium transition ${
+                view === option.value
+                  ? "bg-[#e9eefc] text-[#315cc4]"
+                  : "text-[#777772] hover:bg-[#f0f0ed] hover:text-[#252522]"
+              }`}
+            >
+              {option.label} <span className="ml-0.5 opacity-65">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <FilterDropdown
+          label="Filtrar por período"
+          value={dateFilter}
+          options={DATE_OPTIONS}
+          onChange={onDateFilter}
+        />
+        <FilterDropdown
+          label="Filtrar por status"
+          value={statusFilter}
+          options={STATUS_OPTIONS}
+          onChange={onStatusFilter}
+        />
+      </div>
+    </div>
+
+    <div className="flex items-center justify-between border-b border-[#e8e8e4] px-3 py-2.5 sm:px-4">
+      <span className="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-[#999993]">Conversas</span>
+      <span className="flex items-center gap-1 text-[10px] text-[#8b8b85]">
+        Recentes <ChevronDown size={11} />
+      </span>
+    </div>
+
+    <div className="velo-scroll-oculto min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {loading ? (
+        <TicketListSkeleton />
+      ) : tickets.length === 0 ? (
+        <div className="flex h-full min-h-[320px] flex-col items-center justify-center px-8 text-center">
+          <MessageCircle size={23} strokeWidth={1.5} className="text-[#b0b0aa]" />
+          <p className="mt-3 text-[12px] font-medium text-[#53534f]">Nenhuma conversa encontrada</p>
+          <p className="mt-1 text-[10.5px] leading-4 text-[#999993]">Ajuste a busca ou aguarde um novo chamado.</p>
+        </div>
+      ) : (
+        tickets.map((ticket) => (
+          <TicketListItem
+            key={ticket.id}
+            ticket={ticket}
+            selected={ticket.id === selectedId}
+            readAt={readTickets[ticket.id] ?? null}
+            onClick={() => onSelect(ticket.id)}
+          />
+        ))
+      )}
+    </div>
+  </aside>
+);
+
+const CustomerContextPanel = ({
+  ticket,
+  customer,
+  loading,
+  refunding,
+  previousTicketCount,
+  onDirectRefund,
+  onBackMobile,
+  className = "flex",
+}: {
+  ticket: AdminTicket | null;
+  customer: CustomerContextData | null;
+  loading: boolean;
+  refunding: boolean;
+  previousTicketCount: number;
+  onDirectRefund: (ticket: AdminTicket, customer: CustomerContextData) => void;
+  onBackMobile: () => void;
+  className?: string;
+}) => {
+  if (!ticket) {
+    return (
+      <aside className={`${className} min-h-0 flex-1 items-center justify-center border-l border-[#e4e4e0] bg-[#fafaf9] px-8 text-center lg:flex-none`}>
+        <div>
+          <UserCircle2 size={24} strokeWidth={1.4} className="mx-auto text-[#afafa9]" />
+          <p className="mt-3 text-[11px] leading-5 text-[#8d8d87]">Selecione um atendimento para visualizar os dados do cliente.</p>
+        </div>
+      </aside>
+    );
+  }
+
+  const data: CustomerContextData = customer ?? {
+    name: ticket.user_name,
+    email: ticket.user_email,
+    avatar_url: ticket.user_avatar_url,
+    plan: null,
+    subscription_status: null,
+    subscription_started_at: null,
+    customer_since: null,
+    last_seen_at: ticket.last_message_at ?? ticket.updated_at,
+    payment_method: null,
+    user_agent: null,
+  };
+  const subscriptionActive = ["active", "paid", "approved", "authorized"].includes(
+    (data.subscription_status ?? "").toLowerCase(),
+  );
+
+  return (
+    <aside className={`${className} min-h-0 flex-1 flex-col overflow-y-auto border-l border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
+      <div className="border-b border-[#e6e6e2] bg-white px-4 py-4 sm:px-5 sm:py-5">
+        <button
+          type="button"
+          onClick={onBackMobile}
+          className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#deded9] bg-white px-2.5 text-[10.5px] font-semibold text-[#5f5f59] shadow-[0_1px_2px_rgba(0,0,0,0.03)] lg:hidden"
+        >
+          <ArrowLeft size={13} />
+          Conversa
+        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Avatar name={data.name} email={data.email} image={data.avatar_url} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[#252522]">
+              {data.name || "Usuário sem nome"}
+            </p>
+            <p className="mt-0.5 truncate text-[9.5px] text-[#969690]">Cliente Velo</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onDirectRefund(ticket, data)}
+            disabled={refunding || loading}
+            className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe] sm:h-8 sm:w-auto"
+            title="Abrir reembolsos deste cliente"
+          >
+            {refunding ? <Loader2 size={13} className="animate-spin" /> : <HandCoins size={13} strokeWidth={2.1} />}
+            Dar reembolso
+          </button>
+        </div>
+        <div className="mt-4 flex items-center gap-2">
+          <span className="inline-flex rounded-[6px] border border-[#dce3f5] bg-[#f2f5fd] px-2 py-1 text-[9px] font-semibold text-[#52699f]">
+            Plano {formatPlan(data.plan)}
+          </span>
+          <span className={`inline-flex rounded-[6px] border px-2 py-1 text-[9px] font-semibold ${subscriptionActive ? "border-[#d9ead4] bg-[#f1f8ee] text-[#4f8247]" : "border-[#e4e4df] bg-[#f5f5f3] text-[#767670]"}`}>
+            {formatSubscriptionStatus(data.subscription_status)}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-3 p-3 sm:p-4">
+        <ContextCard title="Informações do cliente">
+          <ContextRow icon={Mail} label="E-mail" value={data.email || "Não informado"} breakValue />
+          <ContextRow icon={CalendarDays} label="Cliente há" value={elapsedTime(data.customer_since)} />
+          <ContextRow icon={Activity} label="Última atividade" value={relativeTime(data.last_seen_at)} />
+          <ContextRow icon={MonitorSmartphone} label="Dispositivo" value={formatDevice(data.user_agent)} />
+        </ContextCard>
+
+        <ContextCard title="Assinatura">
+          <ContextRow icon={CreditCard} label="Plano atual" value={formatPlan(data.plan)} />
+          <ContextRow icon={CheckCircle2} label="Status" value={formatSubscriptionStatus(data.subscription_status)} />
+          <ContextRow icon={Clock3} label="Assinante há" value={elapsedTime(data.subscription_started_at)} />
+          <ContextRow icon={CreditCard} label="Método de pagamento" value={formatPaymentMethod(data.payment_method)} />
+        </ContextCard>
+
+        <ContextCard title="Atendimento">
+          <ContextRow icon={MessageCircle} label="Motivo" value={CATEGORY_META[ticket.category].label} />
+          <ContextRow icon={Hash} label="Ticket" value={`#${ticket.id.slice(0, 8)}`} />
+          <ContextRow icon={Clock3} label="Aberto há" value={elapsedTime(ticket.created_at)} />
+          <ContextRow icon={MessageCircle} label="Mensagens" value={String(ticket.message_count)} />
+          <ContextRow icon={MessageCircle} label="Já abriu ticket antes" value={formatPreviousTickets(previousTicketCount)} />
+        </ContextCard>
+
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-2 text-[9.5px] text-[#999993]">
+            <Loader2 size={12} className="animate-spin" /> Atualizando informações
+          </div>
+        ) : null}
+      </div>
+    </aside>
+  );
+};
+
+const ContextCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <section className="overflow-hidden rounded-[12px] border border-[#e3e3df] bg-white shadow-[0_1px_2px_rgba(28,28,26,0.025)]">
+    <div className="border-b border-[#ecece8] bg-[#fafaf8] px-3.5 py-2.5">
+      <h3 className="text-[9px] font-semibold uppercase tracking-[0.09em] text-[#85857f]">{title}</h3>
+    </div>
+    <div className="divide-y divide-[#efefec] px-3.5">{children}</div>
+  </section>
+);
+
+const ContextRow = ({
+  icon: Icon,
+  label,
+  value,
+  breakValue = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  breakValue?: boolean;
+}) => (
+  <div className="flex items-start gap-2.5 py-3">
+    <Icon size={13} strokeWidth={1.65} className="mt-0.5 shrink-0 text-[#8d8d87]" />
+    <div className="min-w-0 flex-1">
+      <p className="text-[9px] text-[#999993]">{label}</p>
+      <p className={`mt-0.5 text-[10.5px] font-medium leading-4 text-[#3d3d39] ${breakValue ? "break-all" : "truncate"}`}>{value}</p>
+    </div>
+  </div>
+);
+
+const FilterDropdown = <T extends string,>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<FilterOption<T>>;
+  onChange: (value: T) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selectedOption = options.find((option) => option.value === value) ?? options[0];
+
+  return (
+    <div
+      className="relative min-w-0"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+    >
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-8 w-full items-center justify-between gap-2 rounded-[8px] border border-[#deded9] bg-white px-2.5 text-left text-[10.5px] font-semibold text-[#4a4a46] outline-none transition hover:border-[#c9d5f5] focus:border-[#4f72df] focus:ring-2 focus:ring-[#dfe6f8]"
+      >
+        <span className="truncate">{selectedOption.label}</span>
+        <ChevronDown size={12} className={`shrink-0 text-[#778092] transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open ? (
+        <div
+          role="listbox"
+          aria-label={label}
+          className="absolute left-0 right-0 top-[calc(100%+6px)] z-40 overflow-hidden rounded-[10px] border border-[#dce7fa] bg-white p-1 shadow-[0_14px_30px_rgba(15,23,42,0.14)]"
+        >
+          {options.map((option) => {
+            const selected = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`flex h-8 w-full items-center justify-between rounded-[7px] px-2 text-left text-[10.5px] font-semibold transition ${
+                  selected
+                    ? "bg-[#2563EB] text-white"
+                    : "text-[#4f5664] hover:bg-[#eef4ff] hover:text-[#2563EB]"
+                }`}
+              >
+                <span className="truncate">{option.label}</span>
+                {selected ? <CheckCircle2 size={12} className="shrink-0" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const TicketListItem = ({
+  ticket,
+  selected,
+  readAt,
+  onClick,
+}: {
+  ticket: AdminTicket;
+  selected: boolean;
+  readAt: string | null;
+  onClick: () => void;
+}) => {
+  const meta = CATEGORY_META[ticket.category];
+  const hasCustomerUpdate = isUnreadCustomerMessage(ticket, readAt);
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex w-full gap-3 border-b border-[#ecece8] px-4 py-3.5 text-left transition ${
+        selected ? "bg-[#edf2ff]" : "bg-transparent hover:bg-[#f3f3f0]"
+      }`}
+    >
+      {selected ? <span className="absolute inset-y-0 left-0 w-[3px] bg-[#4f72df]" /> : null}
+      <Avatar name={ticket.user_name} email={ticket.user_email} image={ticket.user_avatar_url} size="md" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#252522]">{ticket.user_name || "Usuário sem nome"}</p>
+          {hasCustomerUpdate ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff725c]" title="Nova mensagem do cliente" /> : null}
+        </div>
+        <p className="mt-1 line-clamp-1 text-[10.5px] font-medium leading-4 text-[#686863]">{ticket.subject || ticket.last_message || meta.label}</p>
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5 text-[9.5px] text-[#8e8e88]">
+            <CalendarDays size={11} className="shrink-0" />
+            <span className="truncate">{formatDateTime(ticket.last_message_at ?? ticket.updated_at)}</span>
+          </span>
+          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-[6px] border px-2.5 py-1 text-[9.5px] font-semibold shadow-[0_1px_1px_rgba(0,0,0,0.03)] ${meta.badge}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+            {meta.label}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+};
+
+const ConversationPanel = ({
+  ticket,
+  messages,
+  loadingMessages,
+  reply,
+  setReply,
+  replyTarget,
+  onClearReplyTarget,
+  replyImage,
+  onReplyImage,
+  onRemoveReplyImage,
+  onSend,
+  sending,
+  onResolve,
+  resolving,
+  onReopen,
+  reopening,
+  onEditMessage,
+  onDeleteMessage,
+  onReplyMessage,
+  onRedirectMessage,
+  messageActionPending,
+  chatEndRef,
+  onShowCustomerMobile,
+  className = "flex",
+}: {
+  ticket: AdminTicket | null;
+  messages: SupportMessage[];
+  loadingMessages: boolean;
+  reply: string;
+  setReply: (value: string) => void;
+  replyTarget: SupportReplyReference | null;
+  onClearReplyTarget: () => void;
+  replyImage: File | null;
+  onReplyImage: (file: File) => void;
+  onRemoveReplyImage: () => void;
+  onSend: () => void;
+  sending: boolean;
+  onResolve: () => void;
+  resolving: boolean;
+  onReopen: () => void;
+  reopening: boolean;
+  onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
+  onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
+  onReplyMessage: (message: SupportMessage) => void;
+  onRedirectMessage: (message: SupportMessage) => void;
+  messageActionPending: boolean;
+  chatEndRef: React.RefObject<HTMLDivElement>;
+  onShowCustomerMobile: () => void;
+  className?: string;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ticket || loadingMessages) return;
+
+    const scrollToBottom = () => {
+      if (messageScrollRef.current) {
+        messageScrollRef.current.scrollTop = messageScrollRef.current.scrollHeight;
+      }
+      chatEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    };
+
+    scrollToBottom();
+    const frame = window.requestAnimationFrame(scrollToBottom);
+    const timeout = window.setTimeout(scrollToBottom, 90);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [chatEndRef, loadingMessages, messages.length, ticket?.id]);
+
+  if (!ticket) {
+    return (
+      <section className={`${className} min-h-0 flex-1 items-center justify-center bg-white lg:flex-none`}>
+        <div className="max-w-sm text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e3e3df] bg-[#fafaf8] text-[#797973]">
+            <MessageCircle size={21} strokeWidth={1.5} />
+          </div>
+          <h2 className="mt-4 text-[15px] font-semibold text-[#2b2b28]">Selecione uma conversa</h2>
+          <p className="mt-1.5 text-[11.5px] leading-5 text-[#8b8b85]">Escolha um cliente na fila para ler e responder ao atendimento.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const meta = CATEGORY_META[ticket.category];
+  const closed = ticket.status === "closed";
+
+  return (
+    <section className={`${className} min-h-0 min-w-0 flex-1 flex-col bg-white lg:flex-none`}>
+      <header className="border-b border-[#e5e5e1] bg-white px-3 py-2 sm:px-5 sm:py-3.5">
+        <div className="mb-1 flex justify-end lg:hidden">
+          <button
+            type="button"
+            onClick={onShowCustomerMobile}
+            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10px] font-semibold text-[#2563EB]"
+          >
+            <UserCircle2 size={13} />
+            Cliente
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
+              <h2 className="truncate text-[13px] font-semibold tracking-[-0.02em] text-[#20201e] sm:text-[14px]">
+                {ticket.subject || meta.label}
+              </h2>
+              <span className={`hidden shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold lg:inline-flex ${meta.badge}`}>
+                {meta.label}
+              </span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] text-[#8f8f89] sm:mt-1.5 sm:gap-x-2.5 sm:text-[10px]">
+              <span className="flex items-center gap-1"><Hash size={10} /> {ticket.id.slice(0, 8)}</span>
+              <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
+              <span>{ticket.message_count} {ticket.message_count === 1 ? "mensagem" : "mensagens"}</span>
+              <span className="hidden h-1 w-1 rounded-full bg-[#c2c2bd] sm:inline-flex" />
+              <span>aberto {relativeTime(ticket.created_at)}</span>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {closed ? (
+              <button
+                onClick={onReopen}
+                disabled={reopening}
+                className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#dcdcd7] bg-white px-3 text-[10px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px]"
+              >
+                {reopening ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
+                Reabrir ticket
+              </button>
+            ) : (
+              <button
+                onClick={onResolve}
+                disabled={resolving}
+                className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#dcdcd7] bg-white px-3 text-[10px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px]"
+              >
+                {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                Resolvido
+              </button>
+            )}
+            <button className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1] sm:h-8 sm:w-8 sm:rounded-lg" aria-label="Mais ações">
+              <MoreHorizontal size={15} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div ref={messageScrollRef} className="velo-scroll-oculto min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f8f9fb] px-3 py-4 sm:px-5 sm:py-5">
+        {loadingMessages ? (
+          <MessageSkeleton />
+        ) : messages.length === 0 ? (
+          <div className="flex h-full min-h-[320px] items-center justify-center text-center">
+            <div>
+              <MessageCircle size={22} className="mx-auto text-[#b1b1ab]" strokeWidth={1.5} />
+              <p className="mt-3 text-[12px] font-medium text-[#60605b]">O usuário ainda não enviou mensagens.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-[820px] space-y-4">
+            {messages.map((message, index) => (
+              <ThreadMessage
+                key={message.id}
+                message={message}
+                index={index}
+                customerName={ticket.user_name}
+                customerEmail={ticket.user_email}
+                customerAvatar={ticket.user_avatar_url}
+                onEditMessage={onEditMessage}
+                onDeleteMessage={onDeleteMessage}
+                onReplyMessage={onReplyMessage}
+                onRedirectMessage={onRedirectMessage}
+                actionPending={messageActionPending}
+              />
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-[#e4e6eb] bg-white p-2.5 sm:p-3.5">
+        <div className="mx-auto max-w-[860px] overflow-hidden rounded-[16px] border border-[#dfe3ec] bg-white shadow-[0_10px_30px_rgba(34,44,68,0.07)] transition focus-within:border-[#7b9cf2] focus-within:ring-2 focus-within:ring-[#dfe8ff]">
+          <div className="flex items-center justify-between gap-2 border-b border-[#eef0f4] bg-[#fbfcfe] px-3 py-2.5 sm:px-3.5">
+            <div className="flex items-center gap-2 text-[10px] text-[#777772]">
+              <span className="grid h-6 w-6 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_1px_3px_rgba(46,102,235,0.1)]">
+                <AtlasAvatarIcon size={18} animated />
+              </span>
+              <span className="truncate">Respondendo como <strong className="font-semibold text-[#334155]">Suporte Velo</strong></span>
+              <ChevronDown size={11} />
+            </div>
+            <span className="hidden shrink-0 text-[9.5px] text-[#a0a09a] sm:inline">Enter para enviar</span>
+          </div>
+          {replyTarget ? (
+            <div className="mx-3 mt-3 flex items-start gap-2 rounded-[10px] border border-[#dce6f7] border-l-[3px] border-l-[#2563EB] bg-[#f6f8fc] px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-bold leading-4 text-[#2563EB]">{replyTarget.author}</p>
+                <p className="line-clamp-2 text-[11.5px] leading-4 text-[#5f6978]">{replyTarget.text}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClearReplyTarget}
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[#8a94a5] transition hover:bg-white hover:text-[#1f2937]"
+                aria-label="Remover resposta"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : null}
+          <textarea
+            aria-label="Responder ticket"
+            value={reply}
+            onChange={(event) => setReply(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if ((reply.trim() || replyImage) && !sending && !closed) onSend();
+              }
+            }}
+            disabled={closed}
+            placeholder={closed ? "Ticket resolvido" : `Responder para ${ticket.user_name || "o cliente"}...`}
+            className="min-h-[80px] w-full resize-none bg-white px-4 py-3 text-[12.5px] leading-5 text-[#252522] outline-none placeholder:text-[#a6aab3] disabled:bg-[#fafafa] disabled:text-[#9ca3af]"
+          />
+          {replyImage ? <SupportImagePreview file={replyImage} onRemove={onRemoveReplyImage} /> : null}
+          <div className="flex items-center justify-between gap-2 px-3 pb-3">
+            <div className="flex items-center gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) onReplyImage(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending || closed}
+                className={`flex h-7 w-7 items-center justify-center rounded-md transition ${replyImage ? "bg-[#eaf0ff] text-[#2f66eb]" : "text-[#8c8c86] hover:bg-[#f0f0ed] hover:text-[#343431]"}`}
+                aria-label="Anexar imagem"
+                title="Anexar imagem (até 8 MB)"
+              >
+                <Paperclip size={14} />
+              </button>
+            </div>
+            <button
+              onClick={onSend}
+              disabled={closed || sending || (!reply.trim() && !replyImage)}
+              className="inline-flex h-9 min-w-[118px] items-center justify-center gap-2 rounded-full bg-[#2f66eb] px-4 text-[10.5px] font-semibold text-white shadow-[0_5px_14px_rgba(47,102,235,0.22)] transition hover:-translate-y-0.5 hover:bg-[#2459d8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+            >
+              {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+              Enviar resposta
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const ThreadMessage = ({
+  message,
+  index,
+  customerName,
+  customerEmail,
+  customerAvatar,
+  onEditMessage,
+  onDeleteMessage,
+  onReplyMessage,
+  onRedirectMessage,
+  actionPending,
+}: {
+  message: SupportMessage;
+  index: number;
+  customerName: string | null;
+  customerEmail: string | null;
+  customerAvatar: string | null;
+  onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
+  onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
+  onReplyMessage: (message: SupportMessage) => void;
+  onRedirectMessage: (message: SupportMessage) => void;
+  actionPending: boolean;
+}) => {
+  const admin = message.sender === "admin";
+  const automatic = message.sender === "ai";
+  const supportSide = admin || automatic;
+  const parsed = parseSupportMessage(message.message);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(parsed.text);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPlacement, setContextMenuPlacement] = useState<"above" | "below">("above");
+  const [editWidth, setEditWidth] = useState<number | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressNextClickRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) return;
+    window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    longPressStartRef.current = null;
+  };
+
+  const openContextMenu = () => {
+    const rect = bubbleRef.current?.getBoundingClientRect();
+    const estimatedMenuHeight = admin ? 160 : 82;
+    const scrollContainer = bubbleRef.current?.closest(".velo-scroll-oculto");
+    const boundaryTop = scrollContainer?.getBoundingClientRect().top ?? 0;
+    const availableAbove = rect ? rect.top - boundaryTop : Number.POSITIVE_INFINITY;
+    setContextMenuPlacement(availableAbove < estimatedMenuHeight + 14 ? "below" : "above");
+    setContextMenuOpen(true);
+  };
+
+  useEffect(() => {
+    setDraft(parsed.text);
+    setEditWidth(null);
+  }, [parsed.text]);
+
+  useEffect(() => {
+    if (!editing || !textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.max(34, textareaRef.current.scrollHeight)}px`;
+  }, [draft, editing]);
+
+  useEffect(() => {
+    if (!contextMenuOpen) return;
+
+    const close = () => setContextMenuOpen(false);
+    document.addEventListener("click", close);
+    window.addEventListener("blur", close);
+    return () => {
+      document.removeEventListener("click", close);
+      window.removeEventListener("blur", close);
+    };
+  }, [contextMenuOpen]);
+
+  useEffect(() => clearLongPressTimer, []);
+
+  const saveEdit = async () => {
+    await onEditMessage(message, draft);
+    setEditing(false);
+    setEditWidth(null);
+  };
+
+  const deleteCurrentMessage = async () => {
+    if (!window.confirm("Excluir esta mensagem do suporte?")) return;
+    await onDeleteMessage(message);
+  };
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 8, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.28, delay: Math.min(index * 0.025, 0.18), ease: [0.22, 1, 0.36, 1] }}
+      className={`group/message flex items-end gap-2 sm:gap-2.5 ${supportSide ? "justify-end" : "justify-start"}`}
+      onContextMenu={(event) => {
+        if (editing) return;
+        event.preventDefault();
+        openContextMenu();
+      }}
+      onClick={(event) => {
+        if (!suppressNextClickRef.current) return;
+        event.stopPropagation();
+        suppressNextClickRef.current = false;
+      }}
+    >
+      {!supportSide ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
+      <div className={`relative min-w-0 max-w-[86%] sm:max-w-[82%] ${supportSide ? "items-end" : "items-start"}`}>
+        <div className={`mb-1.5 flex items-center gap-2 px-1 ${supportSide ? "justify-end" : "justify-start"}`}>
+          <span className="truncate text-[9.5px] font-semibold text-[#626977]">
+            {automatic ? "Atendimento automático" : admin ? "Suporte Velo" : customerName || "Usuário"}
+          </span>
+          <span className="shrink-0 text-[8.5px] text-[#a0a5af]">{formatDateTime(message.created_at)}</span>
+        </div>
+        <div
+          ref={bubbleRef}
+          style={editing && editWidth ? { width: `${editWidth}px` } : undefined}
+          onPointerDown={(event) => {
+            if (editing || event.pointerType === "mouse") return;
+            clearLongPressTimer();
+            longPressStartRef.current = { x: event.clientX, y: event.clientY };
+            longPressTimerRef.current = window.setTimeout(() => {
+              openContextMenu();
+              suppressNextClickRef.current = true;
+              longPressTimerRef.current = null;
+            }, 520);
+          }}
+          onPointerUp={clearLongPressTimer}
+          onPointerCancel={clearLongPressTimer}
+          onPointerLeave={clearLongPressTimer}
+          onPointerMove={(event) => {
+            if (!longPressStartRef.current) return;
+            const distance = Math.hypot(event.clientX - longPressStartRef.current.x, event.clientY - longPressStartRef.current.y);
+            if (distance > 8) clearLongPressTimer();
+          }}
+          className={`px-3.5 py-2.5 shadow-[0_3px_12px_rgba(25,35,55,0.055)] sm:px-4 sm:py-3 ${
+            admin
+              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
+              : automatic
+                ? "select-none rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
+              : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
+          }`}
+        >
+          {editing ? (
+            <div className="space-y-3">
+              <textarea
+                ref={textareaRef}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={1}
+                className="block min-h-[34px] w-full resize-none overflow-hidden rounded-[12px] border border-white/35 bg-white px-3 py-2 text-[13px] leading-5 text-[#172033] outline-none focus:ring-2 focus:ring-white/70"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(parsed.text);
+                    setEditing(false);
+                    setEditWidth(null);
+                  }}
+                  className="rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-white/25"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveEdit()}
+                  disabled={actionPending}
+                  className="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-[#2563EB] transition hover:bg-[#EFF6FF] disabled:opacity-50"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <SupportMessageMedia
+              value={message.message}
+              textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : automatic ? "text-[#1f3c76]" : "text-[#34363b]"}`}
+              imageClassName="max-h-[300px] max-w-full w-full sm:max-h-[340px] sm:max-w-[460px]"
+              tone={admin ? "admin" : "customer"}
+            />
+          )}
+        </div>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (contextMenuOpen) {
+                setContextMenuOpen(false);
+              } else {
+                openContextMenu();
+              }
+            }}
+            className={`absolute right-2 top-7 z-[65] grid h-4 w-4 place-items-center rounded-sm transition ${
+              contextMenuOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 group-hover/message:scale-100 group-hover/message:opacity-100"
+            } ${
+              admin
+                ? "text-white/75 hover:text-white"
+                : automatic
+                  ? "text-[#6681b6] hover:text-[#315cc4]"
+                : "text-[#94A3B8] hover:text-[#64748B]"
+            }`}
+            aria-label="Abrir opções da mensagem"
+          >
+            <ChevronDown size={13} strokeWidth={2.4} />
+          </button>
+        ) : null}
+        {contextMenuOpen ? (
+          <div
+            className={`absolute z-[70] w-44 overflow-hidden rounded-[12px] border border-[#e1e5ef] bg-white py-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.18)] ${
+              contextMenuPlacement === "above" ? "bottom-[calc(100%+6px)] translate-y-10" : "top-[calc(100%+6px)]"
+            } ${supportSide ? "right-0" : "left-0"}`}
+            onClick={(event) => event.stopPropagation()}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setContextMenuOpen(false);
+                onReplyMessage(message);
+              }}
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
+            >
+              <Reply size={13} />
+              Responder
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setContextMenuOpen(false);
+                onRedirectMessage(message);
+              }}
+              disabled={actionPending}
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
+            >
+              <Route size={13} />
+              Redirecionar
+            </button>
+            {admin ? (
+              <>
+                <div className="my-1 h-px bg-[#eef1f6]" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextMenuOpen(false);
+                    setEditWidth(bubbleRef.current?.offsetWidth ?? null);
+                    setEditing(true);
+                  }}
+                  disabled={actionPending}
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
+                >
+                  <Pencil size={13} />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextMenuOpen(false);
+                    void deleteCurrentMessage();
+                  }}
+                  disabled={actionPending}
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:opacity-50"
+                >
+                  <Trash2 size={13} />
+                  Excluir
+                </button>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+        {!supportSide && customerEmail ? (
+          <p className="mt-1 px-1 text-[8.5px] text-[#a3a7b0]">{customerEmail}</p>
+        ) : null}
+      </div>
+      {supportSide ? (
+        <span className="hidden h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)] sm:grid">
+          <AtlasAvatarIcon size={21} animated />
+        </span>
+      ) : null}
+    </motion.article>
+  );
+};
+
+const Avatar = ({
+  name,
+  email,
+  image,
+  size,
+}: {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  size: "xs" | "sm" | "md" | "lg";
+}) => {
+  const sizeClass =
+    size === "lg"
+      ? "h-12 w-12 text-[12px]"
+      : size === "md"
+        ? "h-10 w-10 text-[11px]"
+        : size === "sm"
+          ? "h-8 w-8 text-[9.5px]"
+          : "h-5 w-5 text-[7px]";
+  return (
+    <div className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e9edf4] font-semibold text-[#4d5f7b] ring-1 ring-inset ring-[#dce2ea] ${sizeClass}`}>
+      <span>{getInitials(name, email)}</span>
+      {image ? (
+        <img
+          src={image}
+          alt={`Foto de ${name || "cliente"}`}
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+    </div>
+  );
+};
+
+const TicketListSkeleton = () => (
+  <div className="divide-y divide-[#ecece8]">
+    {Array.from({ length: 7 }, (_, index) => (
+      <div key={index} className="flex gap-3 px-4 py-4">
+        <div className="h-8 w-8 animate-pulse rounded-full bg-[#e9e9e5]" />
+        <div className="flex-1">
+          <div className="h-2.5 w-2/3 animate-pulse rounded bg-[#e5e5e1]" />
+          <div className="mt-2 h-2 w-4/5 animate-pulse rounded bg-[#eeeeeb]" />
+          <div className="mt-3 h-4 w-20 animate-pulse rounded-full bg-[#e9e9e5]" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const MessageSkeleton = () => (
+  <div className="mx-auto max-w-[760px] space-y-4">
+    {Array.from({ length: 3 }, (_, index) => (
+      <div key={index} className="rounded-[13px] border border-[#e6e6e2] bg-white p-4">
+        <div className="flex gap-3">
+          <div className="h-8 w-8 animate-pulse rounded-full bg-[#e9e9e5]" />
+          <div className="flex-1">
+            <div className="h-2.5 w-28 animate-pulse rounded bg-[#e5e5e1]" />
+            <div className="mt-4 h-2.5 w-full animate-pulse rounded bg-[#eeeeeb]" />
+            <div className="mt-2 h-2.5 w-4/5 animate-pulse rounded bg-[#eeeeeb]" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export default AdminSupportPage;

@@ -172,10 +172,10 @@ describe("Preservation 3 — SaldosPage: seção Transações Recentes mantém l
     expect(saldosSource).toContain("RECENT_TRANSACTIONS");
   });
 
-  it("SaldosPage exibe ícones coloridos por plataforma nas transações (ML, SP, CJ)", () => {
+  it("SaldosPage exibe ícones coloridos por plataforma nas transações (ML, SP, C7)", () => {
     expect(saldosSource).toContain('"ML"');
     expect(saldosSource).toContain('"SP"');
-    expect(saldosSource).toContain('"CJ"');
+    expect(saldosSource).toContain('"C7"');
   });
 
   it("SaldosPage exibe status 'Sucesso' e 'Processando' nas transações", () => {

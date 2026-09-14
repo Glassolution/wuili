@@ -1,614 +1,1600 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, BadgePercent, Check, LayoutTemplate, PlayCircle, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AreaChart, Area, BarChart, Bar, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
-import {
-  Package, ShoppingCart,
-  ChevronRight, ArrowUpRight,
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useTheme } from "next-themes";
-import { useFinancialData } from "@/hooks/useFinancialData";
-import { getSalesAnalytics } from "@/lib/financial";
+import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
+import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
+import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
+import { veloToast } from "@/components/ui/velo-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import dashboardHomeBase from "@/assets/dashboard-home-base.png";
+import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
+import MobileHome from "@/components/dashboard/MobileHome";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { Button } from "@/components/ui/button";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+import { useIsMobile } from "@/hooks/use-mobile";
 
-type Publication = {
+type AtlasMessage = {
   id: string;
-  title: string;
-  thumbnail: string | null;
-  price: number | null;
-  status: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+  product_data?: AtlasMessageData | null;
 };
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const MONTH_LABELS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const fmt = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pendente", paid: "Pago", shipped: "Enviado",
-  delivered: "Entregue", cancelled: "Cancelado",
-};
-const STATUS_STYLE: Record<string, string> = {
-  pending:   "bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
-  paid:      "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
-  shipped:   "bg-[#F0F0F0] text-[#525252] border border-[#E5E5E5] dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700",
-  delivered: "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30",
-  cancelled: "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/30",
+type AtlasNavigationAction = {
+  type: "navigation";
+  label: string;
+  route: string;
+  /** "primary" usa o Botão Pilot (fundo escuro sólido). */
+  variant?: "primary";
+  reason?: string;
 };
 
-const CustomerAvatar = ({ name }: { name: string }) => {
-  const initials = name.split(" ").slice(0, 2).map((p) => p[0]).join("").toUpperCase();
-  const bgs = ["bg-[#1e293b]", "bg-[#292524]", "bg-[#3f3f46]", "bg-[#374151]", "bg-[#1c1917]"];
-  return (
-    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${bgs[name.charCodeAt(0) % 5]} text-[10px] font-bold text-white`}>
-      {initials}
-    </span>
-  );
-};
-
-const ChartTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl border border-[#E5E5E5] bg-white px-3.5 py-2.5 shadow-lg text-[12px]">
-      <p className="mb-1.5 font-medium text-[#737373]">{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.stroke }} />
-          <p className="font-semibold text-[#0A0A0A]">
-            {p.dataKey === "v" ? "Este período" : "Anterior"}: {fmt(p.value)}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// reference line index for the chart (e.g. Friday = index 4 on daily)
-const DAILY_REFLINE   = "Sex";
-const WEEKLY_REFLINE  = "S3";
-const MONTHLY_REFLINE = "Mar";
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-type Period   = "Diário" | "Semanal" | "Mensal";
-type OTab     = "Hoje"   | "Esta semana";
-
-export default function DashboardHomePage() {
-  const { user } = useAuth();
-  const { resolvedTheme } = useTheme();
-  const [period,    setPeriod]    = useState<Period>("Semanal");
-  const [ordersTab, setOrdersTab] = useState<OTab>("Hoje");
-  const isDark = resolvedTheme === "dark";
-
-  const { orders, isLoading: isLoadingFinancial } = useFinancialData();
-  // Derive total revenue directly from orders (same source as Financeiro page)
-  // For demo user, orders already contains synthetic data with exact totals
-  const revenueFromOrders = useMemo(
-    () => orders.filter(o => ["paid","approved","completed"].includes(o.status))
-                .reduce((s, o) => s + (o.total ?? 0), 0),
-    [orders]
-  );
-
-  // ── Fetch published products ──────────────────────────────────────────────
-  const { data: publications, isLoading: loadingPubs } = useQuery({
-    queryKey: ["dashboard-publications", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .select("id, title, thumbnail, price, status")
-        .eq("user_id", user!.id)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(4);
-      if (error) throw error;
-      return (data ?? []) as unknown as Publication[];
-    },
-  });
-
-  // ── Fetch real stats ──────────────────────────────────────────────────────
-  const { data: statsData, isLoading: loadingStats } = useQuery({
-    queryKey: ["dashboard-stats", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const [ordersRes, pubsRes, revenueRes] = await Promise.all([
-        // Total orders count
-        supabase
-          .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user!.id),
-        // Total active publications count
-        supabase
-          .from("user_publications" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user!.id)
-          .eq("status", "active"),
-        // Total revenue (sum sale_price)
-        supabase
-          .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-          .select("sale_price")
-          .eq("user_id", user!.id),
-      ]);
-      const totalOrders = ordersRes.count ?? 0;
-      const totalPubs   = pubsRes.count ?? 0;
-      const revenue     = ((revenueRes.data ?? []) as unknown as { sale_price: number }[])
-        .reduce((s, o) => s + (o.sale_price ?? 0), 0);
-      return { totalOrders, totalPubs, revenue };
-    },
-  });
-
-  // ── Recent orders (real) ──────────────────────────────────────────────────
-  const { data: recentOrders = [], isLoading: loadingRecent } = useQuery({
-    queryKey: ["dashboard-recent-orders", user?.id, ordersTab],
-    enabled: !!user,
-    queryFn: async () => {
-      const since = new Date();
-      if (ordersTab === "Hoje") {
-        since.setHours(0, 0, 0, 0);
-      } else {
-        since.setDate(since.getDate() - 7);
-      }
-      const { data, error } = await supabase
-        .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .select("id, external_order_id, buyer_name, product_title, sale_price, status, ordered_at, created_at")
-        .eq("user_id", user!.id)
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return (data ?? []) as unknown as Array<{
-        id: string;
-        external_order_id: string | null;
-        buyer_name: string | null;
-        product_title: string | null;
-        sale_price: number | null;
-        status: string;
-        ordered_at: string | null;
-        created_at: string;
-      }>;
-    },
-  });
-
-  const totalOrders = statsData?.totalOrders ?? 0;
-  const totalPubs   = statsData?.totalPubs   ?? 0;
-  // Use orders from the hook as single source of truth (same as Financeiro page)
-  const revenue = revenueFromOrders > 0 ? revenueFromOrders : (statsData?.revenue ?? 0);
-
-  // Mini bar chart — last 5 months of revenue from real orders
-  const revenueMini = useMemo(() => {
-    const buckets = new Map<string, number>();
-    const now = new Date();
-    const months: { key: string; label: string }[] = [];
-    for (let i = 4; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      months.push({ key, label: MONTH_LABELS_PT[d.getMonth()] });
-      buckets.set(key, 0);
-    }
-    for (const o of orders) {
-      if (!["paid", "approved", "completed"].includes(o.status)) continue;
-      const d = new Date(o.created_at);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + (o.total ?? 0));
-    }
-    return months.map((m) => ({ m: m.label, v: buckets.get(m.key) ?? 0 }));
-  }, [orders]);
-
-  const periodMap: Record<string, "daily" | "weekly" | "monthly"> = {
-    "Diário": "daily",
-    "Semanal": "weekly",
-    "Mensal": "monthly",
+type AtlasProductCardAction = {
+  type: "product_card";
+  product_id: string;
+  reason?: string;
+  product?: {
+    id?: string;
+    title?: string;
+    image_url?: string | null;
+    margin_percent?: number | null;
+    suggested_price?: number | null;
+    route?: string;
   };
-  // Both demo and real users use the same orders array from the hook —
-  // demo orders are synthetic but distributed correctly for period filtering
-  const analyticsData = getSalesAnalytics(periodMap[period] ?? "weekly", orders);
-  const chartData = analyticsData.labels.map((label, i) => ({
-    d: label,
-    v: analyticsData.current[i],
-    p: analyticsData.previous[i],
-  }));
-  const chartGrid = isDark ? "#313131" : "#F5F5F5";
-  const chartTick = isDark ? "#A1A1AA" : "#C0C0C0";
-  const miniBarActive = isDark ? "#FFFFFF" : "#0A0A0A";
-  const miniBarInactive = isDark ? "#52525B" : "#E5E5E5";
+};
 
-  const hasPublications = !!publications && publications.length > 0;
+type AtlasQuickReplyAction = {
+  type: "quick_reply";
+  label: string;
+  message: string;
+};
+
+type AtlasConnectMlAction = {
+  type: "connect_ml";
+  label: string;
+};
+
+type AtlasAction =
+  | AtlasNavigationAction
+  | AtlasProductCardAction
+  | AtlasQuickReplyAction
+  | AtlasConnectMlAction;
+
+type AtlasMessageData = {
+  actions?: AtlasAction[];
+};
+
+type OnboardingStatus = {
+  mlConnected: boolean;
+  hasPublication: boolean;
+};
+
+const IMAGE_WIDTH = 1536;
+const CONTENT_SLICE_TOP = 300;
+const CONTENT_OFFSET = 100;
+const HERO_OFFSET = 45;
+const CHAT_SUGGESTIONS = [
+  "Crie um anúncio de produto",
+  "Ajude-me a encontrar produtos",
+  "Ajude-me a começar",
+  "Gere imagens para um produto",
+  "Escreva uma descrição de produto",
+  "Ajude-me a encontrar uma ideia de negócio",
+];
+const CHAT_PROMPT_SUGGESTIONS = [
+  "Ajude-me a começar",
+  "Encontre produtos vencedores",
+  "Crie um anúncio para meu produto",
+  "Gere imagens para meu produto",
+  "Escreva uma descrição persuasiva",
+  "Me dê uma ideia de negócio",
+];
+
+const TUTORIAL_INICIO = {
+  src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
+  aspectPadding: "62.5%",
+  title: "Tutorial de início",
+  description: "Veja como dar os primeiros passos na Velo.",
+} as const;
+
+// Coreografia da introdução, em segundos. Os blocos entram enquanto o título ainda
+// está subindo: a sobreposição é o que faz a sequência ler como um movimento só,
+// em vez de uma fila de elementos esperando a vez.
+const INTRO = {
+  // Desaceleração suave, sem a cauda longa do ease-out exponencial.
+  travelEase: [0.32, 0.72, 0, 1] as const,
+  revealEase: [0.22, 1, 0.36, 1] as const,
+  titleFade: 0.66,
+  titleTravelDelay: 0.56,
+  titleTravel: 1.05,
+  revealDuration: 0.9,
+  // O chat vem logo depois do título; o atalho do tutorial entra junto dos cards.
+  chatDelay: 1.28,
+  promoDelay: 1.5,
+  // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
+  // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
+  // em vez de quase juntas.
+  bandDuration: 1,
+  bandDelays: [1.4, 1.68, 1.96],
+};
+
+// Todo o layout desta tela é dimensionado em cqw (relativo à largura do
+// container), então sem um teto ele cresce junto com o monitor e no desktop
+// fica desproporcional. Travamos a largura do canvas: acima disso o conteúdo
+// para de inflar e apenas ganha margem lateral (do mesmo #F5F4F1 do fundo).
+// Abaixo desse valor o comportamento responsivo continua exatamente o mesmo.
+// Este é o único número a mexer para calibrar a escala geral da página.
+const MAX_CANVAS_WIDTH = 1280;
+
+const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
+const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
+const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
+
+const AssistantAvatar = () => (
+  <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
+);
+
+const AnimatedPromptText = ({
+  text,
+  reduceMotion,
+}: {
+  text: string;
+  reduceMotion: boolean;
+}) => {
+  const containerVariants = reduceMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+      }
+    : {
+        hidden: {
+          opacity: 1,
+          transition: { staggerChildren: 0.008, staggerDirection: -1 },
+        },
+        visible: {
+          opacity: 1,
+          transition: { staggerChildren: 0.012 },
+        },
+      };
+  const letterVariants = reduceMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+      }
+    : {
+        hidden: { opacity: 0, filter: "blur(5px)" },
+        visible: { opacity: 1, filter: "blur(0px)" },
+      };
 
   return (
-    <div className="space-y-5">
+    <motion.span
+      aria-hidden="true"
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      variants={containerVariants}
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        color: "rgba(0,0,0,0.56)",
+        fontSize: fs(18),
+        fontWeight: 400,
+        lineHeight: 1,
+        overflow: "hidden",
+        pointerEvents: "none",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        willChange: "opacity, filter",
+      }}
+    >
+      {Array.from(text).map((letter, index) => (
+        <motion.span
+          key={`${text}-${index}`}
+          variants={letterVariants}
+          transition={{
+            duration: reduceMotion ? 0.14 : 0.22,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          style={{ display: "inline-block", whiteSpace: letter === " " ? "pre" : "normal" }}
+        >
+          {letter}
+        </motion.span>
+      ))}
+    </motion.span>
+  );
+};
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div>
-        <h1 className="text-[22px] font-black tracking-tight text-[#0A0A0A] dark:text-white">Dashboard</h1>
-        <p className="mt-0.5 text-[13px] text-[#A3A3A3] dark:text-zinc-400">Visão geral da sua operação.</p>
-      </div>
+const isAtlasAction = (action: unknown): action is AtlasAction => {
+  if (!action || typeof action !== "object") return false;
+  const candidate = action as Record<string, unknown>;
+  if (candidate.type === "navigation") {
+    return typeof candidate.label === "string" && typeof candidate.route === "string";
+  }
+  if (candidate.type === "product_card") {
+    return typeof candidate.product_id === "string";
+  }
+  if (candidate.type === "quick_reply") {
+    return typeof candidate.label === "string" && typeof candidate.message === "string";
+  }
+  if (candidate.type === "connect_ml") {
+    return typeof candidate.label === "string";
+  }
+  return false;
+};
 
-      {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-3">
+const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isAtlasAction).slice(0, 12);
+};
 
-        {/* Receita — mini bar chart */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-center justify-between">
-            <p className="text-[14px] font-semibold text-[#0A0A0A] dark:text-white">Receita</p>
-            <Link to="/dashboard/relatorios" className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F5F5F5] text-[#737373] transition hover:bg-[#EBEBEB] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-              <ChevronRight size={13} />
-            </Link>
-          </div>
+const DashboardHomePage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const {
+    enviar: enviarParaAtlas,
+    mensagens: chatMessages,
+    threadId,
+    abrirConversa,
+    aoApagarConversa,
+  } = useAtlasChat();
+  const reduceMotion = useReducedMotion();
+  const introDecisionMade = useRef<string | null>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const welcomeChatRef = useRef<HTMLDivElement>(null);
+  const historyMenuRef = useRef<HTMLDivElement>(null);
+  const suggestionListRef = useRef<HTMLDivElement>(null);
+  const conversationScrollRef = useRef<HTMLDivElement>(null);
+  // "waiting": o onboarding está na frente da home. A intro fica guardada para
+  // tocar quando ele fecha — antes ela rodava escondida atrás do modal e a pessoa
+  // caía numa tela já parada.
+  const [introState, setIntroState] = useState<"pending" | "waiting" | "play" | "done">("pending");
+  const [chatActive, setChatActive] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
-          <div className="mt-3 flex items-end gap-5">
-            {/* Value + label */}
-            <div className="shrink-0">
-              <p className="text-[11px] font-medium text-[#A3A3A3] dark:text-zinc-400" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                <span className="text-[#A3A3A3] dark:text-zinc-400">$</span>
-              </p>
-              {loadingStats
-                ? <div className="mt-1 h-9 w-32 animate-pulse rounded-lg bg-[#F0F0F0]" />
-                : <p className="text-[38px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                    {fmt(revenue)}
-                  </p>}
-              <p className="mt-1.5 max-w-[150px] text-[11px] leading-[1.4] text-[#A3A3A3] dark:text-zinc-400">
-                Receita total acumulada das suas vendas
-              </p>
-            </div>
+  /**
+   * Existe conversa anterior para mostrar no histórico?
+   *
+   * A contagem é de mensagens, não de threads, de propósito: abrir o chat em
+   * tela cheia cria uma thread vazia, e uma lista só de "Nova conversa" não é
+   * histórico nenhum. Se a pessoa já escreveu alguma coisa, aí sim tem o que
+   * reabrir. Só consulta quando o chat abre — antes disso o botão nem existe.
+   */
+  const { data: temHistorico = false } = useQuery({
+    queryKey: ["atlas-tem-historico", user?.id],
+    enabled: Boolean(user?.id) && chatActive,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("atlas_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user!.id);
+      if (error) throw new Error(error.message);
+      return (count ?? 0) > 0;
+    },
+  });
+  const [conectandoMl, setConectandoMl] = useState(false);
+  
+  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
+  // Inicia o OAuth do Mercado Livre a partir do próprio chat. O helper só
+  // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
+  // função não consegue mandar o usuário para outro domínio.
+  const conectarMercadoLivre = async () => {
+    if (conectandoMl) return;
+    setConectandoMl(true);
+    try {
+      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
+      await startMercadoLivreOAuth({ novaAba: true });
+      setConectandoMl(false);
+    } catch (erro) {
+      setConectandoMl(false);
+      veloToast.error(erro instanceof Error ? erro.message : "Não foi possível abrir a conexão com o Mercado Livre");
+    }
+  };
 
-            {/* Mini bar chart */}
-            <div className="flex-1">
-              <ResponsiveContainer width="100%" height={72}>
-                <BarChart data={revenueMini} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barSize={16} barCategoryGap="30%">
-                  <Bar dataKey="v" radius={[5, 5, 0, 0]} isAnimationActive={false}>
-                    {revenueMini.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={i === revenueMini.length - 1 ? miniBarActive : miniBarInactive}
-                      />
-                    ))}
-                  </Bar>
-                  <XAxis
-                    dataKey="m"
-                    tick={{ fontSize: 10, fill: chartTick }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
+  const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
+  const [promptSuggestionIndex, setPromptSuggestionIndex] = useState(0);
 
-        {/* Total Produtos */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-start justify-between">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0A0A]">
-              <Package size={18} className="text-white" strokeWidth={1.75} />
+  useLayoutEffect(() => {
+    const userId = user?.id;
+    if (!userId || introDecisionMade.current === userId) return;
+
+    // Decidido uma vez por montagem/usuário: navegar dentro do app e voltar para a
+    // home não repete a introdução, mas recarregar o site ou reentrar na conta sim.
+    introDecisionMade.current = userId;
+
+    if (user && shouldShowOnboarding(user)) {
+      setIntroState("waiting");
+      return;
+    }
+
+    const shouldPlay = !reduceMotion && !hasPlayedDashboardIntro(userId);
+    if (shouldPlay) markDashboardIntroAsPlayed(userId);
+
+    setIntroState(shouldPlay ? "play" : "done");
+  }, [reduceMotion, user]);
+
+  useEffect(() => {
+    if (introState !== "waiting" || !user?.id) return;
+    const userId = user.id;
+    let timer: number | undefined;
+    const aoConcluirOnboarding = () => {
+      // Espera o modal começar a desbotar para a home entrar por baixo dele.
+      timer = window.setTimeout(() => {
+        markDashboardIntroAsPlayed(userId);
+        setIntroState(reduceMotion ? "done" : "play");
+      }, reduceMotion ? 0 : ENTRADA_POS_ONBOARDING.homeStart * 1000);
+    };
+    window.addEventListener(ONBOARDING_COMPLETED_EVENT, aoConcluirOnboarding);
+    return () => {
+      window.removeEventListener(ONBOARDING_COMPLETED_EVENT, aoConcluirOnboarding);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [introState, reduceMotion, user?.id]);
+
+  useEffect(() => {
+    if (!chatActive) return;
+
+    const focusTimer = window.setTimeout(() => chatInputRef.current?.focus(), reduceMotion ? 0 : 180);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && chatMessages.length === 0) {
+        setChatActive(false);
+        setChatInput("");
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [chatActive, chatMessages.length, reduceMotion]);
+
+  useEffect(() => {
+    if (!chatActive || chatMessages.length > 0) return;
+
+    const closeWelcomeChat = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (
+        welcomeChatRef.current?.contains(target) ||
+        historyMenuRef.current?.contains(target) ||
+        suggestionListRef.current?.contains(target)
+      ) return;
+
+      setChatActive(false);
+      setChatInput("");
+      setHoveredSuggestion(null);
+      chatInputRef.current?.blur();
+    };
+
+    window.addEventListener("pointerdown", closeWelcomeChat);
+    return () => window.removeEventListener("pointerdown", closeWelcomeChat);
+  }, [chatActive, chatMessages.length]);
+
+  useEffect(() => {
+    if (chatActive || chatInput.trim()) return;
+
+    const suggestionTimer = window.setInterval(() => {
+      setPromptSuggestionIndex((current) => (current + 1) % CHAT_PROMPT_SUGGESTIONS.length);
+    }, 2600);
+
+    return () => window.clearInterval(suggestionTimer);
+  }, [chatActive, chatInput]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setOnboardingStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOnboardingStatus = async () => {
+      const [integrationResult, publicationsResult] = await Promise.all([
+        supabase
+          .from("user_integrations")
+          .select("id,access_token")
+          .eq("user_id", user.id)
+          .eq("platform", "mercadolivre")
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("user_publications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
+      ]);
+
+      if (cancelled) return;
+
+      if (integrationResult.error || publicationsResult.error) {
+        setOnboardingStatus(null);
+        return;
+      }
+
+      setOnboardingStatus({
+        mlConnected: Boolean(integrationResult.data?.access_token),
+        hasPublication: (publicationsResult.count ?? 0) > 0,
+      });
+    };
+
+    void loadOnboardingStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const scrollArea = conversationScrollRef.current;
+    if (!scrollArea) return;
+    if (scrollArea.scrollHeight <= scrollArea.clientHeight) return;
+
+    scrollArea.scrollTo({
+      top: scrollArea.scrollHeight,
+      behavior: "auto",
+    });
+  }, [chatMessages.length]);
+
+  const playIntro = introState === "play";
+  const introTitleOffset = typeof window === "undefined"
+    ? 240
+    : Math.max(190, Math.min(window.innerHeight * 0.3, 300));
+  // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
+  const revealProps = (delay: number, distance = 12) => playIntro
+    ? {
+        initial: { opacity: 0, y: distance, filter: "blur(4px)" },
+        animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+        transition: { delay, duration: INTRO.revealDuration, ease: INTRO.revealEase },
+      }
+    : {
+        // Sem introdução não há blur a desfazer — evita criar camada de composição à toa.
+        initial: false as const,
+        animate: { opacity: 1, y: 0 },
+      };
+
+  const go = (path: string) => () => navigate(path);
+  const onboardingProgress = onboardingStatus
+    ? Math.round(
+        ([onboardingStatus.mlConnected, onboardingStatus.hasPublication].filter(Boolean).length / 2) * 100,
+      )
+    : null;
+  const nextStepCopy = !onboardingStatus
+    ? "Consulte suas integrações e continue a configuração da sua conta."
+    : !onboardingStatus.mlConnected
+      ? "Conecte o Mercado Livre para publicar produtos e receber seus pedidos na Velo."
+      : !onboardingStatus.hasPublication
+        ? "Sua conta está conectada. Agora escolha um produto e faça a primeira publicação."
+        : "Tudo pronto: acompanhe seus anúncios publicados e continue expandindo o catálogo.";
+  const nextStepLabel = !onboardingStatus
+    ? "Ver integrações"
+    : !onboardingStatus.mlConnected
+      ? "Conectar agora"
+      : !onboardingStatus.hasPublication
+        ? "Escolher produto"
+        : "Ver publicações";
+  const handleNextStep = () => {
+    if (!onboardingStatus) {
+      // Este passo é sobre o Mercado Livre, que mora nas configurações —
+      // /dashboard/integracoes é a tela de lojas Shopify.
+      navigate("/dashboard/configuracoes?tab=Integrações");
+      return;
+    }
+    if (!onboardingStatus.mlConnected) {
+      void conectarMercadoLivre();
+      return;
+    }
+    navigate(onboardingStatus.hasPublication ? "/dashboard/publicacoes" : "/dashboard/catalogo");
+  };
+  // Toda a conversa (mensagens, ações, envio) vive no AtlasChatProvider e é
+  // desenhada pelo AtlasDockPanel. Aqui sobrou só disparar a primeira mensagem.
+  const handleChatSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!chatActive) {
+      setChatActive(true);
+      return;
+    }
+    const texto = chatInput.trim();
+    if (!texto) return;
+    setChatInput("");
+    void enviarParaAtlas(texto);
+  };
+
+  const textStyle = (
+    left: number,
+    top: number,
+    size: number,
+    width?: number,
+    extra?: CSSProperties,
+  ): CSSProperties => ({
+    position: "absolute",
+    left: x(left),
+    top: y(top),
+    width: width ? x(width) : undefined,
+    fontSize: fs(size),
+    ...extra,
+  });
+
+  const buttonStyle = (
+    left: number,
+    top: number,
+    width: number,
+    height: number,
+    size: number,
+    extra?: CSSProperties,
+  ): CSSProperties => ({
+    position: "absolute",
+    left: x(left),
+    top: y(top),
+    width: x(width),
+    height: y(height),
+    border: 0,
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: fs(size),
+    display: "flex",
+    alignItems: "center",
+    lineHeight: 1,
+    padding: 0,
+    ...extra,
+  });
+
+
+  if (introState === "pending" || introState === "waiting") {
+    return (
+      <main
+        aria-hidden="true"
+        className="shrink-0 bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      />
+    );
+  }
+
+  // A conversa não vive mais aqui: ela é renderizada pelo AtlasDockPanel, que
+  // fica no layout e por isso sobrevive à navegação. Esta página cuida só da
+  // tela de boas-vindas e de disparar a primeira mensagem.
+
+  return (
+    <main
+      className="shrink-0 overflow-auto bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+    >
+      <div
+        className="relative mx-auto w-full text-[#101114]"
+        style={{ containerType: "inline-size", maxWidth: MAX_CANVAS_WIDTH }}
+      >
+        <img
+          src={dashboardHomeBase}
+          alt="Tela inicial da Velo"
+          className="block h-auto w-full select-none"
+          draggable={false}
+        />
+        <div aria-hidden="true" style={{ height: y(CONTENT_OFFSET) }} />
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: `${y(CONTENT_SLICE_TOP)} 0 0`,
+            background: "#F5F4F1",
+          }}
+        />
+        <img
+          aria-hidden="true"
+          src={dashboardHomeBase}
+          alt=""
+          className="pointer-events-none absolute left-0 w-full select-none"
+          style={{
+            top: y(CONTENT_OFFSET),
+            clipPath: `inset(${(CONTENT_SLICE_TOP / 1024) * 100}% 0 0 0)`,
+          }}
+          draggable={false}
+        />
+
+        <div className="absolute inset-0 font-sans">
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              bottom: "auto",
+              height: y(320),
+              background: "#F5F4F1",
+            }}
+          />
+
+          <motion.div
+            {...revealProps(INTRO.promoDelay, -6)}
+            style={{
+              position: "absolute",
+              right: x(30),
+              top: y(20),
+              zIndex: 40,
+            }}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTutorialOpen(true)}
+              aria-label="Ver tutorial de início"
+              className="gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
+              style={{
+                height: y(56),
+                minHeight: 40,
+                borderRadius: fs(18),
+                paddingLeft: fs(15),
+                paddingRight: fs(17),
+                fontSize: fs(11.8),
+              }}
+            >
+              <PlayCircle aria-hidden="true" style={{ width: fs(17), height: fs(17) }} />
+              Ver tutorial
+            </Button>
+          </motion.div>
+
+          {/* Histórico das conversas, espelhando o bloco de suporte do canto
+              oposto. Só aparece com o chat aberto e com conversa anterior de
+              verdade: num primeiro acesso o botão abriria uma lista vazia. */}
+          <AnimatePresence>
+            {chatActive && temHistorico && (
+              <motion.div
+                ref={historyMenuRef}
+                key="atalho-historico"
+                initial={reduceMotion ? false : { opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  position: "absolute",
+                  left: x(30),
+                  top: y(20),
+                  zIndex: 40,
+                }}
+              >
+                <AtlasHistoryMenu
+                  userId={user?.id}
+                  activeThreadId={threadId}
+                  onSelectThread={abrirConversa}
+                  onThreadDeleted={aoApagarConversa}
+                   triggerLabel="Suas conversas"
+                   triggerStyle={{
+                     height: y(56),
+                     minHeight: 40,
+                     borderRadius: fs(18),
+                     border: "1px solid rgba(17, 24, 39, 0.09)",
+                     background: "rgba(255, 255, 255, 0.97)",
+                     boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
+                     color: "#101114",
+                     fontSize: fs(11.8),
+                   }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.h1
+            initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            // Transições por propriedade em vez de keyframes com `times`: o título
+            // aparece parado, depois sobe. Separar as curvas evita a pausa morta e a
+            // frenagem arrastada que a sequência única produzia.
+            transition={playIntro
+              ? {
+                  opacity: { duration: INTRO.titleFade, ease: "easeOut" },
+                  scale: { duration: INTRO.titleFade, ease: INTRO.travelEase },
+                  y: {
+                    delay: INTRO.titleTravelDelay,
+                    duration: INTRO.titleTravel,
+                    ease: INTRO.travelEase,
+                  },
+                }
+              : { duration: 0 }}
+            style={{
+              position: "absolute",
+              zIndex: 30,
+              left: "50%",
+              top: y(128 + HERO_OFFSET),
+              width: x(900),
+              x: "-50%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: fs(6),
+              margin: 0,
+              lineHeight: 1.04,
+              letterSpacing: 0,
+              textAlign: "center",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ color: "#666666", fontSize: fs(31), fontWeight: 600 }}>
+              Bem-vindo à Velo!
             </span>
-          </div>
-          <p className="mt-3 text-[13px] font-medium text-[#737373] dark:text-zinc-400" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-            Total de Produtos
-          </p>
-          {loadingStats
-            ? <div className="mt-2 h-10 w-24 animate-pulse rounded-lg bg-[#F0F0F0] dark:bg-zinc-800" />
-            : <p className="mt-2 text-[40px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                {totalPubs.toLocaleString("pt-BR")}
-              </p>}
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-0.5 text-[12px] font-bold text-emerald-500">
-              <ArrowUpRight size={13} strokeWidth={2.5} />
-              publicados
+            <span style={{ color: "#303030", fontSize: fs(34), fontWeight: 600 }}>
+              Por onde você quer começar?
             </span>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500">
-              ativos agora
-            </span>
-          </div>
-        </div>
+          </motion.h1>
 
-        {/* Total Pedidos */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex items-start justify-between">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0A0A0A]">
-              <ShoppingCart size={18} className="text-white" strokeWidth={1.75} />
-            </span>
-          </div>
-          <p className="mt-3 text-[13px] font-medium text-[#737373] dark:text-zinc-400" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-            Total de Pedidos
-          </p>
-          {loadingStats
-            ? <div className="mt-2 h-10 w-24 animate-pulse rounded-lg bg-[#F0F0F0] dark:bg-zinc-800" />
-            : <p className="mt-2 text-[40px] font-light leading-none tracking-tight text-[#0A0A0A] dark:text-white" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-                {totalOrders.toLocaleString("pt-BR")}
-              </p>}
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-0.5 text-[12px] font-bold text-[#0A0A0A] dark:text-white">
-              <ShoppingCart size={11} strokeWidth={2.5} />
-              total
-            </span>
-            <span className="text-[11px] font-medium uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500">
-              acumulado
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Middle row ─────────────────────────────────────────────────────── */}
-      <div className={`grid gap-4 ${hasPublications || loadingPubs ? "lg:grid-cols-[300px_1fr]" : "lg:grid-cols-1"}`}>
-
-        {/* Published products — only render when there are real publications */}
-        {(loadingPubs || hasPublications) && (
-        <div className="flex flex-col rounded-2xl border border-[#E5E5E5] bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-5">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0A0A0A] dark:bg-white">
-                <Package size={17} className="text-white dark:text-[#0A0A0A]" strokeWidth={2.2} />
+          <motion.div
+            {...revealProps(INTRO.chatDelay, 14)}
+            ref={welcomeChatRef}
+            data-dashboard-tour="home-atlas-chat"
+            role="search"
+            aria-label="Assistente Atlas"
+            aria-expanded={chatActive}
+            onClick={() => setChatActive(true)}
+            style={{
+              position: "absolute",
+              zIndex: 32,
+              left: "50%",
+              top: y(238 + HERO_OFFSET),
+              width: x(948),
+              height: y(60),
+              x: "-50%",
+              borderRadius: 999,
+              border: chatActive
+                ? "1px solid rgba(106, 124, 190, 0.18)"
+                : "1px solid rgba(17, 24, 39, 0.09)",
+              background: "#FFFFFF",
+              boxShadow: chatActive
+                ? "-14px 0 34px rgba(97, 169, 255, 0.07), 14px 0 34px rgba(255, 174, 116, 0.06), 0 8px 22px rgba(45, 55, 85, 0.08), 0 1px 4px rgba(15, 23, 42, 0.05)"
+                : "0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 18px rgba(15, 23, 42, 0.035)",
+              display: "flex",
+              alignItems: "center",
+              padding: `0 ${x(14)} 0 ${x(22)}`,
+              transition: "border-color 520ms ease, box-shadow 620ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+          >
+            <form
+              onSubmit={handleChatSubmit}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: fs(40),
+                  height: fs(40),
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: "0 0 auto",
+                  marginRight: fs(15),
+                }}
+              >
+                <AssistantAvatar />
               </span>
-              <div className="min-w-0">
-                <p className="text-[15px] font-bold leading-tight text-[#0A0A0A] dark:text-white">Publicações ativas</p>
-                <p className="mt-0.5 text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">
-                  {loadingStats ? "Carregando anúncios" : `${totalPubs.toLocaleString("pt-BR")} anúncios em acompanhamento`}
+              <span
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  flex: 1,
+                  minWidth: 0,
+                  height: "100%",
+                }}
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  {!chatActive && !chatInput.trim() && (
+                    <AnimatedPromptText
+                      key={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
+                      text={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
+                      reduceMotion={Boolean(reduceMotion)}
+                    />
+                  )}
+                </AnimatePresence>
+                <input
+                  ref={chatInputRef}
+                  value={chatInput}
+                  onFocus={() => setChatActive(true)}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  aria-label="Mensagem para o Atlas"
+                  placeholder={chatActive ? "Pergunte qualquer coisa..." : ""}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    border: 0,
+                    outline: 0,
+                    background: "transparent",
+                    color: "rgba(0,0,0,0.72)",
+                    caretColor: "#2563EB",
+                    fontSize: fs(18),
+                    fontWeight: 400,
+                    lineHeight: 1,
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                />
+              </span>
+            </form>
+            <button
+              type="button"
+              aria-label="Escolher produto"
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate("/dashboard/catalogo");
+              }}
+              style={{
+                border: 0,
+                background: "transparent",
+                color: "rgba(0,0,0,0.70)",
+                cursor: "pointer",
+                width: fs(38),
+                height: fs(38),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: fs(5),
+                padding: 0,
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
+                <path d="M12 4.5v15M4.5 12h15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label="Enviar"
+              disabled={chatActive && !chatInput.trim()}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!chatActive) {
+                  setChatActive(true);
+                  return;
+                }
+                void enviarParaAtlas(chatInput);
+              }}
+              style={{
+                border: 0,
+                borderRadius: "50%",
+                color: chatActive && chatInput.trim() ? "#FFFFFF" : "rgba(0,0,0,0.16)",
+                cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
+                background: chatActive && chatInput.trim() ? "#2563EB" : "#F0F0F0",
+                width: fs(40),
+                height: fs(40),
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                transition: "color 180ms ease, background-color 180ms ease, transform 180ms ease",
+              }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
+                <path d="M12 19V5M6.7 10.3 12 5l5.3 5.3" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </motion.div>
+
+          <motion.div
+            aria-hidden={chatActive}
+            initial={false}
+            animate={chatActive
+              ? { opacity: 0, y: reduceMotion ? 0 : 22, scale: reduceMotion ? 1 : 0.992, filter: "blur(7px)" }
+              : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+            transition={{ duration: reduceMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: y(CONTENT_OFFSET),
+              bottom: 0,
+              pointerEvents: chatActive ? "none" : "auto",
+            }}
+          >
+          <span style={textStyle(117, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>01</span>
+          <h2 style={textStyle(111, 384, 22, 260, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>
+            Adicione seu primeiro
+            <br />
+            produto
+          </h2>
+          <p style={textStyle(111, 460, 12.4, 276, { color: "rgba(0,0,0,0.62)", lineHeight: 1.42 })}>
+            Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
+          </p>
+          <button
+            type="button"
+            onClick={go("/dashboard/catalogo")}
+            className="group transition-[transform,filter,box-shadow] duration-200 ease-out hover:-translate-y-px hover:brightness-110 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/45 focus-visible:ring-offset-2"
+            style={buttonStyle(116, 541, 170, 47, 13.4, {
+              ...getPremiumActionButtonStyle(),
+              borderRadius: fs(11),
+              fontWeight: 800,
+              justifyContent: "space-between",
+              paddingLeft: fs(18),
+              paddingRight: fs(16),
+              textAlign: "left",
+            })}
+          >
+            <span>Adicionar produto</span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              style={{ width: fs(22), height: fs(22), flex: "0 0 auto" }}
+            >
+              <path
+                d="M5 12h13M13 7l5 5-5 5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {/* O "+" sobre a foto do produto é desenho da imagem de fundo, não um
+              elemento real — clicar nele não fazia nada. Este botão transparente
+              fica exatamente por cima e leva ao mesmo destino do "Adicionar
+              produto", que é o que a pessoa espera ao tocar num "+". */}
+          <button
+            type="button"
+            onClick={go("/dashboard/catalogo")}
+            aria-label="Adicionar produto"
+            title="Adicionar produto"
+            className="rounded-[18%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(10,10,10,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
+            style={buttonStyle(500, 520, 80, 79, 0, { background: "transparent" })}
+          />
+
+          {/* Alvo do tour do Atlas: moldura invisível sobre os dois cards de
+              primeiros passos, que são desenho da imagem de fundo. */}
+          <div
+            aria-hidden="true"
+            data-dashboard-tour="home-primeiros-passos"
+            style={{ position: "absolute", left: x(84), top: y(318), width: x(1372), height: y(312), pointerEvents: "none" }}
+          />
+
+          <span style={textStyle(813, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>02</span>
+          <h2 style={textStyle(806, 384, 22, 245, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>
+            Escolha o visual
+            <br />
+            da sua loja
+          </h2>
+          <p style={textStyle(806, 460, 12.4, 270, { color: "rgba(0,0,0,0.62)", lineHeight: 1.42 })}>
+            Selecione um template profissional e personalize para refletir a sua marca.
+          </p>
+          <button
+            type="button"
+            onClick={go("/dashboard/modelos")}
+            style={buttonStyle(806, 541, 132, 47, 13.4, {
+              color: "#101114",
+              fontWeight: 800,
+              paddingLeft: x(14),
+              textAlign: "left",
+            })}
+          >
+            Ver temas
+          </button>
+
+          <section
+            aria-labelledby="affiliate-card-title"
+            style={{
+              position: "absolute",
+              left: x(84),
+              top: y(649),
+              width: x(460),
+              height: y(246),
+              zIndex: 2,
+              boxSizing: "border-box",
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) 39%",
+              gap: fs(18),
+              overflow: "hidden",
+              padding: fs(20),
+              border: "1px solid rgba(35, 31, 45, 0.09)",
+              borderRadius: fs(24),
+              background: "linear-gradient(145deg, #FFFFFF 0%, #FDFCFF 55%, #F7F4FF 100%)",
+              boxShadow: "0 12px 28px rgba(31, 24, 48, 0.055), inset 0 1px 0 rgba(255,255,255,0.92)",
+            }}
+          >
+            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: fs(43),
+                  height: fs(43),
+                  flex: "0 0 auto",
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: fs(13),
+                  color: "#FFFFFF",
+                  background: "linear-gradient(145deg, #6D5AEF 0%, #4736C7 100%)",
+                  boxShadow: "0 8px 18px rgba(79, 61, 201, 0.24), inset 0 1px 0 rgba(255,255,255,0.28)",
+                }}
+              >
+                <BadgePercent size={fs(22)} strokeWidth={1.9} />
+              </span>
+
+              <h3
+                id="affiliate-card-title"
+                style={{
+                  margin: `${fs(17)} 0 0`,
+                  color: "#111114",
+                  fontSize: fs(20.5),
+                  fontWeight: 820,
+                  lineHeight: 1.12,
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                Programa de afiliados
+              </h3>
+              <p
+                style={{
+                  margin: `${fs(9)} 0 0`,
+                  maxWidth: fs(230),
+                  color: "rgba(17,17,20,0.62)",
+                  fontSize: fs(12.7),
+                  fontWeight: 500,
+                  lineHeight: 1.42,
+                }}
+              >
+                Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.
+              </p>
+
+              <button
+                type="button"
+                onClick={go("/dashboard/comissoes")}
+                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
+                style={{
+                  width: fs(177),
+                  height: fs(40),
+                  marginTop: "auto",
+                  flex: "0 0 auto",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
+                  border: "1px solid #DDDDD9",
+                  borderRadius: fs(11),
+                  background: "rgba(255,255,255,0.96)",
+                  color: "#171719",
+                  cursor: "pointer",
+                  fontSize: fs(12.3),
+                  fontWeight: 780,
+                  letterSpacing: "-0.015em",
+                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
+                }}
+              >
+                <span>Quero ser afiliado</span>
+                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div
+              style={{
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                padding: `${fs(17)} ${fs(15)}`,
+                border: "1px solid rgba(91, 71, 205, 0.11)",
+                borderRadius: fs(18),
+                background: "linear-gradient(155deg, rgba(239,235,255,0.92) 0%, rgba(250,249,255,0.96) 100%)",
+              }}
+            >
+              <span style={{ color: "#4B3AC1", fontSize: fs(10), fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                Primeira venda
+              </span>
+              <div style={{ marginTop: fs(5), display: "flex", alignItems: "baseline", gap: fs(4) }}>
+                <strong style={{ color: "#17131F", fontSize: fs(32), fontWeight: 850, lineHeight: 1, letterSpacing: "-0.055em" }}>30%</strong>
+                <span style={{ color: "rgba(23,19,31,0.5)", fontSize: fs(9.8), fontWeight: 650 }}>de comissão</span>
+              </div>
+              <div style={{ height: 1, margin: `${fs(14)} 0 ${fs(12)}`, background: "rgba(75,58,193,0.12)" }} />
+              {["Por novo cliente", "Ganhos acompanhados"].map((benefit) => (
+                <span
+                  key={benefit}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: fs(7),
+                    marginBottom: fs(10),
+                    color: "rgba(23,19,31,0.72)",
+                    fontSize: fs(10.4),
+                    fontWeight: 670,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: fs(17),
+                      height: fs(17),
+                      flex: "0 0 auto",
+                      display: "grid",
+                      placeItems: "center",
+                      borderRadius: "50%",
+                      background: "rgba(91,71,205,0.11)",
+                      color: "#5B47CD",
+                    }}
+                  >
+                    <Check size={fs(10.5)} strokeWidth={2.5} />
+                  </span>
+                  {benefit}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="ai-page-card-title"
+            style={{
+              position: "absolute",
+              left: x(560),
+              top: y(649),
+              width: x(432),
+              height: y(246),
+              zIndex: 2,
+              boxSizing: "border-box",
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) 42%",
+              gap: fs(16),
+              overflow: "hidden",
+              padding: fs(20),
+              border: "1px solid rgba(23, 60, 45, 0.09)",
+              borderRadius: fs(24),
+              background: "linear-gradient(145deg, #FFFFFF 0%, #FBFEFC 58%, #F0FAF4 100%)",
+              boxShadow: "0 12px 28px rgba(20, 55, 41, 0.05), inset 0 1px 0 rgba(255,255,255,0.92)",
+            }}
+          >
+            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: fs(43),
+                  height: fs(43),
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: fs(13),
+                  color: "#116149",
+                  background: "linear-gradient(145deg, #E4F8ED 0%, #D5F2E2 100%)",
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
+                }}
+              >
+                <LayoutTemplate size={fs(21)} strokeWidth={1.85} />
+              </span>
+              <h3
+                id="ai-page-card-title"
+                style={{
+                  margin: `${fs(17)} 0 0`,
+                  color: "#101613",
+                  fontSize: fs(19.2),
+                  fontWeight: 820,
+                  lineHeight: 1.12,
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                Página de vendas com IA
+              </h3>
+              <p style={{ margin: `${fs(9)} 0 0`, maxWidth: fs(205), color: "rgba(16,22,19,0.62)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.4 }}>
+                Crie uma página profissional para apresentar e vender seu produto.
+              </p>
+              <button
+                type="button"
+                onClick={go("/dashboard/paginas-com-ia/criar")}
+                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
+                style={{
+                  width: fs(143),
+                  height: fs(40),
+                  marginTop: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
+                  border: "1px solid #DDDDD9",
+                  borderRadius: fs(11),
+                  background: "rgba(255,255,255,0.96)",
+                  color: "#171719",
+                  cursor: "pointer",
+                  fontSize: fs(12.3),
+                  fontWeight: 780,
+                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
+                }}
+              >
+                <span>Criar página</span>
+                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+            </div>
+            <div
+              aria-hidden="true"
+              style={{
+                minWidth: 0,
+                alignSelf: "center",
+                padding: fs(13),
+                border: "1px solid rgba(27, 119, 85, 0.11)",
+                borderRadius: fs(17),
+                background: "rgba(255,255,255,0.86)",
+                boxShadow: "0 12px 24px rgba(20, 72, 51, 0.08)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: fs(8) }}>
+                <span style={{ display: "flex", alignItems: "center", gap: fs(6), color: "#143B2E", fontSize: fs(9.7), fontWeight: 800 }}>
+                  <Sparkles size={fs(12)} /> Velo IA
+                </span>
+                <span style={{ width: fs(7), height: fs(7), borderRadius: "50%", background: "#2CC68B", boxShadow: "0 0 0 3px rgba(44,198,139,0.12)" }} />
+              </div>
+              <div style={{ height: fs(7), marginTop: fs(15), borderRadius: 999, background: "#DDE7E1" }} />
+              <div style={{ width: "72%", height: fs(7), marginTop: fs(7), borderRadius: 999, background: "#EDF2EF" }} />
+              <div style={{ marginTop: fs(17), display: "flex", alignItems: "center", gap: fs(6), color: "#166747", fontSize: fs(9.7), fontWeight: 780 }}>
+                <span style={{ display: "grid", placeItems: "center", width: fs(17), height: fs(17), borderRadius: "50%", background: "#DCF7E9" }}>
+                  <Check size={fs(10)} strokeWidth={2.5} />
+                </span>
+                Pronta para publicar
+              </div>
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="ml-card-title"
+            style={{
+              position: "absolute",
+              left: x(1008),
+              top: y(649),
+              width: x(448),
+              height: y(246),
+              zIndex: 2,
+              boxSizing: "border-box",
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) 39%",
+              gap: fs(16),
+              overflow: "hidden",
+              padding: fs(20),
+              border: "1px solid rgba(44, 43, 29, 0.09)",
+              borderRadius: fs(24),
+              background: "linear-gradient(145deg, #FFFFFF 0%, #FFFEFA 58%, #FFFBE3 100%)",
+              boxShadow: "0 12px 28px rgba(62, 54, 15, 0.05), inset 0 1px 0 rgba(255,255,255,0.92)",
+            }}
+          >
+            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: fs(43),
+                  height: fs(43),
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: fs(13),
+                  background: "transparent",
+                }}
+              >
+                <img src={mercadoLivreLogo.url} alt="" style={{ width: fs(43), height: fs(35), objectFit: "contain" }} />
+              </span>
+              <h3
+                id="ml-card-title"
+                style={{
+                  margin: `${fs(17)} 0 0`,
+                  color: "#17170F",
+                  fontSize: fs(19.4),
+                  fontWeight: 820,
+                  lineHeight: 1.12,
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                Venda no Mercado Livre
+              </h3>
+              <p style={{ margin: `${fs(9)} 0 0`, maxWidth: fs(220), color: "rgba(23,23,15,0.62)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.4 }}>
+                Conecte sua conta, publique anúncios e acompanhe os pedidos.
+              </p>
+              <button
+                type="button"
+                // /dashboard/integracoes é a tela de lojas Shopify; a conta do
+                // Mercado Livre se gerencia na aba Integrações das configurações.
+                onClick={onboardingStatus?.mlConnected ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre}
+                disabled={conectandoMl}
+                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
+                style={{
+                  minWidth: fs(145),
+                  height: fs(40),
+                  marginTop: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: fs(10),
+                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
+                  border: "1px solid #DDDDD9",
+                  borderRadius: fs(11),
+                  background: "rgba(255,255,255,0.96)",
+                  color: "#171719",
+                  cursor: "pointer",
+                  fontSize: fs(11.9),
+                  fontWeight: 800,
+                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
+                }}
+              >
+                <span>{conectandoMl ? "Conectando…" : onboardingStatus?.mlConnected ? "Gerenciar conta" : "Conectar conta"}</span>
+                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
+              </button>
+            </div>
+            <div
+              style={{
+                minWidth: 0,
+                alignSelf: "center",
+                padding: fs(14),
+                border: "1px solid rgba(107, 97, 20, 0.11)",
+                borderRadius: fs(17),
+                background: "rgba(255,255,255,0.88)",
+                boxShadow: "0 12px 24px rgba(77, 68, 13, 0.07)",
+              }}
+            >
+              <span style={{ color: "rgba(23,23,15,0.5)", fontSize: fs(9.4), fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Integração
+              </span>
+              <div style={{ marginTop: fs(7), display: "flex", alignItems: "center", gap: fs(7) }}>
+                <span aria-hidden="true" style={{ width: fs(9), height: fs(9), borderRadius: "50%", background: onboardingStatus?.mlConnected ? "#20B875" : "#C9C6B2", boxShadow: onboardingStatus?.mlConnected ? "0 0 0 3px rgba(32,184,117,0.12)" : "none" }} />
+                <strong style={{ color: "#232316", fontSize: fs(11), fontWeight: 800 }}>
+                  {onboardingStatus?.mlConnected ? "Conta conectada" : "Pronta para conectar"}
+                </strong>
+              </div>
+              <div style={{ height: 1, margin: `${fs(13)} 0 ${fs(11)}`, background: "rgba(94,85,21,0.11)" }} />
+              {["Publicação simplificada", "Pedidos sincronizados"].map((benefit) => (
+                <span key={benefit} style={{ display: "flex", alignItems: "center", gap: fs(6), marginBottom: fs(9), color: "rgba(35,35,22,0.68)", fontSize: fs(9.3), fontWeight: 680, whiteSpace: "nowrap" }}>
+                  <Check size={fs(11)} strokeWidth={2.3} color="#8B7F00" />
+                  {benefit}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          <div
+            style={{
+              position: "absolute",
+              left: x(80),
+              top: y(920),
+              width: x(1376),
+              height: y(72),
+              border: "1px solid rgba(17,17,17,0.08)",
+              borderRadius: fs(18),
+              background: "rgba(255,255,255,0.98)",
+              boxShadow: "0 10px 30px rgba(26,26,26,0.045)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: fs(24),
+              boxSizing: "border-box",
+              padding: `0 ${fs(22)} 0 ${fs(26)}`,
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: fs(15), flex: "1 1 auto" }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: fs(35),
+                  height: fs(35),
+                  flex: "0 0 auto",
+                  borderRadius: fs(11),
+                  background: "#F4F1FF",
+                  color: "#351078",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <svg viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20) }}>
+                  <path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3Zm6.2 10.2.7 2.3 2.1 1-.1.1-2 1-.7 2.2-.7-2.2-2.1-1 2.1-1 .7-2.4Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ margin: 0, color: "#101114", fontSize: fs(15.5), fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
+                  Próximo passo
+                </h3>
+                <p style={{ margin: `${fs(5)} 0 0`, maxWidth: x(760), color: "rgba(0,0,0,0.56)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {nextStepCopy}
                 </p>
               </div>
             </div>
-            <Link
-              to="/dashboard/publicacoes"
-              aria-label="Ver publicações"
-              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F5F5F5] text-[#737373] transition hover:bg-[#EBEBEB] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 sm:flex"
-            >
-              <ChevronRight size={14} />
-            </Link>
-          </div>
 
-          <div className="flex-1 space-y-2">
-            {loadingPubs
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-2.5 dark:border-zinc-800 dark:bg-zinc-800/50">
-                    <Skeleton className="h-14 w-14 shrink-0 rounded-xl" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-5/6 rounded" />
-                      <Skeleton className="h-3 w-1/2 rounded" />
-                    </div>
-                  </div>
-                ))
-              : publications!.map((pub) => (
-                  <Link
-                    key={pub.id}
-                    to="/dashboard/publicacoes"
-                    className="group flex items-center gap-3 rounded-2xl border border-transparent bg-[#FAFAFA] p-2.5 transition hover:border-[#E5E5E5] hover:bg-white dark:bg-zinc-800/50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
-                  >
-                    <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-[#F0F0F0] bg-[#F7F7F7] dark:border-zinc-700 dark:bg-zinc-800">
-                      {pub.thumbnail
-                        ? <img src={pub.thumbnail} alt={pub.title} className="h-full w-full object-cover" loading="lazy" />
-                        : <Package size={17} className="m-auto text-[#C0C0C0] dark:text-zinc-500" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2 text-[13px] font-semibold leading-snug text-[#0A0A0A] dark:text-white">{pub.title}</p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                          ativo
-                        </span>
-                        <span className="text-[11.5px] font-semibold text-[#525252] dark:text-zinc-300">
-                          {pub.price != null ? fmt(pub.price) : "—"}
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronRight size={14} className="hidden shrink-0 text-[#D4D4D4] transition-colors group-hover:text-[#A3A3A3] sm:block" />
-                  </Link>
-                ))
-            }
-          </div>
+            <div style={{ display: "flex", alignItems: "center", gap: fs(15), flex: "0 0 auto" }}>
+              <button
+                type="button"
+                onClick={handleNextStep}
+                disabled={conectandoMl}
+                className="transition-[transform,background-color,box-shadow] duration-200 ease-out hover:-translate-y-px hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                style={{
+                  width: fs(164),
+                  height: fs(42),
+                  border: "1px solid rgba(17,17,17,0.1)",
+                  borderRadius: fs(12),
+                  background: "#FFFFFF",
+                  boxShadow: "0 4px 12px rgba(17,17,17,0.05)",
+                  color: "#101114",
+                  cursor: conectandoMl ? "wait" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: `0 ${fs(14)}`,
+                  fontSize: fs(12.5),
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {conectandoMl ? "Abrindo…" : nextStepLabel}
+              </button>
 
-          <Link
-            to="/dashboard/publicacoes"
-            className="mt-3 flex min-h-10 items-center justify-center gap-1 rounded-xl border border-[#F0F0F0] py-2.5 text-[12.5px] font-semibold text-[#737373] transition hover:border-[#D4D4D4] hover:text-[#0A0A0A] dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-700 dark:hover:text-white"
-          >
-            Ver publicações <ChevronRight size={12} />
-          </Link>
-        </div>
-        )}
-
-        {/* Sales vs Time */}
-        <div className="rounded-2xl border border-[#E5E5E5] bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Vendas ao longo do tempo</p>
-            {/* Text-only toggle — no pill container */}
-            <div className="flex items-center gap-5">
-              {(["Diário", "Semanal", "Mensal"] as Period[]).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={[
-                    "text-[13px] transition-all",
-                    period === p
-                      ? "font-bold text-[#0A0A0A] dark:text-white"
-                      : "font-medium text-[#B0B0B0] dark:text-zinc-500 hover:text-[#737373] dark:hover:text-zinc-300",
-                  ].join(" ")}
+              <div
+                aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
+                style={{
+                  width: fs(48),
+                  height: fs(48),
+                  borderRadius: "50%",
+                  padding: fs(3),
+                  boxSizing: "border-box",
+                  background: onboardingProgress === null
+                    ? "#ECECE8"
+                    : `conic-gradient(#351078 ${onboardingProgress}%, #ECECE8 0)`,
+                }}
+              >
+                <span
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: "50%",
+                    background: "#FFFFFF",
+                    color: "rgba(0,0,0,0.58)",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: fs(11.5),
+                    fontWeight: 800,
+                  }}
                 >
-                  {p}
-                </button>
-              ))}
+                  {onboardingProgress === null ? "—" : `${onboardingProgress}%`}
+                </span>
+              </div>
             </div>
           </div>
+          </motion.div>
 
-          {/* Legend */}
-          <div className="mb-4 flex items-center gap-5">
-            <span className="flex items-center gap-2 text-[11.5px] text-[#737373] dark:text-zinc-400">
-              <span className="inline-block h-[3px] w-6 rounded-full bg-indigo-500" />
-              Este período
-            </span>
-            <span className="flex items-center gap-2 text-[11.5px] text-[#737373] dark:text-zinc-400">
-              <span className="inline-block h-[3px] w-6 rounded-full bg-amber-400" />
-              Período anterior
-            </span>
-          </div>
-
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gCurrent" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"  stopColor="#6366F1" stopOpacity={0.22} />
-                  <stop offset="90%" stopColor="#6366F1" stopOpacity={0.03} />
-                </linearGradient>
-                <linearGradient id="gPrev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"  stopColor="#F59E0B" stopOpacity={0.15} />
-                  <stop offset="90%" stopColor="#F59E0B" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} vertical={false} />
-              <XAxis
-                dataKey="d"
-                tick={{ fontSize: 11, fill: chartTick }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: chartTick }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
-              />
-              <RTooltip content={<ChartTooltip />} cursor={false} />
-              {/* Dashed vertical reference line at current period */}
-              <ReferenceLine
-                x={period === "Diário" ? DAILY_REFLINE : period === "Semanal" ? WEEKLY_REFLINE : MONTHLY_REFLINE}
-                stroke={isDark ? "#FFFFFF" : "#0A0A0A"}
-                strokeDasharray="4 4"
-                strokeWidth={1.5}
-              />
-              {/* Previous period — amber line */}
-              <Area
-                type="monotone"
-                dataKey="p"
-                stroke="#F59E0B"
-                strokeWidth={2}
-                fill="url(#gPrev)"
-                dot={false}
-                activeDot={{ r: 5, fill: "#F59E0B", stroke: isDark ? "#111111" : "#fff", strokeWidth: 2 }}
-              />
-              {/* Current period — indigo line */}
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke="#6366F1"
-                strokeWidth={2.5}
-                fill="url(#gCurrent)"
-                dot={false}
-                activeDot={{ r: 5, fill: "#6366F1", stroke: isDark ? "#111111" : "#fff", strokeWidth: 2 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ── Recent orders ──────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-[#E5E5E5] bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center justify-between border-b border-[#F5F5F5] dark:border-zinc-800 px-5 py-4">
-          <p className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Pedidos Recentes</p>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] dark:border-zinc-700 dark:bg-zinc-800 p-0.5">
-              {(["Hoje", "Esta semana"] as OTab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setOrdersTab(t)}
-                  className={[
-                    "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all",
-                    ordersTab === t
-                      ? "bg-white text-[#0A0A0A] shadow-sm font-semibold dark:bg-zinc-700 dark:text-white"
-                      : "text-[#A3A3A3] dark:text-zinc-400 hover:text-[#525252] dark:hover:text-zinc-200",
-                  ].join(" ")}
+          <AnimatePresence>
+            {chatActive && (
+              <>
+                <motion.div
+                  aria-hidden="true"
+                  initial={reduceMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.48, ease: "easeOut" }}
+                  style={{
+                    position: "absolute",
+                    zIndex: 24,
+                    left: 0,
+                    right: 0,
+                    top: y(341 + HERO_OFFSET),
+                    bottom: 0,
+                    background: "#F5F4F1",
+                    pointerEvents: "none",
+                  }}
+                />
+                <motion.div
+                  ref={suggestionListRef}
+                  initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ delay: reduceMotion ? 0 : 0.22, duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+                  style={{
+                    position: "absolute",
+                    zIndex: 33,
+                    left: "50%",
+                    top: y(328 + HERO_OFFSET),
+                    width: x(900),
+                    x: "-50%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    paddingLeft: fs(10),
+                  }}
                 >
-                  {t}
-                </button>
-              ))}
-            </div>
-            <Link to="/dashboard/pedidos" className="rounded-xl border border-[#E5E5E5] dark:border-zinc-700 px-3 py-1.5 text-[12px] font-medium text-[#737373] dark:text-zinc-300 transition hover:border-[#D4D4D4] dark:hover:border-zinc-600 hover:text-[#0A0A0A] dark:hover:text-white">
-              Ver todos
-            </Link>
-          </div>
-        </div>
+                  {CHAT_SUGGESTIONS.map((suggestion, index) => (
+                    <motion.button
+                      key={suggestion}
+                      type="button"
+                      initial={reduceMotion ? false : { opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -6 }}
+                      transition={{
+                        delay: reduceMotion ? 0 : 0.3 + index * 0.075,
+                        duration: reduceMotion ? 0 : 0.42,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
+                      onClick={() => void enviarParaAtlas(suggestion)}
+                      onMouseEnter={() => setHoveredSuggestion(suggestion)}
+                      onMouseLeave={() => setHoveredSuggestion(null)}
+                      onFocus={() => setHoveredSuggestion(suggestion)}
+                      onBlur={() => setHoveredSuggestion(null)}
+                      className="focus-visible:outline-none"
+                      style={{
+                        height: y(60),
+                        border: 0,
+                        borderRadius: fs(12),
+                        background: hoveredSuggestion === suggestion ? "#ECECEB" : "transparent",
+                        color: hoveredSuggestion === suggestion ? "#343434" : "rgba(0,0,0,0.57)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: fs(18),
+                        padding: `0 ${fs(10)}`,
+                        fontSize: fs(18),
+                        fontWeight: 500,
+                        lineHeight: 1,
+                        textAlign: "left",
+                        transition: "background-color 180ms ease, color 180ms ease, transform 180ms ease",
+                      }}
+                      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+                    >
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        style={{
+                          width: fs(25),
+                          height: fs(25),
+                          flex: "0 0 auto",
+                          opacity: hoveredSuggestion === suggestion ? 0.9 : 0.55,
+                          transition: "opacity 150ms ease",
+                        }}
+                      >
+                        <path d="M4 12h14M13 7l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span>{suggestion}</span>
+                    </motion.button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px]" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-            <thead>
-              <tr className="border-b border-[#F5F5F5] dark:border-zinc-800">
-                {["ID do Pedido", "Cliente", "Produto", "Valor", "Horário", "Status", ""].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-widest text-[#C0C0C0] dark:text-zinc-500">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loadingRecent ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0">
-                    {Array.from({ length: 7 }).map((__, j) => (
-                      <td key={j} className="px-5 py-3.5">
-                        <Skeleton className="h-4 w-full max-w-[120px]" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : recentOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-[13px] text-[#A3A3A3] dark:text-zinc-500">
-                    Nenhum pedido {ordersTab === "Hoje" ? "hoje" : "nesta semana"}.
-                  </td>
-                </tr>
-              ) : (
-                recentOrders.map((order) => {
-                  const customer = order.buyer_name || "Cliente";
-                  const product  = order.product_title || "—";
-                  const amount   = Number(order.sale_price ?? 0);
-                  const when     = new Date(order.ordered_at || order.created_at);
-                  const time     = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                  const idShort  = (order.external_order_id || order.id).toString().slice(0, 8).toUpperCase();
-                  return (
-                    <tr key={order.id} className="group border-b border-[#F7F7F7] dark:border-zinc-800 last:border-0 transition-colors hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/50">
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-[12px] text-[#737373] dark:text-zinc-400">#{idShort}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <CustomerAvatar name={customer} />
-                          <span className="text-[13px] font-medium text-[#0A0A0A] dark:text-white">{customer}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-[13px] text-[#525252] dark:text-zinc-300 line-clamp-1">{product}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{fmt(amount)}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-[13px] text-[#A3A3A3] dark:text-zinc-400">{time}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_STYLE[order.status] || STATUS_STYLE.pending}`}>
-                          {STATUS_LABEL[order.status] || order.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Link to="/dashboard/pedidos" className="flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-                          <ChevronRight size={15} className="text-[#C0C0C0] dark:text-zinc-500" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+          {[
+            { top: CONTENT_SLICE_TOP + CONTENT_OFFSET, height: 350, delay: INTRO.bandDelays[0] },
+            { top: 750, height: 270, delay: INTRO.bandDelays[1] },
+            { top: 1020, height: 104, delay: INTRO.bandDelays[2] },
+          ].map((band) => (
+            <motion.div
+              key={band.top}
+              aria-hidden="true"
+              initial={playIntro ? { opacity: 1 } : false}
+              animate={{ opacity: 0 }}
+              transition={playIntro
+                ? { delay: band.delay, duration: INTRO.bandDuration, ease: INTRO.revealEase }
+                : { duration: 0 }}
+              style={{
+                position: "absolute",
+                zIndex: 20,
+                left: 0,
+                right: 0,
+                top: y(band.top),
+                height: y(band.height),
+                background: "#F5F4F1",
+                pointerEvents: "none",
+              }}
+            />
+          ))}
         </div>
       </div>
-    </div>
+      <VideoTutorialModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        title={TUTORIAL_INICIO.title}
+        description={TUTORIAL_INICIO.description}
+        src={TUTORIAL_INICIO.src}
+        aspectPadding={TUTORIAL_INICIO.aspectPadding}
+      />
+    </main>
   );
-}
+};
+
+// No celular a home volta ao estilo marketplace (busca, categorias e grade de
+// produtos), mais simples e direto do que o painel de onboarding do desktop.
+const DashboardHomeRoute = () => {
+  const isMobile = useIsMobile();
+
+  if (isMobile) return <MobileHome />;
+
+  return <DashboardHomePage />;
+};
+
+export default DashboardHomeRoute;

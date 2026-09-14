@@ -1,44 +1,170 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .velo-prime-button {
+    --prime-top: #7058ff;
+    --prime-mid: #5c3cff;
+    --prime-bottom: #4f2df3;
+    --prime-border: #4b2bec;
+    --prime-focus: rgba(90, 61, 255, 0.25);
+
+    display: inline-flex;
+    height: 2rem;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--prime-border);
+    border-radius: 9px;
+    padding: 0 20px 1px 13px;
+    background: linear-gradient(180deg, var(--prime-top) 0%, var(--prime-mid) 52%, var(--prime-bottom) 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.012em;
+    text-shadow: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.48),
+      inset 0 -1px 0 rgba(15, 23, 42, 0.22),
+      0 1px 0 rgba(15, 23, 42, 0.22);
+    transition:
+      filter 150ms ease,
+      transform 150ms ease;
+  }
+
+  .velo-prime-button:hover:not(:disabled) {
+    filter: brightness(1.03);
+  }
+
+  .velo-prime-button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .velo-prime-button:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.48),
+      inset 0 -1px 0 rgba(15, 23, 42, 0.22),
+      0 1px 0 rgba(15, 23, 42, 0.22),
+      0 0 0 3px var(--prime-focus);
+  }
+
+  .velo-prime-button--blue {
+    --prime-top: #4f86ff;
+    --prime-mid: #2563eb;
+    --prime-bottom: #1d4ed8;
+    --prime-border: #1d4ed8;
+    --prime-focus: rgba(37, 99, 235, 0.24);
+  }
+
+  .velo-selection-checkbox {
+    width: 1.5rem;
+    height: 1.5rem;
+    cursor: pointer;
+    appearance: none;
+    border: 1px solid #dde2ea;
+    border-radius: 6px;
+    background-color: #ffffff;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 14px 14px;
+    transition:
+      background-color 140ms ease,
+      border-color 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  .velo-selection-checkbox:hover {
+    border-color: #cbd3df;
+  }
+
+  .velo-selection-checkbox:checked {
+    border-color: #2563eb;
+    background-color: #2563eb;
+    background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 18 18' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 9.25L7.15 12.25L14 5.75' stroke='white' stroke-width='2.35' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  .velo-selection-checkbox:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+  }
+}
+
 @layer base {
+  /* Tipografia global (Hanken Grotesk) */
+  html,
+  body,
+  #root {
+    min-height: 100%;
+    background: #ffffff;
+    font-family: "Hanken Grotesk", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  *,
+  *::before,
+  *::after {
+    font-family: inherit;
+  }
+
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 4%;
+    /* Velo Dashboard palette (light) */
+    /* Main content panel */
+    --background: 40 11% 95%; /* #F3F2F0 */
+    --foreground: 0 0% 7%; /* #111111 */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    --card-foreground: 0 0% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
+    --popover-foreground: 0 0% 7%;
 
-    --primary: 0 0% 0%;
+    --primary: 0 0% 7%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 4%;
+    --secondary: 40 11% 95%; /* #F3F2F0 */
+    --secondary-foreground: 0 0% 7%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 42%;
+    --muted: 40 11% 95%; /* #F3F2F0 */
+    --muted-foreground: 0 0% 48%; /* #7a7a7a */
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 4%;
+    --accent: 40 11% 95%; /* hover */
+    --accent-foreground: 0 0% 7%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 91%;
+    --border: 0 0% 91%; /* #e7e7e7 */
     --input: 0 0% 91%;
-    --ring: 0 0% 0%;
+    --ring: 0 0% 7%;
 
-    --radius: 1.25rem;
+    /* Base radius (cards default to 24px) */
+    --radius: 1.5rem;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
     --success-light: 142 76% 95%;
+
+    --store-accent-color: 255 86% 52%;
+    --store-accent-foreground: 0 0% 100%;
+    --store-accent-soft: 252 100% 97%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
@@ -47,14 +173,15 @@
     --dark-medium: 0 0% 27%;
     --dark-muted: 0 0% 42%;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 4%;
-    --sidebar-primary: 0 0% 0%;
+    /* App shell (sidebar + top bar) */
+    --sidebar-background: 40 11% 95%; /* #F3F2F0 */
+    --sidebar-foreground: 0 0% 7%;
+    --sidebar-primary: 0 0% 7%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 0 0% 4%;
+    --sidebar-accent: 40 11% 95%; /* #F3F2F0 */
+    --sidebar-accent-foreground: 0 0% 7%;
     --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 0 0% 0%;
+    --sidebar-ring: 0 0% 7%;
   }
 
   .dark {
@@ -76,7 +203,7 @@
     --muted: 240 24% 18%;
     --muted-foreground: 223 19% 71%;
 
-    --accent: 253 90% 72%;
+    --accent: 217 91% 72%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84% 60%;
@@ -89,6 +216,10 @@
     --success: 164 79% 58%;
     --success-foreground: 236 36% 11%;
     --success-light: 164 68% 18%;
+
+    --store-accent-color: 253 90% 72%;
+    --store-accent-foreground: 236 36% 11%;
+    --store-accent-soft: 253 36% 18%;
 
     --warning: 43 98% 64%;
     --warning-foreground: 236 36% 11%;
@@ -109,7 +240,12 @@
 }
 
 @layer base {
-  * {
+  .border,
+  input,
+  textarea,
+  select,
+  kbd,
+  button[class*="border"] {
     @apply border-border;
   }
 
@@ -119,21 +255,80 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Manrope', system-ui, sans-serif;
+    font-family: "Hanken Grotesk", sans-serif;
+    font-weight: 400;
+    font-feature-settings: "cv11", "ss01", "tnum";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   h1, h2, h3, h4, h5, h6 {
     letter-spacing: -0.02em;
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
+    font-family: "Hanken Grotesk", sans-serif;
+    font-weight: 600;
+  }
+
+  /* Numeros e valores monetarios */
+  input[type="number"],
+  .numeric-value,
+  [data-numeric="true"] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "cv11", "ss01";
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-16px); }
+}
+
+@keyframes velo-logo-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(30px);
+  transition:
+    opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }
 
 @layer utilities {
-  /* Dashboard uses Inter — override Syne headings and Manrope body */
+  /* Carrossel de produtos do Atlas: a barra de rolagem corta os cards e o
+     movimento já é indicado pelas setas e pelo card que aparece pela metade. */
+  .velo-scroll-oculto {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .velo-scroll-oculto::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Dashboard uses Hanken Grotesk across shell typography */
   .dashboard-inter,
   .dashboard-inter * {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-family: "Hanken Grotesk", sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
   }
   .dashboard-inter h1,
   .dashboard-inter h2,
@@ -141,9 +336,14 @@
   .dashboard-inter h4,
   .dashboard-inter h5,
   .dashboard-inter h6 {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
-    font-weight: 700;
+    font-family: "Hanken Grotesk", sans-serif !important;
+    font-weight: 600;
     letter-spacing: -0.01em;
+  }
+
+  .dashboard-inter .velo-dashboard-sidebar,
+  .dashboard-inter .velo-dashboard-sidebar * {
+    font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
   }
 
   .text-gradient {
@@ -181,6 +381,103 @@
 
   .aurora-text {
     text-shadow: 0 0 30px rgba(111, 211, 255, 0.2);
+  }
+
+  .sidebar-item {
+    font-family: "SF Pro Text", "Helvetica Neue", "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: -0.012em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01", "cv11", "salt";
+  }
+
+  /* Dashboard search placeholder */
+  input::placeholder {
+    color: #9CA3AF;
+    font-weight: 400;
+  }
+
+  /* Sidebar icon draw-on-hover (Lucide SVG stroke animation) */
+  /* Estado padrao: icone sempre visivel e completo */
+  .sidebar-item .sidebar-icon path,
+  .sidebar-item .sidebar-icon circle,
+  .sidebar-item .sidebar-icon rect,
+  .sidebar-item .sidebar-icon line,
+  .sidebar-item .sidebar-icon polyline {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .sidebar-item:hover .sidebar-icon path,
+  .sidebar-item:hover .sidebar-icon circle,
+  .sidebar-item:hover .sidebar-icon rect,
+  .sidebar-item:hover .sidebar-icon line,
+  .sidebar-item:hover .sidebar-icon polyline {
+    animation: none;
+  }
+
+  @media (max-width: 767px) {
+    .mobile-hide-scrollbar {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .mobile-hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .start-mode-banner {
+      grid-template-columns: auto 1fr !important;
+      height: 48px !important;
+      padding: 0 16px !important;
+      gap: 10px !important;
+    }
+
+    .start-mode-banner > div:first-child {
+      font-size: 12px !important;
+      justify-self: start !important;
+      white-space: nowrap !important;
+    }
+
+    .start-mode-banner > div:nth-child(2) {
+      min-width: 0 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+      text-align: left !important;
+      justify-self: stretch !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+    }
+
+    .start-mode-banner > button {
+      display: none !important;
+    }
+
+    .mobile-calendar-card > div {
+      border-radius: 24px !important;
+      padding: 16px !important;
+      min-height: 0 !important;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+    }
+
+    .mobile-calendar-card h2 {
+      font-size: 16px !important;
+      line-height: 20px !important;
+    }
+  }
+}
+
+@keyframes draw-icon {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
   }
 }
 
@@ -464,12 +761,7 @@
     landing-button-preparing-sheen 1.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
-/* ─────────────────────────────────────────────────────────
-   Liquid glass primary button system
-   .btn-primary           — base (md: 14px 32px / 15px)
-   .btn-primary--lg       — hero size (20px 56px / 17px)
-   .btn-primary--md       — explicit md alias
-   ───────────────────────────────────────────────────────── */
+/* Liquid glass primary button system */
 @keyframes btn-spin {
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -484,7 +776,7 @@
   border-radius: 100px;
   border: none;
   cursor: pointer;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  font-family: "Hanken Grotesk", sans-serif;
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -739,7 +1031,7 @@
 .animate-orb-drift-c { animation: orb-drift-c 20s ease-in-out infinite alternate; }
 .animate-speck-float { animation: speck-float 6s ease-in-out infinite; }
 
-/* Dashboard — page content fade-in (opacity only — transform quebraria fixed positioning) */
+/* Dashboard page content fade-in (opacity only; transform quebraria fixed positioning) */
 @keyframes pageFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -749,7 +1041,7 @@
   animation: pageFadeIn 120ms ease both;
 }
 
-/* Dashboard card hover — GPU-accelerated only */
+/* Dashboard card hover: GPU-accelerated only */
 .card-hover {
   transition: transform 120ms ease, box-shadow 120ms ease;
   will-change: transform;
@@ -770,3 +1062,485 @@
   border-radius: 4px;
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Fluxo de criação de loja / página de vendas — design system escuro.
+   Fonte ÚNICA de verdade para as 8 telas do onboarding. Cada <main> do fluxo
+   recebe a classe `.velo-flow`; nenhuma tela deve hardcodar estas cores.
+   ────────────────────────────────────────────────────────────────────────── */
+.velo-flow {
+  /* Superfícies */
+  --vf-bg: #121212;            /* fundo da página */
+  --vf-panel: #1e1e1e;         /* card / painel elevado */
+  --vf-panel-side: #000000;    /* painel de preview lateral (profundidade) */
+  --vf-nested: #232323;        /* input, item de lista, pill inativo */
+
+  /* Bordas */
+  --vf-border: rgba(255, 255, 255, 0.1);
+  --vf-border-hover: rgba(255, 255, 255, 0.2);
+
+  /* Texto */
+  --vf-text-1: #ffffff;              /* primário */
+  --vf-text-2: rgba(255, 255, 255, 0.7);  /* secundário */
+  --vf-text-3: rgba(255, 255, 255, 0.4);  /* terciário / placeholder */
+
+  /* Seleção (inversão clara-sobre-escuro) */
+  --vf-sel-bg: #ffffff;
+  --vf-sel-text: #121212;
+
+  --vf-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  background: var(--vf-bg);
+  color: var(--vf-text-1);
+  font-family: "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@layer components {
+  /* Tipografia do fluxo */
+  .velo-flow .vf-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--vf-text-3);
+  }
+  .velo-flow .vf-headline {
+    font-size: 32px;
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--vf-text-1);
+  }
+  .velo-flow .vf-subhead {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--vf-text-2);
+  }
+
+  /* Card de opção (produto, idioma, persona, ângulo) */
+  .velo-flow .vf-card {
+    border-radius: 16px;
+    background: var(--vf-panel);
+    border: 1px solid var(--vf-border);
+    transition:
+      border-color 200ms var(--vf-ease),
+      transform 200ms var(--vf-ease),
+      box-shadow 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-card:hover {
+    border-color: var(--vf-border-hover);
+    transform: translateY(-2px);
+  }
+  .velo-flow .vf-card[data-selected="true"] {
+    border-width: 1.5px;
+    border-color: var(--vf-sel-bg);
+    transform: scale(1.01);
+  }
+  .velo-flow .vf-card[data-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* Elemento aninhado (input / item de lista) */
+  .velo-flow .vf-nested {
+    background: var(--vf-nested);
+    border: 1px solid var(--vf-border);
+    transition:
+      border-color 200ms var(--vf-ease),
+      background-color 200ms var(--vf-ease),
+      transform 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-nested:hover {
+    border-color: var(--vf-border-hover);
+  }
+  .velo-flow .vf-nested[data-selected="true"] {
+    border-color: var(--vf-sel-bg);
+    border-width: 1.5px;
+  }
+
+  /* Botão primário: bloco branco com texto escuro (estilo da referência). */
+  .velo-flow .vf-btn {
+    background: var(--vf-sel-bg);
+    border: none;
+    color: var(--vf-sel-text);
+    border-radius: 10px;
+    font-weight: 600;
+    transition:
+      transform 200ms var(--vf-ease),
+      opacity 200ms var(--vf-ease),
+      box-shadow 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  }
+  .velo-flow .vf-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Botão secundário / texto */
+  .velo-flow .vf-btn-ghost {
+    background: transparent;
+    border: none;
+    color: var(--vf-text-2);
+    transition: color 200ms var(--vf-ease);
+  }
+  .velo-flow .vf-btn-ghost:hover {
+    color: var(--vf-text-1);
+  }
+
+  /* Barra de progresso do topo */
+  .velo-flow .vf-progress {
+    height: 3px;
+    border-radius: 999px;
+    background: var(--vf-border);
+    overflow: hidden;
+  }
+  .velo-flow .vf-progress > i {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--vf-sel-bg);
+    transition: width 400ms var(--vf-ease);
+  }
+}
+
+/* Skeleton com shimmer (esquerda → direita) para a tela "Gerando..." */
+@keyframes vfShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.velo-flow .vf-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--vf-nested);
+}
+.velo-flow .vf-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  transform: translateX(-100%);
+  animation: vfShimmer 1.6s ease-in-out infinite;
+}
+
+/* Spinner sutil dos itens de checklist / loading */
+@keyframes vfSpin { to { transform: rotate(360deg); } }
+.velo-flow .vf-spin { animation: vfSpin 1s linear infinite; }
+
+/* "Pensando..." do Atlas: onda por letra, limpa e sem balão. */
+@keyframes veloThinkingLetterWave {
+  0%,
+  100% {
+    color: #9a9a96;
+    opacity: 0.44;
+    text-shadow: none;
+  }
+  28% {
+    color: #575755;
+    opacity: 0.9;
+    text-shadow: 0 0 14px rgba(35, 35, 35, 0.08);
+  }
+  48% {
+    color: #7f7f7b;
+    opacity: 0.62;
+    text-shadow: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Barra da tela de carregamento
+   Ciclo que enche e recomeça. A curva é rápida no início e desacelera perto do
+   fim, como carregamento real: encher em velocidade constante parece falso.
+--------------------------------------------------------------------------- */
+.velo-loading-track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #E8EDF7;
+}
+
+/* Faixa curta atravessando a trilha, em vez da barra que enchia e reiniciava:
+   o movimento contínuo lê melhor como "processando" numa espera curta. */
+.velo-loading-sweep {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0) 0%, #2563eb 50%, rgba(37, 99, 235, 0) 100%);
+  animation: veloLoadingSweep 1.25s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes veloLoadingSweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+
+/* A marca respira junto: escala mínima, só o suficiente para a tela não
+   parecer congelada enquanto a requisição não volta. */
+.velo-loading-mark {
+  display: block;
+  animation: veloLoadingBreath 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes veloLoadingBreath {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.965);
+    opacity: 0.78;
+  }
+}
+
+.velo-loading-message {
+  animation: veloLoadingMessage 2.4s ease-in-out infinite;
+}
+
+@keyframes veloLoadingMessage {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sem ciclo: barra parcial estática e marca parada — ainda diz "carregando"
+     sem movimento nenhum. */
+  .velo-loading-sweep {
+    animation: none;
+    width: 40%;
+    transform: translateX(28%);
+    opacity: 0.75;
+  }
+
+  .velo-loading-mark,
+  .velo-loading-message {
+    animation: none;
+  }
+}
+
+.velo-thinking-text {
+  display: inline-flex;
+  width: fit-content;
+  color: #8e8e8a;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+.velo-thinking-wave {
+  display: inline-flex;
+  white-space: pre;
+}
+
+.velo-thinking-letter {
+  animation: veloThinkingLetterWave 1.62s cubic-bezier(0.42, 0, 0.18, 1) infinite;
+  animation-delay: calc(var(--atlas-thinking-index) * 68ms);
+  will-change: color, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velo-thinking-letter {
+    animation: none;
+    color: #8e8e8a;
+    opacity: 1;
+    text-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velo-flow .vf-shimmer::after,
+  .velo-flow .vf-spin { animation: none; }
+  .velo-flow .vf-card:hover,
+  .velo-flow .vf-btn:hover:not(:disabled) { transform: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Acabamento "Pilot" dos botões sólidos — o mesmo do CTA "Criar minha loja
+   grátis": brilho de 2px no topo, sombra de apoio embaixo e texto com sombra.
+
+   Vale para o site inteiro. O componente <Button> aplica o relevo como estilo
+   inline; a regra abaixo alcança os botões escritos como <button> cru, que são
+   a maioria do app — casando pela classe de fundo escuro que eles já usam.
+
+   Ficam de fora, de propósito:
+   - o catálogo (data-velo-flat-buttons, ligado pela rota): a grade de produtos
+     já carrega muita informação e o relevo competia com as fotos;
+   - o canvas e as barras do editor ([data-canvas-ui], [data-editor-ignore]) e o
+     conteúdo da vitrine (.store-editor-preview): ali o botão é da loja do
+     cliente ou cromo de ferramenta, não a marca Velo.
+--------------------------------------------------------------------------- */
+button.bg-black,
+button.bg-neutral-900,
+button[class*="bg-[#0"],
+button[class*="bg-[#1"] {
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.38),
+    0 7px 13px rgba(0, 0, 0, 0.22);
+  text-shadow: 0 4px 4px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 200ms ease-out,
+    filter 200ms ease-out,
+    box-shadow 200ms ease-out;
+}
+
+button.bg-black:hover:not(:disabled),
+button.bg-neutral-900:hover:not(:disabled),
+button[class*="bg-[#0"]:hover:not(:disabled),
+button[class*="bg-[#1"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+/* Exceções: editor, vitrine, catálogo e o chat do Atlas voltam ao botão chapado. */
+[data-canvas-ui] button,
+[data-editor-ignore] button,
+.store-editor-preview button,
+[data-atlas-chat] button,
+[data-velo-flat-buttons] button.bg-black,
+[data-velo-flat-buttons] button.bg-neutral-900,
+[data-velo-flat-buttons] button[class*="bg-[#0"],
+[data-velo-flat-buttons] button[class*="bg-[#1"] {
+  box-shadow: none;
+  text-shadow: none;
+}
+
+[data-canvas-ui] button:hover,
+[data-editor-ignore] button:hover,
+.store-editor-preview button:hover,
+[data-atlas-chat] button:hover,
+[data-velo-flat-buttons] button:hover {
+  transform: none;
+}
+
+/* O componente <Button> aplica o relevo inline, então desligar pede !important. */
+[data-velo-flat-buttons] .velo-premium-btn {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  text-shadow: none !important;
+}
+
+[data-velo-flat-buttons] .velo-premium-btn:hover {
+  transform: none !important;
+}
+
+/* Atlas: corpo PNG com olhos vivos por CSS. A imagem continua transparente,
+   mas as pupilas ficam em uma camada abaixo do PNG e aparecem pelos recortes. */
+.atlas-avatar-icon {
+  position: relative;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  line-height: 0;
+  vertical-align: middle;
+  isolation: isolate;
+}
+
+.atlas-avatar-icon__image {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.atlas-avatar-eye {
+  position: absolute;
+  z-index: 1;
+  top: 38.4%;
+  width: 12.7%;
+  height: 20.6%;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 42% 28%, rgba(255, 255, 255, 0.98), rgba(244, 250, 255, 0.98) 62%, rgba(219, 237, 255, 0.98));
+  box-shadow:
+    inset 0 -0.08em 0.18em rgba(37, 99, 235, 0.16),
+    0 0.02em 0.08em rgba(15, 23, 42, 0.08);
+}
+
+.atlas-avatar-eye--left {
+  left: 42.2%;
+}
+
+.atlas-avatar-eye--right {
+  left: 60.7%;
+}
+
+.atlas-avatar-lid {
+  position: absolute;
+  z-index: 3;
+  top: 38.4%;
+  width: 12.7%;
+  height: 20.6%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 18%, #75C7FF 0%, #2D83FF 52%, #1763F1 100%);
+  box-shadow: inset 0 -0.08em 0.16em rgba(8, 58, 190, 0.24);
+  transform: scaleY(0);
+  transform-origin: 50% 50%;
+}
+
+.atlas-avatar-lid--left {
+  left: 42.2%;
+}
+
+.atlas-avatar-lid--right {
+  left: 60.7%;
+}
+
+.atlas-avatar-icon--animated .atlas-avatar-lid {
+  animation: atlas-avatar-blink 5s cubic-bezier(0.55, 0, 0.2, 1) infinite;
+}
+
+.atlas-avatar-icon--animated .atlas-avatar-lid--right {
+  animation-delay: 35ms;
+}
+
+@keyframes atlas-avatar-blink {
+  0%, 88%, 100% {
+    transform: scaleY(0);
+  }
+  91%, 94% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.bg-black:hover,
+  button.bg-neutral-900:hover,
+  button[class*="bg-[#0"]:hover,
+  button[class*="bg-[#1"]:hover,
+  .velo-premium-btn:hover {
+    transform: none !important;
+  }
+
+  .atlas-avatar-icon--animated .atlas-avatar-lid {
+    animation: none !important;
+  }
+}

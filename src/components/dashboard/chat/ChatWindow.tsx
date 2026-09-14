@@ -60,6 +60,7 @@ export default function ChatWindow({ conversation, onSendMessage, onBack }: Prop
         {onBack && (
           <button
             onClick={onBack}
+            aria-label="Voltar"
             className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#525252] dark:text-zinc-300 transition hover:bg-[#F5F5F5] dark:hover:bg-zinc-800 md:hidden"
           >
             <ArrowLeft size={17} />
@@ -68,7 +69,7 @@ export default function ChatWindow({ conversation, onSendMessage, onBack }: Prop
 
         {/* Avatar */}
         <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
           style={{ backgroundColor: conversation.supplierColor }}
         >
           {conversation.supplierInitials}
@@ -76,7 +77,7 @@ export default function ChatWindow({ conversation, onSendMessage, onBack }: Prop
 
         {/* Info */}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-['Manrope'] text-[14px] font-bold text-[#0A0A0A] dark:text-white">
+          <p className="truncate font-['Manrope'] text-[14px] font-semibold text-[#0A0A0A] dark:text-white">
             {conversation.supplierName}
           </p>
           <div className="flex items-center gap-2">
@@ -123,7 +124,7 @@ export default function ChatWindow({ conversation, onSendMessage, onBack }: Prop
           {conversation.status === 'typing' && (
             <div className="flex items-end gap-2.5">
               <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
                 style={{ backgroundColor: conversation.supplierColor }}
               >
                 {conversation.supplierInitials}

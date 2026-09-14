@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
+import {
+  grantInviterDiscountForPaidInvitee,
+} from "../_shared/referral-rewards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +45,7 @@ Deno.serve(async (req) => {
     const userEmail = claimsData.claims.email as string;
 
     const body = await req.json();
-    const { plan, payment_method } = body;
+    const { plan, payment_method, affiliate_ref, plan_price, trial } = body;
 
     if (!plan || !payment_method) {
       return new Response(JSON.stringify({ error: "plan e payment_method são obrigatórios" }), {
@@ -53,16 +60,94 @@ Deno.serve(async (req) => {
     }
 
     const plans: Record<string, { amount: number; description: string }> = {
-      pro: { amount: 99.90, description: "Velo Pro" },
-      business: { amount: 149.90, description: "Velo Business" },
+      base: { amount: 39.90, description: "Velo Base" },
+      pro: { amount: 79.80, description: "Velo Pro" },
+      business: { amount: 159.60, description: "Velo Business" },
     };
 
-    const selectedPlan = plans[plan];
-    if (!selectedPlan) {
+    const basePlan = plans[plan];
+    if (!basePlan) {
       return new Response(JSON.stringify({ error: "Plano inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Trial de 5 dias descontinuado — todo checkout é assinatura mensal cheia.
+    const isTrial = false;
+    const TRIAL_AMOUNT = 29.9;
+    const TRIAL_DAYS = 5;
+    let selectedPlan: { amount: number; description: string } = { ...basePlan };
+
+    // === DESCONTO POR INDICAÇÃO (referral) ===
+    let appliedReferralId: string | null = null;
+    let discountPercent = 0;
+    const originalAmount = basePlan.amount;
+    let rewardInviter = false;
+    let inviterUserId: string | null = null;
+    let isInviterReward = false;
+    {
+      const dbUrlR = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+      const dbKeyR = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const adminR = createClient(dbUrlR, dbKeyR);
+      const hadPaidBefore = async (uid: string) => {
+        const { data } = await adminR.from("subscriptions").select("status,plan").eq("user_id", uid);
+        return (data ?? []).some((s) => {
+          const p = String(s.plan ?? "").toLowerCase();
+          return p && p !== "gratis" && p !== "free" && s.status !== "pending";
+        });
+      };
+      const invitedHadPaid = await hadPaidBefore(userId);
+      if (!invitedHadPaid) {
+        // Só aplica desconto se o usuário entrou de fato pelo link do convite
+        // (/convite/:token → accept-referral seta invited_user_id + status='linked').
+        // Sem fallback por email: acesso direto ao site não recebe desconto.
+        const { data: refInvited } = await adminR
+          .from("referrals")
+          .select("id,inviter_id,status,expires_at,invited_rewarded,invited_email")
+          .eq("invited_user_id", userId)
+          .eq("status", "linked")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (refInvited && !refInvited.invited_rewarded && new Date(refInvited.expires_at) > new Date()) {
+          // Auto-link if still pending / missing invited_user_id
+          if (refInvited.status !== "linked") {
+            await adminR.from("referrals").update({
+              invited_user_id: userId,
+              status: "linked",
+              linked_at: new Date().toISOString(),
+            }).eq("id", refInvited.id);
+          }
+          appliedReferralId = refInvited.id;
+          discountPercent = 15;
+          inviterUserId = refInvited.inviter_id;
+          rewardInviter = !(await hadPaidBefore(refInvited.inviter_id));
+        }
+
+        // 3) Se não é convidado com desconto, checa se é convidador com recompensa disponível
+        if (!appliedReferralId) {
+          const { data: rewardRef } = await adminR
+            .from("referrals")
+            .select("id")
+            .eq("inviter_id", userId)
+            .eq("status", "subscribed")
+            .eq("inviter_rewarded", true)
+            .order("subscribed_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (rewardRef) {
+            appliedReferralId = rewardRef.id;
+            discountPercent = 15;
+            isInviterReward = true;
+          }
+        }
+      }
+      if (discountPercent > 0) {
+        const discounted = Math.round(basePlan.amount * (1 - discountPercent / 100) * 100) / 100;
+        selectedPlan = { amount: discounted, description: `${basePlan.description} (indicação -15%)` };
+      }
     }
 
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
@@ -85,16 +170,34 @@ Deno.serve(async (req) => {
     }
 
     // Create Mercado Pago payment
+    const cleanAffiliateRef =
+      typeof affiliate_ref === "string"
+        ? affiliate_ref.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 32)
+        : null;
+
+    // URL do webhook para o Mercado Pago notificar a aprovação (essencial para Pix:
+    // sem isso, a ativação depende só do polling da aba de checkout aberta).
+    const mpWebhookUrl =
+      Deno.env.get("MP_WEBHOOK_URL") ??
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook`;
+
     const mpPayload: Record<string, unknown> = {
       transaction_amount: selectedPlan.amount,
       description: selectedPlan.description,
       payment_method_id: payment_method === "pix" ? "pix" : undefined,
+      notification_url: mpWebhookUrl,
       payer: {
         email: userEmail,
       },
+      external_reference: cleanAffiliateRef || undefined,
       metadata: {
         user_id: userId,
         plan: plan,
+        affiliate_ref: cleanAffiliateRef || undefined,
+        plan_price: typeof plan_price === "number" ? plan_price : selectedPlan.amount,
+        is_trial: isTrial,
+        trial_days: isTrial ? TRIAL_DAYS : undefined,
+        post_trial_amount: isTrial ? basePlan.amount : undefined,
       },
     };
 
@@ -137,29 +240,150 @@ Deno.serve(async (req) => {
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
     const adminClient = createClient(dbUrl, dbKey);
 
     const now = new Date();
     const periodEnd = new Date(now);
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (isTrial) {
+      periodEnd.setDate(periodEnd.getDate() + TRIAL_DAYS);
+    } else {
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+    }
 
-    const subStatus = mpData.status === "approved" ? "active" : "pending";
+    const subStatus = mpData.status === "approved" ? (isTrial ? "trialing" : "active") : "pending";
 
-    await adminClient.from("subscriptions").upsert({
+    // Se foi trial pago com cartão aprovado, salvar cliente + cartão no Mercado Pago
+    // para permitir a cobrança automática do plano Pro no dia 5 (via mp-charge-trial).
+    let savedCustomerId: string | null = null;
+    let savedCardId: string | null = null;
+    if (isTrial && payment_method === "credit_card" && mpData.status === "approved") {
+      try {
+        const searchResp = await fetch(
+          `https://api.mercadopago.com/v1/customers/search?email=${encodeURIComponent(userEmail)}`,
+          { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } },
+        );
+        const searchData = await searchResp.json();
+        savedCustomerId = searchData?.results?.[0]?.id ?? null;
+        if (!savedCustomerId) {
+          const createResp = await fetch("https://api.mercadopago.com/v1/customers", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email: userEmail }),
+          });
+          const createData = await createResp.json();
+          savedCustomerId = createData?.id ?? null;
+        }
+        if (savedCustomerId && mpData.card?.id) {
+          savedCardId = String(mpData.card.id);
+        } else if (savedCustomerId && body?.card_token) {
+          const cardResp = await fetch(
+            `https://api.mercadopago.com/v1/customers/${savedCustomerId}/cards`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ token: body.card_token }),
+            },
+          );
+          const cardData = await cardResp.json();
+          savedCardId = cardData?.id ? String(cardData.id) : null;
+        }
+      } catch (e) {
+        console.error("Falha ao salvar cartão MP para trial:", e);
+      }
+    }
+
+    const { data: subscriptionRow, error: subscriptionError } = await adminClient.from("subscriptions").insert({
       user_id: userId,
       plan: plan,
       status: subStatus,
       mp_payment_id: String(mpData.id),
       payment_method: payment_method,
       amount: selectedPlan.amount,
+      original_amount: originalAmount,
+      discount_percent: discountPercent > 0 ? discountPercent : null,
+      referral_id: appliedReferralId,
       current_period_start: now.toISOString(),
       current_period_end: periodEnd.toISOString(),
+      is_trial: isTrial,
+      trial_ends_at: isTrial ? periodEnd.toISOString() : null,
+      next_charge_amount: isTrial ? basePlan.amount : null,
+      next_charge_at: isTrial ? periodEnd.toISOString() : null,
+      post_trial_plan: isTrial ? plan : null,
+      mp_customer_id: savedCustomerId,
+      mp_card_id: savedCardId,
+      charge_attempts: 0,
+      last_charge_attempt_at: null,
+      last_dunning_email_at: null,
+      confirmation_email_sent_at: null,
       updated_at: now.toISOString(),
-    }, { onConflict: "user_id" });
+    })
+      .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+      .maybeSingle();
+
+    if (subscriptionError || !subscriptionRow) {
+      console.error("CRITICAL: payment created but subscription persistence failed", JSON.stringify({
+        user_id: userId,
+        payment_id: mpData.id,
+        payment_status: mpData.status,
+        plan,
+        error: subscriptionError,
+      }));
+      throw new Error("Pagamento criado, mas não foi possível registrar a assinatura");
+    }
 
     // Update profile plan if approved
     if (mpData.status === "approved") {
-      await adminClient.from("profiles").update({ plano: plan }).eq("user_id", userId);
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: plan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Subscription active but profile sync failed", JSON.stringify({ user_id: userId, plan, error: profileError }));
+      }
+
+      // Marca o referral como 'subscribed' e credita reward do convidador (se aplicável)
+      if (appliedReferralId) {
+        if (isInviterReward) {
+          // Convidador consumindo o desconto — apenas zera o flag
+          await adminClient.from("referrals").update({
+            inviter_rewarded: false,
+          }).eq("id", appliedReferralId);
+        } else {
+          await adminClient.from("referrals").update({
+            status: "subscribed",
+            subscribed_at: now.toISOString(),
+            invited_rewarded: true,
+            inviter_rewarded: rewardInviter,
+          }).eq("id", appliedReferralId);
+
+          // Convidado pagou → quem convidou ganha 15% na primeira assinatura.
+          await grantInviterDiscountForPaidInvitee(adminClient, {
+            invitedUserId: userId,
+            referralId: appliedReferralId,
+          });
+        }
+      }
+
+
+      if (!isTrial && subscriptionRow) {
+        const emailResult = await sendSubscriptionConfirmationEmailOnce({
+          adminClient,
+          subscription: subscriptionRow as SubscriptionEmailInput,
+          resendApiKey,
+          siteUrl,
+        });
+        if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+          console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+        }
+      }
     }
 
     // Build response
@@ -167,6 +391,10 @@ Deno.serve(async (req) => {
       status: mpData.status,
       payment_id: mpData.id,
       plan: plan,
+      amount: selectedPlan.amount,
+      original_amount: originalAmount,
+      discount_percent: discountPercent > 0 ? discountPercent : null,
+      referral_applied: !!appliedReferralId,
     };
 
     // PIX: return QR code data

@@ -1,4 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
+import {
+  grantInviterDiscountForPaidInvitee,
+} from "../_shared/referral-rewards.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,24 +58,148 @@ Deno.serve(async (req) => {
 
     const userId = payment.metadata?.user_id;
     const plan = payment.metadata?.plan;
+    const affiliateRef = payment.metadata?.affiliate_ref ?? payment.external_reference;
+    const paymentKind = payment.metadata?.kind;
 
+    // Hybrid deployment: DB may live on a different project than the functions
+    const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
+    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
+    const adminClient = createClient(dbUrl, dbKey);
+
+    // ── Store orders (pedidos da loja do vendedor) ──────────────────────────
+    // Pedidos vindos de páginas de vendas publicadas — kind === 'store_order'.
+    // Nunca tratamos como assinatura; atualizamos o pedido pelo external_reference.
+    if (paymentKind === "store_order") {
+      const extRef = payment.external_reference ?? payment.metadata?.store_order_id;
+      if (extRef) {
+        const newStatus =
+          payment.status === "approved"
+            ? "approved"
+            : payment.status === "rejected" || payment.status === "cancelled"
+            ? "rejected"
+            : payment.status === "refunded"
+            ? "refunded"
+            : "pending";
+
+        const query = adminClient
+          .from("store_orders")
+          .update({
+            payment_status: newStatus,
+            mp_payment_id: String(paymentId),
+            updated_at: new Date().toISOString(),
+          });
+
+        const filter = String(extRef).startsWith("store_")
+          ? query.eq("mp_external_reference", String(extRef))
+          : query.eq("id", String(extRef));
+
+        const { error: updErr } = await filter;
+        if (updErr) console.error("store_orders update failed:", updErr);
+      }
+
+      return new Response(JSON.stringify({ ok: true, kind: "store_order" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Affiliate sales tracking (influencer commissions) ───────────────────
+    // If this payment has an affiliate ref, we register it as an affiliate sale.
+    // Payout status starts as "pending" and can be marked "paid" by admins later.
+    if (affiliateRef) {
+      try {
+        const { data: affiliateProfile } = await adminClient
+          .from("profiles")
+          .select("user_id, ref")
+          .eq("ref", String(affiliateRef))
+          .maybeSingle();
+
+        if (affiliateProfile?.user_id) {
+          const planPrice =
+            Number(payment.metadata?.plan_price ?? payment.transaction_amount ?? 147.9) || 147.9;
+          const commissionRate =
+            Number(payment.metadata?.commission_rate ?? 0.3) || 0.3;
+
+          const payerNameParts = [payment.payer?.first_name, payment.payer?.last_name].filter(Boolean);
+          const payerName = payerNameParts.length ? payerNameParts.join(" ") : null;
+          const payerEmail = payment.payer?.email ?? null;
+
+          const createdAt =
+            payment.date_approved ?? payment.date_created ?? new Date().toISOString();
+
+          // Uma indicação remunera somente a primeira venda do cliente. Renovações
+          // posteriores mantêm a assinatura ativa, mas não geram outra comissão.
+          let firstAffiliateSale = true;
+          if (userId) {
+            const { data: existingConversion } = await adminClient
+              .from("affiliate_conversions")
+              .select("id, status")
+              .eq("affiliate_code", String(affiliateRef).toUpperCase())
+              .eq("subscriber_user_id", String(userId))
+              .maybeSingle();
+            firstAffiliateSale = existingConversion?.status !== "paid";
+          }
+
+          if (firstAffiliateSale) {
+            await adminClient.from("affiliate_sales").upsert(
+              {
+                affiliate_user_id: affiliateProfile.user_id,
+                affiliate_ref: String(affiliateRef),
+                customer_name: payerName,
+                customer_email: payerEmail,
+                plan: String(payment.metadata?.plan ?? "mensal"),
+                plan_price: planPrice,
+                commission_rate: commissionRate,
+                commission_amount: Number((planPrice * commissionRate).toFixed(2)),
+                commission_status: "pending",
+                mp_payment_id: String(paymentId),
+                mp_preference_id: payment.preference_id ? String(payment.preference_id) : null,
+                created_at: createdAt,
+              },
+              { onConflict: "mp_payment_id" },
+            );
+
+            // Novo funil (admin): marcar conversao como "paid" e gerar comissao pendente
+            if (userId) {
+              await adminClient.from("affiliate_conversions").upsert(
+                {
+                  affiliate_code: String(affiliateRef).toUpperCase(),
+                  subscriber_user_id: String(userId),
+                  status: "paid",
+                  plan_value: planPrice,
+                  commission_rate: commissionRate,
+                  commission_value: Number((planPrice * commissionRate).toFixed(2)),
+                  payout_status: "pending",
+                  paid_at: createdAt,
+                  created_at: createdAt,
+                },
+                { onConflict: "affiliate_code,subscriber_user_id" },
+              );
+            }
+          }
+        }
+      } catch (affiliateError) {
+        console.error("Affiliate sale insert failed:", affiliateError);
+      }
+    }
+
+    // If this is not a user subscription payment, we can safely stop here.
     if (!userId) {
-      console.log("No user_id in metadata, skipping");
+      console.log("No user_id in metadata (subscription), skipping subscription update");
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Hybrid deployment: DB may live on a different project than the functions
-    const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
-    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(dbUrl, dbKey);
-
     const maybeOrderId =
       payment.metadata?.order_id ??
       payment.metadata?.internal_order_id ??
       payment.external_reference;
+
+    const normalizedPlan = plan === "plus" ? "pro" : (plan || "base");
 
     let subStatus = "pending";
     if (payment.status === "approved") subStatus = "active";
@@ -78,63 +209,80 @@ Deno.serve(async (req) => {
     // Update subscription
     const { data: existing } = await adminClient
       .from("subscriptions")
-      .select("id")
+      .select("id,status,confirmation_email_sent_at")
       .eq("mp_payment_id", String(paymentId))
       .maybeSingle();
 
+    let subscriptionForEmail: SubscriptionEmailInput | null = null;
+
     if (existing) {
-      await adminClient
+      const { data: updatedSubscription } = await adminClient
         .from("subscriptions")
         .update({ status: subStatus, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+        .maybeSingle();
+      subscriptionForEmail = (updatedSubscription ?? null) as SubscriptionEmailInput | null;
     } else {
       const now = new Date();
-      const periodEnd = new Date(now);
+      const periodStart = payment.date_approved ? new Date(payment.date_approved) : now;
+      const periodEnd = new Date(periodStart);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-      await adminClient.from("subscriptions").insert({
+      const { data: insertedSubscription } = await adminClient.from("subscriptions").insert({
         user_id: userId,
-        plan: plan || "plus",
+        plan: normalizedPlan,
         status: subStatus,
         mp_payment_id: String(paymentId),
         payment_method: payment.payment_method_id || "unknown",
         amount: payment.transaction_amount || 0,
-        current_period_start: now.toISOString(),
+        current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
-      });
+        updated_at: now.toISOString(),
+      }).select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+        .maybeSingle();
+      subscriptionForEmail = (insertedSubscription ?? null) as SubscriptionEmailInput | null;
     }
 
     // Update profile plan
     if (subStatus === "active") {
-      await adminClient.from("profiles").update({ plano: plan || "plus" }).eq("user_id", userId);
-    } else if (subStatus === "cancelled") {
-      await adminClient.from("profiles").update({ plano: "gratis" }).eq("user_id", userId);
-    }
-
-    // Trigger CJ fulfillment for paid/approved marketplace orders.
-    if ((payment.status === "approved" || payment.status === "paid") && maybeOrderId) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const internalSecret = Deno.env.get("INTERNAL_SECRET")!;
-        const fulfillResponse = await fetch(`${supabaseUrl}/functions/v1/cj-fulfill`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${serviceRoleKey}`,
-            apikey: serviceRoleKey,
-            "x-internal-secret": internalSecret,
-          },
-          body: JSON.stringify({ order_id: maybeOrderId }),
-        });
-
-        const fulfillJson = await fulfillResponse.json().catch(() => ({}));
-        if (!fulfillResponse.ok || fulfillJson?.success === false) {
-          console.error("CJ fulfillment trigger failed:", JSON.stringify(fulfillJson));
-        }
-      } catch (fulfillError) {
-        console.error("CJ fulfillment trigger error:", fulfillError);
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: normalizedPlan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Active subscription profile sync failed:", JSON.stringify({ user_id: userId, plan: normalizedPlan, error: profileError }));
       }
+      // Indicação: pagamento confirmado do convidado → libera 15% para quem convidou.
+      await grantInviterDiscountForPaidInvitee(adminClient, {
+        invitedUserId: String(userId),
+      });
+
+      if (subscriptionForEmail) {
+        const emailResult = await sendSubscriptionConfirmationEmailOnce({
+          adminClient,
+          subscription: subscriptionForEmail,
+          resendApiKey,
+          siteUrl,
+        });
+        if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+          console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+        }
+      }
+    } else if (subStatus === "cancelled") {
+      const { data: anotherActive } = await adminClient
+        .from("subscriptions")
+        .select("plan")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .neq("mp_payment_id", String(paymentId))
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      await adminClient
+        .from("profiles")
+        .update({ plano: anotherActive?.plan || "gratis" })
+        .eq("user_id", userId);
     }
 
     return new Response(JSON.stringify({ ok: true }), {

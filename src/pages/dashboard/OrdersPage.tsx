@@ -1,1011 +1,2097 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
-  AlertCircle,
-  ArrowLeft,
+  Calendar,
   CheckCircle2,
-  ChevronDown,
+  ChevronLeft,
   ChevronRight,
-  Clipboard,
   Copy,
-  ExternalLink,
-  Loader2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LockKeyhole,
   Mail,
   MapPin,
   Package,
   Phone,
-  Truck,
-  WalletCards,
+  ShoppingBag,
+  type LucideIcon,
+  UserPlus,
+  UserRound,
+  X,
 } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { veloToast } from "@/components/ui/velo-toast";
+import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { usePlan, type PlanName } from "@/hooks/usePlan";
 
-type Order = {
-  id: string;
-  user_id: string;
-  external_order_id: string | null;
-  platform: string;
-  product_title: string;
-  product_image: string | null;
-  buyer_name: string | null;
-  buyer_address?: string | null;
-  buyer_number?: string | null;
-  buyer_neighborhood?: string | null;
-  buyer_city?: string | null;
-  buyer_state?: string | null;
-  buyer_zip?: string | null;
-  buyer_phone?: string | null;
-  buyer_email?: string | null;
-  sale_price: number;
-  cost_price: number | null;
-  profit: number | null;
-  status: string;
-  tracking_code: string | null;
-  cj_product_id?: string | null;
-  cj_product_url?: string | null;
-  cj_variant_id?: string | null;
-  fulfillment_status?: string | null;
-  fulfilled_at?: string | null;
-  ordered_at: string | null;
-  created_at: string;
+
+type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
+
+const statusLabels: Record<string, string> = {
+  paid: "Pago",
+  approved: "Aprovado",
+  in_process: "Em processamento",
+  processing: "Em processamento",
+  completed: "Concluído",
+  delivered: "Entregue",
+  shipped: "Enviado",
+  in_transit: "Em trânsito",
+  pending: "Pendente",
+  cancelled: "Cancelado",
+  canceled: "Cancelado",
+  failed: "Falhou",
+  refunded: "Cancelado",
+  charged_back: "Estornado",
 };
 
-type TabFilter = "all" | "in_progress" | "delivered" | "cancelled";
-type DateRangeFilter = "all" | "7d" | "30d" | "90d" | "month";
-
-const STATUS_GROUP: Record<string, TabFilter> = {
-  awaiting_payment: "in_progress",
-  pending: "in_progress",
-  paid: "in_progress",
-  approved: "in_progress",
-  shipped: "in_progress",
-  processing: "in_progress",
-  delivered: "delivered",
-  completed: "delivered",
-  cancelled: "cancelled",
-  canceled: "cancelled",
+const statusStyles: Record<string, string> = {
+  refunded: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  charged_back: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  cancelled: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  canceled: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
+  failed: "border-[#FCA5A5]/60 bg-[#FEE2E2] text-[#B91C1C]",
 };
 
-const CJ_WALLET_URL = "https://cjdropshipping.com/wallet.html";
+const getStatusStyle = (status: string | null | undefined) =>
+  statusStyles[(status ?? "").toLowerCase()] ?? "border-black/[0.08] bg-[#F5F5F5] text-[#404040]";
 
-const STATUS_COPY: Record<TabFilter, { label: string; dot: string; className: string }> = {
-  all: {
-    label: "All",
-    dot: "bg-[#8F2528]",
-    className: "bg-[#F8EEEE] text-[#8F2528]",
-  },
-  in_progress: {
-    label: "In progress",
-    dot: "bg-[#E48622]",
-    className: "bg-[#FFF4E6] text-[#C86911]",
-  },
-  delivered: {
-    label: "Delivered",
-    dot: "bg-[#88A72B]",
-    className: "bg-[#EEF7E6] text-[#6D9335]",
-  },
-  cancelled: {
-    label: "Cancelled",
-    dot: "bg-[#B83D3F]",
-    className: "bg-[#F8EEEE] text-[#A03336]",
-  },
+const pageFont = {
+  fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif',
 };
 
-const TABS: { key: TabFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
-];
+const mlOrdersGridClass =
+  "md:grid-cols-[minmax(200px,1.45fr)_minmax(110px,0.8fr)_88px_minmax(72px,0.55fr)_76px_104px_96px_0px] 2xl:grid-cols-[minmax(300px,1.6fr)_minmax(150px,0.75fr)_112px_144px_96px_132px_180px_24px]";
 
-const DATE_RANGE_LABEL: Record<DateRangeFilter, string> = {
-  all: "Select date range",
-  "7d": "Last 7 days",
-  "30d": "Last 30 days",
-  "90d": "Last 90 days",
-  month: "This month",
+const formatBRL = (value: number | null | undefined) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
+
+const formatDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const formatBRL = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
-
-const formatMaybeBRL = (value?: number | null) =>
-  typeof value === "number" ? formatBRL(value) : "Não informado";
-
-const formatOrderDate = (order: Order) => {
-  const value = order.ordered_at ?? order.created_at;
-  if (!value) return "No date";
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
+const clean = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return "—";
+  const text = String(value).trim();
+  return text.length > 0 ? text : "—";
 };
 
-const getStatusGroup = (status?: string | null): TabFilter =>
-  STATUS_GROUP[(status ?? "").toLowerCase()] ?? "in_progress";
-
-const isAwaitingCjPayment = (order: Order) =>
-  order.status === "awaiting_payment" || order.fulfillment_status === "awaiting_payment";
-
-const getOrderStatusCopy = (order: Order) => {
-  if (isAwaitingCjPayment(order)) {
-    return {
-      label: "Aguardando recarga",
-      dot: "bg-amber-500",
-      className: "bg-amber-50 text-amber-700",
-    };
-  }
-
-  return STATUS_COPY[getStatusGroup(order.status)];
+type ShippingAddress = {
+  zip?: string | null;
+  street?: string | null;
+  number?: string | null;
+  complement?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
 };
 
-const getOrderDate = (order: Order) => new Date(order.ordered_at ?? order.created_at);
-
-const getOrderId = (order: Order) =>
-  order.external_order_id || order.id.slice(0, 8).toUpperCase();
-
-const getProfit = (order: Order) =>
-  typeof order.profit === "number"
-    ? order.profit
-    : typeof order.cost_price === "number"
-      ? order.sale_price - order.cost_price
-      : null;
-
-const getProductItems = (title: string) =>
-  title
-    .split(/\s+\|\s+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-const isInsideDateRange = (order: Order, range: DateRangeFilter) => {
-  if (range === "all") return true;
-
-  const date = getOrderDate(order);
-  if (Number.isNaN(date.getTime())) return false;
-
-  const now = new Date();
-  if (range === "month") {
-    return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-  }
-
-  const days = range === "7d" ? 7 : range === "30d" ? 30 : 90;
-  const start = new Date(now);
-  start.setDate(now.getDate() - days);
-  start.setHours(0, 0, 0, 0);
-
-  return date >= start;
+type SupplierPurchaseInfo = {
+  supplierUrl: string;
+  supplierPrice: number | null;
+  dropshipOrderId: string | null;
+  orderCode: string;
+  productTitle: string;
+  quantity: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerDocument: string;
+  address: ShippingAddress | null;
 };
 
-const getCustomerAddress = (order: Order) => {
-  const street = order.buyer_address?.trim() || "Endereço não informado";
-  const number = order.buyer_number?.trim();
-  const lineOne = number && !street.includes(number) ? `${street}, ${number}` : street;
-  const cityLine = [order.buyer_neighborhood, order.buyer_city, order.buyer_state]
-    .map((item) => item?.trim())
-    .filter(Boolean)
-    .join(" - ");
-  const zipLine = order.buyer_zip ? `CEP ${order.buyer_zip}` : "";
+type BotPurchaseAudience = "geral" | "admin";
+type BotPurchaseAccessLevel = "gratis" | "base" | "pro" | "business" | "admin";
+type BotPurchaseSettings = {
+  enabled: boolean;
+  audience: BotPurchaseAudience;
+  accessLevels: BotPurchaseAccessLevel[];
+};
+
+type C7DropAccountStatus = {
+  status: "not_connected" | "connected" | "signup_requested" | "manual_action_required" | "invalid_credentials";
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  document?: string | null;
+  message?: string | null;
+  last_tested_at?: string | null;
+  connected_at?: string | null;
+  updated_at?: string | null;
+};
+
+type C7DropAccountForm = {
+  email: string;
+  password: string;
+  confirm_password: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  document: string;
+};
+
+const getPasswordStrength = (password: string) => {
+  const checks = [
+    { key: "letters", label: "Letras", valid: /[a-zà-öø-ÿ]/.test(password) },
+    { key: "numbers", label: "Números", valid: /\d/.test(password) },
+    { key: "symbols", label: "Símbolos", valid: /[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s]/.test(password) },
+    { key: "uppercase", label: "Maiúsculas", valid: /[A-ZÀ-ÖØ-Þ]/.test(password) },
+  ];
+  const score = checks.filter((check) => check.valid).length;
+  const hasMinimumLength = password.length >= 6;
+  const isGood = hasMinimumLength && (score >= 4 || (score >= 3 && password.length >= 7));
+  const label = !password
+    ? "Vazia"
+    : !hasMinimumLength
+      ? "Curta"
+      : isGood
+        ? score >= 4 ? "Forte" : "Boa"
+        : score >= 3
+          ? "Quase boa"
+          : score >= 2
+            ? "Média"
+            : "Fraca";
+  const color = isGood ? "#2563EB" : score >= 2 ? "#F59E0B" : "#DC2626";
 
   return {
-    lineOne,
-    cityLine: cityLine || "Cidade/estado não informados",
-    zipLine,
-    full: [lineOne, cityLine, zipLine].filter(Boolean).join(" • "),
+    checks,
+    score,
+    label,
+    color,
+    isGood,
   };
 };
 
-const getCustomerCopyText = (order: Order) => {
-  const address = getCustomerAddress(order);
-
-  return [
-    `Nome: ${order.buyer_name || "Não informado"}`,
-    `Endereço: ${address.lineOne}`,
-    `Bairro/Cidade: ${address.cityLine}`,
-    address.zipLine,
-    `Telefone: ${order.buyer_phone || "Não informado"}`,
-    `Email: ${order.buyer_email || "Não informado"}`,
-  ].filter(Boolean).join("\n");
+type SupplierPurchaseDraft = {
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerDocument: string;
+  zip: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
 };
 
-const getCjProductUrl = (order: Order) => {
-  if (order.cj_product_url) return order.cj_product_url;
-  if (order.cj_product_id) {
-    return `https://www.cjdropshipping.com/product-detail.html?id=${encodeURIComponent(order.cj_product_id)}`;
+const DEFAULT_BOT_PURCHASE_SETTINGS: BotPurchaseSettings = {
+  enabled: true,
+  audience: "geral",
+  accessLevels: ["gratis", "base", "pro", "business", "admin"],
+};
+
+const BOT_PURCHASE_ACCESS_LEVELS: BotPurchaseAccessLevel[] = ["gratis", "base", "pro", "business", "admin"];
+
+const normalizeBotPurchaseSettings = (row: Record<string, unknown> | null | undefined): BotPurchaseSettings => {
+  const audience = row?.audience === "admin" ? "admin" : "geral";
+  const accessLevels = Array.isArray(row?.access_levels)
+    ? row.access_levels.filter((item): item is BotPurchaseAccessLevel =>
+        BOT_PURCHASE_ACCESS_LEVELS.includes(item as BotPurchaseAccessLevel),
+      )
+    : audience === "admin"
+      ? ["admin" as const]
+      : DEFAULT_BOT_PURCHASE_SETTINGS.accessLevels;
+
+  return {
+    enabled: row?.enabled !== false,
+    audience,
+    accessLevels: Array.from(new Set(accessLevels)),
+  };
+};
+
+const planToBotAccess = (plan: PlanName): BotPurchaseAccessLevel => {
+  if (plan === "business") return "business";
+  if (plan === "pro") return "pro";
+  if (plan === "base") return "base";
+  return "gratis";
+};
+
+const fetchBotPurchaseSettings = async (): Promise<BotPurchaseSettings> => {
+  const { data, error } = await supabase
+    .from("dropship_worker_settings" as never)
+    .select("enabled,audience,access_levels")
+    .eq("id" as never, true as never)
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeBotPurchaseSettings(data as unknown as Record<string, unknown> | null);
+};
+
+const fetchC7DropAccountStatus = async (): Promise<C7DropAccountStatus> => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: { action: "get_status" },
+  });
+  if (error) throw error;
+  return (data as { account?: C7DropAccountStatus } | null)?.account ?? { status: "not_connected" };
+};
+
+const saveC7DropAccount = async (mode: "connect" | "signup", form: C7DropAccountForm) => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: {
+      action: mode === "connect" ? "save_credentials" : "request_signup",
+      ...form,
+    },
+  });
+  const response = data as { account?: C7DropAccountStatus; error?: string } | null;
+  if (error || response?.error) {
+    throw new Error(response?.error ?? error?.message ?? "Não foi possível salvar a conta do fornecedor");
   }
-  if (order.cj_variant_id) {
-    return `https://www.cjdropshipping.com/product-detail.html?id=${encodeURIComponent(order.cj_variant_id)}`;
+  return response?.account ?? { status: "not_connected" as const };
+};
+
+const disconnectC7DropAccount = async () => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: { action: "disconnect" },
+  });
+  const response = data as { account?: C7DropAccountStatus; error?: string } | null;
+  if (error || response?.error) {
+    throw new Error(response?.error ?? error?.message ?? "Não foi possível desconectar a conta do fornecedor");
+  }
+  return response?.account ?? { status: "not_connected" as const };
+};
+
+const jsonText = (value: Json | undefined): string | null => {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+};
+
+const normalizeShippingAddress = (value: Json | null | undefined): ShippingAddress | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, Json | undefined>;
+  return {
+    zip: jsonText(row.zip ?? row.cep ?? row.postal_code),
+    street: jsonText(row.street ?? row.address ?? row.rua),
+    number: jsonText(row.number ?? row.numero),
+    complement: jsonText(row.complement ?? row.complemento),
+    neighborhood: jsonText(row.neighborhood ?? row.bairro),
+    city: jsonText(row.city ?? row.cidade),
+    state: jsonText(row.state ?? row.uf ?? row.estado),
+  };
+};
+
+const addressLines = (address: ShippingAddress | null) => {
+  if (!address) return [];
+  const street = [address.street, address.number].filter(Boolean).join(", ");
+  const cityState = [address.city, address.state].filter(Boolean).join(" - ");
+  return [street, address.complement, address.neighborhood, cityState, address.zip ? `CEP ${address.zip}` : null]
+    .map((line) => line?.trim())
+    .filter((line): line is string => Boolean(line));
+};
+
+const formatStatusDateTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const addressEntries = (address: ShippingAddress | null) => {
+  if (!address) return [];
+  const street = [address.street, address.number].filter(Boolean).join(", ");
+  const entries = [
+    { label: "Rua", value: street },
+    { label: "Bairro", value: address.neighborhood },
+    { label: "Cidade", value: [address.city, address.state].filter(Boolean).join(" - ") },
+    { label: "CEP", value: address.zip },
+    { label: "Complemento", value: address.complement },
+  ];
+  return entries.filter((entry) => entry.value?.trim());
+};
+
+const getStatusLabel = (status: string | null | undefined) => {
+  const key = (status ?? "pending").toLowerCase();
+  return statusLabels[key] ?? clean(status);
+};
+
+const getOrderCode = (order: MlOrderRow) => clean(order.ml_order_id ?? order.external_order_id ?? order.id);
+
+const getProductName = (order: MlOrderRow) =>
+  clean(order.catalog_title ?? order.product_title);
+
+const getOrderImage = (order: MlOrderRow) => {
+  if (order.product_image) return order.product_image;
+  if (Array.isArray(order.catalog_images)) {
+    const first = order.catalog_images.find((image) => typeof image === "string" && image.trim().length > 0);
+    return typeof first === "string" ? first : null;
   }
   return null;
 };
 
-const getDeliveryStep = (order: Order) => {
-  const status = order.status.toLowerCase();
-  const fulfillmentStatus = (order.fulfillment_status ?? "").toLowerCase();
+const shortenTrackingCode = (code: string) => {
+  const trimmed = code.trim();
+  if (trimmed.length <= 14) return trimmed;
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-5)}`;
+};
 
-  if (["delivered", "completed"].includes(status)) return 4;
-  if (
-    status === "shipped" ||
-    !!order.tracking_code ||
-    ["processing", "fulfilled", "shipped"].includes(fulfillmentStatus)
-  ) {
-    return 3;
+const supplierHref = (url: string | null | undefined) => {
+  const trimmed = url?.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
+  return `https://${trimmed}`;
+};
+
+const purchaseInfoFromMlOrder = (order: MlOrderRow): SupplierPurchaseInfo | null => {
+  const supplierUrl = supplierHref(order.supplier_url);
+  if (!supplierUrl) return null;
+  return {
+    supplierUrl,
+    supplierPrice: order.cost_price && order.cost_price > 0 ? order.cost_price : null,
+    dropshipOrderId: null,
+    orderCode: getOrderCode(order),
+    productTitle: getProductName(order),
+    quantity: clean(order.quantity),
+    buyerName: clean(order.buyer_name),
+    buyerEmail: clean(order.buyer_email),
+    buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
+    address: {
+      zip: order.buyer_zip,
+      street: order.buyer_address,
+      number: order.buyer_number,
+      complement: order.buyer_complement,
+      neighborhood: order.buyer_neighborhood,
+      city: order.buyer_city,
+      state: order.buyer_state,
+    },
+  };
+};
+
+const purchaseInfoFromStoreOrder = (order: StoreOrderRow): SupplierPurchaseInfo | null => {
+  const supplierUrl = supplierHref(order.supplier_url);
+  if (!supplierUrl) return null;
+  return {
+    supplierUrl,
+    supplierPrice: order.supplier_price && order.supplier_price > 0 ? order.supplier_price : null,
+    dropshipOrderId: null,
+    orderCode: order.id,
+    productTitle: order.product_title,
+    quantity: clean(order.quantity),
+    buyerName: clean(order.buyer_name),
+    buyerEmail: clean(order.buyer_email),
+    buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
+    address: normalizeShippingAddress(order.shipping_address),
+  };
+};
+
+const attachDropshipOrderId = async (info: SupplierPurchaseInfo, order: MlOrderRow): Promise<SupplierPurchaseInfo> => {
+  let supplierPrice = info.supplierPrice;
+  let buyerDocument = info.buyerDocument;
+
+  // Custo real do fornecedor: catálogo Velo (C7Drop) x quantidade.
+  if (!supplierPrice && order.catalog_product_id) {
+    const { data: catalog } = await supabase
+      .from("catalog_products")
+      .select("cost_price")
+      .eq("id", order.catalog_product_id)
+      .maybeSingle();
+    const unit = Number(catalog?.cost_price ?? 0);
+    if (unit > 0) supplierPrice = Number((unit * Math.max(1, Number(order.quantity ?? 1))).toFixed(2));
   }
-  return 2;
-};
 
-const copyToClipboard = async (text: string, successMessage: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(successMessage);
-  } catch {
-    toast.error("Não foi possível copiar");
+  const mlOrderId = order.ml_order_id ?? order.external_order_id;
+  if (!mlOrderId) return { ...info, supplierPrice, buyerDocument };
+
+  const { data, error } = await supabase
+    .from("dropship_orders")
+    .select("id, customer_document")
+    .eq("ml_order_id", String(mlOrderId))
+    .maybeSingle();
+
+  if (error) throw error;
+  if (typeof data?.customer_document === "string" && data.customer_document.trim()) {
+    buyerDocument = data.customer_document.trim();
   }
+
+  return {
+    ...info,
+    supplierPrice,
+    buyerDocument,
+    dropshipOrderId: typeof data?.id === "string" ? data.id : null,
+  };
 };
 
-const openCjWallet = () => {
-  window.open(CJ_WALLET_URL, "_blank", "noopener,noreferrer");
-};
+const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft => ({
+  buyerName: info.buyerName === "—" ? "" : info.buyerName,
+  buyerEmail: info.buyerEmail === "—" ? "" : info.buyerEmail,
+  buyerPhone: info.buyerPhone === "—" ? "" : info.buyerPhone,
+  buyerDocument: info.buyerDocument ?? "",
+  zip: info.address?.zip ?? "",
+  street: info.address?.street ?? "",
+  number: info.address?.number ?? "",
+  complement: info.address?.complement ?? "",
+  neighborhood: info.address?.neighborhood ?? "",
+  city: info.address?.city ?? "",
+  state: info.address?.state ?? "",
+});
 
-const OrderImage = ({ order }: { order: Order }) => {
-  const itemCount = getProductItems(order.product_title).length;
-  const extraItems = Math.max(itemCount - 1, 0);
 
-  return (
-    <div className="relative h-[96px] w-[96px] shrink-0 overflow-hidden rounded-[8px] bg-[#F5F2EF] sm:h-[84px] sm:w-[84px]">
-      {order.product_image ? (
-        <img
-          src={order.product_image}
-          alt={order.product_title}
-          className="h-full w-full object-cover"
-          loading="lazy"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-[#B9B2AB]">
-          <Package size={24} strokeWidth={1.6} />
-        </div>
-      )}
-
-      {extraItems > 0 && (
-        <span className="absolute bottom-0 right-0 flex h-8 min-w-8 items-center justify-center rounded-tl-[8px] bg-black/72 px-2 text-[16px] font-semibold leading-none text-white">
-          +{extraItems}
-        </span>
-      )}
-    </div>
+const SupplierButton = ({
+  url,
+  compact = false,
+  onOpen,
+  manual = false,
+}: {
+  url: string | null | undefined;
+  compact?: boolean;
+  onOpen: () => void;
+  manual?: boolean;
+}) => {
+  const href = supplierHref(url);
+  const classes = compact
+    ? "inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#2563EB] px-3 text-[11px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+    : "inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1D4ED8]";
+  const label = compact ? (
+    <>
+      <span className="hidden 2xl:inline">Comprar no Fornecedor</span>
+      <span className="2xl:hidden">Comprar</span>
+    </>
+  ) : (
+    "Comprar no Fornecedor"
   );
-};
 
-const OrderCardSkeleton = () => (
-  <div className="rounded-[22px] border border-[#E1DDDA] bg-white px-8 py-9">
-    <div className="flex items-center gap-4">
-      <Skeleton className="h-9 w-36 rounded-full" />
-      <Skeleton className="h-4 w-28 rounded-full" />
-    </div>
-    <div className="mt-8 flex items-center gap-6">
-      <Skeleton className="h-[84px] w-[84px] rounded-[8px]" />
-      <div className="flex-1 space-y-3">
-        <Skeleton className="h-6 w-56 rounded-full" />
-        <Skeleton className="h-5 w-3/5 rounded-full" />
-        <Skeleton className="h-5 w-24 rounded-full" />
-      </div>
-    </div>
-  </div>
-);
-
-const OrdersPage = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [tab, setTab] = useState<TabFilter>("all");
-  const [dateRange, setDateRange] = useState<DateRangeFilter>("all");
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [trackingInput, setTrackingInput] = useState("");
-
-  const { data: orders, isLoading, isError } = useQuery({
-    queryKey: ["orders", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("ordered_at", { ascending: false });
-
-      if (error) throw error;
-      return (data ?? []) as unknown as Order[];
-    },
-  });
-
-  const allOrders = orders ?? [];
-  const selectedOrder = selectedOrderId
-    ? allOrders.find((order) => order.id === selectedOrderId) ?? null
-    : null;
-
-  useEffect(() => {
-    if (selectedOrder) setTrackingInput(selectedOrder.tracking_code ?? "");
-  }, [selectedOrder?.id, selectedOrder?.tracking_code]);
-
-  const updateOrderMutation = useMutation({
-    mutationFn: async ({ orderId, values }: { orderId: string; values: Partial<Order> }) => {
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const { error } = await supabase
-        .from("orders" as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .update(values)
-        .eq("id", orderId)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-    },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["orders", user?.id] });
-    },
-  });
-
-  const sendToCjMutation = useMutation({
-    mutationFn: async (order: Order) => {
-      if (!order.cj_variant_id) {
-        throw new Error("Este pedido ainda não tem variante CJ vinculada.");
-      }
-
-      const { data, error } = await supabase.functions.invoke("cj-fulfill-request", {
-        body: { order_id: order.id },
-      });
-
-      if (error || data?.success === false) {
-        throw new Error(data?.error || error?.message || "Erro ao enviar pedido para a CJ");
-      }
-
-      return data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["orders", user?.id] });
-    },
-  });
-
-  const handleSaveTracking = async () => {
-    if (!selectedOrder) return;
-    const tracking = trackingInput.trim();
-
-    try {
-      await updateOrderMutation.mutateAsync({
-        orderId: selectedOrder.id,
-        values: { tracking_code: tracking || null } as Partial<Order>,
-      });
-      toast.success("Código de rastreio salvo");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao salvar rastreio");
-    }
-  };
-
-  const handleMarkAsShipped = async () => {
-    if (!selectedOrder) return;
-    const tracking = trackingInput.trim();
-
-    try {
-      await updateOrderMutation.mutateAsync({
-        orderId: selectedOrder.id,
-        values: {
-          status: "shipped",
-          tracking_code: tracking || selectedOrder.tracking_code || null,
-        } as Partial<Order>,
-      });
-      toast.success("Pedido marcado como enviado");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao marcar como enviado");
-    }
-  };
-
-  const handleSendToCj = async () => {
-    if (!selectedOrder) return;
-
-    try {
-      await sendToCjMutation.mutateAsync(selectedOrder);
-      toast.success("Pedido enviado para a CJ");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erro ao enviar pedido para a CJ");
-    }
-  };
-
-  const filteredOrders = useMemo(() => {
-    return allOrders.filter((order) => {
-      const matchesStatus = tab === "all" || getStatusGroup(order.status) === tab;
-      const matchesDate = isInsideDateRange(order, dateRange);
-
-      return matchesStatus && matchesDate;
-    });
-  }, [allOrders, tab, dateRange]);
-
-  if (selectedOrder) {
+  if (!href) {
     return (
-      <DeliveryDetailView
-        order={selectedOrder}
-        trackingInput={trackingInput}
-        onTrackingInputChange={setTrackingInput}
-        onBack={() => setSelectedOrderId(null)}
-        onSaveTracking={handleSaveTracking}
-        onMarkAsShipped={handleMarkAsShipped}
-        onSendToCj={handleSendToCj}
-        isSaving={updateOrderMutation.isPending}
-        isSendingToCj={sendToCjMutation.isPending}
-      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              disabled
+              className={`${classes} cursor-not-allowed opacity-40`}
+            >
+              <ShoppingBag size={15} strokeWidth={1.5} />
+              {label}
+            </button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="border-black/10 bg-[#0A0A0A] text-xs text-white">
+          Fornecedor não vinculado
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (manual) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={classes}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ShoppingBag size={15} strokeWidth={1.5} />
+        {label}
+      </a>
     );
   }
 
   return (
-    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#1D1B1A] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-900 dark:text-white md:px-8 md:py-8">
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-7">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3 text-[15px] leading-none text-[#2A2928] dark:text-zinc-200">
-          <Link to="/dashboard" className="transition hover:text-[#0A0A0A]">
-            Home
-          </Link>
-          <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <Link to="/dashboard/configuracoes" className="transition hover:text-[#0A0A0A]">
-            My Account
-          </Link>
-          <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <span className="text-[#494746] dark:text-zinc-400">My Orders</span>
-        </nav>
+    <button
+      type="button"
+      className={classes}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+    >
+      <ShoppingBag size={15} strokeWidth={1.5} />
+      {label}
+    </button>
+  );
+};
 
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-            {TABS.map((item) => {
-              const active = tab === item.key;
+type C7DropPixState = {
+  copyPaste: string | null;
+  pixKey: string | null;
+  generatedAt: string | null;
+  expiresAt: string | null;
+  renewalCount: number;
+  paymentStatus: string | null;
+  status: string | null;
+};
 
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setTab(item.key)}
-                  className={[
-                    "h-10 shrink-0 rounded-full border px-5 text-[14px] font-medium transition",
-                    active
-                      ? "border-[#0A0A0A] bg-white text-[#0A0A0A] shadow-[0_8px_18px_rgba(10,10,10,0.05)] dark:border-white dark:bg-white dark:text-black"
-                      : "border-[#D8D3CF] bg-white text-[#494746] hover:border-[#0A0A0A] hover:text-[#0A0A0A] dark:border-zinc-700 dark:bg-[#18181B] dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:text-white",
-                  ].join(" ")}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
+const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: SupplierPurchaseInfo | null; onClose: () => void; onCreatedPix?: () => void }) => {
+  const [draft, setDraft] = useState<SupplierPurchaseDraft | null>(() => (info ? createPurchaseDraft(info) : null));
+  const [pixOrderId, setPixOrderId] = useState<string | null>(null);
+  const [pix, setPix] = useState<C7DropPixState | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
 
-          <label className="relative h-11 w-full shrink-0 lg:w-[196px]">
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-between rounded-full bg-[#F7F6F5] px-5 text-[14px] font-medium text-[#2A2928] dark:bg-[#18181B] dark:text-zinc-100">
-              {DATE_RANGE_LABEL[dateRange]}
-              <ChevronDown size={16} strokeWidth={2.1} className="text-[#0A0A0A] dark:text-white" />
-            </span>
-            <select
-              value={dateRange}
-              onChange={(event) => setDateRange(event.target.value as DateRangeFilter)}
-              aria-label="Select date range"
-              className="absolute inset-0 h-full w-full cursor-pointer appearance-none rounded-full opacity-0"
+  useEffect(() => {
+    setDraft(info ? createPurchaseDraft(info) : null);
+    setPixOrderId(null);
+    setPix(null);
+    setQrDataUrl(null);
+    setIsGeneratingQr(false);
+  }, [info]);
+
+  // O bot da Railway grava o Pix da C7Drop no pedido; ficamos ouvindo até chegar.
+  useEffect(() => {
+    if (!pixOrderId) return;
+    let active = true;
+
+    const load = async () => {
+      const { data } = await supabase
+        .from("dropship_orders")
+        .select("status,payment_status,c7drop_pix_copy_paste,c7drop_pix_key,c7drop_pix_generated_at,c7drop_pix_expires_at,c7drop_pix_renewal_count")
+        .eq("id", pixOrderId)
+        .maybeSingle();
+      if (!active || !data) return;
+      setPix({
+        copyPaste: data.c7drop_pix_copy_paste ?? null,
+        pixKey: data.c7drop_pix_key ?? null,
+        generatedAt: data.c7drop_pix_generated_at ?? null,
+        expiresAt: data.c7drop_pix_expires_at ?? null,
+        renewalCount: Number(data.c7drop_pix_renewal_count ?? 0),
+        paymentStatus: data.payment_status ?? null,
+        status: data.status ?? null,
+      });
+    };
+
+    void load();
+    const timer = window.setInterval(load, 6000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [pixOrderId]);
+
+  useEffect(() => {
+    const code = pix?.copyPaste?.trim();
+    if (!code) {
+      setQrDataUrl(null);
+      return;
+    }
+    let active = true;
+    void import("qrcode").then(async (mod) => {
+      const url = await mod.default.toDataURL(code, { width: 320, margin: 1 }).catch(() => null);
+      if (active) setQrDataUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pix?.copyPaste]);
+
+  if (!info || !draft) return null;
+
+  const update = (field: keyof SupplierPurchaseDraft, value: string) => {
+    setDraft((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const handleBuy = async () => {
+    if (isGeneratingQr) return;
+    if (!info.dropshipOrderId) {
+      veloToast.error("Este pedido ainda não está conectado ao bot. Sincronize os pedidos e tente novamente.");
+      return;
+    }
+    const document = draft.buyerDocument.replace(/\D/g, "");
+    if (document.length !== 11 && document.length !== 14) {
+      veloToast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido do comprador.");
+      return;
+    }
+    setIsGeneratingQr(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("dropship-request-c7drop-pix", {
+        body: {
+          order_id: info.dropshipOrderId,
+          payer_document: document,
+          payer_name: draft.buyerName || undefined,
+          payer_email: draft.buyerEmail || undefined,
+          buyer_phone: draft.buyerPhone || undefined,
+          address: {
+            zip: draft.zip || undefined,
+            street: draft.street || undefined,
+            number: draft.number || undefined,
+            complement: draft.complement || undefined,
+            neighborhood: draft.neighborhood || undefined,
+            city: draft.city || undefined,
+            state: draft.state || undefined,
+          },
+        },
+      });
+      const response = data as { error?: string } | null;
+      if (error || response?.error) {
+        let detail = response?.error ?? null;
+        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
+        const context = (error as any)?.context;
+        if (!detail && context && typeof context.json === "function") {
+          const body = await context.json().catch(() => null);
+          detail = typeof body?.error === "string" ? body.error : null;
+        }
+        throw new Error(detail ?? error?.message ?? "Não foi possível gerar o Pix.");
+      }
+
+      setPixOrderId(info.dropshipOrderId);
+      onCreatedPix?.();
+      veloToast.success("Pedido enviado ao bot. O Pix do fornecedor aparece aqui em instantes.");
+    } catch (error) {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  const supplierPriceLabel = info.supplierPrice ? formatBRL(info.supplierPrice) : "Não informado";
+
+  if (pixOrderId) {
+    const isPaid = pix?.paymentStatus === "paid";
+    const expiresLabel = pix?.expiresAt
+      ? new Date(pix.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      : null;
+
+    return (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]" onClick={onClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="supplier-qr-title"
+          className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="h-1.5 bg-[#2563EB]" />
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
+                <h2 id="supplier-qr-title" className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#020817]">
+                  Pix do fornecedor
+                </h2>
+              </div>
+              <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 grid place-items-center rounded-[22px] border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+              {isPaid ? (
+                <p className="text-center text-[13px] font-black text-[#137443]">Pagamento confirmado. O bot está finalizando o pedido no fornecedor.</p>
+              ) : qrDataUrl ? (
+                <img src={qrDataUrl} alt="QR Code Pix da compra no fornecedor" className="h-56 w-56" />
+              ) : (
+                <p className="text-center text-[13px] font-semibold text-[#64748B]">
+                  Gerando o Pix no fornecedor... isso leva alguns instantes. Deixe esta janela aberta.
+                </p>
+              )}
+            </div>
+
+            {!isPaid && pix?.copyPaste ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(pix.copyPaste ?? "");
+                    veloToast.success("Código Pix copiado.");
+                  } catch {
+                    veloToast.error("Não foi possível copiar o código.");
+                  }
+                }}
+                className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] border border-[#C7D7FE] bg-[#EFF6FF] px-4 text-[12px] font-black text-[#1D4ED8] transition hover:bg-[#E0EAFF]"
+              >
+                <Copy size={14} strokeWidth={2} />
+                Copiar código Pix (copia e cola)
+              </button>
+            ) : null}
+
+            <div className="mt-5 text-center">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Preço do fornecedor</p>
+              <p className="mt-1 text-[30px] font-black tracking-[-0.05em] text-[#020817]">{supplierPriceLabel}</p>
+            </div>
+
+            {!isPaid ? (
+              <div className="mt-5 rounded-[16px] border border-[#FACC15]/50 bg-[#FEFCE8] px-4 py-3 text-center">
+                <p className="text-[13px] font-black text-[#854D0E]">
+                  Validade estimada: 45 minutos{expiresLabel ? ` (até ${expiresLabel})` : ""}.
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#A16207]">
+                  Se vencer, o bot gera um novo Pix automaticamente (até 3 vezes).
+                  {pix?.renewalCount ? ` Renovações até agora: ${pix.renewalCount}.` : ""}
+                </p>
+              </div>
+            ) : null}
+
+            {!isPaid ? (
+              <div className="mt-4 rounded-[16px] border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-3 text-center">
+                <p className="text-[13px] font-black text-[#137443]">
+                  Depois de pagar, aguarde a confirmação automática.
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#15803D]">
+                  O bot acompanha o fornecedor e atualiza o pedido quando o pagamento for identificado.
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
             >
-              <option value="all">Select date range</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="month">This month</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, index) => <OrderCardSkeleton key={index} />)
-          ) : isError ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-[#18181B]">
-              <AlertCircle size={28} className="text-[#0A0A0A] dark:text-white" />
-              <p className="mt-4 text-[17px] font-semibold">Could not load orders</p>
-              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
-                Refresh the page or try again in a moment.
-              </p>
-            </div>
-          ) : filteredOrders.length === 0 ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[18px] border border-[#E1DDDA] bg-white px-8 py-8 text-center dark:border-zinc-800 dark:bg-[#18181B]">
-              <Package size={31} className="text-[#B9B2AB]" strokeWidth={1.6} />
-              <p className="mt-4 text-[18px] font-semibold">No orders found</p>
-              <p className="mt-2 max-w-[390px] text-[13px] leading-6 text-[#77706B] dark:text-zinc-400">
-                Orders requested by your customers will appear here as soon as they are received.
-              </p>
-            </div>
-          ) : (
-            filteredOrders.map((order) => {
-              const status = getOrderStatusCopy(order);
-              const awaitingPayment = isAwaitingCjPayment(order);
-              const items = getProductItems(order.product_title);
-              const visibleItems = items.slice(0, 3);
-              const hiddenCount = Math.max(items.length - visibleItems.length, 0);
-              const productCopy = [
-                visibleItems.join(" | ") || "Product without title",
-                hiddenCount > 0 ? `& ${hiddenCount} more items` : "",
-              ].filter(Boolean);
-
-              return (
-                <article
-                  key={order.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedOrderId(order.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedOrderId(order.id);
-                    }
-                  }}
-                  className="group relative cursor-pointer rounded-[22px] border border-[#E1DDDA] bg-white px-5 py-8 transition duration-200 hover:border-[#D2CAC4] hover:shadow-[0_18px_44px_rgba(32,22,14,0.06)] focus:outline-none focus:ring-2 focus:ring-[#0A0A0A]/15 dark:border-zinc-800 dark:bg-[#18181B] dark:hover:border-zinc-600 sm:px-10"
-                >
-                  <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                    <span className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-[18px] font-semibold ${status.className}`}>
-                      <span className={`h-3 w-3 rounded-full ${status.dot}`} />
-                      {status.label}
-                    </span>
-                    <span className="h-7 w-px bg-[#D8D3CF] dark:bg-zinc-700" />
-                    <span className="text-[18px] text-[#2A2928] dark:text-zinc-200">
-                      {formatOrderDate(order)}
-                    </span>
-                  </div>
-
-                  <div className="mt-8 flex items-center gap-6 pr-0 sm:pr-16">
-                    <OrderImage order={order} />
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[22px] font-bold leading-tight text-[#8F2528] sm:text-[23px]">
-                        Order ID: {getOrderId(order)}
-                      </p>
-                      <p className="mt-2 line-clamp-2 text-[20px] leading-[1.35] text-[#151312] dark:text-zinc-100 sm:text-[22px]">
-                        {productCopy[0]}
-                        {productCopy[1] && <span className="font-semibold text-[#8F2528]"> {productCopy[1]}</span>}
-                      </p>
-                      <p className="mt-2 text-[20px] font-bold leading-none text-[#151312] dark:text-white sm:text-[22px]">
-                        {formatBRL(order.sale_price)}
-                      </p>
-                      {awaitingPayment && (
-                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openCjWallet();
-                            }}
-                            className="inline-flex h-9 items-center justify-center rounded-full bg-amber-500 px-4 text-[13px] font-bold text-white transition hover:bg-amber-600"
-                          >
-                            Recarregar CJ
-                          </button>
-                          <p className="text-[13px] leading-5 text-amber-700">
-                            Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <span className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 text-[#8F2528] transition group-hover:translate-x-1 sm:block">
-                    <ChevronRight size={42} strokeWidth={1.8} />
-                  </span>
-                </article>
-              );
-            })
-          )}
+              Fechar
+            </button>
+          </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-[#020817]/45 px-4 pb-[calc(128px+env(safe-area-inset-bottom))] pt-4 backdrop-blur-[3px] sm:items-center sm:py-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="supplier-purchase-title"
+        className="flex max-h-[calc(100dvh-144px-env(safe-area-inset-bottom))] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-h-[calc(100dvh-48px)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="h-1.5 bg-[#2563EB]" />
+        <div className="min-h-0 overflow-y-auto p-6 pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
+              <h2 id="supplier-purchase-title" className="mt-1 text-[20px] font-black tracking-[-0.04em] text-[#020817]">
+                Informações do comprador
+              </h2>
+              <p className="mt-1 line-clamp-2 text-[12px] font-medium text-[#64748B]">
+                Confira ou complete os dados antes de comprar: {info.productTitle}
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-3 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 sm:grid-cols-4">
+            <MiniInfo label="Pedido" value={info.orderCode} />
+            <MiniInfo label="Quantidade" value={info.quantity} />
+            <MiniInfo label="Fornecedor" value="Fornecedor Velo" />
+            <MiniInfo label="Preço do fornecedor" value={supplierPriceLabel} />
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <section>
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#64748B]">
+                <UserRound size={14} />
+                Comprador
+              </div>
+              <div className="space-y-3">
+                <PurchaseField label="Nome" icon={UserRound} value={draft.buyerName} onChange={(value) => update("buyerName", value)} />
+                <PurchaseField label="E-mail" icon={Mail} value={draft.buyerEmail} onChange={(value) => update("buyerEmail", value)} />
+                <PurchaseField label="Telefone" icon={Phone} value={draft.buyerPhone} onChange={(value) => update("buyerPhone", value)} />
+                <PurchaseField label="CPF / CNPJ" value={draft.buyerDocument} onChange={(value) => update("buyerDocument", value)} />
+
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#64748B]">
+                <MapPin size={14} />
+                Entrega
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PurchaseField label="CEP" value={draft.zip} onChange={(value) => update("zip", value)} />
+                <PurchaseField label="Estado" value={draft.state} onChange={(value) => update("state", value)} />
+                <PurchaseField label="Cidade" value={draft.city} onChange={(value) => update("city", value)} />
+                <PurchaseField label="Bairro" value={draft.neighborhood} onChange={(value) => update("neighborhood", value)} />
+                <PurchaseField label="Rua" value={draft.street} onChange={(value) => update("street", value)} className="sm:col-span-2" />
+                <PurchaseField label="Número" value={draft.number} onChange={(value) => update("number", value)} />
+                <PurchaseField label="Complemento" value={draft.complement} onChange={(value) => update("complement", value)} />
+              </div>
+            </section>
+          </div>
+
+        </div>
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white/95 p-4 backdrop-blur sm:flex sm:justify-end">
+          <button
+            type="button"
+            onClick={handleBuy}
+            disabled={isGeneratingQr}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+          >
+            <ShoppingBag size={15} />
+            {isGeneratingQr ? "Gerando Pix..." : "Gerar Pix do fornecedor"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const C7DropAccountBanner = ({
+  account,
+  onOpen,
+}: {
+  account: C7DropAccountStatus;
+  onOpen: () => void;
+}) => {
+  const connected = account.status === "connected";
+  const pending = account.status === "signup_requested";
+  const pendingSince = account.updated_at ? new Date(account.updated_at).getTime() : null;
+  const pendingMinutes = pendingSince && !Number.isNaN(pendingSince)
+    ? Math.floor((Date.now() - pendingSince) / 60_000)
+    : null;
+  const pendingDelayed = pending && pendingMinutes !== null && pendingMinutes >= 3;
+  const needsManualAction = account.status === "manual_action_required";
+  const invalidCredentials = account.status === "invalid_credentials";
+  const hasIssue = needsManualAction || invalidCredentials;
+  const hasWarning = hasIssue || pendingDelayed;
+  const statusView = connected
+    ? {
+        badge: "Conta criada",
+        badgeClass: "bg-[#DCFCE7] text-[#15803D] ring-[#86EFAC]",
+        step: 3,
+        detail: `Pronta${formatStatusDateTime(account.connected_at ?? account.updated_at) ? ` em ${formatStatusDateTime(account.connected_at ?? account.updated_at)}` : ""}`,
+      }
+    : pending
+      ? {
+          badge: pendingDelayed ? "Bot sem resposta" : "Em criação",
+          badgeClass: pendingDelayed ? "bg-[#FFEDD5] text-[#C2410C] ring-[#FDBA74]" : "bg-[#EFF6FF] text-[#2563EB] ring-[#BFDBFE]",
+          step: pendingDelayed ? 1 : 2,
+          detail: pendingDelayed
+            ? `Salva ha ${pendingMinutes} min, mas o bot ainda nao confirmou. Verifique se o worker esta online.`
+            : `Na fila do bot${formatStatusDateTime(account.updated_at) ? ` desde ${formatStatusDateTime(account.updated_at)}` : ""}`,
+        }
+      : hasIssue
+        ? {
+            badge: needsManualAction ? "Ação manual" : "Problema",
+            badgeClass: "bg-[#FFEDD5] text-[#C2410C] ring-[#FDBA74]",
+            step: 1,
+            detail: formatStatusDateTime(account.last_tested_at ?? account.updated_at)
+              ? `Última tentativa em ${formatStatusDateTime(account.last_tested_at ?? account.updated_at)}`
+              : "O bot tentou e parou nesse status",
+          }
+        : {
+            badge: "Não conectada",
+            badgeClass: "bg-[#F1F5F9] text-[#64748B] ring-[#E2E8F0]",
+            step: 0,
+            detail: "Preencha os dados para iniciar",
+          };
+  const title = connected
+    ? "Conta do fornecedor conectada"
+    : pendingDelayed
+      ? "O bot ainda não confirmou essa conta"
+    : needsManualAction
+      ? "Fornecedor pediu validação manual"
+      : invalidCredentials
+        ? "Revise os dados da conta do fornecedor"
+        : "Crie uma conta no fornecedor e automatize seus pedidos direto na Velo";
+  const copy = connected
+    ? "O bot vai comprar no fornecedor usando a conta conectada, mantendo reembolso e suporte no acesso do vendedor."
+    : pendingDelayed
+      ? "A solicitação foi salva, mas passou do tempo normal de processamento. Isso costuma acontecer quando o worker do bot não está rodando ou ainda não recebeu o deploy."
+    : pending
+      ? "Sua solicitação de conta no fornecedor está salva. O bot vai tentar criar a conta e avisar se precisar de validação."
+      : needsManualAction
+        ? account.message ?? "O fornecedor pediu uma validação manual antes de liberar a conta."
+        : invalidCredentials
+          ? account.message ?? "Os dados salvos não permitiram conectar. Abra o formulário, confira e salve novamente."
+          : "Conecte uma conta existente ou deixe os dados prontos para criar uma conta. Assim cada vendedor mantém seus próprios pedidos, reembolsos e suporte direto no fornecedor.";
+
+  return (
+    <section className={`mb-5 overflow-hidden rounded-2xl border p-4 shadow-[0_14px_34px_rgba(37,99,235,0.08)] md:mb-7 md:flex md:items-center md:justify-between md:gap-5 ${hasWarning ? "border-[#FED7AA] bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFFBEB]" : "border-[#D7E4FF] bg-gradient-to-r from-[#EFF6FF] via-white to-[#F8FAFC]"}`}>
+      <div className="flex min-w-0 items-start gap-3">
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ${hasWarning ? "bg-[#F97316]" : "bg-[#2563EB]"}`}>
+          {connected ? <CheckCircle2 size={20} /> : <UserPlus size={20} />}
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-black tracking-[-0.04em] text-[#0F172A]">
+              {title}
+            </p>
+            <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-black uppercase tracking-[0.08em] ring-1 ${statusView.badgeClass}`}>
+              {statusView.badge}
+            </span>
+          </div>
+          <p className="mt-1 max-w-2xl text-[12.5px] font-medium leading-relaxed text-[#64748B]">
+            {copy}
+          </p>
+          {!connected ? (
+          <div className="mt-3 max-w-xl">
+            <div className="grid grid-cols-3 gap-1.5">
+              {["Dados salvos", "Bot criando", "Conta pronta"].map((label, index) => {
+                const active = statusView.step >= index + 1;
+                const failed = hasIssue && index >= 1;
+                const delayed = pendingDelayed && index === 1;
+                return (
+                  <div key={label} className="min-w-0">
+                    <span
+                      className={`block h-1.5 rounded-full ${
+                        failed || delayed ? "bg-[#FDBA74]" : active ? "bg-[#2563EB]" : "bg-[#E2E8F0]"
+                      }`}
+                    />
+                    <span className={`mt-1 block truncate text-[10px] font-bold ${active || failed || delayed ? "text-[#475569]" : "text-[#94A3B8]"}`}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={`mt-2 text-[11.5px] font-bold ${hasWarning ? "text-[#C2410C]" : connected ? "text-[#15803D]" : "text-[#64748B]"}`}>
+              {statusView.detail}
+            </p>
+          </div>
+          ) : null}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[12.5px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] md:mt-0 md:w-auto md:shrink-0"
+      >
+        <KeyRound size={15} />
+        {connected ? "Gerenciar fornecedor" : hasIssue ? "Corrigir conta" : "Conectar fornecedor"}
+      </button>
     </section>
   );
 };
 
-type DeliveryDetailViewProps = {
-  order: Order;
-  trackingInput: string;
-  onTrackingInputChange: (value: string) => void;
-  onBack: () => void;
-  onSaveTracking: () => void;
-  onMarkAsShipped: () => void;
-  onSendToCj: () => void;
-  isSaving: boolean;
-  isSendingToCj: boolean;
-};
-
-const DeliveryDetailView = ({
-  order,
-  trackingInput,
-  onTrackingInputChange,
-  onBack,
-  onSaveTracking,
-  onMarkAsShipped,
-  onSendToCj,
-  isSaving,
-  isSendingToCj,
-}: DeliveryDetailViewProps) => {
-  const currentStep = getDeliveryStep(order);
-  const address = getCustomerAddress(order);
-  const profit = getProfit(order);
-  const cjProductUrl = getCjProductUrl(order);
-  const customerText = getCustomerCopyText(order);
-  const awaitingPayment = isAwaitingCjPayment(order);
-
-  const openCjProduct = () => {
-    if (!cjProductUrl) {
-      toast.error("Link da CJ não encontrado para este pedido");
-      return;
-    }
-
-    window.open(cjProductUrl, "_blank", "noopener,noreferrer");
-  };
-
-  const steps = [
-    {
-      number: 1,
-      title: "Venda confirmada",
-      icon: <CheckCircle2 size={19} />,
-      text: "Parabéns! Você realizou uma venda no Mercado Livre. O pagamento será liberado pelo ML em até 14 dias úteis.",
-    },
-    {
-      number: 2,
-      title: "Pague o fornecedor",
-      icon: <WalletCards size={19} />,
-      text: "Você precisa pagar o produto na CJ Dropshipping agora para que ele seja enviado ao seu cliente. O valor já foi descontado do seu lucro estimado.",
-    },
-    {
-      number: 3,
-      title: "Produto sendo enviado",
-      icon: <Truck size={19} />,
-      text: "Após finalizar o pedido na CJ, o produto será enviado diretamente para o seu cliente. A CJ leva em média 3 a 7 dias para despachar.",
-    },
-    {
-      number: 4,
-      title: "Cliente recebeu",
-      icon: <CheckCircle2 size={19} />,
-      text: "Seu cliente recebeu o produto e a venda foi concluída. O pagamento do ML será liberado em breve na sua conta.",
-    },
-  ];
+const C7DropAccountManageModal = ({
+  open,
+  account,
+  disconnecting,
+  onClose,
+  onChangeAccount,
+  onDisconnect,
+}: {
+  open: boolean;
+  account: C7DropAccountStatus;
+  disconnecting: boolean;
+  onClose: () => void;
+  onChangeAccount: () => void;
+  onDisconnect: () => void;
+}) => {
+  if (!open) return null;
 
   return (
-    <section className="min-h-[calc(100vh-112px)] rounded-[24px] bg-white px-5 py-6 font-['Manrope'] text-[#151312] shadow-[0_1px_0_rgba(18,18,18,0.04)] dark:bg-zinc-900 dark:text-white md:px-8 md:py-8">
-      <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-7">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-3 text-[15px] leading-none text-[#2A2928] dark:text-zinc-200">
-          <Link to="/dashboard" className="transition hover:text-[#0A0A0A]">
-            Home
-          </Link>
-          <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <button type="button" onClick={onBack} className="transition hover:text-[#0A0A0A]">
-            My Orders
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
+      <div className="w-full max-w-sm overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_22px_58px_rgba(15,23,42,0.18)]">
+        <div className="h-1 bg-[#2563EB]" />
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Fornecedor</p>
+            <h2 className="mt-1 text-[18px] font-black tracking-[-0.04em] text-[#020817]">Gerenciar conta</h2>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+            <X size={17} />
           </button>
-          <ChevronRight size={16} strokeWidth={2.1} className="text-[#1D1B1A] dark:text-zinc-300" />
-          <span className="text-[#494746] dark:text-zinc-400">Entrega</span>
-        </nav>
+        </div>
 
-        <div className="flex flex-col gap-5 rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-5 dark:border-zinc-800 dark:bg-[#18181B] lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#E1DDDA] bg-white text-[#151312] transition hover:border-[#151312] dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
-              aria-label="Voltar para pedidos"
-            >
-              <ArrowLeft size={18} />
-            </button>
+        <div className="p-4">
+          <div className="rounded-2xl border border-[#D7E4FF] bg-[#F8FAFC] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#64748B]">Conta conectada</p>
+            <p className="mt-1 truncate text-[14px] font-black text-[#0F172A]">{account.email ?? "Conta C7 conectada"}</p>
+          </div>
 
-            <OrderImage order={order} />
+          <button
+            type="button"
+            onClick={onChangeAccount}
+            className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-4 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+          >
+            <KeyRound size={15} />
+            Trocar conta
+          </button>
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={disconnecting}
+            className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-[#FCA5A5] bg-white px-4 text-[13px] font-black text-[#DC2626] transition hover:bg-[#FEF2F2] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <X size={15} />
+            {disconnecting ? "Desconectando..." : "Desconectar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-            <div className="min-w-0">
-              <div className="mb-2 inline-flex rounded-full border border-[#D8D3CF] bg-white px-3 py-1 text-[12px] font-semibold text-[#494746] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
-                Entrega do pedido
+const C7DropAccountModal = ({
+  open,
+  account,
+  saving,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  account: C7DropAccountStatus;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (mode: "connect" | "signup", form: C7DropAccountForm) => void;
+}) => {
+  const [mode, setMode] = useState<"connect" | "signup">("connect");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [form, setForm] = useState<C7DropAccountForm>({
+    email: account.email ?? "",
+    password: "",
+    confirm_password: "",
+    first_name: account.first_name ?? "",
+    last_name: account.last_name ?? "",
+    phone: account.phone ?? "",
+    document: account.document ?? "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setMode("connect");
+    setStep(1);
+    setForm({
+      email: account.email ?? "",
+      password: "",
+      confirm_password: "",
+      first_name: account.first_name ?? "",
+      last_name: account.last_name ?? "",
+      phone: account.phone ?? "",
+      document: account.document ?? "",
+    });
+  }, [account.document, account.email, account.first_name, account.last_name, account.phone, open]);
+
+  if (!open) return null;
+
+  const update = (key: keyof C7DropAccountForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const passwordMatches = form.password === form.confirm_password;
+  const passwordStrength = getPasswordStrength(form.password);
+  const isSignup = mode === "signup";
+  const loginReady =
+    form.email &&
+    form.password &&
+    passwordStrength.isGood &&
+    (!isSignup || (form.confirm_password && passwordMatches));
+  const purchaseReady =
+    form.first_name &&
+    form.last_name &&
+    form.phone &&
+    form.document;
+  const canSave = loginReady && purchaseReady;
+  const switchMode = (nextMode: "connect" | "signup") => {
+    setMode(nextMode);
+    setStep(1);
+    if (nextMode === "connect") {
+      setForm((current) => ({ ...current, confirm_password: "" }));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
+      <div className="flex max-h-[calc(100dvh-48px)] w-full max-w-lg flex-col overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_22px_58px_rgba(15,23,42,0.18)]">
+        <div className="h-1 bg-[#2563EB]" />
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Fornecedor</p>
+            <h2 className="mt-1 text-[18px] font-black tracking-[-0.04em] text-[#020817]">Conta do fornecedor</h2>
+            <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">O bot usará essa conta para comprar os pedidos desse vendedor.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-4">
+          <div>
+            {step === 1 ? (
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#2563EB]">
+                  {isSignup ? "Criar conta" : "Login do fornecedor"}
+                </p>
+                <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
+                  {isSignup
+                    ? "Escolha o e-mail e a senha para a nova conta."
+                    : "Use o e-mail e a senha da conta já criada."}
+                </p>
+                <div className="mt-4 grid gap-3">
+                  <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
+                  <PasswordPurchaseField
+                    label="Senha da conta"
+                    value={form.password}
+                    onChange={(value) => update("password", value)}
+                    visible={showPassword}
+                    onToggleVisible={() => setShowPassword((current) => !current)}
+                  />
+                  {isSignup ? (
+                    <PasswordPurchaseField
+                      label="Confirmar senha"
+                      value={form.confirm_password}
+                      onChange={(value) => update("confirm_password", value)}
+                      visible={showConfirmPassword}
+                      onToggleVisible={() => setShowConfirmPassword((current) => !current)}
+                    />
+                  ) : null}
+                </div>
+                <PasswordStrengthMeter strength={passwordStrength} />
+                {form.password && !passwordStrength.isGood ? (
+                  <p className="mt-2 text-[12px] font-bold text-[#DC2626]">
+                    Mínimo 6 caracteres: com 6 use os 4 tipos; com 7+ use pelo menos 3 tipos.
+                  </p>
+                ) : null}
+                {form.confirm_password && !passwordMatches ? (
+                  <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
+                ) : null}
+                <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
+                  {isSignup ? "Já tem uma conta?" : "Não tem uma conta?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode(isSignup ? "connect" : "signup")}
+                    className="font-bold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                  >
+                    {isSignup ? "Fazer login" : "Criar conta grátis"}
+                  </button>
+                </div>
               </div>
-              <h1 className="line-clamp-2 text-[24px] font-bold leading-tight tracking-[-0.02em] text-[#151312] dark:text-white md:text-[30px]">
-                {order.product_title}
-              </h1>
-              <p className="mt-2 text-[14px] font-medium text-[#77706B] dark:text-zinc-400">
-                Pedido #{getOrderId(order)} • {formatOrderDate(order)}
-              </p>
+            ) : (
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Dados para compra</p>
+                <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
+                  O bot usa esses dados quando o checkout do fornecedor pedir identificação.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
+                  <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
+                  <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
+                  <PurchaseField label="CPF/CNPJ" value={form.document} onChange={(value) => update("document", value)} icon={KeyRound} />
+                </div>
+                <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
+                  <p>
+                    {isSignup ? "Criando uma conta nova" : "Usando uma conta existente"}
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="font-bold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                    >
+                      alterar login
+                    </button>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-[#EEF1F6] px-4 py-3">
+          {step === 1 ? (
+            <>
+              <button type="button" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!loginReady}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Continuar
+                <ChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => setStep(1)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
+                <ChevronLeft size={14} />
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => onSave(mode, form)}
+                disabled={saving || !canSave}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <KeyRound size={14} />
+                {mode === "connect" ? "Salvar conexão" : "Salvar para criar"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MiniInfo = ({ label, value }: { label: string; value: string }) => (
+  <div className="min-w-0">
+    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+    <p className="mt-1 truncate text-[13px] font-black text-[#020817]">{value}</p>
+  </div>
+);
+
+const PurchaseField = ({
+  label,
+  value,
+  onChange,
+  icon: Icon,
+  className = "",
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  icon?: LucideIcon;
+  className?: string;
+  type?: string;
+}) => (
+  <label className={`block min-w-0 ${className}`}>
+    <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">
+      {Icon ? <Icon size={12} /> : null}
+      {label}
+    </span>
+    <input
+      type={type}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-10 w-full rounded-[12px] border border-[#D8E3F8] bg-white px-3 text-[13px] font-semibold text-[#020817] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+      placeholder="-"
+    />
+  </label>
+);
+
+const PasswordPurchaseField = ({
+  label,
+  value,
+  onChange,
+  visible,
+  onToggleVisible,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggleVisible: () => void;
+}) => {
+  const Icon = visible ? EyeOff : Eye;
+
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">
+        <LockKeyhole size={12} />
+        {label}
+      </span>
+      <span className="relative block">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 w-full rounded-[12px] border border-[#D8E3F8] bg-white px-3 pr-10 text-[13px] font-semibold text-[#020817] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+          placeholder="-"
+        />
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+          aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+        >
+          <Icon size={15} strokeWidth={2} />
+        </button>
+      </span>
+    </label>
+  );
+};
+
+const PasswordStrengthMeter = ({ strength }: { strength: ReturnType<typeof getPasswordStrength> }) => (
+  <div className="mt-3">
+    <div className="grid grid-cols-4 gap-1">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <span
+          key={index}
+          className="h-1.5 rounded-full transition"
+          style={{
+            backgroundColor: index < strength.score ? strength.color : "#E2E8F0",
+          }}
+        />
+      ))}
+    </div>
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold">
+      <span style={{ color: strength.color }}>Força: {strength.label}</span>
+      <span className="text-[#94A3B8]">mínimo 6 caracteres</span>
+    </div>
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {strength.checks.map((check) => (
+        <span
+          key={check.key}
+          className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+            check.valid ? "bg-[#EFF6FF] text-[#2563EB]" : "bg-[#F8FAFC] text-[#94A3B8]"
+          }`}
+        >
+          {check.label}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
+const TrackingCodeBadge = ({ code }: { code: string | null | undefined }) => {
+  const trackingCode = code?.trim();
+
+  if (!trackingCode) {
+    return <span className="text-[13px] font-semibold text-[#A3A3A3]">—</span>;
+  }
+
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(trackingCode);
+      veloToast.success("Código de rastreio copiado.");
+    } catch {
+      veloToast.error("Não foi possível copiar o código.");
+    }
+  };
+
+  return (
+    <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#DBEAFE] bg-[#EFF6FF] px-2.5 py-1 text-[#1D4ED8]" title={trackingCode}>
+      <span className="truncate text-[12px] font-black">{shortenTrackingCode(trackingCode)}</span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[#2563EB] transition hover:bg-white"
+        aria-label="Copiar código de rastreio"
+      >
+        <Copy size={12} strokeWidth={2} />
+      </button>
+    </div>
+  );
+};
+
+const OrderRow = ({
+  order,
+  onSelect,
+  onSupplierPurchase,
+  useBotPurchase,
+}: {
+  order: MlOrderRow;
+  onSelect: () => void;
+  onSupplierPurchase: (order: MlOrderRow) => Promise<void> | void;
+  useBotPurchase: boolean;
+}) => {
+  const image = getOrderImage(order);
+
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className="cursor-pointer rounded-2xl border border-[#E5E7EB] bg-white p-4 outline-none transition active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:hidden"
+      >
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+            {image ? (
+              <img src={image} alt={getProductName(order)} className="h-full w-full object-contain p-1 mix-blend-multiply" />
+            ) : (
+              <Package size={22} strokeWidth={1.5} className="text-[#A3A3A3]" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 text-[14px] font-semibold leading-tight tracking-[-0.03em] text-[#111111]">{getProductName(order)}</p>
+            <p className="mt-1 text-[12px] font-medium text-[#777771]">
+              Qtd. {clean(order.quantity)} · {formatBRL(order.total_amount ?? order.sale_price)}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-5 gap-y-5">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Pedido</p>
+            <p className="mt-1 truncate text-[13px] font-semibold tracking-[-0.03em] text-[#111111]">{getOrderCode(order)}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Comprador</p>
+            <p className="mt-1 truncate text-[13px] font-semibold tracking-[-0.03em] text-[#111111]">{clean(order.buyer_name)}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Status</p>
+            <span className={`mt-1 inline-flex h-7 items-center rounded-full border px-2.5 text-[11px] font-semibold ${getStatusStyle(order.status)}`}>
+              {getStatusLabel(order.status)}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Rastreio</p>
+            <div className="mt-1">
+              <TrackingCodeBadge code={order.tracking_code} />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Data</p>
+            <p className="mt-1 text-[13px] font-semibold leading-tight text-[#111111]">{formatDate(order.ordered_at ?? order.created_at)}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-[#EFEFEB] pt-3">
+          <SupplierButton url={order.supplier_url} compact manual={!useBotPurchase} onOpen={() => onSupplierPurchase(order)} />
+        </div>
+      </div>
+
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className={`group hidden cursor-pointer grid-cols-1 gap-4 border-b border-[#EFEFEB] bg-white px-4 py-4 outline-none transition hover:bg-[#F7F7F8] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:grid ${mlOrdersGridClass} md:items-center`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+            {image ? (
+              <img src={image} alt={getProductName(order)} className="h-full w-full object-contain p-1 mix-blend-multiply" />
+            ) : (
+              <Package size={20} strokeWidth={1.5} className="text-[#A3A3A3]" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{getProductName(order)}</p>
+            <p className="mt-1 text-[12px] text-[#777771]">Qtd. {clean(order.quantity)} · ML {getOrderCode(order)}</p>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Comprador</p>
+          <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
+        </div>
+
+        <div className="min-w-0 md:flex md:justify-center">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
+          <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[12px] font-semibold ${getStatusStyle(order.status)}`}>
+            {getStatusLabel(order.status)}
+          </span>
+        </div>
+
+        <div className="min-w-0 md:flex md:justify-center">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Rastreio</p>
+          <TrackingCodeBadge code={order.tracking_code} />
+        </div>
+
+        <div className="min-w-0 md:text-right">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Valor</p>
+          <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total_amount ?? order.sale_price)}</p>
+        </div>
+
+        <div className="min-w-0 md:text-right">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Data</p>
+          <p className="text-[13px] font-medium text-[#525252]">{formatDate(order.ordered_at ?? order.created_at)}</p>
+        </div>
+
+        <div className="flex items-center gap-2 md:justify-end">
+          <SupplierButton url={order.supplier_url} compact manual={!useBotPurchase} onOpen={() => onSupplierPurchase(order)} />
+        </div>
+
+        <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] 2xl:block" />
+      </div>
+    </>
+  );
+};
+
+const OrderSkeleton = () => (
+  <div className="rounded-2xl border border-[#E5E7EB] bg-white">
+    {[1, 2, 3, 4].map((item) => (
+      <div key={item} className={`grid gap-4 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 ${mlOrdersGridClass} md:items-center`}>
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-12 w-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+        </div>
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-28 rounded-full" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-9 w-40 rounded-lg" />
+      </div>
+    ))}
+  </div>
+);
+
+type OrderTab = "ml" | "loja";
+
+type StoreOrderRow = {
+  id: string;
+  product_title: string;
+  product_image_url: string | null;
+  buyer_name: string;
+  buyer_email: string;
+  buyer_phone: string | null;
+  quantity: number;
+  total: number;
+  payment_method: string;
+  payment_status: string;
+  created_at: string;
+  catalog_product_id: string | null;
+  supplier_url: string | null;
+  supplier_price: number | null;
+  /** Variação vendida ("Cor: Azul · Tamanho: G"), quando o produto tem. */
+  variant_label: string | null;
+  variant_sku: string | null;
+  shipping_address: Json | null;
+};
+
+const StoreOrdersList = ({ userId, useBotPurchase }: { userId: string; useBotPurchase: boolean }) => {
+  const [addressOrder, setAddressOrder] = useState<StoreOrderRow | null>(null);
+  const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
+  const { data, isLoading } = useQuery({
+    queryKey: ["store-orders", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("store_orders")
+        .select("id,product_title,product_image_url,buyer_name,buyer_email,buyer_phone,quantity,total,payment_method,payment_status,created_at,catalog_product_id,shipping_address,variant_label,variant_sku")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const rows = (data ?? []) as Omit<StoreOrderRow, "supplier_url" | "supplier_price">[];
+      const ids = Array.from(new Set(rows.map((r) => r.catalog_product_id).filter((v): v is string => Boolean(v))));
+      let productMap = new Map<string, { url: string | null; cost: number | null }>();
+      if (ids.length > 0) {
+        const { data: prods } = await supabase
+          .from("catalog_products")
+          .select("id,product_url,cost_price")
+          .in("id", ids);
+        productMap = new Map(
+          (prods ?? []).map((p) => [
+            p.id as string,
+            {
+              url: (p.product_url as string | null) ?? null,
+              cost: typeof p.cost_price === "number" ? p.cost_price : null,
+            },
+          ]),
+        );
+      }
+      return rows.map((r) => {
+        const product = r.catalog_product_id ? productMap.get(r.catalog_product_id) : null;
+        return {
+          ...r,
+          supplier_url: product?.url ?? null,
+          supplier_price: product?.cost ?? null,
+        };
+      }) as StoreOrderRow[];
+    },
+  });
+
+  if (isLoading) return <OrderSkeleton />;
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
+          <ShoppingBag size={21} strokeWidth={1.7} />
+        </div>
+        <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido da sua loja ainda</p>
+        <p className="mt-1 max-w-md text-[12px] font-medium text-[#777771]">
+          Quando um cliente comprar em uma das suas páginas de vendas, o pedido aparece aqui automaticamente.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+        <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(140px,0.9fr)_64px_104px_124px_112px_190px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
+          <span>Produto</span>
+          <span>Comprador</span>
+          <span>Qtd.</span>
+          <span>Total</span>
+          <span>Pagamento</span>
+          <span>Data</span>
+          <span className="text-right">Ações</span>
+        </div>
+        {data.map((order) => {
+          const hasAddress = addressLines(normalizeShippingAddress(order.shipping_address)).length > 0;
+          return (
+            <div key={order.id} className="grid gap-3 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.45fr)_minmax(140px,0.9fr)_64px_104px_124px_112px_190px] md:items-center">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
+                  {order.product_image_url ? <img src={order.product_image_url} alt="" className="h-full w-full object-contain p-1 mix-blend-multiply" /> : <Package size={20} className="text-[#A3A3A3]" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="line-clamp-1 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">{order.product_title}</p>
+                  {order.variant_label ? (
+                    <p className="line-clamp-1 text-[11px] font-semibold text-[#2563EB]">
+                      {order.variant_label}
+                      {order.variant_sku ? <span className="text-[#737373]"> · SKU {order.variant_sku}</span> : null}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{order.buyer_name}</p>
+                <p className="truncate text-[11px] text-[#737373]">{order.buyer_email}</p>
+                {order.buyer_phone ? <p className="truncate text-[11px] text-[#737373]">{order.buyer_phone}</p> : null}
+                <button
+                  type="button"
+                  onClick={() => setAddressOrder(order)}
+                  disabled={!hasAddress}
+                  className="mt-2 inline-flex h-7 items-center justify-center gap-1.5 rounded-full border border-[#C7D7FE] bg-[#EFF6FF] px-2.5 text-[11px] font-semibold text-[#2563EB] transition hover:border-[#9DB8FD] hover:bg-[#E7F0FF] disabled:cursor-not-allowed disabled:border-[#E5E7EB] disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]"
+                >
+                  <MapPin size={13} strokeWidth={1.8} />
+                  Endereço
+                </button>
+              </div>
+              <p className="text-[13px] text-[#525252]">{order.quantity}</p>
+              <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total)}</p>
+              <span className={`inline-flex h-7 w-fit items-center rounded-full px-2.5 text-[12px] font-semibold ${order.payment_status === "approved" ? "bg-[#C8F7DF] text-[#137443]" : order.payment_status === "rejected" ? "bg-red-100 text-red-700" : "bg-[#F5F5F5] text-[#404040]"}`}>
+                {order.payment_method === "pix" ? "Pix" : "Cartão"} · {order.payment_status === "approved" ? "Pago" : order.payment_status === "rejected" ? "Rejeitado" : "Pendente"}
+              </span>
+              <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
+              <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                <SupplierButton
+                  url={order.supplier_url}
+                  compact
+                  manual={!useBotPurchase}
+                  onOpen={() => {
+                    const info = purchaseInfoFromStoreOrder(order);
+                    if (info) setSupplierPurchaseInfo(info);
+                    else veloToast.error("Este pedido não possui fornecedor vinculado.");
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <StoreOrderAddressModal order={addressOrder} onClose={() => setAddressOrder(null)} />
+      <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} />
+    </>
+  );
+};
+
+const StoreOrderAddressModal = ({ order, onClose }: { order: StoreOrderRow | null; onClose: () => void }) => {
+  if (!order) return null;
+
+  const address = normalizeShippingAddress(order.shipping_address);
+  const entries = addressEntries(address);
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 backdrop-blur-[3px]">
+      <div className="w-full max-w-lg overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
+        <div className="h-1.5 bg-[#2563EB]" />
+        <div className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#2563EB] text-white shadow-[0_10px_24px_rgba(37,99,235,0.28)]">
+                <MapPin size={17} strokeWidth={1.9} />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-[18px] font-black tracking-[-0.035em] text-[#020817]">Endereço de entrega</h2>
+                <p className="mt-0.5 truncate text-[12px] font-medium text-[#64748B]">{order.product_title}</p>
+              </div>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#64748B]">Comprador</p>
+            <p className="mt-2 text-[14px] font-black tracking-[-0.02em] text-[#020817]">{order.buyer_name}</p>
+            <p className="mt-1 text-[12px] font-medium text-[#64748B]">{order.buyer_email}</p>
+            {order.buyer_phone ? <p className="mt-1 text-[12px] font-medium text-[#64748B]">{order.buyer_phone}</p> : null}
+          </div>
+
+          <div className="mt-4 rounded-[18px] border border-[#D8E3F8] bg-white p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Entrega</p>
+            <div className="mt-3 space-y-2.5">
+              {entries.length > 0 ? (
+                entries.map((entry) => (
+                  <div key={entry.label} className="grid grid-cols-[86px_minmax(0,1fr)] gap-3 text-[13px] leading-snug">
+                    <span className="font-black uppercase tracking-[0.08em] text-[#94A3B8]">{entry.label}</span>
+                    <span className="font-semibold text-[#020817]">{entry.value}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[14px] font-semibold text-[#020817]">Endereço não informado.</p>
+              )}
             </div>
           </div>
 
           <button
             type="button"
-            onClick={onMarkAsShipped}
-            disabled={isSaving}
-            className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[14px] font-semibold text-white transition hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
+            onClick={onClose}
+            className="mt-5 flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
           >
-            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Truck size={16} />}
-            Marcar como enviado
+            Fechar
           </button>
         </div>
-
-        {awaitingPayment && (
-          <div className="rounded-[20px] border border-amber-200 bg-amber-50 p-5 text-amber-900">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-[15px] font-bold">Aguardando recarga na CJ</p>
-                <p className="mt-1 text-[13px] leading-5">
-                  Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openCjWallet}
-                className="inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-amber-500 px-5 text-[13px] font-bold text-white transition hover:bg-amber-600"
-              >
-                Recarregar CJ
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-5 dark:border-zinc-800 dark:bg-[#18181B] md:p-7">
-            <div className="mb-7 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-[22px] font-bold tracking-[-0.02em]">Próximos passos da entrega</h2>
-                <p className="mt-1 text-[13px] leading-5 text-[#77706B] dark:text-zinc-400">
-                  Siga a ordem abaixo para finalizar a venda com segurança.
-                </p>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute bottom-10 left-[22px] top-10 w-px bg-[#E8E5E2] dark:bg-zinc-800" />
-
-              <div className="space-y-5">
-                {steps.map((step) => {
-                  const state =
-                    step.number < currentStep || currentStep === 4
-                      ? "done"
-                      : step.number === currentStep
-                        ? "current"
-                        : "pending";
-
-                  return (
-                    <DeliveryStep
-                      key={step.number}
-                      step={step}
-                      state={state}
-                      order={order}
-                      trackingInput={trackingInput}
-                      onTrackingInputChange={onTrackingInputChange}
-                      onSaveTracking={onSaveTracking}
-                      onOpenCjProduct={openCjProduct}
-                      onSendToCj={onSendToCj}
-                      onCopyAddress={() => copyToClipboard(customerText, "Endereço do cliente copiado")}
-                      isSaving={isSaving}
-                      isSendingToCj={isSendingToCj}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <aside className="flex flex-col gap-5">
-            <div className="rounded-[24px] border border-[#E8E5E2] bg-white p-6 dark:border-zinc-800 dark:bg-[#18181B]">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#77706B] dark:text-zinc-500">
-                    Informações do cliente
-                  </p>
-                  <h2 className="mt-2 text-[20px] font-bold tracking-[-0.02em]">
-                    {order.buyer_name || "Cliente não informado"}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(customerText, "Dados do cliente copiados")}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#E1DDDA] bg-white text-[#151312] transition hover:border-[#151312] dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
-                  aria-label="Copiar dados do cliente"
-                >
-                  <Copy size={16} />
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                <CustomerInfoRow icon={<MapPin size={16} />} label="Endereço completo" value={address.full} />
-                <CustomerInfoRow icon={<Phone size={16} />} label="Telefone" value={order.buyer_phone || "Não informado"} />
-                <CustomerInfoRow icon={<Mail size={16} />} label="Email" value={order.buyer_email || "Não informado"} />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => copyToClipboard(customerText, "Todos os dados do cliente foram copiados")}
-                className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#D8D3CF] bg-[#FBFAF9] text-[13px] font-semibold text-[#151312] transition hover:border-[#151312] dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:border-white"
-              >
-                <Clipboard size={15} />
-                Copiar tudo
-              </button>
-            </div>
-
-            <div className="rounded-[24px] border border-[#E8E5E2] bg-[#FBFAF9] p-6 dark:border-zinc-800 dark:bg-[#18181B]">
-              <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#77706B] dark:text-zinc-500">
-                Resumo financeiro
-              </p>
-              <div className="mt-5 space-y-3">
-                <SummaryRow label="Custo na CJ" value={formatMaybeBRL(order.cost_price)} />
-                <SummaryRow label="Recebimento ML" value={formatBRL(order.sale_price)} />
-                <SummaryRow label="Lucro estimado" value={formatMaybeBRL(profit)} strong />
-              </div>
-            </div>
-          </aside>
-        </div>
       </div>
-    </section>
+    </div>
   );
 };
 
-type DeliveryStepProps = {
-  step: {
-    number: number;
-    title: string;
-    icon: React.ReactNode;
-    text: string;
-  };
-  state: "done" | "current" | "pending";
-  order: Order;
-  trackingInput: string;
-  onTrackingInputChange: (value: string) => void;
-  onSaveTracking: () => void;
-  onOpenCjProduct: () => void;
-  onSendToCj: () => void;
-  onCopyAddress: () => void;
-  isSaving: boolean;
-  isSendingToCj: boolean;
-};
+const OrdersPage = () => {
+  const { user, role } = useAuth();
+  const { plan } = usePlan();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState<OrderTab>("ml");
+  const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
+  const [c7DropAccountModalOpen, setC7DropAccountModalOpen] = useState(false);
+  const [c7DropAccountManageOpen, setC7DropAccountManageOpen] = useState(false);
+  const syncedRef = useRef(false);
+  const isAdminUser = useMemo(() => {
+    const metadataRole =
+      (user?.app_metadata?.role as string | undefined) ??
+      (user?.user_metadata?.role as string | undefined) ??
+      null;
+    return role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  }, [role, user?.app_metadata?.role, user?.email, user?.user_metadata?.role]);
 
-const DeliveryStep = ({
-  step,
-  state,
-  order,
-  trackingInput,
-  onTrackingInputChange,
-  onSaveTracking,
-  onOpenCjProduct,
-  onSendToCj,
-  onCopyAddress,
-  isSaving,
-  isSendingToCj,
-}: DeliveryStepProps) => {
-  const profit = getProfit(order);
-  const awaitingPayment = isAwaitingCjPayment(order);
-  const tone = {
-    done: {
-      icon: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      card: "border-emerald-100 bg-emerald-50/30",
-      label: "Concluído",
-      labelClass: "bg-emerald-50 text-emerald-700 border-emerald-100",
+  const { data: botPurchaseSettings = DEFAULT_BOT_PURCHASE_SETTINGS } = useQuery({
+    queryKey: ["dropship-worker-settings"],
+    queryFn: fetchBotPurchaseSettings,
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
+
+  const userAccessLevels = useMemo(() => {
+    const levels = new Set<BotPurchaseAccessLevel>([planToBotAccess(plan)]);
+    if (isAdminUser) levels.add("admin");
+    return levels;
+  }, [isAdminUser, plan]);
+
+  const useBotPurchase =
+    botPurchaseSettings.enabled &&
+    botPurchaseSettings.accessLevels.some((level) => userAccessLevels.has(level));
+
+  const { data: c7DropAccount = { status: "not_connected" as const } } = useQuery({
+    queryKey: ["c7drop-account", user?.id],
+    queryFn: fetchC7DropAccountStatus,
+    enabled: !!user?.id && useBotPurchase,
+    refetchInterval: 60_000,
+  });
+
+  const c7DropAccountMutation = useMutation({
+    mutationFn: ({ mode, form }: { mode: "connect" | "signup"; form: C7DropAccountForm }) => {
+      if (!useBotPurchase) {
+        throw new Error("A automação por fornecedor não está liberada para este acesso.");
+      }
+      return saveC7DropAccount(mode, form);
     },
-    current: {
-      icon: "border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white",
-      card: "border-zinc-300 bg-zinc-50 shadow-[0_18px_44px_rgba(32,32,36,0.06)] dark:border-zinc-700 dark:bg-zinc-900",
-      label: "Em andamento",
-      labelClass: "bg-zinc-100 text-zinc-800 border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white",
+    onSuccess: (account) => {
+      queryClient.setQueryData(["c7drop-account", user?.id], account);
+      setC7DropAccountModalOpen(false);
+      setC7DropAccountManageOpen(false);
+      veloToast.success(account.status === "connected" ? "Conta do fornecedor conectada." : "Solicitação de conta no fornecedor salva.");
     },
-    pending: {
-      icon: "border-zinc-200 bg-zinc-50 text-zinc-500",
-      card: "border-[#E8E5E2] bg-white",
-      label: "Pendente",
-      labelClass: "bg-zinc-50 text-zinc-500 border-zinc-200",
+    onError: (error: unknown) => {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível salvar a conta do fornecedor.");
     },
-  }[state];
+  });
+
+  const c7DropDisconnectMutation = useMutation({
+    mutationFn: () => disconnectC7DropAccount(),
+    onSuccess: (account) => {
+      queryClient.setQueryData(["c7drop-account", user?.id], account);
+      setC7DropAccountManageOpen(false);
+      setC7DropAccountModalOpen(false);
+      veloToast.success("Conta do fornecedor desconectada.");
+    },
+    onError: (error: unknown) => {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível desconectar a conta do fornecedor.");
+    },
+  });
+
+  const triggerSync = useMemo(
+    () => () => {
+      if (!user?.id) return;
+      supabase.functions
+        .invoke("ml-sync-orders")
+        .then(({ error: syncErr }) => {
+          if (syncErr) {
+            console.warn("[OrdersPage] ml-sync-orders falhou", syncErr);
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user.id] });
+          queryClient.invalidateQueries({ queryKey: ["store-orders", user.id] });
+        })
+        .catch((err) => console.warn("[OrdersPage] ml-sync-orders exception", err));
+    },
+    [user?.id, queryClient],
+  );
+
+  // Initial sync on mount
+  useEffect(() => {
+    if (!user?.id || syncedRef.current) return;
+    syncedRef.current = true;
+    triggerSync();
+  }, [user?.id, triggerSync]);
+
+  // Periodic sync every 45s while page is visible
+  useEffect(() => {
+    if (!user?.id) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") triggerSync();
+    }, 45_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") triggerSync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user?.id, triggerSync]);
+
+  // Realtime subscription: invalidate queries on any change
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`orders-realtime-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user.id] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "store_orders", filter: `user_id=eq.${user.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["store-orders", user.id] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
+
+  const {
+    data: rawOrders,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["ml-orders-view", user?.id],
+    enabled: !!user?.id,
+    // Verifica continuamente se surgiram pedidos da conta de vendedor conectada
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      // Sellers ML conectados nesta conta (pedidos podem ter sido gravados em outra conta Velo
+      // que usa o mesmo seller — trazemos todos eles).
+      const { data: integrations } = await supabase
+        .from("user_integrations")
+        .select("ml_user_id")
+        .eq("user_id", user.id)
+        .eq("platform", "mercadolivre");
+
+      const sellerIds = Array.from(
+        new Set(
+          (integrations ?? [])
+            .map((row) => (row.ml_user_id == null ? null : String(row.ml_user_id)))
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      const filters = [`user_id.eq.${user.id}`];
+      if (sellerIds.length > 0) {
+        filters.push(`ml_user_id.in.(${sellerIds.join(",")})`);
+      }
+
+      const { data, error: queryError } = await supabase
+        .from("ml_orders_view")
+        .select("*")
+        .or(filters.join(","))
+        .order("ordered_at", { ascending: false, nullsFirst: false })
+        .limit(2000);
+      if (queryError) throw queryError;
+
+      // Deduplica caso o mesmo pedido apareça por mais de um critério
+      const seen = new Set<string>();
+      return (data ?? []).filter((row) => {
+        const key = String(row.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    },
+  });
+
+
+  useEffect(() => {
+    if (error) {
+      veloToast.error("Não foi possível carregar seus pedidos.");
+    }
+  }, [error]);
+
+  const orders = useMemo(
+    () => {
+      const baseOrders = [...(rawOrders ?? [])];
+
+      return baseOrders.sort((a, b) => {
+        const left = new Date(a.ordered_at ?? a.created_at ?? 0).getTime();
+        const right = new Date(b.ordered_at ?? b.created_at ?? 0).getTime();
+        return right - left;
+      });
+    },
+    [rawOrders, user?.email, user?.id],
+  );
+
+  const isEmpty = !isLoading && orders.length === 0;
+  const activeTabCount = tab === "ml" ? orders.length : 0;
 
   return (
-    <article className="relative grid grid-cols-[46px_minmax(0,1fr)] gap-4">
-      <div className={`relative z-10 flex h-11 w-11 items-center justify-center rounded-full border ${tone.icon}`}>
-        {step.icon}
-      </div>
+    <TooltipProvider delayDuration={120}>
+      <DashboardPageShell
+        title="Pedidos"
+        className="overflow-visible"
+        panelClassName="overflow-visible"
+        style={pageFont}
+      >
 
-      <div className={`rounded-[20px] border p-5 transition ${tone.card}`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-[18px] font-bold tracking-[-0.01em]">
-            Etapa {step.number} — {step.title}
-          </h3>
-          <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] ${tone.labelClass}`}>
-            {tone.label}
-          </span>
-        </div>
-        <p className="mt-3 text-[14px] leading-6 text-[#5F5A56] dark:text-zinc-400">{step.text}</p>
-
-        {step.number === 2 && (
-          <div className="mt-5 space-y-5">
-            {awaitingPayment && (
-              <div className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-medium leading-5 text-amber-800">
-                Recarregue sua conta na CJ e o pedido será processado automaticamente em até 2 horas.
-              </div>
-            )}
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <MetricCard label="Custo do produto na CJ" value={formatMaybeBRL(order.cost_price)} />
-              <MetricCard label="Valor que você vai receber do ML" value={formatBRL(order.sale_price)} />
-              <MetricCard label="Lucro estimado" value={formatMaybeBRL(profit)} />
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={awaitingPayment ? openCjWallet : onOpenCjProduct}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition hover:bg-[#1A1A1A]"
-              >
-                <ExternalLink size={15} />
-                {awaitingPayment ? "Recarregar CJ" : "Comprar na CJ"}
-              </button>
-              <button
-                type="button"
-                onClick={onSendToCj}
-                disabled={isSendingToCj}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#0A0A0A] px-5 text-[13px] font-semibold text-white transition hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-100"
-              >
-                {isSendingToCj ? <Loader2 size={15} className="animate-spin" /> : <Truck size={15} />}
-                Enviar pela CJ
-              </button>
-              <button
-                type="button"
-                onClick={onCopyAddress}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#D8D3CF] bg-white px-5 text-[13px] font-semibold text-[#151312] transition hover:border-[#151312]"
-              >
-                <Copy size={15} />
-                Copiar endereço do cliente
-              </button>
-            </div>
+        <div className="mobile-hide-scrollbar mb-5 flex gap-2 overflow-x-auto md:mb-7 md:items-center xl:overflow-visible" data-dashboard-tour="pedidos-filtros">
+          <div className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-[12px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
+            <Calendar size={14} strokeWidth={1.8} className="text-[#8E8E87]" />
+            <span>{activeTabCount}</span>
+            <span className="text-[#8E8E87]">{activeTabCount === 1 ? "pedido" : "pedidos"}</span>
           </div>
-        )}
 
-        {step.number === 3 && (
-          <div className="mt-5 rounded-[16px] border border-[#E8E5E2] bg-white p-4">
-            <label className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#77706B]">
-              Código de rastreio
-            </label>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-              <input
-                value={trackingInput}
-                onChange={(event) => onTrackingInputChange(event.target.value)}
-                placeholder="Cole o código de rastreio"
-                className="h-11 min-w-0 flex-1 rounded-full border border-[#D8D3CF] bg-white px-4 text-[14px] font-medium text-[#151312] outline-none transition placeholder:text-[#A8A19B] focus:border-[#151312]"
-              />
-              <button
-                type="button"
-                onClick={onSaveTracking}
-                disabled={isSaving}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#D8D3CF] bg-[#FBFAF9] px-5 text-[13px] font-semibold text-[#151312] transition hover:border-[#151312] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving && <Loader2 size={15} className="animate-spin" />}
-                Salvar rastreio
-              </button>
+          <div className="inline-flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTab("ml")}
+              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 text-[12px] font-semibold transition-all duration-200 ${
+                tab === "ml"
+                  ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.16)]"
+                  : "border-black/[0.08] bg-white text-[#111111] hover:border-black/15 hover:bg-[#F7F7F8]"
+              }`}
+            >
+              <span className={tab === "ml" ? "text-white/65" : "text-[#8E8E87]"}>Canal</span>
+              <span>Mercado Livre</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("loja")}
+              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-4 text-[12px] font-semibold transition-all duration-200 ${
+                tab === "loja"
+                  ? "border-[#2563EB] bg-[#2563EB] text-white shadow-[0_6px_14px_rgba(37,99,235,0.16)]"
+                  : "border-black/[0.08] bg-white text-[#111111] hover:border-black/15 hover:bg-[#F7F7F8]"
+              }`}
+            >
+              <span className={tab === "loja" ? "text-white/65" : "text-[#8E8E87]"}>Canal</span>
+              <span>Minha Loja</span>
+            </button>
+          </div>
+
+          <div className="hidden xl:block xl:flex-1" />
+        </div>
+
+        {useBotPurchase ? (
+          <C7DropAccountBanner
+            account={c7DropAccount}
+            onOpen={() => {
+              if (c7DropAccount.status === "connected") {
+                setC7DropAccountManageOpen(true);
+                return;
+              }
+              setC7DropAccountModalOpen(true);
+            }}
+          />
+        ) : null}
+
+        {tab === "loja" && user?.id ? (
+          <StoreOrdersList userId={user.id} useBotPurchase={useBotPurchase} />
+        ) : isLoading ? (
+          <OrderSkeleton />
+        ) : isEmpty ? (
+          <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+            <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
+              <ShoppingBag size={21} strokeWidth={1.7} />
             </div>
-            <p className="mt-3 text-[13px] leading-5 text-[#77706B]">
-              A Velo sincroniza o rastreio automaticamente a cada 2h.
+            <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido encontrado</p>
+            <p className="mt-1 max-w-md text-[12px] font-medium text-[#777771]">
+              Seus pedidos do Mercado Livre aparecerão aqui quando a sincronização registrar vendas na view.
             </p>
           </div>
+        ) : (
+          <div data-dashboard-tour="pedidos-lista" className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-2xl md:border md:border-[#E5E7EB] md:bg-white">
+            <div className={`hidden gap-4 border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid ${mlOrdersGridClass}`}>
+              <span>Produto</span>
+              <span>Comprador</span>
+              <span className="text-center">Status</span>
+              <span className="text-center">Rastreio</span>
+              <span className="text-right">Valor</span>
+              <span className="text-right">Data</span>
+              <span className="text-right">Fornecedor</span>
+              <span />
+            </div>
+            {orders.map((order) => (
+              <OrderRow
+                key={order.id ?? `${order.ml_order_id}-${order.created_at}`}
+                order={order}
+                onSelect={() => {
+                  const routeId = order.ml_order_id ?? order.id ?? order.external_order_id;
+                  if (routeId) navigate(`/dashboard/orders/${encodeURIComponent(routeId)}`);
+                  else veloToast.error("Este pedido não possui um identificador válido.");
+                }}
+                onSupplierPurchase={async (selectedOrder) => {
+                  const info = purchaseInfoFromMlOrder(selectedOrder);
+                  if (!info) {
+                    veloToast.error("Este pedido não possui fornecedor vinculado.");
+                    return;
+                  }
+                  try {
+                    setSupplierPurchaseInfo(await attachDropshipOrderId(info, selectedOrder));
+                  } catch {
+                    veloToast.error("Não foi possível localizar este pedido na fila do bot.");
+                  }
+                }}
+                useBotPurchase={useBotPurchase}
+              />
+            ))}
+          </div>
         )}
-      </div>
-    </article>
+        <C7DropAccountManageModal
+          open={useBotPurchase && c7DropAccountManageOpen && c7DropAccount.status === "connected"}
+          account={c7DropAccount}
+          disconnecting={c7DropDisconnectMutation.isPending}
+          onClose={() => setC7DropAccountManageOpen(false)}
+          onChangeAccount={() => {
+            setC7DropAccountManageOpen(false);
+            setC7DropAccountModalOpen(true);
+          }}
+          onDisconnect={() => c7DropDisconnectMutation.mutate()}
+        />
+        <C7DropAccountModal
+          open={useBotPurchase && c7DropAccountModalOpen}
+          account={c7DropAccount}
+          saving={c7DropAccountMutation.isPending}
+          onClose={() => setC7DropAccountModalOpen(false)}
+          onSave={(mode, form) => c7DropAccountMutation.mutate({ mode, form })}
+        />
+        <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} onCreatedPix={() => queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user?.id] })} />
+      </DashboardPageShell>
+    </TooltipProvider>
   );
 };
-
-const MetricCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-[16px] border border-[#E8E5E2] bg-white px-4 py-3">
-    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#77706B]">{label}</p>
-    <p className="mt-2 text-[17px] font-bold text-[#151312]">{value}</p>
-  </div>
-);
-
-const SummaryRow = ({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) => (
-  <div className="flex items-center justify-between gap-4 rounded-[14px] bg-white px-4 py-3 dark:bg-zinc-950">
-    <span className="text-[13px] font-medium text-[#77706B] dark:text-zinc-400">{label}</span>
-    <span className={`text-[14px] ${strong ? "font-bold text-[#151312] dark:text-white" : "font-semibold text-[#2A2928] dark:text-zinc-200"}`}>
-      {value}
-    </span>
-  </div>
-);
-
-const CustomerInfoRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) => (
-  <div className="flex gap-3 rounded-[16px] border border-[#E8E5E2] bg-[#FBFAF9] p-4 dark:border-zinc-800 dark:bg-zinc-900">
-    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#151312] dark:bg-zinc-950 dark:text-white">
-      {icon}
-    </span>
-    <div className="min-w-0">
-      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#77706B] dark:text-zinc-500">{label}</p>
-      <p className="mt-1 text-[14px] font-semibold leading-5 text-[#151312] dark:text-white">{value}</p>
-    </div>
-  </div>
-);
 
 export default OrdersPage;

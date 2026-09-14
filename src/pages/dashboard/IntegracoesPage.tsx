@@ -1,173 +1,202 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, CheckCircle2, Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import UpgradeLimitModal from "@/components/UpgradeLimitModal";
-import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
+import { SHOPIFY_OFFER_URL } from "@/lib/shopifyConnect";
+import { Button } from "@/components/ui/button";
+import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
 
-type IntegrationStatus = "connected" | "not_connected" | "coming_soon";
-
-type PlatformCard = {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  initials: string;
-  status: IntegrationStatus;
+type ShopifyConnection = {
+  shop_domain: string;
+  created_at: string;
 };
 
-const platforms: PlatformCard[] = [
-  { id: "mercadolivre", name: "Mercado Livre", description: "Publique produtos diretamente nos seus anúncios", color: "#FFE600", initials: "ML", status: "not_connected" },
-  { id: "shopee", name: "Shopee", description: "Disponível em breve", color: "#D4D4D8", initials: "S", status: "coming_soon" },
-  { id: "amazon", name: "Amazon", description: "Disponível em breve", color: "#D4D4D8", initials: "A", status: "coming_soon" },
-  { id: "shopify", name: "Shopify", description: "Disponível em breve", color: "#D4D4D8", initials: "SP", status: "coming_soon" },
-];
+// Banners enviados pelo time (public/). Os nomes têm espaço, então precisam de encode.
+const BANNER_LOJA_IA = encodeURI("/banner shopify 1.png");
+const BANNER_OFERTA = encodeURI("/shopifyu banner 2.png");
+
+const ADD_STORE_ROUTE = "/dashboard/integracoes/adicionar";
+
+const cardShell =
+  "rounded-[16px] border border-[#EDEDED] bg-white p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:border-zinc-800 dark:bg-zinc-900";
 
 const IntegracoesPage = () => {
   const { user } = useAuth();
-  const planLimits = usePlanLimits();
-  const [statuses, setStatuses] = useState<Record<string, IntegrationStatus>>({});
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [connection, setConnection] = useState<ShopifyConnection | null>(null);
   const [loading, setLoading] = useState(true);
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+
+  const load = async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from("shopify_connections" as any)
+      .select("shop_domain, created_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    setConnection((data as ShopifyConnection | null) ?? null);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("user_integrations")
-        .select("platform, access_token")
-        .eq("user_id", user.id);
-
-      const map: Record<string, IntegrationStatus> = {};
-      data?.forEach((row) => {
-        if (row.access_token) map[row.platform] = "connected";
-      });
-      setStatuses(map);
-      setLoading(false);
-    })();
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const handleConnect = async (platformId: string) => {
-    if (planLimits.loading) return;
+  // Retorno do OAuth da Shopify (?shopify=conectado|erro).
+  useEffect(() => {
+    const status = searchParams.get("shopify");
+    if (!status) return;
+    if (status === "conectado") {
+      veloToast.success("Loja Shopify conectada!");
+      load();
+    } else if (status === "erro") {
+      veloToast.error("Falha ao conectar a Shopify. Tente novamente.");
+    }
+    setSearchParams(
+      (prev) => {
+        prev.delete("shopify");
+        return prev;
+      },
+      { replace: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
-    if (!planLimits.canConnectMarketplace && statuses[platformId] !== "connected") {
-      setUpgradeModalOpen(true);
+  const handleDisconnect = async () => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("shopify_connections" as any)
+      .delete()
+      .eq("user_id", user.id);
+    if (error) {
+      veloToast.error("Não foi possível desconectar");
       return;
     }
-
-    if (platformId === "mercadolivre" && user) {
-      const { data, error } = await supabase.functions.invoke("ml-connect");
-      const authUrl = data?.authUrl ?? data?.auth_url;
-      if (error || !authUrl) {
-        toast.error("Não foi possível iniciar a conexão com o Mercado Livre");
-        return;
-      }
-      window.location.href = authUrl;
-    }
+    setConnection(null);
+    veloToast.success("Loja Shopify desconectada");
   };
 
-  const handleDisconnect = async (platformId: string) => {
-    if (!user) return;
-    await supabase
-      .from("user_integrations")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("platform", platformId);
-    setStatuses((prev) => {
-      const next = { ...prev };
-      delete next[platformId];
-      return next;
-    });
-  };
-
-  const getStatus = (p: PlatformCard): IntegrationStatus => {
-    if (p.status === "coming_soon") return "coming_soon";
-    return statuses[p.id] || "not_connected";
-  };
+  const goToAddStore = () => navigate(ADD_STORE_ROUTE);
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground font-[Sora]">Integrações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Conecte suas contas para publicar e gerenciar produtos.</p>
+    <div className="mx-auto w-full max-w-[1180px]">
+      {/* Topo: voltar + título + adicionar loja */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="Voltar"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[#1C1C1E] transition hover:bg-black/[0.05] dark:text-white dark:hover:bg-white/10"
+          >
+            <ArrowLeft size={19} />
+          </button>
+          <h1 className="truncate text-[21px] font-semibold tracking-[-0.015em] text-[#1C1C1E] dark:text-white">
+            Lojas Shopify
+          </h1>
+        </div>
+        <Button type="button" variant="pilot" onClick={goToAddStore} className="shrink-0">
+          <Plus size={15} /> Adicionar loja
+        </Button>
       </div>
 
-      {loading ? (
-        <div className="text-sm text-muted-foreground animate-pulse">Carregando...</div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {platforms.map((p) => {
-            const status = getStatus(p);
-            return (
-              <div
-                key={p.id}
-                title={status === "coming_soon" ? "Disponível em breve" : undefined}
-                className={`rounded-xl border p-5 flex flex-col gap-4 ${
-                  status === "coming_soon"
-                    ? "border-zinc-200 bg-zinc-50 opacity-75 grayscale"
-                    : "border-border bg-background"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-bold"
-                    style={{ backgroundColor: p.color, color: p.color === "#FFE600" || status === "coming_soon" ? "#333" : "#fff" }}
-                  >
-                    {p.initials}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-foreground">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground">{p.description}</p>
-                  </div>
-                  {status === "connected" && (
-                    <span className="shrink-0 rounded-full bg-green-100 text-green-700 px-2.5 py-0.5 text-xs font-semibold">Conectado</span>
-                  )}
-                  {status === "not_connected" && (
-                    <span className="shrink-0 rounded-full bg-muted text-muted-foreground px-2.5 py-0.5 text-xs font-semibold">Não conectado</span>
-                  )}
-                  {status === "coming_soon" && (
-                    <span className="shrink-0 rounded-full bg-muted text-muted-foreground px-2.5 py-0.5 text-xs font-semibold">Em breve</span>
-                  )}
-                </div>
+      {/* Card principal: estado da conexão */}
+      <div className={cardShell}>
+        <div className="rounded-[12px] bg-[#F6F7F9] px-6 py-14 text-center dark:bg-zinc-950">
+          <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[12px] bg-white text-[#1C1C1E] shadow-[0_1px_3px_rgba(0,0,0,0.08)] dark:bg-zinc-900 dark:text-white">
+            <ShopifyBagIcon size={24} />
+          </span>
 
-                {status === "not_connected" && (
-                  <button
-                    onClick={() => handleConnect(p.id)}
-                    className="w-full rounded-lg bg-black text-white py-2 text-sm font-semibold hover:opacity-90 transition-opacity"
-                  >
-                    Conectar conta
-                  </button>
-                )}
-                {status === "connected" && (
-                  <button
-                    onClick={() => handleDisconnect(p.id)}
-                    className="w-full rounded-lg border border-border text-muted-foreground py-2 text-sm font-semibold hover:bg-muted transition-colors"
-                  >
-                    Desconectar
-                  </button>
-                )}
-                {status === "coming_soon" && (
-                  <button
-                    disabled
-                    title="Disponível em breve"
-                    className="w-full rounded-lg bg-muted text-muted-foreground py-2 text-sm font-semibold cursor-not-allowed opacity-70"
-                  >
-                    Em breve
-                  </button>
-                )}
+          {loading ? (
+            <p className="flex items-center justify-center gap-2 text-[13px] text-[#8A8A8A]">
+              <Loader2 size={14} className="animate-spin" /> Verificando suas lojas...
+            </p>
+          ) : connection ? (
+            <>
+              <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[#1C1C1E] dark:text-white">
+                {connection.shop_domain}
+              </h2>
+              <p className="mx-auto mt-1.5 flex max-w-[520px] items-center justify-center gap-1.5 text-[13px] text-[#8A8A8A] dark:text-zinc-400">
+                <CheckCircle2 size={14} className="text-[#1C1C1E] dark:text-white" /> Loja conectada e pronta para
+                receber seus produtos.
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+                <Button type="button" variant="pilot" onClick={goToAddStore}>
+                  <Plus size={15} /> Conectar outra loja
+                </Button>
+                <Button type="button" variant="pilotLight" onClick={handleDisconnect}>
+                  Desconectar
+                </Button>
               </div>
-            );
-          })}
+            </>
+          ) : (
+            <>
+              <h2 className="text-[17px] font-semibold tracking-[-0.01em] text-[#1C1C1E] dark:text-white">
+                Nenhuma loja Shopify conectada
+              </h2>
+              <p className="mx-auto mt-1.5 max-w-[520px] text-[13px] text-[#8A8A8A] dark:text-zinc-400">
+                Você ainda não conectou nenhuma loja Shopify. Comece agora e veja como é simples!
+              </p>
+              <Button type="button" variant="pilotLight" onClick={goToAddStore} className="mt-5">
+                Conectar loja Shopify
+              </Button>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
-      <UpgradeLimitModal
-        open={upgradeModalOpen}
-        onClose={() => setUpgradeModalOpen(false)}
-        title="Limite de marketplaces atingido"
-        message="Seu plano atual não permite conectar outro marketplace. Faça upgrade para liberar mais integrações."
-        cta="Ver planos"
-      />
+      {/* Card de ofertas com os banners */}
+      <div className={`${cardShell} mt-3.5`}>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="flex flex-col rounded-[12px] border border-[#F0F0F0] p-5 dark:border-zinc-800">
+            <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[#1C1C1E] dark:text-white">
+              Loja Shopify grátis com IA
+            </h3>
+            <p className="mt-1 text-[12.5px] leading-[1.5] text-[#8A8A8A] dark:text-zinc-400">
+              Loja pronta, criada por IA, com mais de 30 produtos validados.
+            </p>
+            <Button
+              type="button"
+              variant="pilot"
+              onClick={() => navigate("/dashboard/minha-loja")}
+              className="mt-4 self-start"
+            >
+              Criar minha loja grátis
+            </Button>
+            <img
+              src={BANNER_LOJA_IA}
+              alt="Prévia de lojas Shopify criadas com IA"
+              loading="lazy"
+              className="mt-4 w-full rounded-[10px] object-cover"
+            />
+          </div>
+
+          <div className="flex flex-col rounded-[12px] border border-[#F0F0F0] p-5 dark:border-zinc-800">
+            <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[#1C1C1E] dark:text-white">
+              Shopify por R$5,00
+            </h3>
+            <p className="mt-1 text-[12.5px] leading-[1.5] text-[#8A8A8A] dark:text-zinc-400">
+              Assine pelo teste gratuito e garanta seus primeiros meses por apenas R$5,00.
+            </p>
+            {/* asChild: mesmo botão do design system, renderizado como link. */}
+            <Button asChild variant="pilot" className="mt-4 self-start">
+              <a href={SHOPIFY_OFFER_URL} target="_blank" rel="noopener noreferrer">
+                Garantir oferta
+              </a>
+            </Button>
+            <img
+              src={BANNER_OFERTA}
+              alt="Oferta: Shopify por apenas R$5,00"
+              loading="lazy"
+              className="mt-4 w-full rounded-[10px] object-cover"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

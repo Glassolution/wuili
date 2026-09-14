@@ -1,8 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  sendSubscriptionConfirmationEmailOnce,
+  type SubscriptionEmailInput,
+} from "../_shared/transactional-email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const normalizePlan = (value: unknown) => {
+  const plan = String(value ?? "base").toLowerCase();
+  if (plan === "plus") return "pro";
+  return ["base", "pro", "business"].includes(plan) ? plan : "base";
 };
 
 Deno.serve(async (req) => {
@@ -34,10 +44,12 @@ Deno.serve(async (req) => {
     // Hybrid deployment: DB may live on a different project than the functions
     const dbUrl = Deno.env.get("DB_URL") ?? Deno.env.get("SUPABASE_URL")!;
     const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("APP_URL") ?? "https://www.velods.com.br";
     const adminClient = createClient(dbUrl, dbKey);
 
-    // Pega assinatura mais recente do usuário
-    const { data: sub } = await adminClient
+    // Pega assinatura mais recente do usuário.
+    let { data: sub } = await adminClient
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
@@ -46,13 +58,90 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!sub) {
-      return new Response(JSON.stringify({ status: "not_found" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // Recuperação automática: o pagamento pode ter sido criado no Mercado Pago
+      // antes de uma falha de persistência local. A identidade vem exclusivamente
+      // do JWT validado e do metadata.user_id gravado no pagamento.
+      const MP_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+      if (MP_ACCESS_TOKEN) {
+        const beginDate = new Date(Date.now() - 45 * 86400000).toISOString();
+        const searchUrl = new URL("https://api.mercadopago.com/v1/payments/search");
+        searchUrl.searchParams.set("sort", "date_created");
+        searchUrl.searchParams.set("criteria", "desc");
+        searchUrl.searchParams.set("range", "date_created");
+        searchUrl.searchParams.set("begin_date", beginDate);
+        searchUrl.searchParams.set("end_date", new Date().toISOString());
+        searchUrl.searchParams.set("limit", "100");
+
+        const searchRes = await fetch(searchUrl, {
+          headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+        });
+        const searchBody = await searchRes.json();
+        const recoveredPayment = Array.isArray(searchBody?.results)
+          ? searchBody.results.find((payment: Record<string, unknown>) => {
+              const metadata = payment.metadata as Record<string, unknown> | undefined;
+              return payment.status === "approved" && String(metadata?.user_id ?? "") === userId;
+            })
+          : null;
+
+        if (recoveredPayment?.id) {
+          const now = new Date();
+          const periodStart = recoveredPayment.date_approved
+            ? new Date(recoveredPayment.date_approved)
+            : now;
+          const periodEnd = new Date(periodStart);
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+          const recoveredPlan = normalizePlan(recoveredPayment.metadata?.plan);
+
+          const { data: recoveredSub, error: recoveryError } = await adminClient
+            .from("subscriptions")
+            .upsert({
+              user_id: userId,
+              plan: recoveredPlan,
+              status: "active",
+              mp_payment_id: String(recoveredPayment.id),
+              payment_method: recoveredPayment.payment_method_id ?? "unknown",
+              amount: Number(recoveredPayment.transaction_amount ?? 0),
+              current_period_start: periodStart.toISOString(),
+              current_period_end: periodEnd.toISOString(),
+              updated_at: now.toISOString(),
+            }, { onConflict: "mp_payment_id" })
+            .select("*")
+            .maybeSingle();
+
+          if (recoveryError) {
+            console.error("Approved payment recovery failed:", JSON.stringify({ user_id: userId, payment_id: recoveredPayment.id, error: recoveryError }));
+          } else {
+            sub = recoveredSub;
+            console.log("Approved payment recovered:", JSON.stringify({ user_id: userId, payment_id: recoveredPayment.id, plan: recoveredPlan }));
+          }
+        }
+      }
+
+      if (!sub) {
+        return new Response(JSON.stringify({ status: "not_found" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Já ativa? Retorna direto
     if (sub.status === "active") {
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: sub.plan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Active subscription profile sync failed:", JSON.stringify({ user_id: userId, plan: sub.plan, error: profileError }));
+      }
+      const emailResult = await sendSubscriptionConfirmationEmailOnce({
+        adminClient,
+        subscription: sub as SubscriptionEmailInput,
+        resendApiKey,
+        siteUrl,
+      });
+      if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+        console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+      }
       return new Response(JSON.stringify({ status: "active", plan: sub.plan }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -79,10 +168,27 @@ Deno.serve(async (req) => {
     }
 
     if (payment.status === "approved") {
-      await adminClient.from("subscriptions")
+      const { data: updatedSubscription } = await adminClient.from("subscriptions")
         .update({ status: "active", updated_at: new Date().toISOString() })
-        .eq("id", sub.id);
-      await adminClient.from("profiles").update({ plano: sub.plan }).eq("user_id", userId);
+        .eq("id", sub.id)
+        .select("id,user_id,plan,amount,payment_method,current_period_start,current_period_end,next_charge_at,confirmation_email_sent_at")
+        .maybeSingle();
+      const { error: profileError } = await adminClient
+        .from("profiles")
+        .update({ plano: sub.plan })
+        .eq("user_id", userId);
+      if (profileError) {
+        console.error("Approved payment profile sync failed:", JSON.stringify({ user_id: userId, plan: sub.plan, error: profileError }));
+      }
+      const emailResult = await sendSubscriptionConfirmationEmailOnce({
+        adminClient,
+        subscription: (updatedSubscription ?? sub) as SubscriptionEmailInput,
+        resendApiKey,
+        siteUrl,
+      });
+      if (!emailResult.sent && !("skipped" in emailResult && emailResult.skipped)) {
+        console.error("Subscription confirmation email failed:", JSON.stringify(emailResult));
+      }
       return new Response(JSON.stringify({ status: "active", plan: sub.plan }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

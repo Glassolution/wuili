@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Copy, ExternalLink, Sparkles, Package, ChevronDown } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import ProductImagesDownload from "@/components/dashboard/ProductImagesDownload";
 import SelectProductModal from "@/components/dashboard/SelectProductModal";
 
@@ -131,7 +131,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
   const handleCopy = () => {
     navigator.clipboard.writeText(promptGerado);
     setCopied(true);
-    toast.success("Copiado!");
+    veloToast.success("Copiado!");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -139,7 +139,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
   if (!state) {
     return (
       <>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="mx-auto flex min-h-[calc(100vh-220px)] max-w-[420px] flex-col items-center justify-center gap-4 px-6 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F5F5] dark:bg-zinc-900">
             <Package size={22} className="text-[#737373]" />
           </div>
@@ -153,7 +153,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
           </div>
           <button
             onClick={() => setModalOpen(true)}
-            className="btn-primary btn-primary--md"
+            className="btn-primary btn-primary--md mx-auto"
           >
             Escolher produto do catálogo
           </button>
@@ -178,7 +178,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
           <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#0A0A0A]">
             <span className="text-white text-[18px]">✦</span>
           </div>
-          <h1 className="font-['Manrope'] text-[22px] font-bold text-[#0A0A0A] dark:text-white">
+          <h1 className="font-['Manrope'] text-[22px] font-semibold text-[#0A0A0A] dark:text-white">
             Criar vídeo do produto
           </h1>
           <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">
@@ -187,7 +187,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
         </div>
 
         {/* Product card */}
-        <div className="mb-8 rounded-2xl border border-[#E5E5E5] bg-[#FAFAFA] p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-8">
           <div className="mb-3 flex items-center justify-between">
             <p className="inline-flex rounded-full border border-[#E5E5E5] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#525252] dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300">
               Produto selecionado
@@ -307,7 +307,7 @@ O vídeo deve ser vertical (9:16), dinâmico, com texto aparecendo em cena, fund
               className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#0A0A0A] bg-[#0A0A0A] p-4 shadow-sm transition hover:-translate-y-0.5 hover:bg-[#1a1a1a] hover:shadow-md"
               onClick={() => {
                 navigator.clipboard.writeText(promptGerado);
-                toast.success("Prompt copiado! Abrindo ferramenta...");
+                veloToast.success("Prompt copiado! Abrindo ferramenta...");
                 window.open("https://bandy.ai/pt?utm_source=youtube&utm_medium=moon2601&utm_campaign=Nova.Riqueza", "_blank", "noopener");
               }}
             >

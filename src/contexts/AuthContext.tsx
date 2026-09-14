@@ -1,88 +1,156 @@
+// NÃO MODIFIQUE ESTE ARQUIVO — qualquer alteração quebra a autenticação global
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { ensureFreshSupabaseSession, supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
-
-type AppRole = "admin" | "influencer" | "user" | null;
 
 type AuthContextType = {
   user: User | null;
   session: Session | null;
+  role: string | null;
   loading: boolean;
-  role: AppRole;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
-  loading: true,
   role: null,
+  loading: true,
   signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState<AppRole>(null);
 
   useEffect(() => {
-    // Set up listener BEFORE checking existing session to avoid race conditions.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setLoading(false);
+    let mounted = true;
+    let initialSessionValidated = false;
 
-        // Defer Supabase calls inside the callback to avoid deadlocks
-        if (newSession?.user) {
-          setTimeout(() => {
-            void fetchRole(newSession.user.id);
-          }, 0);
-        } else {
-          setRole(null);
-        }
+    if (!isSupabaseEnabled) {
+      setUser(
+        ({
+          id: "dev-user",
+          email: "dev@local",
+          app_metadata: {},
+          user_metadata: {},
+          aud: "authenticated",
+          created_at: new Date().toISOString(),
+        } as unknown) as User
+      );
+      setRole("admin");
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!mounted) return;
+
+        // getSession may contain an expired token. Do not expose that stale user
+        // while the initial server-side validation below is still running.
+        if (!initialSessionValidated && event === "INITIAL_SESSION") return;
+
+        setSession(session ?? null);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-      setLoading(false);
-      if (currentSession?.user) {
-        void fetchRole(currentSession.user.id);
+    const validateInitialSession = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentSession = sessionData.session;
+
+        if (!currentSession) {
+          if (!mounted) return;
+          initialSessionValidated = true;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        await ensureFreshSupabaseSession();
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData.user) {
+          await supabase.auth.signOut({ scope: "local" });
+          if (!mounted) return;
+          initialSessionValidated = true;
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
+        const { data: refreshedSessionData } = await supabase.auth.getSession();
+        if (!mounted) return;
+        initialSessionValidated = true;
+        setSession(refreshedSessionData.session ?? null);
+        setUser(userData.user);
+        setLoading(false);
+      } catch {
+        if (!mounted) return;
+        initialSessionValidated = true;
+        setSession(null);
+        setUser(null);
+        setLoading(false);
       }
-    });
+    };
+
+    void validateInitialSession();
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  const fetchRole = async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (!data || data.length === 0) {
-      setRole("user");
+  useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 3000);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setRole(null);
       return;
     }
-    const roles = data.map((r: { role: string }) => r.role);
-    if (roles.includes("admin")) setRole("admin");
-    else if (roles.includes("influencer")) setRole("influencer" as AppRole);
-    else setRole("user");
-  };
+
+    if (!isSupabaseEnabled) {
+      setRole("admin");
+      return;
+    }
+
+    Promise.allSettled([
+      (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
+      (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle(),
+      (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
+    ]).then((results) => {
+      const roles = results.flatMap((result) => {
+        if (result.status !== "fulfilled" || !result.value?.data?.role) return [];
+        return [String(result.value.data.role)];
+      });
+      setRole(roles.includes("admin") ? "admin" : roles[0] ?? "user");
+    });
+  }, [user]);
 
   const signOut = async () => {
+    if (!isSupabaseEnabled) {
+      setUser(null);
+      setSession(null);
+      setRole(null);
+      return;
+    }
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setRole(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

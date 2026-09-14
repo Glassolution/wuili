@@ -23,7 +23,7 @@ export default function FAQPage() {
             <VeloLogo size="md" variant="dark" />
           </Link>
           <Link
-            to="/cadastro"
+            to="/auth"
             className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-all duration-200 ease-in-out hover:bg-white/10"
           >
             Começar grátis

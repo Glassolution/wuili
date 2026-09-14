@@ -6,10 +6,12 @@ import {
   Headphones, Loader2, UserRound, Bot, Pause, Play,
   CheckCircle2, ShieldCheck, Inbox, UsersRound,
 } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast as toast } from "@/components/ui/velo-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyTicketReplyEmail } from "@/lib/supportEmail";
+import { touchSupportTicket } from "@/lib/support";
 import {
   useSupplierThreads,
   useSupplierMessages,
@@ -20,6 +22,7 @@ import {
   supplierColor,
   type ChatMessage,
 } from "@/hooks/useSupplierChat";
+import { useLocation } from "react-router-dom";
 
 // ── AI quick-reply options ────────────────────────────────────────────────────
 
@@ -102,27 +105,20 @@ const formatSupportTime = (value: string | null) => {
 
 const getTicketNeedsReply = (ticket: AdminTicket) => ticket.last_sender === "user";
 
-const adminRoleChecks = (userId: string) => [
-  { _role: "admin" },
-  { role: "admin" },
-  { _user_id: userId, _role: "admin" },
-  { user_id: userId, role: "admin" },
-];
-
 async function checkAdminAccess(userId: string) {
-  for (const params of adminRoleChecks(userId)) {
-    const { data, error } = await (supabase as any).rpc("has_role", params);
-    if (!error && data === true) return true;
-  }
+  // Usa a função Postgres publica is_admin(_user_id uuid) (SECURITY DEFINER)
+  // — a antiga has_role nao existe no banco e retornava 404.
+  const { data, error } = await (supabase as any).rpc("is_admin", { _user_id: userId });
+  if (!error && data === true) return true;
 
-  const { data, error } = await (supabase as any)
+  const { data: profile, error: profileError } = await (supabase as any)
     .from("profiles")
-    .select("role")
+    .select("is_admin, role")
     .or(`id.eq.${userId},user_id.eq.${userId}`)
     .maybeSingle();
 
-  if (error) return false;
-  return data?.role === "admin";
+  if (profileError) return false;
+  return profile?.is_admin === true || profile?.role === "admin";
 }
 
 const normalizeTicket = (ticket: any): AdminTicket => ({
@@ -145,7 +141,9 @@ async function fetchAdminTickets(): Promise<AdminTicket[]> {
     .rpc("get_support_tickets_admin", { p_status: "open" });
 
   if (!rpcError && Array.isArray(rpcData)) {
-    return rpcData.map(normalizeTicket);
+    return rpcData
+      .map(normalizeTicket)
+      .sort((a, b) => new Date(b.last_message_at ?? b.updated_at ?? b.created_at).getTime() - new Date(a.last_message_at ?? a.updated_at ?? a.created_at).getTime());
   }
 
   const { data: ticketsData, error: ticketsError } = await (supabase as any)
@@ -219,7 +217,7 @@ async function fetchAdminTickets(): Promise<AdminTicket[]> {
       last_sender: lastMessage?.sender ?? null,
       last_message_at: lastMessage?.created_at ?? null,
     };
-  });
+  }).sort((a, b) => new Date(b.last_message_at ?? b.updated_at ?? b.created_at).getTime() - new Date(a.last_message_at ?? a.updated_at ?? a.created_at).getTime());
 }
 
 // ── Message bubble ────────────────────────────────────────────────────────────
@@ -256,7 +254,7 @@ function Bubble({ msg, prevMsg, supplierName, color, initials }: {
         {/* Supplier avatar */}
         {!isUser && (
           <div
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white transition-opacity ${showAvatar ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white transition-opacity ${showAvatar ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             style={{ backgroundColor: color }}
           >
             {initials}
@@ -265,7 +263,7 @@ function Bubble({ msg, prevMsg, supplierName, color, initials }: {
 
         <div className={`flex max-w-[68%] flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
           {showAvatar && (
-            <span className="px-1 text-[11.5px] font-semibold text-[#525252] dark:text-zinc-300">
+            <span className="px-1 text-[11.5px] font-normal text-[#525252] dark:text-zinc-300">
               {supplierName}
             </span>
           )}
@@ -366,16 +364,17 @@ function ChatWindow({
       <div className="flex items-center gap-3 border-b border-[#EBEBEB] dark:border-zinc-800 px-4 py-3">
         {onBack && (
           <button onClick={onBack}
+            aria-label="Voltar"
             className="mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#525252] dark:text-zinc-300 transition hover:bg-[#F5F5F5] dark:hover:bg-zinc-800 md:hidden">
             <ArrowLeft size={17} />
           </button>
         )}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
           style={{ backgroundColor: color }}>
           {initials}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-bold text-[#0A0A0A] dark:text-white">{supplierName}</p>
+          <p className="truncate text-[14px] font-semibold text-[#0A0A0A] dark:text-white">{supplierName}</p>
           <p className="text-[11.5px] text-[#A3A3A3] dark:text-zinc-400">Fornecedor</p>
         </div>
       </div>
@@ -435,7 +434,7 @@ function ChatWindow({
         )}
 
         <div className="flex items-end gap-2 rounded-2xl border border-[#E5E5E5] dark:border-zinc-700 bg-[#F7F7F7] dark:bg-zinc-800 px-3 py-2 transition focus-within:border-[#D4D4D4] dark:focus-within:border-zinc-500 focus-within:ring-2 focus-within:ring-[#0A0A0A]/6 dark:focus-within:ring-white/10">
-          <button className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#A3A3A3] dark:text-zinc-400 transition hover:bg-[#EBEBEB] dark:hover:bg-zinc-700 hover:text-[#525252] dark:hover:text-zinc-200">
+          <button aria-label="Anexar arquivo" className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#A3A3A3] dark:text-zinc-400 transition hover:bg-[#EBEBEB] dark:hover:bg-zinc-700 hover:text-[#525252] dark:hover:text-zinc-200">
             <Paperclip size={15} />
           </button>
           <textarea
@@ -450,6 +449,7 @@ function ChatWindow({
           />
           <button
             onClick={() => setShowAi(v => !v)}
+            aria-label={showAi ? "Desativar assistente de IA" : "Ativar assistente de IA"}
             className={`mb-0.5 flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11.5px] font-medium transition ${showAi ? "bg-[#0A0A0A] dark:bg-white text-white dark:text-black" : "text-[#525252] dark:text-zinc-300 hover:bg-[#EBEBEB] dark:hover:bg-zinc-700"}`}>
             <Sparkles size={13} />
             <span className="hidden sm:inline">IA</span>
@@ -457,6 +457,7 @@ function ChatWindow({
           <button
             onClick={handleSend}
             disabled={!text.trim() || isPending}
+            aria-label="Enviar mensagem"
             className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#0A0A0A] dark:bg-white text-white dark:text-black transition hover:bg-[#2a2a2a] dark:hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30">
             <Send size={13} />
           </button>
@@ -490,7 +491,7 @@ function ConversationList({
   return (
     <div className="flex h-full flex-col border-r border-[#EBEBEB] dark:border-zinc-800 bg-white dark:bg-zinc-900">
       <div className="border-b border-[#EBEBEB] dark:border-zinc-800 px-4 pb-3 pt-4">
-        <h2 className="mb-3 text-[15px] font-bold text-[#0A0A0A] dark:text-white">Fornecedores</h2>
+        <h2 className="mb-3 text-[15px] font-semibold text-[#0A0A0A] dark:text-white">Fornecedores</h2>
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3] dark:text-zinc-500" />
           <input
@@ -534,7 +535,7 @@ function ConversationList({
                 className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${isActive ? "bg-[#F5F5F5] dark:bg-zinc-800" : "hover:bg-[#FAFAFA] dark:hover:bg-zinc-800/70"}`}
               >
                 <div className="relative shrink-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-semibold text-white"
                     style={{ backgroundColor: color }}>
                     {initials}
                   </div>
@@ -657,6 +658,7 @@ function AdminSupportPanel() {
         .single();
 
       if (error) throw error;
+      await touchSupportTicket(selectedTicket.id);
       return data as SupportMessage;
     },
     onSuccess: (message) => {
@@ -667,6 +669,10 @@ function AdminSupportPanel() {
         (prev = []) => prev.some((item) => item.id === message.id) ? prev : [...prev, message]
       );
       void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : "Resposta enviada, mas n�o foi poss�vel notificar por email.");
+      });
     },
     onError: (error) => {
       console.error(error);
@@ -723,11 +729,11 @@ function AdminSupportPanel() {
         <div className="border-b border-[#EBEBEB] px-4 py-4 dark:border-zinc-800">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[15px] font-bold text-[#0A0A0A] dark:text-white">Suporte ao Cliente</h2>
+              <h2 className="text-[15px] font-semibold text-[#0A0A0A] dark:text-white">Suporte ao Cliente</h2>
               <p className="mt-0.5 text-[12px] text-[#737373] dark:text-zinc-400">Tickets abertos em tempo real</p>
             </div>
             {unansweredCount > 0 && (
-              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-red-600 px-2 text-[12px] font-bold text-white">
+              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-red-600 px-2 text-[12px] font-semibold text-white">
                 {unansweredCount}
               </span>
             )}
@@ -766,7 +772,7 @@ function AdminSupportPanel() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-bold text-[#0A0A0A] dark:text-white">
+                        <p className="truncate text-[13.5px] font-normal text-[#0A0A0A] dark:text-white">
                           {ticket.user_email || ticket.user_name || `Usuário ${ticket.user_id.slice(0, 8)}`}
                         </p>
                         <p className="mt-1 text-[11px] text-[#A3A3A3] dark:text-zinc-500">
@@ -774,7 +780,7 @@ function AdminSupportPanel() {
                         </p>
                       </div>
                       {needsReply && (
-                        <span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-normal text-white">
                           Novo
                         </span>
                       )}
@@ -785,10 +791,10 @@ function AdminSupportPanel() {
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-[#0A0A0A] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] text-white dark:bg-white dark:text-black">
+                      <span className="rounded-full bg-[#0A0A0A] px-2.5 py-1 text-[10px] font-normal uppercase tracking-[0.04em] text-white dark:bg-white dark:text-black">
                         {ticket.status}
                       </span>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] ${
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-normal uppercase tracking-[0.04em] ${
                         ticket.ai_active
                           ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                           : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
@@ -813,7 +819,7 @@ function AdminSupportPanel() {
                   <UserRound size={18} />
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-[14px] font-bold text-[#0A0A0A] dark:text-white">
+                  <p className="truncate text-[14px] font-semibold text-[#0A0A0A] dark:text-white">
                     {selectedTicket.user_email || selectedTicket.user_name || `Usuário ${selectedTicket.user_id.slice(0, 8)}`}
                   </p>
                   <p className="text-[11.5px] text-[#737373] dark:text-zinc-400">
@@ -922,7 +928,7 @@ function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
               : "rounded-bl-sm bg-white text-[#0A0A0A] dark:bg-zinc-900 dark:text-white",
         ].join(" ")}
       >
-        <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] opacity-70">
+        <div className="mb-1 flex items-center gap-1.5 text-[10.5px] font-normal uppercase tracking-[0.08em] opacity-70">
           {isAdmin ? <ShieldCheck size={11} /> : isAi ? <Bot size={11} /> : <UserRound size={11} />}
           {isAdmin ? "Admin" : isAi ? "IA" : "Usuário"}
         </div>
@@ -937,11 +943,22 @@ function AdminSupportBubble({ msg }: { msg: SupportMessage }) {
 
 export default function ChatFornecedoresPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const [selectedId,   setSelectedId]   = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string>("");
   const [search,       setSearch]       = useState("");
   const [mobileView,   setMobileView]   = useState<"list" | "chat">("list");
   const [activeArea, setActiveArea] = useState<ChatArea>("suppliers");
+
+  useEffect(() => {
+    const state = location.state as { supplierId?: string, supplierName?: string } | null;
+    if (state?.supplierId) {
+      setSelectedId(state.supplierId);
+      setSelectedName(state.supplierName || "Fornecedor");
+      setMobileView("chat");
+      setActiveArea("suppliers");
+    }
+  }, [location.state]);
 
   const { data: isAdmin = false } = useQuery({
     queryKey: ["chat-admin-access", user?.id],

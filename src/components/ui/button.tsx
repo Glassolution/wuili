@@ -3,29 +3,48 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { PILOT_BLUE_BACKGROUND, getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[100px] font-medium transition-all duration-[120ms] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0A0A0A] focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-5 text-[14px] font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/10 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
+        // Mesmo acabamento do "Botão Pilot" (o CTA "Criar minha loja grátis"):
+        // brilho no topo, sombra de apoio e o hover que sobe 1px. O relevo vem
+        // de getPremiumActionButtonStyle, aplicado no componente — aqui ficam só
+        // o movimento e a classe que o catálogo usa para desligar tudo.
         default:
-          "bg-[#0A0A0A] text-white shadow-[0_1px_2px_rgba(0,0,0,0.10)] hover:opacity-[0.85] hover:scale-[0.98]",
+          "velo-premium-btn velo-prime-button text-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:brightness-105 active:translate-y-0",
         destructive:
-          "bg-[#FEF2F2] text-[#DC2626] hover:bg-[#FEE2E2]",
+          "bg-red-50 text-red-600 hover:bg-red-100",
         outline:
-          "border-[1.5px] border-[#E5E5E5] bg-transparent text-[#0A0A0A] hover:border-[#0A0A0A] hover:bg-[#F5F5F5]",
+          "border border-border bg-white text-foreground hover:bg-muted",
         secondary:
-          "bg-[#F5F5F5] text-[#0A0A0A] hover:bg-[#EBEBEB]",
+          "bg-muted text-foreground hover:bg-muted/80",
         ghost:
-          "rounded-[8px] bg-transparent text-[#737373] hover:bg-[#F5F5F5] hover:text-[#0A0A0A]",
-        link: "rounded-none text-[#0A0A0A] underline-offset-4 hover:underline",
+          "h-11 bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
+        link: "h-11 bg-transparent px-0 text-foreground underline-offset-4 hover:underline",
+        // "Botão Pilot": mesmo desenho do CTA "Criar Página com IA" da home —
+        // raio de 12px, texto medium, brilho forte no topo e hover que sobe 1px.
+        // Só a cor muda: aqui o fundo é o escuro da marca, e o brilho vem de
+        // getPremiumActionButtonStyle({ intensity: "strong" }), aplicado no
+        // componente para o estilo ter uma fonte só.
+        pilot:
+          "velo-premium-btn velo-prime-button h-10 rounded-[12px] px-4 text-[13px] font-medium text-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:brightness-105 active:translate-y-0",
+        // Variante azul do Pilot: mesmo desenho, na cor do CTA da home.
+        pilotBlue:
+          "velo-premium-btn velo-prime-button velo-prime-button--blue h-10 rounded-[12px] px-4 text-[13px] font-medium text-white transition-all duration-200 ease-out hover:-translate-y-[1px] hover:brightness-105 active:translate-y-0",
+        // Par claro do Pilot: mesmo desenho e mesmo peso de texto, mantendo a
+        // superfície branca.
+        pilotLight:
+          "h-10 rounded-[12px] border border-black/[0.12] bg-white px-4 text-[13px] font-medium text-[#252936] shadow-[0_7px_13px_rgba(15,23,42,0.10)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:bg-black hover:text-white active:translate-y-0",
       },
       size: {
-        default: "px-[22px] py-[11px] text-[14px]",
-        sm: "px-4 py-2 text-[13px]",
-        lg: "px-7 py-[14px] text-[15px]",
-        icon: "h-9 w-9 rounded-[8px]",
+        default: "",
+        sm: "h-10 rounded-[12px] px-4 text-[13px]",
+        lg: "h-12 rounded-[16px] px-6 text-[15px]",
+        icon: "h-11 w-11 rounded-[14px] px-0",
       },
     },
     defaultVariants: {
@@ -42,9 +61,38 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, style, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    // O brilho do Pilot mora em getPremiumActionButtonStyle() e é injetado aqui,
+    // em vez de duplicado como classe: assim ajustar o reflexo continua sendo
+    // mexer num arquivo só. `intensity: "strong"` é o mesmo do CTA da home.
+    // `style` do chamador vem depois e pode sobrescrever.
+    const pilotStyle =
+      variant === "pilot"
+        ? { ...getPremiumActionButtonStyle({ intensity: "strong" }), ...style }
+        : variant === "pilotBlue"
+          ? {
+              ...getPremiumActionButtonStyle({
+                background: PILOT_BLUE_BACKGROUND,
+                intensity: "strong",
+              }),
+              ...style,
+            }
+          : variant === "default" || variant === undefined
+            ? {
+                ...getPremiumActionButtonStyle({ intensity: "strong" }),
+                ...style,
+              }
+            : style;
+
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        style={pilotStyle}
+        {...props}
+      />
+    );
   },
 );
 Button.displayName = "Button";

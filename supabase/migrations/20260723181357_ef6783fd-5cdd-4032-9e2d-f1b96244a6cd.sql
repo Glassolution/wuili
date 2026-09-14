@@ -1,0 +1,1 @@
+UPDATE public.catalog_products SET is_blocked = true, is_active = false, updated_at = now() WHERE source IN ('aliexpress','cj') AND (is_blocked = false OR is_active = true);

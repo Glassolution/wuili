@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Download, ImageOff, Archive } from "lucide-react";
-import { toast } from "sonner";
+import { veloToast } from "@/components/ui/velo-toast";
 import JSZip from "jszip";
 
 type Props = {
@@ -46,16 +46,6 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(href), 10_000);
 }
 
-// ── Skeleton card ──────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA]">
-    <div className="aspect-square w-full animate-pulse bg-[#EBEBEB]" />
-    <div className="p-2">
-      <div className="h-7 w-full animate-pulse rounded-lg bg-[#EBEBEB]" />
-    </div>
-  </div>
-);
-
 // ── Main component ─────────────────────────────────────────────────────────
 export default function ProductImagesDownload({ images, productTitle }: Props) {
   const slug = toSlug(productTitle);
@@ -63,8 +53,6 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
   const [errorMap, setErrorMap] = useState<Record<number, boolean>>({});
   const [downloadingIdx, setDownloadingIdx] = useState<number | null>(null);
   const [zipping, setZipping] = useState(false);
-
-  const allLoaded = images.every((_, i) => loadedMap[i] || errorMap[i]);
 
   const handleImageLoad = useCallback((i: number) => {
     setLoadedMap((prev) => ({ ...prev, [i]: true }));
@@ -87,7 +75,7 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
       } else {
         // CORS fallback — open in new tab so user can save manually
         window.open(url, "_blank", "noopener");
-        toast.info("Imagem aberta em nova aba. Use Ctrl+S para salvar.");
+        veloToast.info("Imagem aberta em nova aba. Use Ctrl+S para salvar.");
       }
     } finally {
       setDownloadingIdx(null);
@@ -98,7 +86,7 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
   const downloadAll = async () => {
     if (zipping || images.length === 0) return;
     setZipping(true);
-    toast.info("Preparando ZIP...");
+    const toastId = veloToast.loading("Preparando ZIP...");
 
     try {
       const zip = new JSZip();
@@ -118,15 +106,15 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
       );
 
       if (added === 0) {
-        toast.error("Não foi possível baixar as imagens. Tente individualmente.");
+        veloToast.error("Não foi possível baixar as imagens. Tente individualmente.", { id: toastId });
         return;
       }
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
       triggerBlobDownload(zipBlob, `${slug}-imagens.zip`);
-      toast.success(`${added} ${added === 1 ? "imagem baixada" : "imagens baixadas"} em ZIP`);
+      veloToast.success(`${added} ${added === 1 ? "imagem baixada" : "imagens baixadas"} em ZIP`, { id: toastId });
     } catch {
-      toast.error("Erro ao gerar o arquivo ZIP.");
+      veloToast.error("Erro ao gerar o arquivo ZIP.", { id: toastId });
     } finally {
       setZipping(false);
     }
@@ -134,7 +122,7 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
 
   if (images.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] py-10 text-center">
+      <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F0F0F0]">
           <ImageOff size={18} className="text-[#A3A3A3]" />
         </div>
@@ -198,7 +186,7 @@ export default function ProductImagesDownload({ images, productTitle }: Props) {
           return (
             <div
               key={url + i}
-              className="group overflow-hidden rounded-xl border border-[#E5E5E5] bg-[#FAFAFA] transition-all duration-200 hover:border-[#D4D4D4] hover:shadow-md"
+              className="group overflow-hidden rounded-xl border border-[#E5E5E5] bg-white transition-all duration-200 hover:border-[#D4D4D4] hover:shadow-md"
             >
               {/* Image area */}
               <div className="relative aspect-square overflow-hidden bg-[#F0F0F0]">

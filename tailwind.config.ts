@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        manrope: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -87,6 +88,7 @@ export default {
         "wuili-md": "0 8px 24px rgba(10, 37, 64, 0.1)",
         "wuili-lg": "0 24px 72px rgba(10, 37, 64, 0.14)",
         "wuili-primary": "0 4px 14px 0 rgba(99, 91, 255, 0.39)",
+        card: "0 1px 2px rgba(0,0,0,.02), 0 8px 24px rgba(0,0,0,.03)",
       },
       keyframes: {
         "accordion-down": {
@@ -105,7 +107,16 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.5s ease-out forwards",
+        /*
+          Sem `forwards` de propósito. Com ele, o estado final `transform: translateY(0)`
+          ficava aplicado para sempre — e transform diferente de `none` transforma o
+          elemento em containing block de descendentes `position: fixed`. Era isso que
+          fazia os modais das páginas do dashboard (ex.: afiliados) se posicionarem
+          dentro da área de conteúdo em vez da viewport, deixando cabeçalho e sidebar
+          fora do overlay. Sem o fill, o transform volta a `none` ao fim da animação e
+          o `fixed` volta a se referir à viewport.
+        */
+        "fade-in": "fade-in 0.5s ease-out",
       },
     },
   },

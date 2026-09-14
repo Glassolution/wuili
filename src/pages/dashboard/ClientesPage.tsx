@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Info, Search, RefreshCw, ExternalLink } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Info, Search, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 
 type TabKey = "compradores" | "entregas" | "devolucoes";
 
@@ -17,7 +16,6 @@ type OrderRow = {
   ordered_at: string | null;
   tracking_code: string | null;
   status: string | null;
-  cj_order_id: string | null;
   fulfillment_status: string | null;
   fulfillment_error: string | null;
 };
@@ -49,13 +47,13 @@ const getDeliveryStatus = (order: OrderRow) => {
   if (fulfillment === "error") return "error";
   if (baseStatus === "delivered") return "delivered";
   if (baseStatus === "shipped" || order.tracking_code) return "shipped";
-  if (baseStatus === "processing" || fulfillment === "processing" || order.cj_order_id) return "processing";
-  return "pending_cj";
+  if (baseStatus === "processing" || fulfillment === "processing") return "processing";
+  return "pending";
 };
 
 const deliveryStatusUI: Record<string, { label: string; className: string }> = {
-  pending_cj: {
-    label: "Aguardando CJ",
+  pending: {
+    label: "Aguardando envio",
     className: "bg-yellow-100 text-yellow-800 border border-yellow-200",
   },
   processing: {
@@ -88,7 +86,6 @@ const tabButtonBase =
 
 const ClientesPage = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("compradores");
   const [buyerSearch, setBuyerSearch] = useState("");
 
@@ -98,7 +95,7 @@ const ClientesPage = () => {
     queryFn: async () => {
       const { data, error } = await (supabase.from("orders" as any) as any)
         .select(
-          "id, external_order_id, platform, product_title, buyer_name, sale_price, ordered_at, tracking_code, status, cj_order_id, fulfillment_status, fulfillment_error",
+          "id, external_order_id, platform, product_title, buyer_name, sale_price, ordered_at, tracking_code, status, fulfillment_status, fulfillment_error",
         )
         .eq("user_id", user!.id)
         .order("ordered_at", { ascending: false });
@@ -162,24 +159,10 @@ const ClientesPage = () => {
     [orders],
   );
 
-  const handleResendToCJ = async (orderId: string) => {
-    const { data, error } = await supabase.functions.invoke("cj-fulfill-request", {
-      body: { order_id: orderId },
-    });
-
-    if (error || data?.success === false) {
-      toast.error(data?.error ?? error?.message ?? "Falha ao reenviar pedido para CJ.");
-      return;
-    }
-
-    toast.success("Pedido reenviado para a CJ com sucesso.");
-    await queryClient.invalidateQueries({ queryKey: ["clientes-orders", user?.id] });
-  };
-
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-[22px] font-black tracking-tight text-[#0A0A0A] dark:text-white">Clientes</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight text-[#0A0A0A] dark:text-white">Clientes</h1>
         <p className="text-sm text-[#737373] dark:text-zinc-400">
           Central de compradores, entregas e devoluções.
         </p>
@@ -188,8 +171,8 @@ const ClientesPage = () => {
       <div className="flex items-start gap-3 rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] p-4 shadow-sm dark:border-zinc-700">
         <Info size={18} className="mt-0.5 shrink-0 text-[#525252]" />
         <p className="text-[13px] leading-relaxed text-[#404040] sm:text-sm">
-          A entrega é feita diretamente pela CJ Dropshipping ao seu comprador. Questões sobre nota fiscal devem ser
-          resolvidas pelo vendedor. Em caso de problemas com o produto, entre em contato com contato@velo.com.br
+          Acompanhe compradores, rastreios e ocorrências dos pedidos conectados à Velo. Em caso de problemas com o
+          produto, entre em contato com contato@velo.com.br.
         </p>
       </div>
 
@@ -257,7 +240,7 @@ const ClientesPage = () => {
                         Último pedido: {formatDateTime(buyer.lastOrderAt)}
                       </p>
                     </div>
-                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-[#525252] dark:bg-zinc-900 dark:text-zinc-300">
+                    <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-normal text-[#525252] dark:bg-zinc-900 dark:text-zinc-300">
                       {buyer.totalOrders} pedidos
                     </span>
                   </div>
@@ -265,11 +248,11 @@ const ClientesPage = () => {
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                       <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Total gasto</p>
-                      <p className="mt-0.5 text-[13px] font-bold text-[#0A0A0A] dark:text-white">{formatBRL(buyer.totalSpent)}</p>
+                      <p className="mt-0.5 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">{formatBRL(buyer.totalSpent)}</p>
                     </div>
                     <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                       <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Plataforma</p>
-                      <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">
+                      <p className="mt-0.5 truncate text-[13px] font-normal text-[#0A0A0A] dark:text-white">
                         {Object.keys(buyer.platformCounts).map((platform) => {
                           const label = platform === "mercadolivre" ? "ML" : platform === "shopee" ? "Shopee" : platform;
                           return `${label} (${buyer.platformCounts[platform]})`;
@@ -297,7 +280,7 @@ const ClientesPage = () => {
                 {!isLoading &&
                   filteredBuyers.map((buyer) => (
                     <tr key={buyer.name} className="border-b border-[#F5F5F5] last:border-0">
-                      <td className="px-2 py-3 font-medium text-[#262626] dark:text-zinc-100">{buyer.name}</td>
+                      <td className="px-2 py-3 font-normal text-[#262626] dark:text-zinc-100">{buyer.name}</td>
                       <td className="px-2 py-3 text-[#525252] dark:text-zinc-300">
                         {Object.keys(buyer.platformCounts).map((platform) => {
                           const label = platform === "mercadolivre" ? "ML" : platform === "shopee" ? "Shopee" : platform;
@@ -336,7 +319,7 @@ const ClientesPage = () => {
                   <article key={order.id} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-bold text-[#262626] dark:text-zinc-100">
+                        <p className="truncate text-[13px] font-normal text-[#262626] dark:text-zinc-100">
                           Pedido #{(order.external_order_id || order.id).slice(0, 12)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-[12px] text-[#737373] dark:text-zinc-400">
@@ -351,27 +334,18 @@ const ClientesPage = () => {
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                         <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Comprador</p>
-                        <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">{order.buyer_name || "—"}</p>
+                        <p className="mt-0.5 truncate text-[13px] font-normal text-[#0A0A0A] dark:text-white">{order.buyer_name || "—"}</p>
                       </div>
                       <div className="rounded-xl bg-white px-3 py-2 dark:bg-zinc-900">
                         <p className="text-[10.5px] font-medium text-[#A3A3A3] dark:text-zinc-500">Prazo</p>
-                        <p className="mt-0.5 truncate text-[13px] font-bold text-[#0A0A0A] dark:text-white">
+                        <p className="mt-0.5 truncate text-[13px] font-normal text-[#0A0A0A] dark:text-white">
                           {order.status === "delivered" ? "Concluída" : "7-20 dias úteis"}
                         </p>
                       </div>
                     </div>
 
-                    {(statusKey === "error" || trackingLink || order.fulfillment_error) && (
+                    {(trackingLink || order.fulfillment_error) && (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {statusKey === "error" && (
-                          <button
-                            onClick={() => handleResendToCJ(order.id)}
-                            className="inline-flex min-h-9 flex-1 items-center justify-center gap-1 rounded-xl border border-[#E5E5E5] bg-white px-3 text-xs font-semibold text-[#262626] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                          >
-                            <RefreshCw size={12} />
-                            Reenviar
-                          </button>
-                        )}
                         {trackingLink && (
                           <button
                             onClick={() => window.open(trackingLink, "_blank", "noopener,noreferrer")}
@@ -399,7 +373,7 @@ const ClientesPage = () => {
                   <th className="px-2 py-3">Pedido</th>
                   <th className="px-2 py-3">Produto</th>
                   <th className="px-2 py-3">Comprador</th>
-                  <th className="px-2 py-3">Status CJ</th>
+                  <th className="px-2 py-3">Status de envio</th>
                   <th className="px-2 py-3">Código de rastreio</th>
                   <th className="px-2 py-3">Prazo estimado</th>
                   <th className="px-2 py-3">Ações</th>
@@ -430,15 +404,6 @@ const ClientesPage = () => {
                         </td>
                         <td className="px-2 py-3">
                           <div className="flex flex-wrap gap-2">
-                            {statusKey === "error" && (
-                              <button
-                                onClick={() => handleResendToCJ(order.id)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-[#E5E5E5] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#262626] hover:bg-[#F5F5F5]"
-                              >
-                                <RefreshCw size={12} />
-                                Reenviar para CJ
-                              </button>
-                            )}
                             {trackingLink && (
                               <button
                                 onClick={() => window.open(trackingLink, "_blank", "noopener,noreferrer")}
@@ -480,7 +445,7 @@ const ClientesPage = () => {
                   <article key={order.id} className="rounded-2xl border border-[#F0F0F0] bg-[#FAFAFA] p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-bold text-[#262626] dark:text-zinc-100">
+                        <p className="truncate text-[13px] font-normal text-[#262626] dark:text-zinc-100">
                           Pedido #{(order.external_order_id || order.id).slice(0, 12)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-[12px] text-[#737373] dark:text-zinc-400">
@@ -512,7 +477,7 @@ const ClientesPage = () => {
                 <tbody>
                   {refunds.map((order) => (
                     <tr key={order.id} className="border-b border-[#F5F5F5] last:border-0">
-                      <td className="px-2 py-3 font-medium text-[#262626] dark:text-zinc-100">
+                      <td className="px-2 py-3 font-normal text-[#262626] dark:text-zinc-100">
                         {order.external_order_id || order.id}
                       </td>
                       <td className="px-2 py-3 text-[#525252] dark:text-zinc-300">{order.buyer_name || "—"}</td>

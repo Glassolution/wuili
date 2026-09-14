@@ -1,130 +1,137 @@
-import { ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import {
-  Bell,
+  BadgeDollarSign,
   BarChart3,
-  LayoutDashboard,
-  LifeBuoy,
-  Package,
+  Bot,
+  FileSearch,
+  type LucideIcon,
+  MessagesSquare,
+  PackageSearch,
   RefreshCcw,
-  Search,
-  Settings,
-  Users,
+  Settings2,
+  ShoppingBag,
+  UsersRound,
 } from "lucide-react";
-import { VeloLogo } from "@/components/VeloLogo";
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
+import { OldAdminShell } from "@/components/admin/OldAdminShell";
+import SearchPalette from "@/components/dashboard/SearchPalette";
+import { getAdminPanelStyle } from "@/lib/adminPanelStyle";
+import "@/styles/admin-theme.css";
 
-type AdminSection = "dashboard" | "users" | "revenue" | "plans" | "support" | "refunds" | "settings";
+type AdminSection =
+  | "dashboard"
+  | "users"
+  | "sales"
+  | "revenue"
+  | "plans"
+  | "commissions"
+  | "support"
+  | "refunds"
+  | "evidence"
+  | "automation"
+  | "settings";
 
 type AdminShellProps = {
   active: AdminSection;
   userId: string;
   children: ReactNode;
+  fullBleed?: boolean;
+  title?: string;
+  subtitle?: string;
+  actions?: ReactNode;
 };
 
-export const AdminShell = ({ active, userId, children }: AdminShellProps) => {
-  const { data: counts } = useQuery({
-    queryKey: ["admin-pending-counts"],
-    queryFn: async () => {
-      const [{ count: refunds }, { count: tickets }] = await Promise.all([
-        supabase.from("refund_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
-      ]);
-      return { refunds: refunds || 0, tickets: tickets || 0 };
-    },
-    refetchInterval: 10000,
-  });
+const SECTION_LABEL: Record<AdminSection, string> = {
+  dashboard: "Painel",
+  users: "Usuários",
+  sales: "Vendas",
+  revenue: "Receita",
+  plans: "Planos",
+  commissions: "Afiliados",
+  support: "Suporte",
+  refunds: "Reembolsos",
+  evidence: "Evidências",
+  automation: "Automação BOT",
+  settings: "Integrações",
+};
 
-  const adminMenu = [
-    { key: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, to: "/admin/dashboard" },
-    { key: "users" as const, label: "Usuários", icon: Users, to: "/admin/usuarios" },
-    { key: "revenue" as const, label: "Receita", icon: BarChart3, to: "/admin/dashboard#receita" },
-    { key: "plans" as const, label: "Planos", icon: Package, to: "/admin/dashboard#planos" },
-    { key: "refunds" as const, label: "Reembolsos", icon: RefreshCcw, to: "/admin/reembolsos", badge: counts?.refunds || 0 },
-    { key: "support" as const, label: "Suporte", icon: LifeBuoy, to: "/admin/suporte", badge: counts?.tickets || 0 },
-  ];
+const SECTION_ICON: Record<AdminSection, LucideIcon> = {
+  dashboard: BarChart3,
+  users: UsersRound,
+  sales: ShoppingBag,
+  revenue: BarChart3,
+  plans: PackageSearch,
+  commissions: BadgeDollarSign,
+  support: MessagesSquare,
+  refunds: RefreshCcw,
+  evidence: FileSearch,
+  automation: Bot,
+  settings: Settings2,
+};
+
+const PageHeader = ({
+  active,
+  title,
+  subtitle,
+  actions,
+}: {
+  active: AdminSection;
+  title?: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}) => {
+  const Icon = SECTION_ICON[active];
+  return (
+    <header className="px-5 pt-6 lg:px-7">
+      <div className="min-w-0">
+        <div className="admin-page-title">
+          <Icon aria-hidden="true" />
+          <h1>{title || SECTION_LABEL[active]}</h1>
+        </div>
+        {subtitle ? <p className="admin-kpi-subtitle mt-1.5 max-w-2xl">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="admin-header-actions mt-3 flex flex-wrap items-center">{actions}</div> : null}
+    </header>
+  );
+};
+
+export const AdminShell = ({ children, active, fullBleed = false, title, subtitle, actions }: AdminShellProps) => {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [panelStyle] = useState(() => getAdminPanelStyle());
+
+  useLayoutEffect(() => {
+    document.documentElement.classList.add("velo-admin-surface");
+    return () => document.documentElement.classList.remove("velo-admin-surface");
+  }, []);
+
+  if (panelStyle === "old") {
+    return (
+      <OldAdminShell active={active} userId="admin" fullBleed={fullBleed} title={title} subtitle={subtitle} actions={actions}>
+        {children}
+      </OldAdminShell>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] font-['Inter',system-ui,sans-serif] text-neutral-900 antialiased">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-6 px-5 py-5 md:px-8 md:py-6">
-        {/* Topbar */}
-        <header className="flex flex-wrap items-center gap-3">
-          {/* Logo pill */}
-          <Link
-            to="/admin/dashboard"
-            className="flex h-[52px] items-center gap-2.5 rounded-full bg-white px-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04]"
-          >
-            <VeloLogo size="sm" variant="dark" />
-            <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[9.5px] font-bold tracking-wider text-white">
-              ADMIN
-            </span>
-          </Link>
+    <div className="velo-admin-root h-screen overflow-hidden">
+      <div className="flex h-full overflow-hidden">
+        <AdminNewSidebar onOpenSearch={() => setSearchOpen(true)} />
 
-          {/* Nav pill */}
-          <nav className="flex h-[52px] items-center gap-0.5 rounded-full bg-white px-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04]">
-            {adminMenu.map((item) => {
-              const Icon = item.icon;
-              const isActive = active === item.key;
-              const badge = (item as any).badge as number | undefined;
-              return (
-                <Link
-                  key={item.key}
-                  to={item.to}
-                  className={cn(
-                    "relative flex h-10 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-neutral-900 text-white shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-900"
-                  )}
-                >
-                  <Icon size={15} strokeWidth={1.8} />
-                  <span className="hidden md:inline">{item.label}</span>
-                  {badge ? (
-                    <span className="ml-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                      {badge > 99 ? "99+" : badge}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Right cluster */}
-          <div className="ml-auto flex items-center gap-2.5">
-            {/* Search */}
-            <div className="hidden md:flex h-[52px] w-[280px] items-center gap-3 rounded-full bg-white px-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04]">
-              <Search size={16} className="text-neutral-400" strokeWidth={1.8} />
-              <input
-                type="text"
-                placeholder="Search Anything..."
-                className="flex-1 bg-transparent text-[13px] font-medium text-neutral-700 placeholder:text-neutral-400 focus:outline-none"
-              />
-            </div>
-            <button
-              type="button"
-              className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-neutral-900 text-white transition hover:bg-neutral-800"
-              aria-label="Notificações"
-            >
-              <Bell size={16} strokeWidth={1.8} />
-            </button>
-            <Link
-              to="/dashboard/configuracoes"
-              className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-white text-neutral-500 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.04] transition hover:text-neutral-900"
-              aria-label="Configurações"
-            >
-              <Settings size={16} strokeWidth={1.8} />
-            </Link>
-            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-full bg-gradient-to-br from-neutral-300 to-neutral-400 text-[11px] font-bold text-white ring-2 ring-white">
-              {userId.slice(0, 2).toUpperCase()}
-            </div>
-          </div>
-        </header>
-
-        {/* Main content */}
-        <main className="min-w-0">{children}</main>
+        <div className="admin-shell-main min-w-0 flex-1">
+          <main className="admin-page-surface h-full min-w-0 overflow-y-auto overflow-x-hidden">
+            {fullBleed ? (
+              children
+            ) : (
+              <div className="min-h-full">
+                <PageHeader active={active} title={title} subtitle={subtitle} actions={actions} />
+                <div className="px-5 py-5 lg:px-7">{children}</div>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
+
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
     </div>
   );
 };

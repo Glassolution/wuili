@@ -1,99 +1,91 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 
 type ProfileContextType = {
+  /** Nome completo, como está salvo. Use em formulários de edição. */
   nome: string;
+  /** Dois primeiros nomes (ou o e-mail). Use para exibir na interface. */
+  nomeCurto: string;
   foto: string | null;
   setNome: (v: string) => void;
   setFoto: (v: string | null) => void;
 };
 
 const ProfileContext = createContext<ProfileContextType>({
-  nome: "Usuário",
+  nome: "Usuario",
+  nomeCurto: "Usuario",
   foto: null,
   setNome: () => {},
   setFoto: () => {},
 });
 
-/** Gera URL do Gravatar usando SHA-256 do e-mail (novo padrão Gravatar) */
-async function gravatarUrl(email: string): Promise<string> {
-  const normalized = email.trim().toLowerCase();
-  const data = new TextEncoder().encode(normalized);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashHex = Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  // d=404 → retorna 404 se não há foto cadastrada no Gravatar
-  return `https://gravatar.com/avatar/${hashHex}?s=96&d=404`;
-}
+const getMetadataName = (user: ReturnType<typeof useAuth>["user"]) =>
+  user?.user_metadata?.full_name ||
+  user?.user_metadata?.name ||
+  (user?.email ? user.email.split("@")[0] : "Usuario");
+
+// Não usamos avatares do provedor OAuth (Google/etc) como fallback,
+// pois eles retornam imagens padrão genéricas que não são realmente
+// "foto do usuário". Só consideramos a foto explicitamente enviada em profiles.avatar_url.
+const getMetadataAvatar = (_user: ReturnType<typeof useAuth>["user"]): string | null => null;
 
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
-  const [nome, setNome] = useState("Usuário");
+  const { user } = useAuth();
+  const [nome, setNome] = useState("Usuario");
   const [foto, setFoto] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) {
+      setNome("Usuario");
+      setFoto(null);
+      return;
+    }
+
     let cancelled = false;
+    const metadataName = getMetadataName(user);
+    const metadataAvatar = getMetadataAvatar(user);
 
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
+    setNome(metadataName);
+    setFoto(metadataAvatar);
 
-      const email = user.email ?? "";
+    const loadProfile = async () => {
+      const profileResult = isSupabaseEnabled
+        ? await supabase
+            .from("profiles")
+            .select("display_name, avatar_url")
+            .eq("user_id", user.id)
+            .maybeSingle()
+        : { data: null, error: null };
 
-      /* ── Nome ──────────────────────────────────────── */
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("user_id", user.id)
-        .single();
+      if (cancelled) return;
 
-      const displayName =
-        profile?.display_name ||
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        (email ? email.split("@")[0] : "Usuário");
+      const displayName = profileResult.error
+        ? metadataName
+        : profileResult.data?.display_name || metadataName;
+      const avatar = profileResult.error
+        ? metadataAvatar
+        : profileResult.data?.avatar_url || metadataAvatar;
 
-      if (!cancelled) setNome(displayName);
-
-      /* ── Foto ──────────────────────────────────────── */
-      // 1) Avatar do OAuth (Google, GitHub, etc.)
-      const oauthAvatar =
-        user.user_metadata?.avatar_url ||
-        user.user_metadata?.picture ||
-        null;
-
-      if (oauthAvatar) {
-        if (!cancelled) setFoto(oauthAvatar);
-        return;
-      }
-
-      // 2) Gravatar via SHA-256 do e-mail
-      if (email) {
-        try {
-          const gUrl = await gravatarUrl(email);
-          const res = await fetch(gUrl, { method: "HEAD" });
-          if (res.ok && !cancelled) setFoto(gUrl);
-          // 404 → mantém null → mostra iniciais
-        } catch {
-          // sem rede ou bloqueio de CORS → ignora, mostra iniciais
-        }
-      }
+      setNome(displayName);
+      setFoto(avatar ?? null);
     };
 
-    load();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      load();
-    });
+    void loadProfile();
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
     };
-  }, []);
+  }, [user]);
+
+  const value = useMemo(
+    () => ({ nome, nomeCurto: nomeDeExibicao(nome, user?.email), foto, setNome, setFoto }),
+    [nome, foto, user?.email],
+  );
 
   return (
-    <ProfileContext.Provider value={{ nome, foto, setNome, setFoto }}>
+    <ProfileContext.Provider value={value}>
       {children}
     </ProfileContext.Provider>
   );

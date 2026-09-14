@@ -1,0 +1,1 @@
+delete from public.store_orders where buyer_email = 'qa-teste-velo@example.com' and payment_status = 'pending';

@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
       success: refundOk,
       refund,
       message: refundOk
-        ? "Reembolso solicitado com sucesso. O valor será creditado em até 7 dias úteis."
+        ? "Reembolso solicitado com sucesso. O estorno no cartão pode levar até 30 dias para aparecer na fatura."
         : "Não foi possível processar o reembolso automaticamente.",
     }), {
       status: refundOk ? 200 : 400,

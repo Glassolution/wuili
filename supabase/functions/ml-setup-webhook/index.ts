@@ -47,30 +47,34 @@ serve(async (req) => {
     const appId = ML_APP_ID || ML_CLIENT_ID;
     const webhookUrl = `${SUPABASE_URL}/functions/v1/ml-orders-webhook`;
 
-    // Registrar webhook de pedidos
-    const webhookRes = await fetch(
-      `https://api.mercadolibre.com/applications/${appId}/subscriptions`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${appToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          topic: "orders_v2",
-          callback_url: webhookUrl,
-        }),
-      }
-    );
+    // Registrar webhook(s): orders_v2 + items (mesmo callback URL)
+    const subscribe = async (topic: string) => {
+      const r = await fetch(
+        `https://api.mercadolibre.com/applications/${appId}/subscriptions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${appToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ topic, callback_url: webhookUrl }),
+        }
+      );
+      const data = await r.json().catch(() => ({}));
+      return { topic, status: r.status, data };
+    };
 
-    const webhookData = await webhookRes.json();
+    const orders = await subscribe("orders_v2");
+    const items = await subscribe("items");
 
     return new Response(
       JSON.stringify({
         success: true,
-        webhook: webhookData,
+        subscriptions: [orders, items],
         webhook_url: webhookUrl,
         app_id: appId,
+        note:
+          "Também é necessário habilitar manualmente o tópico 'Items' em Notifications/Topics no painel do developer do app no Mercado Livre.",
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

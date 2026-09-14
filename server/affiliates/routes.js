@@ -12,17 +12,27 @@ import { createCheckoutPreference, getPayment } from "./mercadoPago.js";
 
 const router = Router();
 
-const AFFILIATE_LINK_BASE_URL = process.env.AFFILIATE_LINK_BASE_URL ?? "https://velo.io";
-const PUBLIC_API_BASE_URL = process.env.PUBLIC_API_BASE_URL ?? "https://velo.io";
+const PUBLIC_APP_URL = (
+  process.env.VITE_PUBLIC_APP_URL ??
+  process.env.PUBLIC_APP_URL ??
+  process.env.APP_URL ??
+  "https://velods.com.br"
+).replace(/\/+$/, "");
+const PUBLIC_API_BASE_URL = process.env.PUBLIC_API_BASE_URL ?? PUBLIC_APP_URL;
 
 function isValidEmail(email) {
   return typeof email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+function normalizeAffiliateRef(ref) {
+  return String(ref ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
 function buildAffiliateLink(ref) {
-  const url = new URL("/planos", AFFILIATE_LINK_BASE_URL);
-  url.searchParams.set("ref", ref);
-  return url.toString();
+  return `${PUBLIC_APP_URL}/ref/${normalizeAffiliateRef(ref)}`;
 }
 
 function getPaymentIdFromWebhook(payload) {
@@ -160,4 +170,3 @@ router.get("/admin/afiliados", (_req, res) => {
 });
 
 export default router;
-
