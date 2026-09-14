@@ -2,7 +2,24 @@
 // A ValidaPay não envia webhook para conclusão de estorno, então rodamos
 // este job a cada 30 minutos via pg_cron.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+
+// A consulta de estorno costuma travar em PROCESSING mesmo depois do dinheiro
+// voltar. A cobrança é a fonte que realmente comprova a devolução.
+async function chargeJaEstornada(chargeId?: string | null): Promise<boolean> {
+  const id = String(chargeId ?? "").trim();
+  if (!id) return false;
+  try {
+    const charge = await getCharge(id) as Record<string, unknown>;
+    const node = (charge?.data ?? charge) as Record<string, unknown>;
+    const status = String(node.status ?? "").toUpperCase();
+    const refunded = Number(node.refundedAmount ?? node.refunded_amount ?? 0);
+    return ["REFUNDED", "PARTIALLY_REFUNDED", "CHARGEBACK"].includes(status) || refunded > 0;
+  } catch (_e) {
+    return false;
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
