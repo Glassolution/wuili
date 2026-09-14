@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     // 1) Estornos ainda em PROCESSING
     const { data: rows, error } = await admin
       .from("refund_requests")
-      .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at")
+      .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at, charge_id")
       .eq("status", "processed")
       .order("processed_at", { ascending: true })
       .limit(200);
