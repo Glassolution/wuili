@@ -14,6 +14,7 @@ type Publication = {
   title: string;
   price: number | null;
   cost_price: number | null;
+  catalog_product_id: string | null;
   thumbnail: string | null;
   status: string;
   user_id: string;
@@ -127,18 +128,35 @@ const ProductDetailPage = () => {
     },
   });
 
+  // ── Custo atual do fornecedor (C7Drop) ─────────────────────────────────────
+  // O custo vem sempre do catálogo — nunca é editável aqui.
+  const { data: catalogCost } = useQuery<number | null>({
+    queryKey: ["catalog-cost", product?.catalog_product_id],
+    enabled: !!product?.catalog_product_id,
+    staleTime: 60_000,
+    retry: 1,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("catalog_products")
+        .select("cost_price")
+        .eq("id", product!.catalog_product_id!)
+        .maybeSingle();
+      if (error) return null;
+      return (data?.cost_price as number | undefined) ?? null;
+    },
+  });
+  const supplierCost = catalogCost ?? product?.cost_price ?? null;
+
   // ── Local State ────────────────────────────────────────────────────────────
   // Apenas campos que realmente são salvos: título e preço vão para o Mercado
-  // Livre; o custo interno fica só na Velo.
+  // Livre. O custo do fornecedor é somente leitura e vem do catálogo.
   const [title, setTitle] = useState("");
   const [retailPrice, setRetailPrice] = useState(0);
-  const [costPrice, setCostPrice] = useState(0);
 
   useEffect(() => {
     if (product) {
       setTitle(product.title);
       setRetailPrice(product.price ?? 0);
-      setCostPrice(product.cost_price ?? 0);
     }
   }, [product]);
 
@@ -156,7 +174,6 @@ const ProductDetailPage = () => {
           publication_id: id,
           title,
           price: retailPrice,
-          cost_price: costPrice,
         },
       });
       if (error) {
@@ -406,20 +423,21 @@ const ProductDetailPage = () => {
                 </p>
               </div>
 
+              {/* Custo do fornecedor: somente leitura, sempre o preço atual do
+                  produto na C7Drop (catálogo). Não é editável e nunca vai ao ML. */}
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Custo interno (fornecedor)
+                  Custo no fornecedor (C7Drop)
                 </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={costPrice}
-                  onChange={(e) => setCostPrice(Number(e.target.value))}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                />
+                <div className="mt-1.5 rounded-lg border border-black/[0.08] bg-gray-50 px-3 py-2.5">
+                  <span className="text-[13px] font-semibold text-foreground">
+                    {supplierCost !== null
+                      ? supplierCost.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                      : "—"}
+                  </span>
+                </div>
                 <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground">
-                  Só para o seu controle de lucro na Velo. Não é enviado ao Mercado Livre.
+                  Preço atual do produto no fornecedor. Atualiza sozinho e não pode ser alterado.
                 </p>
               </div>
 

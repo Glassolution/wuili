@@ -53,9 +53,8 @@ Deno.serve(async (req) => {
     const rawTitle = typeof body?.title === "string" ? body.title.trim() : null;
     const rawPrice = body?.price === undefined || body?.price === null ? null : Number(body.price);
     const rawDescription = typeof body?.description === "string" ? body.description.trim() : null;
-    const rawCost = body?.cost_price === undefined || body?.cost_price === null
-      ? null
-      : Number(body.cost_price);
+    // O custo do fornecedor NUNCA é aceito do cliente: ele vem sempre do
+    // catálogo (C7Drop) e é regravado aqui para manter o lucro atualizado.
 
     if (rawPrice !== null && (!Number.isFinite(rawPrice) || rawPrice <= 0)) {
       return json({ error: "Informe um preço de venda válido." }, 400);
@@ -63,13 +62,9 @@ Deno.serve(async (req) => {
     if (rawTitle !== null && (rawTitle.length < 3 || rawTitle.length > 60)) {
       return json({ error: "O título precisa ter entre 3 e 60 caracteres." }, 400);
     }
-    if (rawCost !== null && (!Number.isFinite(rawCost) || rawCost < 0)) {
-      return json({ error: "Custo interno inválido." }, 400);
-    }
-
     const { data: pub } = await supabase
       .from("user_publications")
-      .select("id, user_id, ml_item_id, title, price, cost_price")
+      .select("id, user_id, ml_item_id, title, price, cost_price, catalog_product_id")
       .eq("id", publicationId)
       .maybeSingle();
 
@@ -158,7 +153,18 @@ Deno.serve(async (req) => {
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (synced.price !== undefined) updates.price = synced.price;
     if (synced.title !== undefined) updates.title = synced.title;
-    if (rawCost !== null && rawCost !== Number(pub.cost_price ?? 0)) updates.cost_price = rawCost;
+    // Sincroniza o custo com o preço atual do produto no catálogo (C7Drop).
+    if (pub.catalog_product_id) {
+      const { data: cat } = await supabase
+        .from("catalog_products")
+        .select("cost_price")
+        .eq("id", pub.catalog_product_id)
+        .maybeSingle();
+      const catCost = cat?.cost_price !== null && cat?.cost_price !== undefined ? Number(cat.cost_price) : null;
+      if (catCost !== null && Number.isFinite(catCost) && catCost !== Number(pub.cost_price ?? 0)) {
+        updates.cost_price = catCost;
+      }
+    }
 
     if (pub.ml_item_id && (synced.price !== undefined || synced.title !== undefined)) {
       const tokenRes = await getSellerAccessToken(supabase, user.id);
