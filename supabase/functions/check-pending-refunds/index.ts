@@ -229,6 +229,44 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 1b) Pedidos marcados como "pendente" cuja cobrança já consta estornada
+    // na operadora (estorno concluído fora do fluxo, ou aviso que nunca chegou).
+    const { data: pendentesRows } = await admin
+      .from("refund_requests")
+      .select("id, user_id, subscription_id, provider_response, charge_id, requested_at")
+      .eq("status", "pending")
+      .not("charge_id", "is", null)
+      .order("requested_at", { ascending: true })
+      .limit(100);
+
+    for (const row of pendentesRows ?? []) {
+      if (!(await chargeJaEstornada(row.charge_id))) continue;
+      const nowIso = new Date().toISOString();
+      const pr = (row.provider_response ?? {}) as ProviderResponse;
+      await admin.from("refund_requests").update({
+        status: "processed",
+        processed_at: nowIso,
+        provider_response: {
+          ...pr,
+          status: "CONFIRMED",
+          confirmed_by: "charge_refunded",
+          confirmed_at: nowIso,
+          needs_manual_action: false,
+        },
+        updated_at: nowIso,
+      }).eq("id", row.id);
+
+      if (row.subscription_id) {
+        await admin.from("subscriptions")
+          .update({ status: "cancelled", updated_at: nowIso })
+          .eq("id", row.subscription_id);
+      }
+      results.push({ id: row.id, outcome: "pending_confirmed_by_charge" });
+      console.log("refund_logs", JSON.stringify({ origin: "check-pending-refunds", outcome: "pending_confirmed_by_charge", id: row.id }));
+    }
+
+
+
     const { data: dropshipRows, error: dropshipError } = await admin
       .from("dropship_orders")
       .select("id,user_id,order_number,ml_order_id,metadata,refund_requested_at,refund_status")
