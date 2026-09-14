@@ -138,7 +138,37 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (newStatus === "FAILED" || newStatus === "CANCELLED" || newStatus === "REJECTED") {
+      const falhouNoProvedor = newStatus === "FAILED" || newStatus === "CANCELLED" || newStatus === "REJECTED";
+      const estourouPrazo = daysElapsed > MAX_DAYS_PROCESSING;
+
+      // Antes de devolver o pedido para "pendente", confirma na cobrança se o
+      // dinheiro já voltou. A consulta de estorno erra com frequência.
+      if (falhouNoProvedor || estourouPrazo) {
+        if (await chargeJaEstornada(row.charge_id)) {
+          const nowIso = new Date().toISOString();
+          await admin.from("refund_requests").update({
+            status: "processed",
+            processed_at: row.processed_at ?? nowIso,
+            provider_response: {
+              ...baseUpdate,
+              status: "CONFIRMED",
+              confirmed_by: "charge_refunded",
+              confirmed_at: nowIso,
+            },
+            updated_at: nowIso,
+          }).eq("id", row.id);
+
+          if (row.subscription_id) {
+            await admin.from("subscriptions")
+              .update({ status: "cancelled", updated_at: nowIso })
+              .eq("id", row.subscription_id);
+          }
+          results.push({ id: row.id, refundId, outcome: "confirmed_by_charge" });
+          continue;
+        }
+      }
+
+      if (falhouNoProvedor) {
         const reason = String(raw.reason ?? raw.message ?? raw.error ?? "Estorno recusado pela ValidaPay");
         await admin.from("refund_requests").update({
           status: "pending",
@@ -166,7 +196,7 @@ Deno.serve(async (req) => {
       }
 
       // Ainda processando (ou erro de consulta): checa o limite de 30 dias.
-      if (daysElapsed > MAX_DAYS_PROCESSING) {
+      if (estourouPrazo) {
         await admin.from("refund_requests").update({
           status: "pending",
           processed_at: null,
