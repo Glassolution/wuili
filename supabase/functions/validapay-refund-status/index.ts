@@ -86,12 +86,14 @@ Deno.serve(async (req) => {
         let done = DONE.includes(status) || node.success === true;
         const failed = FAILED.includes(status);
         let chargeStatus: string | null = null;
+        let confirmadoPelaCobranca = false;
+        const chargeId = String(r.charge_id ?? pr.chargeId ?? pr.charge_id ?? "").trim();
 
         // O endpoint de estornos costuma travar em PROCESSING. A cobrança é a
         // fonte que realmente comprova a devolução do dinheiro.
-        if (!done && !failed && r.charge_id) {
+        if (!done && !failed && chargeId) {
           try {
-            const charge = await getCharge(String(r.charge_id)) as Record<string, unknown>;
+            const charge = await getCharge(chargeId) as Record<string, unknown>;
             const cNode = (charge?.data ?? charge) as Record<string, unknown>;
             chargeStatus = String(cNode.status ?? "").toUpperCase() || null;
             const refunded = Number(cNode.refundedAmount ?? cNode.refunded_amount ?? 0);
@@ -100,6 +102,7 @@ Deno.serve(async (req) => {
               refunded > 0
             ) {
               done = true;
+              confirmadoPelaCobranca = true;
             }
           } catch (_e) { /* sem detalhe da cobrança: segue como processando */ }
         }
@@ -123,7 +126,22 @@ Deno.serve(async (req) => {
           await admin.from("refund_requests").update({
             status: done ? "processed" : "failed",
             processed_at: done ? nowIso : null,
-            provider_response: { ...pr, status, reconciled_at: nowIso, reconciled_payload: info },
+            provider_response: {
+              ...pr,
+              // Quando a cobrança já consta estornada, o dinheiro voltou:
+              // gravamos CONFIRMED para o painel não mostrar "em processo".
+              status: done ? "CONFIRMED" : status,
+              refund_endpoint_status: status,
+              confirmed_by_charge: confirmadoPelaCobranca ? chargeStatus : null,
+              reconciled_at: nowIso,
+              reconciled_payload: info,
+              provider_status_response: {
+                ...(typeof pr.provider_status_response === "object" && pr.provider_status_response
+                  ? pr.provider_status_response as Record<string, unknown>
+                  : {}),
+                status: done ? "CONFIRMED" : status,
+              },
+            },
             updated_at: nowIso,
           }).eq("id", r.id);
 
