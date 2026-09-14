@@ -102,6 +102,7 @@ Deno.serve(async (req) => {
               refunded > 0
             ) {
               done = true;
+              confirmadoPelaCobranca = true;
             }
           } catch (_e) { /* sem detalhe da cobrança: segue como processando */ }
         }
