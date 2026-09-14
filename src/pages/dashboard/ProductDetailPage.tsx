@@ -549,26 +549,36 @@ const ProductDetailPage = () => {
 
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Preço Varejo
+                  Preço de venda
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  step="0.01"
                   value={retailPrice}
                   onChange={(e) => setRetailPrice(Number(e.target.value))}
                   className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
                 />
+                <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground">
+                  Este é o preço do anúncio no Mercado Livre. Ao salvar, ele é atualizado lá.
+                </p>
               </div>
 
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Preço Atacado
+                  Custo interno (fornecedor)
                 </label>
                 <input
                   type="number"
-                  value={wholesalePrice}
-                  onChange={(e) => setWholesalePrice(Number(e.target.value))}
+                  min={0}
+                  step="0.01"
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(Number(e.target.value))}
                   className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
                 />
+                <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground">
+                  Só para o seu controle de lucro na Velo. Não é enviado ao Mercado Livre.
+                </p>
               </div>
 
               {/* Somente leitura: quem manda no status é o Mercado Livre. Salvar
