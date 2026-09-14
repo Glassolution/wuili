@@ -586,17 +586,6 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Estoque
-                </label>
-                <input
-                  type="number"
-                  value={stock}
-                  onChange={(e) => setStock(Number(e.target.value))}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                />
-              </div>
             </div>
           </div>
         </div>
