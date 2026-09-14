@@ -14,6 +14,7 @@ type Publication = {
   title: string;
   price: number | null;
   cost_price: number | null;
+  catalog_product_id: string | null;
   thumbnail: string | null;
   status: string;
   user_id: string;
@@ -127,18 +128,35 @@ const ProductDetailPage = () => {
     },
   });
 
+  // ── Custo atual do fornecedor (C7Drop) ─────────────────────────────────────
+  // O custo vem sempre do catálogo — nunca é editável aqui.
+  const { data: catalogCost } = useQuery<number | null>({
+    queryKey: ["catalog-cost", product?.catalog_product_id],
+    enabled: !!product?.catalog_product_id,
+    staleTime: 60_000,
+    retry: 1,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("catalog_products")
+        .select("cost_price")
+        .eq("id", product!.catalog_product_id!)
+        .maybeSingle();
+      if (error) return null;
+      return (data?.cost_price as number | undefined) ?? null;
+    },
+  });
+  const supplierCost = catalogCost ?? product?.cost_price ?? null;
+
   // ── Local State ────────────────────────────────────────────────────────────
   // Apenas campos que realmente são salvos: título e preço vão para o Mercado
-  // Livre; o custo interno fica só na Velo.
+  // Livre. O custo do fornecedor é somente leitura e vem do catálogo.
   const [title, setTitle] = useState("");
   const [retailPrice, setRetailPrice] = useState(0);
-  const [costPrice, setCostPrice] = useState(0);
 
   useEffect(() => {
     if (product) {
       setTitle(product.title);
       setRetailPrice(product.price ?? 0);
-      setCostPrice(product.cost_price ?? 0);
     }
   }, [product]);
 
