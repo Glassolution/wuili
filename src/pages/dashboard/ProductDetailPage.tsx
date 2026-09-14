@@ -363,24 +363,10 @@ const ProductDetailPage = () => {
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                    Descrição
-                  </label>
-                  <button className="flex items-center gap-1.5 text-[11px] font-medium text-blue-600 transition-colors hover:text-blue-700">
-                    <Sparkles size={12} strokeWidth={1.8} />
-                    <span>Gerar com IA</span>
-                  </button>
-                </div>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                />
-              </div>
+              <p className="text-[11.5px] leading-4 text-muted-foreground">
+                O título é enviado ao Mercado Livre ao salvar. Anúncios que já tiveram vendas não
+                permitem troca de título — nesse caso avisamos e o preço é atualizado mesmo assim.
+              </p>
             </div>
           </div>
 
