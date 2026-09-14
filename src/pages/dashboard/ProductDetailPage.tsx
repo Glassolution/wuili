@@ -334,12 +334,6 @@ const ProductDetailPage = () => {
                 </div>
               )}
 
-              <button className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/[0.08] bg-white transition-colors hover:bg-gray-50">
-                <ImageIcon size={20} strokeWidth={1.8} className="text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Adicionar
-                </span>
-              </button>
             </div>
           </div>
 
