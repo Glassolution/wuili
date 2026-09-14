@@ -259,7 +259,9 @@ const ProductDetailPage = () => {
             style={{ letterSpacing: "-0.01em" }}
           >
             <Save size={14} strokeWidth={1.8} />
-            <span>{updateMutation.isPending ? "Salvando..." : "Salvar alterações"}</span>
+            <span>
+              {updateMutation.isPending ? "Sincronizando com Mercado Livre..." : "Salvar alterações"}
+            </span>
           </button>
         </div>
       </div>
