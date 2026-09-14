@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft, Save, Image as ImageIcon, Sparkles, Package, Box, Ruler, Weight,
-  ChevronDown, Store, Tag, Layers, Building2
-} from "lucide-react";
+import { ArrowLeft, Save, Image as ImageIcon, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -131,54 +128,60 @@ const ProductDetailPage = () => {
   });
 
   // ── Local State ────────────────────────────────────────────────────────────
+  // Apenas campos que realmente são salvos: título e preço vão para o Mercado
+  // Livre; o custo interno fica só na Velo.
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("Experience unparalleled performance with this premium product, featuring advanced technology and seamless functionality. Perfect for handling intensive tasks, creative projects, and professional use.");
   const [retailPrice, setRetailPrice] = useState(0);
-  const [wholesalePrice, setWholesalePrice] = useState(0);
-  const [stock, setStock] = useState(150);
-  const [weight, setWeight] = useState(5);
-  const [length, setLength] = useState(40);
-  const [shippingType, setShippingType] = useState<"physical" | "digital">("physical");
-  const [category, setCategory] = useState("Laptop");
-  const [type, setType] = useState("Electronic");
-  const [vendor, setVendor] = useState("");
-  const [channel, setChannel] = useState("Fikri Store");
+  const [costPrice, setCostPrice] = useState(0);
 
   useEffect(() => {
     if (product) {
       setTitle(product.title);
       setRetailPrice(product.price ?? 0);
-      setWholesalePrice(product.cost_price ?? 0);
+      setCostPrice(product.cost_price ?? 0);
     }
   }, [product]);
 
   // ── Mutation ───────────────────────────────────────────────────────────────
+  // A edge function ml-update-listing atualiza o anúncio no Mercado Livre e só
+  // depois grava em user_publications.
   const updateMutation = useMutation({
     onMutate: () => {
-      const toastId = veloToast.loading("Salvando produto...");
+      const toastId = veloToast.loading("Sincronizando com Mercado Livre...");
       return { toastId };
     },
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("user_publications" as any)
-        // `status` fica de fora: quem define é o Mercado Livre, e o cron
-        // ml-sync-listings-status sobrescreveria qualquer valor salvo aqui.
-        .update({
+      const { data, error } = await supabase.functions.invoke("ml-update-listing", {
+        body: {
+          publication_id: id,
           title,
           price: retailPrice,
-          cost_price: wholesalePrice,
-        })
-        .eq("id", id)
-        .eq("user_id", user!.id);
-      if (error) throw error;
+          cost_price: costPrice,
+        },
+      });
+      if (error) {
+        const detalhe = await (error as { context?: { json?: () => Promise<{ error?: string }> } })
+          .context?.json?.()
+          .catch(() => null);
+        throw new Error(detalhe?.error || "Não foi possível atualizar o anúncio no Mercado Livre.");
+      }
+      const resposta = data as { ok?: boolean; error?: string; warnings?: string[] };
+      if (!resposta?.ok) throw new Error(resposta?.error || "Não foi possível atualizar o anúncio.");
+      return resposta;
     },
-    onSuccess: (_data, _variables, context) => {
+    onSuccess: (resposta, _variables, context) => {
       queryClient.invalidateQueries({ queryKey: ["publication", id] });
       queryClient.invalidateQueries({ queryKey: ["user-publications"] });
-      veloToast.success("Produto atualizado com sucesso.", { id: context?.toastId });
+      queryClient.invalidateQueries({ queryKey: ["ml-item-details"] });
+      const aviso = resposta?.warnings?.[0];
+      if (aviso) {
+        veloToast.error(`${aviso} As demais alterações foram aplicadas.`, { id: context?.toastId });
+      } else {
+        veloToast.success("Anúncio atualizado no Mercado Livre.", { id: context?.toastId });
+      }
     },
     onError: (error, _variables, context) => {
-      const message = error instanceof Error ? error.message : "Erro ao atualizar produto.";
+      const message = error instanceof Error ? error.message : "Erro ao atualizar anúncio.";
       veloToast.error(message, { id: context?.toastId });
     },
   });
@@ -256,7 +259,9 @@ const ProductDetailPage = () => {
             style={{ letterSpacing: "-0.01em" }}
           >
             <Save size={14} strokeWidth={1.8} />
-            <span>{updateMutation.isPending ? "Salvando..." : "Salvar alterações"}</span>
+            <span>
+              {updateMutation.isPending ? "Sincronizando com Mercado Livre..." : "Salvar alterações"}
+            </span>
           </button>
         </div>
       </div>
@@ -328,12 +333,6 @@ const ProductDetailPage = () => {
                 </div>
               )}
 
-              <button className="flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-black/[0.08] bg-white transition-colors hover:bg-gray-50">
-                <ImageIcon size={20} strokeWidth={1.8} className="text-muted-foreground" />
-                <span className="text-[11px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Adicionar
-                </span>
-              </button>
             </div>
           </div>
 
@@ -357,100 +356,13 @@ const ProductDetailPage = () => {
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                    Descrição
-                  </label>
-                  <button className="flex items-center gap-1.5 text-[11px] font-medium text-blue-600 transition-colors hover:text-blue-700">
-                    <Sparkles size={12} strokeWidth={1.8} />
-                    <span>Gerar com IA</span>
-                  </button>
-                </div>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                />
-              </div>
+              <p className="text-[11.5px] leading-4 text-muted-foreground">
+                O título é enviado ao Mercado Livre ao salvar. Anúncios que já tiveram vendas não
+                permitem troca de título — nesse caso avisamos e o preço é atualizado mesmo assim.
+              </p>
             </div>
           </div>
 
-          {/* Shipping */}
-          <div className="rounded-2xl border border-black/[0.05] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-            <h3 className="text-[15px] font-semibold text-foreground" style={{ letterSpacing: "-0.02em" }}>
-              Envio
-            </h3>
-
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => setShippingType("physical")}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium transition-colors ${
-                  shippingType === "physical"
-                    ? "border-black bg-white text-foreground"
-                    : "border-black/[0.08] bg-white text-muted-foreground hover:bg-gray-50"
-                }`}
-                style={{ letterSpacing: "-0.01em" }}
-              >
-                <Package size={14} strokeWidth={1.8} />
-                <span>Produto físico</span>
-              </button>
-              <button
-                onClick={() => setShippingType("digital")}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium transition-colors ${
-                  shippingType === "digital"
-                    ? "border-black bg-white text-foreground"
-                    : "border-black/[0.08] bg-white text-muted-foreground hover:bg-gray-50"
-                }`}
-                style={{ letterSpacing: "-0.01em" }}
-              >
-                <Box size={14} strokeWidth={1.8} />
-                <span>Produto digital ou serviço</span>
-              </button>
-            </div>
-
-            {shippingType === "physical" && (
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                    Peso
-                  </label>
-                  <div className="mt-1.5 flex gap-2">
-                    <input
-                      type="number"
-                      value={weight}
-                      onChange={(e) => setWeight(Number(e.target.value))}
-                      className="w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                    />
-                    <select className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0">
-                      <option>Quilograma (kg)</option>
-                      <option>Grama (g)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                    Comprimento
-                  </label>
-                  <div className="mt-1.5 flex gap-2">
-                    <input
-                      type="number"
-                      value={length}
-                      onChange={(e) => setLength(Number(e.target.value))}
-                      className="w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                    />
-                    <select className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0">
-                      <option>Centímetro (cm)</option>
-                      <option>Metro (m)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right Column */}
@@ -476,93 +388,39 @@ const ProductDetailPage = () => {
                 />
               </div>
 
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Canal
-                </label>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <button className="flex flex-1 items-center gap-2 rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] font-medium text-foreground">
-                    <Store size={14} strokeWidth={1.8} />
-                    <span>{channel}</span>
-                  </button>
-                  <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/[0.08] bg-white transition-colors hover:bg-gray-50">
-                    <span className="text-[16px]">+</span>
-                  </button>
-                </div>
-              </div>
 
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Categoria
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
-                  <option>Laptop</option>
-                  <option>Smartphone</option>
-                  <option>Tablet</option>
-                  <option>Acessórios</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Tipo
-                </label>
-                <select
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
-                  <option>Electronic</option>
-                  <option>Clothing</option>
-                  <option>Food</option>
-                  <option>Books</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Fornecedor
-                </label>
-                <select
-                  value={vendor}
-                  onChange={(e) => setVendor(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-muted-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
-                  <option value="">Selecionar fornecedor</option>
-                  <option>Fornecedor A</option>
-                  <option>Fornecedor B</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Preço Varejo
+                  Preço de venda
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  step="0.01"
                   value={retailPrice}
                   onChange={(e) => setRetailPrice(Number(e.target.value))}
                   className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
                 />
+                <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground">
+                  Este é o preço do anúncio no Mercado Livre. Ao salvar, ele é atualizado lá.
+                </p>
               </div>
 
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Preço Atacado
+                  Custo interno (fornecedor)
                 </label>
                 <input
                   type="number"
-                  value={wholesalePrice}
-                  onChange={(e) => setWholesalePrice(Number(e.target.value))}
+                  min={0}
+                  step="0.01"
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(Number(e.target.value))}
                   className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
                 />
+                <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground">
+                  Só para o seu controle de lucro na Velo. Não é enviado ao Mercado Livre.
+                </p>
               </div>
 
               {/* Somente leitura: quem manda no status é o Mercado Livre. Salvar
@@ -580,17 +438,6 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Estoque
-                </label>
-                <input
-                  type="number"
-                  value={stock}
-                  onChange={(e) => setStock(Number(e.target.value))}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                />
-              </div>
             </div>
           </div>
         </div>
