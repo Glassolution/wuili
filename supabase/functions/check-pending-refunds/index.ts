@@ -267,6 +267,8 @@ Deno.serve(async (req) => {
 
 
 
+    // Estornos de pedidos dropship: as colunas de estorno podem não existir
+    // neste ambiente — nesse caso apenas ignoramos esta etapa.
     const { data: dropshipRows, error: dropshipError } = await admin
       .from("dropship_orders")
       .select("id,user_id,order_number,ml_order_id,metadata,refund_requested_at,refund_status")
@@ -274,7 +276,7 @@ Deno.serve(async (req) => {
       .eq("refund_status", "requested")
       .order("refund_requested_at", { ascending: true })
       .limit(200);
-    if (dropshipError) throw dropshipError;
+    if (dropshipError && dropshipError.code !== "42703") throw dropshipError;
 
     const dropshipResults: Array<Record<string, unknown>> = [];
 
