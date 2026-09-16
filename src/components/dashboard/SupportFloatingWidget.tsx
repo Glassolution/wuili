@@ -417,12 +417,44 @@ const SupportFloatingWidget = () => {
 
     setRefundSubmitting(true);
     try {
+      // 1) Encontra a assinatura ativa do usuário para abrir o pedido oficial.
+      const { data: sub } = await (supabase as any)
+        .from("subscriptions")
+        .select("id, created_at")
+        .eq("user_id", user.id)
+        .in("status", ["active", "paid", "approved", "authorized"])
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!sub?.id) {
+        toast.error("Não encontramos uma assinatura ativa na sua conta.");
+        return;
+      }
+
+      // 2) Dentro de 7 dias: reembolso. Fora do prazo: só cancela a renovação.
+      const dias = (Date.now() - new Date(sub.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      const fn = dias > 7 ? "cancel-subscription" : "request-refund";
+      const detalhes = `Solicitado pelo chat de suporte (ticket ${selectedTicket.id}). Motivo informado pelo cliente: ${reason}.`;
+
+      const { data: resp, error: fnError } = await supabase.functions.invoke(fn, {
+        body: { subscription_id: sub.id, reason, reason_details: detalhes },
+      });
+      if (fnError || !resp?.success) {
+        toast.error(resp?.error || resp?.message || "Não foi possível registrar o pedido. Tente novamente.");
+        return;
+      }
+
+      // 3) Registra no ticket para a equipe acompanhar pelo chat.
       const { data, error } = await db
         .from("support_messages")
         .insert({
           ticket_id: selectedTicket.id,
           user_id: user.id,
-          message: `Solicitação de reembolso confirmada. Motivo: ${reason}. (Usuário ciente de que o estorno pode levar até 72h após a aprovação.)`,
+          message:
+            dias > 7
+              ? `Cancelamento da renovação confirmado. Motivo: ${reason}. (Fora do prazo de 7 dias para reembolso.)`
+              : `Solicitação de reembolso confirmada. Motivo: ${reason}. (Usuário ciente de que o estorno pode levar até 72h após a aprovação.)`,
           sender: "user",
         })
         .select("*")
@@ -437,7 +469,11 @@ const SupportFloatingWidget = () => {
       );
       setRefundStep(null);
       setRefundReason("");
-      toast.success("Pedido de reembolso registrado. Nossa equipe vai analisar e responder por aqui.");
+      toast.success(
+        dias > 7
+          ? "Cancelamento registrado. Você mantém o acesso até o fim do período pago."
+          : "Pedido de reembolso registrado. Nossa equipe vai analisar e responder por aqui.",
+      );
     } catch (error) {
       console.error(error);
       toast.error("Não foi possível registrar o pedido. Tente novamente.");
