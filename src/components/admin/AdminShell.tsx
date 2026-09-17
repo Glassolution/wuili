@@ -28,6 +28,7 @@ type AdminSection =
   | "support"
   | "refunds"
   | "evidence"
+  | "diagnostics"
   | "automation"
   | "settings";
 
