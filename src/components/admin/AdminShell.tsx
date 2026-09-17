@@ -10,6 +10,7 @@ import {
   RefreshCcw,
   Settings2,
   ShoppingBag,
+  Stethoscope,
   UsersRound,
 } from "lucide-react";
 import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
@@ -52,6 +53,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",
+  diagnostics: "Consulta",
   automation: "Automação BOT",
   settings: "Integrações",
 };
@@ -66,6 +68,7 @@ const SECTION_ICON: Record<AdminSection, LucideIcon> = {
   support: MessagesSquare,
   refunds: RefreshCcw,
   evidence: FileSearch,
+  diagnostics: Stethoscope,
   automation: Bot,
   settings: Settings2,
 };

@@ -27,6 +27,7 @@ type AdminSection =
   | "support"
   | "refunds"
   | "evidence"
+  | "diagnostics"
   | "automation"
   | "settings";
 
@@ -50,6 +51,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",
+  diagnostics: "Consulta",
   automation: "Automação BOT",
   settings: "Integrações",
 };
