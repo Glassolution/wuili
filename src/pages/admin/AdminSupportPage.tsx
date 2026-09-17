@@ -1515,6 +1515,8 @@ const CustomerContextPanel = ({
           <ContextRow icon={MessageCircle} label="Já abriu ticket antes" value={formatPreviousTickets(previousTicketCount)} />
         </ContextCard>
 
+        <TicketDiagnostics ticketId={ticket.id} userEmail={data.email} />
+
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-2 text-[9.5px] text-[#999993]">
             <Loader2 size={12} className="animate-spin" /> Atualizando informações
