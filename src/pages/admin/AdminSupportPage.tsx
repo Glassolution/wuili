@@ -31,6 +31,7 @@ import {
   Route,
   Search,
   Send,
+  Stethoscope,
   Trash2,
   UserCircle2,
   X,
