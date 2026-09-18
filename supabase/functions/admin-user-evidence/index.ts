@@ -52,14 +52,9 @@ Deno.serve(async (req) => {
 
     let taxId: string | null = null;
 
-    // Busca nos webhooks de pagamento (e-mail do pagador, CPF ou charge/subscription id).
-    // Feita direto em SQL para não depender de uma janela de N eventos recentes.
-    const findInPayments = async (where: string, param: string) => {
-      const { data } = await admin.rpc("exec_sql_not_available").catch(() => ({ data: null }));
-      void data;
-      return { where, param };
-    };
-    void findInPayments;
+    // Busca nos webhooks de pagamento: e-mail do pagador, CPF ou id da cobrança/assinatura.
+    // Paginado para não depender de uma janela fixa de eventos recentes.
+
 
     const paymentLookup = async (matcher: (p: Record<string, unknown>) => boolean) => {
       const pageSize = 1000;
