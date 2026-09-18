@@ -50,6 +50,40 @@ Deno.serve(async (req) => {
     let targetId: string | null = null;
     let matchedBy = "";
 
+    let taxId: string | null = null;
+
+    // Busca nos webhooks de pagamento (e-mail do pagador, CPF ou charge/subscription id).
+    // Feita direto em SQL para não depender de uma janela de N eventos recentes.
+    const findInPayments = async (where: string, param: string) => {
+      const { data } = await admin.rpc("exec_sql_not_available").catch(() => ({ data: null }));
+      void data;
+      return { where, param };
+    };
+    void findInPayments;
+
+    const paymentLookup = async (matcher: (p: Record<string, unknown>) => boolean) => {
+      const pageSize = 1000;
+      for (let page = 0; page < 20; page += 1) {
+        const { data } = await admin
+          .from("validapay_webhook_events")
+          .select("payload,charge_id,subscription_id,created_at")
+          .order("created_at", { ascending: false })
+          .range(page * pageSize, page * pageSize + pageSize - 1);
+        const rows = (data ?? []) as Array<{ payload: Record<string, unknown>; charge_id?: string | null; subscription_id?: string | null }>;
+        if (!rows.length) return null;
+        for (const row of rows) {
+          const p = row.payload ?? {};
+          if (!matcher({ ...p, __charge_id: row.charge_id, __subscription_id: row.subscription_id })) continue;
+          const meta = (p.metadata ?? {}) as Record<string, unknown>;
+          const customer = (p.customer ?? {}) as Record<string, unknown>;
+          const rowTax = onlyDigits(String(p.taxId ?? customer.taxId ?? ""));
+          if (meta.user_id) return { userId: String(meta.user_id), tax: rowTax || null };
+        }
+        if (rows.length < pageSize) return null;
+      }
+      return null;
+    };
+
     if (isUuid(rawQuery)) {
       targetId = rawQuery;
       matchedBy = "user_id";
@@ -57,29 +91,41 @@ Deno.serve(async (req) => {
       const { data } = await admin.from("profiles").select("user_id").ilike("email", rawQuery).maybeSingle();
       targetId = (data as { user_id?: string } | null)?.user_id ?? null;
       matchedBy = "email";
+      if (!targetId) {
+        // E-mail usado no pagamento pode ser diferente do e-mail de cadastro.
+        const hit = await paymentLookup((p) => {
+          const customer = (p.customer ?? {}) as Record<string, unknown>;
+          const emails = [p.email, customer.email].map((v) => String(v ?? "").toLowerCase());
+          return emails.includes(rawQuery.toLowerCase());
+        });
+        if (hit) {
+          targetId = hit.userId;
+          taxId = hit.tax;
+          matchedBy = "email_pagamento";
+        }
+      }
+    } else if (/^(cha|sub)_/i.test(rawQuery)) {
+      const hit = await paymentLookup((p) =>
+        String((p as Record<string, unknown>).__charge_id ?? "") === rawQuery ||
+        String((p as Record<string, unknown>).__subscription_id ?? "") === rawQuery
+      );
+      if (hit) {
+        targetId = hit.userId;
+        taxId = hit.tax;
+        matchedBy = "cobranca";
+      }
     }
 
     const cpf = onlyDigits(rawQuery);
-    let taxId: string | null = null;
     if (!targetId && cpf.length >= 11) {
-      const { data } = await admin
-        .from("validapay_webhook_events")
-        .select("payload,created_at")
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      for (const row of (data ?? []) as Array<{ payload: Record<string, unknown> }>) {
-        const p = row.payload ?? {};
+      const hit = await paymentLookup((p) => {
         const customer = (p.customer ?? {}) as Record<string, unknown>;
-        const rowTax = onlyDigits(String(p.taxId ?? customer.taxId ?? ""));
-        if (rowTax && rowTax === cpf) {
-          const meta = (p.metadata ?? {}) as Record<string, unknown>;
-          if (meta.user_id) {
-            targetId = String(meta.user_id);
-            taxId = rowTax;
-            matchedBy = "cpf";
-            break;
-          }
-        }
+        return onlyDigits(String(p.taxId ?? customer.taxId ?? "")) === cpf;
+      });
+      if (hit) {
+        targetId = hit.userId;
+        taxId = hit.tax;
+        matchedBy = "cpf";
       }
     }
 
