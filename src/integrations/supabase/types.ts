@@ -3492,28 +3492,37 @@ export type Database = {
       }
       user_page_views: {
         Row: {
+          device: string | null
           id: string
           path: string
           product_id: string | null
           product_title: string | null
+          referrer: string | null
+          session_id: string | null
           title: string | null
           user_id: string
           viewed_at: string
         }
         Insert: {
+          device?: string | null
           id?: string
           path: string
           product_id?: string | null
           product_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
           title?: string | null
           user_id: string
           viewed_at?: string
         }
         Update: {
+          device?: string | null
           id?: string
           path?: string
           product_id?: string | null
           product_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
           title?: string | null
           user_id?: string
           viewed_at?: string
@@ -3742,6 +3751,7 @@ export type Database = {
       user_sessions: {
         Row: {
           created_at: string
+          device: string | null
           id: string
           last_seen_at: string
           started_at: string
@@ -3750,6 +3760,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          device?: string | null
           id?: string
           last_seen_at?: string
           started_at?: string
@@ -3758,6 +3769,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          device?: string | null
           id?: string
           last_seen_at?: string
           started_at?: string
