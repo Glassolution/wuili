@@ -299,6 +299,13 @@ Deno.serve(async (req) => {
           updated_at: now.toISOString(),
         }).eq("id", p.id);
         await admin.from("profiles").update({ plano: p.plan }).eq("user_id", userId);
+        // Só bloqueia se a cobrança confirmada for do mesmo plano (ou melhor).
+        // Upgrade para um plano superior continua o fluxo normalmente.
+        const paidRank = PLAN_RANK[String(p.plan ?? "").toLowerCase()] ?? 0;
+        if (requestedRank > paidRank) {
+          console.log("validapay-checkout: pendência confirmada de plano inferior, upgrade segue", { userId, pago: p.plan, novo: plan });
+          continue;
+        }
         console.log("validapay-checkout: pagamento anterior já pago, checkout bloqueado", { userId, plan: p.plan });
         return json({ alreadyActive: true, plan: p.plan, error: "Encontramos um pagamento seu já confirmado. Seu plano foi liberado — não é preciso pagar de novo." }, 409);
       } catch (err) {
