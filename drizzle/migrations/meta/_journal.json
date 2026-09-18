@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789717477401,
+      "tag": "0000_fix_tracking_grants_and_device",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789717574342,
+      "tag": "0001_admin_tracking_rpcs",
+      "breakpoints": true
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/lib/profileContext";
 import AdminRoute from "@/components/AdminRoute";
+import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { UpgradeModalProvider, useUpgradeModal } from "@/components/PlansUpgradeModal";
 
@@ -97,6 +98,7 @@ const AdminPanelPage = lazy(() => import("./pages/admin/AdminPanelPage"));
 const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesRoutePage"));
 const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/admin/AdminDiagnosticsPage"));
+const AdminTrackingPage = lazy(() => import("./pages/admin/AdminTrackingPage"));
 const AdminBotAutomationPage = lazy(() => import("./pages/admin/AdminBotAutomationPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
@@ -207,6 +209,7 @@ const App = () => (
         <DashboardIntroSessionGuard />
         <BrowserRouter>
           <UpgradeModalProvider>
+          <ActivityTracker />
           <FlatButtonsOnCatalog />
           <MarcarAppCarregado />
           <MLReconnectModal />
@@ -284,6 +287,7 @@ const App = () => (
               <Route path="/admin/vendas" element={<AdminRoute><AdminSalesPage /></AdminRoute>} />
               <Route path="/admin/evidencias" element={<AdminRoute><AdminEvidencePage /></AdminRoute>} />
               <Route path="/admin/consulta" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
+              <Route path="/admin/rastreio" element={<AdminRoute><AdminTrackingPage /></AdminRoute>} />
               <Route path="/admin/automacao-bot" element={<AdminRoute><AdminBotAutomationPage /></AdminRoute>} />
               <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
