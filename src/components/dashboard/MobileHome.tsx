@@ -293,12 +293,18 @@ const MobileAliVeloHome = ({
   favoriteProductIds,
   onToggleFavoriteProduct,
   onCreateCollection,
+  isLoadingProducts = false,
+  hasProductsError = false,
+  onRetryProducts,
 }: {
   products: ProductPreview[];
   collections: CollectionSummary[];
   favoriteProductIds: string[];
   onToggleFavoriteProduct: (productId: string) => void;
   onCreateCollection: () => void;
+  isLoadingProducts?: boolean;
+  hasProductsError?: boolean;
+  onRetryProducts?: () => void;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
