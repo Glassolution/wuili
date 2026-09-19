@@ -296,9 +296,31 @@ const MobileAccountPage = ({
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
+  /*
+    No celular o botão "Sair" travava: quando o refresh token já estava inválido
+    o `signOut()` rejeitava e a navegação para o login nunca acontecia, então
+    nada visível parecia mudar. Agora o erro é engolido, o armazenamento local
+    da sessão é limpo na mão e a saída é sempre concluída — com `location.replace`
+    como garantia final de que a pessoa cai na tela de login com o estado zerado.
+  */
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/login", { replace: true });
+    try {
+      await signOut();
+    } catch {
+      // Sessão já inválida no servidor: seguir com a limpeza local mesmo assim.
+    }
+
+    try {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith("sb-") && key.includes("auth-token")) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // Navegador com armazenamento bloqueado: o redirecionamento abaixo ainda resolve.
+    }
+
+    window.location.replace("/login");
   };
 
   return (
