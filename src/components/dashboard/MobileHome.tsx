@@ -293,12 +293,18 @@ const MobileAliVeloHome = ({
   favoriteProductIds,
   onToggleFavoriteProduct,
   onCreateCollection,
+  isLoadingProducts = false,
+  hasProductsError = false,
+  onRetryProducts,
 }: {
   products: ProductPreview[];
   collections: CollectionSummary[];
   favoriteProductIds: string[];
   onToggleFavoriteProduct: (productId: string) => void;
   onCreateCollection: () => void;
+  isLoadingProducts?: boolean;
+  hasProductsError?: boolean;
+  onRetryProducts?: () => void;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -918,6 +924,54 @@ const MobileAliVeloHome = ({
           </section>
         )}
 
+        {/*
+          Antes, quando a lista chegava vazia (carregando, sem rede ou erro na
+          consulta), a home mobile simplesmente não desenhava nada: a pessoa via
+          só o banner azul e uma tela branca embaixo, sem explicação nem jeito de
+          tentar de novo. Agora há esqueleto enquanto carrega e um aviso com
+          botão de recarregar quando falha.
+        */}
+        {products.length === 0 && (
+          <section className="bg-white px-4 pb-6 pt-5">
+            {isLoadingProducts ? (
+              <>
+                <div className="mb-4 h-5 w-44 animate-pulse rounded-full bg-black/[0.07]" />
+                <div className="grid grid-cols-2 gap-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-[16px] border border-black/[0.06]">
+                      <div className="aspect-square w-full animate-pulse bg-black/[0.06]" />
+                      <div className="space-y-2 p-3">
+                        <div className="h-3 w-full animate-pulse rounded-full bg-black/[0.06]" />
+                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-black/[0.06]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[16px] border border-black/[0.08] bg-[#F7F7F8] px-4 py-8 text-center">
+                <p className="text-[14px] font-black tracking-[-0.03em] text-[#111111]">
+                  {hasProductsError ? "Não conseguimos carregar os produtos" : "Nenhum produto disponível agora"}
+                </p>
+                <p className="mt-1 text-[12px] font-semibold text-black/45">
+                  {hasProductsError
+                    ? "Verifique sua internet e tente de novo."
+                    : "Estamos atualizando o catálogo. Tente novamente em instantes."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => (onRetryProducts ? onRetryProducts() : navigate("/dashboard/catalogo"))}
+                  className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-6 text-[13px] font-bold text-white transition active:scale-[0.98]"
+                >
+                  Tentar de novo
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+
+
       </div>
     </section>
   );
@@ -933,6 +987,9 @@ const MobileHome = () => {
   const [products, setProducts] = useState<ProductPreview[]>([]);
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [hasProductsError, setHasProductsError] = useState(false);
+  const [productsReloadToken, setProductsReloadToken] = useState(0);
 
   const favoritesStorageKey = user?.id
     ? `${HOME_FAVORITES_STORAGE_PREFIX}:${user.id}`
@@ -951,6 +1008,11 @@ const MobileHome = () => {
     let isMounted = true;
 
     const fetchProducts = async () => {
+      if (isMounted) {
+        setIsLoadingProducts(true);
+        setHasProductsError(false);
+      }
+
       const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count,source";
 
       // Busca produtos de todas as fontes disponíveis (c7drop, aliexpress, etc.)
@@ -977,7 +1039,18 @@ const MobileHome = () => {
           .order("orders_count", { ascending: false, nullsFirst: false })
           .range(0, HOME_PRODUCTS_LIMIT - 1);
 
-        if (!isMounted || fallbackResult.error) return;
+        if (!isMounted) return;
+
+        /*
+          Antes o erro aqui saía em silêncio (`return` puro) e a home ficava
+          branca para sempre. Agora ele vira estado visível com botão de
+          recarregar.
+        */
+        if (fallbackResult.error) {
+          setHasProductsError(true);
+          setIsLoadingProducts(false);
+          return;
+        }
         rows = fallbackResult.data;
       }
 
@@ -985,15 +1058,23 @@ const MobileHome = () => {
         .map(mapProductPreview)
         .filter((product): product is ProductPreview => Boolean(product));
 
-      if (isMounted) setProducts(previews);
+      if (isMounted) {
+        setProducts(previews);
+        setIsLoadingProducts(false);
+      }
     };
 
-    void fetchProducts();
+    void fetchProducts().catch(() => {
+      if (isMounted) {
+        setHasProductsError(true);
+        setIsLoadingProducts(false);
+      }
+    });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [productsReloadToken]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1034,6 +1115,9 @@ const MobileHome = () => {
       favoriteProductIds={favoriteProductIds}
       onToggleFavoriteProduct={handleToggleFavoriteProduct}
       onCreateCollection={() => veloToast.info("Crie coleções pelo computador por enquanto.")}
+      isLoadingProducts={isLoadingProducts}
+      hasProductsError={hasProductsError}
+      onRetryProducts={() => setProductsReloadToken((token) => token + 1)}
     />
   );
 };
