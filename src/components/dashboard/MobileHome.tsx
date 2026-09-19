@@ -1115,6 +1115,9 @@ const MobileHome = () => {
       favoriteProductIds={favoriteProductIds}
       onToggleFavoriteProduct={handleToggleFavoriteProduct}
       onCreateCollection={() => veloToast.info("Crie coleções pelo computador por enquanto.")}
+      isLoadingProducts={isLoadingProducts}
+      hasProductsError={hasProductsError}
+      onRetryProducts={() => setProductsReloadToken((token) => token + 1)}
     />
   );
 };
