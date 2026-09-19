@@ -924,6 +924,54 @@ const MobileAliVeloHome = ({
           </section>
         )}
 
+        {/*
+          Antes, quando a lista chegava vazia (carregando, sem rede ou erro na
+          consulta), a home mobile simplesmente não desenhava nada: a pessoa via
+          só o banner azul e uma tela branca embaixo, sem explicação nem jeito de
+          tentar de novo. Agora há esqueleto enquanto carrega e um aviso com
+          botão de recarregar quando falha.
+        */}
+        {products.length === 0 && (
+          <section className="bg-white px-4 pb-6 pt-5">
+            {isLoadingProducts ? (
+              <>
+                <div className="mb-4 h-5 w-44 animate-pulse rounded-full bg-black/[0.07]" />
+                <div className="grid grid-cols-2 gap-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-[16px] border border-black/[0.06]">
+                      <div className="aspect-square w-full animate-pulse bg-black/[0.06]" />
+                      <div className="space-y-2 p-3">
+                        <div className="h-3 w-full animate-pulse rounded-full bg-black/[0.06]" />
+                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-black/[0.06]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[16px] border border-black/[0.08] bg-[#F7F7F8] px-4 py-8 text-center">
+                <p className="text-[14px] font-black tracking-[-0.03em] text-[#111111]">
+                  {hasProductsError ? "Não conseguimos carregar os produtos" : "Nenhum produto disponível agora"}
+                </p>
+                <p className="mt-1 text-[12px] font-semibold text-black/45">
+                  {hasProductsError
+                    ? "Verifique sua internet e tente de novo."
+                    : "Estamos atualizando o catálogo. Tente novamente em instantes."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => (onRetryProducts ? onRetryProducts() : navigate("/dashboard/catalogo"))}
+                  className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-6 text-[13px] font-bold text-white transition active:scale-[0.98]"
+                >
+                  Tentar de novo
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+
+
       </div>
     </section>
   );
