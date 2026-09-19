@@ -987,6 +987,9 @@ const MobileHome = () => {
   const [products, setProducts] = useState<ProductPreview[]>([]);
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [hasProductsError, setHasProductsError] = useState(false);
+  const [productsReloadToken, setProductsReloadToken] = useState(0);
 
   const favoritesStorageKey = user?.id
     ? `${HOME_FAVORITES_STORAGE_PREFIX}:${user.id}`
