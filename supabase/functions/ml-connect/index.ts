@@ -25,8 +25,10 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const clientId = Deno.env.get("ML_CLIENT_ID");
-  const redirectUri = Deno.env.get("ML_REDIRECT_URI");
+  // .trim(): espaço/quebra de linha colada junto do secret gera uma URL
+  // invalida no ML e a pagina de autorizacao responde "pagina nao existe".
+  const clientId = Deno.env.get("ML_CLIENT_ID")?.trim();
+  const redirectUri = Deno.env.get("ML_REDIRECT_URI")?.trim();
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !clientId || !redirectUri) {
     return json({ error: "Configuracao do servidor incompleta" }, 500);
@@ -69,5 +71,11 @@ serve(async (req) => {
   });
 
   const authUrl = `https://auth.mercadolivre.com.br/authorization?${params}`;
+  console.log("[ml-connect] authUrl gerada:", JSON.stringify({
+    user_id: userData.user.id,
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    auth_url: authUrl,
+  }));
   return json({ authUrl, auth_url: authUrl, url: authUrl });
 });
