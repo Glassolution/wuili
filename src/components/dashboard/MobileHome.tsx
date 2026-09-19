@@ -1008,6 +1008,11 @@ const MobileHome = () => {
     let isMounted = true;
 
     const fetchProducts = async () => {
+      if (isMounted) {
+        setIsLoadingProducts(true);
+        setHasProductsError(false);
+      }
+
       const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count,source";
 
       // Busca produtos de todas as fontes disponíveis (c7drop, aliexpress, etc.)
@@ -1034,7 +1039,18 @@ const MobileHome = () => {
           .order("orders_count", { ascending: false, nullsFirst: false })
           .range(0, HOME_PRODUCTS_LIMIT - 1);
 
-        if (!isMounted || fallbackResult.error) return;
+        if (!isMounted) return;
+
+        /*
+          Antes o erro aqui saía em silêncio (`return` puro) e a home ficava
+          branca para sempre. Agora ele vira estado visível com botão de
+          recarregar.
+        */
+        if (fallbackResult.error) {
+          setHasProductsError(true);
+          setIsLoadingProducts(false);
+          return;
+        }
         rows = fallbackResult.data;
       }
 
@@ -1042,15 +1058,23 @@ const MobileHome = () => {
         .map(mapProductPreview)
         .filter((product): product is ProductPreview => Boolean(product));
 
-      if (isMounted) setProducts(previews);
+      if (isMounted) {
+        setProducts(previews);
+        setIsLoadingProducts(false);
+      }
     };
 
-    void fetchProducts();
+    void fetchProducts().catch(() => {
+      if (isMounted) {
+        setHasProductsError(true);
+        setIsLoadingProducts(false);
+      }
+    });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [productsReloadToken]);
 
   useEffect(() => {
     if (!user?.id) return;
