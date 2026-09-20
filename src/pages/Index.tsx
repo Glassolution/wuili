@@ -852,7 +852,13 @@ export default function Index() {
             idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
           */}
           <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            Venda no Mercado Livre sem comprar produto antes.
+            Venda no{" "}
+            <img
+              src={mlLogo.url}
+              alt="Mercado Livre"
+              className="mx-1 inline-block h-[1.05em] w-auto -translate-y-[0.12em] align-baseline"
+            />{" "}
+            Mercado Livre sem comprar produto antes.
           </h1>
 
           <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
