@@ -878,7 +878,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                             Preço definido: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice)}</strong>
                           </span>
                           <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
-                            Lucro estimado: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
+                            Sobra bruta estimada: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
                           </span>
                         </div>
                       </div>

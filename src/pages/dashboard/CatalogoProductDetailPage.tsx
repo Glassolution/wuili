@@ -301,7 +301,7 @@ const CatalogoProductDetailPage = () => {
         detail: String(Math.max(0, ...trackedDepths.current)),
       });
     };
-  }, [id, user?.id]);
+  }, [id, product?.id, user?.id]);
 
   const relatedWindow = useMemo(() => {
     if (related.length === 0) return [];
