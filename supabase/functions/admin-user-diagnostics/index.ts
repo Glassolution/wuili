@@ -225,6 +225,22 @@ Deno.serve(async (req) => {
           : `${activePubs} anúncio(s) ativo(s) de ${publications.length} publicado(s)`,
     });
 
+    // Peso e medidas da embalagem — sem isso o frete do anúncio fica absurdo.
+    {
+      const comMedidas = publications.filter((p) => p.dimensions_ok === true).length;
+      const semMedidas = publications.filter((p) => p.dimensions_ok === false).length;
+      const naoVerificados = publications.filter((p) => p.dimensions_ok === null || p.dimensions_ok === undefined).length;
+      checks.push({
+        key: "medidas",
+        label: "Peso e medidas dos anúncios (frete)",
+        status: semMedidas > 0 ? "fail" : naoVerificados > 0 ? "warn" : "ok",
+        detail:
+          publications.length === 0
+            ? "Nenhum anúncio para verificar"
+            : `${comMedidas} com medidas corretas · ${semMedidas} sem medidas (frete pode vir alto) · ${naoVerificados} ainda na fila de verificação`,
+      });
+    }
+
     checks.push({
       key: "erros",
       label: "Erros de publicação (7 dias)",
