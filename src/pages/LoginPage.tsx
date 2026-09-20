@@ -549,6 +549,33 @@ const LoginPage = () => {
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
                 </button>
 
+                {/* Navegador embutido de rede social: o Google não permite o login ali.
+                    Em vez do erro do Google, explicamos o que fazer em uma frase. */}
+                {avisoNavegador && (
+                  <div className="mt-3 rounded-[12px] border border-[#FDE3C0] bg-[#FFF8EE] px-3.5 py-3 text-[13px] leading-[1.55] text-[#92400E]">
+                    <p>
+                      O {navegadorInterno ?? "aplicativo"} abre a Velo numa janela própria, e o Google não
+                      permite login por aqui. Toque nos três pontinhos e escolha
+                      <strong> “Abrir no navegador”</strong> — ou continue com seu e-mail logo abaixo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(window.location.href);
+                          setLinkCopiado(true);
+                          window.setTimeout(() => setLinkCopiado(false), 2500);
+                        } catch {
+                          setLinkCopiado(false);
+                        }
+                      }}
+                      className="mt-2 inline-flex h-9 items-center rounded-full bg-[#92400E] px-4 text-[13px] font-semibold text-white"
+                    >
+                      {linkCopiado ? "Link copiado!" : "Copiar link da Velo"}
+                    </button>
+                  </div>
+                )}
+
                 <div className="my-6 flex items-center gap-4">
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
                   <span className="text-[13px] text-[#94A3B8]">
