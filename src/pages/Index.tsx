@@ -3,7 +3,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { formatPlanPriceBRL, VELO_STARTING_MONTHLY_PRICE } from "@/lib/planPricing";
 
 
 /*
@@ -492,7 +491,6 @@ export default function Index() {
   // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
   const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
   const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
-  const startingPrice = formatPlanPriceBRL(VELO_STARTING_MONTHLY_PRICE);
 
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -604,10 +602,10 @@ export default function Index() {
           void registrarEvento("cta_offer_click");
           navigate(signupTarget);
         }}
-        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex min-h-11 w-full items-center justify-center gap-2 px-4 py-2 text-center sm:hidden"
+        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-11 w-full items-center justify-center gap-2 px-3 text-center sm:hidden"
       >
         <span className="landing-mobile-offer__text">
-          Conta sem cartão. Para publicar, planos a partir de <b>{startingPrice}/mês</b>
+          Conta sem cartão. Para publicar, assine um plano.
         </span>
         <span className="landing-mobile-offer__arrow" aria-hidden="true">
           &rarr;
