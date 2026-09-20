@@ -55,6 +55,8 @@ import {
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { trackPrimeiroProdutoVisto } from "@/lib/signupFunnel";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
 
