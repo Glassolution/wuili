@@ -949,13 +949,13 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer — permanece visível no celular, inclusive com o teclado aberto. */}
           <div
             className="flex shrink-0 items-center justify-end border-t border-[#E5EDFF] bg-[#F8FBFF] px-4 py-3 sm:px-6 md:px-8 md:py-4"
             style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
           >
             <div className="flex w-full items-center justify-end gap-2 md:w-auto">
-              {step < 4 && (
+              {step < 5 && (
                 <button
                   onClick={handleClose}
                   className="rounded-[100px] px-4 py-2 text-[12.5px] font-[400] text-[#737373] transition-all duration-[120ms] hover:text-[#0A0A0A]"
@@ -963,7 +963,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   Cancelar
                 </button>
               )}
-              {step > 1 && step < 4 && (
+              {step > 1 && step < 5 && (
                 <button
                   onClick={() => setStep(step - 1)}
                   className="rounded-[100px] border-[1.5px] border-[#E5E5E5] px-4 py-2 text-[12.5px] font-[400] text-[#0A0A0A] transition-all duration-[120ms] hover:border-[#0A0A0A] hover:bg-[#F5F5F5]"
@@ -971,35 +971,56 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   Voltar
                 </button>
               )}
-              {step < 2 && (
+              {step === 1 && (
                 <button
-                  onClick={() => { if (canAdvance) setStep(step + 1); else veloToast.error("Conecte a conta, confira o estoque, título e preço"); }}
-                  disabled={!canAdvance}
+                  onClick={() => {
+                    if (!hasStock) return void (trackError("details:no_stock"), veloToast.error("Este produto está sem estoque. Escolha outro produto para publicar."));
+                    if (!title.trim()) return void (trackError("details:title"), veloToast.error("Digite um título para continuar."));
+                    if (sellPrice <= totalCost) return void (trackError("details:price"), veloToast.error("Escolha um preço maior que o custo do produto."));
+                    advanceTo(2);
+                  }}
+                  disabled={!canAdvanceDetails}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  Próximo
+                  Continuar para conexão
                   <ArrowRight size={13} />
                 </button>
               )}
               {step === 2 && (
                 <button
-                  onClick={() => void handleContinueFromReview()}
-                  disabled={checkingSeller || publishing}
+                  onClick={() => {
+                    if (!canAdvanceConnection) {
+                      trackError("connection:not_connected");
+                      veloToast.info("Conecte sua conta do Mercado Livre para continuar.");
+                      return;
+                    }
+                    advanceTo(3);
+                  }}
+                  disabled={!canAdvanceConnection}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {checkingSeller
-                    ? "Verificando conta..."
-                    : planLimits.canPublishProducts
-                      ? "Publicar produto"
-                      : "Continuar"}
+                  {isConnectedToML === null ? "Verificando conta…" : "Continuar para revisão"}
                   <ArrowRight size={13} />
                 </button>
               )}
-              {step === 4 && (
+              {step === 3 && (
                 <button
-                  onClick={handleClose}
+                  onClick={() => void handleContinueFromReview()}
+                  disabled={checkingSeller || publishing || generatingDesc}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
                 >
+                  {generatingDesc
+                    ? "Preparando descrição…"
+                    : checkingSeller
+                      ? "Verificando conta…"
+                      : planLimits.canPublishProducts
+                        ? "Publicar produto"
+                        : "Continuar para o plano"}
+                  <ArrowRight size={13} />
+                </button>
+              )}
+              {step === 5 && (
+                <button onClick={handleClose} className="inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white">
                   Concluir
                 </button>
               )}
@@ -1030,7 +1051,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
             <div className="space-y-3">
               <DetailRow label="Custo para você" value={formatBRL(costPrice)} />
               <DetailRow label="Seu preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
-              <DetailRow label="Seu lucro" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />
+              <DetailRow label="Sobra bruta estimada" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />
               <DetailRow label="Estoque" value={`${stockQty} un`} />
             </div>
           </div>
