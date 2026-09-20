@@ -2,6 +2,8 @@ import { CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
 
 /*
   Cada item aponta para uma seção que existe nesta página. Não há "Preços" aqui: a landing
@@ -388,6 +390,42 @@ export default function Index() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const closeMenuTimer = useRef<number>();
   const reduceMotion = useReducedMotion();
+  /*
+    Funil da landing (só leitura de números agregados, nada de dado pessoal): visita,
+    clique no botão principal, clique em "Como funciona" e clique em "Já tenho conta".
+  */
+  const [assinantesAtivos, setAssinantesAtivos] = useState<number | null>(null);
+
+  const registrarEvento = async (evento: string) => {
+    try {
+      let visitor = window.localStorage.getItem("velo_visitor_id");
+      if (!visitor) {
+        visitor = crypto.randomUUID();
+        window.localStorage.setItem("velo_visitor_id", visitor);
+      }
+      await supabase.rpc("rpc_landing_track", {
+        p_event: evento,
+        p_visitor_id: visitor,
+        p_device: window.innerWidth < 640 ? "mobile" : "desktop",
+        p_referrer: document.referrer || null,
+      });
+    } catch {
+      /* medição nunca pode quebrar a página */
+    }
+  };
+
+  useEffect(() => {
+    void registrarEvento("landing_view");
+
+    supabase
+      .rpc("rpc_landing_stats")
+      .then(({ data }) => {
+        const total = (data as { assinantes_ativos?: number } | null)?.assinantes_ativos;
+        if (typeof total === "number") setAssinantesAtivos(total);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activePanel = navItems.find((item) => item.label === openMenu && item.panel);
   // Com a aba aberta o header precisa virar sólido: a faixa branca embaixo dele não pode
   // nascer de uma barra transparente sobre a foto.
