@@ -340,7 +340,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       if (planLimits.plan === "pro" && planLimits.productLimitReached) {
         setUpgradeModalOpen(true);
       } else {
-        upgradeModal.open({ defaultPlan: "base" });
+        upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id });
       }
       return;
     }
@@ -887,7 +887,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
                   <button
                     type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "base" })}
+                    onClick={() => upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id })}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#2563EB] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                   >
                     Assinar Base — R$ 39,90/mês
@@ -897,7 +897,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   </p>
                   <button
                     type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
+                    onClick={() => upgradeModal.open({ defaultPlan: "pro", origin: "product_import", productId: product.id })}
                     className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#2563EB]"
                   >
                     Prefere começar direto no Pro (R$ 79,80/mês) com automações completas?

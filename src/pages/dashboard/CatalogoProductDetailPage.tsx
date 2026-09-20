@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  Star,
   Heart,
   ArrowLeft,
   ChevronLeft,
@@ -20,7 +19,7 @@ import {
   ShieldCheck,
   Tag,
 } from "lucide-react";
-import { formatPrice, formatReviewCount, getProductCatalogMetrics, MarginTrendBadge } from "@/components/dashboard/ProductCard";
+import { formatPrice } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
@@ -363,10 +362,7 @@ const CatalogoProductDetailPage = () => {
   }
 
   const gallery = product.images;
-  const catalogMetrics = getProductCatalogMetrics(product);
-  const socialProofCount = catalogMetrics.ordersCount ?? catalogMetrics.reviewsCount;
   const pricing = getProductPricingEstimate(product.price, product.suggestedPrice);
-  const [costPriceMain, costPriceCents = "00"] = formatPrice(product.price).split(",");
   // A página mostra apenas o custo real do fornecedor. Preço sugerido e margem
   // só entram na conversa no modal de publicação, onde o lojista define o preço
   // de venda de verdade. Ao lado do preço fica o selo de tendência de publicações
@@ -664,9 +660,7 @@ const CatalogoProductDetailPage = () => {
             <aside className="self-start bg-white py-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[12px] leading-5 text-[#8A8A86]">
-                    Novo{socialProofCount !== null ? ` | ${formatReviewCount(socialProofCount)} vendidos` : ""}
-                  </p>
+                  <p className="text-[12px] leading-5 text-[#8A8A86]">Novo</p>
                   <h1 className="mt-2 text-[20px] font-semibold leading-[1.18] tracking-[-0.02em] text-[#111]">
                     {product.title}
                   </h1>
@@ -682,21 +676,6 @@ const CatalogoProductDetailPage = () => {
                 </button>
               </div>
 
-              {catalogMetrics.rating !== null && (
-                <div className="mt-3 flex items-center gap-2 text-[13px]">
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={13}
-                        className={i < Math.round(catalogMetrics.rating) ? "fill-[#2563EB] text-[#2563EB]" : "fill-[#E5E7EB] text-[#E5E7EB]"}
-                      />
-                    ))}
-                  </div>
-                  <span className="font-medium text-[#111]">{catalogMetrics.rating.toFixed(1)}</span>
-                </div>
-              )}
-
               {/*
                 Um preço só, e é o custo real do fornecedor — nada de preço sugerido
                 aqui, para não parecer que a sugestão é o preço de verdade. A sugestão
@@ -711,13 +690,6 @@ const CatalogoProductDetailPage = () => {
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
                     {formatPrice(product.price)}
                   </span>
-                  <MarginTrendBadge
-                    cost={product.price}
-                    suggested={Math.max(product.suggestedPrice ?? 0, product.price * 2)}
-                    seed={product.id}
-                    rating={product.rating}
-                    ordersCount={product.ordersCount}
-                  />
                 </div>
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
@@ -901,9 +873,6 @@ const CatalogoProductDetailPage = () => {
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {relatedWindow.map((p) => {
-                const relatedMetrics = getProductCatalogMetrics(p);
-                const relatedSocialProofCount = relatedMetrics.ordersCount ?? relatedMetrics.reviewsCount;
-
                 return (
                   <Link
                     key={p.id}
@@ -916,24 +885,11 @@ const CatalogoProductDetailPage = () => {
                         alt={p.title}
                         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.035]"
                         referrerPolicy="no-referrer"
+                        loading="lazy"
                       />
                     </div>
                     <div className="mt-3">
                       <div className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#111]">{p.title}</div>
-                      {relatedMetrics.hasMetrics && (
-                        <div className="mt-1 flex items-center gap-1 text-[11px] text-[#71717A]">
-                          {relatedMetrics.rating !== null && (
-                            <>
-                              <Star size={11} className="fill-[#2563EB] text-[#2563EB]" />
-                              <span>{relatedMetrics.rating.toFixed(1)}</span>
-                            </>
-                          )}
-                          {relatedMetrics.rating !== null && relatedSocialProofCount !== null && <span>·</span>}
-                          {relatedSocialProofCount !== null && (
-                            <span>{formatReviewCount(relatedSocialProofCount)} vendidos</span>
-                          )}
-                        </div>
-                      )}
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-[15px] font-bold text-[#111]">
                           {formatPrice(p.price)}
