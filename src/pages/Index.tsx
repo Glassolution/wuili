@@ -254,6 +254,11 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
           alt=""
           aria-hidden="true"
           decoding="async"
+          /* A primeira foto é o que aparece primeiro na tela: prioridade alta. As outras
+             do carrossel só carregam depois, para não disputar banda no 4G. */
+          loading={slideIndex === 0 ? "eager" : "lazy"}
+          fetchPriority={slideIndex === 0 ? "high" : "low"}
+
           style={{ "--hero-focus": slide.focus } as CSSProperties}
           onLoad={slideIndex === 0 ? onFirstLoad : undefined}
           onError={() => onSlideError(slide.src)}
