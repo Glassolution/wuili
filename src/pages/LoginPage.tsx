@@ -255,6 +255,7 @@ const LoginPage = () => {
 
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
+    trackSignup("login_submit");
     setLoading(true);
     const toastId = veloToast.loading("Entrando...", { fullscreen: true, minDuration: 3000 });
     try {
