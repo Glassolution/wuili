@@ -6,6 +6,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
 import { Eye, EyeOff } from "lucide-react";
+import {
+  captureOrigin,
+  detectInAppBrowser,
+  mensagemDeErro,
+  readOrigin,
+  sugerirEmail,
+  tipoDeErro,
+  trackSignup,
+} from "@/lib/signupFunnel";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -150,8 +159,8 @@ const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
     };
   }
   return {
-    title: "Entre na Velo",
-    subtitle: "Use seu e-mail para continuar. A gente identifica se você já tem conta.",
+    title: "Crie sua conta Velo",
+    subtitle: "Digite seu e-mail para começar. Se você já tem conta, a gente te leva direto para entrar.",
   };
 };
 
