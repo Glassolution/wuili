@@ -1566,6 +1566,7 @@ export type Database = {
       landing_events: {
         Row: {
           created_at: string
+          detail: string | null
           device: string | null
           event: string
           id: string
@@ -1574,6 +1575,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          detail?: string | null
           device?: string | null
           event: string
           id?: string
@@ -1582,6 +1584,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          detail?: string | null
           device?: string | null
           event?: string
           id?: string
@@ -2228,10 +2231,15 @@ export type Database = {
           pix_key_type: string | null
           plano: string | null
           refund_cooldown_until: string | null
+          signup_source: string | null
           store_name: string | null
+          terms_accepted_at: string | null
           tutorial_completed: boolean
           updated_at: string
           user_id: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -2258,10 +2266,15 @@ export type Database = {
           pix_key_type?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
+          signup_source?: string | null
           store_name?: string | null
+          terms_accepted_at?: string | null
           tutorial_completed?: boolean
           updated_at?: string
           user_id: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -2288,10 +2301,15 @@ export type Database = {
           pix_key_type?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
+          signup_source?: string | null
           store_name?: string | null
+          terms_accepted_at?: string | null
           tutorial_completed?: boolean
           updated_at?: string
           user_id?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           whatsapp?: string | null
         }
         Relationships: []
@@ -4194,6 +4212,15 @@ export type Database = {
         Args: { p_code?: string; p_user_id?: string }
         Returns: Json
       }
+      rpc_admin_signup_funnel: {
+        Args: { p_days?: number }
+        Returns: {
+          detalhe: string
+          evento: string
+          total: number
+          visitantes: number
+        }[]
+      }
       rpc_admin_store_sales: {
         Args: { p_limit?: number; p_status?: string }
         Returns: Json
@@ -4302,6 +4329,16 @@ export type Database = {
           p_affiliate_code: string
           p_referrer?: string
           p_user_agent?: string
+          p_visitor_id?: string
+        }
+        Returns: boolean
+      }
+      rpc_signup_track: {
+        Args: {
+          p_detail?: string
+          p_device?: string
+          p_event: string
+          p_referrer?: string
           p_visitor_id?: string
         }
         Returns: boolean
