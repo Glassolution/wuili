@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
 import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
+import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 
 const enter = {
   initial: { opacity: 0, y: 14, filter: "blur(6px)" },
@@ -96,6 +97,8 @@ const AuthEntryPage = () => {
     if (!form.name.trim()) nextErrors.name = "Digite seu nome completo.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       nextErrors.email = "Digite um e-mail válido.";
+    } else if (emailEhDescartavel(cleanEmail)) {
+      nextErrors.email = MENSAGEM_EMAIL_DESCARTAVEL;
     }
     if (form.password.length < 8) {
       nextErrors.password = "A senha precisa ter pelo menos 8 caracteres.";
@@ -119,7 +122,6 @@ const AuthEntryPage = () => {
       password: form.password,
       options: {
         data: { full_name: form.name.trim() },
-        emailRedirectTo: `${window.location.origin}/setup`,
       },
     });
 
@@ -135,17 +137,10 @@ const AuthEntryPage = () => {
         password: form.password,
       });
 
+      // A Velo não usa confirmação de e-mail: a conta entra direto após o cadastro.
       if (signInError) {
-        const { error: verificationEmailError } = await supabase.functions.invoke("send-verification-email", {
-          body: {
-            email: cleanEmail,
-            userName: form.name.trim(),
-            redirectTo: `${window.location.origin}/setup`,
-          },
-        });
-        if (verificationEmailError) console.error("send verification email failed", verificationEmailError);
         setEmailLoading(false);
-        toast.info("Conta criada. Verifique seu e-mail para concluir o acesso.", { id: toastId });
+        toast.error(translateAuthError(signInError), { id: toastId });
         return;
       }
     }

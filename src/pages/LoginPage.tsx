@@ -15,6 +15,7 @@ import {
   tipoDeErro,
   trackSignup,
 } from "@/lib/signupFunnel";
+import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -286,6 +287,7 @@ const LoginPage = () => {
     e.preventDefault();
     // No cadastro direto o e-mail não passou pela validação da etapa inicial.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
+    if (emailEhDescartavel(email)) { setAviso({ tipo: "erro", texto: MENSAGEM_EMAIL_DESCARTAVEL }); return; }
     if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Crie uma senha com pelo menos 8 caracteres." }); return; }
     if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Marque o aceite dos Termos e da Política de Privacidade para continuar." }); return; }
     trackSignup("signup_submit");
@@ -309,7 +311,6 @@ const LoginPage = () => {
             terms_accepted_at: aceiteEm,
             signup_source: origem.signup_source,
           },
-          emailRedirectTo: `${window.location.origin}/setup`,
         },
       }),
       veloToast.waitForMinimum(toastId),
@@ -343,14 +344,22 @@ const LoginPage = () => {
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);
-      // Se a sessão foi criada (auto-confirm), segue para o onboarding.
-      // Caso contrário (confirmação por e-mail pendente), volta o botão ao
-      // estado normal e informa o usuário para conferir o e-mail.
+      // A Velo não usa confirmação de e-mail: a conta já entra direto.
       if (data.session) {
         navigate("/dashboard", { replace: true });
         return;
       }
-      setAviso({ tipo: "ok", texto: "Conta criada. Confirme seu e-mail para continuar." });
+      // Rede de segurança: se por algum motivo a sessão não veio, entramos com a
+      // própria senha recém-criada, sem pedir confirmação de e-mail.
+      const { error: entrarErro } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (!entrarErro) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      setAviso({ tipo: "erro", texto: mensagemDeErro(entrarErro.message) });
     }
     setLoading(false);
   };

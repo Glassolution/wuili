@@ -169,9 +169,9 @@ Deno.serve(async (req) => {
 
     checks.push({
       key: "conta",
-      label: "Conta criada e e-mail confirmado",
-      status: authUser?.email_confirmed_at ? "ok" : "warn",
-      detail: authUser?.email_confirmed_at ? "E-mail confirmado" : "E-mail ainda não confirmado",
+      label: "Conta criada",
+      status: authUser ? "ok" : "fail",
+      detail: authUser ? "Conta ativa (a Velo não exige confirmação de e-mail)" : "Conta não encontrada",
     });
 
     checks.push({
