@@ -833,14 +833,12 @@ export default function Index() {
           praticamente ausente no resto — a foto mantém cor e detalhe. Tom quase preto
           (8,14,28) de propósito: a função é contraste, não tingir a cena de azul.
         */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[rgba(8,14,28,0.1)]" />
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)]" />
-        {/* No celular o texto ocupa a largura toda, então o scrim do canto não basta. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.78)_28%,rgba(8,14,28,0.45)_50%,rgba(8,14,28,0.16)_68%,transparent_84%)] sm:hidden" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[rgba(8,14,28,0.1)] sm:block" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)] sm:block" />
         {/* Topo: só o necessário para a navbar não sumir sobre foto clara. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)] sm:block" />
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
 
         <div className="relative flex w-full flex-col px-6 pb-7 pt-28 sm:hidden">
           <div className="max-w-[350px]">
