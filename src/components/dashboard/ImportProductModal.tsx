@@ -1,7 +1,6 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
+import { X, Check, Loader2, Sparkles, Globe, ExternalLink, ArrowRight, Store, ShieldCheck, CheckCircle2, Link2 } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +32,8 @@ import {
 } from "@/lib/publicacaoMercadoLivre";
 import { getProductPricingEstimate } from "@/lib/productPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 
 /**
  * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
@@ -61,13 +62,13 @@ const formatBRL = (v: number) =>
 
 const STEPS = [
   { num: 1, label: "Detalhes" },
-  { num: 2, label: "Revisão" },
-  { num: 3, label: "Plano" },
+  { num: 2, label: "Conexão" },
+  { num: 3, label: "Revisão" },
+  { num: 4, label: "Plano" },
 ];
 
 const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
   const planLimits = usePlanLimits();
   const isStartMode = false;
@@ -85,6 +86,11 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   // bloqueada por cadastro incompleto — alimentam o modal que diz o que falta.
   const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [checkingSeller, setCheckingSeller] = useState(false);
+  const flowOpenedAt = useRef(Date.now());
+  const stepOpenedAt = useRef(Date.now());
+  const previousStep = useRef(1);
+  const autoDescriptionAttempted = useRef(false);
+  const restoredProductId = useRef<string | null>(null);
   // Estado do modal manual de categoria removido a pedido do usuário.
 
   /*
@@ -156,27 +162,31 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
   }, [user]);
 
-  // Reset on product change
+  // Restaura o rascunho do produto ou inicia um novo fluxo.
   const [lastProductId, setLastProductId] = useState<string | null>(null);
   if (product && product.id !== lastProductId) {
     setLastProductId(product.id);
     const truncated = product.title.length > MAX_TITLE_LENGTH
       ? product.title.substring(0, MAX_TITLE_LENGTH)
       : product.title;
-    setTitle(truncated);
     const pricing = getProductPricingEstimate(product.cost_price, product.suggested_price);
-    setMultiplier(product.cost_price > 0 ? pricing.suggestedSalePrice / product.cost_price : MULTIPLICADOR_SUGERIDO);
-    setSellPrice(pricing.suggestedSalePrice);
-    setStep(1);
+    const draft = user?.id ? readProductImportDraft(user.id, product.id) : null;
+    setTitle(draft?.title ?? truncated);
+    const restoredPrice = draft?.sellPrice ?? pricing.suggestedSalePrice;
+    setMultiplier(product.cost_price > 0 ? restoredPrice / product.cost_price : MULTIPLICADOR_SUGERIDO);
+    setSellPrice(restoredPrice);
+    setStep(draft ? Math.min(Math.max(draft.step, 1), 3) : 1);
     setPublishResult(null);
     setPublishing(false);
     setMlMissingCodes(null);
-    setDescription("");
+    setDescription(draft?.description ?? "");
     setTranslated(false);
-    setBrand(inferProductBrand(product, truncated));
-    setModel((product.model ?? "").trim());
-    setAlbumName(inferStickerAlbumName(product, truncated));
-    setSaleFormat(product.title.toLowerCase().includes("kit") ? "kit" : "unit");
+    setBrand(draft?.brand ?? inferProductBrand(product, truncated));
+    setModel(draft?.model ?? (product.model ?? "").trim());
+    setAlbumName(draft?.albumName ?? inferStickerAlbumName(product, truncated));
+    setSaleFormat(draft?.saleFormat ?? (product.title.toLowerCase().includes("kit") ? "kit" : "unit"));
+    restoredProductId.current = product.id;
+    autoDescriptionAttempted.current = Boolean(draft?.description);
   }
 
   const costPrice = product?.cost_price ?? 0;
@@ -185,13 +195,25 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   useEffect(() => {
     if (!open || !user?.id || !product?.id) return;
+    flowOpenedAt.current = Date.now();
+    stepOpenedAt.current = Date.now();
     trackMobileHomeEvent(user.id, "import_flow_open", { productId: product.id });
   }, [open, product?.id, user?.id]);
 
   useEffect(() => {
     if (!open || !user?.id || !product?.id) return;
-    trackMobileHomeEvent(user.id, "import_flow_step", { productId: product.id, detail: String(step) });
+    const elapsedMs = Date.now() - stepOpenedAt.current;
+    trackMobileHomeEvent(user.id, "import_flow_step", { productId: product.id, detail: String(step), elapsedMs });
+    previousStep.current = step;
+    stepOpenedAt.current = Date.now();
   }, [open, product?.id, step, user?.id]);
+
+  useEffect(() => {
+    if (!open || !user?.id || !product?.id || restoredProductId.current !== product.id || step > 3) return;
+    saveProductImportDraft(user.id, {
+      productId: product.id, step, title, sellPrice, description, brand, model, albumName, saleFormat,
+    });
+  }, [albumName, brand, description, model, open, product?.id, saleFormat, sellPrice, step, title, user?.id]);
 
   const handlePriceChange = (val: string) => {
     if (val === "") {
@@ -234,7 +256,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const handleClose = () => {
     if (publishing) return;
     setMlMissingCodes(null);
-    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product?.id, detail: `step_${step}` });
+    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product?.id, detail: `step_${step}`, elapsedMs: Date.now() - flowOpenedAt.current });
     setVisible(false);
     setTimeout(onClose, 160);
   };
@@ -243,8 +265,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     if (!user) return;
     try {
       trackMobileHomeEvent(user.id, "ml_connect_open", { productId: product?.id, detail: `import_step_${step}` });
+      if (product) {
+        salvarRetornoMl({ origem: "product_import", rota: `/dashboard/catalogo/${product.id}?publicar=1` });
+      }
       await startMercadoLivreOAuth();
     } catch (err) {
+      trackMobileHomeEvent(user.id, "import_flow_error", { productId: product?.id, detail: "connection_start" });
       veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
       return;
     }
@@ -294,10 +320,30 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       setDescription(texto);
       veloToast.success("Descrição gerada", { id: toastId });
     } catch (e) {
+      trackMobileHomeEvent(user?.id, "import_flow_error", { productId: product?.id, detail: "description_generation" });
       veloToast.error(e instanceof Error ? e.message : "Erro ao gerar descrição", { id: toastId });
     } finally {
       setGeneratingDesc(false);
     }
+  };
+
+  useEffect(() => {
+    if (!open || step !== 3 || description.trim() || generatingDesc || autoDescriptionAttempted.current) return;
+    autoDescriptionAttempted.current = true;
+    void handleGenerateDescription();
+  }, [description, generatingDesc, open, step]);
+
+  const trackError = (detail: string) => {
+    trackMobileHomeEvent(user?.id, "import_flow_error", { productId: product?.id, detail });
+  };
+
+  const advanceTo = (nextStep: number) => {
+    trackMobileHomeEvent(user?.id, "import_flow_advance", {
+      productId: product?.id,
+      detail: `${step}_to_${nextStep}`,
+      elapsedMs: Date.now() - stepOpenedAt.current,
+    });
+    setStep(nextStep);
   };
 
   const validatePublish = (): boolean => {
@@ -392,7 +438,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           return;
         }
 
-        veloToast.error(erro instanceof Error ? erro.message : "Erro ao publicar", { id: toastId });
+        trackError(codigo ? `publish:${codigo}` : "publish:known_error");
+        veloToast.error(erro instanceof Error ? erro.message : "Não foi possível publicar. Confira os dados e tente novamente.", { id: toastId });
         setPublishing(false);
         return;
       }
@@ -400,7 +447,9 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       setMlMissingCodes(null);
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       trackMobileHomeEvent(user.id, "publish_result", { productId: product.id, detail: data.parcial ? "partial" : "success" });
-      setStep(4);
+      trackMobileHomeEvent(user.id, "import_flow_complete", { productId: product.id, detail: data.parcial ? "partial" : "success", elapsedMs: Date.now() - flowOpenedAt.current });
+      clearProductImportDraft(user.id, product.id);
+      setStep(5);
       if (activeStore) incrementStorePublishedCount(activeStore.id);
 
       // Publicação por variação (anúncios-irmãos): se alguma variação falhou,
@@ -415,7 +464,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       void planLimits.refreshUsage();
       if (data.permalink) window.open(data.permalink, "_blank", "noopener,noreferrer");
     } catch (err) {
-      veloToast.error(err instanceof Error ? err.message : "Erro inesperado", { id: toastId });
+      trackError("publish:unexpected");
+      veloToast.error(err instanceof Error ? err.message : "Não foi possível publicar agora. Tente novamente.", { id: toastId });
     } finally {
       setPublishing(false);
     }
@@ -448,15 +498,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       return;
     }
 
-    // Plano grátis: abre direto o modal animado de planos (não um passo extra).
-    upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id });
+    // Quem ainda não assina vê a etapa de plano somente depois de conectar e revisar.
+    advanceTo(4);
   };
 
   if (!open && !visible) return null;
   if (!product) return null;
 
   const titleLength = title.length;
-  const canAdvance = step === 1 ? (hasStock && isConnectedToML && !!title.trim() && sellPrice > totalCost) : true;
+  const canAdvanceDetails = hasStock && !!title.trim() && sellPrice > totalCost;
+  const canAdvanceConnection = isConnectedToML === true;
+  const titleNeedsTranslation = /[\u3040-\u30ff\u3400-\u9fff]|\b(with|wireless|women|men|kids|portable|for|and)\b/i.test(title);
   const startModeOffset = isStartMode ? 48 : 0;
   const reachedProProductLimit = planLimits.plan === "pro" && planLimits.productLimitReached;
   const publishUpgradeTitle = reachedProProductLimit
