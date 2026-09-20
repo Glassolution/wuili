@@ -102,10 +102,13 @@ export async function garantirMedidasNoAnuncio(
 ): Promise<ResultadoGarantia> {
   const ler = async (): Promise<ItemML | null> => {
     const res = await fetch(
-      `https://api.mercadolibre.com/items/${itemId}?attributes=id,shipping,attributes`,
+      `https://api.mercadolibre.com/items/${itemId}`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`[mlPackage] GET ${itemId} falhou: ${res.status}`);
+      return null;
+    }
     return (await res.json()) as ItemML;
   };
 
