@@ -532,13 +532,28 @@ export default function Index() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
-      <div className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-8 items-center justify-center px-4 text-center sm:hidden">
-        Sem cartão de crédito para começar
-      </div>
+      {/*
+        Barra de atenção mobile (some do desktop): laranja de sinalização com brilho
+        varrendo, ponto "ao vivo" pulsando e seta que empurra. É um botão — o toque faz
+        o mesmo que o CTA principal.
+      */}
+      <button
+        type="button"
+        onClick={() => navigate(authTarget)}
+        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-9 items-center justify-center gap-2 px-4 text-center sm:hidden"
+      >
+        <span className="landing-mobile-offer__dot" aria-hidden="true" />
+        <span className="landing-mobile-offer__text">
+          <b>Sem cartão de crédito</b> para começar
+        </span>
+        <span className="landing-mobile-offer__arrow" aria-hidden="true">
+          &rarr;
+        </span>
+      </button>
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-8 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
+        className={`fixed inset-x-0 top-9 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
             ? /*
                 Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
