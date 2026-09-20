@@ -20,11 +20,14 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  // Autorização: cron (service role) ou usuário admin.
+  // Autorização: cron (segredo interno / service role) ou usuário admin.
   const authHeader = req.headers.get('Authorization') ?? ''
   const token = authHeader.replace('Bearer ', '').trim()
-  const isServiceRole = token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  if (!isServiceRole) {
+  const cronSecret = Deno.env.get('ML_DIMENSIONS_CRON_SECRET') ?? ''
+  const isCron =
+    (cronSecret.length > 0 && req.headers.get('x-cron-secret') === cronSecret) ||
+    token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!isCron) {
     const { data: userData } = await supabase.auth.getUser(token)
     const uid = userData?.user?.id
     if (!uid) return json({ error: 'Não autenticado' }, 401)
