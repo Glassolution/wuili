@@ -134,17 +134,10 @@ const AuthEntryPage = () => {
         password: form.password,
       });
 
+      // A Velo não usa confirmação de e-mail: a conta entra direto após o cadastro.
       if (signInError) {
-        const { error: verificationEmailError } = await supabase.functions.invoke("send-verification-email", {
-          body: {
-            email: cleanEmail,
-            userName: form.name.trim(),
-            redirectTo: `${window.location.origin}/setup`,
-          },
-        });
-        if (verificationEmailError) console.error("send verification email failed", verificationEmailError);
         setEmailLoading(false);
-        toast.info("Conta criada. Verifique seu e-mail para concluir o acesso.", { id: toastId });
+        toast.error(translateAuthError(signInError), { id: toastId });
         return;
       }
     }
