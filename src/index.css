@@ -4,9 +4,9 @@
 
 @media (max-width: 639px) {
   :root {
-    --landing-mobile-highlight: 42 82% 70%;
+    /* Laranja forte, quase tinta de sinalização: contraste alto com o azul-marinho do hero. */
+    --landing-mobile-highlight: 18 100% 47%;
     --landing-mobile-highlight-foreground: 220 69% 14%;
-    --landing-mobile-step-line: 42 66% 72%;
   }
 
   .landing-mobile-offer {
@@ -14,21 +14,7 @@
     color: hsl(var(--landing-mobile-highlight-foreground));
     font-size: 12px;
     font-weight: 800;
-    box-shadow: 0 1px 0 hsl(var(--landing-mobile-highlight-foreground) / 0.16);
-  }
-
-  .landing-mobile-steps {
-    border-top: 1px solid hsl(var(--landing-mobile-step-line) / 0.38);
-    border-bottom: 1px solid hsl(var(--landing-mobile-step-line) / 0.38);
-  }
-
-  .landing-mobile-steps-line {
-    background: hsl(var(--landing-mobile-step-line) / 0.64);
-  }
-
-  .landing-mobile-step-icon {
-    background: hsl(var(--landing-mobile-highlight));
-    color: hsl(var(--landing-mobile-highlight-foreground));
+    box-shadow: 0 1px 0 hsl(var(--landing-mobile-highlight-foreground) / 0.18);
   }
 }
 
