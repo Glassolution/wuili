@@ -101,6 +101,12 @@ Deno.serve(async (req) => {
         error: 'vendedor sem conta do Mercado Livre conectada',
         processed_at: new Date().toISOString(),
       }).eq('id', item.id)
+      if (item.publication_id) {
+        await supabase.from('user_publications').update({
+          dimensions_ok: false,
+          dimensions_checked_at: new Date().toISOString(),
+        }).eq('id', item.publication_id)
+      }
       continue
     }
 
