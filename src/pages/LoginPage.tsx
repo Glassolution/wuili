@@ -180,8 +180,11 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resetMode, setResetMode]         = useState(false);
-  const [acceptTerms, setAcceptTerms]     = useState(false);
-  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [acceptTerms, setAcceptTerms]     = useState(true);
+  const [emailSugerido, setEmailSugerido] = useState<string | null>(null);
+  const [navegadorInterno]                = useState<string | null>(() => detectInAppBrowser());
+  const [linkCopiado, setLinkCopiado]     = useState(false);
+  const [avisoNavegador, setAvisoNavegador] = useState(false);
   const [slide, setSlide]                 = useState(0);
   /*
     Todo retorno desta tela (erro, aviso, confirmação) aparece aqui dentro do card, e não
