@@ -843,7 +843,6 @@ export default function Index() {
 
         <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-24 text-center sm:hidden">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/90">
-            <img src={mlLogo.url} alt="" className="h-4 w-auto" />
             Feito para o Mercado Livre
           </span>
 
