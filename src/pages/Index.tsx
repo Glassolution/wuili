@@ -532,10 +532,13 @@ export default function Index() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
+      <div className="fixed inset-x-0 top-0 z-[60] flex h-7 items-center justify-center bg-[#0B1B3D] px-4 text-center text-[11px] font-semibold text-white sm:hidden">
+        Comece grátis <span className="mx-2 text-white/35" aria-hidden="true">•</span> Sem cartão de crédito
+      </div>
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-0 z-50 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
+        className={`fixed inset-x-0 top-7 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
             ? /*
                 Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
@@ -604,7 +607,7 @@ export default function Index() {
             <button
               type="button"
               onClick={() => navigate(authTarget)}
-              className={`h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:px-6 ${
+              className={`hidden h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:block sm:px-6 ${
                 headerOpaque ? "bg-[#2563EB] text-white hover:bg-[#1E3A8A]" : "bg-white text-[#0B1B3D] hover:bg-white/90"
               }`}
             >
@@ -767,8 +770,52 @@ export default function Index() {
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)]" />
 
+        <div className="relative flex w-full flex-col px-6 pb-7 pt-28 sm:hidden">
+          <div className="max-w-[350px]">
+            <h1 className="text-[2.35rem] font-light leading-[1.04] tracking-[-0.035em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
+              Escolha o produto.<br />
+              A Velo publica no<br />
+              Mercado Livre.
+            </h1>
+
+            <p className="mt-4 max-w-[335px] text-[15px] leading-[1.5] text-white/75">
+              Você escolhe no catálogo. A Velo prepara o anúncio com fotos, título e descrição para publicar.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate(authTarget)}
+            className="mt-6 h-[54px] w-full rounded-full bg-white px-8 text-[16px] font-semibold text-[#0B1B3D] shadow-[0_10px_30px_rgba(8,14,28,0.22)] transition-transform active:scale-[0.98]"
+          >
+            {ctaLabel}
+          </button>
+
+          <p className="mt-3 text-center text-[12px] font-medium text-white/65">
+            Sem estoque <span className="mx-1.5 text-white/30" aria-hidden="true">•</span> Sem compromisso
+          </p>
+
+          <div className="mt-6 grid grid-cols-3 border-y border-white/15 py-4" aria-label="Como funciona">
+            {[
+              { number: "1", label: "Escolha" },
+              { number: "2", label: "A Velo prepara" },
+              { number: "3", label: "Publique" },
+            ].map((step, index) => (
+              <div
+                key={step.number}
+                className={`flex min-w-0 flex-col items-center gap-2 px-1 text-center ${index > 0 ? "border-l border-white/15" : ""}`}
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/35 text-[11px] font-semibold text-white">
+                  {step.number}
+                </span>
+                <span className="text-[11px] font-medium leading-[1.2] text-white/75">{step.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Mesmo gutter do header, em todas as resoluções. */}
-        <div className="relative w-full px-6 pb-14 pt-32 sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
+        <div className="relative hidden w-full px-6 pb-14 pt-32 sm:block sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
           {/* font-family explícito: a regra global de h1–h6 em index.css força Hanken Grotesk. */}
           {/*
             As duas linhas usam exatamente o mesmo estilo (peso 200, branco): a diferença
