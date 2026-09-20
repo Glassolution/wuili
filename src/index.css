@@ -6,8 +6,6 @@
   :root {
     /* Laranja de sinalização: o mais longe possível do azul-marinho do hero. */
     --landing-mobile-highlight: 18 100% 47%;
-    --landing-mobile-highlight-lift: 22 100% 57%;
-    --landing-mobile-highlight-deep: 12 92% 38%;
     --landing-mobile-highlight-foreground: 220 69% 14%;
   }
 
@@ -1606,13 +1604,7 @@ button[class*="bg-[#1"]:hover:not(:disabled) {
   }
 
   .landing-mobile-offer,
-  .landing-mobile-offer::after,
-  .landing-mobile-offer__dot::after,
   .landing-mobile-offer__arrow {
     animation: none !important;
-  }
-
-  .landing-mobile-offer::after {
-    opacity: 0;
   }
 }
