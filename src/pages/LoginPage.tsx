@@ -342,14 +342,22 @@ const LoginPage = () => {
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);
-      // Se a sessão foi criada (auto-confirm), segue para o onboarding.
-      // Caso contrário (confirmação por e-mail pendente), volta o botão ao
-      // estado normal e informa o usuário para conferir o e-mail.
+      // A Velo não usa confirmação de e-mail: a conta já entra direto.
       if (data.session) {
         navigate("/dashboard", { replace: true });
         return;
       }
-      setAviso({ tipo: "ok", texto: "Conta criada. Confirme seu e-mail para continuar." });
+      // Rede de segurança: se por algum motivo a sessão não veio, entramos com a
+      // própria senha recém-criada, sem pedir confirmação de e-mail.
+      const { error: entrarErro } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (!entrarErro) {
+        navigate("/dashboard", { replace: true });
+        return;
+      }
+      setAviso({ tipo: "erro", texto: mensagemDeErro(entrarErro.message) });
     }
     setLoading(false);
   };
