@@ -309,7 +309,6 @@ const LoginPage = () => {
             terms_accepted_at: aceiteEm,
             signup_source: origem.signup_source,
           },
-          emailRedirectTo: `${window.location.origin}/setup`,
         },
       }),
       veloToast.waitForMinimum(toastId),
