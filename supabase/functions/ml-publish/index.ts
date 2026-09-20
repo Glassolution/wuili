@@ -1425,38 +1425,32 @@ Deno.serve(async (req) => {
       console.log(`[ml-publish] Peso ausente na origem — usando fallback por categoria (${catRaw || 'desconhecida'}): ${rawWeight} kg`)
     }
 
-    // Para SELLER_PACKAGE_WEIGHT, a API do Mercado Livre permite APENAS a unidade 'g' (gramas)
-    const weightGrams = Math.max(50, Math.round(rawWeight * 1000))
-    const weightValName = `${weightGrams} g`
+    // 3.6) Peso e medidas da embalagem — CRÍTICO para o cálculo do frete.
+    // Regra única compartilhada com a correção em massa (ml-fix-dimensions).
+    const pacote = montarPesoMedidas(rawWeight, productRecord.category as string | null)
+    const weightGrams = pacote.weightGrams
+    const weightValName = pacote.weightValName
+    const dimsValName = pacote.dimsValName
+    const shippingDimensions = pacote.shippingDimensions
 
-    // Sempre enviado: em anúncios Mercado Envios (me2) o frete é calculado
+    // Trava: nunca montamos um anúncio sem peso/medidas resolvidos.
+    if (!weightGrams || !/\d+x\d+x\d+,\d+/.test(shippingDimensions)) {
+      return json({
+        error: 'Não conseguimos calcular o peso e as medidas da embalagem deste produto. Escolha outro produto ou fale com o suporte.',
+        code: 'MISSING_PACKAGE_DIMENSIONS',
+      }, 400)
+    }
+
+    // Sempre enviados: em anúncios Mercado Envios (me2) o frete é calculado
     // por estes atributos — `shipping.dimensions` nem sequer é editável depois.
     mergeAttribute(allAttrs, {
       id: 'SELLER_PACKAGE_WEIGHT',
       value_name: weightValName,
     })
-
-    // 3.6) Dimensões da embalagem — CRÍTICO para o cálculo do frete.
-    // Sem dimensões válidas, o Mercado Livre aplica uma tabela padrão de "pacote
-    // grande" que resulta em fretes absurdos (R$170+) independente do peso ou
-    // preço real. Estimamos dimensões proporcionais ao peso.
-    let dimsCm: [number, number, number]
-    if (rawWeight <= 0.3) dimsCm = [20, 15, 5]
-    else if (rawWeight <= 1) dimsCm = [25, 20, 10]
-    else if (rawWeight <= 3) dimsCm = [35, 25, 15]
-    else if (rawWeight <= 6) dimsCm = [40, 30, 20]
-    else dimsCm = [50, 40, 30]
-
-    // Formato aceito pelo ML: "AxBxC,cm" (vírgula antes da unidade). Antes
-    // enviávamos "AxBxC cm" com espaço, o que era descartado pela API — daí
-    // vinham os fretes gigantescos mesmo com peso correto.
-    const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},cm`
     mergeAttribute(allAttrs, {
       id: 'SELLER_PACKAGE_DIMENSIONS',
       value_name: dimsValName,
     })
-    // Exposto no objeto para reaproveitar no payload de shipping abaixo.
-    const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
     // Em anúncios COM variação, algumas categorias calculam o frete pelas
     // medidas da variação. MAS só podemos repetir esses atributos na variação
     // quando a própria categoria os marca com `tags.allow_variations`; nas
