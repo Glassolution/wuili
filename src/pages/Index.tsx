@@ -854,8 +854,8 @@ export default function Index() {
             Venda no{" "}
             <img
               src={mlLogo.url}
-              alt="Mercado Livre"
-              className="mx-1 inline-block h-[1.05em] w-auto -translate-y-[0.12em] align-baseline"
+              alt=""
+              className="mx-0.5 inline-block h-[0.72em] w-auto align-[-0.06em]"
             />{" "}
             Mercado Livre sem comprar produto antes.
           </h1>
