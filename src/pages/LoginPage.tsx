@@ -6,6 +6,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
 import { Eye, EyeOff } from "lucide-react";
+import {
+  captureOrigin,
+  detectInAppBrowser,
+  mensagemDeErro,
+  readOrigin,
+  sugerirEmail,
+  tipoDeErro,
+  trackSignup,
+} from "@/lib/signupFunnel";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -150,8 +159,8 @@ const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
     };
   }
   return {
-    title: "Entre na Velo",
-    subtitle: "Use seu e-mail para continuar. A gente identifica se você já tem conta.",
+    title: "Crie sua conta Velo",
+    subtitle: "Digite seu e-mail para começar. Se você já tem conta, a gente te leva direto para entrar.",
   };
 };
 
@@ -171,8 +180,11 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resetMode, setResetMode]         = useState(false);
-  const [acceptTerms, setAcceptTerms]     = useState(false);
-  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [acceptTerms, setAcceptTerms]     = useState(true);
+  const [emailSugerido, setEmailSugerido] = useState<string | null>(null);
+  const [navegadorInterno]                = useState<string | null>(() => detectInAppBrowser());
+  const [linkCopiado, setLinkCopiado]     = useState(false);
+  const [avisoNavegador, setAvisoNavegador] = useState(false);
   const [slide, setSlide]                 = useState(0);
   /*
     Todo retorno desta tela (erro, aviso, confirmação) aparece aqui dentro do card, e não
@@ -207,6 +219,17 @@ const LoginPage = () => {
 
   /* ── Auth ── */
   const handleGoogleLogin = async () => {
+    trackSignup("signup_google_click");
+    /*
+      Instagram/TikTok abrem links num navegador embutido, e o Google recusa OAuth ali
+      (403 disallowed_useragent). Em vez de mandar a pessoa para um erro, mostramos a
+      orientação para abrir no navegador do celular — o caminho por e-mail segue ao lado.
+    */
+    if (navegadorInterno) {
+      trackSignup("signup_inapp_browser", navegadorInterno);
+      setAvisoNavegador(true);
+      return;
+    }
     setGoogleLoading(true);
     const toastId = veloToast.loading("Conectando com o Google...", { fullscreen: true, minDuration: 3000 });
     try {
@@ -232,6 +255,7 @@ const LoginPage = () => {
 
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
+    trackSignup("login_submit");
     setLoading(true);
     const toastId = veloToast.loading("Entrando...", { fullscreen: true, minDuration: 3000 });
     try {
@@ -240,8 +264,13 @@ const LoginPage = () => {
         veloToast.waitForMinimum(toastId),
       ]);
       veloToast.dismiss(toastId);
-      if (error) { setAviso({ tipo: "erro", texto: error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message }); return; }
+      if (error) {
+        trackSignup("login_error", tipoDeErro(error.message));
+        setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
+        return;
+      }
       if (data.session || data.user) {
+        trackSignup("login_success");
         // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
         navigate("/dashboard", { replace: true }); return;
       }
@@ -249,7 +278,7 @@ const LoginPage = () => {
     } catch (error) {
       await veloToast.waitForMinimum(toastId);
       veloToast.dismiss(toastId);
-      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
+      setAviso({ tipo: "erro", texto: mensagemDeErro(error instanceof Error ? error.message : "") });
     } finally { setLoading(false); }
   };
 
@@ -257,33 +286,60 @@ const LoginPage = () => {
     e.preventDefault();
     // No cadastro direto o e-mail não passou pela validação da etapa inicial.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
-    if (nome.trim().length < 2) { setAviso({ tipo: "erro", texto: "Informe seu nome." }); return; }
-    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Senha precisa ter pelo menos 8 caracteres." }); return; }
-    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Você precisa aceitar os Termos de Uso." }); return; }
-    if (!acceptPrivacy) { setAviso({ tipo: "erro", texto: "Você precisa aceitar a Política de Privacidade." }); return; }
+    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Crie uma senha com pelo menos 8 caracteres." }); return; }
+    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Marque o aceite dos Termos e da Política de Privacidade para continuar." }); return; }
+    trackSignup("signup_submit");
     setLoading(true);
     const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
+    /*
+      O nome completo saiu do cadastro: é atrito puro na entrada e pode ser preenchido
+      depois no Perfil. O gatilho do banco já cria o perfil com um nome a partir do
+      e-mail, então nada mais adiante fica sem nome.
+    */
+    const nomeInicial = email.trim().split("@")[0].replace(/[._-]+/g, " ").trim();
+    const origem = readOrigin();
+    const aceiteEm = new Date().toISOString();
     const [{ data, error }] = await Promise.all([
       supabase.auth.signUp({
         email: email.trim(), password,
-        options: { data: { full_name: nome.trim(), velo_onboarding_pending: true }, emailRedirectTo: `${window.location.origin}/setup` },
+        options: {
+          data: {
+            full_name: nomeInicial,
+            velo_onboarding_pending: true,
+            terms_accepted_at: aceiteEm,
+            signup_source: origem.signup_source,
+          },
+          emailRedirectTo: `${window.location.origin}/setup`,
+        },
       }),
       veloToast.waitForMinimum(toastId),
     ]);
     veloToast.dismiss(toastId);
     if (error) {
       setLoading(false);
-      if (error.message === "User already registered") {
+      trackSignup("signup_error", tipoDeErro(error.message));
+      if (/already registered/i.test(error.message)) {
         setStep("login");
-        setAviso({ tipo: "info", texto: "Este e-mail já possui conta. Entre com sua senha." });
+        setAviso({ tipo: "info", texto: "Este e-mail já tem conta na Velo. Entre com a sua senha." });
         window.setTimeout(() => passwordRef.current?.focus(), 120);
         return;
       }
-      setAviso({ tipo: "erro", texto: error.message });
+      setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
       return;
     }
     if (data.user) {
-      await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
+      trackSignup("signup_success");
+      // Registro do aceite e da origem do visitante (comprovação e atribuição de canal).
+      await supabase
+        .from("profiles")
+        .update({
+          terms_accepted_at: aceiteEm,
+          signup_source: origem.signup_source,
+          utm_source: origem.utm_source,
+          utm_medium: origem.utm_medium,
+          utm_campaign: origem.utm_campaign,
+        })
+        .eq("user_id", data.user.id);
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);
@@ -353,10 +409,12 @@ const LoginPage = () => {
   // Quem vem do botão principal da landing (?novo=1) já cai na criação de conta.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("novo") === "1") setStep("signup");
+    captureOrigin();
+    trackSignup("signup_view");
+    if (detectInAppBrowser()) trackSignup("signup_inapp_browser", detectInAppBrowser() ?? undefined);
   }, []);
 
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
-  useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 320);     }, [step]);
 
 
   // Troca de slide sozinha; clicar num ponto reinicia a contagem.
@@ -492,6 +550,33 @@ const LoginPage = () => {
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
                 </button>
 
+                {/* Navegador embutido de rede social: o Google não permite o login ali.
+                    Em vez do erro do Google, explicamos o que fazer em uma frase. */}
+                {avisoNavegador && (
+                  <div className="mt-3 rounded-[12px] border border-[#FDE3C0] bg-[#FFF8EE] px-3.5 py-3 text-[13px] leading-[1.55] text-[#92400E]">
+                    <p>
+                      O {navegadorInterno ?? "aplicativo"} abre a Velo numa janela própria, e o Google não
+                      permite login por aqui. Toque nos três pontinhos e escolha
+                      <strong> “Abrir no navegador”</strong> — ou continue com seu e-mail logo abaixo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(window.location.href);
+                          setLinkCopiado(true);
+                          window.setTimeout(() => setLinkCopiado(false), 2500);
+                        } catch {
+                          setLinkCopiado(false);
+                        }
+                      }}
+                      className="mt-2 inline-flex h-9 items-center rounded-full bg-[#92400E] px-4 text-[13px] font-semibold text-white"
+                    >
+                      {linkCopiado ? "Link copiado!" : "Copiar link da Velo"}
+                    </button>
+                  </div>
+                )}
+
                 <div className="my-6 flex items-center gap-4">
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
                   <span className="text-[13px] text-[#94A3B8]">
@@ -541,13 +626,40 @@ const LoginPage = () => {
                   <input
                     type="email"
                     value={email}
-                    onChange={aoDigitar(setEmail)}
-                    placeholder="Endereço de e-mail"
+                    onChange={(e) => {
+                      if (!email) trackSignup("signup_start");
+                      setEmailSugerido(null);
+                      aoDigitar(setEmail)(e);
+                    }}
+                    onBlur={() => setEmailSugerido(sugerirEmail(email))}
+                    placeholder="Seu e-mail"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
                     readOnly={emailLocked}
                     // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
                     // não pela ordem das classes na string.
                     className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F5F9] text-[#64748B]" : ""}`}
                   />
+
+                  {/* Erro comum de digitação: oferecemos a correção em vez de deixar
+                      a pessoa criar conta num e-mail que nunca vai receber nada. */}
+                  {emailSugerido && !emailLocked && (
+                    <p className="-mt-1 text-[13px] leading-[1.5] text-[#64748B]">
+                      Você quis dizer{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setEmail(emailSugerido); setEmailSugerido(null); }}
+                        className="font-semibold text-[#2563EB] underline underline-offset-2"
+                      >
+                        {emailSugerido}
+                      </button>
+                      ?
+                    </p>
+                  )}
 
                   {step === "initial" && (
                     <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
@@ -572,7 +684,9 @@ const LoginPage = () => {
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Senha"
+                            placeholder="Sua senha"
+                            autoComplete="current-password"
+                            enterKeyHint="go"
                             className={`${inputCls} pr-11`}
                           />
                           <button
@@ -608,23 +722,16 @@ const LoginPage = () => {
                       className="overflow-hidden"
                     >
                       <div className="space-y-4">
-                        <input
-                          ref={nomeRef}
-                          type="text"
-                          value={nome}
-                          onChange={aoDigitar(setNome)}
-                          required
-                          placeholder="Nome completo"
-                          className={inputCls}
-                        />
-
                         <div className="relative">
                           <input
+                            ref={nomeRef}
                             type={showPw ? "text" : "password"}
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Senha com 8+ caracteres"
+                            placeholder="Crie uma senha (8 ou mais caracteres)"
+                            autoComplete="new-password"
+                            enterKeyHint="go"
                             className={`${inputCls} pr-11`}
                           />
                           <button
@@ -637,28 +744,23 @@ const LoginPage = () => {
                           </button>
                         </div>
 
-                        <div className="space-y-2.5 pt-1">
+                        {/* Aceite único, numa linha só. A data e a hora ficam gravadas
+                            no perfil no momento em que a conta é criada. */}
+                        <div className="pt-1">
                           <LegalCheckbox
                             checked={acceptTerms}
                             onChange={setAcceptTerms}
                             label={
                               <>
-                                Li e aceito os{" "}
+                                Aceito os{" "}
                                 <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Termos de Uso
-                                </Link>
-                              </>
-                            }
-                          />
-                          <LegalCheckbox
-                            checked={acceptPrivacy}
-                            onChange={setAcceptPrivacy}
-                            label={
-                              <>
-                                Li e aceito a{" "}
+                                </Link>{" "}
+                                e a{" "}
                                 <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Política de Privacidade
                                 </Link>
+                                .
                               </>
                             }
                           />
@@ -666,10 +768,10 @@ const LoginPage = () => {
 
                         <button
                           type="submit"
-                          disabled={loading || !acceptTerms || !acceptPrivacy}
+                          disabled={loading || !acceptTerms}
                           className={primaryBtnCls}
                         >
-                          {loading ? "Criando conta..." : "Criar conta grátis"}
+                          {loading ? "Criando conta..." : "Criar minha conta"}
                         </button>
                       </div>
                     </motion.form>
@@ -735,17 +837,8 @@ const LoginPage = () => {
           Precisa de ajuda?
         </Link>
 
-        <p className="text-center text-[12.5px] leading-[1.6] text-white/45 lg:text-left lg:text-[#94A3B8]">
-          Ao continuar, você concorda com a{" "}
-          <Link to="/politica-de-privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
-            Política de Privacidade
-          </Link>{" "}
-          e os{" "}
-          <Link to="/termos-de-servico" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
-            Termos de Uso
-          </Link>
-          .
-        </p>
+        {/* O aceite legal vive agora numa linha única dentro do formulário de cadastro;
+            repetir aqui embaixo era a segunda vez que a pessoa lia a mesma coisa. */}
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}

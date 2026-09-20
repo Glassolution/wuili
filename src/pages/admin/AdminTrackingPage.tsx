@@ -78,6 +78,19 @@ const Kpi = ({ icon: Icon, label, value, sub }: { icon: LucideIcon; label: strin
   </div>
 );
 
+const ROTULO_FUNIL: Record<string, string> = {
+  signup_view: "Viu a tela de cadastro",
+  signup_start: "Começou a preencher",
+  signup_submit: "Enviou o cadastro",
+  signup_success: "Conta criada",
+  signup_error: "Erro no cadastro",
+  signup_google_click: "Clicou em entrar com Google",
+  signup_inapp_browser: "Abriu dentro de app (Instagram/TikTok)",
+  login_submit: "Tentou entrar",
+  login_success: "Entrou",
+  login_error: "Erro ao entrar",
+};
+
 const AdminTrackingPage = () => {
   const [days, setDays] = useState(30);
 
@@ -115,6 +128,15 @@ const AdminTrackingPage = () => {
       const { data, error } = await (supabase as any).rpc("rpc_admin_exit_pages", { p_days: days, p_limit: 20 });
       if (error) throw error;
       return (data ?? []) as ExitRow[];
+    },
+  });
+  const signupFunnel = useQuery({
+    queryKey: ["admin-signup-funnel", days],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC nova ainda não tipada
+      const { data, error } = await (supabase as any).rpc("rpc_admin_signup_funnel", { p_days: days });
+      if (error) throw error;
+      return (data ?? []) as { evento: string; detalhe: string | null; total: number; visitantes: number }[];
     },
   });
   const reasons = useQuery({
@@ -272,6 +294,33 @@ const AdminTrackingPage = () => {
             )}
           </Card>
         </div>
+
+        <Card
+          title="Funil de cadastro e login"
+          icon={Activity}
+          hint="Quem viu a tela, começou a preencher, enviou, concluiu e onde deu erro."
+        >
+          {signupFunnel.data?.length ? (
+            <div className="space-y-1">
+              {signupFunnel.data.map((r) => (
+                <div
+                  key={`${r.evento}-${r.detalhe ?? ""}`}
+                  className="flex items-center justify-between gap-3 border-b border-[#f1f1ee] py-2 text-[13px] last:border-0"
+                >
+                  <span className="truncate text-[#171715]">
+                    {ROTULO_FUNIL[r.evento] ?? r.evento}
+                    {r.detalhe ? ` — ${r.detalhe}` : ""}
+                  </span>
+                  <span className="shrink-0 text-[12px] text-[#8c8c87]">
+                    {r.total} · {r.visitantes} pessoas
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[13px] text-[#77776f]">Sem dados ainda.</p>
+          )}
+        </Card>
 
         <Card
           title="Motivos de reembolso"
