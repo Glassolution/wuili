@@ -10,7 +10,7 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, BadgePercent, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, ShieldCheck, Star, Truck, Zap } from "lucide-react";
+import { ArrowUpRight, BadgePercent, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Folder, Package, Plus, Search, ShieldCheck, Star, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,9 @@ import {
   formatReviewCount,
   getProductCatalogMetrics,
 } from "@/components/dashboard/ProductCard";
+import { categoriasDoPerfil, lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -33,6 +36,9 @@ type ProductPreview = {
   image: string;
   images: string[];
   price: number;
+  suggestedPrice: number;
+  publicationCount: number;
+  createdAt: string | null;
   ordersCount: number;
   rating: number | null;
   source: string | null;
@@ -75,7 +81,7 @@ const getProductImages = (images: Json | null): string[] => {
 
 const MIN_PRODUCT_IMAGES = 3;
 
-const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {
+const mapProductPreview = (product: CatalogProductRow, publicationCount = 0): ProductPreview | null => {
   const images = getProductImages(product.images);
   // Regra: só mostra na home mobile produtos com pelo menos 3 fotos disponíveis,
   // pra evitar cards com uma única imagem antiga do fornecedor.
@@ -87,6 +93,9 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
     image: images[0],
     images,
     price: Number(product.cost_price) || 0,
+    suggestedPrice: Math.max(Number(product.suggested_price) || 0, Number(product.cost_price) || 0),
+    publicationCount,
+    createdAt: product.created_at,
     /*
       Mesmas funções do catálogo e da ficha do produto (src/lib/catalogFilters.ts). Elas
       NÃO leem o banco: derivam nota e vendas de um hash do id, porque
@@ -217,10 +226,12 @@ const MobileProductCard = ({
   product,
   isFavorite,
   onToggleFavorite,
+  onOpen,
 }: {
   product: ProductPreview;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  onOpen: () => void;
 }) => {
   const navigate = useNavigate();
   const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
@@ -230,7 +241,10 @@ const MobileProductCard = ({
     <article className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <button
         type="button"
-        onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
+        onClick={() => {
+          onOpen();
+          navigate(`/dashboard/catalogo/${product.id}`);
+        }}
         className="block w-full text-left"
       >
         <div className="aspect-square overflow-hidden bg-[#F3F3F3] flex items-center justify-center">
@@ -240,7 +254,7 @@ const MobileProductCard = ({
               alt={product.title}
               className="h-full w-full object-cover"
               referrerPolicy="no-referrer"
-              loading="eager"
+              loading="lazy"
               onError={() => setImgFailed(true)}
             />
           ) : (
@@ -272,9 +286,13 @@ const MobileProductCard = ({
                 <span className="truncate text-[#9A9A94]">({formatReviewCount(ordersCount)} vendas)</span>
               )}
             </div>
-            <span className="shrink-0 text-[13px] font-semibold tracking-[-0.025em] text-[#111111]">
-              {formatCurrency(product.price)}
+            <span className="shrink-0 text-right text-[9px] font-semibold text-[#6B7280]">
+              Preço sugerido<br /><strong className="text-[13px] text-[#111111]">{formatCurrency(product.suggestedPrice)}</strong>
             </span>
+          </div>
+          <div className="mt-2 border-t border-black/[0.06] pt-2">
+            <p className="text-[9px] font-semibold text-[#6B7280]">Sobra bruta estimada · antes de taxas</p>
+            <p className="text-[13px] font-black text-[#15803D]">{formatCurrency(Math.max(0, product.suggestedPrice - product.price))}</p>
           </div>
         </div>
       </button>
@@ -296,6 +314,12 @@ const MobileAliVeloHome = ({
   isLoadingProducts = false,
   hasProductsError = false,
   onRetryProducts,
+  userId,
+  mlConnected,
+  hasPublication,
+  choseProduct,
+  needsMlSellerGuide,
+  onChooseProduct,
 }: {
   products: ProductPreview[];
   collections: CollectionSummary[];
@@ -305,6 +329,12 @@ const MobileAliVeloHome = ({
   isLoadingProducts?: boolean;
   hasProductsError?: boolean;
   onRetryProducts?: () => void;
+  userId?: string;
+  mlConnected: boolean;
+  hasPublication: boolean;
+  choseProduct: boolean;
+  needsMlSellerGuide: boolean;
+  onChooseProduct: (productId: string) => void;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -315,6 +345,24 @@ const MobileAliVeloHome = ({
   const [openMobileFilter, setOpenMobileFilter] = useState<"category" | "price" | "rating" | null>(null);
   const mobileFilterBarRef = useRef<HTMLDivElement | null>(null);
   const mobileCategoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const homeOpenedAt = useRef(Date.now());
+  const searchStarted = useRef(false);
+  const firstProductClick = useRef(false);
+  const isBeginner = !hasPublication;
+
+  useEffect(() => {
+    trackMobileHomeEvent(userId, "home_view", { detail: isBeginner ? "primeiro_anuncio" : "home_normal" });
+  }, [isBeginner, userId]);
+
+  const openProduct = (productId: string, origin: string) => {
+    onChooseProduct(productId);
+    const elapsedMs = Date.now() - homeOpenedAt.current;
+    trackMobileHomeEvent(userId, "product_clicked", { detail: origin, productId, elapsedMs });
+    if (!firstProductClick.current) {
+      firstProductClick.current = true;
+      trackMobileHomeEvent(userId, "first_product_clicked", { detail: origin, productId, elapsedMs });
+    }
+  };
   /*
     Ordenadas por quantidade de produtos: a primeira aba depois de "Tudo" é sempre a que
     tem mais o que mostrar, e nenhuma aba leva a uma lista vazia.
@@ -511,7 +559,18 @@ const MobileAliVeloHome = ({
               <input
                 type="search"
                 value={mobileSearchQuery}
-                onChange={(event) => setMobileSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setMobileSearchQuery(event.target.value);
+                  if (!searchStarted.current && event.target.value.trim()) {
+                    searchStarted.current = true;
+                    trackMobileHomeEvent(userId, "search_started");
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && mobileSearchQuery.trim()) {
+                    trackMobileHomeEvent(userId, "search_submitted", { detail: mobileSearchQuery.trim() });
+                  }
+                }}
                 placeholder="Buscar na Velo"
                 className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold tracking-[-0.02em] text-[#1F2933] outline-none placeholder:text-[#6B7280]"
               />
@@ -540,6 +599,7 @@ const MobileAliVeloHome = ({
                   onClick={() => {
                     setMobileCategoryFilter(categoria);
                     setOpenMobileFilter(null);
+                    trackMobileHomeEvent(userId, "category_clicked", { detail: categoria });
                   }}
                   className={`relative shrink-0 pb-2 transition-colors duration-200 ${isActive ? "text-white" : "text-white/65"}`}
                 >
@@ -563,32 +623,30 @@ const MobileAliVeloHome = ({
           <div className="block w-full overflow-hidden rounded-[16px] bg-[linear-gradient(135deg,#1E3A8A_0%,#1D4ED8_55%,#3B82F6_100%)] p-3 text-left shadow-[0_12px_28px_rgba(30,58,138,0.35)]">
             <button
               type="button"
-              onClick={() => navigate("/dashboard/catalogo")}
+              onClick={() => {
+                trackMobileHomeEvent(userId, "banner_clicked");
+                navigate("/dashboard/catalogo");
+              }}
               className="block w-full text-left transition-transform active:scale-[0.99]"
             >
             <div className="flex items-start justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[-0.01em] text-white/90">
                 <ShieldCheck className="h-[14px] w-[14px]" strokeWidth={2.4} />
-                Curadoria Velo • estoque nacional
+                Produtos com estoque no Brasil
               </p>
-              <span className="rounded-[6px] bg-[#FACC15] px-2 py-0.5 text-[10px] font-black text-[#1E3A8A]">
-                Margem até 3x
-              </span>
             </div>
 
             <p className="mt-1.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.05em] text-white">
-              Produtos prontos
+              Escolha um produto
               <br />
-              <span className="text-[#FACC15]">para vender hoje</span>
+              <span className="text-[#FACC15]">para seu primeiro anúncio</span>
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-white/85">
               <span className="flex items-center gap-1">
                 <Truck className="h-[13px] w-[13px]" strokeWidth={2.4} /> Envio nacional
               </span>
-              <span className="flex items-center gap-1">
-                <Zap className="h-[13px] w-[13px]" strokeWidth={2.4} /> Publica em 1 clique
-              </span>
+              <span>Revise, conecte e publique no Mercado Livre</span>
             </div>
             </button>
 
@@ -618,7 +676,10 @@ const MobileAliVeloHome = ({
                     */
                     key={index}
                     type="button"
-                    onClick={() => navigate(`/dashboard/catalogo/${item.id}`)}
+                    onClick={() => {
+                      openProduct(item.id, "banner");
+                      navigate(`/dashboard/catalogo/${item.id}`);
+                    }}
                     aria-label={item.title}
                     className="relative overflow-hidden rounded-[10px] bg-white/15 transition-transform active:scale-95"
                   >
@@ -639,6 +700,36 @@ const MobileAliVeloHome = ({
             </div>
           </div>
         </section>
+
+        {isBeginner && (
+          <section className="bg-white px-4 pb-1 pt-4" aria-labelledby="first-ad-title">
+            <div className="border-y border-black/[0.08] py-4">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase text-[#2563EB]">Comece por aqui</p>
+                  <h2 id="first-ad-title" className="mt-0.5 text-[21px] font-black text-[#111111]">Seu primeiro anúncio</h2>
+                </div>
+                <span className="text-[12px] font-bold text-[#475569]">{[choseProduct, mlConnected, hasPublication].filter(Boolean).length}/3</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E5E7EB]">
+                <div className="h-full bg-[#2563EB] transition-all" style={{ width: `${([choseProduct, mlConnected, hasPublication].filter(Boolean).length / 3) * 100}%` }} />
+              </div>
+              <div className="mt-3 divide-y divide-black/[0.06]">
+                {[
+                  { done: choseProduct, label: "Escolha um produto", help: choseProduct ? "Produto escolhido" : "Veja as opções logo abaixo", action: () => productsSectionRef.current?.scrollIntoView({ behavior: "smooth" }), key: "choose_product" },
+                  { done: mlConnected, label: "Conecte o Mercado Livre", help: mlConnected ? "Conta conectada" : needsMlSellerGuide ? "Veja como ativar sua conta de vendedor" : "Conecte sua conta de vendedor", action: () => needsMlSellerGuide ? window.open("https://www.mercadolivre.com.br/vender", "_blank", "noopener,noreferrer") : void startMercadoLivreOAuth({ novaAba: false }).catch(() => veloToast.error("Não foi possível abrir o Mercado Livre agora.")), key: "connect_ml" },
+                  { done: hasPublication, label: "Publique o anúncio", help: "Disponível após escolher e conectar", action: () => navigate(choseProduct ? "/dashboard/catalogo" : "#products"), key: "publish" },
+                ].map((step) => (
+                  <button key={step.key} type="button" onClick={() => { trackMobileHomeEvent(userId, "checklist_clicked", { detail: step.key }); step.action(); }} className="flex min-h-14 w-full items-center gap-3 py-2 text-left">
+                    {step.done ? <CheckCircle2 className="h-6 w-6 shrink-0 text-[#16A34A]" /> : <Circle className="h-6 w-6 shrink-0 text-[#94A3B8]" />}
+                    <span className="min-w-0 flex-1"><strong className="block text-[14px] text-[#111111]">{step.label}</strong><span className="block text-[12px] text-[#64748B]">{step.help}</span></span>
+                    {!step.done && <ChevronRight className="h-5 w-5 shrink-0 text-[#94A3B8]" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
 
 
@@ -740,13 +831,13 @@ const MobileAliVeloHome = ({
         </div>
 
         {products.length > 0 && (
-          <section ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
-            <div className="mb-4 grid grid-cols-4 gap-1 pb-1">
+          <section id="products" ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
+            {!isBeginner && <div className="mb-4 grid grid-cols-4 gap-1 pb-1">
               {mobileVeloActionItems.map((item, indice) => (
                 <button
                   key={item.label}
                   type="button"
-                  onClick={() => navigate(item.to)}
+                  onClick={() => { trackMobileHomeEvent(userId, "shortcut_clicked", { detail: item.label }); navigate(item.to); }}
                   /*
                     `backwards` é obrigatório aqui: `animate-fade-in` não tem fill, então
                     durante o atraso o item ficaria no estado normal (visível) e só então
@@ -783,9 +874,9 @@ const MobileAliVeloHome = ({
                   </span>
                 </button>
               ))}
-            </div>
+            </div>}
 
-            <div className="mb-5 flex items-center gap-2.5 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-2.5">
+            {!isBeginner && <div className="mb-5 flex items-center gap-2.5 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-2.5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#2563EB] text-white">
                 <Truck className="h-[17px] w-[17px]" strokeWidth={2.3} />
               </span>
@@ -799,7 +890,7 @@ const MobileAliVeloHome = ({
                 <BadgePercent className="h-[12px] w-[12px]" strokeWidth={2.6} />
                 Margem
               </span>
-            </div>
+            </div>}
 
             <div className="mb-3 flex items-end justify-between gap-3">
               <h2 className="text-[22px] font-black tracking-[-0.05em] text-[#111111]">Produtos para vender</h2>
@@ -872,6 +963,7 @@ const MobileAliVeloHome = ({
                       product={product}
                       isFavorite={favoriteProductIds.includes(product.id)}
                       onToggleFavorite={() => onToggleFavoriteProduct(product.id)}
+                      onOpen={() => openProduct(product.id, "grid")}
                     />
                   ))}
                 </div>
