@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import mlLogo from "@/assets/mercado-livre-logo.png.asset.json";
 
 
 /*
@@ -842,6 +843,7 @@ export default function Index() {
 
         <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-24 text-center sm:hidden">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/90">
+            <img src={mlLogo.url} alt="" className="h-4 w-auto" />
             Feito para o Mercado Livre
           </span>
 
@@ -850,7 +852,13 @@ export default function Index() {
             idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
           */}
           <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            Venda no Mercado Livre sem comprar produto antes.
+            Venda no{" "}
+            <img
+              src={mlLogo.url}
+              alt="Mercado Livre"
+              className="mx-1 inline-block h-[1.05em] w-auto -translate-y-[0.12em] align-baseline"
+            />{" "}
+            Mercado Livre sem comprar produto antes.
           </h1>
 
           <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
