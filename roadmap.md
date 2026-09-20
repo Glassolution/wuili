@@ -6,3 +6,9 @@
 - [x] Melhorar categorias, toque e carregamento
 - [x] Registrar o funil da home mobile
 - [x] Validar celular e preservar desktop
+- [x] Destacar preço sugerido e sobra bruta estimada na ficha mobile
+- [x] Unificar a estimativa entre home, ficha e publicação
+- [x] Simplificar ações, manter publicação fixa e avisar sobre plano
+- [x] Remover métricas sem origem verificável da ficha
+- [x] Medir ficha, importação, conexão, planos e publicação
+- [x] Validar a ficha em celulares e preservar o desktop

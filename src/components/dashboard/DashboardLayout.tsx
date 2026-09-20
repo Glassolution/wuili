@@ -46,6 +46,7 @@ import { Image as ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import {
   NavAccountIcon,
   NavHomeIcon,
@@ -743,6 +744,7 @@ const DashboardLayoutInner = () => {
     const params = new URLSearchParams(location.search);
 
     if (params.get("ml_connected") === "true") {
+      trackMobileHomeEvent(user?.id, "ml_connect_result", { detail: "success" });
       const retorno = lerRetornoMl();
 
       // Quem começou pelo chat do Atlas volta pela própria conversa: o
@@ -772,6 +774,7 @@ const DashboardLayoutInner = () => {
     }
 
     if (params.get("ml_error")) {
+      trackMobileHomeEvent(user?.id, "ml_connect_result", { detail: `error:${params.get("ml_error")}` });
       const errors: Record<string, string> = {
         missing_params: "Parametros ausentes na resposta do Mercado Livre.",
         token_failed: "Nao foi possivel obter o token. Tente novamente.",

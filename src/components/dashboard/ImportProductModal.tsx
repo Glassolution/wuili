@@ -31,6 +31,8 @@ import {
   type ResultadoDaPublicacao,
   type ProdutoDoCatalogo,
 } from "@/lib/publicacaoMercadoLivre";
+import { getProductPricingEstimate } from "@/lib/productPricing";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 /**
  * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
@@ -162,8 +164,9 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       ? product.title.substring(0, MAX_TITLE_LENGTH)
       : product.title;
     setTitle(truncated);
-    setMultiplier(2.5);
-    setSellPrice(Math.round(product.cost_price * 2.5 * 100) / 100);
+    const pricing = getProductPricingEstimate(product.cost_price, product.suggested_price);
+    setMultiplier(product.cost_price > 0 ? pricing.suggestedSalePrice / product.cost_price : MULTIPLICADOR_SUGERIDO);
+    setSellPrice(pricing.suggestedSalePrice);
     setStep(1);
     setPublishResult(null);
     setPublishing(false);
@@ -178,6 +181,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   const costPrice = product?.cost_price ?? 0;
   const totalCost = costPrice;
+  const suggestedPricing = getProductPricingEstimate(costPrice, product?.suggested_price);
+
+  useEffect(() => {
+    if (!open || !user?.id || !product?.id) return;
+    trackMobileHomeEvent(user.id, "import_flow_open", { productId: product.id });
+  }, [open, product?.id, user?.id]);
+
+  useEffect(() => {
+    if (!open || !user?.id || !product?.id) return;
+    trackMobileHomeEvent(user.id, "import_flow_step", { productId: product.id, detail: String(step) });
+  }, [open, product?.id, step, user?.id]);
 
   const handlePriceChange = (val: string) => {
     if (val === "") {
@@ -220,6 +234,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const handleClose = () => {
     if (publishing) return;
     setMlMissingCodes(null);
+    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product?.id, detail: `step_${step}` });
     setVisible(false);
     setTimeout(onClose, 160);
   };
@@ -227,6 +242,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const handleConnectML = async () => {
     if (!user) return;
     try {
+      trackMobileHomeEvent(user.id, "ml_connect_open", { productId: product?.id, detail: `import_step_${step}` });
       await startMercadoLivreOAuth();
     } catch (err) {
       veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
@@ -324,7 +340,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       if (planLimits.plan === "pro" && planLimits.productLimitReached) {
         setUpgradeModalOpen(true);
       } else {
-        upgradeModal.open({ defaultPlan: "base" });
+        upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id });
       }
       return;
     }
@@ -383,6 +399,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
       setMlMissingCodes(null);
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
+      trackMobileHomeEvent(user.id, "publish_result", { productId: product.id, detail: data.parcial ? "partial" : "success" });
       setStep(4);
       if (activeStore) incrementStorePublishedCount(activeStore.id);
 
@@ -432,7 +449,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     // Plano grátis: abre direto o modal animado de planos (não um passo extra).
-    upgradeModal.open({ defaultPlan: "base" });
+    upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id });
   };
 
   if (!open && !visible) return null;
@@ -625,7 +642,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                       <span className="font-semibold text-[#0F172A]">{formatBRL(costPrice)}</span> para você.{" "}
                       A Velo sugere vender por{" "}
                       <span className="font-semibold text-[#0F172A]">
-                        {formatBRL(costPrice * MULTIPLICADOR_SUGERIDO)}
+                        {formatBRL(suggestedPricing.suggestedSalePrice)}
                       </span>
                       , mas quem decide o preço é você.
                     </p>
@@ -651,11 +668,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
                   {/* Profit single line */}
                   <div className="flex items-center justify-between rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <span className="text-[12px] text-[#64748B]">Você lucra por venda</span>
+                    <span className="text-[12px] text-[#64748B]">Sobra bruta estimada</span>
                     <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0F172A]" : "text-red-500"}`}>
                       {formatBRL(profit)} <span className="text-[11px] font-medium text-gray-400 ml-1">· {profitMargin}%</span>
                     </span>
                   </div>
+                  <p className="text-[11px] leading-4 text-[#64748B]">Antes das taxas do Mercado Livre, frete e impostos.</p>
                 </div>
               </div>
             )}
@@ -707,7 +725,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <Row label="Plataforma" value="Mercado Livre" />
                   <Row label="Preço" value={formatBRL(sellPrice)} />
                   <Row label="Estoque publicado" value={`${Math.min(stockQty, 10)} un`} />
-                  <Row label="Lucro" value={formatBRL(profit)} strong />
+                  <Row label="Sobra bruta estimada" value={formatBRL(profit)} strong />
                 </div>
 
                 {/* Mercado Livre attributes */}
@@ -860,7 +878,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                             Preço definido: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice)}</strong>
                           </span>
                           <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
-                            Lucro estimado: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
+                            Sobra bruta estimada: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
                           </span>
                         </div>
                       </div>
@@ -869,7 +887,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
                   <button
                     type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "base" })}
+                    onClick={() => upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id })}
                     className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#2563EB] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
                   >
                     Assinar Base — R$ 39,90/mês
@@ -879,7 +897,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   </p>
                   <button
                     type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
+                    onClick={() => upgradeModal.open({ defaultPlan: "pro", origin: "product_import", productId: product.id })}
                     className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#2563EB]"
                   >
                     Prefere começar direto no Pro (R$ 79,80/mês) com automações completas?

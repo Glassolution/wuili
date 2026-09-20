@@ -26,6 +26,7 @@ import {
 import { CATEGORIAS_EXCLUIDAS, categoriasDoPerfil, lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { getProductPricingEstimate } from "@/lib/productPricing";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -85,6 +86,7 @@ const MIN_PRODUCT_IMAGES = 3;
 
 const mapProductPreview = (product: CatalogProductRow, publicationCount = 0): ProductPreview | null => {
   const images = getProductImages(product.images);
+  const pricing = getProductPricingEstimate(product.cost_price, product.suggested_price);
   // Regra: só mostra na home mobile produtos com pelo menos 3 fotos disponíveis,
   // pra evitar cards com uma única imagem antiga do fornecedor.
   if (images.length < MIN_PRODUCT_IMAGES) return null;
@@ -95,7 +97,7 @@ const mapProductPreview = (product: CatalogProductRow, publicationCount = 0): Pr
     image: images[0],
     images,
     price: Number(product.cost_price) || 0,
-    suggestedPrice: Math.max(Number(product.suggested_price) || 0, Number(product.cost_price) || 0),
+    suggestedPrice: pricing.suggestedSalePrice,
     publicationCount,
     createdAt: product.created_at,
     /*
