@@ -561,7 +561,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div>
                 <h2 className="text-[15px] font-semibold text-[#0F172A] leading-tight">Importar produto</h2>
-                <p className="text-[12.5px] text-[#64748B] mt-0.5">Em 2 passos rápidos seu produto estará à venda no Mercado Livre.</p>
+                <p className="text-[12.5px] text-[#64748B] mt-0.5">Confira os detalhes, conecte sua conta, revise e escolha seu plano.</p>
               </div>
             </div>
             <button
@@ -630,24 +630,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[12.5px] text-gray-500 mt-1">Edite o título e defina seu preço de venda.</p>
                 </div>
 
-                {/* Connection status */}
-                {isConnectedToML === false && (
-                  <div className="rounded-xl border border-red-200 bg-red-50/60 px-4 py-3.5">
-                    <p className="text-[13px] font-semibold text-red-600">
-                      Você precisa conectar a sua conta do Mercado Livre
-                    </p>
-                    <p className="text-[11.5px] text-red-500/90 mt-1">
-                      É aí que o seu anúncio vai ser publicado. Leva menos de 1 minuto.
-                    </p>
-                    <button
-                      onClick={handleConnectML}
-                      className="mt-3 w-full rounded-lg bg-[#2563EB] px-3.5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
-                    >
-                      Conectar minha conta do Mercado Livre
-                    </button>
-                  </div>
-                )}
-
                 {/* Stock warning */}
                 {!hasStock && (
                   <div className="rounded-xl border border-red-100 bg-red-50/40 px-4 py-3">
@@ -660,14 +642,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[12px] font-medium text-gray-600">Título do anúncio</label>
-                    <button
-                      onClick={handleTranslate}
-                      disabled={translating}
-                      className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-50"
-                    >
-                      {translating ? <Loader2 size={11} className="animate-spin" /> : <Globe size={11} />}
-                      {translating ? "Traduzindo" : translated ? "Retraduzir" : "Traduzir p/ PT-BR"}
-                    </button>
+                    {titleNeedsTranslation && (
+                      <button
+                        onClick={handleTranslate}
+                        disabled={translating}
+                        className="flex min-h-11 items-center gap-1.5 text-[12px] font-medium text-[#475569] transition-colors hover:text-[#0F172A] disabled:opacity-50"
+                      >
+                        {translating ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
+                        {translating ? "Traduzindo" : translated ? "Traduzir novamente" : "Traduzir para português"}
+                      </button>
+                    )}
                   </div>
                   <input
                     value={title}
@@ -709,6 +693,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">R$</span>
                       <input
                         type="number"
+                        inputMode="decimal"
                         step="0.01"
                         min="0"
                         value={sellPrice || ""}
@@ -716,6 +701,15 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-3 text-[15px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
                       />
                     </div>
+                    {Math.abs(sellPrice - suggestedPricing.suggestedSalePrice) > 0.009 && (
+                      <button
+                        type="button"
+                        onClick={() => handlePriceChange(String(suggestedPricing.suggestedSalePrice))}
+                        className="mt-2 min-h-11 text-[12.5px] font-semibold text-[#2563EB]"
+                      >
+                        Usar preço sugerido de {formatBRL(suggestedPricing.suggestedSalePrice)}
+                      </button>
+                    )}
                   </div>
 
                   {/* Profit single line */}
@@ -730,8 +724,33 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
             )}
 
-            {/* STEP 2 — Revisão */}
+            {/* STEP 2 — Conexão */}
             {step === 2 && (
+              <div key="s2-connect" className="step-fade space-y-5 pb-6">
+                <div>
+                  <h3 className="text-[17px] font-semibold text-[#0F172A]">Conecte onde o anúncio será publicado</h3>
+                  <p className="mt-1 text-[13px] leading-5 text-[#64748B]">A Velo usa sua conta de vendedor do Mercado Livre para colocar o anúncio no ar.</p>
+                </div>
+                {isConnectedToML === null ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4 text-[13px] text-[#475569]">
+                    <Loader2 size={18} className="animate-spin text-[#2563EB]" /> Verificando sua conta…
+                  </div>
+                ) : isConnectedToML ? (
+                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <CheckCircle2 size={22} className="mt-0.5 shrink-0 text-emerald-600" />
+                    <div><p className="text-[14px] font-semibold text-emerald-800">Conta conectada</p><p className="mt-1 text-[12.5px] leading-5 text-emerald-700">Tudo certo para revisar seu anúncio.</p></div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex items-start gap-3"><Link2 size={22} className="mt-0.5 shrink-0 text-[#2563EB]" /><div><p className="text-[14px] font-semibold text-[#0F172A]">Conecte sua conta do Mercado Livre</p><p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">Você voltará para este produto com título e preço preservados.</p></div></div>
+                    <button type="button" onClick={handleConnectML} className="mt-4 min-h-12 w-full rounded-xl bg-[#2563EB] px-4 text-[14px] font-semibold text-white">Conectar Mercado Livre</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 3 — Revisão */}
+            {step === 3 && (
               <div key="s3" className="step-fade space-y-6 pb-6">
                 <div>
                   <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Revisar anúncio</h3>
@@ -745,30 +764,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                     <p className="text-[12px] font-medium text-gray-600">Onde seu anúncio vai aparecer</p>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl border border-[#2563EB] bg-[#EFF6FF] px-4 py-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                    <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
                     <div>
                       <p className="text-[13px] font-semibold text-[#2563EB]">Mercado Livre</p>
                       <p className="text-[11px] text-gray-500">
                         {isConnectedToML ? "Conta conectada — tudo certo para publicar" : "Conta ainda não conectada"}
                       </p>
                     </div>
-                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#2563EB]">
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600">
                       <Check size={11} strokeWidth={3} className="text-white" />
                     </span>
                   </div>
-                  {!isConnectedToML && (
-                    <div className="mt-2.5 rounded-xl border border-red-200 bg-red-50/60 px-4 py-3">
-                      <p className="text-[12.5px] font-semibold text-red-600">
-                        Você precisa conectar a sua conta do Mercado Livre
-                      </p>
-                      <button
-                        onClick={handleConnectML}
-                        className="mt-2.5 w-full rounded-lg bg-[#2563EB] px-3.5 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
-                      >
-                        Conectar minha conta do Mercado Livre
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 {/* Summary */}
@@ -776,7 +782,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <Row label="Título" value={title} />
                   <Row label="Plataforma" value="Mercado Livre" />
                   <Row label="Preço" value={formatBRL(sellPrice)} />
-                  <Row label="Estoque publicado" value={`${Math.min(stockQty, 10)} un`} />
+                  <Row label="Quantidade disponível para venda" value={`${stockQty} unidades`} />
                   <Row label="Sobra bruta estimada" value={formatBRL(profit)} strong />
                 </div>
 
@@ -838,66 +844,30 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         {generatingDesc ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                         {generatingDesc ? "Gerando" : "Gerar com IA"}
                       </button>
-                      <button
-                        onClick={() => {
-                          if (!description.trim()) {
-                            veloToast.error("Crie uma descrição antes de fazer o vídeo");
-                            return;
-                          }
-                          const productImage = img || '';
-                          const getImageWithFormat = (imageUrl: string): string => {
-                            if (!imageUrl) return '';
-                            if (imageUrl.match(/\.(png|jpg|jpeg)(\?|$)/i)) return imageUrl;
-                            if (imageUrl.includes('.webp')) return imageUrl.replace('.webp', '.jpg');
-                            const separator = imageUrl.includes('?') ? '&' : '?';
-                            return `${imageUrl}${separator}format=jpg`;
-                          };
-                          const formattedImageUrl = getImageWithFormat(productImage);
-                          // Build full images array for the download section
-                          const allImages: string[] = (() => {
-                            try {
-                              const arr = typeof product.images === "string"
-                                ? JSON.parse(product.images)
-                                : product.images;
-                              return Array.isArray(arr)
-                                ? arr.map((u: string) => getImageWithFormat(u)).filter(Boolean)
-                                : [formattedImageUrl].filter(Boolean);
-                            } catch { return [formattedImageUrl].filter(Boolean); }
-                          })();
-                          onClose();
-                          navigate('/dashboard/criar-video', {
-                            state: {
-                              product_title: product.title,
-                              product_image: formattedImageUrl,
-                              product_images: allImages,
-                              product_description: description,
-                              cost_price: product.cost_price,
-                              sale_price: product.suggested_price,
-                              profit: Math.round((product.suggested_price - product.cost_price) * 100) / 100,
-                            }
-                          });
-                        }}
-                        disabled={!description.trim()}
-                        className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-30"
-                      >
-                        <Play size={11} />
-                        Criar vídeo
-                      </button>
                     </div>
                   </div>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Clique em 'Gerar com IA' ou escreva manualmente…"
+                    placeholder={generatingDesc ? "Preparando sua descrição…" : "Confira ou edite a descrição do anúncio"}
                     rows={5}
                     className="w-full resize-none rounded-xl border border-[#DCE7FA] bg-white px-4 py-3 text-[13px] text-[#0F172A] transition-colors placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10"
                   />
+                  {generatingDesc && <p className="mt-2 flex items-center gap-2 text-[12px] text-[#64748B]"><Loader2 size={13} className="animate-spin text-[#2563EB]" /> A IA está preparando uma descrição para você conferir.</p>}
+                </div>
+
+                <div className="rounded-xl border border-[#DCE7FA] bg-[#F8FBFF] p-4">
+                  <p className="text-[11px] font-semibold uppercase text-[#64748B]">Prévia do anúncio</p>
+                  <div className="mt-3 flex gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-white">{img ? <img src={img} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}</div>
+                    <div className="min-w-0"><p className="line-clamp-2 text-[13px] font-semibold text-[#0F172A]">{title}</p><p className="mt-2 text-[16px] font-bold text-[#0F172A]">{formatBRL(sellPrice)}</p></div>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* STEP 3 — Assinatura */}
-            {step === 3 && (
+            {step === 4 && (
               <div key="s3-plan" className="step-fade pb-6">
                 <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_60px_-44px_rgba(0,0,0,0.45)]">
                   <div className="flex items-start gap-4">
@@ -959,7 +929,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
             )}
 
             {/* STEP 4 — Success */}
-            {step === 4 && publishResult && (
+            {step === 5 && publishResult && (
               <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full mb-5" style={{ background: ACCENT }}>
                   <Check size={26} strokeWidth={3} className="text-white" />
