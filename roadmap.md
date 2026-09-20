@@ -16,4 +16,4 @@
 - [x] Preservar o rascunho ao fechar ou conectar o Mercado Livre
 - [x] Gerar descrição automaticamente e mostrar prévia editável
 - [x] Medir avanço, saída, erros e duração do fluxo de publicação
-- [ ] Validar o novo fluxo em celulares e preservar o desktop
+- [x] Validar o novo fluxo em celulares e preservar o desktop
