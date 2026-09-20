@@ -219,6 +219,17 @@ const LoginPage = () => {
 
   /* ── Auth ── */
   const handleGoogleLogin = async () => {
+    trackSignup("signup_google_click");
+    /*
+      Instagram/TikTok abrem links num navegador embutido, e o Google recusa OAuth ali
+      (403 disallowed_useragent). Em vez de mandar a pessoa para um erro, mostramos a
+      orientação para abrir no navegador do celular — o caminho por e-mail segue ao lado.
+    */
+    if (navegadorInterno) {
+      trackSignup("signup_inapp_browser", navegadorInterno);
+      setAvisoNavegador(true);
+      return;
+    }
     setGoogleLoading(true);
     const toastId = veloToast.loading("Conectando com o Google...", { fullscreen: true, minDuration: 3000 });
     try {
