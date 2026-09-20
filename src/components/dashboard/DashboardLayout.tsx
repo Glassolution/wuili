@@ -751,6 +751,12 @@ const DashboardLayoutInner = () => {
       // AtlasChatProvider cuida da restauração, então aqui não mexemos na URL.
       if (retorno?.origem === "atlas") return;
 
+      if (retorno?.origem === "product_import" && retorno.rota) {
+        limparRetornoMl();
+        navigate(retorno.rota, { replace: true });
+        return;
+      }
+
       veloToast.success("Mercado Livre conectado com sucesso!", {
         action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes") },
       });
