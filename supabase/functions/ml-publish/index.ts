@@ -6,6 +6,11 @@ import {
 } from '../_shared/ml-content-sanitizer.ts'
 import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
+import {
+  montarPesoMedidas,
+  garantirMedidasNoAnuncio,
+  pausarAnuncio,
+} from '../_shared/mlPackage.ts'
 
 /**
  * Grava no catálogo o veredito das diretrizes apurado na publicação (com
