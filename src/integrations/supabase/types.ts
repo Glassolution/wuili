@@ -2045,6 +2045,39 @@ export type Database = {
         }
         Relationships: []
       }
+      mobile_home_events: {
+        Row: {
+          created_at: string
+          detail: string | null
+          elapsed_ms: number | null
+          event_name: string
+          id: string
+          product_id: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          elapsed_ms?: number | null
+          event_name: string
+          id?: string
+          product_id?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          elapsed_ms?: number | null
+          event_name?: string
+          id?: string
+          product_id?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -4235,6 +4268,13 @@ export type Database = {
           title: string
           user_id: string
           variants: Json
+        }[]
+      }
+      mobile_catalog_popularity: {
+        Args: never
+        Returns: {
+          product_id: string
+          publication_count: number
         }[]
       }
       rpc_admin_accept_affiliate_application: {
