@@ -169,3 +169,28 @@ export function tipoDeErro(bruta: string): string {
   if (m.includes("network") || m.includes("fetch")) return "rede";
   return "outro";
 }
+
+/*
+  Primeira vez que a pessoa vê produto de verdade depois de criar a conta.
+  Guardamos só o tempo em faixas (não o instante exato) porque o que interessa
+  é saber se o caminho cadastro → catálogo está rápido, e o evento é anônimo
+  por visitante, como os demais do funil.
+*/
+export function trackPrimeiroProdutoVisto(userId: string, contaCriadaEm?: string | null) {
+  if (typeof window === "undefined" || !userId) return;
+  const chave = `velo-primeiro-produto:${userId}`;
+  if (window.localStorage.getItem(chave)) return;
+  window.localStorage.setItem(chave, "1");
+
+  let faixa = "desconhecido";
+  if (contaCriadaEm) {
+    const seg = (Date.now() - new Date(contaCriadaEm).getTime()) / 1000;
+    if (seg < 0) faixa = "desconhecido";
+    else if (seg <= 60) faixa = "ate-1min";
+    else if (seg <= 300) faixa = "ate-5min";
+    else if (seg <= 1800) faixa = "ate-30min";
+    else if (seg <= 86400) faixa = "ate-24h";
+    else faixa = "mais-de-24h";
+  }
+  trackSignup("onboarding_first_product_view", faixa);
+}

@@ -55,6 +55,8 @@ import {
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { trackPrimeiroProdutoVisto } from "@/lib/signupFunnel";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
 
@@ -940,6 +942,7 @@ const FilterDropdown = ({
 
 const CatalogoPage = () => {
   const navigate = useNavigate();
+  const { user: usuarioAtual } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { abrirLateral, aberto: atlasAberto } = useAtlasChat();
@@ -973,6 +976,14 @@ const CatalogoPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const { favoritedIds, toggleFavorite: toggleCatalogFavorite } = useCatalogFavorites();
   const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
+
+  // Mede quanto tempo passou entre criar a conta e ver produto pela primeira
+  // vez. Só dispara quando há produto na tela de verdade — carregando não conta.
+  useEffect(() => {
+    if (!usuarioAtual?.id || isLoading || products.length === 0) return;
+    trackPrimeiroProdutoVisto(usuarioAtual.id, usuarioAtual.created_at);
+  }, [usuarioAtual?.id, usuarioAtual?.created_at, isLoading, products.length]);
+
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);

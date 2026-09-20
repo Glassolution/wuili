@@ -7,6 +7,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import PerfilPerguntaCard from "@/components/dashboard/PerfilPerguntaCard";
 import { veloToast } from "@/components/ui/velo-toast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -173,6 +174,9 @@ const PublicationsPage = () => {
       panelClassName="overflow-visible"
       style={{ fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif' }}
     >
+      {/* Perguntas que saíram do onboarding: só depois da primeira publicação. */}
+      <PerfilPerguntaCard jaPublicou={(publications?.length ?? 0) > 0} />
+
       <div className="mobile-hide-scrollbar mb-5 flex gap-2 overflow-x-auto md:mb-7 md:items-center xl:overflow-visible" data-dashboard-tour="publicacoes-filtros">
         <div className="relative min-w-[220px] flex-1 md:flex-none xl:w-[240px] xl:flex-shrink-0">
           <Search size={16} strokeWidth={1.8} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8E8E87]" />

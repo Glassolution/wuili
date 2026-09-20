@@ -621,6 +621,20 @@ const DashboardLayoutInner = () => {
   const handleOnboardingComplete = (respostas: Record<string, string>) => {
     if (!user?.id) return;
     markOnboardingSeen(user.id);
+
+    /*
+      O nome escolhido no onboarding vira o nome de exibição do produto inteiro
+      (saudação, perfil, suporte). O cadastro não pede mais nome completo, então
+      esta é a primeira vez que temos um nome de verdade — antes ficava o pedaço
+      do e-mail criado pelo gatilho do banco.
+    */
+    const nome = (respostas.nome ?? "").trim();
+    if (nome) {
+      void (supabase as any)
+        .from("profiles")
+        .update({ display_name: nome })
+        .eq("user_id", user.id);
+    }
     // Limpa a flag durável no Supabase Auth: `velo_onboarding_pending` é gravada
     // no cadastro e persiste no servidor. Sem isto, `isFreshSignup` continuaria
     // verdadeiro para sempre e o modal reapareceria em qualquer navegador/
@@ -629,12 +643,19 @@ const DashboardLayoutInner = () => {
     // As respostas do quiz vão junto: são elas que a vitrine do guia usa para
     // recomendar produtos. Antes eram descartadas ao fechar o modal.
     void supabase.auth.updateUser({
-      data: { velo_onboarding_pending: false, [CHAVE_RESPOSTAS_DO_QUIZ]: respostas },
+      data: {
+        velo_onboarding_pending: false,
+        [CHAVE_RESPOSTAS_DO_QUIZ]: respostas,
+        ...(nome ? { full_name: nome } : {}),
+      },
     });
     markTourPending(user.id);
     setShowOnboarding(false);
     setEntrada("play");
     entradaTimer.current = window.setTimeout(() => setEntrada("idle"), ENTRADA_POS_ONBOARDING.total * 1000);
+    // O onboarding termina no catálogo: o primeiro contato com a Velo tem que
+    // ser produto, não painel.
+    navigate("/dashboard/catalogo");
   };
 
   // Tour do Atlas: primeira visita, começa no Início do desktop, só depois que o
