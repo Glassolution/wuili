@@ -811,9 +811,22 @@ export default function Index() {
       */}
       <section
         data-velo-flat-buttons
-        className="relative isolate flex min-h-[100svh] flex-col justify-end overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
+        className="relative isolate flex min-h-0 flex-col justify-start overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] sm:justify-end [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
       >
-        <HeroBackdrop {...heroCarousel} />
+        {/*
+          No celular a foto de fundo cortava o rosto e disputava com o texto. Aqui ela
+          sai do fundo e vira um cartão enquadrado mais abaixo; o fundo passa a ser o
+          gradiente da marca. No desktop nada muda: o carrossel continua como estava.
+        */}
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
+          <HeroBackdrop {...heroCarousel} />
+        </div>
+
+        {/* Fundo do celular: gradiente azul da marca, sem recorte de foto. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(175deg,#0B1B3D_0%,#132B66_52%,#1E3A8A_100%)] sm:hidden"
+        />
 
         {/*
           Scrim direcional: escuro só no canto inferior esquerdo, onde o texto vive, e
