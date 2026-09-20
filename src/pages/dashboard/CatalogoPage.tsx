@@ -940,6 +940,7 @@ const FilterDropdown = ({
 
 const CatalogoPage = () => {
   const navigate = useNavigate();
+  const { user: usuarioAtual } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { abrirLateral, aberto: atlasAberto } = useAtlasChat();
