@@ -1192,7 +1192,9 @@ const MobileHome = () => {
       }
 
       const { data: popularityRows } = await supabase.rpc("mobile_catalog_popularity");
-      const popularity = new Map((popularityRows ?? []).map((row) => [row.product_id, Number(row.publication_count) || 0]));
+      const popularity = new Map<string, number>(
+        (popularityRows ?? []).map((row): [string, number] => [row.product_id, Number(row.publication_count) || 0]),
+      );
       const previews = ((rows ?? []) as CatalogProductRow[])
         .map((row) => mapProductPreview(row, popularity.get(row.id) ?? 0))
         .filter((product): product is ProductPreview => Boolean(product))
