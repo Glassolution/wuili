@@ -40,6 +40,7 @@ type ProductPreview = {
   publicationCount: number;
   createdAt: string | null;
   ordersCount: number;
+  supplierOrdersCount: number;
   rating: number | null;
   source: string | null;
 };
@@ -106,6 +107,7 @@ const mapProductPreview = (product: CatalogProductRow, publicationCount = 0): Pr
       foi decisão do produto, ciente de que o número é derivado e não medido.
     */
     ordersCount: Math.max(Number(product.orders_count) || 0, displayOrdersCountFor(product.id)),
+    supplierOrdersCount: Number(product.orders_count) || 0,
     rating: displayRatingFor(product.id),
     source: product.source ?? null,
   };
@@ -1188,7 +1190,7 @@ const MobileHome = () => {
           const nicheDifference = Number(preferredCategories.has(normalizeSearchText(b.category))) - Number(preferredCategories.has(normalizeSearchText(a.category)));
           if (nicheDifference !== 0) return nicheDifference;
           if (b.publicationCount !== a.publicationCount) return b.publicationCount - a.publicationCount;
-          if (b.ordersCount !== a.ordersCount) return b.ordersCount - a.ordersCount;
+          if (b.supplierOrdersCount !== a.supplierOrdersCount) return b.supplierOrdersCount - a.supplierOrdersCount;
           return (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0);
         });
 
