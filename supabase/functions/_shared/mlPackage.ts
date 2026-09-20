@@ -134,6 +134,8 @@ export async function garantirMedidasNoAnuncio(
     body: JSON.stringify(body),
   });
   if (!put.ok) {
+    const txtCombinado = await put.clone().text().catch(() => "");
+    console.log(`[mlPackage] PUT combinado ${itemId} status=${put.status} ${txtCombinado.slice(0, 300)}`);
     // Algumas categorias recusam o PUT combinado; tenta só os atributos.
     const putAttrs = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
       method: "PUT",
