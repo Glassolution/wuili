@@ -64,6 +64,13 @@
       "when": 1789940385243,
       "tag": "0008_landing_mobile_conversion_events",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789941104157,
+      "tag": "0009_mobile_home_funnel_metrics",
+      "breakpoints": true
     }
   ]
 }
