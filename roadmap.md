@@ -17,3 +17,4 @@
 - [x] Gerar descrição automaticamente e mostrar prévia editável
 - [x] Medir avanço, saída, erros e duração do fluxo de publicação
 - [x] Validar o novo fluxo em celulares e preservar o desktop
+- [ ] Sincronizar aumentos de custo C7 com preços no Mercado Livre, preservando margem e pausando em falhas
