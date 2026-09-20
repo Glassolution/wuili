@@ -734,6 +734,23 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                     </span>
                   </div>
                   <p className="text-[11px] leading-4 text-[#64748B]">Antes das taxas do Mercado Livre, frete e impostos.</p>
+
+                  {/* Explicação honesta sobre taxas */}
+                  <div className="rounded-xl border border-[#E3EAF5] bg-white p-4">
+                    <h4 className="text-[13.5px] font-semibold text-[#0F172A]">O que ainda sai desse valor</h4>
+                    <p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">
+                      A Velo mostra uma estimativa bruta: preço de venda menos o que você paga pelo produto. Quando a venda acontece, o Mercado Livre ainda desconta:
+                    </p>
+                    <ul className="mt-2 space-y-1.5 text-[12.5px] leading-5 text-[#475569]">
+                      <li>• <strong className="font-semibold text-[#0F172A]">Comissão do Mercado Livre</strong> — um percentual sobre o preço de venda, que muda conforme a categoria e o tipo de anúncio.</li>
+                      <li>• <strong className="font-semibold text-[#0F172A]">Taxa fixa</strong> — cobrada em produtos de valor mais baixo.</li>
+                      <li>• <strong className="font-semibold text-[#0F172A]">Frete</strong> — em muitos casos quem paga é o vendedor.</li>
+                      <li>• <strong className="font-semibold text-[#0F172A]">Impostos</strong> — dependem da sua situação como vendedor.</li>
+                    </ul>
+                    <p className="mt-2.5 text-[12px] leading-4.5 text-[#64748B]">
+                      Por isso o que entra no seu bolso é menor que o valor acima. Considere isso antes de definir um preço muito próximo do custo.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
