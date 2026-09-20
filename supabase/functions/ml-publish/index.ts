@@ -2229,6 +2229,43 @@ Deno.serve(async (req) => {
     const itemId = itemData.id as string
     console.log('Item ID:', itemId)
 
+    // === CONFERÊNCIA OBRIGATÓRIA DE PESO/MEDIDAS ===
+    // O ML pode aceitar o anúncio e ainda assim descartar os campos de
+    // embalagem. Lemos o anúncio de volta; se faltar, corrigimos na hora e, em
+    // último caso, pausamos — melhor pausado que vendendo com frete absurdo.
+    let medidasOk = false
+    try {
+      const conferencia = await garantirMedidasNoAnuncio(accessToken, itemId, pacote)
+      medidasOk = conferencia.ok
+      console.log(
+        `[ml-publish] Conferência de medidas ${itemId}: ok=${conferencia.ok} jaEstavaOk=${conferencia.jaEstavaOk} antes=${conferencia.antes} depois=${conferencia.depois} ${conferencia.erro ?? ''}`,
+      )
+      if (!medidasOk) {
+        await pausarAnuncio(accessToken, itemId)
+        await notifyUser(supabase, {
+          user_id,
+          type: 'publication_error',
+          title: 'Anúncio pausado por falta de medidas',
+          message: `${title}: o Mercado Livre não aceitou o peso e as medidas da embalagem. Pausamos o anúncio para você não vender com frete errado — nossa equipe já foi avisada.`,
+          action_url: '/dashboard/publicacoes',
+          metadata: { ml_item_id: itemId, product_title: title },
+        })
+        await supabase.from('ml_dimension_fixes').upsert({
+          user_id,
+          ml_item_id: itemId,
+          status: 'failed',
+          weight_g: pacote.weightGrams,
+          before_dimensions: conferencia.antes,
+          after_dimensions: conferencia.depois,
+          error: conferencia.erro ?? 'medidas não gravadas',
+          processed_at: new Date().toISOString(),
+        }, { onConflict: 'ml_item_id' })
+      }
+    } catch (erroMedidas) {
+      console.error('[ml-publish] Falha na conferência de medidas:', erroMedidas)
+    }
+    const statusAnuncio = medidasOk ? 'active' : 'paused'
+
     // Modelo User Products: as demais variações viram anúncios irmãos, com o
     // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
     // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
