@@ -93,12 +93,17 @@ const getProviderRefundStatus = (refund: RefundRow) => {
   const response = refund.provider_response;
   if (!response) return "";
 
+  // O status consolidado (topo) é o que vale: ele já considera a confirmação
+  // da cobrança estornada. O bloco aninhado é só o retorno bruto do provedor.
+  const top = normalizeStatus(response.status);
+  if (top) return top;
+
   const nested = response.provider_status_response;
   if (nested && typeof nested === "object" && "status" in nested) {
     return normalizeStatus((nested as Record<string, unknown>).status);
   }
 
-  return normalizeStatus(response.status);
+  return "";
 };
 
 const isRefundInProgress = (refund: RefundRow) => {

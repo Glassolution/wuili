@@ -31,6 +31,7 @@ import {
   Route,
   Search,
   Send,
+  Stethoscope,
   Trash2,
   UserCircle2,
   X,
@@ -1514,6 +1515,8 @@ const CustomerContextPanel = ({
           <ContextRow icon={MessageCircle} label="Já abriu ticket antes" value={formatPreviousTickets(previousTicketCount)} />
         </ContextCard>
 
+        <TicketDiagnostics ticketId={ticket.id} userEmail={data.email} />
+
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-2 text-[9.5px] text-[#999993]">
             <Loader2 size={12} className="animate-spin" /> Atualizando informações
@@ -1521,6 +1524,68 @@ const CustomerContextPanel = ({
         ) : null}
       </div>
     </aside>
+  );
+};
+
+type DiagnosticCheck = { key: string; label: string; status: "ok" | "warn" | "fail"; detail: string };
+
+const TicketDiagnostics = ({ ticketId, userEmail }: { ticketId: string; userEmail: string | null }) => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ overall?: string; summary?: string; checks?: DiagnosticCheck[]; found?: boolean } | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-user-diagnostics", {
+        body: { query: userEmail || ticketId },
+      });
+      if (error) throw error;
+      setResult(data as { overall?: string; summary?: string; checks?: DiagnosticCheck[]; found?: boolean });
+      if (data && (data as { found?: boolean }).found === false) {
+        toast.error("Não encontramos a conta deste usuário.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível consultar a conta.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tone = (status: string) =>
+    status === "ok"
+      ? "border-[#d9ead4] bg-[#f1f8ee] text-[#4f8247]"
+      : status === "warn"
+        ? "border-[#f2e3c2] bg-[#fdf8ee] text-[#8a6a25]"
+        : "border-[#f3d5d5] bg-[#fdf1f1] text-[#a34141]";
+
+  return (
+    <ContextCard title="Consulta da conta">
+      <div className="py-3">
+        <button
+          type="button"
+          onClick={run}
+          disabled={loading}
+          className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe] disabled:opacity-60"
+        >
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Stethoscope size={13} strokeWidth={2.1} />}
+          {loading ? "Consultando..." : "Consultar conta do cliente"}
+        </button>
+
+        {result?.found ? (
+          <div className="mt-3 space-y-1.5">
+            <p className={`rounded-[8px] border px-2.5 py-2 text-[10px] font-medium leading-4 ${tone(String(result.overall))}`}>
+              {result.summary}
+            </p>
+            {(result.checks ?? []).map((check) => (
+              <div key={check.key} className={`rounded-[8px] border px-2.5 py-2 ${tone(check.status)}`}>
+                <p className="text-[10px] font-semibold">{check.label}</p>
+                <p className="mt-0.5 text-[9.5px] leading-4 opacity-90">{check.detail}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </ContextCard>
   );
 };
 

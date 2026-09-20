@@ -3492,28 +3492,37 @@ export type Database = {
       }
       user_page_views: {
         Row: {
+          device: string | null
           id: string
           path: string
           product_id: string | null
           product_title: string | null
+          referrer: string | null
+          session_id: string | null
           title: string | null
           user_id: string
           viewed_at: string
         }
         Insert: {
+          device?: string | null
           id?: string
           path: string
           product_id?: string | null
           product_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
           title?: string | null
           user_id: string
           viewed_at?: string
         }
         Update: {
+          device?: string | null
           id?: string
           path?: string
           product_id?: string | null
           product_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
           title?: string | null
           user_id?: string
           viewed_at?: string
@@ -3742,6 +3751,7 @@ export type Database = {
       user_sessions: {
         Row: {
           created_at: string
+          device: string | null
           id: string
           last_seen_at: string
           started_at: string
@@ -3750,6 +3760,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          device?: string | null
           id?: string
           last_seen_at?: string
           started_at?: string
@@ -3758,6 +3769,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          device?: string | null
           id?: string
           last_seen_at?: string
           started_at?: string
@@ -4112,6 +4124,33 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      rpc_admin_exit_pages: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          path: string
+          percentual: number
+          saidas: number
+        }[]
+      }
+      rpc_admin_paying_daily: {
+        Args: { p_days?: number }
+        Returns: {
+          ativos_no_dia: number
+          cancelamentos: number
+          dia: string
+          novos_pagantes: number
+          receita: number
+          reembolsos: number
+        }[]
+      }
+      rpc_admin_refund_reasons: {
+        Args: { p_days?: number }
+        Returns: {
+          motivo: string
+          total: number
+          ultima_pagina: string
+        }[]
+      }
       rpc_admin_reject_affiliate_application: {
         Args: { p_user_id: string }
         Returns: Json
@@ -4123,6 +4162,25 @@ export type Database = {
       rpc_admin_store_sales: {
         Args: { p_limit?: number; p_status?: string }
         Returns: Json
+      }
+      rpc_admin_top_pages: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: {
+          path: string
+          usuarios: number
+          views: number
+        }[]
+      }
+      rpc_admin_traffic_daily: {
+        Args: { p_days?: number }
+        Returns: {
+          desktop_usuarios: number
+          dia: string
+          mobile_usuarios: number
+          page_views: number
+          sessoes: number
+          usuarios: number
+        }[]
       }
       rpc_admin_withdrawal_decide: {
         Args: { p_action: string; p_id: string; p_note?: string }

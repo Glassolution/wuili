@@ -62,14 +62,45 @@ const SUPPORT_IMAGE_TYPES = new Set(SUPPORT_IMAGE_ACCEPT.split(","));
 export const SUPPORT_AUTO_GREETING_MESSAGE =
   "Oi! Que bom te ver por aqui. Nosso horário de atendimento é de segunda a sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h. Pode deixar sua dúvida por aqui, que em breve alguém vai te responder!";
 
-/** Detecta intenção de reembolso/cancelamento em mensagens do usuário. */
+/**
+ * Detecta PEDIDO de reembolso/cancelamento em mensagens do usuário.
+ * Perguntas informativas ("como funciona o reembolso?") NÃO contam.
+ */
 export const messageHasRefundIntent = (text: string) => {
   const normalized = text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
-  return /(reembols|estorn|devolv|cancel)/.test(normalized);
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const temTema = /(reembols|estorn|devolv(er|a|e|ucao)|cancel)/.test(normalized);
+  if (!temTema) return false;
+
+  // Perguntas / dúvidas sobre o funcionamento — nunca abrem o cartão.
+  const ehDuvida =
+    /(como funciona|como e feito|como faco|como sera|queria saber|gostaria de saber|gostaria de confirmar|quero saber|quero entender|voces (tem|fazem|aceitam)|tem reembolso|existe reembolso|qual (o|e o) prazo|posso pedir|da pra pedir|e possivel|antes de assinar|duvida|funciona o cancelamento|funciona o reembolso|politica de)/.test(
+      normalized,
+    );
+  if (ehDuvida) return false;
+
+  // Pedido explícito, em primeira pessoa.
+  const ehPedido =
+    /((quero|queria|gostaria de|preciso|vou|desejo|solicito|solicitar|peco|pedir|favor) [^.?!]{0,40}(reembols|estorn|cancel|devolv))/.test(
+      normalized,
+    ) ||
+    /(me (reembolse|devolva|cancele|estorne))/.test(normalized) ||
+    /(cancel(ar|e|a) (minha |a )?(assinatura|conta|plano|renovacao))/.test(normalized) ||
+    /^(reembolso|cancelamento|cancelar|quero cancelar|quero reembolso)$/.test(normalized);
+
+  if (!ehPedido) return false;
+
+  // Se a frase termina em pergunta e não é um pedido direto, trata como dúvida.
+  if (normalized.endsWith("?") && !/(quero|preciso|solicito|favor)/.test(normalized)) return false;
+
+  return true;
 };
+
 
 /** Cartão automático exibido quando o usuário pede reembolso/cancelamento no chat. */
 export const buildRefundPromptMessage = () => SUPPORT_REFUND_PROMPT_MARKER;

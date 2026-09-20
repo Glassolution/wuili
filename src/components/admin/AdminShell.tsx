@@ -10,12 +10,14 @@ import {
   RefreshCcw,
   Settings2,
   ShoppingBag,
+  Stethoscope,
   UsersRound,
 } from "lucide-react";
 import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
 import { OldAdminShell } from "@/components/admin/OldAdminShell";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 import { getAdminPanelStyle } from "@/lib/adminPanelStyle";
+import { Activity } from "lucide-react";
 import "@/styles/admin-theme.css";
 
 type AdminSection =
@@ -28,6 +30,8 @@ type AdminSection =
   | "support"
   | "refunds"
   | "evidence"
+  | "diagnostics"
+  | "tracking"
   | "automation"
   | "settings";
 
@@ -51,6 +55,8 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",
+  diagnostics: "Consulta",
+  tracking: "Rastreio",
   automation: "Automação BOT",
   settings: "Integrações",
 };
@@ -65,6 +71,8 @@ const SECTION_ICON: Record<AdminSection, LucideIcon> = {
   support: MessagesSquare,
   refunds: RefreshCcw,
   evidence: FileSearch,
+  diagnostics: Stethoscope,
+  tracking: Activity,
   automation: Bot,
   settings: Settings2,
 };

@@ -2,7 +2,24 @@
 // A ValidaPay não envia webhook para conclusão de estorno, então rodamos
 // este job a cada 30 minutos via pg_cron.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+
+// A consulta de estorno costuma travar em PROCESSING mesmo depois do dinheiro
+// voltar. A cobrança é a fonte que realmente comprova a devolução.
+async function chargeJaEstornada(chargeId?: string | null): Promise<boolean> {
+  const id = String(chargeId ?? "").trim();
+  if (!id) return false;
+  try {
+    const charge = await getCharge(id) as Record<string, unknown>;
+    const node = (charge?.data ?? charge) as Record<string, unknown>;
+    const status = String(node.status ?? "").toUpperCase();
+    const refunded = Number(node.refundedAmount ?? node.refunded_amount ?? 0);
+    return ["REFUNDED", "PARTIALLY_REFUNDED", "CHARGEBACK"].includes(status) || refunded > 0;
+  } catch (_e) {
+    return false;
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,7 +78,7 @@ Deno.serve(async (req) => {
     // 1) Estornos ainda em PROCESSING
     const { data: rows, error } = await admin
       .from("refund_requests")
-      .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at")
+      .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at, charge_id")
       .eq("status", "processed")
       .order("processed_at", { ascending: true })
       .limit(200);
@@ -121,7 +138,37 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (newStatus === "FAILED" || newStatus === "CANCELLED" || newStatus === "REJECTED") {
+      const falhouNoProvedor = newStatus === "FAILED" || newStatus === "CANCELLED" || newStatus === "REJECTED";
+      const estourouPrazo = daysElapsed > MAX_DAYS_PROCESSING;
+
+      // Antes de devolver o pedido para "pendente", confirma na cobrança se o
+      // dinheiro já voltou. A consulta de estorno erra com frequência.
+      if (falhouNoProvedor || estourouPrazo) {
+        if (await chargeJaEstornada(row.charge_id)) {
+          const nowIso = new Date().toISOString();
+          await admin.from("refund_requests").update({
+            status: "processed",
+            processed_at: row.processed_at ?? nowIso,
+            provider_response: {
+              ...baseUpdate,
+              status: "CONFIRMED",
+              confirmed_by: "charge_refunded",
+              confirmed_at: nowIso,
+            },
+            updated_at: nowIso,
+          }).eq("id", row.id);
+
+          if (row.subscription_id) {
+            await admin.from("subscriptions")
+              .update({ status: "cancelled", updated_at: nowIso })
+              .eq("id", row.subscription_id);
+          }
+          results.push({ id: row.id, refundId, outcome: "confirmed_by_charge" });
+          continue;
+        }
+      }
+
+      if (falhouNoProvedor) {
         const reason = String(raw.reason ?? raw.message ?? raw.error ?? "Estorno recusado pela ValidaPay");
         await admin.from("refund_requests").update({
           status: "pending",
@@ -149,7 +196,7 @@ Deno.serve(async (req) => {
       }
 
       // Ainda processando (ou erro de consulta): checa o limite de 30 dias.
-      if (daysElapsed > MAX_DAYS_PROCESSING) {
+      if (estourouPrazo) {
         await admin.from("refund_requests").update({
           status: "pending",
           processed_at: null,
@@ -182,6 +229,46 @@ Deno.serve(async (req) => {
       });
     }
 
+    // 1b) Pedidos marcados como "pendente" cuja cobrança já consta estornada
+    // na operadora (estorno concluído fora do fluxo, ou aviso que nunca chegou).
+    const { data: pendentesRows } = await admin
+      .from("refund_requests")
+      .select("id, user_id, subscription_id, provider_response, charge_id, requested_at")
+      .eq("status", "pending")
+      .not("charge_id", "is", null)
+      .order("requested_at", { ascending: true })
+      .limit(100);
+
+    for (const row of pendentesRows ?? []) {
+      if (!(await chargeJaEstornada(row.charge_id))) continue;
+      const nowIso = new Date().toISOString();
+      const pr = (row.provider_response ?? {}) as ProviderResponse;
+      await admin.from("refund_requests").update({
+        status: "processed",
+        processed_at: nowIso,
+        provider_response: {
+          ...pr,
+          status: "CONFIRMED",
+          confirmed_by: "charge_refunded",
+          confirmed_at: nowIso,
+          needs_manual_action: false,
+        },
+        updated_at: nowIso,
+      }).eq("id", row.id);
+
+      if (row.subscription_id) {
+        await admin.from("subscriptions")
+          .update({ status: "cancelled", updated_at: nowIso })
+          .eq("id", row.subscription_id);
+      }
+      results.push({ id: row.id, outcome: "pending_confirmed_by_charge" });
+      console.log("refund_logs", JSON.stringify({ origin: "check-pending-refunds", outcome: "pending_confirmed_by_charge", id: row.id }));
+    }
+
+
+
+    // Estornos de pedidos dropship: as colunas de estorno podem não existir
+    // neste ambiente — nesse caso apenas ignoramos esta etapa.
     const { data: dropshipRows, error: dropshipError } = await admin
       .from("dropship_orders")
       .select("id,user_id,order_number,ml_order_id,metadata,refund_requested_at,refund_status")
@@ -189,7 +276,7 @@ Deno.serve(async (req) => {
       .eq("refund_status", "requested")
       .order("refund_requested_at", { ascending: true })
       .limit(200);
-    if (dropshipError) throw dropshipError;
+    if (dropshipError && dropshipError.code !== "42703") throw dropshipError;
 
     const dropshipResults: Array<Record<string, unknown>> = [];
 
