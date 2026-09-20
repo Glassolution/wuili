@@ -1239,7 +1239,7 @@ export default function Index() {
             </form>
             <button type="button" onClick={() => { void registrarEvento("cta_final_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
 
-            <p className="mt-5 text-[14px] tracking-[-0.01em] text-[#8A97B1]">
+            <p className="mt-5 hidden text-[14px] tracking-[-0.01em] text-[#8A97B1] sm:block">
               Você concorda em receber e-mails de marketing da Velo.
             </p>
           </div>
