@@ -257,6 +257,7 @@ async function syncUser(
   dryRun: boolean,
   deadline: number,
   onlyPause = false,
+  onlyPrices = false,
 ): Promise<UserResult> {
   const result: UserResult = {
     checked: 0,
@@ -378,6 +379,9 @@ async function syncUser(
         result.pricesUpdated++;
       }
     }
+
+    // Mutirão pontual de preços: não toca em estoque ou disponibilidade.
+    if (onlyPrices) continue;
 
     // ---- 1. Indisponível no fornecedor → pausar
     if (!available && !isPaused) {
@@ -508,6 +512,7 @@ Deno.serve(async (req) => {
     const force = body?.force === true; // ignora a guarda dos 20%
     // `onlyPause`: só pausa anúncios cujo produto está sem estoque/inativo.
     const onlyPause = body?.onlyPause === true;
+    const onlyPrices = body?.onlyPrices === true;
     const batchLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.min(5000, Number(body.limit)))
       : DEFAULT_BATCH_LIMIT;
@@ -613,7 +618,7 @@ Deno.serve(async (req) => {
 
     for (const [userId, list] of byUser) {
       if (Date.now() > deadline) { timedOut = true; break; }
-      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline, onlyPause);
+      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline, onlyPause, onlyPrices);
       if (r.timedOut) timedOut = true;
       perUser[userId] = r;
       checked += r.checked;
