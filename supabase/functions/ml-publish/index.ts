@@ -2336,6 +2336,17 @@ Deno.serve(async (req) => {
       }
 
       if (irmaosPublicados.length > 0) {
+        // Cada anúncio-irmão passa pela mesma conferência de peso/medidas.
+        const okPorIrmao = new Map<string, boolean>()
+        for (const irmao of irmaosPublicados) {
+          try {
+            const conf = await garantirMedidasNoAnuncio(accessToken, irmao.ml_item_id, pacote)
+            okPorIrmao.set(irmao.ml_item_id, conf.ok)
+            if (!conf.ok) await pausarAnuncio(accessToken, irmao.ml_item_id)
+          } catch (_e) {
+            okPorIrmao.set(irmao.ml_item_id, false)
+          }
+        }
         const linhas = irmaosPublicados.map((irmao) => ({
           user_id,
           ml_item_id: irmao.ml_item_id,
@@ -2343,7 +2354,7 @@ Deno.serve(async (req) => {
           thumbnail: publicImages[0] || null,
           price: product.price,
           cost_price: product.cost_price || null,
-          status: 'active',
+          status: okPorIrmao.get(irmao.ml_item_id) ? 'active' : 'paused',
           permalink: irmao.permalink,
           published_at: new Date().toISOString(),
           catalog_product_id: catalogProductId,
@@ -2351,6 +2362,10 @@ Deno.serve(async (req) => {
           variation_group_id: grupoDeVariacao,
           variation_name: (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
           variation_value: irmao.variation_value,
+          package_weight_g: pacote.weightGrams,
+          package_dimensions: pacote.shippingDimensions,
+          dimensions_ok: okPorIrmao.get(irmao.ml_item_id) ?? false,
+          dimensions_checked_at: new Date().toISOString(),
         }))
         const { error: erroIrmaos } = await supabase.from('user_publications').insert(linhas)
         if (erroIrmaos) {
