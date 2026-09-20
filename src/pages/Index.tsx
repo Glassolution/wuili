@@ -430,8 +430,11 @@ export default function Index() {
     return () => observer.disconnect();
   }, []);
 
-  const authTarget = !authLoading && user ? "/dashboard" : "/auth";
+  const authTarget = !authLoading && user ? "/dashboard" : "/login";
+  // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
+  const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
   const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
+
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
