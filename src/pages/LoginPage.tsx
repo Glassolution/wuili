@@ -350,8 +350,14 @@ const LoginPage = () => {
     setStep("initial");
   };
 
+  // Quem vem do botão principal da landing (?novo=1) já cai na criação de conta.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("novo") === "1") setStep("signup");
+  }, []);
+
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
   useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 320);     }, [step]);
+
 
   // Troca de slide sozinha; clicar num ponto reinicia a contagem.
   useEffect(() => {

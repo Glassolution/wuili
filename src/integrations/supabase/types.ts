@@ -1563,6 +1563,33 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_events: {
+        Row: {
+          created_at: string
+          device: string | null
+          event: string
+          id: string
+          referrer: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device?: string | null
+          event: string
+          id?: string
+          referrer?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device?: string | null
+          event?: string
+          id?: string
+          referrer?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -4132,6 +4159,14 @@ export type Database = {
           saidas: number
         }[]
       }
+      rpc_admin_landing_funnel: {
+        Args: { p_days?: number }
+        Returns: {
+          evento: string
+          total: number
+          visitantes: number
+        }[]
+      }
       rpc_admin_paying_daily: {
         Args: { p_days?: number }
         Returns: {
@@ -4250,6 +4285,16 @@ export type Database = {
           tokens_total: number
           usuarios: number
         }[]
+      }
+      rpc_landing_stats: { Args: never; Returns: Json }
+      rpc_landing_track: {
+        Args: {
+          p_device?: string
+          p_event: string
+          p_referrer?: string
+          p_visitor_id?: string
+        }
+        Returns: boolean
       }
       rpc_ml_reconnect_required: { Args: never; Returns: boolean }
       rpc_record_affiliate_visit: {
