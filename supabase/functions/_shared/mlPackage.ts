@@ -128,52 +128,88 @@ export async function garantirMedidasNoAnuncio(
     return { ok: true, jaEstavaOk: true, corrigido: false, antes, depois: antes };
   }
 
-  // `shipping.dimensions` não é editável em anúncio ativo — o caminho suportado
-  // é gravar os atributos de embalagem separados.
-  const body = {
-    attributes: [
-      { id: "SELLER_PACKAGE_WEIGHT", value_name: pacote.weightValName },
-      { id: "SELLER_PACKAGE_LENGTH", value_name: `${pacote.dimsCm[0]} cm` },
-      { id: "SELLER_PACKAGE_WIDTH", value_name: `${pacote.dimsCm[1]} cm` },
-      { id: "SELLER_PACKAGE_HEIGHT", value_name: `${pacote.dimsCm[2]} cm` },
-    ],
-  };
-  const put = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
-    method: "PUT",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!put.ok) {
-    const erro = await put.text().catch(() => "");
-    return {
-      ok: false,
-      jaEstavaOk: false,
-      corrigido: false,
-      antes,
-      depois: null,
-      erro: `Mercado Livre recusou a atualização das medidas (${put.status}) ${erro.slice(0, 300)}`,
-    };
-  }
+  // Auto-correção: tentamos os formatos aceitos pelo ML, um após o outro, até
+  // o anúncio ficar com peso/medidas. Nada disso depende de ação do usuário.
+  const tentativas: Array<Record<string, unknown>> = [
+    // 1) atributos separados (caminho suportado em anúncio ativo)
+    {
+      attributes: [
+        { id: "SELLER_PACKAGE_WEIGHT", value_name: pacote.weightValName },
+        { id: "SELLER_PACKAGE_LENGTH", value_name: `${pacote.dimsCm[0]} cm` },
+        { id: "SELLER_PACKAGE_WIDTH", value_name: `${pacote.dimsCm[1]} cm` },
+        { id: "SELLER_PACKAGE_HEIGHT", value_name: `${pacote.dimsCm[2]} cm` },
+      ],
+    },
+    // 2) mesmos atributos sem a unidade no texto
+    {
+      attributes: [
+        { id: "SELLER_PACKAGE_WEIGHT", value_name: `${pacote.weightGrams}` },
+        { id: "SELLER_PACKAGE_LENGTH", value_name: `${pacote.dimsCm[0]}` },
+        { id: "SELLER_PACKAGE_WIDTH", value_name: `${pacote.dimsCm[1]}` },
+        { id: "SELLER_PACKAGE_HEIGHT", value_name: `${pacote.dimsCm[2]}` },
+      ],
+    },
+    // 3) atributo combinado de dimensões + peso
+    {
+      attributes: [
+        { id: "SELLER_PACKAGE_DIMENSIONS", value_name: pacote.dimsValName },
+        { id: "SELLER_PACKAGE_WEIGHT", value_name: pacote.weightValName },
+      ],
+    },
+    // 4) shipping.dimensions (funciona em parte dos anúncios)
+    { shipping: { dimensions: pacote.shippingDimensions } },
+  ];
 
-  const depoisItem = await ler();
-  const depois = depoisItem?.shipping?.dimensions ?? null;
-  const ok = anuncioTemMedidas(depoisItem);
-  if (!ok) {
+  let ultimoErro: string | null = null;
+  for (let i = 0; i < tentativas.length; i++) {
+    const put = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(tentativas[i]),
+    });
+    if (!put.ok) {
+      const erro = await put.text().catch(() => "");
+      ultimoErro = `Mercado Livre recusou a atualização das medidas (${put.status}) ${erro.slice(0, 200)}`;
+      console.log(`[mlPackage] ${itemId} tentativa ${i + 1} falhou: ${ultimoErro}`);
+      continue;
+    }
+    const depoisItem = await ler();
+    if (anuncioTemMedidas(depoisItem)) {
+      return {
+        ok: true,
+        jaEstavaOk: false,
+        corrigido: true,
+        antes,
+        depois: depoisItem?.shipping?.dimensions ?? pacote.shippingDimensions,
+      };
+    }
+    ultimoErro = "o anúncio continuou sem peso/medidas após a correção";
     const attrsPacote = (depoisItem?.attributes ?? []).filter((a) =>
       String(a?.id ?? "").startsWith("SELLER_PACKAGE")
     );
     console.log(
-      `[mlPackage] pos-PUT ${itemId} putStatus=${put.status} shipping.dimensions=${depois} attrs=${JSON.stringify(attrsPacote)}`,
+      `[mlPackage] pos-PUT ${itemId} tentativa=${i + 1} attrs=${JSON.stringify(attrsPacote)}`,
     );
   }
+
   return {
-    ok,
+    ok: false,
     jaEstavaOk: false,
-    corrigido: ok,
+    corrigido: false,
     antes,
-    depois,
-    ...(ok ? {} : { erro: "o anúncio continuou sem peso/medidas após a correção" }),
+    depois: null,
+    erro: ultimoErro ?? "não foi possível gravar peso/medidas",
   };
+}
+
+/** Reativa o anúncio que pausamos sozinhos enquanto corrigíamos as medidas. */
+export async function reativarAnuncio(accessToken: string, itemId: string): Promise<boolean> {
+  const res = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "active" }),
+  });
+  return res.ok;
 }
 
 /** Pausa o anúncio — usado quando não foi possível gravar peso/medidas. */

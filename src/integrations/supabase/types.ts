@@ -1820,8 +1820,11 @@ export type Database = {
           error: string | null
           id: string
           ml_item_id: string
+          next_attempt_at: string
+          paused_by_velo: boolean
           processed_at: string | null
           publication_id: string | null
+          reactivated_at: string | null
           status: string
           user_id: string
           weight_g: number | null
@@ -1834,8 +1837,11 @@ export type Database = {
           error?: string | null
           id?: string
           ml_item_id: string
+          next_attempt_at?: string
+          paused_by_velo?: boolean
           processed_at?: string | null
           publication_id?: string | null
+          reactivated_at?: string | null
           status?: string
           user_id: string
           weight_g?: number | null
@@ -1848,8 +1854,11 @@ export type Database = {
           error?: string | null
           id?: string
           ml_item_id?: string
+          next_attempt_at?: string
+          paused_by_velo?: boolean
           processed_at?: string | null
           publication_id?: string | null
+          reactivated_at?: string | null
           status?: string
           user_id?: string
           weight_g?: number | null

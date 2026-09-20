@@ -4,7 +4,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { getSellerAccessToken } from '../_shared/mlSellerToken.ts'
-import { montarPesoMedidas, garantirMedidasNoAnuncio } from '../_shared/mlPackage.ts'
+import { montarPesoMedidas, garantirMedidasNoAnuncio, reativarAnuncio } from '../_shared/mlPackage.ts'
+
+// Backoff progressivo entre as tentativas de auto-correcao (1min .. ~2h).
+const proximaTentativa = (tentativas: number) => {
+  const minutos = Math.min(120, Math.max(1, 2 ** tentativas))
+  return new Date(Date.now() + minutos * 60_000).toISOString()
+}
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -74,9 +80,10 @@ Deno.serve(async (req) => {
   // 2) Processa um lote.
   const { data: fila } = await supabase
     .from('ml_dimension_fixes')
-    .select('id, user_id, ml_item_id, publication_id, attempts')
+    .select('id, user_id, ml_item_id, publication_id, attempts, paused_by_velo')
     .eq('status', 'pending')
-    .lt('attempts', 3)
+    .lt('attempts', 8)
+    .lte('next_attempt_at', new Date().toISOString())
     .order('created_at', { ascending: true })
     .limit(limit)
 
@@ -84,6 +91,7 @@ Deno.serve(async (req) => {
   let corrigidos = 0
   let jaOk = 0
   let falhas = 0
+  let reativados = 0
 
   for (const item of fila ?? []) {
     let accessToken = tokensPorUsuario.get(item.user_id) ?? null
@@ -95,9 +103,11 @@ Deno.serve(async (req) => {
 
     if (!accessToken) {
       falhas++
+      const tentativasSemToken = item.attempts + 1
       await supabase.from('ml_dimension_fixes').update({
-        status: 'failed',
-        attempts: item.attempts + 1,
+        status: tentativasSemToken >= 8 ? 'failed' : 'pending',
+        attempts: tentativasSemToken,
+        next_attempt_at: proximaTentativa(tentativasSemToken),
         error: 'vendedor sem conta do Mercado Livre conectada',
         processed_at: new Date().toISOString(),
       }).eq('id', item.id)
@@ -140,9 +150,24 @@ Deno.serve(async (req) => {
       } else {
         falhas++
       }
+
+      // Se fomos nos que pausamos o anuncio durante a publicacao, reativamos
+      // assim que as medidas entram - o usuario nao precisa fazer nada.
+      let reativado = false
+      if (r.ok && item.paused_by_velo) {
+        reativado = await reativarAnuncio(accessToken, item.ml_item_id)
+        if (reativado) reativados++
+      }
+
+      const tentativas = item.attempts + 1
       await supabase.from('ml_dimension_fixes').update({
-        status: r.ok ? (r.jaEstavaOk ? 'already_ok' : 'fixed') : 'failed',
-        attempts: item.attempts + 1,
+        status: r.ok
+          ? (r.jaEstavaOk ? 'already_ok' : 'fixed')
+          : (tentativas >= 8 ? 'failed' : 'pending'),
+        attempts: tentativas,
+        next_attempt_at: proximaTentativa(tentativas),
+        paused_by_velo: item.paused_by_velo && !reativado,
+        reactivated_at: reativado ? new Date().toISOString() : null,
         before_dimensions: r.antes,
         after_dimensions: r.depois,
         weight_g: pacote.weightGrams,
@@ -156,18 +181,20 @@ Deno.serve(async (req) => {
           package_dimensions: r.ok ? pacote.shippingDimensions : null,
           dimensions_ok: r.ok,
           dimensions_checked_at: new Date().toISOString(),
+          ...(reativado ? { status: 'active' } : {}),
         }).eq('id', item.publication_id)
       }
     } catch (err) {
       falhas++
       const tentativas = item.attempts + 1
       await supabase.from('ml_dimension_fixes').update({
-        status: tentativas >= 3 ? 'failed' : 'pending',
+        status: tentativas >= 8 ? 'failed' : 'pending',
         attempts: tentativas,
+        next_attempt_at: proximaTentativa(tentativas),
         error: err instanceof Error ? err.message : 'erro desconhecido',
         processed_at: new Date().toISOString(),
       }).eq('id', item.id)
-      if (tentativas >= 3 && item.publication_id) {
+      if (tentativas >= 8 && item.publication_id) {
         await supabase.from('user_publications').update({
           dimensions_ok: false,
           dimensions_checked_at: new Date().toISOString(),
@@ -180,11 +207,12 @@ Deno.serve(async (req) => {
     .from('ml_dimension_fixes')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'pending')
-    .lt('attempts', 3)
+    .lt('attempts', 8)
 
   return json({
     processados: (fila ?? []).length,
     corrigidos,
+    reativados,
     ja_estavam_ok: jaOk,
     falhas,
     restantes: restantes ?? 0,

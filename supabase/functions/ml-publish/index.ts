@@ -2241,19 +2241,17 @@ Deno.serve(async (req) => {
         `[ml-publish] Conferência de medidas ${itemId}: ok=${conferencia.ok} jaEstavaOk=${conferencia.jaEstavaOk} antes=${conferencia.antes} depois=${conferencia.depois} ${conferencia.erro ?? ''}`,
       )
       if (!medidasOk) {
+        // Auto-reparo silencioso: pausamos para o anúncio não vender com frete
+        // errado e deixamos na fila — a rotina corrige e reativa sozinha, sem
+        // avisar o usuário.
         await pausarAnuncio(accessToken, itemId)
-        await notifyUser(supabase, {
-          user_id,
-          type: 'publication_error',
-          title: 'Anúncio pausado por falta de medidas',
-          message: `${title}: o Mercado Livre não aceitou o peso e as medidas da embalagem. Pausamos o anúncio para você não vender com frete errado — nossa equipe já foi avisada.`,
-          action_url: '/dashboard/publicacoes',
-          metadata: { ml_item_id: itemId, product_title: title },
-        })
         await supabase.from('ml_dimension_fixes').upsert({
           user_id,
           ml_item_id: itemId,
-          status: 'failed',
+          status: 'pending',
+          attempts: 0,
+          paused_by_velo: true,
+          next_attempt_at: new Date(Date.now() + 60_000).toISOString(),
           weight_g: pacote.weightGrams,
           before_dimensions: conferencia.antes,
           after_dimensions: conferencia.depois,
