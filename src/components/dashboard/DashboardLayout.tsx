@@ -621,6 +621,20 @@ const DashboardLayoutInner = () => {
   const handleOnboardingComplete = (respostas: Record<string, string>) => {
     if (!user?.id) return;
     markOnboardingSeen(user.id);
+
+    /*
+      O nome escolhido no onboarding vira o nome de exibição do produto inteiro
+      (saudação, perfil, suporte). O cadastro não pede mais nome completo, então
+      esta é a primeira vez que temos um nome de verdade — antes ficava o pedaço
+      do e-mail criado pelo gatilho do banco.
+    */
+    const nome = (respostas.nome ?? "").trim();
+    if (nome) {
+      void (supabase as any)
+        .from("profiles")
+        .update({ display_name: nome })
+        .eq("user_id", user.id);
+    }
     // Limpa a flag durável no Supabase Auth: `velo_onboarding_pending` é gravada
     // no cadastro e persiste no servidor. Sem isto, `isFreshSignup` continuaria
     // verdadeiro para sempre e o modal reapareceria em qualquer navegador/
