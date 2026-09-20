@@ -1099,6 +1099,7 @@ const CatalogoPage = () => {
       nome: p.title || "Produto sem nome",
       categoria: p.category || "Produto",
       preco: p.cost_price || 0,
+      suggestedPrice: p.suggested_price,
       image_url: imgUrls[0],
       images: imgUrls,
       product_url: p.product_url,

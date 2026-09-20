@@ -47,6 +47,7 @@ type ProductPreview = {
 const HOME_PRODUCTS_LIMIT = 1000;
 const HOME_PRODUCTS_PER_PAGE = 20;
 const HOME_FAVORITES_STORAGE_PREFIX = "velo:home-favorite-products";
+const HOME_CHOSEN_STORAGE_PREFIX = "velo:first-product-chosen";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -1082,6 +1083,17 @@ const MobileHome = () => {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [hasProductsError, setHasProductsError] = useState(false);
   const [productsReloadToken, setProductsReloadToken] = useState(0);
+  const [mlConnected, setMlConnected] = useState(false);
+  const [hasPublication, setHasPublication] = useState(false);
+  const [choseProduct, setChoseProduct] = useState(false);
+  const completedSteps = useRef(new Set<string>());
+
+  const chosenStorageKey = user?.id ? `${HOME_CHOSEN_STORAGE_PREFIX}:${user.id}` : HOME_CHOSEN_STORAGE_PREFIX;
+  const quizAnswers = useMemo(() => lerRespostasDoQuiz(user), [user]);
+  const preferredCategories = useMemo(
+    () => new Set(categoriasDoPerfil(quizAnswers).map(normalizeSearchText)),
+    [quizAnswers],
+  );
 
   const favoritesStorageKey = user?.id
     ? `${HOME_FAVORITES_STORAGE_PREFIX}:${user.id}`
@@ -1097,6 +1109,39 @@ const MobileHome = () => {
   }, [favoritesStorageKey]);
 
   useEffect(() => {
+    try {
+      setChoseProduct(window.localStorage.getItem(chosenStorageKey) === "true");
+    } catch {
+      setChoseProduct(false);
+    }
+  }, [chosenStorageKey]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    void Promise.all([
+      supabase.from("user_integrations").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("platform", "mercadolivre").not("access_token", "is", null),
+      supabase.from("user_publications").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+    ]).then(([integration, publication]) => {
+      if (!active) return;
+      setMlConnected((integration.count ?? 0) > 0);
+      setHasPublication((publication.count ?? 0) > 0);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const states = { choose_product: choseProduct, connect_ml: mlConnected, publish: hasPublication };
+    Object.entries(states).forEach(([step, done]) => {
+      if (done && !completedSteps.current.has(step)) {
+        completedSteps.current.add(step);
+        trackMobileHomeEvent(user.id, "checklist_completed", { detail: step });
+      }
+    });
+  }, [choseProduct, hasPublication, mlConnected, user?.id]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const fetchProducts = async () => {
@@ -1105,7 +1150,7 @@ const MobileHome = () => {
         setHasProductsError(false);
       }
 
-      const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count,source";
+      const columns = "id,title,category,images,cost_price,suggested_price,rating,is_active,is_blocked,stock_quantity,orders_count,source,created_at";
 
       // Busca produtos de todas as fontes disponíveis (c7drop, aliexpress, etc.)
       const result = await supabase
@@ -1146,9 +1191,18 @@ const MobileHome = () => {
         rows = fallbackResult.data;
       }
 
+      const { data: popularityRows } = await supabase.rpc("mobile_catalog_popularity");
+      const popularity = new Map((popularityRows ?? []).map((row) => [row.product_id, Number(row.publication_count) || 0]));
       const previews = ((rows ?? []) as CatalogProductRow[])
-        .map(mapProductPreview)
-        .filter((product): product is ProductPreview => Boolean(product));
+        .map((row) => mapProductPreview(row, popularity.get(row.id) ?? 0))
+        .filter((product): product is ProductPreview => Boolean(product))
+        .sort((a, b) => {
+          const nicheDifference = Number(preferredCategories.has(normalizeSearchText(b.category))) - Number(preferredCategories.has(normalizeSearchText(a.category)));
+          if (nicheDifference !== 0) return nicheDifference;
+          if (b.publicationCount !== a.publicationCount) return b.publicationCount - a.publicationCount;
+          if (b.ordersCount !== a.ordersCount) return b.ordersCount - a.ordersCount;
+          return (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0);
+        });
 
       if (isMounted) {
         setProducts(previews);
@@ -1166,7 +1220,7 @@ const MobileHome = () => {
     return () => {
       isMounted = false;
     };
-  }, [productsReloadToken]);
+  }, [preferredCategories, productsReloadToken]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1210,6 +1264,16 @@ const MobileHome = () => {
       isLoadingProducts={isLoadingProducts}
       hasProductsError={hasProductsError}
       onRetryProducts={() => setProductsReloadToken((token) => token + 1)}
+      userId={user?.id}
+      mlConnected={mlConnected}
+      hasPublication={hasPublication}
+      choseProduct={choseProduct}
+      needsMlSellerGuide={quizAnswers.mercadoLivre === "nao"}
+      onChooseProduct={() => {
+        if (choseProduct) return;
+        setChoseProduct(true);
+        try { window.localStorage.setItem(chosenStorageKey, "true"); } catch { /* progresso continua na sessão */ }
+      }}
     />
   );
 };
