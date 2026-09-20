@@ -785,30 +785,60 @@ export default function Index() {
 
         <div className="relative flex w-full flex-col px-6 pb-7 pt-28 sm:hidden">
           <div className="max-w-[350px]">
-            <h1 className="text-[2.35rem] font-light leading-[1.04] tracking-[-0.035em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-              Escolha o produto.<br />
-              A Velo publica no<br />
-              Mercado Livre.
+            {/*
+              Peso semibold e tamanho maior: o peso fino sobre foto era ilegível para quem
+              tem mais idade ou está no sol. Só muda no celular.
+            */}
+            <h1 className="text-[2.3rem] font-semibold leading-[1.08] tracking-[-0.03em] text-white antialiased [text-shadow:0_2px_18px_rgba(8,14,28,0.55)] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
+              Venda no Mercado Livre sem comprar produto antes.
             </h1>
 
-            <p className="mt-4 max-w-[335px] text-[15px] leading-[1.5] text-white/75">
-              Você escolhe no catálogo. A Velo prepara o anúncio com fotos, título e descrição para publicar.
+            <p className="mt-4 max-w-[335px] text-[16px] font-medium leading-[1.5] text-white/90">
+              Você escolhe o produto, a Velo monta o anúncio e publica na sua conta. Sem estoque e sem
+              gastar com mercadoria.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() => navigate(authTarget)}
-            className="mt-6 h-[54px] w-full rounded-full bg-white px-8 text-[16px] font-semibold text-[#0B1B3D] shadow-[0_10px_30px_rgba(8,14,28,0.22)] transition-transform active:scale-[0.98]"
+            onClick={() => {
+              void registrarEvento("cta_primary_click");
+              navigate(signupTarget);
+            }}
+            className="mt-6 h-[58px] w-full rounded-full bg-white px-8 text-[17px] font-bold text-[#0B1B3D] shadow-[0_10px_30px_rgba(8,14,28,0.28)] transition-transform active:scale-[0.98]"
           >
-            {ctaLabel}
+            {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
           </button>
 
-          <p className="mt-3 text-center text-[12px] font-medium text-white/65">
-            Sem estoque <span className="mx-1.5 text-white/30" aria-hidden="true">•</span> Sem compromisso
+          <p className="mt-3 text-center text-[13px] font-medium text-white/75">
+            Sem estoque <span className="mx-1.5 text-white/40" aria-hidden="true">•</span> Você só paga a assinatura
           </p>
 
+          <div className="mt-4 flex items-center justify-center gap-5">
+            <button
+              type="button"
+              onClick={() => {
+                void registrarEvento("how_it_works_click");
+                scrollToSection("como-funciona");
+              }}
+              className="h-11 text-[15px] font-medium text-white/85 underline decoration-white/40 underline-offset-[6px]"
+            >
+              Como funciona
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void registrarEvento("login_link_click");
+                navigate(authTarget);
+              }}
+              className="h-11 text-[15px] font-medium text-white/70"
+            >
+              Já tenho conta
+            </button>
+          </div>
+
         </div>
+
 
         {/* Mesmo gutter do header, em todas as resoluções. */}
         <div className="relative hidden w-full px-6 pb-14 pt-32 sm:block sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
@@ -873,7 +903,62 @@ export default function Index() {
         </button>
       </section>
 
+      {/*
+        Bloco só do celular: explica o processo em 3 passos com linguagem simples e traz
+        prova social com número real de assinantes (vindo do banco). No desktop nada disso
+        aparece — a estrutura original continua intacta.
+      */}
+      <section className="bg-white px-6 py-10 sm:hidden">
+        <h2 className="text-[22px] font-semibold leading-[1.2] tracking-[-0.02em] text-[#0B1B3D]">
+          Como funciona
+        </h2>
+        <p className="mt-2 text-[15px] leading-[1.55] text-[#5B6B8C]">
+          Três passos. Você não precisa comprar nada antes de vender.
+        </p>
+
+        <ol className="mt-6 flex flex-col gap-4">
+          {[
+            { n: "1", t: "Escolha um produto", d: "No catálogo da Velo você vê quanto custa no fornecedor e por quanto pode vender." },
+            { n: "2", t: "A Velo monta o anúncio", d: "Fotos, título e descrição prontos, dentro das regras do Mercado Livre." },
+            { n: "3", t: "Publique e acompanhe", d: "O anúncio vai para a sua conta do Mercado Livre e você acompanha os pedidos aqui." },
+          ].map((passo) => (
+            <li key={passo.n} className="flex gap-4 rounded-[18px] bg-[#F4F7FE] p-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-[17px] font-bold text-white">
+                {passo.n}
+              </span>
+              <span className="block">
+                <span className="block text-[17px] font-semibold leading-[1.25] text-[#0B1B3D]">{passo.t}</span>
+                <span className="mt-1 block text-[15px] leading-[1.5] text-[#5B6B8C]">{passo.d}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {assinantesAtivos !== null && assinantesAtivos >= 50 && (
+          <p className="mt-6 rounded-[18px] border border-[#DCE5F7] bg-white px-4 py-4 text-center text-[16px] font-semibold leading-[1.4] text-[#0B1B3D]">
+            +{Math.floor(assinantesAtivos / 50) * 50} pessoas já têm assinatura ativa na Velo
+          </p>
+        )}
+
+        {/*
+          ESPAÇO RESERVADO PARA DEPOIMENTOS REAIS — não preencher com texto inventado.
+          Quando o Felipe enviar nome, foto e frase de clientes reais, substituir este bloco.
+        */}
+
+        <button
+          type="button"
+          onClick={() => {
+            void registrarEvento("cta_primary_click");
+            navigate(signupTarget);
+          }}
+          className="mt-6 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white active:scale-[0.99]"
+        >
+          Criar minha conta
+        </button>
+      </section>
+
       <SecaoProvaVisual />
+
 
       {/*
         Headline à esquerda e texto de apoio à direita, como na referência, com o
