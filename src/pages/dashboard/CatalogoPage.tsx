@@ -976,6 +976,14 @@ const CatalogoPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const { favoritedIds, toggleFavorite: toggleCatalogFavorite } = useCatalogFavorites();
   const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
+
+  // Mede quanto tempo passou entre criar a conta e ver produto pela primeira
+  // vez. Só dispara quando há produto na tela de verdade — carregando não conta.
+  useEffect(() => {
+    if (!usuarioAtual?.id || isLoading || products.length === 0) return;
+    trackPrimeiroProdutoVisto(usuarioAtual.id, usuarioAtual.created_at);
+  }, [usuarioAtual?.id, usuarioAtual?.created_at, isLoading, products.length]);
+
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
   const [tutorialOpen, setTutorialOpen] = useState(false);
