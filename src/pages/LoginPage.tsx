@@ -263,8 +263,13 @@ const LoginPage = () => {
         veloToast.waitForMinimum(toastId),
       ]);
       veloToast.dismiss(toastId);
-      if (error) { setAviso({ tipo: "erro", texto: error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message }); return; }
+      if (error) {
+        trackSignup("login_error", tipoDeErro(error.message));
+        setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
+        return;
+      }
       if (data.session || data.user) {
+        trackSignup("login_success");
         // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
         navigate("/dashboard", { replace: true }); return;
       }
@@ -272,7 +277,7 @@ const LoginPage = () => {
     } catch (error) {
       await veloToast.waitForMinimum(toastId);
       veloToast.dismiss(toastId);
-      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
+      setAviso({ tipo: "erro", texto: mensagemDeErro(error instanceof Error ? error.message : "") });
     } finally { setLoading(false); }
   };
 
@@ -280,33 +285,60 @@ const LoginPage = () => {
     e.preventDefault();
     // No cadastro direto o e-mail não passou pela validação da etapa inicial.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
-    if (nome.trim().length < 2) { setAviso({ tipo: "erro", texto: "Informe seu nome." }); return; }
-    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Senha precisa ter pelo menos 8 caracteres." }); return; }
-    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Você precisa aceitar os Termos de Uso." }); return; }
-    if (!acceptPrivacy) { setAviso({ tipo: "erro", texto: "Você precisa aceitar a Política de Privacidade." }); return; }
+    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Crie uma senha com pelo menos 8 caracteres." }); return; }
+    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Marque o aceite dos Termos e da Política de Privacidade para continuar." }); return; }
+    trackSignup("signup_submit");
     setLoading(true);
     const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
+    /*
+      O nome completo saiu do cadastro: é atrito puro na entrada e pode ser preenchido
+      depois no Perfil. O gatilho do banco já cria o perfil com um nome a partir do
+      e-mail, então nada mais adiante fica sem nome.
+    */
+    const nomeInicial = email.trim().split("@")[0].replace(/[._-]+/g, " ").trim();
+    const origem = readOrigin();
+    const aceiteEm = new Date().toISOString();
     const [{ data, error }] = await Promise.all([
       supabase.auth.signUp({
         email: email.trim(), password,
-        options: { data: { full_name: nome.trim(), velo_onboarding_pending: true }, emailRedirectTo: `${window.location.origin}/setup` },
+        options: {
+          data: {
+            full_name: nomeInicial,
+            velo_onboarding_pending: true,
+            terms_accepted_at: aceiteEm,
+            signup_source: origem.signup_source,
+          },
+          emailRedirectTo: `${window.location.origin}/setup`,
+        },
       }),
       veloToast.waitForMinimum(toastId),
     ]);
     veloToast.dismiss(toastId);
     if (error) {
       setLoading(false);
-      if (error.message === "User already registered") {
+      trackSignup("signup_error", tipoDeErro(error.message));
+      if (/already registered/i.test(error.message)) {
         setStep("login");
-        setAviso({ tipo: "info", texto: "Este e-mail já possui conta. Entre com sua senha." });
+        setAviso({ tipo: "info", texto: "Este e-mail já tem conta na Velo. Entre com a sua senha." });
         window.setTimeout(() => passwordRef.current?.focus(), 120);
         return;
       }
-      setAviso({ tipo: "erro", texto: error.message });
+      setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
       return;
     }
     if (data.user) {
-      await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
+      trackSignup("signup_success");
+      // Registro do aceite e da origem do visitante (comprovação e atribuição de canal).
+      await supabase
+        .from("profiles")
+        .update({
+          terms_accepted_at: aceiteEm,
+          signup_source: origem.signup_source,
+          utm_source: origem.utm_source,
+          utm_medium: origem.utm_medium,
+          utm_campaign: origem.utm_campaign,
+        })
+        .eq("user_id", data.user.id);
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);
