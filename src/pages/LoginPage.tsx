@@ -598,13 +598,40 @@ const LoginPage = () => {
                   <input
                     type="email"
                     value={email}
-                    onChange={aoDigitar(setEmail)}
-                    placeholder="Endereço de e-mail"
+                    onChange={(e) => {
+                      if (!email) trackSignup("signup_start");
+                      setEmailSugerido(null);
+                      aoDigitar(setEmail)(e);
+                    }}
+                    onBlur={() => setEmailSugerido(sugerirEmail(email))}
+                    placeholder="Seu e-mail"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
                     readOnly={emailLocked}
                     // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
                     // não pela ordem das classes na string.
                     className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F5F9] text-[#64748B]" : ""}`}
                   />
+
+                  {/* Erro comum de digitação: oferecemos a correção em vez de deixar
+                      a pessoa criar conta num e-mail que nunca vai receber nada. */}
+                  {emailSugerido && !emailLocked && (
+                    <p className="-mt-1 text-[13px] leading-[1.5] text-[#64748B]">
+                      Você quis dizer{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setEmail(emailSugerido); setEmailSugerido(null); }}
+                        className="font-semibold text-[#2563EB] underline underline-offset-2"
+                      >
+                        {emailSugerido}
+                      </button>
+                      ?
+                    </p>
+                  )}
 
                   {step === "initial" && (
                     <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
@@ -629,7 +656,9 @@ const LoginPage = () => {
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Senha"
+                            placeholder="Sua senha"
+                            autoComplete="current-password"
+                            enterKeyHint="go"
                             className={`${inputCls} pr-11`}
                           />
                           <button
@@ -665,23 +694,16 @@ const LoginPage = () => {
                       className="overflow-hidden"
                     >
                       <div className="space-y-4">
-                        <input
-                          ref={nomeRef}
-                          type="text"
-                          value={nome}
-                          onChange={aoDigitar(setNome)}
-                          required
-                          placeholder="Nome completo"
-                          className={inputCls}
-                        />
-
                         <div className="relative">
                           <input
+                            ref={nomeRef}
                             type={showPw ? "text" : "password"}
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Senha com 8+ caracteres"
+                            placeholder="Crie uma senha (8 ou mais caracteres)"
+                            autoComplete="new-password"
+                            enterKeyHint="go"
                             className={`${inputCls} pr-11`}
                           />
                           <button
@@ -694,28 +716,23 @@ const LoginPage = () => {
                           </button>
                         </div>
 
-                        <div className="space-y-2.5 pt-1">
+                        {/* Aceite único, numa linha só. A data e a hora ficam gravadas
+                            no perfil no momento em que a conta é criada. */}
+                        <div className="pt-1">
                           <LegalCheckbox
                             checked={acceptTerms}
                             onChange={setAcceptTerms}
                             label={
                               <>
-                                Li e aceito os{" "}
+                                Aceito os{" "}
                                 <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Termos de Uso
-                                </Link>
-                              </>
-                            }
-                          />
-                          <LegalCheckbox
-                            checked={acceptPrivacy}
-                            onChange={setAcceptPrivacy}
-                            label={
-                              <>
-                                Li e aceito a{" "}
+                                </Link>{" "}
+                                e a{" "}
                                 <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Política de Privacidade
                                 </Link>
+                                .
                               </>
                             }
                           />
@@ -723,10 +740,10 @@ const LoginPage = () => {
 
                         <button
                           type="submit"
-                          disabled={loading || !acceptTerms || !acceptPrivacy}
+                          disabled={loading || !acceptTerms}
                           className={primaryBtnCls}
                         >
-                          {loading ? "Criando conta..." : "Criar conta grátis"}
+                          {loading ? "Criando conta..." : "Criar minha conta"}
                         </button>
                       </div>
                     </motion.form>
