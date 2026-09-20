@@ -7,6 +7,7 @@ export interface Product {
   categoria: string;
   /** Custo do produto — o que o lojista paga ao fornecedor. */
   preco: number;
+  suggestedPrice?: number | null;
   image_url: string;
   images: string[];
   product_url?: string | null;
@@ -276,6 +277,15 @@ export const ProductCard = ({
             Ver produto
           </Link>
         </div>
+        {denseMobile && typeof product.suggestedPrice === "number" && product.suggestedPrice > product.preco && (
+          <div className="mt-2 border-t border-black/[0.06] pt-2 md:hidden">
+            <div className="flex items-end justify-between gap-2">
+              <span className="text-[9px] font-semibold leading-tight text-[#6B7280]">Preço sugerido<br /><strong className="text-[12px] text-[#111111]">{formatPrice(product.suggestedPrice)}</strong></span>
+              <span className="text-right text-[9px] font-semibold leading-tight text-[#6B7280]">Sobra bruta estimada<br /><strong className="text-[12px] text-[#15803D]">{formatPrice(product.suggestedPrice - product.preco)}</strong></span>
+            </div>
+            <p className="mt-1 text-[8px] font-medium text-[#6B7280]">Antes das taxas do Mercado Livre, frete e impostos.</p>
+          </div>
+        )}
       </div>
     </article>
   );
