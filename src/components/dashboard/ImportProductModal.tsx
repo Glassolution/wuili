@@ -417,6 +417,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // (O modal manual foi removido a pedido: publicação no Mercado Livre está
         // temporariamente indisponível para produtos sem categoria confiável.)
         if (codigo === "CATEGORY_REQUIRES_MANUAL" || codigo === "CATEGORY_LOW_CONFIDENCE") {
+          trackError(`publish:${codigo}`);
           veloToast.error(
             "Não foi possível publicar este produto no Mercado Livre no momento. Tente outro produto.",
             { id: toastId },
@@ -428,6 +429,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // Conta do ML bloqueada para publicar → modal dizendo exatamente o que
         // falta no cadastro (endereço, telefone…). Sem códigos, cai no tutorial.
         if (codigo === "ML_SELLER_CANNOT_LIST") {
+          trackError("publish:ml_seller_cannot_list");
           veloToast.dismiss(toastId);
           if (erro instanceof ErroDePublicacao && erro.sellerCodes?.length) {
             setMlMissingCodes(erro.sellerCodes);
@@ -478,7 +480,14 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     if (!brand.trim()) {
+      trackError("review:brand");
       veloToast.error("Informe a marca do produto (use 'Genérica' se não houver).");
+      return;
+    }
+
+    if (!description.trim()) {
+      trackError("review:description");
+      veloToast.error("Confira a descrição ou toque em Gerar novamente antes de continuar.");
       return;
     }
 
@@ -509,6 +518,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const canAdvanceDetails = hasStock && !!title.trim() && sellPrice > totalCost;
   const canAdvanceConnection = isConnectedToML === true;
   const titleNeedsTranslation = /[\u3040-\u30ff\u3400-\u9fff]|\b(with|wireless|women|men|kids|portable|for|and)\b/i.test(title);
+  const visibleSteps = planLimits.canPublishProducts ? STEPS.slice(0, 3) : STEPS;
   const startModeOffset = isStartMode ? 48 : 0;
   const reachedProProductLimit = planLimits.plan === "pro" && planLimits.productLimitReached;
   const publishUpgradeTitle = reachedProProductLimit
@@ -561,7 +571,11 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div>
                 <h2 className="text-[15px] font-semibold text-[#0F172A] leading-tight">Importar produto</h2>
-                <p className="text-[12.5px] text-[#64748B] mt-0.5">Confira os detalhes, conecte sua conta, revise e escolha seu plano.</p>
+                <p className="text-[12.5px] text-[#64748B] mt-0.5">
+                  {planLimits.canPublishProducts
+                    ? "Confira os detalhes, conecte sua conta e revise antes de publicar."
+                    : "Confira os detalhes, conecte sua conta, revise e escolha seu plano."}
+                </p>
               </div>
             </div>
             <button
@@ -576,7 +590,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           {/* Stepper */}
           <div className="mobile-hide-scrollbar overflow-x-auto border-b border-[#E5EDFF] bg-[#F8FBFF] px-4 pb-4 pt-1 sm:px-6 md:overflow-visible md:px-8 md:pb-5">
             <div className="flex min-w-max items-center md:min-w-0">
-              {STEPS.map((s, i) => {
+              {visibleSteps.map((s, i) => {
                 const active = step === s.num;
                 const done = step > s.num;
                 return (
@@ -606,7 +620,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         {s.label}
                       </span>
                     </button>
-                    {i < STEPS.length - 1 && (
+                    {i < visibleSteps.length - 1 && (
                       <div className="relative mx-2 h-px w-8 overflow-hidden bg-[#DDE7FB] md:mx-3 md:w-auto md:flex-1">
                         <div
                           className="absolute inset-y-0 left-0 bg-[#2563EB] transition-all duration-500 ease-out"
