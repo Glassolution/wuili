@@ -6,6 +6,11 @@ import {
 } from '../_shared/ml-content-sanitizer.ts'
 import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
+import {
+  montarPesoMedidas,
+  garantirMedidasNoAnuncio,
+  pausarAnuncio,
+} from '../_shared/mlPackage.ts'
 
 /**
  * Grava no catálogo o veredito das diretrizes apurado na publicação (com
@@ -1420,38 +1425,32 @@ Deno.serve(async (req) => {
       console.log(`[ml-publish] Peso ausente na origem — usando fallback por categoria (${catRaw || 'desconhecida'}): ${rawWeight} kg`)
     }
 
-    // Para SELLER_PACKAGE_WEIGHT, a API do Mercado Livre permite APENAS a unidade 'g' (gramas)
-    const weightGrams = Math.max(50, Math.round(rawWeight * 1000))
-    const weightValName = `${weightGrams} g`
+    // 3.6) Peso e medidas da embalagem — CRÍTICO para o cálculo do frete.
+    // Regra única compartilhada com a correção em massa (ml-fix-dimensions).
+    const pacote = montarPesoMedidas(rawWeight, productRecord.category as string | null)
+    const weightGrams = pacote.weightGrams
+    const weightValName = pacote.weightValName
+    const dimsValName = pacote.dimsValName
+    const shippingDimensions = pacote.shippingDimensions
 
-    // Sempre enviado: em anúncios Mercado Envios (me2) o frete é calculado
+    // Trava: nunca montamos um anúncio sem peso/medidas resolvidos.
+    if (!weightGrams || !/\d+x\d+x\d+,\d+/.test(shippingDimensions)) {
+      return json({
+        error: 'Não conseguimos calcular o peso e as medidas da embalagem deste produto. Escolha outro produto ou fale com o suporte.',
+        code: 'MISSING_PACKAGE_DIMENSIONS',
+      }, 400)
+    }
+
+    // Sempre enviados: em anúncios Mercado Envios (me2) o frete é calculado
     // por estes atributos — `shipping.dimensions` nem sequer é editável depois.
     mergeAttribute(allAttrs, {
       id: 'SELLER_PACKAGE_WEIGHT',
       value_name: weightValName,
     })
-
-    // 3.6) Dimensões da embalagem — CRÍTICO para o cálculo do frete.
-    // Sem dimensões válidas, o Mercado Livre aplica uma tabela padrão de "pacote
-    // grande" que resulta em fretes absurdos (R$170+) independente do peso ou
-    // preço real. Estimamos dimensões proporcionais ao peso.
-    let dimsCm: [number, number, number]
-    if (rawWeight <= 0.3) dimsCm = [20, 15, 5]
-    else if (rawWeight <= 1) dimsCm = [25, 20, 10]
-    else if (rawWeight <= 3) dimsCm = [35, 25, 15]
-    else if (rawWeight <= 6) dimsCm = [40, 30, 20]
-    else dimsCm = [50, 40, 30]
-
-    // Formato aceito pelo ML: "AxBxC,cm" (vírgula antes da unidade). Antes
-    // enviávamos "AxBxC cm" com espaço, o que era descartado pela API — daí
-    // vinham os fretes gigantescos mesmo com peso correto.
-    const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},cm`
     mergeAttribute(allAttrs, {
       id: 'SELLER_PACKAGE_DIMENSIONS',
       value_name: dimsValName,
     })
-    // Exposto no objeto para reaproveitar no payload de shipping abaixo.
-    const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
     // Em anúncios COM variação, algumas categorias calculam o frete pelas
     // medidas da variação. MAS só podemos repetir esses atributos na variação
     // quando a própria categoria os marca com `tags.allow_variations`; nas
@@ -2230,6 +2229,43 @@ Deno.serve(async (req) => {
     const itemId = itemData.id as string
     console.log('Item ID:', itemId)
 
+    // === CONFERÊNCIA OBRIGATÓRIA DE PESO/MEDIDAS ===
+    // O ML pode aceitar o anúncio e ainda assim descartar os campos de
+    // embalagem. Lemos o anúncio de volta; se faltar, corrigimos na hora e, em
+    // último caso, pausamos — melhor pausado que vendendo com frete absurdo.
+    let medidasOk = false
+    try {
+      const conferencia = await garantirMedidasNoAnuncio(accessToken, itemId, pacote)
+      medidasOk = conferencia.ok
+      console.log(
+        `[ml-publish] Conferência de medidas ${itemId}: ok=${conferencia.ok} jaEstavaOk=${conferencia.jaEstavaOk} antes=${conferencia.antes} depois=${conferencia.depois} ${conferencia.erro ?? ''}`,
+      )
+      if (!medidasOk) {
+        await pausarAnuncio(accessToken, itemId)
+        await notifyUser(supabase, {
+          user_id,
+          type: 'publication_error',
+          title: 'Anúncio pausado por falta de medidas',
+          message: `${title}: o Mercado Livre não aceitou o peso e as medidas da embalagem. Pausamos o anúncio para você não vender com frete errado — nossa equipe já foi avisada.`,
+          action_url: '/dashboard/publicacoes',
+          metadata: { ml_item_id: itemId, product_title: title },
+        })
+        await supabase.from('ml_dimension_fixes').upsert({
+          user_id,
+          ml_item_id: itemId,
+          status: 'failed',
+          weight_g: pacote.weightGrams,
+          before_dimensions: conferencia.antes,
+          after_dimensions: conferencia.depois,
+          error: conferencia.erro ?? 'medidas não gravadas',
+          processed_at: new Date().toISOString(),
+        }, { onConflict: 'ml_item_id' })
+      }
+    } catch (erroMedidas) {
+      console.error('[ml-publish] Falha na conferência de medidas:', erroMedidas)
+    }
+    const statusAnuncio = medidasOk ? 'active' : 'paused'
+
     // Modelo User Products: as demais variações viram anúncios irmãos, com o
     // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
     // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
@@ -2300,6 +2336,17 @@ Deno.serve(async (req) => {
       }
 
       if (irmaosPublicados.length > 0) {
+        // Cada anúncio-irmão passa pela mesma conferência de peso/medidas.
+        const okPorIrmao = new Map<string, boolean>()
+        for (const irmao of irmaosPublicados) {
+          try {
+            const conf = await garantirMedidasNoAnuncio(accessToken, irmao.ml_item_id, pacote)
+            okPorIrmao.set(irmao.ml_item_id, conf.ok)
+            if (!conf.ok) await pausarAnuncio(accessToken, irmao.ml_item_id)
+          } catch (_e) {
+            okPorIrmao.set(irmao.ml_item_id, false)
+          }
+        }
         const linhas = irmaosPublicados.map((irmao) => ({
           user_id,
           ml_item_id: irmao.ml_item_id,
@@ -2307,7 +2354,7 @@ Deno.serve(async (req) => {
           thumbnail: publicImages[0] || null,
           price: product.price,
           cost_price: product.cost_price || null,
-          status: 'active',
+          status: okPorIrmao.get(irmao.ml_item_id) ? 'active' : 'paused',
           permalink: irmao.permalink,
           published_at: new Date().toISOString(),
           catalog_product_id: catalogProductId,
@@ -2315,6 +2362,10 @@ Deno.serve(async (req) => {
           variation_group_id: grupoDeVariacao,
           variation_name: (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
           variation_value: irmao.variation_value,
+          package_weight_g: pacote.weightGrams,
+          package_dimensions: pacote.shippingDimensions,
+          dimensions_ok: okPorIrmao.get(irmao.ml_item_id) ?? false,
+          dimensions_checked_at: new Date().toISOString(),
         }))
         const { error: erroIrmaos } = await supabase.from('user_publications').insert(linhas)
         if (erroIrmaos) {
@@ -2372,7 +2423,11 @@ Deno.serve(async (req) => {
         thumbnail:          publicImages[0] || null,
         price:              product.price,
         cost_price:         product.cost_price || null,
-        status:             'active',
+        status:             statusAnuncio,
+        package_weight_g:   pacote.weightGrams,
+        package_dimensions: pacote.shippingDimensions,
+        dimensions_ok:      medidasOk,
+        dimensions_checked_at: new Date().toISOString(),
         permalink:          itemData.permalink,
         published_at:       new Date().toISOString(),
         catalog_product_id: catalogProductId,

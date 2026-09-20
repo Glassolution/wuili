@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       admin.from("profiles").select("user_id,display_name,email,whatsapp,plano,created_at,onboarding_completed,nicho").eq("user_id", targetId).maybeSingle(),
       admin.from("subscriptions").select("id,plan,status,amount,payment_method,provider,is_trial,current_period_start,current_period_end,cancel_at_period_end,cancelled_at,created_at").eq("user_id", targetId).order("created_at", { ascending: false }).limit(5),
       admin.from("user_integrations").select("platform,ml_user_id,expires_at,created_at,updated_at").eq("user_id", targetId).eq("platform", "mercadolivre").maybeSingle(),
-      admin.from("user_publications").select("id,title,status,ml_item_id,price,created_at").eq("user_id", targetId).order("created_at", { ascending: false }).limit(50),
+      admin.from("user_publications").select("id,title,status,ml_item_id,price,created_at,dimensions_ok,package_dimensions").eq("user_id", targetId).order("created_at", { ascending: false }).limit(50),
       admin.from("ml_publish_errors").select("id,mapped_code,mapped_message,product_title,category_id,http_status,cause,created_at").eq("user_id", targetId).order("created_at", { ascending: false }).limit(15),
       admin.from("refund_requests").select("id,status,refund_amount,reason,created_at,processed_at").eq("user_id", targetId).order("created_at", { ascending: false }).limit(10),
       admin.from("support_tickets").select("id,subject,status,category,created_at,updated_at").eq("user_id", targetId).order("created_at", { ascending: false }).limit(10),
@@ -224,6 +224,22 @@ Deno.serve(async (req) => {
           ? "Nenhum produto publicado ainda"
           : `${activePubs} anúncio(s) ativo(s) de ${publications.length} publicado(s)`,
     });
+
+    // Peso e medidas da embalagem — sem isso o frete do anúncio fica absurdo.
+    {
+      const comMedidas = publications.filter((p) => p.dimensions_ok === true).length;
+      const semMedidas = publications.filter((p) => p.dimensions_ok === false).length;
+      const naoVerificados = publications.filter((p) => p.dimensions_ok === null || p.dimensions_ok === undefined).length;
+      checks.push({
+        key: "medidas",
+        label: "Peso e medidas dos anúncios (frete)",
+        status: semMedidas > 0 ? "fail" : naoVerificados > 0 ? "warn" : "ok",
+        detail:
+          publications.length === 0
+            ? "Nenhum anúncio para verificar"
+            : `${comMedidas} com medidas corretas · ${semMedidas} sem medidas (frete pode vir alto) · ${naoVerificados} ainda na fila de verificação`,
+      });
+    }
 
     checks.push({
       key: "erros",

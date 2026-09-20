@@ -29,6 +29,20 @@
       "when": 1789919274746,
       "tag": "0003_signup_funnel_and_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789927206720,
+      "tag": "0004_ml_dimension_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789927416823,
+      "tag": "0005_cron_tokens",
+      "breakpoints": true
     }
   ]
 }
