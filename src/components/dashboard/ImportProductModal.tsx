@@ -175,7 +175,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     const restoredPrice = draft?.sellPrice ?? pricing.suggestedSalePrice;
     setMultiplier(product.cost_price > 0 ? restoredPrice / product.cost_price : MULTIPLICADOR_SUGERIDO);
     setSellPrice(restoredPrice);
-    setStep(draft ? Math.min(Math.max(draft.step, 1), 3) : 1);
+    setStep(draft ? Math.min(Math.max(draft.step, 1), 4) : 1);
     setPublishResult(null);
     setPublishing(false);
     setMlMissingCodes(null);
@@ -209,7 +209,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   }, [open, product?.id, step, user?.id]);
 
   useEffect(() => {
-    if (!open || !user?.id || !product?.id || restoredProductId.current !== product.id || step > 3) return;
+    if (!open || !user?.id || !product?.id || restoredProductId.current !== product.id || step > 4) return;
     saveProductImportDraft(user.id, {
       productId: product.id, step, title, sellPrice, description, brand, model, albumName, saleFormat,
     });
