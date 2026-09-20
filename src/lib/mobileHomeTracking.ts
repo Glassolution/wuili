@@ -24,7 +24,20 @@ export type MobileHomeEvent =
   | "checklist_clicked"
   | "checklist_completed"
   | "product_clicked"
-  | "first_product_clicked";
+  | "first_product_clicked"
+  | "product_detail_view"
+  | "product_detail_exit"
+  | "product_detail_scroll"
+  | "product_detail_action"
+  | "import_flow_open"
+  | "import_flow_exit"
+  | "import_flow_step"
+  | "ml_connect_open"
+  | "ml_connect_result"
+  | "plans_open"
+  | "plans_exit"
+  | "plan_checkout_clicked"
+  | "publish_result";
 
 export const trackMobileHomeEvent = (
   userId: string | undefined,
