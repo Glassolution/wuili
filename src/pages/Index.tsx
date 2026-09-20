@@ -872,7 +872,7 @@ export default function Index() {
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
         <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
 
-        <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-24 text-center sm:hidden">
+        <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-32 text-center sm:hidden">
           {assinantesAtivos !== null && assinantesAtivos >= 50 && (
             <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[13px] font-semibold text-white">
               +{Math.floor(assinantesAtivos / 50) * 50} assinaturas ativas na Velo
@@ -887,10 +887,10 @@ export default function Index() {
             Escolha um produto e publique no{" "}
             <span className="inline whitespace-nowrap">
               <img
-                src="/brand/mercado-livre-symbol.svg"
+                src="/brand/mercado-livre.png"
                 alt=""
                 aria-hidden="true"
-                className="mr-1 inline-block h-[0.72em] w-[0.88em] object-contain align-[-0.04em]"
+                className="mr-1 inline-block h-[0.72em] w-[0.88em] rounded-full object-cover align-[-0.04em]"
               />
               Mercado Livre.
             </span>
@@ -912,11 +912,7 @@ export default function Index() {
             {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
           </button>
 
-          <p className="mt-4 max-w-[340px] text-[14px] font-semibold leading-[1.45] text-white/85">
-            Criar a conta não exige cartão. Para publicar, você precisa assinar um plano a partir de {startingPrice}/mês.
-          </p>
-
-          <div className="mt-2 flex items-center justify-center">
+          <div className="mt-4 flex items-center justify-center">
             <button
               type="button"
               onClick={() => {
