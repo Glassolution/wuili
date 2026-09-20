@@ -160,12 +160,19 @@ Deno.serve(async (req) => {
       }
     } catch (err) {
       falhas++
+      const tentativas = item.attempts + 1
       await supabase.from('ml_dimension_fixes').update({
-        status: 'pending',
-        attempts: item.attempts + 1,
+        status: tentativas >= 3 ? 'failed' : 'pending',
+        attempts: tentativas,
         error: err instanceof Error ? err.message : 'erro desconhecido',
         processed_at: new Date().toISOString(),
       }).eq('id', item.id)
+      if (tentativas >= 3 && item.publication_id) {
+        await supabase.from('user_publications').update({
+          dimensions_ok: false,
+          dimensions_checked_at: new Date().toISOString(),
+        }).eq('id', item.publication_id)
+      }
     }
   }
 
