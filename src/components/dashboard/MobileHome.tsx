@@ -23,7 +23,7 @@ import {
   formatReviewCount,
   getProductCatalogMetrics,
 } from "@/components/dashboard/ProductCard";
-import { categoriasDoPerfil, lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
+import { CATEGORIAS_EXCLUIDAS, categoriasDoPerfil, lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
@@ -380,6 +380,7 @@ const MobileAliVeloHome = ({
     for (const product of products) {
       const categoria = product.category.trim();
       if (!categoria) continue;
+      if (CATEGORIAS_EXCLUIDAS.some((blocked) => normalizeSearchText(blocked) === normalizeSearchText(categoria))) continue;
 
       const chave = normalizeSearchText(categoria);
       const grupo = grupos.get(chave) ?? { rotulo: categoria, total: 0, grafias: new Map() };
@@ -586,7 +587,8 @@ const MobileAliVeloHome = ({
             </div>
           </div>
 
-          <nav className="mt-3 flex gap-7 overflow-x-auto text-[16px] font-semibold tracking-[-0.03em] text-white/65 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="relative">
+          <nav aria-label="Categorias de produtos, deslize para ver mais" className="mt-3 flex gap-5 overflow-x-auto pr-10 text-[15px] font-semibold text-white/65 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categoriasDoCatalogo.map((categoria) => {
               const isActive = mobileCategoryFilter === categoria;
 
@@ -610,9 +612,11 @@ const MobileAliVeloHome = ({
               );
             })}
           </nav>
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-end bg-gradient-to-l from-[#2563EB] to-transparent pr-0.5 text-[20px] text-white">›</span>
+          </div>
         </div>
 
-        <section className="bg-[linear-gradient(180deg,#2563EB_0%,#3B82F6_55%,#EFF4FF_100%)] px-4 pb-4 pt-3">
+        {!isBeginner && <section className="bg-[linear-gradient(180deg,#2563EB_0%,#3B82F6_55%,#EFF4FF_100%)] px-4 pb-4 pt-3">
           {/*
             O banner inteiro era um <button> que levava ao catálogo, e as miniaturas dos
             produtos eram <div> dentro dele — tocar um produto subia o clique para o botão
@@ -700,7 +704,7 @@ const MobileAliVeloHome = ({
               )}
             </div>
           </div>
-        </section>
+        </section>}
 
         {isBeginner && (
           <section className="bg-white px-4 pb-1 pt-4" aria-labelledby="first-ad-title">
@@ -783,6 +787,7 @@ const MobileAliVeloHome = ({
                   alt=""
                   className="absolute right-8 top-1 h-[82px] w-[82px] rotate-6 rounded-[18px] object-cover shadow-[0_18px_42px_rgba(0,0,0,0.6)]"
                   referrerPolicy="no-referrer"
+                      loading="lazy"
                 />
               )}
               {secondProduct && (
