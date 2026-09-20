@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
+import { VELO_PLAN_PRICES } from "@/lib/planPricing";
 
 
 
@@ -37,8 +38,8 @@ const PLANS: PlanEntry[] = [
     name: "Plano Base",
     iconVariant: "base",
     tagline: "Pra quem quer começar a vender sem travar no operacional.",
-    monthly: 39.9,
-    annual: 430.92,
+    monthly: VELO_PLAN_PRICES.base.monthly,
+    annual: VELO_PLAN_PRICES.base.annual,
     features: [
       "Até 50 anúncios ativos no Mercado Livre (50 publicações por mês)",
       "1 página de vendas gerada por IA por mês",
@@ -62,8 +63,8 @@ const PLANS: PlanEntry[] = [
     name: "Plano Pro",
     iconVariant: "pro",
     tagline: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
-    monthly: 79.8,
-    annual: 861.84,
+    monthly: VELO_PLAN_PRICES.pro.monthly,
+    annual: VELO_PLAN_PRICES.pro.annual,
     ribbon: "Mais escolhido",
     highlighted: true,
     features: [
@@ -97,8 +98,8 @@ const PLANS: PlanEntry[] = [
     name: "Plano Business",
     iconVariant: "business",
     tagline: "Pra quem já vive disso e quer parar de contar produto.",
-    monthly: 159.6,
-    annual: 1723.68,
+    monthly: VELO_PLAN_PRICES.business.monthly,
+    annual: VELO_PLAN_PRICES.business.annual,
     features: [
       "Anúncios ilimitados no Mercado Livre, sem teto mensal de publicação",
       "Marketplaces ilimitados, publicação em lote e variações",

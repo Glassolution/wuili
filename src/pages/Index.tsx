@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import mlLogo from "@/assets/mercado-livre-logo.png.asset.json";
+import { formatPlanPriceBRL, VELO_STARTING_MONTHLY_PRICE } from "@/lib/planPricing";
 
 
 /*
@@ -394,7 +394,9 @@ export default function Index() {
   const [headerSolid, setHeaderSolid] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showMobileStickyCta, setShowMobileStickyCta] = useState(false);
   const closeMenuTimer = useRef<number>();
+  const mobileHeroCtaRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = useReducedMotion();
   /*
     Funil da landing (só leitura de números agregados, nada de dado pessoal): visita,
@@ -453,6 +455,18 @@ export default function Index() {
   }, []);
 
   useEffect(() => {
+    const button = mobileHeroCtaRef.current;
+    if (!button || window.innerWidth >= 640) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowMobileStickyCta(!entry.isIntersecting && entry.boundingClientRect.bottom < 0),
+      { threshold: 0 },
+    );
+    observer.observe(button);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const elements = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
     const observer = new IntersectionObserver(
       (entries) => {
@@ -478,6 +492,7 @@ export default function Index() {
   // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
   const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
   const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
+  const startingPrice = formatPlanPriceBRL(VELO_STARTING_MONTHLY_PRICE);
 
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -585,11 +600,14 @@ export default function Index() {
       */}
       <button
         type="button"
-        onClick={() => navigate(authTarget)}
-        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-9 w-full items-center justify-center gap-2 px-4 text-center sm:hidden"
+        onClick={() => {
+          void registrarEvento("cta_offer_click");
+          navigate(signupTarget);
+        }}
+        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex min-h-11 w-full items-center justify-center gap-2 px-4 py-2 text-center sm:hidden"
       >
         <span className="landing-mobile-offer__text">
-          <b>Sem cartão de crédito</b> para começar
+          Conta sem cartão. Para publicar, planos a partir de <b>{startingPrice}/mês</b>
         </span>
         <span className="landing-mobile-offer__arrow" aria-hidden="true">
           &rarr;
@@ -598,7 +616,7 @@ export default function Index() {
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-9 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
+        className={`fixed inset-x-0 top-11 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
             ? /*
                 Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
@@ -674,6 +692,19 @@ export default function Index() {
               {ctaLabel}
             </button>
 
+            <button
+              type="button"
+              onClick={() => {
+                void registrarEvento("cta_header_login_click");
+                navigate(authTarget);
+              }}
+              className={`h-11 rounded-full px-3 text-[14px] font-semibold sm:hidden ${
+                headerOpaque ? "text-[#0B1B3D]" : "text-white"
+              }`}
+            >
+              Já sou cliente
+            </button>
+
             {/*
               Abaixo de lg a navegação inteira fica escondida (a <nav> é lg:flex), então sem
               este botão "Como funciona", "Recursos", "FAQ" e "Entrar" simplesmente não existem
@@ -685,7 +716,7 @@ export default function Index() {
               aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
               aria-expanded={mobileNavOpen}
               aria-controls="menu-mobile"
-              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors lg:hidden ${
+              className={`-mr-2 hidden h-11 w-11 items-center justify-center rounded-full transition-colors sm:flex lg:hidden ${
                 headerOpaque ? "text-[#0B1B3D] hover:bg-[#F4F7FE]" : "text-white hover:bg-white/10"
               }`}
             >
@@ -842,33 +873,29 @@ export default function Index() {
         <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
 
         <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-24 text-center sm:hidden">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/90">
-            Feito para o Mercado Livre
-          </span>
+          {assinantesAtivos !== null && assinantesAtivos >= 50 && (
+            <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[13px] font-semibold text-white">
+              +{Math.floor(assinantesAtivos / 50) * 50} assinaturas ativas na Velo
+            </span>
+          )}
 
           {/*
             Peso semibold e tamanho maior: o peso fino era ilegível para quem tem mais
             idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
           */}
           <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            Venda no{" "}
-            <img
-              src={mlLogo.url}
-              alt=""
-              className="mx-0.5 inline-block h-[0.72em] w-auto align-[-0.06em]"
-            />{" "}
-            Mercado Livre sem comprar produto antes.
+            Escolha um produto e publique no Mercado Livre.
           </h1>
 
           <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
-            Você escolhe o produto, a Velo monta o anúncio e publica na sua conta. Sem estoque e sem
-            gastar com mercadoria.
+            Você define o preço de venda e fica com a diferença entre o valor recebido e o custo do fornecedor.
           </p>
 
           <button
+            ref={mobileHeroCtaRef}
             type="button"
             onClick={() => {
-              void registrarEvento("cta_primary_click");
+              void registrarEvento("cta_hero_signup_click");
               navigate(signupTarget);
             }}
             className="mt-7 h-[58px] w-full rounded-full bg-white px-8 text-[17px] font-bold text-[#0B1B3D] shadow-[0_12px_34px_rgba(8,14,28,0.38)] transition-transform active:scale-[0.98]"
@@ -876,30 +903,20 @@ export default function Index() {
             {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
           </button>
 
-          <p className="mt-3 text-[13px] font-medium text-white/70">
-            Sem estoque <span className="mx-1.5 text-white/35" aria-hidden="true">•</span> Você só paga a assinatura
+          <p className="mt-4 max-w-[340px] text-[14px] font-semibold leading-[1.45] text-white/85">
+            Criar a conta não exige cartão. Para publicar, você precisa assinar um plano a partir de {startingPrice}/mês.
           </p>
 
-          <div className="mt-3 flex items-center justify-center gap-5">
+          <div className="mt-2 flex items-center justify-center">
             <button
               type="button"
               onClick={() => {
-                void registrarEvento("how_it_works_click");
+                void registrarEvento("cta_how_it_works_click");
                 scrollToSection("como-funciona");
               }}
               className="h-11 text-[15px] font-medium text-white/85 underline decoration-white/40 underline-offset-[6px]"
             >
               Como funciona
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void registrarEvento("login_link_click");
-                navigate(authTarget);
-              }}
-              className="h-11 text-[15px] font-medium text-white/70"
-            >
-              Já tenho conta
             </button>
           </div>
 
@@ -907,17 +924,19 @@ export default function Index() {
             A foto vira um cartão com proporção fixa: enquadramento previsível em qualquer
             tela, em vez do recorte aleatório do fundo de tela cheia.
           */}
-          <div className="mt-7 w-full overflow-hidden rounded-[26px] border border-white/15 bg-white/5 shadow-[0_24px_60px_rgba(4,10,24,0.45)]">
-            <img
-              src={`${HERO_SLIDES[0].src}?v=${HERO_ASSET_VERSION}`}
-              alt=""
-              aria-hidden="true"
-              decoding="async"
-              loading="eager"
-              fetchPriority="high"
-              className="h-[248px] w-full object-cover object-[50%_28%]"
-            />
+          <div className="mt-6 w-full overflow-hidden rounded-[24px] border border-white/15 bg-white text-left shadow-[0_24px_60px_rgba(4,10,24,0.45)]">
+            <div className="relative h-[176px] overflow-hidden bg-[#F8FAFD]">
+              <img src="/prova-catalogo.webp" alt="Produto de exemplo do catálogo da Velo" decoding="async" loading="eager" fetchPriority="high" className="absolute left-0 top-0 h-full w-[205%] max-w-none object-cover object-left" />
+              <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold uppercase text-[#0B1B3D] shadow-sm">Exemplo na Velo</span>
+            </div>
+            <div className="grid grid-cols-3 border-t border-[#E4EAF5]">
+              <div className="px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Custo</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 22,00</strong></div>
+              <div className="border-x border-[#E4EAF5] px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Venda</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 44,00</strong></div>
+              <div className="px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Diferença</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 22,00</strong></div>
+            </div>
+            <p className="border-t border-[#E4EAF5] px-3 py-2 text-[11px] leading-[1.4] text-[#70809F]">Exemplo antes de taxas, impostos e outros custos da venda.</p>
           </div>
+          <p className="mt-4 max-w-[340px] text-[11px] leading-[1.45] text-white/60">A Velo é uma plataforma independente e não faz parte do Mercado Livre.</p>
         </div>
 
 
@@ -1015,12 +1034,6 @@ export default function Index() {
           ))}
         </ol>
 
-        {assinantesAtivos !== null && assinantesAtivos >= 50 && (
-          <p className="mt-6 rounded-[18px] border border-[#DCE5F7] bg-white px-4 py-4 text-center text-[16px] font-semibold leading-[1.4] text-[#0B1B3D]">
-            +{Math.floor(assinantesAtivos / 50) * 50} pessoas já têm assinatura ativa na Velo
-          </p>
-        )}
-
         {/*
           ESPAÇO RESERVADO PARA DEPOIMENTOS REAIS — não preencher com texto inventado.
           Quando o Felipe enviar nome, foto e frase de clientes reais, substituir este bloco.
@@ -1029,7 +1042,7 @@ export default function Index() {
         <button
           type="button"
           onClick={() => {
-            void registrarEvento("cta_primary_click");
+            void registrarEvento("cta_steps_signup_click");
             navigate(signupTarget);
           }}
           className="mt-6 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white active:scale-[0.99]"
@@ -1070,6 +1083,7 @@ export default function Index() {
               className="block h-auto w-full"
             />
           </div>
+          <button type="button" onClick={() => { void registrarEvento("cta_profit_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
         </div>
       </section>
 
@@ -1207,7 +1221,7 @@ export default function Index() {
 
             <form
               onSubmit={handleSubmit}
-              className="mx-auto mt-9 flex h-[58px] max-w-[480px] items-center rounded-full border border-[#E1E9F8] bg-white p-[5px] shadow-[0_12px_30px_rgba(15,35,95,0.07)]"
+              className="mx-auto mt-9 hidden h-[58px] max-w-[480px] items-center rounded-full border border-[#E1E9F8] bg-white p-[5px] shadow-[0_12px_30px_rgba(15,35,95,0.07)] sm:flex"
             >
               <input
                 type="email"
@@ -1223,13 +1237,22 @@ export default function Index() {
                 {!authLoading && user ? "Entrar no dashboard" : "Começar agora"}
               </button>
             </form>
+            <button type="button" onClick={() => { void registrarEvento("cta_final_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
 
-            <p className="mt-5 text-[14px] tracking-[-0.01em] text-[#8A97B1]">
+            <p className="mt-5 hidden text-[14px] tracking-[-0.01em] text-[#8A97B1] sm:block">
               Você concorda em receber e-mails de marketing da Velo.
             </p>
           </div>
         </div>
       </section>
+
+      <AnimatePresence>
+        {showMobileStickyCta && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#DCE5F7] bg-white/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(11,27,61,0.12)] backdrop-blur sm:hidden">
+            <button type="button" onClick={() => { void registrarEvento("cta_sticky_signup_click"); navigate(signupTarget); }} className="h-[54px] w-full rounded-full bg-[#2563EB] text-[17px] font-bold text-white">Criar minha conta</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <footer className="border-t border-[#EDF1F9] bg-white px-6 py-12 sm:px-8">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-8 md:flex-row md:items-center md:justify-between">

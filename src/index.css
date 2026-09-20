@@ -10,11 +10,10 @@
   }
 
   .landing-mobile-offer {
-    position: relative;
     border: 0;
     background: hsl(var(--landing-mobile-highlight));
     color: hsl(var(--landing-mobile-highlight-foreground));
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: -0.012em;
     box-shadow: 0 1px 0 rgba(120, 36, 0, 0.35);
@@ -26,7 +25,7 @@
   }
 
   .landing-mobile-offer__text {
-    white-space: nowrap;
+    line-height: 1.25;
   }
 
   .landing-mobile-offer__text b {

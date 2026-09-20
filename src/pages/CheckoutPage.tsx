@@ -15,6 +15,7 @@ import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckou
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
+import { formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
 
 
 type PaymentMethod = "pix" | "credit_card";
@@ -33,7 +34,7 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 39,90",
+    price: formatPlanPriceBRL(VELO_PLAN_PRICES.base.monthly),
     description: "Pra quem quer começar a vender sem travar no operacional.",
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
@@ -45,7 +46,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   pro: {
     name: "Pro",
-    price: "R$ 79,80",
+    price: formatPlanPriceBRL(VELO_PLAN_PRICES.pro.monthly),
     description: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     badge: "Mais escolhido",
     features: [
@@ -59,7 +60,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   business: {
     name: "Business",
-    price: "R$ 159,60",
+    price: formatPlanPriceBRL(VELO_PLAN_PRICES.business.monthly),
     description: "Pra quem já vive disso e quer parar de contar produto.",
     badge: "Escala",
     features: [
@@ -73,15 +74,15 @@ const PLANS_DATA: Record<string, PlanData> = {
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  base: 39.9,
-  pro: 79.8,
-  business: 159.6,
+  base: VELO_PLAN_PRICES.base.monthly,
+  pro: VELO_PLAN_PRICES.pro.monthly,
+  business: VELO_PLAN_PRICES.business.monthly,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 430.92,   // 39.90 * 12 * 0.9
-  pro: 861.84,    // 79.80 * 12 * 0.9
-  business: 1723.68, // 159.60 * 12 * 0.9
+  base: VELO_PLAN_PRICES.base.annual,
+  pro: VELO_PLAN_PRICES.pro.annual,
+  business: VELO_PLAN_PRICES.business.annual,
 };
 
 const splitPlanPrice = (price: string) => {
