@@ -840,21 +840,23 @@ export default function Index() {
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
         <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
 
-        <div className="relative flex w-full flex-col px-6 pb-7 pt-28 sm:hidden">
-          <div className="max-w-[350px]">
-            {/*
-              Peso semibold e tamanho maior: o peso fino sobre foto era ilegível para quem
-              tem mais idade ou está no sol. Só muda no celular.
-            */}
-            <h1 className="text-[2.3rem] font-semibold leading-[1.08] tracking-[-0.03em] text-white antialiased [text-shadow:0_2px_18px_rgba(8,14,28,0.55)] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-              Venda no Mercado Livre sem comprar produto antes.
-            </h1>
+        <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-24 text-center sm:hidden">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/90">
+            Feito para o Mercado Livre
+          </span>
 
-            <p className="mt-4 max-w-[335px] text-[16px] font-medium leading-[1.5] text-white/90">
-              Você escolhe o produto, a Velo monta o anúncio e publica na sua conta. Sem estoque e sem
-              gastar com mercadoria.
-            </p>
-          </div>
+          {/*
+            Peso semibold e tamanho maior: o peso fino era ilegível para quem tem mais
+            idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
+          */}
+          <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
+            Venda no Mercado Livre sem comprar produto antes.
+          </h1>
+
+          <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
+            Você escolhe o produto, a Velo monta o anúncio e publica na sua conta. Sem estoque e sem
+            gastar com mercadoria.
+          </p>
 
           <button
             type="button"
@@ -862,16 +864,16 @@ export default function Index() {
               void registrarEvento("cta_primary_click");
               navigate(signupTarget);
             }}
-            className="mt-6 h-[58px] w-full rounded-full bg-white px-8 text-[17px] font-bold text-[#0B1B3D] shadow-[0_10px_30px_rgba(8,14,28,0.28)] transition-transform active:scale-[0.98]"
+            className="mt-7 h-[58px] w-full rounded-full bg-white px-8 text-[17px] font-bold text-[#0B1B3D] shadow-[0_12px_34px_rgba(8,14,28,0.38)] transition-transform active:scale-[0.98]"
           >
             {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
           </button>
 
-          <p className="mt-3 text-center text-[13px] font-medium text-white/75">
-            Sem estoque <span className="mx-1.5 text-white/40" aria-hidden="true">•</span> Você só paga a assinatura
+          <p className="mt-3 text-[13px] font-medium text-white/70">
+            Sem estoque <span className="mx-1.5 text-white/35" aria-hidden="true">•</span> Você só paga a assinatura
           </p>
 
-          <div className="mt-4 flex items-center justify-center gap-5">
+          <div className="mt-3 flex items-center justify-center gap-5">
             <button
               type="button"
               onClick={() => {
@@ -894,6 +896,21 @@ export default function Index() {
             </button>
           </div>
 
+          {/*
+            A foto vira um cartão com proporção fixa: enquadramento previsível em qualquer
+            tela, em vez do recorte aleatório do fundo de tela cheia.
+          */}
+          <div className="mt-7 w-full overflow-hidden rounded-[26px] border border-white/15 bg-white/5 shadow-[0_24px_60px_rgba(4,10,24,0.45)]">
+            <img
+              src={`${HERO_SLIDES[0].src}?v=${HERO_ASSET_VERSION}`}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              loading="eager"
+              fetchPriority="high"
+              className="h-[248px] w-full object-cover object-[50%_28%]"
+            />
+          </div>
         </div>
 
 
