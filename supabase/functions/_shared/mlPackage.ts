@@ -128,11 +128,14 @@ export async function garantirMedidasNoAnuncio(
     return { ok: true, jaEstavaOk: true, corrigido: false, antes, depois: antes };
   }
 
+  // `shipping.dimensions` não é editável em anúncio ativo — o caminho suportado
+  // é gravar os atributos de embalagem separados.
   const body = {
-    shipping: { dimensions: pacote.shippingDimensions },
     attributes: [
       { id: "SELLER_PACKAGE_WEIGHT", value_name: pacote.weightValName },
-      { id: "SELLER_PACKAGE_DIMENSIONS", value_name: pacote.dimsValName },
+      { id: "SELLER_PACKAGE_LENGTH", value_name: `${pacote.dimsCm[0]} cm` },
+      { id: "SELLER_PACKAGE_WIDTH", value_name: `${pacote.dimsCm[1]} cm` },
+      { id: "SELLER_PACKAGE_HEIGHT", value_name: `${pacote.dimsCm[2]} cm` },
     ],
   };
   const put = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
@@ -141,25 +144,15 @@ export async function garantirMedidasNoAnuncio(
     body: JSON.stringify(body),
   });
   if (!put.ok) {
-    const txtCombinado = await put.clone().text().catch(() => "");
-    console.log(`[mlPackage] PUT combinado ${itemId} status=${put.status} ${txtCombinado.slice(0, 300)}`);
-    // Algumas categorias recusam o PUT combinado; tenta só os atributos.
-    const putAttrs = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ attributes: body.attributes }),
-    });
-    if (!putAttrs.ok) {
-      const erro = await putAttrs.text().catch(() => "");
-      return {
-        ok: false,
-        jaEstavaOk: false,
-        corrigido: false,
-        antes,
-        depois: null,
-        erro: `Mercado Livre recusou a atualização das medidas (${putAttrs.status}) ${erro.slice(0, 300)}`,
-      };
-    }
+    const erro = await put.text().catch(() => "");
+    return {
+      ok: false,
+      jaEstavaOk: false,
+      corrigido: false,
+      antes,
+      depois: null,
+      erro: `Mercado Livre recusou a atualização das medidas (${put.status}) ${erro.slice(0, 300)}`,
+    };
   }
 
   const depoisItem = await ler();
