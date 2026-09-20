@@ -533,16 +533,14 @@ export default function Index() {
   return (
     <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
       {/*
-        Barra de atenção mobile (some do desktop): laranja de sinalização com brilho
-        varrendo, ponto "ao vivo" pulsando e seta que empurra. É um botão — o toque faz
-        o mesmo que o CTA principal.
+        Barra de atenção mobile (some do desktop): laranja de sinalização, texto forte e
+        seta que empurra. É um botão — o toque faz o mesmo que o CTA principal.
       */}
       <button
         type="button"
         onClick={() => navigate(authTarget)}
         className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-9 w-full items-center justify-center gap-2 px-4 text-center sm:hidden"
       >
-        <span className="landing-mobile-offer__dot" aria-hidden="true" />
         <span className="landing-mobile-offer__text">
           <b>Sem cartão de crédito</b> para começar
         </span>

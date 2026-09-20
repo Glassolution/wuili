@@ -32,21 +32,6 @@
     animation: velo-offer-drop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  /* Faixa de luz varrendo a barra: é o movimento que "pula na tela". */
-  .landing-mobile-offer::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(
-      100deg,
-      transparent 32%,
-      rgba(255, 255, 255, 0.68) 47%,
-      transparent 62%
-    );
-    transform: translateX(-135%);
-    animation: velo-offer-sheen 3.4s ease-in-out 900ms infinite;
-  }
 
   .landing-mobile-offer:active {
     filter: saturate(1.12) brightness(0.97);
@@ -60,24 +45,6 @@
     font-weight: 800;
   }
 
-  .landing-mobile-offer__dot {
-    position: relative;
-    flex: 0 0 auto;
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: hsl(var(--landing-mobile-highlight-foreground));
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
-  }
-
-  .landing-mobile-offer__dot::after {
-    content: "";
-    position: absolute;
-    inset: -4px;
-    border-radius: 999px;
-    border: 1px solid hsl(var(--landing-mobile-highlight-foreground) / 0.55);
-    animation: velo-offer-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
-  }
 
   .landing-mobile-offer__arrow {
     flex: 0 0 auto;
@@ -97,27 +64,6 @@
   }
 }
 
-@keyframes velo-offer-sheen {
-  0% {
-    transform: translateX(-135%);
-  }
-  60%,
-  100% {
-    transform: translateX(135%);
-  }
-}
-
-@keyframes velo-offer-ping {
-  0% {
-    transform: scale(0.55);
-    opacity: 0.9;
-  }
-  70%,
-  100% {
-    transform: scale(1.6);
-    opacity: 0;
-  }
-}
 
 @keyframes velo-offer-nudge {
   0%,
