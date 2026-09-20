@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPlanPriceBRL, VELO_STARTING_MONTHLY_PRICE } from "@/lib/planPricing";
-import mercadoLivreLogo from "@/assets/mercado-livre-symbol-transparent.png.asset.json";
 
 
 /*
@@ -888,10 +887,10 @@ export default function Index() {
             Escolha um produto e publique no{" "}
             <span className="inline whitespace-nowrap">
               <img
-                src={mercadoLivreLogo.url}
+                src="/brand/mercado-livre.png"
                 alt=""
                 aria-hidden="true"
-                className="mr-1 inline-block h-[0.72em] w-[0.88em] object-contain align-[-0.04em]"
+                className="mr-1 inline-block h-[0.72em] w-[0.88em] rounded-full object-cover align-[-0.04em]"
               />
               Mercado Livre.
             </span>
