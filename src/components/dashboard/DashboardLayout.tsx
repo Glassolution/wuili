@@ -643,12 +643,19 @@ const DashboardLayoutInner = () => {
     // As respostas do quiz vão junto: são elas que a vitrine do guia usa para
     // recomendar produtos. Antes eram descartadas ao fechar o modal.
     void supabase.auth.updateUser({
-      data: { velo_onboarding_pending: false, [CHAVE_RESPOSTAS_DO_QUIZ]: respostas },
+      data: {
+        velo_onboarding_pending: false,
+        [CHAVE_RESPOSTAS_DO_QUIZ]: respostas,
+        ...(nome ? { full_name: nome } : {}),
+      },
     });
     markTourPending(user.id);
     setShowOnboarding(false);
     setEntrada("play");
     entradaTimer.current = window.setTimeout(() => setEntrada("idle"), ENTRADA_POS_ONBOARDING.total * 1000);
+    // O onboarding termina no catálogo: o primeiro contato com a Velo tem que
+    // ser produto, não painel.
+    navigate("/dashboard/catalogo");
   };
 
   // Tour do Atlas: primeira visita, começa no Início do desktop, só depois que o
