@@ -1670,4 +1670,15 @@ button[class*="bg-[#1"]:hover:not(:disabled) {
   .atlas-avatar-icon--animated .atlas-avatar-lid {
     animation: none !important;
   }
+
+  .landing-mobile-offer,
+  .landing-mobile-offer::after,
+  .landing-mobile-offer__dot::after,
+  .landing-mobile-offer__arrow {
+    animation: none !important;
+  }
+
+  .landing-mobile-offer::after {
+    opacity: 0;
+  }
 }
