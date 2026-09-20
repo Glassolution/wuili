@@ -274,7 +274,7 @@ const CatalogoProductDetailPage = () => {
   }, [id]);
 
   useEffect(() => {
-    if (!id || !user?.id) return;
+    if (!id || !product?.id || !user?.id) return;
     openedAt.current = Date.now();
     trackedDepths.current.clear();
     trackMobileHomeEvent(user.id, "product_detail_view", { productId: id });
