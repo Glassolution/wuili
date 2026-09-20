@@ -158,6 +158,14 @@ export async function garantirMedidasNoAnuncio(
   const depoisItem = await ler();
   const depois = depoisItem?.shipping?.dimensions ?? null;
   const ok = anuncioTemMedidas(depoisItem);
+  if (!ok) {
+    const attrsPacote = (depoisItem?.attributes ?? []).filter((a) =>
+      String(a?.id ?? "").startsWith("SELLER_PACKAGE")
+    );
+    console.log(
+      `[mlPackage] pos-PUT ${itemId} putStatus=${put.status} shipping.dimensions=${depois} attrs=${JSON.stringify(attrsPacote)}`,
+    );
+  }
   return {
     ok,
     jaEstavaOk: false,
