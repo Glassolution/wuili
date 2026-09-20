@@ -1,6 +1,7 @@
 import { CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { BadgeCheck, FilePenLine, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 /*
@@ -532,13 +533,13 @@ export default function Index() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
-      <div className="fixed inset-x-0 top-0 z-[60] flex h-7 items-center justify-center bg-[#0B1B3D] px-4 text-center text-[11px] font-semibold text-white sm:hidden">
-        Comece grátis <span className="mx-2 text-white/35" aria-hidden="true">•</span> Sem cartão de crédito
+      <div className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-8 items-center justify-center px-4 text-center sm:hidden">
+        Comece grátis <span className="mx-2 opacity-40" aria-hidden="true">•</span> Sem cartão de crédito
       </div>
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-7 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
+        className={`fixed inset-x-0 top-8 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
             ? /*
                 Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
@@ -795,20 +796,22 @@ export default function Index() {
             Sem estoque <span className="mx-1.5 text-white/30" aria-hidden="true">•</span> Sem compromisso
           </p>
 
-          <div className="mt-6 grid grid-cols-3 border-y border-white/15 py-4" aria-label="Como funciona">
+          <div className="landing-mobile-steps relative mt-7 grid grid-cols-3 py-5" aria-label="Como funciona">
+            <div className="landing-mobile-steps-line absolute left-[16.66%] right-[16.66%] top-[42px] h-px" aria-hidden="true" />
             {[
-              { number: "1", label: "Escolha" },
-              { number: "2", label: "A Velo prepara" },
-              { number: "3", label: "Publique" },
-            ].map((step, index) => (
+              { number: "1", label: "Escolha", Icon: Search },
+              { number: "2", label: "A Velo prepara", Icon: FilePenLine },
+              { number: "3", label: "Publique", Icon: BadgeCheck },
+            ].map(({ number, label, Icon }) => (
               <div
-                key={step.number}
-                className={`flex min-w-0 flex-col items-center gap-2 px-1 text-center ${index > 0 ? "border-l border-white/15" : ""}`}
+                key={number}
+                className="relative z-10 flex min-w-0 flex-col items-center px-1 text-center"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/35 text-[11px] font-semibold text-white">
-                  {step.number}
+                <span className="landing-mobile-step-icon flex h-11 w-11 items-center justify-center rounded-full shadow-[0_7px_20px_rgba(8,14,28,0.22)]">
+                  <Icon size={19} strokeWidth={2.2} aria-hidden="true" />
                 </span>
-                <span className="text-[11px] font-medium leading-[1.2] text-white/75">{step.label}</span>
+                <span className="mt-3 text-[10px] font-bold uppercase leading-none text-white/50">Etapa {number}</span>
+                <span className="mt-1 text-[12px] font-semibold leading-[1.25] text-white">{label}</span>
               </div>
             ))}
           </div>
