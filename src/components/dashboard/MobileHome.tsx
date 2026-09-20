@@ -642,9 +642,9 @@ const MobileAliVeloHome = ({
             </div>
 
             <p className="mt-1.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.05em] text-white">
-              Escolha um produto
+              Encontre produtos
               <br />
-              <span className="text-[#FACC15]">para seu primeiro anúncio</span>
+              <span className="text-[#FACC15]">para seu próximo anúncio</span>
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-white/85">
@@ -1171,29 +1171,10 @@ const MobileHome = () => {
 
       let rows = result.data;
 
-      // Fallback: se não veio nada, tenta sem filtro de estoque
-      if (result.error || !rows?.length) {
-        const fallbackResult = await supabase
-          .from("catalog_products")
-          .select(columns)
-          .eq("is_active", true)
-          .eq("is_blocked", false)
-          .order("orders_count", { ascending: false, nullsFirst: false })
-          .range(0, HOME_PRODUCTS_LIMIT - 1);
-
-        if (!isMounted) return;
-
-        /*
-          Antes o erro aqui saía em silêncio (`return` puro) e a home ficava
-          branca para sempre. Agora ele vira estado visível com botão de
-          recarregar.
-        */
-        if (fallbackResult.error) {
-          setHasProductsError(true);
-          setIsLoadingProducts(false);
-          return;
-        }
-        rows = fallbackResult.data;
+      if (result.error) {
+        setHasProductsError(true);
+        setIsLoadingProducts(false);
+        return;
       }
 
       const { data: popularityRows } = await supabase.rpc("mobile_catalog_popularity");
