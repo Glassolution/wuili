@@ -15,6 +15,7 @@ import {
   tipoDeErro,
   trackSignup,
 } from "@/lib/signupFunnel";
+import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -286,6 +287,7 @@ const LoginPage = () => {
     e.preventDefault();
     // No cadastro direto o e-mail não passou pela validação da etapa inicial.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
+    if (emailEhDescartavel(email)) { setAviso({ tipo: "erro", texto: MENSAGEM_EMAIL_DESCARTAVEL }); return; }
     if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Crie uma senha com pelo menos 8 caracteres." }); return; }
     if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Marque o aceite dos Termos e da Política de Privacidade para continuar." }); return; }
     trackSignup("signup_submit");

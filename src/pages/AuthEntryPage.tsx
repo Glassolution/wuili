@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
 import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
+import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 
 const enter = {
   initial: { opacity: 0, y: 14, filter: "blur(6px)" },
@@ -96,6 +97,8 @@ const AuthEntryPage = () => {
     if (!form.name.trim()) nextErrors.name = "Digite seu nome completo.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       nextErrors.email = "Digite um e-mail válido.";
+    } else if (emailEhDescartavel(cleanEmail)) {
+      nextErrors.email = MENSAGEM_EMAIL_DESCARTAVEL;
     }
     if (form.password.length < 8) {
       nextErrors.password = "A senha precisa ter pelo menos 8 caracteres.";
