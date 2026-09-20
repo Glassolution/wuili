@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPlanPriceBRL, VELO_STARTING_MONTHLY_PRICE } from "@/lib/planPricing";
+import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
 
 
 /*
@@ -884,7 +885,16 @@ export default function Index() {
             idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
           */}
           <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            Escolha um produto e publique no Mercado Livre.
+            Escolha um produto e publique no{" "}
+            <span className="inline whitespace-nowrap">
+              <img
+                src={mercadoLivreLogo.url}
+                alt=""
+                aria-hidden="true"
+                className="mr-1 inline-block h-[0.72em] w-[0.88em] object-contain align-[-0.04em]"
+              />
+              Mercado Livre.
+            </span>
           </h1>
 
           <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
