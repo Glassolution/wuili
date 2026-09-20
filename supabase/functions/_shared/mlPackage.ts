@@ -70,8 +70,15 @@ export function anuncioTemMedidas(item: ItemML | null | undefined): boolean {
     attrs.find((a) => String(a?.id ?? "").toUpperCase() === id)?.value_name ?? null;
   const attrDims = get("SELLER_PACKAGE_DIMENSIONS");
   const attrPeso = get("SELLER_PACKAGE_WEIGHT");
+  // O ML normaliza as medidas em atributos separados (altura/largura/comprimento).
+  const temTrio = ["SELLER_PACKAGE_HEIGHT", "SELLER_PACKAGE_WIDTH", "SELLER_PACKAGE_LENGTH"]
+    .every((id) => {
+      const v = get(id);
+      return typeof v === "string" && /\d/.test(v);
+    });
   const temDims = Boolean(
-    (typeof dims === "string" && /\d+x\d+x\d+/.test(dims)) ||
+    temTrio ||
+      (typeof dims === "string" && /\d+x\d+x\d+/.test(dims)) ||
       (typeof attrDims === "string" && /\d+x\d+x\d+/.test(attrDims)),
   );
   const temPeso = Boolean(
