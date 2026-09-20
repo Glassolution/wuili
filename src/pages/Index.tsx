@@ -540,7 +540,7 @@ export default function Index() {
       <button
         type="button"
         onClick={() => navigate(authTarget)}
-        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-9 items-center justify-center gap-2 px-4 text-center sm:hidden"
+        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-9 w-full items-center justify-center gap-2 px-4 text-center sm:hidden"
       >
         <span className="landing-mobile-offer__dot" aria-hidden="true" />
         <span className="landing-mobile-offer__text">
