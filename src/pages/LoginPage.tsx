@@ -836,17 +836,8 @@ const LoginPage = () => {
           Precisa de ajuda?
         </Link>
 
-        <p className="text-center text-[12.5px] leading-[1.6] text-white/45 lg:text-left lg:text-[#94A3B8]">
-          Ao continuar, você concorda com a{" "}
-          <Link to="/politica-de-privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
-            Política de Privacidade
-          </Link>{" "}
-          e os{" "}
-          <Link to="/termos-de-servico" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
-            Termos de Uso
-          </Link>
-          .
-        </p>
+        {/* O aceite legal vive agora numa linha única dentro do formulário de cadastro;
+            repetir aqui embaixo era a segunda vez que a pessoa lia a mesma coisa. */}
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
