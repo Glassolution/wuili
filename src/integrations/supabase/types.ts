@@ -1793,6 +1793,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_dimension_fixes: {
+        Row: {
+          after_dimensions: string | null
+          attempts: number
+          before_dimensions: string | null
+          created_at: string
+          error: string | null
+          id: string
+          ml_item_id: string
+          processed_at: string | null
+          publication_id: string | null
+          status: string
+          user_id: string
+          weight_g: number | null
+        }
+        Insert: {
+          after_dimensions?: string | null
+          attempts?: number
+          before_dimensions?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ml_item_id: string
+          processed_at?: string | null
+          publication_id?: string | null
+          status?: string
+          user_id: string
+          weight_g?: number | null
+        }
+        Update: {
+          after_dimensions?: string | null
+          attempts?: number
+          before_dimensions?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ml_item_id?: string
+          processed_at?: string | null
+          publication_id?: string | null
+          status?: string
+          user_id?: string
+          weight_g?: number | null
+        }
+        Relationships: []
+      }
       ml_image_vision_cache: {
         Row: {
           checked_at: string
@@ -3702,10 +3747,14 @@ export type Database = {
           cj_variant_id: string | null
           cost_price: number | null
           created_at: string | null
+          dimensions_checked_at: string | null
+          dimensions_ok: boolean | null
           family_name: string | null
           id: string
           ml_closed_at: string | null
           ml_item_id: string
+          package_dimensions: string | null
+          package_weight_g: number | null
           paused_reason: string | null
           permalink: string | null
           price: number | null
@@ -3727,10 +3776,14 @@ export type Database = {
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
+          dimensions_checked_at?: string | null
+          dimensions_ok?: boolean | null
           family_name?: string | null
           id?: string
           ml_closed_at?: string | null
           ml_item_id: string
+          package_dimensions?: string | null
+          package_weight_g?: number | null
           paused_reason?: string | null
           permalink?: string | null
           price?: number | null
@@ -3752,10 +3805,14 @@ export type Database = {
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
+          dimensions_checked_at?: string | null
+          dimensions_ok?: boolean | null
           family_name?: string | null
           id?: string
           ml_closed_at?: string | null
           ml_item_id?: string
+          package_dimensions?: string | null
+          package_weight_g?: number | null
           paused_reason?: string | null
           permalink?: string | null
           price?: number | null
