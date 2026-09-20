@@ -119,7 +119,6 @@ const AuthEntryPage = () => {
       password: form.password,
       options: {
         data: { full_name: form.name.trim() },
-        emailRedirectTo: `${window.location.origin}/setup`,
       },
     });
 
