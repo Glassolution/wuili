@@ -34,6 +34,8 @@ import { getProductPricingEstimate } from "@/lib/productPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
+import { lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 
 /**
  * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
@@ -86,6 +88,10 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   // bloqueada por cadastro incompleto — alimentam o modal que diz o que falta.
   const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [checkingSeller, setCheckingSeller] = useState(false);
+  const [prepareOpen, setPrepareOpen] = useState(false);
+  // Resposta do onboarding: quem disse que ainda não tem conta de vendedor vê
+  // o guia de criação antes de tentar conectar.
+  const semContaDeVendedor = lerRespostasDoQuiz(user).mercadoLivre === "nao";
   const flowOpenedAt = useRef(Date.now());
   const stepOpenedAt = useRef(Date.now());
   const previousStep = useRef(1);
@@ -261,8 +267,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     setTimeout(onClose, 160);
   };
 
-  const handleConnectML = async () => {
+  // Antes de sair do app, uma tela curta explica o que vai acontecer e avisa
+  // quem está dentro do navegador do Instagram/TikTok.
+  const handleConnectML = () => {
     if (!user) return;
+    trackMobileHomeEvent(user.id, "ml_prepare_open", { productId: product?.id, detail: `import_step_${step}` });
+    setPrepareOpen(true);
+  };
+
+  const confirmarConexaoMl = async () => {
+    if (!user) return;
+    setPrepareOpen(false);
     try {
       trackMobileHomeEvent(user.id, "ml_connect_open", { productId: product?.id, detail: `import_step_${step}` });
       if (product) {
@@ -271,10 +286,11 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       await startMercadoLivreOAuth();
     } catch (err) {
       trackMobileHomeEvent(user.id, "import_flow_error", { productId: product?.id, detail: "connection_start" });
-      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre. Tente de novo em instantes.");
       return;
     }
   };
+
 
   const handleTranslate = async () => {
     if (!product) return;
@@ -508,6 +524,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     // Quem ainda não assina vê a etapa de plano somente depois de conectar e revisar.
+    // Antes de mostrar o pagamento, conferimos se a conta consegue vender: ninguém
+    // deve pagar para só depois descobrir que o Mercado Livre não libera anúncios.
+    setCheckingSeller(true);
+    const apta = await fetchSellerReady();
+    setCheckingSeller(false);
+    if (apta === false) {
+      trackMobileHomeEvent(user?.id, "ml_seller_not_ready", { productId: product?.id, detail: "antes_do_plano" });
+      setMlVerifyModalOpen(true);
+      return;
+    }
     advanceTo(4);
   };
 
@@ -770,6 +796,28 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <CheckCircle2 size={22} className="mt-0.5 shrink-0 text-emerald-600" />
                     <div><p className="text-[14px] font-semibold text-emerald-800">Conta conectada</p><p className="mt-1 text-[12.5px] leading-5 text-emerald-700">Tudo certo para revisar seu anúncio.</p></div>
+                  </div>
+                ) : semContaDeVendedor ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-[14px] font-semibold text-amber-900">Primeiro, crie sua conta de vendedor</p>
+                    <p className="mt-1 text-[12.5px] leading-5 text-amber-800">
+                      Você disse que ainda não vende no Mercado Livre. Só dá para publicar com a conta de vendedor
+                      ativa — veja como fazer em poucos minutos, depois volte e conecte.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setMlVerifyModalOpen(true)}
+                      className="mt-4 min-h-12 w-full rounded-xl bg-amber-600 px-4 text-[14px] font-semibold text-white"
+                    >
+                      Ver como criar minha conta de vendedor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConnectML}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-amber-300 bg-white px-4 text-[13.5px] font-semibold text-amber-900"
+                    >
+                      Já tenho conta de vendedor, conectar
+                    </button>
                   </div>
                 ) : (
                   <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
@@ -1100,12 +1148,25 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         benefits={publishUpgradeBenefits}
       />
 
+      <MLConnectPrepareModal
+        open={prepareOpen}
+        onClose={() => setPrepareOpen(false)}
+        onConfirm={() => void confirmarConexaoMl()}
+      />
+
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
         onClose={() => setMlVerifyModalOpen(false)}
         // Fechar e concluir apenas fecham. A conta é revalidada no próximo clique
         // em "Publicar produto" — rechecar aqui reabria o modal na sequência.
         onFinish={() => setMlVerifyModalOpen(false)}
+        // "Já criei minha conta, verificar de novo" confirmou a conta: quem ainda
+        // não tem plano segue para a etapa de plano, quem já tem publica.
+        onVerified={() => {
+          setMlVerifyModalOpen(false);
+          if (planLimits.canPublishProducts) void handlePublish();
+          else if (isConnectedToML) advanceTo(4);
+        }}
       />
 
       <MlMissingInfoModal

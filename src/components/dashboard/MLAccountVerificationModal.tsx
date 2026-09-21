@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle, Loader2, LifeBuoy } from "lucide-react";
 import VideoTutorialModal from "./VideoTutorialModal";
 import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
+import { lerStatusVendedorMl } from "@/lib/mlConexao";
+import { veloToast } from "@/components/ui/velo-toast";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
   open: boolean;
@@ -13,6 +18,8 @@ type Props = {
    * Use para retomar o fluxo de publicação de onde parou.
    */
   onFinish?: () => void;
+  /** Chamado quando a reverificação confirma que a conta já pode vender. */
+  onVerified?: () => void;
 };
 
 type Step = 1 | 2 | 3;
@@ -145,10 +152,44 @@ const StepVisual = ({ step }: { step: Step }) => {
   );
 };
 
-const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
+const MLAccountVerificationModal = ({ open, onClose, onFinish, onVerified }: Props) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [visible, setVisible] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+
+  useEffect(() => {
+    if (open) trackMobileHomeEvent(user?.id, "ml_seller_modal_open");
+  }, [open, user?.id]);
+
+  /** Revalida a conta sem refazer o fluxo de conexão. */
+  const recheck = async () => {
+    setRechecking(true);
+    trackMobileHomeEvent(user?.id, "ml_seller_recheck");
+    const status = await lerStatusVendedorMl();
+    setRechecking(false);
+
+    if (status.apta === true) {
+      trackMobileHomeEvent(user?.id, "ml_seller_ready", { detail: "recheck" });
+      veloToast.success("Sua conta já pode vender. Pode continuar!");
+      setVisible(false);
+      setTimeout(() => {
+        onClose();
+        onVerified?.();
+      }, 200);
+      return;
+    }
+
+    if (status.apta === false) {
+      veloToast.info("O Mercado Livre ainda não liberou sua conta. Termine o cadastro de vendedor e tente de novo.");
+      return;
+    }
+
+    veloToast.error("Não conseguimos verificar agora. Tente de novo em instantes.");
+  };
+
 
   /*
     Ref espelhando o estado: o listener de Esc é registrado uma vez só
@@ -278,13 +319,36 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
 
                 {step === 2 && (
                   <button
-                    onClick={() => setVideoOpen(true)}
+                    onClick={() => {
+                      trackMobileHomeEvent(user?.id, "ml_seller_video_play");
+                      setVideoOpen(true);
+                    }}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] font-['Hanken_Grotesk',_sans-serif] text-[15px] font-medium tracking-[-0.01em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5]"
                   >
                     <PlayCircle size={16} />
                     Assistir vídeo tutorial
                   </button>
                 )}
+
+                <button
+                  onClick={() => void recheck()}
+                  disabled={rechecking}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] text-[15px] font-medium text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5] disabled:opacity-60"
+                >
+                  {rechecking ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  {rechecking ? "Verificando..." : "Já criei minha conta, verificar de novo"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    close();
+                    setTimeout(() => navigate("/dashboard/configuracoes?suporte=1"), 250);
+                  }}
+                  className="mx-auto mt-3 flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] text-[#5C5F66] transition-colors duration-150 hover:text-[#0A0A0A]"
+                >
+                  <LifeBuoy size={14} /> Falar com uma pessoa da Velo
+                </button>
+
 
                 {step > 1 && (
                   <button
