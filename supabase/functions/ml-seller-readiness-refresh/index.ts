@@ -74,7 +74,16 @@ Deno.serve(async (req) => {
     .select('user_id')
     .in('user_id', ids)
   const comAnuncio = new Set((publicaram ?? []).map((p: { user_id: string }) => p.user_id))
-  const alvo = ids.filter((id) => !comAnuncio.has(id)).slice(0, limite)
+
+  // Não repete quem já foi verificado nas últimas 12 horas: assim cada rodada
+  // avança na fila em vez de reconferir sempre as mesmas contas.
+  const { data: recentes } = await admin
+    .from('ml_seller_readiness')
+    .select('user_id')
+    .gte('checked_at', new Date(Date.now() - 12 * 3600_000).toISOString())
+  const jaVistos = new Set((recentes ?? []).map((r: { user_id: string }) => r.user_id))
+
+  const alvo = ids.filter((id) => !comAnuncio.has(id) && !jaVistos.has(id)).slice(0, limite)
   if (!alvo.length) return json({ ok: true, verificados: 0 })
 
   const { data: integracoes } = await admin
