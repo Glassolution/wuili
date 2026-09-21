@@ -2311,6 +2311,66 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_publications: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          ml_item_id: string | null
+          payload: Json
+          permalink: string | null
+          product_id: string | null
+          published_at: string | null
+          reason: string | null
+          reminder_1d_at: string | null
+          reminder_3d_at: string | null
+          seller_ready_at: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          ml_item_id?: string | null
+          payload: Json
+          permalink?: string | null
+          product_id?: string | null
+          published_at?: string | null
+          reason?: string | null
+          reminder_1d_at?: string | null
+          reminder_3d_at?: string | null
+          seller_ready_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          ml_item_id?: string | null
+          payload?: Json
+          permalink?: string | null
+          product_id?: string | null
+          published_at?: string | null
+          reason?: string | null
+          reminder_1d_at?: string | null
+          reminder_3d_at?: string | null
+          seller_ready_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           aliexpress_access_token: string | null

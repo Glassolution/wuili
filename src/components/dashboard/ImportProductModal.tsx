@@ -25,6 +25,7 @@ import {
   inferStickerAlbumName,
   isStickerAlbumProduct,
   montarAtributosMl,
+  montarCorpoDePublicacao,
   primeiraImagemDoProduto,
   publicarNoMercadoLivre,
   type ResultadoDaPublicacao,
@@ -34,6 +35,7 @@ import { getProductPricingEstimate } from "@/lib/productPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import { enfileirarPublicacaoPendente, tentarPublicarPendentesAgora } from "@/lib/publicacaoPendente";
 import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
 import { lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 
@@ -442,11 +444,31 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           return;
         }
 
-        // Conta do ML bloqueada para publicar → modal dizendo exatamente o que
-        // falta no cadastro (endereço, telefone…). Sem códigos, cai no tutorial.
+        // Conta do ML ainda não habilitada a vender. Como o pagamento vem antes
+        // da ativação, o anúncio não se perde: guardamos pronto e ele sobe
+        // sozinho assim que a conta for liberada.
         if (codigo === "ML_SELLER_CANNOT_LIST") {
           trackError("publish:ml_seller_cannot_list");
           veloToast.dismiss(toastId);
+          trackMobileHomeEvent(user.id, "paid_without_seller", { productId: product.id, detail: "na_publicacao" });
+          void enfileirarPublicacaoPendente({
+            userId: user.id,
+            productId: product.id,
+            title: title.trim(),
+            payload: montarCorpoDePublicacao({
+              produto: product,
+              titulo: title,
+              preco: sellPrice,
+              descricao: description,
+              marca: brand,
+              modelo: model,
+              atributos: mlAttributes,
+              estoque: stockQty,
+              override,
+            }),
+          }).then((id) => {
+            if (id) trackMobileHomeEvent(user.id, "pending_publication_queued", { productId: product.id });
+          });
           if (erro instanceof ErroDePublicacao && erro.sellerCodes?.length) {
             setMlMissingCodes(erro.sellerCodes);
           } else {
@@ -508,32 +530,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     if (planLimits.canPublishProducts) {
-      // Único ponto em que o tutorial pode abrir: o usuário pediu para publicar.
-      // Revalidamos com o ML na hora, porque ele pode ter ajustado a conta desde
-      // a última tentativa. Só liberamos a publicação com a conta apta.
-      setCheckingSeller(true);
-      const live = await fetchSellerReady();
-      setCheckingSeller(false);
-      const ready = live ?? !mlAccountNeedsVerification;
-      if (!ready) {
-        setMlVerifyModalOpen(true);
-        return;
-      }
+      // Quem já paga publica direto. Se o Mercado Livre recusar por conta sem
+      // perfil de vendedor, o próprio handlePublish guarda o anúncio e abre a
+      // ajuda com texto e vídeo.
       void handlePublish();
       return;
     }
 
-    // Quem ainda não assina vê a etapa de plano somente depois de conectar e revisar.
-    // Antes de mostrar o pagamento, conferimos se a conta consegue vender: ninguém
-    // deve pagar para só depois descobrir que o Mercado Livre não libera anúncios.
-    setCheckingSeller(true);
-    const apta = await fetchSellerReady();
-    setCheckingSeller(false);
-    if (apta === false) {
-      trackMobileHomeEvent(user?.id, "ml_seller_not_ready", { productId: product?.id, detail: "antes_do_plano" });
-      setMlVerifyModalOpen(true);
-      return;
-    }
+    // Quem ainda não assina segue direto para o plano: a conta de vendedor
+    // deixou de bloquear o caminho antes do pagamento. A ajuda para ativar a
+    // conta acontece depois, com o anúncio já pronto e salvo.
     advanceTo(4);
   };
 
@@ -798,25 +804,30 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                     <div><p className="text-[14px] font-semibold text-emerald-800">Conta conectada</p><p className="mt-1 text-[12.5px] leading-5 text-emerald-700">Tudo certo para revisar seu anúncio.</p></div>
                   </div>
                 ) : semContaDeVendedor ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-[14px] font-semibold text-amber-900">Primeiro, crie sua conta de vendedor</p>
-                    <p className="mt-1 text-[12.5px] leading-5 text-amber-800">
-                      Você disse que ainda não vende no Mercado Livre. Só dá para publicar com a conta de vendedor
-                      ativa — veja como fazer em poucos minutos, depois volte e conecte.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setMlVerifyModalOpen(true)}
-                      className="mt-4 min-h-12 w-full rounded-xl bg-amber-600 px-4 text-[14px] font-semibold text-white"
-                    >
-                      Ver como criar minha conta de vendedor
-                    </button>
+                  <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex items-start gap-3">
+                      <Link2 size={22} className="mt-0.5 shrink-0 text-[#2563EB]" />
+                      <div>
+                        <p className="text-[14px] font-semibold text-[#0F172A]">Conecte sua conta do Mercado Livre</p>
+                        <p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">
+                          Pode conectar a conta que você já usa. Se ela ainda não estiver liberada para vender,
+                          a gente te ajuda a resolver depois — seu anúncio fica guardado.
+                        </p>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={handleConnectML}
-                      className="mt-2 min-h-12 w-full rounded-xl border border-amber-300 bg-white px-4 text-[13.5px] font-semibold text-amber-900"
+                      className="mt-4 min-h-12 w-full rounded-xl bg-[#2563EB] px-4 text-[14px] font-semibold text-white"
                     >
-                      Já tenho conta de vendedor, conectar
+                      Conectar Mercado Livre
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMlVerifyModalOpen(true)}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-[#DBEAFE] bg-white px-4 text-[13px] font-medium text-[#2563EB]"
+                    >
+                      Ainda não tenho conta no Mercado Livre
                     </button>
                   </div>
                 ) : (
@@ -962,6 +973,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         Seu anúncio já está pronto. Revise o produto abaixo e assine o plano Pro para publicar.
                       </p>
                     </div>
+                  </div>
+
+                  {/* Aviso honesto antes do pagamento: a conta precisa poder vender,
+                      e quem ainda não pode é ajudado logo depois de assinar. */}
+                  <div className="mt-5 rounded-2xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <p className="text-[13px] leading-5 text-[#334155]">
+                      Para o anúncio ir ao ar, sua conta do Mercado Livre precisa estar liberada para vender.
+                      Se ainda não estiver, mostramos o passo a passo logo depois e seu anúncio fica guardado —
+                      ele sobe sozinho assim que a conta for liberada.
+                    </p>
                   </div>
 
                   <div className="mt-6 rounded-3xl bg-gray-50 p-4">
@@ -1164,6 +1185,9 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // não tem plano segue para a etapa de plano, quem já tem publica.
         onVerified={() => {
           setMlVerifyModalOpen(false);
+          if (user) trackMobileHomeEvent(user.id, "seller_ready_after_paid", { productId: product?.id });
+          // Conta liberada: sobe o que estiver guardado e publica este anúncio.
+          void tentarPublicarPendentesAgora();
           if (planLimits.canPublishProducts) void handlePublish();
           else if (isConnectedToML) advanceTo(4);
         }}

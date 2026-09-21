@@ -43,6 +43,12 @@ export type MobileHomeEvent =
   | "ml_seller_video_play"
   | "ml_seller_recheck"
   | "ml_seller_ready"
+  // Pagou antes de ter conta apta: medimos quantos ativam, em quanto tempo e
+  // quantos desistem (o reembolso é cruzado por user_id em refund_requests).
+  | "paid_without_seller"
+  | "seller_ready_after_paid"
+  | "pending_publication_queued"
+  | "pending_publication_published"
   | "ml_reconnect_prompt"
   | "plans_open"
   | "plans_exit"
