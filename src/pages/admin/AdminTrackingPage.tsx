@@ -342,6 +342,7 @@ const AdminTrackingPage = () => {
             <p className="text-[13px] text-[#77776f]">Nenhum pedido de reembolso no período.</p>
           )}
         </Card>
+        </div>
       </div>
     </AdminShell>
   );
