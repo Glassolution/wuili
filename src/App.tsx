@@ -313,7 +313,7 @@ const App = () => (
                 <Route path="transacoes" element={<TransacoesPage />} />
                 <Route path="comissoes" element={<CommissionsPage />} />
                 <Route path="pagamentos" element={<PagamentosPage />} />
-                <Route path="planos" element={<OpenPlansModalRoute />} />
+                <Route path="planos" element={<PlanosPage />} />
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="produtos" element={<CatalogPage />} />
                 <Route path="pedidos" element={<OrdersPage />} />
