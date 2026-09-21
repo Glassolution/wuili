@@ -9,6 +9,7 @@ import { Eye, EyeOff } from "lucide-react";
 import {
   captureOrigin,
   detectInAppBrowser,
+  getVisitorId,
   mensagemDeErro,
   readOrigin,
   sugerirEmail,
