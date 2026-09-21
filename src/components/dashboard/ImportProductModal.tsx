@@ -1148,12 +1148,25 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         benefits={publishUpgradeBenefits}
       />
 
+      <MLConnectPrepareModal
+        open={prepareOpen}
+        onClose={() => setPrepareOpen(false)}
+        onConfirm={() => void confirmarConexaoMl()}
+      />
+
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
         onClose={() => setMlVerifyModalOpen(false)}
         // Fechar e concluir apenas fecham. A conta é revalidada no próximo clique
         // em "Publicar produto" — rechecar aqui reabria o modal na sequência.
         onFinish={() => setMlVerifyModalOpen(false)}
+        // "Já criei minha conta, verificar de novo" confirmou a conta: quem ainda
+        // não tem plano segue para a etapa de plano, quem já tem publica.
+        onVerified={() => {
+          setMlVerifyModalOpen(false);
+          if (planLimits.canPublishProducts) void handlePublish();
+          else if (isConnectedToML) advanceTo(4);
+        }}
       />
 
       <MlMissingInfoModal
