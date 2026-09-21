@@ -1316,6 +1316,7 @@ const MobileHome = () => {
       hasPublication={hasPublication}
       choseProduct={choseProduct}
       needsMlSellerGuide={quizAnswers.mercadoLivre === "nao"}
+      sellerReady={sellerReady}
       onChooseProduct={() => {
         if (choseProduct) return;
         setChoseProduct(true);
