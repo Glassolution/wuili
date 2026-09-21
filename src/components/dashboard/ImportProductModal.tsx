@@ -513,6 +513,38 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
   };
 
+  /**
+   * Leva para a página de planos guardando o anúncio: o rascunho já é salvo a
+   * cada mudança, e aqui guardamos também o resumo que a página de planos
+   * mostra e o produto para onde a pessoa volta depois de pagar.
+   */
+  const irParaPaginaDePlanos = () => {
+    if (!product) return;
+    if (user?.id) {
+      saveProductImportDraft(user.id, {
+        productId: product.id,
+        step: 3,
+        title,
+        sellPrice,
+        description,
+        brand,
+        model,
+        albumName,
+        saleFormat,
+      });
+    }
+    salvarContextoDePlanos({
+      productId: product.id,
+      title: title || product.title,
+      image: img,
+      sellPrice,
+      profit,
+    });
+    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product.id, detail: "para_planos" });
+    onClose();
+    navigate("/dashboard/planos");
+  };
+
   const handleContinueFromReview = async () => {
     if (planLimits.loading) {
       veloToast.info("Verificando seu plano...");
