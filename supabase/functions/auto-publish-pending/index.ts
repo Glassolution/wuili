@@ -50,8 +50,20 @@ Deno.serve(async (req) => {
   const headerSecret = req.headers.get('x-cron-secret')
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } })
 
+  // O agendamento usa um token guardado em cron_tokens (mesmo padrão já usado
+  // por outros jobs), para não escrever segredo dentro do SQL do cron.
+  let cronOk = Boolean(cronSecret && headerSecret && headerSecret === cronSecret)
+  if (!cronOk && headerSecret) {
+    const { data: tok } = await admin
+      .from('cron_tokens')
+      .select('token')
+      .eq('name', 'auto-publish-pending')
+      .maybeSingle()
+    cronOk = Boolean(tok?.token && tok.token === headerSecret)
+  }
+
   let escopoUsuario: string | null = null
-  if (!cronSecret || headerSecret !== cronSecret) {
+  if (!cronOk) {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return json({ error: 'Não autorizado' }, 401)
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
