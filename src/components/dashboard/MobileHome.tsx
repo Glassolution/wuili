@@ -24,6 +24,9 @@ import {
   getProductCatalogMetrics,
 } from "@/components/dashboard/ProductCard";
 import { CATEGORIAS_EXCLUIDAS, categoriasDoPerfil, lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
+import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
+import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
+import { lerStatusVendedorMl } from "@/lib/mlConexao";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { getProductPricingEstimate } from "@/lib/productPricing";
