@@ -34,6 +34,8 @@ import { getProductPricingEstimate } from "@/lib/productPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
+import { lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 
 /**
  * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
@@ -86,6 +88,10 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   // bloqueada por cadastro incompleto — alimentam o modal que diz o que falta.
   const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [checkingSeller, setCheckingSeller] = useState(false);
+  const [prepareOpen, setPrepareOpen] = useState(false);
+  // Resposta do onboarding: quem disse que ainda não tem conta de vendedor vê
+  // o guia de criação antes de tentar conectar.
+  const semContaDeVendedor = lerRespostasDoQuiz().mercadoLivre === "nao";
   const flowOpenedAt = useRef(Date.now());
   const stepOpenedAt = useRef(Date.now());
   const previousStep = useRef(1);
