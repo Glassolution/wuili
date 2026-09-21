@@ -348,7 +348,7 @@ const PlanosPage = () => {
             equipe antes de pagar.
           </p>
           <a
-            href="/dashboard/suporte"
+            href="/dashboard/configuracoes?tab=Suporte"
             className="mt-3 inline-flex min-h-[48px] items-center gap-2 rounded-full border border-[#D5DEEC] px-4 text-[15px] font-semibold text-[#0A0A0A]"
           >
             <HelpCircle size={18} />
