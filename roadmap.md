@@ -18,3 +18,12 @@
 - [x] Medir avanço, saída, erros e duração do fluxo de publicação
 - [x] Validar o novo fluxo em celulares e preservar o desktop
 - [x] Sincronizar aumentos de custo C7 com preços no Mercado Livre, preservando margem e pausando em falhas
+
+## Pagamento antes da ativação da conta de vendedor
+- [x] Fluxo: detalhes → conexão → revisão → plano → pagamento → verificação
+- [x] Checagem de vendedor após conexão só em segundo plano (sem modal)
+- [x] Aviso honesto antes do pagamento
+- [x] Fila `pending_publications` + publicação automática quando a conta liberar
+- [x] Lembretes no app (24h/72h) e verificação automática por hora
+- [x] Eventos: paid_without_seller, seller_ready_after_paid, pending_publication_*
+- [ ] Decidir se os lembretes também vão por e-mail
