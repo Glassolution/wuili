@@ -153,15 +153,15 @@ const AdminFunnelPanel = () => {
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <p className="mb-1 text-[12px] font-medium text-[#8c8c87]">Origem</p>
-              <Chips value={origem} options={ORIGENS} onChange={setOrigem} />
+              <Chips<string | null> value={origem} options={ORIGENS} onChange={setOrigem} />
             </div>
             <div>
               <p className="mb-1 text-[12px] font-medium text-[#8c8c87]">Aparelho</p>
-              <Chips value={device} options={DISPOSITIVOS} onChange={setDevice} />
+              <Chips<string | null> value={device} options={DISPOSITIVOS} onChange={setDevice} />
             </div>
             <div>
               <p className="mb-1 text-[12px] font-medium text-[#8c8c87]">Navegador</p>
-              <Chips value={browser} options={NAVEGADORES} onChange={setBrowser} />
+              <Chips<string | null> value={browser} options={NAVEGADORES} onChange={setBrowser} />
             </div>
           </div>
           <label className="flex items-center gap-2 text-[13px] text-[#44443f]">
