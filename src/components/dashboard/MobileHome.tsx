@@ -1136,6 +1136,7 @@ const MobileHome = () => {
   const [hasProductsError, setHasProductsError] = useState(false);
   const [productsReloadToken, setProductsReloadToken] = useState(0);
   const [mlConnected, setMlConnected] = useState(false);
+  const [sellerReady, setSellerReady] = useState<boolean | null>(null);
   const [hasPublication, setHasPublication] = useState(false);
   const [choseProduct, setChoseProduct] = useState(false);
   const completedSteps = useRef(new Set<string>());
