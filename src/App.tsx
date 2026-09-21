@@ -213,6 +213,7 @@ const App = () => (
           <FlatButtonsOnCatalog />
           <MarcarAppCarregado />
           <MLReconnectModal />
+          <MLPostConnectCheck />
           <Suspense fallback={<RouteFallback />}>
 
             <Routes>
