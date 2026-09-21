@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import TourLab from "@/pages/__TourLab";
 import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
