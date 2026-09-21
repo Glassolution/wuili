@@ -267,8 +267,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     setTimeout(onClose, 160);
   };
 
-  const handleConnectML = async () => {
+  // Antes de sair do app, uma tela curta explica o que vai acontecer e avisa
+  // quem está dentro do navegador do Instagram/TikTok.
+  const handleConnectML = () => {
     if (!user) return;
+    trackMobileHomeEvent(user.id, "ml_prepare_open", { productId: product?.id, detail: `import_step_${step}` });
+    setPrepareOpen(true);
+  };
+
+  const confirmarConexaoMl = async () => {
+    if (!user) return;
+    setPrepareOpen(false);
     try {
       trackMobileHomeEvent(user.id, "ml_connect_open", { productId: product?.id, detail: `import_step_${step}` });
       if (product) {
@@ -277,10 +286,11 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       await startMercadoLivreOAuth();
     } catch (err) {
       trackMobileHomeEvent(user.id, "import_flow_error", { productId: product?.id, detail: "connection_start" });
-      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre. Tente de novo em instantes.");
       return;
     }
   };
+
 
   const handleTranslate = async () => {
     if (!product) return;
