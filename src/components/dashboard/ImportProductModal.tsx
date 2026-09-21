@@ -975,6 +975,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                     </div>
                   </div>
 
+                  {/* Aviso honesto antes do pagamento: a conta precisa poder vender,
+                      e quem ainda não pode é ajudado logo depois de assinar. */}
+                  <div className="mt-5 rounded-2xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <p className="text-[13px] leading-5 text-[#334155]">
+                      Para o anúncio ir ao ar, sua conta do Mercado Livre precisa estar liberada para vender.
+                      Se ainda não estiver, mostramos o passo a passo logo depois e seu anúncio fica guardado —
+                      ele sobe sozinho assim que a conta for liberada.
+                    </p>
+                  </div>
+
                   <div className="mt-6 rounded-3xl bg-gray-50 p-4">
                     <div className="flex items-center gap-4">
                       <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
