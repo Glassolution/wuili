@@ -804,25 +804,30 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                     <div><p className="text-[14px] font-semibold text-emerald-800">Conta conectada</p><p className="mt-1 text-[12.5px] leading-5 text-emerald-700">Tudo certo para revisar seu anúncio.</p></div>
                   </div>
                 ) : semContaDeVendedor ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-[14px] font-semibold text-amber-900">Primeiro, crie sua conta de vendedor</p>
-                    <p className="mt-1 text-[12.5px] leading-5 text-amber-800">
-                      Você disse que ainda não vende no Mercado Livre. Só dá para publicar com a conta de vendedor
-                      ativa — veja como fazer em poucos minutos, depois volte e conecte.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setMlVerifyModalOpen(true)}
-                      className="mt-4 min-h-12 w-full rounded-xl bg-amber-600 px-4 text-[14px] font-semibold text-white"
-                    >
-                      Ver como criar minha conta de vendedor
-                    </button>
+                  <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex items-start gap-3">
+                      <Link2 size={22} className="mt-0.5 shrink-0 text-[#2563EB]" />
+                      <div>
+                        <p className="text-[14px] font-semibold text-[#0F172A]">Conecte sua conta do Mercado Livre</p>
+                        <p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">
+                          Pode conectar a conta que você já usa. Se ela ainda não estiver liberada para vender,
+                          a gente te ajuda a resolver depois — seu anúncio fica guardado.
+                        </p>
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={handleConnectML}
-                      className="mt-2 min-h-12 w-full rounded-xl border border-amber-300 bg-white px-4 text-[13.5px] font-semibold text-amber-900"
+                      className="mt-4 min-h-12 w-full rounded-xl bg-[#2563EB] px-4 text-[14px] font-semibold text-white"
                     >
-                      Já tenho conta de vendedor, conectar
+                      Conectar Mercado Livre
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMlVerifyModalOpen(true)}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-[#DBEAFE] bg-white px-4 text-[13px] font-medium text-[#2563EB]"
+                    >
+                      Ainda não tenho conta no Mercado Livre
                     </button>
                   </div>
                 ) : (
