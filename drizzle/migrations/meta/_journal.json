@@ -92,6 +92,13 @@
       "when": 1789951889249,
       "tag": "0012_cron_lembrete_planos",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789962340533,
+      "tag": "0013_funil_completo_admin",
+      "breakpoints": true
     }
   ]
 }
