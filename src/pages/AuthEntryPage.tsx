@@ -150,6 +150,8 @@ const AuthEntryPage = () => {
         {
           user_id: data.user.id,
           display_name: form.name.trim(),
+          // Liga o visitante anônimo da landing à conta criada (funil ponta a ponta).
+          visitor_id: getVisitorId(),
         },
         { onConflict: "user_id" }
       );
