@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import AdminFunnelPanel from "@/components/admin/AdminFunnelPanel";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -93,6 +94,7 @@ const ROTULO_FUNIL: Record<string, string> = {
 
 const AdminTrackingPage = () => {
   const [days, setDays] = useState(30);
+  const [aba, setAba] = useState<"funil" | "geral">("funil");
 
   const traffic = useQuery({
     queryKey: ["admin-traffic", days],
