@@ -33,7 +33,7 @@ export const atlasRouteTagPromptSection = () =>
     "MENÇÕES DE NAVEGAÇÃO INLINE",
     "- Ao citar uma página do app dentro de uma frase, use uma destas duas formas:",
     "  1. tag solta: \"você pode revisar isso no #catalogo\"",
-    "  2. link markdown com âncora: \"vá até [Configurações](#configuracoes) e clique em Conectar conta\"",
+    "  2. link markdown com âncora: \"a conexão do Mercado Livre fica em [Integrações](#integracoes)\"",
     "  Prefira a forma 2 quando o nome da página cair melhor na frase que o slug.",
     "- Use SOMENTE os slugs da lista abaixo. Slug fora da lista não vira link e aparece como texto cru, então não invente.",
     "- NUNCA escreva a rota crua (/dashboard/...) no texto, e nunca descreva o caminho pelo menu (\"Menu lateral → Configurações\"). Use a menção.",

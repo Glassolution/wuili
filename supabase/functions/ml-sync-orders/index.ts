@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { dispatchOrderToBot, retryShippingLabel } from "../_shared/c7dropBotDispatch.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +11,106 @@ const corsHeaders = {
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+const ML_ORDER_PAGE_LIMIT = 50;
+const ML_ORDER_MAX_PAGES = 20;
+const SAO_PAULO_UTC_OFFSET = "-03:00";
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function getSaoPauloDateParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+  };
+}
+
+function addCalendarDays(
+  parts: ReturnType<typeof getSaoPauloDateParts>,
+  days: number,
+) {
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function formatMlDateBoundary(parts: ReturnType<typeof getSaoPauloDateParts>) {
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}T00:00:00.000${SAO_PAULO_UTC_OFFSET}`;
+}
+
+function getYesterdayTodayRange(daysBack = 1) {
+  const today = getSaoPauloDateParts();
+  return {
+    from: formatMlDateBoundary(addCalendarDays(today, -Math.max(1, daysBack))),
+    to: formatMlDateBoundary(addCalendarDays(today, 1)),
+  };
+}
+
+function calculateMlOrderTotal(mlOrder: any) {
+  const orderItems = Array.isArray(mlOrder?.order_items) ? mlOrder.order_items : [];
+  const itemsTotal = orderItems.reduce((sum: number, orderItem: any) => {
+    const quantity = Number(orderItem?.quantity ?? 1);
+    const unitPrice = Number(orderItem?.unit_price ?? 0);
+    return sum + (Number.isFinite(quantity) ? quantity : 1) * (Number.isFinite(unitPrice) ? unitPrice : 0);
+  }, 0);
+  const total = Number(mlOrder?.total_amount ?? 0);
+  return Number.isFinite(total) && total > 0 ? total : itemsTotal;
+}
+
+async function fetchOrdersCreatedYesterdayAndToday(params: {
+  accessToken: string;
+  mlUserId: string;
+  daysBack?: number;
+}) {
+  const { from, to } = getYesterdayTodayRange(params.daysBack ?? 1);
+  const orders: any[] = [];
+  let total = Infinity;
+
+  for (
+    let page = 0, offset = 0;
+    page < ML_ORDER_MAX_PAGES && offset < total;
+    page++, offset += ML_ORDER_PAGE_LIMIT
+  ) {
+    const url = new URL("https://api.mercadolibre.com/orders/search");
+    url.searchParams.set("seller", params.mlUserId);
+    url.searchParams.set("limit", String(ML_ORDER_PAGE_LIMIT));
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("sort", "date_desc");
+    url.searchParams.set("order.date_created.from", from);
+    url.searchParams.set("order.date_created.to", to);
+
+    const searchRes = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    });
+
+    if (!searchRes.ok) {
+      const errText = await searchRes.text();
+      throw new Error(`Failed to fetch orders from ML API: ${searchRes.status} ${errText}`);
+    }
+
+    const searchData = await searchRes.json();
+    const results = Array.isArray(searchData.results) ? searchData.results : [];
+    total = Number(searchData.paging?.total ?? results.length);
+    orders.push(...results);
+
+    if (results.length < ML_ORDER_PAGE_LIMIT) break;
+  }
+
+  return { orders, from, to };
 }
 
 async function notifyUser(
@@ -33,41 +135,12 @@ async function notifyUser(
   if (error) console.warn("[ml-sync-orders] falha ao criar notificacao:", error.message);
 }
 
-serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
+async function syncUserOrders(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  daysBack = 1,
+): Promise<Response> {
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
-    const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
-    const adminClient = createClient(dbUrl, dbKey);
-
-    // Identify user via JWT
-    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const userId = user.id;
-
     // Fetch user integrations
     const { data: integration, error: integrationError } = await adminClient
       .from("user_integrations")
@@ -129,21 +202,16 @@ serve(async (req) => {
       console.log("[ml-sync-orders] Token refreshed successfully");
     }
 
-    // Fetch last 20 orders from Mercado Livre
-    console.log(`[ml-sync-orders] Fetching orders for seller: ${mlUserId}`);
-    const searchRes = await fetch(
-      `https://api.mercadolibre.com/orders/search?seller=${mlUserId}&limit=20&sort=date_desc`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
+    console.log(`[ml-sync-orders] Fetching yesterday/today orders for seller: ${mlUserId}`);
+    const searchResult = await fetchOrdersCreatedYesterdayAndToday({
+      accessToken,
+      mlUserId: String(mlUserId),
+      daysBack,
+    });
+    const mlOrders = searchResult.orders;
+    console.log(
+      `[ml-sync-orders] Found ${mlOrders.length} orders on Mercado Livre from ${searchResult.from} to ${searchResult.to}`,
     );
-
-    if (!searchRes.ok) {
-      const errText = await searchRes.text();
-      throw new Error(`Failed to fetch orders from ML API: ${searchRes.status} ${errText}`);
-    }
-
-    const searchData = await searchRes.json();
-    const mlOrders = searchData.results ?? [];
-    console.log(`[ml-sync-orders] Found ${mlOrders.length} orders on Mercado Livre`);
 
     let newOrdersCount = 0;
     const syncedOrders = [];
@@ -223,9 +291,10 @@ serve(async (req) => {
 
       if (existing) {
         const trackingCode = shipping?.tracking_number ?? null;
+        const resolvedTrackingCode = trackingCode ?? existing.tracking_code ?? null;
         const updatePayload: Record<string, unknown> = {
           status: normalizedStatus,
-          tracking_code: trackingCode,
+          tracking_code: resolvedTrackingCode,
           raw: { ...fullOrder, shipping },
           updated_at: new Date().toISOString(),
         };
@@ -263,6 +332,86 @@ serve(async (req) => {
               event: "order_in_transit",
             },
           });
+        }
+        if (["cancelled", "refunded"].includes(normalizedStatus)) {
+          const { data: dropship } = await adminClient
+            .from("dropship_orders")
+            .select("id,status,payment_status,order_number,ml_order_id")
+            .eq("ml_order_id", mlOrderId)
+            .maybeSingle();
+
+          if (dropship && !["cancelado", "expirado"].includes(String(dropship.status))) {
+            const paidDropshipStatuses = ["pagamento_confirmado", "finalizando_fornecedor", "pedido_concluido", "rastreio_pendente", "rastreio_disponivel"];
+            const supplierTouchedStatuses = ["reservando_fornecedor", "reservado_aguardando_pagamento", ...paidDropshipStatuses];
+            const refundRequired =
+              paidDropshipStatuses.includes(String(dropship.status)) ||
+              ["paid", "approved", "confirmed"].includes(String(dropship.payment_status ?? "").toLowerCase());
+            const nextDropshipStatus = supplierTouchedStatuses.includes(String(dropship.status))
+              ? "cancelamento_pendente"
+              : "cancelado";
+
+            await adminClient
+              .from("dropship_orders")
+              .update({
+                status: nextDropshipStatus,
+                cancel_reason: normalizedStatus === "refunded" ? "Pedido reembolsado no Mercado Livre" : "Pedido cancelado no Mercado Livre",
+                refund_required: refundRequired,
+                refund_status: refundRequired ? "pending" : "not_required",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", dropship.id);
+
+            await adminClient.from("dropship_order_events").insert({
+              order_id: dropship.id,
+              event_type: "ml_order_cancelled",
+              previous_status: dropship.status,
+              new_status: nextDropshipStatus,
+              actor: "ml-sync-orders",
+              message: normalizedStatus === "refunded" ? "Pedido reembolsado no Mercado Livre." : "Pedido cancelado no Mercado Livre.",
+              metadata: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
+            });
+
+            await adminClient.from("dropship_worker_alerts").insert({
+              order_id: dropship.id,
+              order_number: dropship.order_number ?? dropship.ml_order_id ?? mlOrderId,
+              severity: refundRequired ? "critical" : "warning",
+              code: refundRequired ? "ml_cancelled_refund_required" : "ml_cancelled_cleanup_required",
+              message: refundRequired
+                ? `Pedido ${mlOrderId} foi cancelado no ML depois do pagamento; estorno foi marcado como pendente.`
+                : `Pedido ${mlOrderId} foi cancelado no ML; worker deve limpar carrinho/reserva se houver.`,
+              details: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
+            });
+          }
+        }
+
+        // Nova tentativa de baixar a etiqueta do ML enquanto ela não existir.
+        try {
+          await retryShippingLabel(adminClient, {
+            mlOrderId,
+            userId,
+            mlOrder: { ...fullOrder, shipping },
+            accessToken,
+          });
+        } catch (e) {
+          console.warn(`[ml-sync-orders] retry etiqueta ${mlOrderId}:`, (e as Error).message);
+        }
+
+        if (normalizedStatus === "paid") {
+          try {
+            const dispatch = await dispatchOrderToBot(adminClient, {
+              orderId: existing.id,
+              mlOrderId,
+              userId,
+              mlOrder: { ...fullOrder, shipping },
+              precoMl: calculateMlOrderTotal(fullOrder),
+              accessToken,
+            });
+            if (!dispatch.dispatched) {
+              console.warn(`[ml-sync-orders] pedido existente ${mlOrderId} nao conectado automaticamente ao bot: ${dispatch.reason}`);
+            }
+          } catch (e) {
+            console.warn(`[ml-sync-orders] envio ao bot falhou para pedido existente ${mlOrderId}:`, (e as Error).message);
+          }
         }
         continue;
       }
@@ -308,7 +457,7 @@ serve(async (req) => {
         }
       }
 
-      const salePrice = Number(item?.unit_price ?? 0) * Number(item?.quantity ?? 1);
+      const salePrice = calculateMlOrderTotal(fullOrder);
       const profit = costPrice ? salePrice - costPrice : null;
 
       // Insert new order
@@ -350,6 +499,18 @@ serve(async (req) => {
       } else {
         newOrdersCount++;
         syncedOrders.push(newOrder);
+        try {
+          await dispatchOrderToBot(adminClient, {
+            orderId: newOrder.id,
+            mlOrderId,
+            userId,
+            mlOrder: { ...fullOrder, shipping },
+            precoMl: salePrice,
+            accessToken,
+          });
+        } catch (e) {
+          console.warn(`[ml-sync-orders] envio ao bot falhou para ${mlOrderId}:`, (e as Error).message);
+        }
         await notifyUser(adminClient, {
           user_id: userId,
           type: "new_sale",
@@ -364,6 +525,7 @@ serve(async (req) => {
           },
         });
       }
+
     }
 
     return new Response(
@@ -381,4 +543,70 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const dbUrl = Deno.env.get("DB_URL") ?? supabaseUrl;
+  const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
+  const adminClient = createClient(dbUrl, dbKey);
+
+  // Identify user via JWT
+  const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+  if (userError || !user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  // Admin bulk mode: { user_ids: string[], days_back?: number } — syncs several users in one call
+  let body: { user_ids?: string[]; days_back?: number } = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
+  if (Array.isArray(body.user_ids) && body.user_ids.length > 0) {
+    const { data: isAdmin } = await supabaseClient.rpc("is_admin", { _user_id: user.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const daysBack = Math.min(Math.max(Number(body.days_back ?? 1) || 1, 1), 14);
+    const results = [];
+    for (const targetUserId of body.user_ids.slice(0, 10)) {
+      const res = await syncUserOrders(adminClient, targetUserId, daysBack);
+      const json = await res.json().catch(() => ({}));
+      results.push({ user_id: targetUserId, status: res.status, ...json });
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, processed: results.length, results }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
+    );
+  }
+
+  return await syncUserOrders(adminClient, user.id);
 });

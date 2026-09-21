@@ -46,6 +46,7 @@ type SubRow = {
 };
 
 type TabKey = "pending" | "processing" | "eligible" | "approved" | "rejected";
+type UserProfile = { display_name: string | null; avatar_url: string | null; email: string | null };
 
 const REFUND_WINDOW_DAYS = 7;
 
@@ -73,16 +74,36 @@ const normalizeStatus = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const isGenericUserName = (value: string | null | undefined) => {
+  const normalized = (value ?? "").trim().toLowerCase();
+  return !normalized || normalized === "usuario" || normalized === "usuário";
+};
+
+const mergeUserProfile = (base: UserProfile | undefined, incoming: UserProfile | undefined): UserProfile | undefined => {
+  if (!base) return incoming;
+  if (!incoming) return base;
+  return {
+    display_name: isGenericUserName(base.display_name) ? incoming.display_name ?? base.display_name : base.display_name,
+    avatar_url: base.avatar_url ?? incoming.avatar_url,
+    email: base.email ?? incoming.email,
+  };
+};
+
 const getProviderRefundStatus = (refund: RefundRow) => {
   const response = refund.provider_response;
   if (!response) return "";
+
+  // O status consolidado (topo) é o que vale: ele já considera a confirmação
+  // da cobrança estornada. O bloco aninhado é só o retorno bruto do provedor.
+  const top = normalizeStatus(response.status);
+  if (top) return top;
 
   const nested = response.provider_status_response;
   if (nested && typeof nested === "object" && "status" in nested) {
     return normalizeStatus((nested as Record<string, unknown>).status);
   }
 
-  return normalizeStatus(response.status);
+  return "";
 };
 
 const isRefundInProgress = (refund: RefundRow) => {
@@ -186,29 +207,65 @@ const AdminRefundsPage = () => {
     queryKey: ["admin-refunds-profiles", userIds.join(",")],
     enabled: isAdmin && userIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("user_id, display_name, avatar_url, email").in("user_id", userIds);
-      const map: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }> = {};
-      (data || []).forEach((p) => {
-        const row = p as { user_id: string; display_name: string | null; avatar_url: string | null; email?: string | null };
-        map[row.user_id] = { display_name: row.display_name, avatar_url: row.avatar_url, email: row.email ?? null };
+      const map: Record<string, UserProfile> = {};
+      const { data: directProfiles, error: directError } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, avatar_url, email")
+        .in("user_id", userIds);
+
+      if (directError) {
+        console.error("[admin-refunds] falha ao carregar profiles direto", directError);
+      }
+
+      (directProfiles || []).forEach((profile: any) => {
+        map[profile.user_id] = {
+          display_name: profile.display_name ?? null,
+          avatar_url: profile.avatar_url ?? null,
+          email: profile.email ?? null,
+        };
+      });
+
+      const { data, error } = await supabase.functions.invoke("admin-list-profiles", {
+        body: { user_ids: userIds },
+      });
+      if (error) {
+        console.error("[admin-refunds] falha ao carregar perfis", error);
+        return map;
+      }
+      const functionProfiles = ((data as { profiles?: Record<string, UserProfile> })?.profiles ?? {}) as Record<string, UserProfile>;
+      Object.entries(functionProfiles).forEach(([userId, profile]) => {
+        map[userId] = mergeUserProfile(map[userId], profile) ?? {
+          display_name: null,
+          avatar_url: null,
+          email: null,
+        };
       });
       return map;
     },
   });
 
+
+
   const { data: subs = {} } = useQuery({
     queryKey: ["admin-refunds-subs", subIds.join(",")],
     enabled: isAdmin && subIds.length > 0,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("id, plan, created_at, amount, validapay_charge_id, payment_method")
-        .in("id", subIds);
       const map: Record<string, RefundSubscription> = {};
-      (data || []).forEach((row) => {
-        const sub = row as RefundSubscription;
-        map[sub.id] = sub;
-      });
+      const CHUNK = 100;
+      for (let i = 0; i < subIds.length; i += CHUNK) {
+        const { data, error } = await supabase
+          .from("subscriptions")
+          .select("id, plan, created_at, amount, validapay_charge_id, payment_method")
+          .in("id", subIds.slice(i, i + CHUNK));
+        if (error) {
+          console.error("[admin-refunds] falha ao carregar assinaturas", error);
+          continue;
+        }
+        (data || []).forEach((row) => {
+          const sub = row as RefundSubscription;
+          map[sub.id] = sub;
+        });
+      }
       return map;
     },
   });
@@ -231,6 +288,30 @@ const AdminRefundsPage = () => {
     onError: (e: unknown) => toast.error((e as Error)?.message || "Erro"),
     onSettled: () => setBusyId(null),
   });
+
+  // Varredura das cobranças feitas depois do cancelamento (estorno em lote).
+  const postCancel = useMutation({
+    mutationFn: async (dryRun: boolean) => {
+      const { data, error } = await supabase.functions.invoke("admin-refund-post-cancel", {
+        body: { dry_run: dryRun },
+      });
+      if (error || (data && data.error)) throw new Error((data && data.error) || error?.message || "Falha");
+      return data as { count: number; dry_run: boolean; results: Array<Record<string, unknown>> };
+    },
+    onSuccess: (data) => {
+      if (data.dry_run) {
+        toast.success(`${data.count} cobrança(s) encontrada(s) para estorno.`);
+        console.log("[post-cancel] prévia", data.results);
+      } else {
+        const ok = data.results.filter((r) => r.ok === true).length;
+        toast.success(`${ok} de ${data.count} cobrança(s) estornada(s).`);
+        console.log("[post-cancel] resultado", data.results);
+        qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
+      }
+    },
+    onError: (e: unknown) => toast.error((e as Error)?.message || "Erro"),
+  });
+
 
   if (loading || loadingProfile) {
     return <VeloLoadingScreen message="Carregando reembolsos..." />;
@@ -262,9 +343,31 @@ const AdminRefundsPage = () => {
       title="Reembolsos"
       subtitle="Contas ativas, pedidos recentes e histórico de reembolsos efetuados."
       actions={
-        <div className="flex items-center gap-2 text-[12px] text-[#8A8A8E]">
-          <RotateCcw size={14} strokeWidth={1.5} />
-          Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
+        <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#8A8A8E]">
+          <span className="flex items-center gap-2">
+            <RotateCcw size={14} strokeWidth={1.5} />
+            Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
+          </span>
+          <button
+            type="button"
+            disabled={postCancel.isPending}
+            onClick={() => postCancel.mutate(true)}
+            className="rounded-md border border-black/10 px-3 py-1.5 text-[12px] font-semibold text-[#171715] disabled:opacity-50"
+          >
+            {postCancel.isPending ? <Loader2 size={12} className="animate-spin" /> : "Verificar cobranças após cancelamento"}
+          </button>
+          <button
+            type="button"
+            disabled={postCancel.isPending}
+            onClick={() => {
+              if (window.confirm("Estornar todas as cobranças feitas depois do cancelamento? Essa ação envia o dinheiro de volta e não pode ser desfeita.")) {
+                postCancel.mutate(false);
+              }
+            }}
+            className="rounded-md bg-[#171715] px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+          >
+            Devolver dinheiro agora
+          </button>
         </div>
       }
     >
@@ -337,27 +440,36 @@ const UserCell = ({
   fallback,
   chargeId,
 }: {
-  p?: { display_name: string | null; avatar_url: string | null; email: string | null };
+  p?: UserProfile;
   fallback: string;
   chargeId?: string | null;
-}) => (
-  <div className="flex items-center gap-3">
-    {p?.avatar_url ? (
-      <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
-    ) : (
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
-        <UserRound size={14} strokeWidth={1.5} />
+}) => {
+  const email = p?.email?.trim() || null;
+  const rawName = p?.display_name?.trim() || "";
+  const displayName =
+    rawName && !isGenericUserName(rawName)
+      ? rawName
+      : email?.split("@")[0] || "Usuário";
+
+  return (
+    <div className="flex items-center gap-3">
+      {p?.avatar_url ? (
+        <img src={p.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+      ) : (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EFF6FF] text-[#2563EB]">
+          <UserRound size={14} strokeWidth={1.5} />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="truncate font-semibold text-[#171715]">{displayName}</p>
+        <p className="truncate text-[11px] text-[#8A8A8E]">{email || fallback}</p>
+        <p className="mt-0.5 max-w-[220px] truncate font-mono text-[10.5px] font-semibold text-[#2563EB]">
+          charge_id: {chargeId?.trim() ? chargeId : "—"}
+        </p>
       </div>
-    )}
-    <div className="min-w-0">
-      <p className="truncate font-semibold text-[#171715]">{p?.display_name || "Usuário"}</p>
-      <p className="truncate text-[11px] text-[#8A8A8E]">{p?.email || fallback}</p>
-      <p className="mt-0.5 max-w-[220px] truncate font-mono text-[10.5px] font-semibold text-[#2563EB]">
-        charge_id: {chargeId?.trim() ? chargeId : "—"}
-      </p>
     </div>
-  </div>
-);
+  );
+};
 
 const EmptyRow = ({ text }: { text: string }) => (
   <div className="rounded-2xl border border-dashed border-[#D9DDE7] bg-[#F8FAFC] px-6 py-16 text-center text-[13px] text-[#667085]">{text}</div>
@@ -386,7 +498,7 @@ const EligibleTable = ({
   profiles,
 }: {
   rows: SubRow[];
-  profiles: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }>;
+  profiles: Record<string, UserProfile>;
 }) => {
   if (rows.length === 0) return <EmptyRow text="Nenhuma conta ativa dentro da janela de reembolso." />;
   return (
@@ -440,7 +552,7 @@ const RefundsTable = ({
   onReject,
 }: {
   rows: RefundRow[];
-  profiles: Record<string, { display_name: string | null; avatar_url: string | null; email: string | null }>;
+  profiles: Record<string, UserProfile>;
   subs: Record<string, RefundSubscription>;
   variant: "pending" | "processing" | "approved" | "rejected";
   busyId?: string | null;

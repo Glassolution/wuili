@@ -88,9 +88,9 @@ export function isSuspiciousImageUrl(url: string): boolean {
 type VisionVerdict = { url: string; clean: boolean; reason?: string }
 
 // Checagem visual via IA: detecta marca d'água, logo de loja, texto promocional
-// sobreposto e arte de catálogo. Fail-open por imagem (se a IA falhar, mantém a
-// decisão heurística), para não travar publicações por indisponibilidade.
-async function visionCheck(url: string): Promise<VisionVerdict> {
+// sobreposto e arte de catálogo. Se a análise não responder, a imagem não é
+// aprovada automaticamente: publicar sem validação expõe a conta do vendedor.
+export async function visionCheck(url: string): Promise<VisionVerdict> {
   const raw = await callAI(
     [
       {
@@ -98,10 +98,12 @@ async function visionCheck(url: string): Promise<VisionVerdict> {
         content:
           'Você audita imagens de produto para o Mercado Livre. Responda APENAS com JSON: ' +
           '{"clean":true|false,"reason":"..."}. ' +
-          'clean=false se a imagem tiver marca d\'água, logo/nome de loja ou fornecedor, ' +
+          'clean=false APENAS se a imagem tiver marca d\'água, logo/nome de loja ou de fornecedor, ' +
           'texto promocional sobreposto (preço, "oferta", "frete grátis", "compre já"), ' +
-          'selos, colagens/artes de catálogo, molduras ou banners. ' +
-          'clean=true apenas para foto limpa do produto, sem texto e sem marca d\'água.',
+          'infográfico com textos explicativos, moldura com texto ou banner publicitário. ' +
+          'clean=true para foto do produto em fundo limpo, inclusive quando mostra várias cores/ângulos ' +
+          'do mesmo produto lado a lado, sombra, reflexo ou a marca impressa no próprio produto.',
+
       },
       {
         role: 'user',
@@ -111,15 +113,27 @@ async function visionCheck(url: string): Promise<VisionVerdict> {
         ],
       },
     ],
-    { maxTokens: 120, timeoutMs: 20000 },
+    // orçamento alto: o modelo gasta tokens internos antes de responder e um
+    // limite baixo devolve JSON cortado (todas as fotos eram recusadas à toa).
+    { maxTokens: 1200, timeoutMs: 30000 },
   )
-  if (!raw) return { url, clean: true, reason: 'vision_unavailable' }
-  try {
-    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim())
-    return { url, clean: parsed?.clean !== false, reason: parsed?.reason }
-  } catch {
-    return { url, clean: true, reason: 'vision_unparsed' }
+  if (!raw) return { url, clean: false, reason: 'não foi possível validar visualmente a imagem' }
+  const text = raw.replace(/```json|```/g, '').trim()
+  // A IA às vezes devolve o JSON embrulhado em texto; extrai o primeiro objeto.
+  const candidate = text.startsWith('{') ? text : (text.match(/\{[\s\S]*\}/)?.[0] ?? '')
+  if (candidate) {
+    try {
+      const parsed = JSON.parse(candidate)
+      return { url, clean: parsed?.clean !== false, reason: parsed?.reason }
+    } catch { /* cai para a leitura textual abaixo */ }
   }
+  // Sem JSON: aceita apenas uma afirmação textual inequívoca de imagem limpa.
+  if (/"?clean"?\s*[:=]\s*true/i.test(text)) return { url, clean: true }
+  if (/"?clean"?\s*[:=]\s*false/i.test(text)) {
+    return { url, clean: false, reason: 'marca d\'água, texto ou arte na imagem' }
+  }
+  console.warn('[ml-sanitizer] veredito visual ilegível:', text.slice(0, 160))
+  return { url, clean: false, reason: 'resposta inválida na validação visual' }
 }
 
 export type ImageFilterResult = {
@@ -253,7 +267,7 @@ export async function buildSafeDescription(input: DescriptionInput): Promise<str
     return [
       `${input.title}.`,
       '',
-      ...(lines.length ? lines : ['- Produto novo, pronta entrega.']),
+      ...(lines.length ? lines : ['- Produto novo.']),
     ].join('\n')
   }
 

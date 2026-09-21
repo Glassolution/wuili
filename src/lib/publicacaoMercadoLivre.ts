@@ -265,15 +265,32 @@ export const montarAtributosMl = (dados: {
  */
 export class ErroDePublicacao extends Error {
   codigo?: string;
+  /**
+   * Códigos crus que o Mercado Livre devolve quando bloqueia a conta do
+   * vendedor (ex.: "address_pending", "phone_pending"). É com eles que a UI
+   * monta o modal explicando exatamente o que falta preencher no cadastro.
+   */
+  sellerCodes?: string[];
 
-  constructor(mensagem: string, codigo?: string) {
+  constructor(mensagem: string, codigo?: string, sellerCodes?: string[]) {
     super(mensagem);
     this.name = "ErroDePublicacao";
     this.codigo = codigo;
+    this.sellerCodes = sellerCodes;
   }
 }
 
-export type ResultadoDaPublicacao = { permalink: string; item_id: string };
+export type ResultadoDaPublicacao = {
+  permalink: string;
+  item_id: string;
+  /** Verdadeiro quando o produto foi publicado por variação e alguma delas falhou. */
+  parcial?: boolean;
+  variacoesTotal?: number;
+  variacoesPublicadas?: number;
+  variacoesComFalha?: Array<{ valor: string | null; erro: string }>;
+  mensagem?: string;
+};
+
 
 export type DadosDaPublicacao = {
   produto: ProdutoDoCatalogo;
@@ -297,12 +314,14 @@ export type DadosDaPublicacao = {
  * (CATEGORY_REQUIRES_MANUAL, ML_SELLER_CANNOT_LIST) se perde. Com fetch, status
  * e corpo saem de uma leitura só.
  */
-export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<ResultadoDaPublicacao> => {
+/**
+ * Monta o corpo aceito pela função `ml-publish`. Exportado para a fila de
+ * publicação pendente guardar exatamente o mesmo conteúdo que seria enviado
+ * agora — assim a publicação automática não diverge da manual.
+ */
+export const montarCorpoDePublicacao = (dados: DadosDaPublicacao) => {
   const { produto } = dados;
-  const { data: sessao } = await supabase.auth.getSession();
-  const accessToken = sessao?.session?.access_token ?? supabaseAnonKey;
-
-  const corpo = {
+  return {
     product: {
       id: produto.id,
       external_id: produto.external_id,
@@ -314,7 +333,8 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
       cost_price: produto.cost_price ?? 0,
       description: dados.descricao || `${dados.titulo} - Produto de alta qualidade com envio rápido.`,
       images: listaDeImagens(produto.images),
-      available_quantity: Math.min(dados.estoque, 10),
+      // Estoque real do catálogo (sem teto artificial de 10 unidades).
+      available_quantity: Math.max(1, Math.floor(dados.estoque)),
       condition: "new",
       brand: dados.marca.trim() || null,
       model: dados.modelo.trim() || null,
@@ -325,6 +345,12 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
       size_grid_id: dados.override?.sizeGridId,
     },
   };
+};
+
+export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<ResultadoDaPublicacao> => {
+  const { data: sessao } = await supabase.auth.getSession();
+  const accessToken = sessao?.session?.access_token ?? supabaseAnonKey;
+  const corpo = montarCorpoDePublicacao(dados);
 
   let status = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resposta da função, formato varia por erro
@@ -354,10 +380,34 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
   }
 
   if (status < 200 || status >= 300 || resposta?.error) {
-    throw new ErroDePublicacao(resposta?.error || resposta?.message || "Erro ao publicar", resposta?.code);
+    const sellerCodes = Array.isArray(resposta?.seller_codes)
+      ? resposta.seller_codes.filter((c: unknown): c is string => typeof c === "string")
+      : undefined;
+    throw new ErroDePublicacao(
+      resposta?.error || resposta?.message || "Erro ao publicar",
+      resposta?.code,
+      sellerCodes,
+    );
   }
 
-  return { permalink: resposta?.permalink, item_id: resposta?.item_id };
+  return {
+    permalink: resposta?.permalink,
+    item_id: resposta?.item_id,
+    ...(typeof resposta?.variations_total === "number"
+      ? {
+        parcial: Boolean(resposta?.partial),
+        variacoesTotal: resposta.variations_total,
+        variacoesPublicadas: resposta.variations_published,
+        variacoesComFalha: Array.isArray(resposta?.variations_failed)
+          ? resposta.variations_failed.map((f: { value?: string | null; error?: string }) => ({
+            valor: f?.value ?? null,
+            erro: f?.error ?? "Falha ao publicar variação",
+          }))
+          : [],
+        mensagem: resposta?.message,
+      }
+      : {}),
+  };
 };
 
 /** Mensagem de erro pronta para o usuário, a partir do código da `ml-publish`. */

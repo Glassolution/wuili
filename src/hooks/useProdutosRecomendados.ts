@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
@@ -41,6 +41,8 @@ type LinhaDoCatalogo = {
   images: unknown;
   rating: number | null;
   orders_count: number | null;
+  scraped_at: string | null;
+  updated_at: string | null;
 };
 
 /** Quantos cards entram no carrossel. */
@@ -53,6 +55,27 @@ const QUANTIDADE_DE_CARDS = 8;
  * estreito, e a seleção parece uma busca, não uma recomendação.
  */
 const MAXIMO_POR_CATEGORIA = 3;
+
+/** Histórico compartilhado pelos carrosséis criados durante esta sessão. */
+const produtosVistosPorSelecao = new Map<string, Set<string>>();
+
+const historicoDaSelecao = (userId: string | null, termos: string) => {
+  const chave = `${userId ?? "anon"}|${termos || "perfil"}`;
+  const existente = produtosVistosPorSelecao.get(chave);
+  if (existente) return existente;
+  const novo = new Set<string>();
+  produtosVistosPorSelecao.set(chave, novo);
+  return novo;
+};
+
+/** Produtos atualizados recentemente ganham prioridade sem apagar qualidade. */
+const bonusDeAtualidade = (linha: LinhaDoCatalogo) => {
+  const data = linha.scraped_at ?? linha.updated_at;
+  if (!data) return 0;
+  const idadeEmDias = Math.max(0, (Date.now() - new Date(data).getTime()) / 86_400_000);
+  if (!Number.isFinite(idadeEmDias)) return 0;
+  return Math.max(0, 35 - idadeEmDias * 1.5);
+};
 
 /** Mesmo tratamento de imagem do catálogo: o campo vem como json ou string. */
 const primeiraImagem = (images: unknown): string | null => {
@@ -79,6 +102,26 @@ type Retorno = {
   /** Frase que explica em que a seleção se baseou, para o cabeçalho. */
   resumo: string;
   respostas: RespostasDoQuiz;
+  /** Troca a seleção por outra rodada de produtos do mesmo nicho. */
+  recarregar: () => void;
+};
+
+/**
+ * Embaralhamento estável por usuário e por rodada.
+ *
+ * Sem isso a mesma lista aparecia para todo mundo: a pontuação depende só do
+ * perfil, e perfis iguais geram a mesma ordem. O ruído é pequeno o bastante
+ * para não jogar produto ruim para cima, e grande o bastante para duas contas
+ * do mesmo nicho verem vitrines diferentes.
+ */
+const ruidoEstavel = (produtoId: string, userId: string | null, rodada: number) => {
+  const texto = `${produtoId}|${userId ?? "anon"}|${rodada}`;
+  let hash = 2166136261;
+  for (let i = 0; i < texto.length; i += 1) {
+    hash ^= texto.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 1000) / 1000;
 };
 
 export const useProdutosRecomendados = (
@@ -90,6 +133,8 @@ export const useProdutosRecomendados = (
   const [produtos, setProdutos] = useState<ProdutoRecomendado[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  /** Cada clique em "Ver outros produtos" avança a rodada e troca a seleção. */
+  const [rodada, setRodada] = useState(0);
 
   const respostas = useMemo(() => lerRespostasDoQuiz(user), [user]);
   const resumo = useMemo(() => resumoDoPerfil(respostas), [respostas]);
@@ -102,6 +147,14 @@ export const useProdutosRecomendados = (
   // Guarda o piso de tempo só na primeira busca: reconsultas silenciosas não
   // precisam segurar o esqueleto de novo.
   const jaBuscouRef = useRef(false);
+  // Inclui produtos mostrados por carrosséis anteriores da mesma categoria.
+  const jaVistosRef = useRef<Set<string>>(historicoDaSelecao(userId, chaveDosTermos));
+
+  // Cada nicho mantém seu histórico; voltar a ele não repete a primeira leva.
+  useEffect(() => {
+    jaVistosRef.current = historicoDaSelecao(userId, chaveDosTermos);
+    setRodada(0);
+  }, [chaveDosTermos, userId]);
 
   useEffect(() => {
     let ativo = true;
@@ -117,45 +170,63 @@ export const useProdutosRecomendados = (
         const base = () =>
           supabase
             .from("catalog_products")
-            .select("id,title,category,cost_price,images,rating,orders_count")
+            .select("id,title,category,cost_price,images,rating,orders_count,scraped_at,updated_at")
+            .eq("is_active", true)
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
             .not("category", "in", `(${CATEGORIAS_EXCLUIDAS.map((c) => `"${c}"`).join(",")})`);
 
         // Três consultas: o nicho confirmado na conversa, o nicho do cadastro e
-        // a geral. A geral entra como complemento porque um nicho estreito pode
-        // ter poucos produtos com estoque, e o carrossel ficaria com dois cards.
-        const [doNichoDaConversa, doNichoDoQuiz, gerais] = await Promise.all([
+        // a geral. As duas últimas são só rede de segurança — entram apenas se o
+        // nicho não render cards suficientes.
+        const [melhoresDoNicho, recentesDoNicho, doNichoDoQuiz, gerais] = await Promise.all([
           termos.length > 0
             ? withFreshSupabaseSession(() =>
                 base()
                   .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
                   .order("orders_count", { ascending: false, nullsFirst: false })
-                  .limit(60),
+                  .limit(160),
+              )
+            : Promise.resolve({ data: [], error: null }),
+          termos.length > 0
+            ? withFreshSupabaseSession(() =>
+                base()
+                  .or(termos.map((termo) => `category.ilike.%${termo}%,title.ilike.%${termo}%`).join(","))
+                  .order("scraped_at", { ascending: false, nullsFirst: false })
+                  .limit(160),
               )
             : Promise.resolve({ data: [], error: null }),
           categorias.length > 0
-            ? withFreshSupabaseSession(() => base().in("category", categorias).limit(60))
+            ? withFreshSupabaseSession(() => base().in("category", categorias).limit(120))
             : Promise.resolve({ data: [], error: null }),
           withFreshSupabaseSession(() =>
-            base().order("orders_count", { ascending: false, nullsFirst: false }).limit(60),
+            base().order("orders_count", { ascending: false, nullsFirst: false }).limit(120),
           ),
         ]);
 
-        if (doNichoDaConversa.error) throw doNichoDaConversa.error;
+        if (melhoresDoNicho.error) throw melhoresDoNicho.error;
+        if (recentesDoNicho.error) throw recentesDoNicho.error;
         if (doNichoDoQuiz.error) throw doNichoDoQuiz.error;
         if (gerais.error) throw gerais.error;
 
-        const idsDoNichoDaConversa = new Set(
-          ((doNichoDaConversa.data as LinhaDoCatalogo[]) ?? []).map((linha) => linha.id),
-        );
+        const linhasDoNicho = [
+          ...(((melhoresDoNicho.data as LinhaDoCatalogo[]) ?? [])),
+          ...(((recentesDoNicho.data as LinhaDoCatalogo[]) ?? [])),
+        ];
+        const linhasDoQuiz = (doNichoDoQuiz.data as LinhaDoCatalogo[]) ?? [];
+        const linhasGerais = (gerais.data as LinhaDoCatalogo[]) ?? [];
+        const idsDoNichoDaConversa = new Set(linhasDoNicho.map((linha) => linha.id));
+
+        // Precisão do guia: com nicho escolhido, a vitrine é só do nicho. As
+        // outras listas só completam quando o nicho tem pouco estoque — antes
+        // elas entravam sempre e enchiam a vitrine de produto fora do assunto.
+        const temNichoSuficiente = termos.length > 0 && linhasDoNicho.length >= QUANTIDADE_DE_CARDS * 2;
+        const fonte = temNichoSuficiente
+          ? linhasDoNicho
+          : [...linhasDoNicho, ...linhasDoQuiz, ...linhasGerais];
 
         const porId = new Map<string, LinhaDoCatalogo>();
-        for (const linha of [
-          ...((doNichoDaConversa.data as LinhaDoCatalogo[]) ?? []),
-          ...((doNichoDoQuiz.data as LinhaDoCatalogo[]) ?? []),
-          ...((gerais.data as LinhaDoCatalogo[]) ?? []),
-        ]) {
+        for (const linha of fonte) {
           if (!porId.has(linha.id)) porId.set(linha.id, linha);
         }
 
@@ -177,18 +248,26 @@ export const useProdutosRecomendados = (
             // as respostas do cadastro.
             const bonusDoNicho = idsDoNichoDaConversa.has(linha.id) ? 100 : 0;
             const pontos =
-              pontuarProdutoParaPerfil(produto, respostas, { produtoId: linha.id, userId }) + bonusDoNicho;
+              pontuarProdutoParaPerfil(produto, respostas, { produtoId: linha.id, userId }) +
+              bonusDoNicho +
+              bonusDeAtualidade(linha) +
+              ruidoEstavel(linha.id, userId, rodada) * 45;
             return { produto, pontos };
           })
           .filter((item): item is { produto: Omit<ProdutoRecomendado, "motivo">; pontos: number } => Boolean(item))
           .sort((a, b) => b.pontos - a.pontos);
+
+        // Nunca repete um produto já mostrado nesta categoria durante a sessão.
+        const vistos = jaVistosRef.current;
+        const inéditos = ranqueados.filter(({ produto }) => !vistos.has(produto.id));
+        const pool = inéditos;
 
         // Passa uma vez respeitando o teto por categoria e, se ainda faltar
         // card, completa com o resto na ordem da pontuação.
         const escolhidos: Array<Omit<ProdutoRecomendado, "motivo">> = [];
         const usados = new Set<string>();
         const porCategoria = new Map<string, number>();
-        for (const { produto } of ranqueados) {
+        for (const { produto } of pool) {
           if (escolhidos.length >= QUANTIDADE_DE_CARDS) break;
           const quantos = porCategoria.get(produto.categoria) ?? 0;
           if (quantos >= MAXIMO_POR_CATEGORIA) continue;
@@ -196,7 +275,7 @@ export const useProdutosRecomendados = (
           escolhidos.push(produto);
           usados.add(produto.id);
         }
-        for (const { produto } of ranqueados) {
+        for (const { produto } of pool) {
           if (escolhidos.length >= QUANTIDADE_DE_CARDS) break;
           if (usados.has(produto.id)) continue;
           escolhidos.push(produto);
@@ -215,6 +294,7 @@ export const useProdutosRecomendados = (
 
         if (!ativo) return;
         jaBuscouRef.current = true;
+        for (const produto of selecionados) jaVistosRef.current.add(produto.id);
         setProdutos(selecionados);
         setCarregando(false);
       } catch (e) {
@@ -228,7 +308,9 @@ export const useProdutosRecomendados = (
     return () => {
       ativo = false;
     };
-  }, [chaveDosTermos, respostas, tempoMinimoMs, userId]);
+  }, [chaveDosTermos, respostas, rodada, tempoMinimoMs, userId]);
 
-  return { produtos, carregando, erro, resumo, respostas };
+  const recarregar = useCallback(() => setRodada((atual) => atual + 1), []);
+
+  return { produtos, carregando, erro, resumo, respostas, recarregar };
 };

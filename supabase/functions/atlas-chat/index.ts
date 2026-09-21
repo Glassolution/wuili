@@ -134,6 +134,7 @@ type ServiceClient = SupabaseClient<any> | null;
 
 type MercadoLivreIntegrationRow = {
   access_token?: string | null;
+  refresh_token?: string | null;
   expires_at?: string | null;
   platform?: string | null;
 };
@@ -203,6 +204,12 @@ const saidConnectedMl = (message: string) =>
 /** Pedido explícito de adiar a conexão, para o guia não virar uma parede. */
 const wantsToConnectLater = (message: string) =>
   /\b(depois|mais tarde|agora nao|outra hora|pular|pula)\b/.test(normalizeGuideText(message));
+
+/** Pedido de publicar o anúncio, dito de várias formas dentro do guia. */
+const wantsToPublish = (message: string) =>
+  /\b(publicar|publica|publique|publicacao|anunciar|anuncio|subir o anuncio|colocar no ar)\b/.test(
+    normalizeGuideText(message),
+  );
 
 const wantsOtherOptions = (message: string) =>
   /\b(outra|outras|outro|outros|mais opcoes|ver outras|trocar produto)\b/.test(normalizeGuideText(message));
@@ -277,7 +284,7 @@ const isLostOrUnsure = (message: string) => {
  */
 const offerBeginnerGuideResponse = (nome: string | null = null): AtlasResponse => ({
   message:
-    `Calma${nome ? `, ${nome}` : ""}, travar no começo é normal — quase todo mundo chega assim. 🙂\n\nEu tenho um **guia de iniciante** de 5 passos e faço ele junto com você:\n\n1. Escolher o seu nicho\n2. Separar produtos com estoque e boa margem\n3. Definir onde vender\n4. Conferir o potencial de divulgação\n5. Publicar o seu primeiro anúncio\n\nQuer que eu comece agora? Se preferir, também respondo qualquer dúvida solta antes.`,
+    `Calma${nome ? `, ${nome}` : ""}, travar no começo é normal — quase todo mundo chega assim. 🙂\n\nEu tenho um **guia de iniciante** e faço ele junto com você, um passo de cada vez — começando pelo seu nicho.\n\nQuer que eu comece agora? Se preferir, também respondo qualquer dúvida solta antes.`,
   actions: [
     CONVITE_DO_GUIA,
     { type: "quick_reply", label: "Só tirar uma dúvida", message: "Quero tirar uma dúvida antes" },
@@ -682,7 +689,7 @@ const registrarUso = (registro: RegistroDeUso) => {
 /**
  * Nome da etapa a partir da própria resposta.
  *
- * O guia já carrega "Passo N de 5" no texto, então dá para etiquetar sem
+ * O guia já carrega "Passo N de 4" no texto, então dá para etiquetar sem
  * espalhar parâmetro por todas as funções que montam resposta.
  */
 const etapaDaRespostaDoGuia = (resposta: AtlasResponse) => {
@@ -723,6 +730,27 @@ const getLastAssistantMessage = (messages: ChatMessage[]) =>
 
 const getLastAssistantActions = (messages: ChatMessage[]) =>
   getLastAssistantMessage(messages)?.product_data?.actions ?? [];
+
+/**
+ * Produto escolhido no guia, procurado na conversa inteira.
+ *
+ * Antes o produto só existia enquanto o card estivesse na ÚLTIMA mensagem do
+ * Atlas. Bastava uma resposta livre no meio para o guia perder o produto, cair
+ * no modelo e ele improvisar descrição e mandar o usuário para Publicações com
+ * outro produto. Uma vitrine com vários cards interrompe a busca: ali ainda não
+ * houve escolha.
+ */
+const findChosenProductCard = (messages: ChatMessage[]): ProductCardAction | null => {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "assistant") continue;
+    const cards = (message.product_data?.actions ?? []).filter(
+      (action): action is ProductCardAction => action?.type === "product_card",
+    );
+    if (cards.length === 1) return cards[0];
+    if (cards.length > 1) return null;
+  }
+  return null;
+};
 
 const normalizeSafetyText = (value: string) =>
   normalizeText(value)
@@ -951,7 +979,7 @@ const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string
 
   const { data } = await supabase
     .from("user_integrations")
-    .select("access_token,expires_at,platform")
+    .select("access_token,refresh_token,expires_at,platform")
     .eq("user_id", userId)
     .in("platform", ["mercadolivre", "mercado_livre", "ml"])
     .limit(1)
@@ -959,7 +987,13 @@ const getUserMercadoLivreStatus = async (supabase: ServiceClient, userId: string
 
   const integration = data as MercadoLivreIntegrationRow | null;
   const expiresAt = integration?.expires_at ? new Date(String(integration.expires_at)).getTime() : 0;
-  const tokenValid = Boolean(integration?.access_token) && (!expiresAt || expiresAt > Date.now() + 60_000);
+  // O token do ML dura ~6h e o refresh roda em cron e de novo na hora de
+  // publicar (ml-publish). Exigir expires_at futuro fazia o Atlas dizer "não
+  // estou enxergando a conexão" para quem a tela de Integrações mostrava como
+  // conectado — basta ter access_token + refresh_token para a conta funcionar.
+  const tokenValid =
+    Boolean(integration?.access_token) &&
+    (!expiresAt || expiresAt > Date.now() + 60_000 || Boolean(integration?.refresh_token));
   return { connected: Boolean(integration?.access_token), tokenValid };
 };
 
@@ -1020,13 +1054,13 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
     if (destaques.length === 0) {
       return {
         message:
-          `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nVamos pelo caminho curto: abre o catálogo e escolhe um produto que te chamou atenção — eu monto o guia em cima dele.`,
+          `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo.${nome ? ` Bora, ${nome}!` : ""} 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nVamos pelo caminho curto: abre o catálogo e escolhe um produto que te chamou atenção — eu monto o guia em cima dele.`,
         actions: [{ type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo" }],
       };
     }
     return {
       message:
-        `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nSeparei as categorias que mais saem hoje. Escolhe uma abaixo e eu te levo direto aos produtos dela.`,
+        `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo.${nome ? ` Bora, ${nome}!` : ""} 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nSeparei as categorias que mais saem hoje. Escolhe uma abaixo e eu te levo direto aos produtos dela.`,
       actions: [
         ...destaques.map((categoria) => ({
           type: "navigation" as const,
@@ -1041,7 +1075,7 @@ const askBeginnerNiche = async (supabase: ServiceClient, nome: string | null = n
 
   return {
     message:
-      `Bora${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 1 de 5: seu nicho**\n\nOlhei ${sourceLabel} e separei o que está saindo bem. Escolhe uma opção abaixo, ou me diz outro nicho que você já tem em mente.`,
+      `Tudo bem, já que esse é o seu começo na Velo, vou te guiar por isso passo a passo.${nome ? ` Bora, ${nome}!` : ""} 🎉\n\n**Passo 1 de 4 — seu nicho**\n\nOlhei ${sourceLabel} e separei o que está saindo bem. Escolhe uma opção abaixo, ou me diz outro nicho que você já tem em mente.`,
     actions: [
       ...suggestions.map((label) => quickReply(label, `Quero começar com ${label}`)),
       quickReply("Ainda não sei", "Ainda não sei qual nicho escolher"),
@@ -1075,7 +1109,7 @@ const validateNicheStep = async (
     const alternativas = beginnerNicheSuggestions(nichosDisponiveis(await researchMarketSignals(supabase)), 4);
     return {
       message:
-        `**Passo 1 de 5: seu nicho**\n\n${vocativo(nome, ", ").replace(/^(.)/, (letra) => letra.toUpperCase())}vou ser sincero com você: o catálogo Velo não tem produtos de **${niche.label}** agora.\n\nSeguir por aí te deixaria sem nada pra escolher no próximo passo.\n\n${
+        `**Passo 1 de 4 — seu nicho**\n\n${vocativo(nome, ", ").replace(/^(.)/, (letra) => letra.toUpperCase())}vou ser sincero com você: o catálogo Velo não tem produtos de **${niche.label}** agora.\n\nSeguir por aí te deixaria sem nada pra escolher no próximo passo.\n\n${
           alternativas.length > 0
             ? "Estes aqui a gente atende hoje. São parecidos o bastante para funcionar bem com o que você tinha em mente:"
             : "Vamos por outro caminho. Abra o catálogo e escolha a partir do que existe hoje."
@@ -1089,7 +1123,7 @@ const validateNicheStep = async (
 
   return {
     message:
-      `Boa escolha${nome ? `, ${nome}` : ""}!\n\n**Passo 1 de 5: seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\n**Demanda:** ${demandText}\n**Concorrência:** ${competitionText}\n\n${signal.note}\n\nFechado esse nicho. Vamos aos produtos.`,
+      `Boa escolha${nome ? `, ${nome}` : ""}!\n\n**Passo 1 de 4 — seu nicho**\n\nNicho sugerido: **${niche.label}**.\n\n**Demanda:** ${demandText}\n**Concorrência:** ${competitionText}\n\n${signal.note}\n\nFechado esse nicho. Vamos aos produtos.`,
     actions: [
       quickReply(`Vamos aos produtos`, `Sim, buscar produtos de ${niche.label}`),
       quickReply("Quero outro nicho", "Quero ver outros nichos"),
@@ -1138,7 +1172,7 @@ const showProductsForNiche = async (
 
   return {
     message:
-      `Nicho definido${nome ? `, ${nome}` : ""}! 😄\n\n**Passo 2 de 5: escolha do produto**\n\nCruzei **${niche.label}** com o catálogo e separei até 3 opções com estoque ativo e boa margem. Escolhe uma pra seguir.`,
+      `Nicho definido${nome ? `, ${nome}` : ""}! 😄\n\n**Passo 1 de 4 — escolha do produto**\n\nCruzei **${niche.label}** com o catálogo e separei até 3 opções com estoque ativo e boa margem. Escolhe uma pra seguir.`,
     actions: [
       ...products.map(productCardFromRow),
       quickReply("Quero o primeiro", "Quero o primeiro produto"),
@@ -1167,7 +1201,7 @@ const guideOpenShowcaseStep = async (
 
   return {
     message:
-      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 2 de 5: escolha do produto**\n\nSeparei aqui embaixo uma seleção do seu nicho, só com estoque ativo e no perfil que você me contou no cadastro. Arrasta pro lado e toca no que te agradar — eu sigo o guia com ele.`,
+      `Nicho fechado${nome ? `, ${nome}` : ""}: **${niche.label}**. 🎉\n\n**Passo 1 de 4 — escolha do produto**\n\nSeparei aqui embaixo uma seleção do seu nicho, só com estoque ativo e no perfil que você me contou no cadastro. Arrasta pro lado e toca no que te agradar — eu sigo o guia com ele.`,
     actions: [
       {
         type: "open_showcase",
@@ -1245,7 +1279,7 @@ const validateSocialPotentialStep = (
 
   return {
     message:
-      `${prefacio ? `${prefacio}\n\n` : `Produto escolhido${nome ? `, ${nome}` : ""}! Metade do caminho feita.\n\n`}**Passo 4 de 5: potencial de divulgação**\n\n**Minha leitura de ${titulo}:** potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nÉ leitura do tipo de produto, não medição de rede social. Pra criar conteúdo: #tiktok e #imagens-ia.\n\nVamos pra publicação.`,
+      `${prefacio ? `${prefacio}\n\n` : `Produto escolhido${nome ? `, ${nome}` : ""}! Metade do caminho feita.\n\n`}**Passo 3 de 4 — potencial de divulgação**\n\n**Minha leitura de ${titulo}:** potencial **${avaliacao.nivel}**. ${avaliacao.leitura}\n\nÉ leitura do tipo de produto, não medição de rede social. Pra criar conteúdo: #tiktok e #imagens-ia.\n\nVamos pra publicação.`,
     actions: [
       product,
       quickReply("Seguir para a publicação", "Sim, seguir com esse produto para publicação"),
@@ -1268,7 +1302,7 @@ const guidePublicationStep = async (
   if (!mlStatus.connected || !mlStatus.tokenValid) {
     return {
       message:
-        `Último passo${nome ? `, ${nome}` : ""}!\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}\n\nFalta **conectar sua conta do Mercado Livre** pra Velo publicar por você. Sua senha nunca passa pela Velo.\n\nToca em conectar agora e me avisa quando voltar.`,
+        `Último passo${nome ? `, ${nome}` : ""}!\n\n**Passo 4 de 4 — resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre\n- **Produto:** ${productTitle}\n\nFalta **conectar sua conta do Mercado Livre** pra Velo publicar por você. Sua senha nunca passa pela Velo.\n\nToca em conectar agora e me avisa quando voltar.`,
       actions: [
         // Conecta pelo próprio chat: o usuário não precisa achar a tela sozinho.
         { type: "connect_ml", label: "Conectar Mercado Livre agora" },
@@ -1284,7 +1318,7 @@ const guidePublicationStep = async (
 
   return {
     message:
-      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nA gente publica aqui mesmo, sem sair da conversa. Aqui embaixo eu te peço três coisas:\n\n1. **Título e preço** — o título com as palavras que o comprador digita na busca, e o preço já mostrando quanto sobra pra você.\n2. **Descrição** — eu escrevo pra você, ou você escreve do seu jeito.\n3. **Publicar** — você confere o resumo e toca no botão. Eu mando pro Mercado Livre.`,
+      `Último passo${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 4 de 4 — resumo e publicação**\n\n- **Nicho:** ${nicheLabel}\n- **Canal:** Mercado Livre (conta conectada)\n- **Produto:** ${productTitle}\n\nA gente publica aqui mesmo, sem sair da conversa. Aqui embaixo eu te peço três coisas:\n\n1. **Título e preço** — o título com as palavras que o comprador digita na busca, e o preço já mostrando quanto sobra pra você.\n2. **Descrição** — eu escrevo pra você, ou você escreve do seu jeito.\n3. **Publicar** — você confere o resumo e toca no botão. Eu mando pro Mercado Livre.`,
     actions: [
       // O frontend renderiza esta ação como o formulário de publicação dentro
       // da conversa. Antes o guia só mandava "abrir o produto" e o iniciante não
@@ -1343,7 +1377,7 @@ const guideProductChosenStep = async (
 
   return {
     message:
-      `Ótima escolha${nome ? `, ${nome}` : ""}! 😄 Anotei: **${produto.nome}**${preco ? ` (${preco})` : ""}.\n\n**Passo 3 de 5: onde vender**\n\nVocê vai vender no **Mercado Livre**: é onde a procura já existe, sem criar site nem pagar anúncio.\n\n${sobreAConta}\n\n${mlPronto ? "Bora pro próximo passo." : "Agora é só conectar a sua conta."}`,
+      `Ótima escolha${nome ? `, ${nome}` : ""}! 😄 Anotei: **${produto.nome}**${preco ? ` (${preco})` : ""}.\n\n**Passo 2 de 4 — onde vender**\n\nVocê vai vender no **Mercado Livre**: é onde a procura já existe, sem criar site nem pagar anúncio.\n\n${sobreAConta}\n\n${mlPronto ? "Bora pro próximo passo." : "Agora é só conectar a sua conta."}`,
     actions: [
       {
         type: "product_card",
@@ -1391,7 +1425,7 @@ const guideConnectMlStep = (
   if (jaDisseQueConectou) {
     return {
       message:
-        `**Passo 3 de 5: conectar sua conta**\n\n${nome ? `${nome}, a` : "A"}inda não estou enxergando a conexão do meu lado. Quase sempre é uma destas três:\n\n1. A janela do Mercado Livre fechou antes do clique em permitir.\n2. O login foi numa conta diferente da que você quer usar pra vender.\n3. A autorização ainda está processando. Espera alguns segundos e me chama.\n\nNada grave. Vamos de novo, com calma:\n\n${passoAPasso}\n\nSe aparecer alguma mensagem estranha, me conta o que estava escrito.`,
+        `**Passo 2 de 4 — conectar sua conta**\n\n${nome ? `${nome}, a` : "A"}inda não estou enxergando a conexão do meu lado. Quase sempre é uma destas três:\n\n1. A janela do Mercado Livre fechou antes do clique em permitir.\n2. O login foi numa conta diferente da que você quer usar pra vender.\n3. A autorização ainda está processando. Espera alguns segundos e me chama.\n\nNada grave. Vamos de novo, com calma:\n\n${passoAPasso}\n\nSe aparecer alguma mensagem estranha, me conta o que estava escrito.`,
       actions: [
         { type: "connect_ml", label: "Conectar Mercado Livre" },
         { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
@@ -1404,7 +1438,7 @@ const guideConnectMlStep = (
 
   return {
     message:
-      `Vamos nessa${nome ? `, ${nome}` : ""}!\n\n**Passo 3 de 5: conectar sua conta**\n\n${passoAPasso}\n\n**Senha:** nunca passa pela Velo. Dá pra desconectar quando quiser em #integracoes.\n\nToca em conectar e me avisa quando voltar.`,
+      `Vamos nessa${nome ? `, ${nome}` : ""}!\n\n**Passo 2 de 4 — conectar sua conta**\n\n${passoAPasso}\n\n**Senha:** nunca passa pela Velo. Dá pra desconectar quando quiser em #integracoes.\n\nToca em conectar e me avisa quando voltar.`,
     actions: [
       { type: "connect_ml", label: "Conectar Mercado Livre" },
       { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
@@ -1435,11 +1469,15 @@ const maybeHandleBeginnerGuide = async (
   const lastAssistantText = normalizeGuideText(lastAssistant?.content ?? "");
   const lastActions = getLastAssistantActions(messages);
   const lastProductCards = lastActions.filter((action): action is ProductCardAction => action.type === "product_card");
+  // Produto da etapa atual quando o card ainda está na tela; senão, o último
+  // escolhido na conversa. É o que impede o guia de trocar de produto.
+  const produtoEscolhido =
+    lastProductCards.length === 1 ? lastProductCards[0] : findChosenProductCard(messages);
 
-  // O guia se identifica pelo marcador "passo N de 5", presente em toda etapa.
+  // O guia se identifica pelo marcador "passo N de 4", presente em toda etapa.
   // Antes isso dependia do título "Guia de Iniciante"; qualquer mudança de texto
   // quebrava a continuidade e o fluxo caía no modelo genérico no meio do caminho.
-  const guideWasActive = /passo \d de 5/.test(lastAssistantText);
+  const guideWasActive = /passo \d de 4/.test(lastAssistantText);
   const guideReply = isBeginnerGuideReply(lastUserMessage) || isBeginnerTrigger(lastUserMessage, userMessageCount);
 
   // O guia é um modo de ajuda, não uma prisão. Se o usuário fizer conversa normal
@@ -1452,7 +1490,10 @@ const maybeHandleBeginnerGuide = async (
     return askBeginnerNiche(supabase, nome);
   }
 
-  const emPasso = (n: number) => guideWasActive && lastAssistantText.includes(`passo ${n} de 5`);
+  // As etapas passaram a ser identificadas pelo subtítulo: a numeração mudou de 5
+  // para 4 passos e o passo 1 cobre nicho + escolha do produto.
+  const emEtapa = (...subtitulos: string[]) =>
+    guideWasActive && subtitulos.some((subtitulo) => lastAssistantText.includes(subtitulo));
 
   // "Ver outras opções" vale em qualquer etapa que já tenha produto na tela.
   // Tratado antes das etapas específicas porque o botão aparece nos passos 2, 3
@@ -1464,16 +1505,16 @@ const maybeHandleBeginnerGuide = async (
   }
 
   // Passo 4 (divulgação) confirmado -> Passo 5 (resumo + publicação).
-  if (emPasso(4) && lastProductCards.length > 0 && isConfirmText(lastUserMessage)) {
+  if (emEtapa("potencial de divulgacao") && produtoEscolhido && isConfirmText(lastUserMessage)) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
-    return guidePublicationStep(supabase, userId, lastProductCards[0], niche, nome);
+    return guidePublicationStep(supabase, userId, produtoEscolhido, niche, nome);
   }
 
   // Passo 3 (onde vender / conectar): com a conta no lugar, seguir para o passo
   // 4 (potencial de divulgação).
   if (
-    emPasso(3) &&
-    lastProductCards.length > 0 &&
+    emEtapa("onde vender", "conectar sua conta") &&
+    produtoEscolhido &&
     (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage) || saidConnectedMl(lastUserMessage))
   ) {
     // Nicho pode não existir: quem escolheu o produto direto no catálogo nunca
@@ -1486,11 +1527,11 @@ const maybeHandleBeginnerGuide = async (
     if (!wantsToConnectLater(lastUserMessage)) {
       const mlStatus = await getUserMercadoLivreStatus(supabase, userId);
       if (!mlStatus.connected || !mlStatus.tokenValid) {
-        return guideConnectMlStep(lastProductCards[0], saidConnectedMl(lastUserMessage), nome);
+        return guideConnectMlStep(produtoEscolhido, saidConnectedMl(lastUserMessage), nome);
       }
       if (saidConnectedMl(lastUserMessage)) {
         return validateSocialPotentialStep(
-          lastProductCards[0],
+          produtoEscolhido,
           niche,
           `Conta conectada${nome ? `, ${nome}` : ""}! 🎉 Essa era a parte mais chata de todas, e já ficou pra trás.`,
           nome,
@@ -1498,12 +1539,12 @@ const maybeHandleBeginnerGuide = async (
       }
     }
 
-    return validateSocialPotentialStep(lastProductCards[0], niche, undefined, nome);
+    return validateSocialPotentialStep(produtoEscolhido, niche, undefined, nome);
   }
 
   // Passo 2 com cards na tela (fallback de quem não usou a vitrine): produto
   // confirmado -> passo 3, já amarrado ao produto escolhido.
-  if (emPasso(2) && lastProductCards.length > 0 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && lastProductCards.length === 1 && (isConfirmText(lastUserMessage) || /produto/i.test(lastUserMessage))) {
     const escolhido = lastProductCards[0];
     return guideProductChosenStep(supabase, userId, {
       id: escolhido.product_id,
@@ -1516,10 +1557,10 @@ const maybeHandleBeginnerGuide = async (
 
   // Quem prefere garimpar sozinho sai da vitrine para a grade inteira, sem
   // perder o guia: o produto escolhido no catálogo volta pelo mesmo caminho.
-  if (emPasso(2) && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && /catalogo completo/.test(normalizeGuideText(lastUserMessage))) {
     return {
       message:
-        `Fechado${nome ? `, ${nome}` : ""}, vamos pelo catálogo completo.\n\n**Passo 2 de 5: escolha do produto**\n\nAbre o catálogo, usa os filtros e escolhe o produto que mais te agradar.\n\nQuando você clicar em escolher, eu sigo o guia com ele daqui.`,
+        `Fechado${nome ? `, ${nome}` : ""}, vamos pelo catálogo completo.\n\n**Passo 1 de 4 — escolha do produto**\n\nAbre o catálogo, usa os filtros e escolhe o produto que mais te agradar.\n\nQuando você clicar em escolher, eu sigo o guia com ele daqui.`,
       actions: [
         { type: "navigation", label: "Abrir Catálogo", route: "/dashboard/catalogo", variant: "primary" },
         quickReply("Prefiro a seleção do Atlas", "Ver outras opções de produto"),
@@ -1530,7 +1571,7 @@ const maybeHandleBeginnerGuide = async (
   // Passo 2 sem cards: a vitrine é o caminho. Se o usuário rolou a conversa e
   // perdeu o carrossel de vista, ele pede de volta e o guia manda outro em vez
   // de travar.
-  if (emPasso(2) && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
+  if (emEtapa("escolha do produto") && lastProductCards.length === 0 && (isConfirmText(lastUserMessage) || wantsOtherOptions(lastUserMessage))) {
     const niche = inferNicheFromConversation(messages, lastUserMessage);
     if (niche) return guideOpenShowcaseStep(supabase, niche, nome);
   }
@@ -1538,7 +1579,7 @@ const maybeHandleBeginnerGuide = async (
   // Passo 5: usuário avisa que conectou o Mercado Livre.
   // A confirmação é checada no banco antes de comemorar: dizer "conectado" sem
   // conferir levava o usuário até a publicação e o erro só aparecia lá.
-  if (emPasso(5) && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
+  if (emEtapa("resumo e publicacao", "revisao final", "conectar antes de publicar") && /\b(ja conectei|já conectei|conectei|conectado)\b/i.test(lastUserMessage)) {
     const productNav = lastActions.find(
       (action): action is NavigationAction =>
         action.type === "navigation" && action.route.includes("/dashboard/catalogo/") && !action.route.includes("publicar=1"),
@@ -1548,7 +1589,7 @@ const maybeHandleBeginnerGuide = async (
     if (!mlStatus.connected || !mlStatus.tokenValid) {
       return {
         message:
-          `**Passo 5 de 5: conectar antes de publicar**\n\n${nome ? `${nome}, a` : "A"}inda não estou enxergando a sua conta do Mercado Livre conectada${mlStatus.connected ? " (a autorização expirou e precisa ser refeita)" : ""}.\n\nQuase sempre é uma destas três:\n\n1. A janela do Mercado Livre fechou antes do clique em **Permitir**.\n2. O login foi numa conta diferente da que você usa pra vender.\n3. A autorização ainda está processando — espera alguns segundos e me chama.\n\nToca em conectar e me avisa quando voltar.`,
+          `**Passo 4 de 4 — conectar antes de publicar**\n\n${nome ? `${nome}, a` : "A"}inda não estou enxergando a sua conta do Mercado Livre conectada${mlStatus.connected ? " (a autorização expirou e precisa ser refeita)" : ""}.\n\nQuase sempre é uma destas três:\n\n1. A janela do Mercado Livre fechou antes do clique em **Permitir**.\n2. O login foi numa conta diferente da que você usa pra vender.\n3. A autorização ainda está processando — espera alguns segundos e me chama.\n\nToca em conectar e me avisa quando voltar.`,
         actions: [
           { type: "connect_ml", label: "Conectar Mercado Livre" },
           { type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" },
@@ -1560,7 +1601,7 @@ const maybeHandleBeginnerGuide = async (
 
     return {
       message:
-        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 5 de 5: revisão final**\n\nPublicamos aqui mesmo. Aqui embaixo eu te peço o **título e o preço** (já te mostro quanto sobra por venda), depois a **descrição** — escrevo pra você se quiser — e por fim é só tocar em publicar.`,
+        `Confirmei aqui: sua conta do Mercado Livre está conectada${nome ? `, ${nome}` : ""}! 🎉\n\n**Passo 4 de 4 — revisão final**\n\nPublicamos aqui mesmo. Aqui embaixo eu te peço o **título e o preço** (já te mostro quanto sobra por venda), depois a **descrição** — escrevo pra você se quiser — e por fim é só tocar em publicar.`,
       actions: [
         // Sem "abrir o produto no catálogo" ao lado: a publicação acontece na
         // conversa, e o atalho para o catálogo só tirava a pessoa do fluxo no
@@ -1588,7 +1629,7 @@ const maybeHandleBeginnerGuide = async (
   const previousAskedForNiche =
     guideWasActive &&
     !previousValidatedNiche &&
-    (lastAssistantText.includes("passo 1 de 5") ||
+    (lastAssistantText.includes("seu nicho") ||
       lastAssistantText.includes("outro nicho que voce ja tenha em mente"));
 
   // Passo 1 confirmado -> Passo 2 (vitrine de produtos).
@@ -1602,6 +1643,20 @@ const maybeHandleBeginnerGuide = async (
     const niche = findValidatedNiche(lastUserMessage);
     if (niche) return validateNicheStep(supabase, niche, nome);
     return askBeginnerNiche(supabase, nome);
+  }
+
+  // Rede de segurança do fim do guia: "já conectei" e "pode publicar" nunca
+  // podem cair no modelo. Era aí que o Atlas escrevia a descrição sozinho,
+  // dizia que ia publicar e mandava o usuário para Publicações com outro
+  // produto. Aqui a conexão é conferida no banco e a publicação sai amarrada ao
+  // produto que a pessoa escolheu.
+  if (
+    guideWasActive &&
+    produtoEscolhido &&
+    (saidConnectedMl(lastUserMessage) || wantsToPublish(lastUserMessage))
+  ) {
+    const niche = inferNicheFromConversation(messages, lastUserMessage);
+    return guidePublicationStep(supabase, userId, produtoEscolhido, niche, nome);
   }
 
   return null;
@@ -1786,7 +1841,7 @@ serve(async (req) => {
 
     // FAQ resolvido em código: dúvida de navegação repetida não precisa de modelo.
     // Só entra quando não há guia em andamento, para não cortar um passo no meio.
-    const guiaEmAndamento = /passo \d de 5/i.test(getLastAssistantMessage(normalizedMessages)?.content ?? "");
+    const guiaEmAndamento = /passo \d de 4/i.test(getLastAssistantMessage(normalizedMessages)?.content ?? "");
     if (!guiaEmAndamento) {
       const faq = resolveAtlasFaq(lastUserMessage);
       if (faq) {

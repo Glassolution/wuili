@@ -1,13 +1,14 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Package, Play, ArrowRight, Store, ShieldCheck } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { X, Check, Loader2, Sparkles, Globe, ExternalLink, Package, Play, ArrowRight, Store, ShieldCheck, CheckCircle2, Link2 } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
+import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 // import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog"; // removido a pedido
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -26,10 +27,20 @@ import {
   inferStickerAlbumName,
   isStickerAlbumProduct,
   montarAtributosMl,
+  montarCorpoDePublicacao,
   primeiraImagemDoProduto,
   publicarNoMercadoLivre,
+  type ResultadoDaPublicacao,
   type ProdutoDoCatalogo,
 } from "@/lib/publicacaoMercadoLivre";
+import { getProductPricingEstimate } from "@/lib/productPricing";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
+import { salvarContextoDePlanos } from "@/lib/planosCheckoutContexto";
+import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import { enfileirarPublicacaoPendente, tentarPublicarPendentesAgora } from "@/lib/publicacaoPendente";
+import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
+import { lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 
 /**
  * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
@@ -58,8 +69,8 @@ const formatBRL = (v: number) =>
 
 const STEPS = [
   { num: 1, label: "Detalhes" },
-  { num: 2, label: "Revisão" },
-  { num: 3, label: "Plano" },
+  { num: 2, label: "Conexão" },
+  { num: 3, label: "Revisão" },
 ];
 
 const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
@@ -78,7 +89,19 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [publishResult, setPublishResult] = useState<{ permalink: string; item_id: string } | null>(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [mlVerifyModalOpen, setMlVerifyModalOpen] = useState(false);
+  // Códigos crus do ML (ex.: "address_pending") quando a publicação é
+  // bloqueada por cadastro incompleto — alimentam o modal que diz o que falta.
+  const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [checkingSeller, setCheckingSeller] = useState(false);
+  const [prepareOpen, setPrepareOpen] = useState(false);
+  // Resposta do onboarding: quem disse que ainda não tem conta de vendedor vê
+  // o guia de criação antes de tentar conectar.
+  const semContaDeVendedor = lerRespostasDoQuiz(user).mercadoLivre === "nao";
+  const flowOpenedAt = useRef(Date.now());
+  const stepOpenedAt = useRef(Date.now());
+  const previousStep = useRef(1);
+  const autoDescriptionAttempted = useRef(false);
+  const restoredProductId = useRef<string | null>(null);
   // Estado do modal manual de categoria removido a pedido do usuário.
 
   /*
@@ -101,7 +124,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [translated, setTranslated] = useState(false);
 
   // Platforms (review step)
-  const [platforms, setPlatforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
+  const [platforms] = useState<{ ml: boolean; shopee: boolean; tiktok: boolean }>({
     ml: true,
     shopee: false,
     tiktok: false,
@@ -150,33 +173,58 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
   }, [user]);
 
-  // Reset on product change
+  // Restaura o rascunho do produto ou inicia um novo fluxo.
   const [lastProductId, setLastProductId] = useState<string | null>(null);
   if (product && product.id !== lastProductId) {
     setLastProductId(product.id);
     const truncated = product.title.length > MAX_TITLE_LENGTH
       ? product.title.substring(0, MAX_TITLE_LENGTH)
       : product.title;
-    setTitle(truncated);
-    setMultiplier(2.5);
-    setSellPrice(Math.round(product.cost_price * 2.5 * 100) / 100);
-    setStep(1);
+    const pricing = getProductPricingEstimate(product.cost_price, product.suggested_price);
+    const draft = user?.id ? readProductImportDraft(user.id, product.id) : null;
+    setTitle(draft?.title ?? truncated);
+    const restoredPrice = draft?.sellPrice ?? pricing.suggestedSalePrice;
+    setMultiplier(product.cost_price > 0 ? restoredPrice / product.cost_price : MULTIPLICADOR_SUGERIDO);
+    setSellPrice(restoredPrice);
+    setStep(draft ? Math.min(Math.max(draft.step, 1), 4) : 1);
     setPublishResult(null);
     setPublishing(false);
-    setDescription("");
+    setMlMissingCodes(null);
+    setDescription(draft?.description ?? "");
     setTranslated(false);
-    setBrand(inferProductBrand(product, truncated));
-    setModel((product.model ?? "").trim());
-    setAlbumName(inferStickerAlbumName(product, truncated));
-    setSaleFormat(product.title.toLowerCase().includes("kit") ? "kit" : "unit");
+    setBrand(draft?.brand ?? inferProductBrand(product, truncated));
+    setModel(draft?.model ?? (product.model ?? "").trim());
+    setAlbumName(draft?.albumName ?? inferStickerAlbumName(product, truncated));
+    setSaleFormat(draft?.saleFormat ?? (product.title.toLowerCase().includes("kit") ? "kit" : "unit"));
+    restoredProductId.current = product.id;
+    autoDescriptionAttempted.current = Boolean(draft?.description);
   }
 
   const costPrice = product?.cost_price ?? 0;
   const totalCost = costPrice;
+  const suggestedPricing = getProductPricingEstimate(costPrice, product?.suggested_price);
 
-  const recalcPrice = (mult: number) => {
-    setSellPrice(Math.round(costPrice * mult * 100) / 100);
-  };
+  useEffect(() => {
+    if (!open || !user?.id || !product?.id) return;
+    flowOpenedAt.current = Date.now();
+    stepOpenedAt.current = Date.now();
+    trackMobileHomeEvent(user.id, "import_flow_open", { productId: product.id });
+  }, [open, product?.id, user?.id]);
+
+  useEffect(() => {
+    if (!open || !user?.id || !product?.id) return;
+    const elapsedMs = Date.now() - stepOpenedAt.current;
+    trackMobileHomeEvent(user.id, "import_flow_step", { productId: product.id, detail: String(step), elapsedMs });
+    previousStep.current = step;
+    stepOpenedAt.current = Date.now();
+  }, [open, product?.id, step, user?.id]);
+
+  useEffect(() => {
+    if (!open || !user?.id || !product?.id || restoredProductId.current !== product.id || step > 4) return;
+    saveProductImportDraft(user.id, {
+      productId: product.id, step, title, sellPrice, description, brand, model, albumName, saleFormat,
+    });
+  }, [albumName, brand, description, model, open, product?.id, saleFormat, sellPrice, step, title, user?.id]);
 
   const handlePriceChange = (val: string) => {
     if (val === "") {
@@ -218,19 +266,36 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   const handleClose = () => {
     if (publishing) return;
+    setMlMissingCodes(null);
+    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product?.id, detail: `step_${step}`, elapsedMs: Date.now() - flowOpenedAt.current });
     setVisible(false);
     setTimeout(onClose, 160);
   };
 
-  const handleConnectML = async () => {
+  // Antes de sair do app, uma tela curta explica o que vai acontecer e avisa
+  // quem está dentro do navegador do Instagram/TikTok.
+  const handleConnectML = () => {
     if (!user) return;
+    trackMobileHomeEvent(user.id, "ml_prepare_open", { productId: product?.id, detail: `import_step_${step}` });
+    setPrepareOpen(true);
+  };
+
+  const confirmarConexaoMl = async () => {
+    if (!user) return;
+    setPrepareOpen(false);
     try {
+      trackMobileHomeEvent(user.id, "ml_connect_open", { productId: product?.id, detail: `import_step_${step}` });
+      if (product) {
+        salvarRetornoMl({ origem: "product_import", rota: `/dashboard/catalogo/${product.id}?publicar=1` });
+      }
       await startMercadoLivreOAuth();
     } catch (err) {
-      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre");
+      trackMobileHomeEvent(user.id, "import_flow_error", { productId: product?.id, detail: "connection_start" });
+      veloToast.error("Não foi possível iniciar a conexão com o Mercado Livre. Tente de novo em instantes.");
       return;
     }
   };
+
 
   const handleTranslate = async () => {
     if (!product) return;
@@ -276,10 +341,30 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       setDescription(texto);
       veloToast.success("Descrição gerada", { id: toastId });
     } catch (e) {
+      trackMobileHomeEvent(user?.id, "import_flow_error", { productId: product?.id, detail: "description_generation" });
       veloToast.error(e instanceof Error ? e.message : "Erro ao gerar descrição", { id: toastId });
     } finally {
       setGeneratingDesc(false);
     }
+  };
+
+  useEffect(() => {
+    if (!open || step !== 3 || description.trim() || generatingDesc || autoDescriptionAttempted.current) return;
+    autoDescriptionAttempted.current = true;
+    void handleGenerateDescription();
+  }, [description, generatingDesc, open, step]);
+
+  const trackError = (detail: string) => {
+    trackMobileHomeEvent(user?.id, "import_flow_error", { productId: product?.id, detail });
+  };
+
+  const advanceTo = (nextStep: number) => {
+    trackMobileHomeEvent(user?.id, "import_flow_advance", {
+      productId: product?.id,
+      detail: `${step}_to_${nextStep}`,
+      elapsedMs: Date.now() - stepOpenedAt.current,
+    });
+    setStep(nextStep);
   };
 
   const validatePublish = (): boolean => {
@@ -317,14 +402,23 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     if (!planLimits.canPublishProducts) {
-      setUpgradeModalOpen(true);
+      // Limite do Pro continua no modal de limite; plano grátis abre o modal
+      // animado de planos (mesmo usado no restante do app).
+      if (planLimits.plan === "pro" && planLimits.productLimitReached) {
+        setUpgradeModalOpen(true);
+      } else {
+        upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id });
+      }
       return;
     }
 
+    // Cada tentativa deve refletir apenas a resposta atual do Mercado Livre.
+    setMlMissingCodes(null);
     setPublishing(true);
-    const toastId = veloToast.loading("Publicando produto...");
+    // Não exibimos toast de carregamento: o próprio botão já comunica o estado.
+    const toastId = `ml-publish-${Date.now()}`;
     try {
-      let data: { permalink: string; item_id: string };
+      let data: ResultadoDaPublicacao;
       try {
         data = await publicarNoMercadoLivre({
           produto: product,
@@ -344,6 +438,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // (O modal manual foi removido a pedido: publicação no Mercado Livre está
         // temporariamente indisponível para produtos sem categoria confiável.)
         if (codigo === "CATEGORY_REQUIRES_MANUAL" || codigo === "CATEGORY_LOW_CONFIDENCE") {
+          trackError(`publish:${codigo}`);
           veloToast.error(
             "Não foi possível publicar este produto no Mercado Livre no momento. Tente outro produto.",
             { id: toastId },
@@ -352,33 +447,70 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           return;
         }
 
-        // Conta do ML bloqueada para publicar → tutorial em 3 etapas.
+        // Conta do ML ainda não habilitada a vender. Como o pagamento vem antes
+        // da ativação, o anúncio não se perde: guardamos pronto e ele sobe
+        // sozinho assim que a conta for liberada.
         if (codigo === "ML_SELLER_CANNOT_LIST") {
+          trackError("publish:ml_seller_cannot_list");
           veloToast.dismiss(toastId);
-          setMlVerifyModalOpen(true);
+          trackMobileHomeEvent(user.id, "paid_without_seller", { productId: product.id, detail: "na_publicacao" });
+          void enfileirarPublicacaoPendente({
+            userId: user.id,
+            productId: product.id,
+            title: title.trim(),
+            payload: montarCorpoDePublicacao({
+              produto: product,
+              titulo: title,
+              preco: sellPrice,
+              descricao: description,
+              marca: brand,
+              modelo: model,
+              atributos: mlAttributes,
+              estoque: stockQty,
+              override,
+            }),
+          }).then((id) => {
+            if (id) trackMobileHomeEvent(user.id, "pending_publication_queued", { productId: product.id });
+          });
+          if (erro instanceof ErroDePublicacao && erro.sellerCodes?.length) {
+            setMlMissingCodes(erro.sellerCodes);
+          } else {
+            setMlVerifyModalOpen(true);
+          }
           setPublishing(false);
           return;
         }
 
-        veloToast.error(erro instanceof Error ? erro.message : "Erro ao publicar", { id: toastId });
+        trackError(codigo ? `publish:${codigo}` : "publish:known_error");
+        veloToast.error(erro instanceof Error ? erro.message : "Não foi possível publicar. Confira os dados e tente novamente.", { id: toastId });
         setPublishing(false);
         return;
       }
 
+      setMlMissingCodes(null);
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       // A conta publicou: o tutorial de verificação não precisa mais ser retomado.
       limparProgressoTutorialMl();
-      setStep(4);
+      trackMobileHomeEvent(user.id, "publish_result", { productId: product.id, detail: data.parcial ? "partial" : "success" });
+      trackMobileHomeEvent(user.id, "import_flow_complete", { productId: product.id, detail: data.parcial ? "partial" : "success", elapsedMs: Date.now() - flowOpenedAt.current });
+      clearProductImportDraft(user.id, product.id);
+      setStep(5);
       if (activeStore) incrementStorePublishedCount(activeStore.id);
 
-      veloToast.success("Produto publicado com sucesso", {
+      // Publicação por variação (anúncios-irmãos): se alguma variação falhou,
+      // não podemos dizer "publicado com sucesso" — mostramos o placar exato.
+      const avisoDeVariacoes = data.mensagem;
+      if (data.parcial) {
+        veloToast.info(avisoDeVariacoes ?? "Algumas variações não foram publicadas.", { id: toastId });
+      } else veloToast.success(avisoDeVariacoes ?? "Produto publicado com sucesso", {
         id: toastId,
         action: data.permalink ? { label: "Ver", onClick: () => window.open(data.permalink, "_blank", "noopener,noreferrer") } : undefined,
       });
       void planLimits.refreshUsage();
       if (data.permalink) window.open(data.permalink, "_blank", "noopener,noreferrer");
     } catch (err) {
-      veloToast.error(err instanceof Error ? err.message : "Erro inesperado", { id: toastId });
+      trackError("publish:unexpected");
+      veloToast.error(err instanceof Error ? err.message : "Não foi possível publicar agora. Tente novamente.", { id: toastId });
     } finally {
       setPublishing(false);
     }
@@ -407,7 +539,43 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       return;
     }
 
-    void handlePublish();
+    // Mesma sequência do "verificar de novo": sobe o que estiver guardado e
+    // publica, ou leva para a etapa de plano quem ainda não tem um.
+    void tentarPublicarPendentesAgora();
+    if (planLimits.canPublishProducts) void handlePublish();
+    else if (isConnectedToML) irParaPaginaDePlanos();
+  };
+
+  /**
+   * Leva para a página de planos guardando o anúncio: o rascunho já é salvo a
+   * cada mudança, e aqui guardamos também o resumo que a página de planos
+   * mostra e o produto para onde a pessoa volta depois de pagar.
+   */
+  const irParaPaginaDePlanos = () => {
+    if (!product) return;
+    if (user?.id) {
+      saveProductImportDraft(user.id, {
+        productId: product.id,
+        step: 3,
+        title,
+        sellPrice,
+        description,
+        brand,
+        model,
+        albumName,
+        saleFormat,
+      });
+    }
+    salvarContextoDePlanos({
+      productId: product.id,
+      title: title || product.title,
+      image: img,
+      sellPrice,
+      profit,
+    });
+    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product.id, detail: "para_planos" });
+    onClose();
+    navigate("/dashboard/planos");
   };
 
   const handleContinueFromReview = async () => {
@@ -417,34 +585,39 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     if (!brand.trim()) {
+      trackError("review:brand");
       veloToast.error("Informe a marca do produto (use 'Genérica' se não houver).");
       return;
     }
 
+    if (!description.trim()) {
+      trackError("review:description");
+      veloToast.error("Confira a descrição ou toque em Gerar novamente antes de continuar.");
+      return;
+    }
+
     if (planLimits.canPublishProducts) {
-      // Único ponto em que o tutorial pode abrir: o usuário pediu para publicar.
-      // Revalidamos com o ML na hora, porque ele pode ter ajustado a conta desde
-      // a última tentativa. Só liberamos a publicação com a conta apta.
-      setCheckingSeller(true);
-      const live = await fetchSellerReady();
-      setCheckingSeller(false);
-      const ready = live ?? !mlAccountNeedsVerification;
-      if (!ready) {
-        setMlVerifyModalOpen(true);
-        return;
-      }
+      // Quem já paga publica direto. Se o Mercado Livre recusar por conta sem
+      // perfil de vendedor, o próprio handlePublish guarda o anúncio e abre a
+      // ajuda com texto e vídeo.
       void handlePublish();
       return;
     }
 
-    setStep(3);
+    // Quem ainda não assina vai para a página de planos, com o anúncio já
+    // guardado. A conta de vendedor não bloqueia o caminho antes do pagamento:
+    // a ajuda para ativar a conta acontece depois.
+    irParaPaginaDePlanos();
   };
 
   if (!open && !visible) return null;
   if (!product) return null;
 
   const titleLength = title.length;
-  const canAdvance = step === 1 ? (hasStock && isConnectedToML && !!title.trim() && sellPrice > totalCost) : true;
+  const canAdvanceDetails = hasStock && !!title.trim() && sellPrice > totalCost;
+  const canAdvanceConnection = isConnectedToML === true;
+  const titleNeedsTranslation = /[\u3040-\u30ff\u3400-\u9fff]|\b(with|wireless|women|men|kids|portable|for|and)\b/i.test(title);
+  const visibleSteps = STEPS;
   const startModeOffset = isStartMode ? 48 : 0;
   const reachedProProductLimit = planLimits.plan === "pro" && planLimits.productLimitReached;
   const publishUpgradeTitle = reachedProProductLimit
@@ -497,7 +670,11 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
               <div>
                 <h2 className="text-[15px] font-semibold text-[#0F172A] leading-tight">Importar produto</h2>
-                <p className="text-[12.5px] text-[#64748B] mt-0.5">Revise, precifique e publique com o fluxo atual da Velo.</p>
+                <p className="text-[12.5px] text-[#64748B] mt-0.5">
+                  {planLimits.canPublishProducts
+                    ? "Confira os detalhes, conecte sua conta e revise antes de publicar."
+                    : "Confira os detalhes, conecte sua conta e revise. Depois você escolhe seu plano."}
+                </p>
               </div>
             </div>
             <button
@@ -512,7 +689,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           {/* Stepper */}
           <div className="mobile-hide-scrollbar overflow-x-auto border-b border-[#E5EDFF] bg-[#F8FBFF] px-4 pb-4 pt-1 sm:px-6 md:overflow-visible md:px-8 md:pb-5">
             <div className="flex min-w-max items-center md:min-w-0">
-              {STEPS.map((s, i) => {
+              {visibleSteps.map((s, i) => {
                 const active = step === s.num;
                 const done = step > s.num;
                 return (
@@ -542,7 +719,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         {s.label}
                       </span>
                     </button>
-                    {i < STEPS.length - 1 && (
+                    {i < visibleSteps.length - 1 && (
                       <div className="relative mx-2 h-px w-8 overflow-hidden bg-[#DDE7FB] md:mx-3 md:w-auto md:flex-1">
                         <div
                           className="absolute inset-y-0 left-0 bg-[#2563EB] transition-all duration-500 ease-out"
@@ -566,22 +743,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[12.5px] text-gray-500 mt-1">Edite o título e defina seu preço de venda.</p>
                 </div>
 
-                {/* Connection status */}
-                {isConnectedToML === false && (
-                  <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3">
-                    <div>
-                      <p className="text-[13px] font-medium text-[#0A0A0A]">Conecte sua conta</p>
-                      <p className="text-[11.5px] text-gray-500 mt-0.5">É necessário para publicar anúncios</p>
-                    </div>
-                    <button
-                      onClick={handleConnectML}
-                      className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
-                    >
-                      Conectar
-                    </button>
-                  </div>
-                )}
-
                 {/* Stock warning */}
                 {!hasStock && (
                   <div className="rounded-xl border border-red-100 bg-red-50/40 px-4 py-3">
@@ -594,14 +755,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-[12px] font-medium text-gray-600">Título do anúncio</label>
-                    <button
-                      onClick={handleTranslate}
-                      disabled={translating}
-                      className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-50"
-                    >
-                      {translating ? <Loader2 size={11} className="animate-spin" /> : <Globe size={11} />}
-                      {translating ? "Traduzindo" : translated ? "Retraduzir" : "Traduzir p/ PT-BR"}
-                    </button>
+                    {titleNeedsTranslation && (
+                      <button
+                        onClick={handleTranslate}
+                        disabled={translating}
+                        className="flex min-h-11 items-center gap-1.5 text-[12px] font-medium text-[#475569] transition-colors hover:text-[#0F172A] disabled:opacity-50"
+                      >
+                        {translating ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
+                        {translating ? "Traduzindo" : translated ? "Traduzir novamente" : "Traduzir para português"}
+                      </button>
+                    )}
                   </div>
                   <input
                     value={title}
@@ -613,146 +776,162 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <p className="text-[10.5px] text-gray-400 text-right mt-1.5">{titleLength}/{MAX_TITLE_LENGTH}</p>
                 </div>
 
-                {/* Pricing — minimal rows */}
+                {/* Pricing — o mais simples possível: custo → preço → lucro */}
                 <div className="space-y-3">
-                  <p className="text-[12px] font-medium text-gray-600">Precificação</p>
+                  <p className="text-[12px] font-medium text-gray-600">Seu preço de venda</p>
 
                   {/*
-                    A ficha do produto agora mostra só o custo. É aqui, no momento em que a
-                    pessoa decide publicar, que ela descobre por quanto a Velo sugere vender
-                    e quanto sobra — e aqui o número é editável, então a sugestão é ponto de
-                    partida em vez de promessa.
+                    A ficha do produto mostra só o custo. Aqui, na hora de publicar, a
+                    pessoa vê a sugestão da Velo e quanto sobra por venda — em linguagem
+                    direta, sem multiplicador nem caixas empilhadas.
                   */}
                   <div className="rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <p className="text-[12px] leading-[1.5] text-[#475569]">
+                    <p className="text-[12px] leading-[1.6] text-[#475569]">
+                      Este produto custa{" "}
+                      <span className="font-semibold text-[#0F172A]">{formatBRL(costPrice)}</span> para você.{" "}
                       A Velo sugere vender por{" "}
                       <span className="font-semibold text-[#0F172A]">
-                        {formatBRL(costPrice * MULTIPLICADOR_SUGERIDO)}
-                      </span>{" "}
-                      — {MULTIPLICADOR_SUGERIDO.toString().replace(".", ",")}x o custo. Ajuste abaixo até o preço que
-                      você quer praticar.
+                        {formatBRL(suggestedPricing.suggestedSalePrice)}
+                      </span>
+                      , mas quem decide o preço é você.
                     </p>
-                  </div>
-
-                  <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
-                    <Row label="Custo do produto" value={formatBRL(costPrice)} />
-                  </div>
-
-                  {/* Multiplier */}
-                  <div className="rounded-xl border border-[#DCE7FA] p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[12px] font-medium text-gray-600">Multiplicador</span>
-                      <span className="text-[13px] font-semibold text-[#0A0A0A]">{multiplier.toFixed(1)}x</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min="1.5"
-                        max="5.0"
-                        step="0.1"
-                        value={multiplier}
-                        onChange={(e) => { const v = Number(e.target.value); setMultiplier(v); recalcPrice(v); }}
-                        className="w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200 slider"
-                        style={{
-                          background: `linear-gradient(to right, ${ACCENT} 0%, ${ACCENT} ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb ${((multiplier - 1.5) / (5.0 - 1.5)) * 100}%, #e5e7eb 100%)`
-                        }}
-                      />
-                      <style>{`
-                        .slider::-webkit-slider-thumb {
-                          appearance: none;
-                          height: 18px;
-                          width: 18px;
-                          border-radius: 50%;
-                          background: ${ACCENT};
-                          cursor: pointer;
-                          border: 2px solid white;
-                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-                        }
-                        .slider::-moz-range-thumb {
-                          height: 18px;
-                          width: 18px;
-                          border-radius: 50%;
-                          background: ${ACCENT};
-                          cursor: pointer;
-                          border: 2px solid white;
-                          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-                        }
-                      `}</style>
-                    </div>
                   </div>
 
                   {/* Sell price */}
                   <div>
-                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">Preço de venda</label>
+                    <label className="text-[12px] font-medium text-gray-600 mb-2 block">
+                      Por quanto você quer vender?
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-gray-400">R$</span>
                       <input
                         type="number"
+                        inputMode="decimal"
                         step="0.01"
                         min="0"
                         value={sellPrice || ""}
                         onChange={(e) => handlePriceChange(e.target.value)}
-                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-2.5 text-[13px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
+                        className="w-full rounded-xl border border-[#DCE7FA] bg-white pl-10 pr-4 py-3 text-[15px] font-semibold text-[#0F172A] outline-none transition-colors hover:border-[#BBD0F7] focus:border-[#2563EB] focus:bg-white focus:ring-4 focus:ring-[#2563EB]/10"
                       />
                     </div>
+                    {Math.abs(sellPrice - suggestedPricing.suggestedSalePrice) > 0.009 && (
+                      <button
+                        type="button"
+                        onClick={() => handlePriceChange(String(suggestedPricing.suggestedSalePrice))}
+                        className="mt-2 min-h-11 text-[12.5px] font-semibold text-[#2563EB]"
+                      >
+                        Usar preço sugerido de {formatBRL(suggestedPricing.suggestedSalePrice)}
+                      </button>
+                    )}
                   </div>
 
                   {/* Profit single line */}
                   <div className="flex items-center justify-between rounded-xl bg-[#F4F8FF] px-4 py-3">
-                    <span className="text-[12px] text-[#64748B]">Lucro por venda</span>
+                    <span className="text-[12px] text-[#64748B]">Sobra bruta estimada</span>
                     <span className={`text-[13.5px] font-semibold ${profit > 0 ? "text-[#0F172A]" : "text-red-500"}`}>
                       {formatBRL(profit)} <span className="text-[11px] font-medium text-gray-400 ml-1">· {profitMargin}%</span>
                     </span>
+                  </div>
+                  <p className="text-[11px] leading-4 text-[#64748B]">Antes das taxas do Mercado Livre, frete e impostos.</p>
+
+                  {/* Explicação honesta sobre taxas */}
+                  <div className="rounded-xl border border-[#E3EAF5] bg-white p-4">
+                    <h4 className="text-[13.5px] font-semibold text-[#0F172A]">O que ainda sai desse valor</h4>
+                    <p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">
+                      A Velo mostra uma estimativa bruta: preço de venda menos o que você paga pelo produto. Quando a venda acontece, o Mercado Livre ainda desconta:
+                    </p>
+                    <ul className="mt-2 space-y-1.5 text-[12.5px] leading-5 text-[#475569]">
+                      <li>• <strong className="font-semibold text-[#0F172A]">Comissão do Mercado Livre</strong> — um percentual sobre o preço de venda, que muda conforme a categoria e o tipo de anúncio.</li>
+                      <li>• <strong className="font-semibold text-[#0F172A]">Taxa fixa</strong> — cobrada em produtos de valor mais baixo.</li>
+                      <li>• <strong className="font-semibold text-[#0F172A]">Frete</strong> — em muitos casos quem paga é o vendedor.</li>
+                      <li>• <strong className="font-semibold text-[#0F172A]">Impostos</strong> — dependem da sua situação como vendedor.</li>
+                    </ul>
+                    <p className="mt-2.5 text-[12px] leading-4.5 text-[#64748B]">
+                      Por isso o que entra no seu bolso é menor que o valor acima. Considere isso antes de definir um preço muito próximo do custo.
+                    </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* STEP 2 — Revisão */}
+            {/* STEP 2 — Conexão */}
             {step === 2 && (
+              <div key="s2-connect" className="step-fade space-y-5 pb-6">
+                <div>
+                  <h3 className="text-[17px] font-semibold text-[#0F172A]">Conecte onde o anúncio será publicado</h3>
+                  <p className="mt-1 text-[13px] leading-5 text-[#64748B]">A Velo usa sua conta de vendedor do Mercado Livre para colocar o anúncio no ar.</p>
+                </div>
+                {isConnectedToML === null ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4 text-[13px] text-[#475569]">
+                    <Loader2 size={18} className="animate-spin text-[#2563EB]" /> Verificando sua conta…
+                  </div>
+                ) : isConnectedToML ? (
+                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <CheckCircle2 size={22} className="mt-0.5 shrink-0 text-emerald-600" />
+                    <div><p className="text-[14px] font-semibold text-emerald-800">Conta conectada</p><p className="mt-1 text-[12.5px] leading-5 text-emerald-700">Tudo certo para revisar seu anúncio.</p></div>
+                  </div>
+                ) : semContaDeVendedor ? (
+                  <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex items-start gap-3">
+                      <Link2 size={22} className="mt-0.5 shrink-0 text-[#2563EB]" />
+                      <div>
+                        <p className="text-[14px] font-semibold text-[#0F172A]">Conecte sua conta do Mercado Livre</p>
+                        <p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">
+                          Pode conectar a conta que você já usa. Se ela ainda não estiver liberada para vender,
+                          a gente te ajuda a resolver depois — seu anúncio fica guardado.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleConnectML}
+                      className="mt-4 min-h-12 w-full rounded-xl bg-[#2563EB] px-4 text-[14px] font-semibold text-white"
+                    >
+                      Conectar Mercado Livre
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMlVerifyModalOpen(true)}
+                      className="mt-2 min-h-12 w-full rounded-xl border border-[#DBEAFE] bg-white px-4 text-[13px] font-medium text-[#2563EB]"
+                    >
+                      Ainda não tenho conta no Mercado Livre
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
+                    <div className="flex items-start gap-3"><Link2 size={22} className="mt-0.5 shrink-0 text-[#2563EB]" /><div><p className="text-[14px] font-semibold text-[#0F172A]">Conecte sua conta do Mercado Livre</p><p className="mt-1 text-[12.5px] leading-5 text-[#64748B]">Você voltará para este produto com título e preço preservados.</p></div></div>
+                    <button type="button" onClick={handleConnectML} className="mt-4 min-h-12 w-full rounded-xl bg-[#2563EB] px-4 text-[14px] font-semibold text-white">Conectar Mercado Livre</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* STEP 3 — Revisão */}
+            {step === 3 && (
               <div key="s3" className="step-fade space-y-6 pb-6">
                 <div>
                   <h3 className="text-[14px] font-semibold text-[#0A0A0A]">Revisar anúncio</h3>
                   <p className="text-[12.5px] text-gray-500 mt-1">Escolha onde publicar e finalize a descrição.</p>
                 </div>
 
-                {/* Platforms — pick where to publish */}
+                {/* Platforms — hoje a publicação é só no Mercado Livre */}
                 <div>
                   <div className="flex items-center gap-1.5 mb-2.5">
                     <Store size={12} className="text-gray-500" />
-                    <p className="text-[12px] font-medium text-gray-600">Publicar em</p>
+                    <p className="text-[12px] font-medium text-gray-600">Onde seu anúncio vai aparecer</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <PlatformCard
-                      name="Mercado Livre"
-                      status={isConnectedToML ? "Conectado" : "Desconectado"}
-                      disabled={!isConnectedToML}
-                      selected={platforms.ml && !!isConnectedToML}
-                      onToggle={() => { if (isConnectedToML) setPlatforms(p => ({ ...p, ml: !p.ml })); }}
-                    />
-                    <PlatformCard
-                      name="Shopee"
-                      status="Em breve"
-                      disabled
-                      selected={false}
-                      onToggle={() => {}}
-                    />
-                    <PlatformCard
-                      name="TikTok Shop"
-                      status="Em breve"
-                      disabled
-                      selected={false}
-                      onToggle={() => {}}
-                    />
+                  <div className="flex items-center gap-3 rounded-xl border border-[#2563EB] bg-[#EFF6FF] px-4 py-3">
+                    <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#2563EB]">Mercado Livre</p>
+                      <p className="text-[11px] text-gray-500">
+                        {isConnectedToML ? "Conta conectada — tudo certo para publicar" : "Conta ainda não conectada"}
+                      </p>
+                    </div>
+                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600">
+                      <Check size={11} strokeWidth={3} className="text-white" />
+                    </span>
                   </div>
-                  {!isConnectedToML && (
-                    <button
-                      onClick={handleConnectML}
-                    className="mt-2.5 text-[11.5px] font-medium text-[#2563EB] underline hover:no-underline"
-                    >
-                      Conectar Mercado Livre
-                    </button>
-                  )}
                 </div>
 
                 {/* Summary */}
@@ -760,8 +939,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   <Row label="Título" value={title} />
                   <Row label="Plataforma" value="Mercado Livre" />
                   <Row label="Preço" value={formatBRL(sellPrice)} />
-                  <Row label="Estoque publicado" value={`${Math.min(stockQty, 10)} un`} />
-                  <Row label="Lucro" value={formatBRL(profit)} strong />
+                  <Row label="Quantidade disponível para venda" value={`${stockQty} unidades`} />
+                  <Row label="Sobra bruta estimada" value={formatBRL(profit)} strong />
                 </div>
 
                 {/* Mercado Livre attributes */}
@@ -822,128 +1001,30 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                         {generatingDesc ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
                         {generatingDesc ? "Gerando" : "Gerar com IA"}
                       </button>
-                      <button
-                        onClick={() => {
-                          if (!description.trim()) {
-                            veloToast.error("Crie uma descrição antes de fazer o vídeo");
-                            return;
-                          }
-                          const productImage = img || '';
-                          const getImageWithFormat = (imageUrl: string): string => {
-                            if (!imageUrl) return '';
-                            if (imageUrl.match(/\.(png|jpg|jpeg)(\?|$)/i)) return imageUrl;
-                            if (imageUrl.includes('.webp')) return imageUrl.replace('.webp', '.jpg');
-                            const separator = imageUrl.includes('?') ? '&' : '?';
-                            return `${imageUrl}${separator}format=jpg`;
-                          };
-                          const formattedImageUrl = getImageWithFormat(productImage);
-                          // Build full images array for the download section
-                          const allImages: string[] = (() => {
-                            try {
-                              const arr = typeof product.images === "string"
-                                ? JSON.parse(product.images)
-                                : product.images;
-                              return Array.isArray(arr)
-                                ? arr.map((u: string) => getImageWithFormat(u)).filter(Boolean)
-                                : [formattedImageUrl].filter(Boolean);
-                            } catch { return [formattedImageUrl].filter(Boolean); }
-                          })();
-                          onClose();
-                          navigate('/dashboard/criar-video', {
-                            state: {
-                              product_title: product.title,
-                              product_image: formattedImageUrl,
-                              product_images: allImages,
-                              product_description: description,
-                              cost_price: product.cost_price,
-                              sale_price: product.suggested_price,
-                              profit: Math.round((product.suggested_price - product.cost_price) * 100) / 100,
-                            }
-                          });
-                        }}
-                        disabled={!description.trim()}
-                        className="flex items-center gap-1.5 text-[11.5px] font-medium text-gray-500 hover:text-[#0A0A0A] transition-colors disabled:opacity-30"
-                      >
-                        <Play size={11} />
-                        Criar vídeo
-                      </button>
                     </div>
                   </div>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Clique em 'Gerar com IA' ou escreva manualmente…"
+                    placeholder={generatingDesc ? "Preparando sua descrição…" : "Confira ou edite a descrição do anúncio"}
                     rows={5}
                     className="w-full resize-none rounded-xl border border-[#DCE7FA] bg-white px-4 py-3 text-[13px] text-[#0F172A] transition-colors placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10"
                   />
+                  {generatingDesc && <p className="mt-2 flex items-center gap-2 text-[12px] text-[#64748B]"><Loader2 size={13} className="animate-spin text-[#2563EB]" /> A IA está preparando uma descrição para você conferir.</p>}
                 </div>
-              </div>
-            )}
 
-            {/* STEP 3 — Assinatura */}
-            {step === 3 && (
-              <div key="s3-plan" className="step-fade pb-6">
-                <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_60px_-44px_rgba(0,0,0,0.45)]">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#2563EB] text-white">
-                      <ShieldCheck size={22} strokeWidth={1.5} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Plano Velo Pro</p>
-                      <h3 className="mt-1 text-[22px] font-semibold leading-tight text-[#0A0A0A]">
-                        Assine o Pro para publicar este produto
-                      </h3>
-                      <p className="mt-2 max-w-[520px] text-[13.5px] leading-relaxed text-gray-500">
-                        Seu anúncio já está pronto. Revise o produto abaixo e assine o plano Pro para publicar.
-                      </p>
-                    </div>
+                <div className="rounded-xl border border-[#DCE7FA] bg-[#F8FBFF] p-4">
+                  <p className="text-[11px] font-semibold uppercase text-[#64748B]">Prévia do anúncio</p>
+                  <div className="mt-3 flex gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-white">{img ? <img src={img} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}</div>
+                    <div className="min-w-0"><p className="line-clamp-2 text-[13px] font-semibold text-[#0F172A]">{title}</p><p className="mt-2 text-[16px] font-bold text-[#0F172A]">{formatBRL(sellPrice)}</p></div>
                   </div>
-
-                  <div className="mt-6 rounded-3xl bg-gray-50 p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
-                        {img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-medium text-gray-500">Produto customizado</p>
-                        <p className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-[#0A0A0A]">
-                          {title || product.title}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px] text-gray-500">
-                          <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
-                            Preço definido: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice)}</strong>
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
-                            Lucro estimado: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "base" })}
-                    className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#2563EB] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
-                  >
-                    Assinar Base — R$ 39,90/mês
-                  </button>
-                  <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
-                    Assinatura mensal do plano Base. Cancele quando quiser.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "pro" })}
-                    className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#2563EB]"
-                  >
-                    Prefere começar direto no Pro (R$ 79,80/mês) com automações completas?
-                  </button>
                 </div>
               </div>
             )}
 
             {/* STEP 4 — Success */}
-            {step === 4 && publishResult && (
+            {step === 5 && publishResult && (
               <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full mb-5" style={{ background: ACCENT }}>
                   <Check size={26} strokeWidth={3} className="text-white" />
@@ -963,13 +1044,13 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer — permanece visível no celular, inclusive com o teclado aberto. */}
           <div
             className="flex shrink-0 items-center justify-end border-t border-[#E5EDFF] bg-[#F8FBFF] px-4 py-3 sm:px-6 md:px-8 md:py-4"
             style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
           >
             <div className="flex w-full items-center justify-end gap-2 md:w-auto">
-              {step < 4 && (
+              {step < 5 && (
                 <button
                   onClick={handleClose}
                   className="rounded-[100px] px-4 py-2 text-[12.5px] font-[400] text-[#737373] transition-all duration-[120ms] hover:text-[#0A0A0A]"
@@ -977,7 +1058,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   Cancelar
                 </button>
               )}
-              {step > 1 && step < 4 && (
+              {step > 1 && step < 5 && (
                 <button
                   onClick={() => setStep(step - 1)}
                   className="rounded-[100px] border-[1.5px] border-[#E5E5E5] px-4 py-2 text-[12.5px] font-[400] text-[#0A0A0A] transition-all duration-[120ms] hover:border-[#0A0A0A] hover:bg-[#F5F5F5]"
@@ -985,35 +1066,56 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   Voltar
                 </button>
               )}
-              {step < 2 && (
+              {step === 1 && (
                 <button
-                  onClick={() => { if (canAdvance) setStep(step + 1); else veloToast.error("Conecte a conta, confira o estoque, título e preço"); }}
-                  disabled={!canAdvance}
+                  onClick={() => {
+                    if (!hasStock) return void (trackError("details:no_stock"), veloToast.error("Este produto está sem estoque. Escolha outro produto para publicar."));
+                    if (!title.trim()) return void (trackError("details:title"), veloToast.error("Digite um título para continuar."));
+                    if (sellPrice <= totalCost) return void (trackError("details:price"), veloToast.error("Escolha um preço maior que o custo do produto."));
+                    advanceTo(2);
+                  }}
+                  disabled={!canAdvanceDetails}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  Próximo
+                  Continuar para conexão
                   <ArrowRight size={13} />
                 </button>
               )}
               {step === 2 && (
                 <button
-                  onClick={() => void handleContinueFromReview()}
-                  disabled={checkingSeller || publishing}
+                  onClick={() => {
+                    if (!canAdvanceConnection) {
+                      trackError("connection:not_connected");
+                      veloToast.info("Conecte sua conta do Mercado Livre para continuar.");
+                      return;
+                    }
+                    advanceTo(3);
+                  }}
+                  disabled={!canAdvanceConnection}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  {checkingSeller
-                    ? "Verificando conta..."
-                    : planLimits.canPublishProducts
-                      ? "Publicar produto"
-                      : "Continuar"}
+                  {isConnectedToML === null ? "Verificando conta…" : "Continuar para revisão"}
                   <ArrowRight size={13} />
                 </button>
               )}
-              {step === 4 && (
+              {step === 3 && (
                 <button
-                  onClick={handleClose}
+                  onClick={() => void handleContinueFromReview()}
+                  disabled={checkingSeller || publishing || generatingDesc}
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
                 >
+                  {generatingDesc
+                    ? "Preparando descrição…"
+                    : checkingSeller
+                      ? "Verificando conta…"
+                      : planLimits.canPublishProducts
+                        ? "Publicar produto"
+                        : "Continuar para o plano"}
+                  <ArrowRight size={13} />
+                </button>
+              )}
+              {step === 5 && (
+                <button onClick={handleClose} className="inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white">
                   Concluir
                 </button>
               )}
@@ -1141,10 +1243,32 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         benefits={publishUpgradeBenefits}
       />
 
+      <MLConnectPrepareModal
+        open={prepareOpen}
+        onClose={() => setPrepareOpen(false)}
+        onConfirm={() => void confirmarConexaoMl()}
+      />
+
       <MLAccountVerificationModal
         open={mlVerifyModalOpen}
         onClose={() => setMlVerifyModalOpen(false)}
         onFinish={() => void handleTutorialFinished()}
+        // "Já criei minha conta, verificar de novo" confirmou a conta: quem ainda
+        // não tem plano segue para a etapa de plano, quem já tem publica.
+        onVerified={() => {
+          setMlVerifyModalOpen(false);
+          if (user) trackMobileHomeEvent(user.id, "seller_ready_after_paid", { productId: product?.id });
+          // Conta liberada: sobe o que estiver guardado e publica este anúncio.
+          void tentarPublicarPendentesAgora();
+          if (planLimits.canPublishProducts) void handlePublish();
+          else if (isConnectedToML) irParaPaginaDePlanos();
+        }}
+      />
+
+      <MlMissingInfoModal
+        open={mlMissingCodes !== null}
+        sellerCodes={mlMissingCodes ?? []}
+        onClose={() => setMlMissingCodes(null)}
       />
 
       {/* ManualCategoryDialog removido: não exibir seletor de categoria manual. */}
@@ -1203,34 +1327,6 @@ const StatusPill = ({ tone, children }: { tone: keyof typeof STATUS_PILL_TONES; 
   <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-[3px] text-[11px] font-semibold ${STATUS_PILL_TONES[tone]}`}>
     {children}
   </span>
-);
-
-const PlatformCard = ({
-  name, status, selected, disabled, onToggle,
-}: {
-  name: string; status: string; selected: boolean; disabled?: boolean; onToggle: () => void;
-}) => (
-  <button
-    onClick={onToggle}
-    disabled={disabled}
-    className={`relative rounded-xl border p-3 text-center transition-all ${
-      selected
-        ? "border-[#2563EB] bg-[#EFF6FF]"
-        : disabled
-        ? "border-gray-200 opacity-50 cursor-not-allowed"
-        : "border-gray-200 hover:border-[#93C5FD]"
-    }`}
-  >
-    {selected && (
-      <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#2563EB]">
-        <Check size={9} strokeWidth={3} className="text-white" />
-      </span>
-    )}
-    <p className={`text-[12.5px] font-semibold ${selected ? "text-[#2563EB]" : disabled ? "text-gray-500" : "text-[#0A0A0A]"}`}>
-      {name}
-    </p>
-    <p className="text-[10.5px] text-gray-400 mt-0.5">{status}</p>
-  </button>
 );
 
 export default ImportProductModal;

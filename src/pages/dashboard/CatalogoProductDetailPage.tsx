@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  Star,
   Heart,
   ArrowLeft,
   ChevronLeft,
@@ -19,12 +18,17 @@ import {
   ShieldCheck,
   Tag,
 } from "lucide-react";
-import { formatPrice, formatReviewCount, getProductCatalogMetrics } from "@/components/dashboard/ProductCard";
+import { formatPrice } from "@/components/dashboard/ProductCard";
 import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
+import { veloToast } from "@/components/ui/velo-toast";
 import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import { proxyImageList } from "@/lib/imageProxy";
+import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
+import { useAuth } from "@/contexts/AuthContext";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { getProductPricingEstimate } from "@/lib/productPricing";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
   const [open, setOpen] = useState(false);
@@ -95,7 +99,7 @@ function extractImages(raw: unknown): string[] {
 function mapProduct(p: CatalogProductRow): DetailedProduct {
   const imgs = extractImages(p.images);
   const cost = p.cost_price || 0;
-  const suggested = p.suggested_price || (cost ? cost * 2 : 0);
+  const suggested = getProductPricingEstimate(cost, p.suggested_price).suggestedSalePrice;
   const storedOrdersCount = typeof p.orders_count === "number" ? p.orders_count : 0;
   const supplierLabel =
     p.source === "aliexpress"
@@ -149,12 +153,16 @@ const formatWeight = (weight: number | null) => {
 const CatalogoProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const openedAt = useRef(Date.now());
+  const trackedDepths = useRef(new Set<number>());
   const [product, setProduct] = useState<DetailedProduct | null>(null);
   const [related, setRelated] = useState<DetailedProduct[]>([]);
   const [activeImg, setActiveImg] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [favorited, setFavorited] = useState(false);
+  const { favoritedIds, toggleFavorite } = useCatalogFavorites();
   const [relatedIndex, setRelatedIndex] = useState(0);
   const [rawProduct, setRawProduct] = useState<CatalogProductRow | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -228,6 +236,7 @@ const CatalogoProductDetailPage = () => {
           supabase
             .from("catalog_products")
             .select("*")
+            .eq("is_active", true)
             .eq("is_blocked", false)
             .neq("id", id)
             .eq("category", data.category || "")
@@ -240,6 +249,7 @@ const CatalogoProductDetailPage = () => {
             supabase
               .from("catalog_products")
               .select("*")
+              .eq("is_active", true)
               .eq("is_blocked", false)
               .neq("id", id)
               .limit(12),
@@ -261,6 +271,36 @@ const CatalogoProductDetailPage = () => {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !product?.id || !user?.id) return;
+    openedAt.current = Date.now();
+    trackedDepths.current.clear();
+    trackMobileHomeEvent(user.id, "product_detail_view", { productId: id });
+
+    const scrollContainer = pageRef.current?.closest("main");
+    const onScroll = () => {
+      if (!(scrollContainer instanceof HTMLElement)) return;
+      const available = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+      if (available <= 0) return;
+      const depth = Math.min(100, Math.round((scrollContainer.scrollTop / available) * 100));
+      [25, 50, 75, 100].forEach((threshold) => {
+        if (depth >= threshold && !trackedDepths.current.has(threshold)) {
+          trackedDepths.current.add(threshold);
+          trackMobileHomeEvent(user.id, "product_detail_scroll", { productId: id, detail: String(threshold) });
+        }
+      });
+    };
+    scrollContainer?.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scrollContainer?.removeEventListener("scroll", onScroll);
+      trackMobileHomeEvent(user.id, "product_detail_exit", {
+        productId: id,
+        elapsedMs: Date.now() - openedAt.current,
+        detail: String(Math.max(0, ...trackedDepths.current)),
+      });
+    };
+  }, [id, product?.id, user?.id]);
 
   const relatedWindow = useMemo(() => {
     if (related.length === 0) return [];
@@ -321,28 +361,28 @@ const CatalogoProductDetailPage = () => {
   }
 
   const gallery = product.images;
-  const catalogMetrics = getProductCatalogMetrics(product);
-  const socialProofCount = catalogMetrics.ordersCount ?? catalogMetrics.reviewsCount;
-  const [costPriceMain, costPriceCents = "00"] = formatPrice(product.price).split(",");
-  // O preço grande é o de VENDA sugerido, não o que o lojista paga. Custo, lucro
-  // e margem ficam explícitos logo abaixo para ninguém confundir os dois valores.
-  const estimatedProfit = Math.max(0, product.suggestedPrice - product.price);
-  const marginPercent = product.marginPercent > 0
-    ? product.marginPercent
-    : product.price > 0
-      ? (estimatedProfit / product.price) * 100
-      : 0;
-  const marginLabel = marginPercent > 0 ? `${marginPercent.toFixed(0)}%` : "estimada";
+  const pricing = getProductPricingEstimate(product.price, product.suggestedPrice);
+  // A página mostra apenas o custo real do fornecedor. Preço sugerido e margem
+  // só entram na conversa no modal de publicação, onde o lojista define o preço
+  // de venda de verdade. Ao lado do preço fica o selo de tendência de publicações
+  // (quantos vendedores da Velo estão publicando este produto).
+
+  const favorited = favoritedIds.includes(product.id);
   const categoryLabel = formatCategoryLabel(product.category);
   const supplierLabel = product.supplier_name ?? "Fornecedor verificado";
   const productCharacteristics = [
-    { icon: Factory, label: "Marca", value: product.brand || supplierLabel },
-    { icon: Tag, label: "Modelo", value: product.model || "Não informado" },
-    { icon: Boxes, label: "Estoque", value: product.stockQuantity !== null ? `${product.stockQuantity} unidades` : "Não informado" },
-    { icon: Scale, label: "Peso", value: formatWeight(product.weight) },
-    { icon: BadgeDollarSign, label: "Custo Velo", value: formatPrice(product.price) },
+    product.brand ? { icon: Factory, label: "Marca", value: product.brand } : null,
+    product.model ? { icon: Tag, label: "Modelo", value: product.model } : null,
+    product.stockQuantity !== null ? { icon: Boxes, label: "Estoque", value: `${product.stockQuantity} unidades` } : null,
+    product.weight && product.weight > 0 ? { icon: Scale, label: "Peso", value: formatWeight(product.weight) } : null,
+    { icon: BadgeDollarSign, label: "Quanto você paga", value: formatPrice(product.price) },
     { icon: PackageCheck, label: "Fornecedor", value: supplierLabel },
-  ];
+  ].filter((item): item is NonNullable<typeof item> => item !== null);
+
+  const openImportFlow = (origin: string) => {
+    trackMobileHomeEvent(user?.id, "product_detail_action", { productId: product.id, detail: origin });
+    setIsImportModalOpen(true);
+  };
   const handleCreateSalesPage = () => {
     const activeStore = getActiveStore();
     if (activeStore) {
@@ -367,8 +407,17 @@ const CatalogoProductDetailPage = () => {
     navigate("/onboarding/idioma", { state: { product: flowProduct, products: [flowProduct] } });
   };
 
+  const handleToggleFavorite = () => {
+    toggleFavorite(product.id);
+    if (favorited) {
+      veloToast.info("Removido dos favoritos");
+    } else {
+      veloToast.success("Adicionado aos favoritos");
+    }
+  };
+
   return (
-    <div className="-m-5 shrink-0 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)]">
+    <div ref={pageRef} className="-m-5 shrink-0 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white pb-24 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:pb-0">
       <div key={product.id} className="mx-auto min-h-screen w-full max-w-[1200px] animate-fade-in px-5 py-6 sm:px-8 sm:py-8 lg:px-8 lg:py-10">
 
         {/* CABEÇALHO DA PÁGINA */}
@@ -410,7 +459,7 @@ const CatalogoProductDetailPage = () => {
                   type="button"
                   aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
                   aria-pressed={favorited}
-                  onClick={() => setFavorited((value) => !value)}
+                  onClick={handleToggleFavorite}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-[#111111] ring-1 ring-black/[0.06] backdrop-blur-sm transition-transform active:scale-95"
                 >
                   <Heart size={18} strokeWidth={2} className={favorited ? "fill-red-500 text-red-500" : ""} />
@@ -422,6 +471,8 @@ const CatalogoProductDetailPage = () => {
                 alt={product.title}
                 className="absolute inset-0 h-full w-full object-contain"
                 referrerPolicy="no-referrer"
+                loading="eager"
+                fetchPriority="high"
               />
 
               {gallery.length > 1 && (
@@ -475,33 +526,6 @@ const CatalogoProductDetailPage = () => {
               {product.title}
             </h1>
 
-            {catalogMetrics.hasMetrics && (
-              <div className="mt-3 flex items-center gap-2 text-[12px]">
-                {catalogMetrics.rating !== null && (
-                  <>
-                    {/* Nota antes das estrelas e contagem entre parênteses, como na referência. */}
-                    <span className="font-medium text-[#111111]">{catalogMetrics.rating.toFixed(1)}</span>
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          size={12}
-                          className={
-                            i < Math.round(catalogMetrics.rating)
-                              ? "fill-[#2563EB] text-[#2563EB]"
-                              : "fill-[#E5E7EB] text-[#E5E7EB]"
-                          }
-                        />
-                      ))}
-                    </div>
-                  </>
-                )}
-                {socialProofCount !== null && (
-                  <span className="font-normal text-[#6B7280]">({formatReviewCount(socialProofCount)} vendidos)</span>
-                )}
-              </div>
-            )}
-
             {/*
               Um preço só, e é o custo — o número que não muda e não depende de decisão
               nenhuma. Antes esta dobra abria com "Por quanto você pode vender" e trazia
@@ -511,13 +535,17 @@ const CatalogoProductDetailPage = () => {
               verdade (ImportProductModal, passo "Precificação").
             */}
             <div className="mt-5 border-t border-black/[0.08] pt-5">
-              <span className="text-[32px] font-normal leading-none tracking-[-0.03em] text-[#111111]">
-                {costPriceMain}
-                <sup className="ml-0.5 align-super text-[16px] font-normal leading-none tracking-[-0.01em]">
-                  {costPriceCents}
-                </sup>
-              </span>
-              <p className="mt-2 text-[13px] leading-[1.5] text-[#71717A]">Preço do fornecedor</p>
+              <p className="text-[12px] font-semibold text-[#64748B]">Preço de venda sugerido</p>
+              <div className="mt-1 flex items-end justify-between gap-4">
+                <span className="text-[32px] font-bold leading-none text-[#111111]">{formatPrice(pricing.suggestedSalePrice)}</span>
+                <div className="text-right">
+                  <p className="text-[11px] font-semibold text-[#64748B]">Sobra bruta estimada</p>
+                  <p className="text-[20px] font-bold text-[#15803D]">{formatPrice(pricing.grossRemainder)}</p>
+                </div>
+              </div>
+              <p className="mt-2 text-[12px] leading-5 text-[#64748B]">Estimativa antes das taxas do Mercado Livre, frete e impostos.</p>
+              <p className="mt-2 text-[13px] text-[#52525B]">Você paga <strong className="text-[#111111]">{formatPrice(product.price)}</strong> pelo produto.</p>
+
 
               {/*
                 O espaço entre o preço e os botões estava vazio. A referência preenche essa
@@ -553,22 +581,18 @@ const CatalogoProductDetailPage = () => {
               O link "Ver no fornecedor" saiu da tela: o usuário não precisa chegar ao
               fornecedor, ele publica pelo catálogo da Velo.
             */}
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6">
               <button
                 type="button"
-                onClick={handleCreateSalesPage}
-                data-dashboard-tour="produto-criar-pagina"
-                className="inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-[#E3EDFB] px-3 text-[14px] font-semibold text-[#2563EB] transition-colors active:bg-[#D3E2F8]"
-              >
-                Criar página
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(true)}
+                onClick={() => openImportFlow("publish_primary")}
                 data-dashboard-tour="produto-importar"
-                className="inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-[#2563EB] px-3 text-[14px] font-semibold text-white transition-colors active:bg-[#1D4ED8]"
+                className="inline-flex h-12 w-full items-center justify-center rounded-[10px] bg-[#2563EB] px-4 text-[15px] font-bold text-white transition-colors active:bg-[#1D4ED8]"
               >
                 Publicar produto
+              </button>
+              <p className="mt-2 text-center text-[12px] text-[#64748B]">Para publicar, você precisa ter um plano ativo.</p>
+              <button type="button" onClick={() => { trackMobileHomeEvent(user?.id, "product_detail_action", { productId: product.id, detail: "create_page" }); handleCreateSalesPage(); }} data-dashboard-tour="produto-criar-pagina" className="mt-2 inline-flex h-11 w-full items-center justify-center text-[13px] font-semibold text-[#2563EB]">
+                Criar uma página de vendas
               </button>
             </div>
           </section>
@@ -619,9 +643,7 @@ const CatalogoProductDetailPage = () => {
             <aside className="self-start bg-white py-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[12px] leading-5 text-[#8A8A86]">
-                    Novo{socialProofCount !== null ? ` | ${formatReviewCount(socialProofCount)} vendidos` : ""}
-                  </p>
+                  <p className="text-[12px] leading-5 text-[#8A8A86]">Novo</p>
                   <h1 className="mt-2 text-[20px] font-semibold leading-[1.18] tracking-[-0.02em] text-[#111]">
                     {product.title}
                   </h1>
@@ -630,55 +652,32 @@ const CatalogoProductDetailPage = () => {
                   type="button"
                   aria-label={favorited ? "Remover dos favoritos" : "Salvar para depois"}
                   aria-pressed={favorited}
-                  onClick={() => setFavorited((value) => !value)}
-                  className="mt-1 text-[#2563EB]"
+                  onClick={handleToggleFavorite}
+                  className={`mt-1 transition-colors ${favorited ? "text-red-500" : "text-[#2563EB]"}`}
                 >
-                  <Heart size={20} strokeWidth={1.8} className={favorited ? "fill-[#2563EB]" : ""} />
+                  <Heart size={20} strokeWidth={1.8} className={favorited ? "fill-red-500" : ""} />
                 </button>
               </div>
 
-              {catalogMetrics.rating !== null && (
-                <div className="mt-3 flex items-center gap-2 text-[13px]">
-                  <div className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        size={13}
-                        className={i < Math.round(catalogMetrics.rating) ? "fill-[#2563EB] text-[#2563EB]" : "fill-[#E5E7EB] text-[#E5E7EB]"}
-                      />
-                    ))}
-                  </div>
-                  <span className="font-medium text-[#111]">{catalogMetrics.rating.toFixed(1)}</span>
-                </div>
-              )}
-
+              {/*
+                Um preço só, e é o custo real do fornecedor — nada de preço sugerido
+                aqui, para não parecer que a sugestão é o preço de verdade. A sugestão
+                de venda e a margem aparecem só no momento de publicar (modal de
+                importação, passo de precificação).
+              */}
               <div className="mt-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.11em] text-[#8A8A86]">
-                  Por quanto você pode vender
+                  Preço do fornecedor
                 </p>
-                <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1.5">
+                <div className="mt-1.5 flex items-center justify-between gap-3">
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
-                    {formatPrice(product.suggestedPrice)}
-                  </span>
-                  <span className="mb-0.5 rounded-[6px] bg-[#F1F1EF] px-2 py-0.5 text-[11px] font-semibold text-[#111]">
-                    Margem {marginLabel}
+                    {formatPrice(product.price)}
                   </span>
                 </div>
-
-                <div className="mt-3 grid grid-cols-2 divide-x divide-black/[0.07] rounded-[12px] border border-black/[0.07] bg-[#FAFAF9]">
-                  <div className="px-3.5 py-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A8A86]">Você paga ao fornecedor</p>
-                    <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#111]">{formatPrice(product.price)}</p>
-                  </div>
-                  <div className="px-3.5 py-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8A8A86]">Seu lucro por venda</p>
-                    <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-[#111]">{formatPrice(estimatedProfit)}</p>
-                  </div>
-                </div>
-
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
-                  Sugestão da Velo — você define o preço final antes de publicar.
+                  Você define o seu preço de venda na hora de publicar.
                 </p>
+
               </div>
 
               <div className="mt-5 space-y-1.5 border-t border-black/[0.08] pt-5">
@@ -692,7 +691,7 @@ const CatalogoProductDetailPage = () => {
               <div className="mt-5 grid gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsImportModalOpen(true)}
+                  onClick={() => openImportFlow("publish_desktop")}
                   data-dashboard-tour="produto-importar"
                   style={PRODUCT_IMPORT_BUTTON_STYLE}
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[9px] px-5 text-[14px] font-semibold text-white transition hover:brightness-105"
@@ -837,9 +836,6 @@ const CatalogoProductDetailPage = () => {
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {relatedWindow.map((p) => {
-                const relatedMetrics = getProductCatalogMetrics(p);
-                const relatedSocialProofCount = relatedMetrics.ordersCount ?? relatedMetrics.reviewsCount;
-
                 return (
                   <Link
                     key={p.id}
@@ -852,33 +848,15 @@ const CatalogoProductDetailPage = () => {
                         alt={p.title}
                         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.035]"
                         referrerPolicy="no-referrer"
+                        loading="lazy"
                       />
                     </div>
                     <div className="mt-3">
                       <div className="line-clamp-2 text-[13px] font-semibold leading-5 text-[#111]">{p.title}</div>
-                      {relatedMetrics.hasMetrics && (
-                        <div className="mt-1 flex items-center gap-1 text-[11px] text-[#71717A]">
-                          {relatedMetrics.rating !== null && (
-                            <>
-                              <Star size={11} className="fill-[#2563EB] text-[#2563EB]" />
-                              <span>{relatedMetrics.rating.toFixed(1)}</span>
-                            </>
-                          )}
-                          {relatedMetrics.rating !== null && relatedSocialProofCount !== null && <span>·</span>}
-                          {relatedSocialProofCount !== null && (
-                            <span>{formatReviewCount(relatedSocialProofCount)} vendidos</span>
-                          )}
-                        </div>
-                      )}
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-[15px] font-bold text-[#111]">
-                          {formatPrice(p.suggestedPrice)}
+                          {formatPrice(p.price)}
                         </span>
-                        {p.originalPrice && (
-                          <span className="text-[11.5px] text-[#9CA3AF] line-through">
-                            {formatPrice(p.originalPrice)}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </Link>
@@ -888,6 +866,19 @@ const CatalogoProductDetailPage = () => {
           </section>
         )}
 
+      </div>
+
+      <div className="fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 border-t border-black/[0.08] bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl md:hidden">
+        <div className="mx-auto flex max-w-[480px] items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold text-[#64748B]">Sobra bruta estimada</p>
+            <p className="text-[17px] font-bold text-[#15803D]">{formatPrice(pricing.grossRemainder)}</p>
+          </div>
+          <button type="button" onClick={() => openImportFlow("publish_sticky")} className="inline-flex h-12 min-w-[176px] items-center justify-center rounded-[10px] bg-[#2563EB] px-5 text-[15px] font-bold text-white active:bg-[#1D4ED8]">
+            Publicar produto
+          </button>
+        </div>
+        <p className="mx-auto mt-1 max-w-[480px] text-right text-[10px] text-[#64748B]">É preciso ter um plano ativo.</p>
       </div>
 
       <ImportProductModal

@@ -15,6 +15,8 @@ import type { User } from "@supabase/supabase-js";
 export const CHAVE_RESPOSTAS_DO_QUIZ = "velo_onboarding_answers";
 
 export type RespostasDoQuiz = {
+  /** Primeiro nome escolhido no onboarding curto (também vai para o perfil). */
+  nome?: string;
   /** "sim" | "nao" */
   mercadoLivre?: string;
   /** "dropshipper" | "marca" | "agencia" | "explorando" */

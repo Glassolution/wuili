@@ -24,3 +24,26 @@ export const markTourSeen = (userId: string): void => {
     /* ignore */
   }
 };
+
+// Tour do Atlas pendente: gravado ao concluir o onboarding, para o tour abrir
+// assim que o dashboard terminar de entrar — e continuar valendo se a pessoa
+// recarregar a página antes de vê-lo.
+const tourPendingKey = (userId: string) => `velo-tour-pending:${userId}`;
+
+export const markTourPending = (userId: string): void => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(tourPendingKey(userId), "1");
+  } catch {
+    /* ignore */
+  }
+};
+
+export const hasPendingTour = (userId: string): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(tourPendingKey(userId)) === "1" && !hasSeenTour(userId);
+  } catch {
+    return false;
+  }
+};

@@ -1,0 +1,146 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789717477401,
+      "tag": "0000_fix_tracking_grants_and_device",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789717574342,
+      "tag": "0001_admin_tracking_rpcs",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789918238486,
+      "tag": "0002_landing_funnel_and_stats",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789919274746,
+      "tag": "0003_signup_funnel_and_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789927206720,
+      "tag": "0004_ml_dimension_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789927416823,
+      "tag": "0005_cron_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789928159844,
+      "tag": "0006_ml_dimension_autofix_flags",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789939436359,
+      "tag": "0007_onboarding_funnel_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789940385243,
+      "tag": "0008_landing_mobile_conversion_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789941104157,
+      "tag": "0009_mobile_home_funnel_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789950325421,
+      "tag": "0010_create_pending_publications",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789951607209,
+      "tag": "0011_rpc_active_subscribers_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789951889249,
+      "tag": "0012_cron_lembrete_planos",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789962340533,
+      "tag": "0013_funil_completo_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789962686444,
+      "tag": "0014_ajusta_funil_pagamento_vendedor",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789979570567,
+      "tag": "0015_fix_paying_daily_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789986221581,
+      "tag": "0016_funil_por_coorte_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789993064792,
+      "tag": "0017_ml_seller_readiness_e_pagou_sem_publicar",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789993267674,
+      "tag": "0018_classifica_conexao_expirada_por_verificacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789993378878,
+      "tag": "0019_cron_ml_seller_readiness",
+      "breakpoints": true
+    }
+  ]
+}

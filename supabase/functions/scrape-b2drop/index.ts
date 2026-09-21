@@ -3,7 +3,8 @@
 //   curl -X POST https://<project>.supabase.co/functions/v1/scrape-b2drop \
 //        -H "apikey: <anon-key>"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { hasEnoughImages } from "../_shared/catalog-filters.ts";
+import { hasEnoughImages, isCellphoneProduct } from "../_shared/catalog-filters.ts";
+import { autoFixProduct, complianceColumns } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -133,23 +134,33 @@ Deno.serve(async (req) => {
     let blocked = 0;
     const now = new Date().toISOString();
 
-    // Pré-carrega external_ids existentes para classificar insert vs update no log.
+    // Pré-carrega existentes para classificar insert vs update no log e para
+    // preservar o bloqueio da auditoria visual.
     const { data: existing } = await supabase
       .from("catalog_products")
-      .select("external_id")
+      .select("external_id,is_blocked,images,ml_vision_clean_count")
       .eq("source", SOURCE);
     const existingIds = new Set((existing ?? []).map((r) => r.external_id));
+    const anteriores = new Map((existing ?? []).map((r) => [r.external_id as string, r]));
+
 
     // Upsert em lotes
+    let naoConformes = 0;
     const rows = scraped.map((p) => {
       const images = [p.image_url].filter(Boolean);
       // ML exige no mínimo 3 fotos.
-      const blockedFlag = isBlocked(p.title) || !hasEnoughImages(images);
+      // Celulares/smartphones (MLB1055) não publicam no ML sem homologação Anatel.
+      const blockedFlag =
+        isBlocked(p.title) || !hasEnoughImages(images) || isCellphoneProduct(p.title, inferCategory(p.title));
       if (blockedFlag) blocked++;
+      // Veredito das diretrizes do ML gravado já na chegada do produto.
+      const corrigido = autoFixProduct({ title: p.title, description: null, images });
+      const veredito = corrigido.result;
+      if (veredito.status !== "ok") naoConformes++;
       return {
         source: SOURCE,
         external_id: p.external_id,
-        title: p.title,
+        title: corrigido.title,
         description: null,
         images,
         cost_price: p.price,
@@ -163,10 +174,27 @@ Deno.serve(async (req) => {
         is_blocked: blockedFlag,
         scraped_at: now,
         updated_at: now,
+        ...complianceColumns(veredito, now),
       };
     });
 
+    // Mantém fora do catálogo o produto reprovado na auditoria visual (0 fotos
+    // dentro das diretrizes), a menos que as fotos tenham mudado — nesse caso
+    // ele volta para a fila de auditoria.
+    for (const row of rows as Record<string, unknown>[]) {
+      const anterior = anteriores.get(row.external_id as string);
+      if (!anterior || anterior.ml_vision_clean_count !== 0) continue;
+      const mesmasFotos =
+        JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
+      if (mesmasFotos) row.is_blocked = true;
+      else {
+        row.ml_vision_clean_count = null;
+        row.ml_vision_checked_at = null;
+      }
+    }
+
     // upsert em lotes de 200
+
     const BATCH = 200;
     for (let i = 0; i < rows.length; i += BATCH) {
       const slice = rows.slice(i, i + BATCH);
@@ -190,6 +218,7 @@ Deno.serve(async (req) => {
       inserted,
       updated,
       blocked,
+      fora_das_diretrizes_ml: naoConformes,
       ran_at: now,
     };
     console.log("[scrape-b2drop] Concluído:", JSON.stringify(summary));

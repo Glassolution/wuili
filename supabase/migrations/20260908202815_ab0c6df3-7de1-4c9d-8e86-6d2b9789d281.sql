@@ -1,0 +1,1 @@
+DELETE FROM public.dropship_worker_commands WHERE message = 'teste';

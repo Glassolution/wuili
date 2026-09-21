@@ -1,17 +1,22 @@
 import { Suspense, lazy, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import TourLab from "@/pages/__TourLab";
 import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
 import DashboardIntroSessionGuard from "@/components/DashboardIntroSessionGuard";
+import MLReconnectModal from "@/components/dashboard/MLReconnectModal";
+import MLPostConnectCheck from "@/components/dashboard/MLPostConnectCheck";
+import PosPagamentoRetomada from "@/components/dashboard/PosPagamentoRetomada";
 import { VeloToaster } from "@/components/ui/velo-toast";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/lib/profileContext";
 import AdminRoute from "@/components/AdminRoute";
+import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { UpgradeModalProvider, useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -88,13 +93,16 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
-const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
-const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
+const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersRoutePage"));
+const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsRoutePage"));
 const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
-const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsPage"));
-const AdminBlankPage = lazy(() => import("./pages/admin/AdminBlankPage"));
-const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesPage"));
+const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsRoutePage"));
+const AdminPanelPage = lazy(() => import("./pages/admin/AdminPanelPage"));
+const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesRoutePage"));
 const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
+const AdminDiagnosticsPage = lazy(() => import("./pages/admin/AdminDiagnosticsPage"));
+const AdminTrackingPage = lazy(() => import("./pages/admin/AdminTrackingPage"));
+const AdminBotAutomationPage = lazy(() => import("./pages/admin/AdminBotAutomationPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
 const queryClient = new QueryClient({
@@ -173,6 +181,7 @@ const OpenPlansModalRoute = () => {
 };
 
 
+
 const MorePage = () => (
   <DashboardInfoPage
     title="Mais"
@@ -204,8 +213,12 @@ const App = () => (
         <DashboardIntroSessionGuard />
         <BrowserRouter>
           <UpgradeModalProvider>
+          <ActivityTracker />
           <FlatButtonsOnCatalog />
           <MarcarAppCarregado />
+          <MLReconnectModal />
+          <MLPostConnectCheck />
+          <PosPagamentoRetomada />
           <Suspense fallback={<RouteFallback />}>
 
             <Routes>
@@ -268,7 +281,7 @@ const App = () => (
               <Route path="/minha-loja/fluxo" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
-              <Route path="/admin/painel" element={<AdminRoute><AdminBlankPage /></AdminRoute>} />
+              <Route path="/admin/painel" element={<AdminRoute><AdminPanelPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/product-analytics" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/reporting" element={<Navigate to="/admin/painel" replace />} />
@@ -279,6 +292,9 @@ const App = () => (
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
               <Route path="/admin/vendas" element={<AdminRoute><AdminSalesPage /></AdminRoute>} />
               <Route path="/admin/evidencias" element={<AdminRoute><AdminEvidencePage /></AdminRoute>} />
+              <Route path="/admin/consulta" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
+              <Route path="/admin/rastreio" element={<AdminRoute><AdminTrackingPage /></AdminRoute>} />
+              <Route path="/admin/automacao-bot" element={<AdminRoute><AdminBotAutomationPage /></AdminRoute>} />
               <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />

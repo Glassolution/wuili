@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   ArrowLeft,
   ChevronDown,
@@ -23,6 +22,7 @@ import {
   MoreHorizontal,
   TrendingUp,
   Lightbulb,
+  PlayCircle,
 } from "lucide-react";
 import {
   AreaChart,
@@ -55,7 +55,19 @@ import {
   removeProductFromCollection,
 } from "@/lib/collectionsApi";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { trackPrimeiroProdutoVisto } from "@/lib/signupFunnel";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
+import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
+
+const TUTORIAL_CATALOGO = {
+  src: "https://www.youtube.com/embed/CtU-zqb0SM4?rel=0&modestbranding=1",
+  aspectPadding: "56.25%",
+  title: "Tutorial do catálogo",
+  description: "Veja como encontrar e importar produtos no catálogo Velo.",
+} as const;
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -853,6 +865,23 @@ const getProductImages = (images: Json | null): string[] => {
   return proxyImageList(raw);
 };
 
+/**
+ * Padrão mínimo do catálogo Velo (espelha o gatilho do banco):
+ * produto ativo, não bloqueado, com estoque, preço válido e pelo menos
+ * 3 fotos distintas. Serve como segunda barreira — se alguma linha antiga
+ * escapar da regra do banco, ela não aparece na vitrine.
+ */
+const MIN_FOTOS_CATALOGO = 3;
+
+const atendePadroesDoCatalogo = (p: CatalogProductRow): boolean => {
+  if (p.is_active === false || p.is_blocked === true) return false;
+  if (toNumber(p.stock_quantity) <= 0) return false;
+  if (toNumber(p.cost_price) <= 0) return false;
+  if (!p.title || !String(p.title).trim()) return false;
+  const fotos = new Set(getProductImages(p.images).filter((url) => url && url.trim()));
+  return fotos.size >= MIN_FOTOS_CATALOGO;
+};
+
 
 
 const getCompactFilterValue = (value: string) =>
@@ -915,9 +944,9 @@ const FilterDropdown = ({
 
 const CatalogoPage = () => {
   const navigate = useNavigate();
+  const { user: usuarioAtual } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
   const { abrirLateral, aberto: atlasAberto } = useAtlasChat();
   const selectionCollectionId = searchParams.get("collectionId");
   const selectionCollectionName = searchParams.get("collectionName") || "coleção";
@@ -946,10 +975,19 @@ const CatalogoPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
+  const { favoritedIds, toggleFavorite: toggleCatalogFavorite } = useCatalogFavorites();
   const [collectionProductIds, setCollectionProductIds] = useState<string[]>([]);
+
+  // Mede quanto tempo passou entre criar a conta e ver produto pela primeira
+  // vez. Só dispara quando há produto na tela de verdade — carregando não conta.
+  useEffect(() => {
+    if (!usuarioAtual?.id || isLoading || products.length === 0) return;
+    trackPrimeiroProdutoVisto(usuarioAtual.id, usuarioAtual.created_at);
+  }, [usuarioAtual?.id, usuarioAtual?.created_at, isLoading, products.length]);
+
   const [collectionToggleLoadingId, setCollectionToggleLoadingId] = useState<string | null>(null);
   const [atlasResults, setAtlasResults] = useState<AtlasResults | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   // Recebe resultados Atlas vindos de outra página (ex: DashboardHomePage)
   useEffect(() => {
     const incoming = (location.state as { atlasResults?: AtlasResults } | null)?.atlasResults;
@@ -961,7 +999,7 @@ const CatalogoPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 24;
 
   // Quando o Atlas lateral está aberto o espaço do catálogo reduz; diminuímos
   // o número de colunas para os cards ficarem maiores e visualmente confortáveis.
@@ -972,45 +1010,9 @@ const CatalogoPage = () => {
     ? "flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-3 md:overflow-visible"
     : "flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-2 xl:grid-cols-4 md:overflow-visible";
 
-  // Persistência dos favoritos por usuário (localStorage). Chave inclui o id do
-  // usuário para não misturar favoritos entre contas no mesmo dispositivo.
-  const favoritesStorageKey = useMemo(
-    () => `velo-favorites${user?.id ? `-${user.id}` : ""}`,
-    [user?.id],
-  );
-  const favoritesHydrated = useRef(false);
-
-  // Hidrata os favoritos salvos ao montar / trocar de usuário.
-  useEffect(() => {
-    favoritesHydrated.current = false;
-    try {
-      const raw = localStorage.getItem(favoritesStorageKey);
-      const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-      setFavoritedIds(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
-    } catch {
-      setFavoritedIds([]);
-    }
-    favoritesHydrated.current = true;
-  }, [favoritesStorageKey]);
-
-  // Persiste sempre que a lista muda (após a hidratação, para não sobrescrever o
-  // valor salvo com o estado inicial vazio).
-  useEffect(() => {
-    if (!favoritesHydrated.current) return;
-    try {
-      localStorage.setItem(favoritesStorageKey, JSON.stringify(favoritedIds));
-    } catch {
-      // Armazenamento indisponível (modo privado/quota) — favoritos seguem em memória.
-    }
-  }, [favoritedIds, favoritesStorageKey]);
-
   const toggleFavorite = (productId: string) => {
     const willFavorite = !favoritedIds.includes(productId);
-    setFavoritedIds((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    );
+    toggleCatalogFavorite(productId);
     if (willFavorite) {
       veloToast.success("Adicionado aos favoritos");
     } else {
@@ -1098,6 +1100,7 @@ const CatalogoPage = () => {
       nome: p.title || "Produto sem nome",
       categoria: p.category || "Produto",
       preco: p.cost_price || 0,
+      suggestedPrice: p.suggested_price,
       image_url: imgUrls[0],
       images: imgUrls,
       product_url: p.product_url,
@@ -1127,11 +1130,12 @@ const CatalogoPage = () => {
               .from("catalog_products")
               .select("*")
               .in("id", favoritedIds)
+              .eq("is_active", true)
               .eq("is_blocked", false)
               .gt("stock_quantity", 0),
           );
           if (favError) throw favError;
-          const byId = new Map((data || []).map((p) => [p.id, p]));
+          const byId = new Map((data || []).filter(atendePadroesDoCatalogo).map((p) => [p.id, p]));
           let ordered = favoritedIds
             .map((id) => byId.get(id))
             .filter((p): p is CatalogProductRow => Boolean(p))
@@ -1157,10 +1161,12 @@ const CatalogoPage = () => {
             supabase
               .from("catalog_products")
               .select("*")
-              .in("id", atlasResults.ids),
+              .in("id", atlasResults.ids)
+              .eq("is_active", true)
+              .eq("is_blocked", false),
           );
           if (fetchError) throw fetchError;
-          const byId = new Map((data || []).map((p) => [p.id, p]));
+          const byId = new Map((data || []).filter(atendePadroesDoCatalogo).map((p) => [p.id, p]));
           const ordered = atlasResults.ids
             .map((id) => byId.get(id))
             .filter((p): p is CatalogProductRow => Boolean(p))
@@ -1176,7 +1182,7 @@ const CatalogoPage = () => {
         // não é exportado de forma prática; a query final é tipada pelo Supabase.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const applyCommonFilters = (query: any) => {
-          let q = query.eq("is_blocked", false).gt("stock_quantity", 0);
+          let q = query.eq("is_active", true).eq("is_blocked", false).gt("stock_quantity", 0);
           const priceBounds = getPriceRangeBounds(selectedPriceRange);
           if (activeCategory !== CATEGORIA_TODOS && activeCategory !== CATEGORIA_FAVORITOS) {
             // O valor já é o do banco; ilike só para não depender de caixa.
@@ -1208,6 +1214,7 @@ const CatalogoPage = () => {
           if (fetchError) throw fetchError;
 
           const filtered = (data || [])
+            .filter(atendePadroesDoCatalogo)
             .map(mapProduct)
             .filter((p) => productMatchesSelectedFilters(p, selectedPriceRange, selectedRating));
           setProducts(filtered.slice(start, end + 1));
@@ -1224,7 +1231,10 @@ const CatalogoPage = () => {
             .range(start, end),
         );
         if (fetchError) throw fetchError;
-        setProducts((data || []).map(mapProduct));
+        // A regra das 3 fotos já roda no banco; o filtro local é só rede de
+        // segurança para linhas antigas que tenham escapado.
+        const dentroDoPadrao = (data || []).filter(atendePadroesDoCatalogo);
+        setProducts(dentroDoPadrao.map(mapProduct));
         setTotalCount(count || 0);
       } catch (err: any) {
         console.error("Erro ao buscar produtos do catálogo:", err);
@@ -1258,14 +1268,15 @@ const CatalogoPage = () => {
             .from("catalog_products")
             .select("*")
             .eq("source", "c7drop")
+            .eq("is_active", true)
             .eq("is_blocked", false)
             .gt("stock_quantity", 0)
-            .limit(10),
+            .limit(40),
         );
 
 
         if (fetchError) throw fetchError;
-        setRecommendations((data || []).map(mapProduct));
+        setRecommendations((data || []).filter(atendePadroesDoCatalogo).map(mapProduct));
       } catch (err) {
         console.error("Erro ao buscar recomendações:", err);
       }
@@ -1297,6 +1308,7 @@ const CatalogoPage = () => {
       const { data, error } = await supabase
         .from("catalog_products")
         .select("category")
+        .eq("is_active", true)
         .eq("is_blocked", false)
         .gt("stock_quantity", 0)
         .limit(5000);
@@ -1388,18 +1400,30 @@ const CatalogoPage = () => {
       )}
       <section className="min-w-0 overflow-visible">
         <>
-            <header className="mb-5 flex items-center gap-3 md:mb-6">
-              <button
+            <header className="mb-5 flex items-center justify-between gap-3 md:mb-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                  aria-label="Voltar"
+                >
+                  <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
+                </button>
+                <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
+                  Catálogo Velo
+                </h1>
+              </div>
+              <Button
                 type="button"
-                onClick={() => navigate(-1)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#101114] transition hover:bg-black/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
-                aria-label="Voltar"
+                variant="outline"
+                onClick={() => setTutorialOpen(true)}
+                aria-label="Ver tutorial do catálogo"
+                className="hidden sm:inline-flex gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
               >
-                <ArrowLeft size={20} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-              <h1 className="truncate text-[22px] font-semibold tracking-[-0.04em] text-[#101114] sm:text-[24px]">
-                Catálogo Velo
-              </h1>
+                <PlayCircle aria-hidden="true" size={17} />
+                Ver tutorial
+              </Button>
             </header>
 
             <div
@@ -1737,6 +1761,14 @@ const CatalogoPage = () => {
             </section>
         </>
       </section>
+      <VideoTutorialModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        title={TUTORIAL_CATALOGO.title}
+        description={TUTORIAL_CATALOGO.description}
+        src={TUTORIAL_CATALOGO.src}
+        aspectPadding={TUTORIAL_CATALOGO.aspectPadding}
+      />
     </div>
   );
 };

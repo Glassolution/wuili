@@ -40,21 +40,17 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // Paginação para escalar além de 50 usuários (default do listUsers).
-    let page = 1;
-    const perPage = 1000;
-    while (page <= 10) {
-      const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-      if (error) return json({ exists: false });
-      const users = data?.users ?? [];
-      if (users.some((u) => u.email?.toLowerCase() === email)) {
-        return json({ exists: true });
-      }
-      if (users.length < perPage) break;
-      page++;
+    // Consulta direta (RPC security definer) — instantânea e independente do
+    // número de usuários. listUsers paginado levava ~5s e estourava o timeout
+    // do frontend, jogando quem estava criando conta para a tela de login.
+    const { data, error } = await admin.rpc("auth_email_exists", { p_email: email });
+    if (error) {
+      console.error("auth-email-exists rpc error:", error.message);
+      return json({ exists: false, unknown: true }, 200);
     }
 
-    return json({ exists: false });
+    return json({ exists: data === true });
+
   } catch {
     return json({ exists: false });
   }

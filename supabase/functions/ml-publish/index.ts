@@ -1,6 +1,56 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
-import { filterCleanImages } from '../_shared/ml-content-sanitizer.ts'
+import {
+  buildSafeDescription,
+  sanitizeTitle,
+} from '../_shared/ml-content-sanitizer.ts'
+import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
+import { selectPublishableDimension } from '../_shared/ml-variations.ts'
+import {
+  montarPesoMedidas,
+  garantirMedidasNoAnuncio,
+  pausarAnuncio,
+} from '../_shared/mlPackage.ts'
+
+/**
+ * Grava no catálogo o veredito das diretrizes apurado na publicação (com
+ * checagem visual, que o scraping não faz). Assim o próximo lojista já vê o
+ * aviso no catálogo em vez de descobrir só ao tentar publicar.
+ */
+async function registrarVeredictoNoCatalogo(
+  productId: string | undefined,
+  status: 'ok' | 'blocked',
+  issues: string[],
+  cleanImagesCount: number,
+) {
+  const url = Deno.env.get('DB_URL') ?? Deno.env.get('SUPABASE_URL')
+  const key = Deno.env.get('DB_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!productId || !url || !key) return
+  try {
+    await fetch(`${url}/rest/v1/catalog_products?id=eq.${productId}`, {
+      method: 'PATCH',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        ml_compliance_status: status,
+        ml_compliance_issues: issues,
+        ml_clean_images_count: cleanImagesCount,
+        ml_compliance_checked_at: new Date().toISOString(),
+        ml_vision_clean_count: cleanImagesCount,
+        ml_vision_checked_at: new Date().toISOString(),
+        // Fotos insuficientes: tira o produto do catálogo para ninguém mais
+        // esbarrar no mesmo erro na hora de publicar.
+        ...(status === 'blocked' ? { is_blocked: true } : {}),
+      }),
+    })
+  } catch (err) {
+    console.warn('[ml-publish] não foi possível gravar o veredito de diretrizes:', String(err))
+  }
+}
 
 
 const corsHeaders = {
@@ -289,61 +339,96 @@ function buildMlVariations(
   price: number,
   totalQuantity: number,
   pictures: Array<{ source?: string }> = [],
+  // Peso/dimensões da embalagem. Em anúncios COM variação o Mercado Livre lê
+  // essas medidas na variação — o `shipping.dimensions` do item é ignorado.
+  // Sem isso o motor de frete cai na tabela de "pacote grande" (R$170+).
+  shippingAttrs: MLAttribute[] = [],
 ): Array<Record<string, unknown>> {
+
   const rows = parseSupplierVariantRows(variantsRaw)
   if (rows.length === 0) return []
 
-  // Agrupa por eixo e descarta eixos com uma opção só (não é escolha real).
-  const grouped = new Map<string, string[]>()
-  for (const row of rows) {
-    const list = grouped.get(row.name) ?? []
-    if (!list.includes(row.value)) list.push(row.value)
-    grouped.set(row.name, list)
+  // GUARDA ÚNICA DE DIMENSÃO REAL (_shared/ml-variations.ts).
+  // É a MESMA guarda usada pelo motor de variações: descarta tiers internos do
+  // C7Drop ("Compra: Atacado/Dropshipping/Grupo Vip", "Kit", "Promoção"),
+  // múltiplas dimensões e listas fora da faixa de 2..6 valores. Sem isso,
+  // o caminho de anúncios-irmãos por family_name geraria um anúncio duplicado
+  // por tier de preço do fornecedor.
+  const guarda = selectPublishableDimension(variantsRaw)
+  if (!guarda.ok || !guarda.name) {
+    console.log(
+      `[ml-publish] Sem variação publicável (motivo=${guarda.reason}; dimensões=${JSON.stringify(guarda.allDimensions)}) — item simples.`,
+    )
+    return []
   }
-  const axes: Array<{ attrId: string; values: string[] }> = []
-  for (const [name, values] of grouped) {
-    if (values.length < 2) continue
-    const matched = matchVariationAttribute(name, categoryAttrs)
-    if (!matched) {
-      console.warn(`[ml-publish] Variação "${name}" sem atributo equivalente na categoria — publicando item simples.`)
-      return []
-    }
-    axes.push({ attrId: matched.id, values })
-  }
-  if (axes.length === 0) return []
 
-  // Produto cartesiano dos eixos (ML exige uma variação por combinação).
-  let combos: Array<Array<{ id: string; value_name: string }>> = [[]]
-  for (const axis of axes) {
-    const next: Array<Array<{ id: string; value_name: string }>> = []
-    for (const combo of combos) {
-      for (const value of axis.values) {
-        next.push([...combo, { id: axis.attrId, value_name: value }])
-      }
-    }
-    combos = next
+  const matched = matchVariationAttribute(guarda.name, categoryAttrs)
+  if (!matched) {
+    console.warn(`[ml-publish] Variação "${guarda.name}" sem atributo equivalente na categoria — publicando item simples.`)
+    return []
   }
-  // O ML limita variações por anúncio; 60 é folgado e seguro.
-  combos = combos.slice(0, 60)
+
+  const combos: Array<Array<{ id: string; value_name: string }>> = guarda.values.map((value) => [
+    { id: matched.id, value_name: value },
+  ])
 
   // Algumas categorias (ex.: Filtros de Linha) exigem picture_ids em cada
   // variação. Usamos as URLs já normalizadas do produto; o ML converte para
   // IDs internos durante a criação do anúncio.
   const pictureUrls = pictures.map((p) => p.source).filter((url): url is string => Boolean(url))
 
-  const perVariation = Math.max(1, Math.floor((totalQuantity || 10) / combos.length))
-  return combos.map((attribute_combinations) => {
+  // Imagem específica por variação: quando o produto tem pelo menos uma foto
+  // para cada valor, a variação nº i recebe a foto nº i (as demais entram como
+  // apoio). Sem fotos suficientes, todas herdam a galeria completa.
+  const fotosSuficientes = pictureUrls.length >= combos.length
+  const fotosDaVariacao = (indice: number): string[] => {
+    if (pictureUrls.length === 0) return []
+    if (!fotosSuficientes) return pictureUrls.slice(0, 10)
+    const principal = pictureUrls[indice]
+    return [principal, ...pictureUrls.filter((u) => u !== principal)].slice(0, 10)
+  }
+
+  // Estoque por variação: preferimos o estoque real informado pelo fornecedor
+  // para aquele valor; se ele não existir, dividimos o estoque do produto.
+  const perVariation = Math.max(1, Math.floor((totalQuantity || 1) / combos.length))
+  const stockPorValor = new Map<string, number>()
+  for (const r of rows) {
+    const st = Number(r.stock ?? 0)
+    if (r.value && st > 0) stockPorValor.set(String(r.value), Math.max(stockPorValor.get(String(r.value)) ?? 0, st))
+  }
+  return combos.map((attribute_combinations, indice) => {
     const skuRow = rows.find((r) => r.sku && attribute_combinations.some((c) => c.value_name === r.value))
+    const estoqueDaVariacao = attribute_combinations
+      .map((c) => stockPorValor.get(String(c.value_name)))
+      .find((v) => typeof v === 'number' && v > 0)
+    const fotos = fotosDaVariacao(indice)
+    const atributosDaVariacao: MLAttribute[] = [
+      ...(skuRow?.sku ? [{ id: 'SELLER_SKU', value_name: skuRow.sku }] : []),
+      ...shippingAttrs,
+    ]
     const variation: Record<string, unknown> = {
       attribute_combinations,
       price,
-      available_quantity: perVariation,
-      ...(pictureUrls.length > 0 ? { picture_ids: pictureUrls.slice(0, 10) } : {}),
-      ...(skuRow?.sku ? { attributes: [{ id: 'SELLER_SKU', value_name: skuRow.sku }] } : {}),
+      available_quantity: Math.max(1, Math.floor(estoqueDaVariacao ?? perVariation)),
+      ...(fotos.length > 0 ? { picture_ids: fotos } : {}),
+      ...(atributosDaVariacao.length > 0 ? { attributes: atributosDaVariacao } : {}),
+
+      // Metadados internos (removidos antes de enviar ao ML) usados para
+      // registrar o anúncio-irmão em user_publications.
+      _velo_dimension: guarda.name,
+      _velo_value: attribute_combinations[0]?.value_name ?? null,
+      _velo_pictures: fotos,
     }
     return variation
   })
 }
+
+// Metadados internos não podem ir no POST do ML.
+function semMetadadosVelo(v: Record<string, unknown>): Record<string, unknown> {
+  const { _velo_dimension: _d, _velo_value: _v, _velo_pictures: _p, ...limpo } = v as Record<string, unknown>
+  return limpo
+}
+
 
 function mergeAttribute(attributes: MLAttribute[], incoming: MLAttribute) {
   const attr = {
@@ -613,7 +698,7 @@ async function logPrediction(
 }
 
 // Map ML API errors to user-friendly messages
-function mapMLError(mlData: Record<string, unknown>): { message: string; code?: string } {
+function mapMLError(mlData: Record<string, unknown>): { message: string; code?: string; seller_codes?: string[] } {
   const msg = (mlData?.message as string) || ''
   const causeArr = arrayFromUnknown(mlData?.cause)
   const causeStr = JSON.stringify(causeArr).toLowerCase()
@@ -627,13 +712,22 @@ function mapMLError(mlData: Record<string, unknown>): { message: string; code?: 
     causeStr.includes('restriction')
   ) {
     const codes = collectSellerStatusCodes(causeArr, mlData.error, mlData.code, mlData.message)
-    return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST' }
+    return { message: buildSellerBlockedMessage(codes), code: 'ML_SELLER_CANNOT_LIST', seller_codes: codes }
   }
 
   // Erros específicos de imagens em variações precisam de mensagem clara antes
   // do catch-all de categoria/pictures abaixo.
   if (causeStr.includes('item.pictures.variation')) {
     return { message: 'Cada variação precisa ter entre 1 e 10 fotos. Verifique se o produto possui imagens suficientes.' }
+  }
+  // Atributos recusados dentro da variação (ex.: peso/medidas por variação).
+  // O ML cita "category_id" nesses erros, então isso precisa vir ANTES do
+  // catch-all de categoria — senão o usuário recebe uma mensagem errada.
+  if (causeStr.includes('seller_package_weight') || causeStr.includes('seller_package_dimensions')) {
+    return {
+      message: 'O Mercado Livre recusou o peso/medidas da embalagem para esta categoria. Já tentamos publicar sem esses dados; se persistir, tente novamente em alguns minutos.',
+      code: 'INVALID_PACKAGE_ATTRIBUTES',
+    }
   }
   if (causeStr.includes('category_id') || msgLower.includes('category')) return { message: 'Não conseguimos identificar a categoria automaticamente para este produto. Edite o título para deixá-lo mais descritivo ou selecione a categoria manualmente antes de publicar.', code: 'INVALID_CATEGORY' }
   // Repassa a mensagem/atributo real da API do ML, sem mascarar como
@@ -700,11 +794,6 @@ Deno.serve(async (req) => {
 
   try {
     console.log('=== ml-publish START ===')
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return json({ error: 'Nao autorizado.' }, 401)
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
@@ -712,16 +801,35 @@ Deno.serve(async (req) => {
       return json({ error: 'Configuracao do servidor incompleta.' }, 500)
     }
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const { data: userData, error: userError } = await userClient.auth.getUser()
-    if (userError || !userData.user) {
-      return json({ error: 'Token invalido.' }, 401)
-    }
-    const user_id = userData.user.id
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const { product } = body
+
+    // Republicação interna (ml-fix-noncompliant): a rotina de reparo chama esta
+    // função sem JWT do usuário, autenticada pelo token de reparo no header
+    // x-repair-token. Nesse caso o user_id vem no corpo da requisição.
+    const repairToken = Deno.env.get('ML_REPAIR_TOKEN')
+    const isInternalRepair = Boolean(repairToken) &&
+      req.headers.get('x-repair-token') === repairToken &&
+      typeof body?.user_id === 'string' && body.user_id.length > 0
+
+    let user_id: string
+    if (isInternalRepair) {
+      user_id = String(body.user_id)
+      console.log('[ml-publish] republicação interna via repair token, user:', user_id)
+    } else {
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader?.startsWith('Bearer ')) {
+        return json({ error: 'Nao autorizado.' }, 401)
+      }
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      })
+      const { data: userData, error: userError } = await userClient.auth.getUser()
+      if (userError || !userData.user) {
+        return json({ error: 'Token invalido.' }, 401)
+      }
+      user_id = userData.user.id
+    }
 
     // === VALIDATION ===
     if (!user_id) return json({ error: 'user_id é obrigatório.' }, 400)
@@ -747,25 +855,47 @@ Deno.serve(async (req) => {
     }
 
     // O ML pausa anúncios cujas fotos sejam artes/infográficos do fornecedor
-    // ("Ajuste o título e/ou substitua as fotos"). Filtramos antes de publicar:
-    // heurística de URL + checagem visual por IA. Fail-open: se sobrarem menos
-    // de 3 fotos limpas, completamos com as originais para não travar a venda.
+    // ("Ajuste o título e/ou substitua as fotos"). Nunca recoloque uma imagem
+    // recusada só para atingir o mínimo: é preferível bloquear a publicação a
+    // criar um anúncio que será penalizado logo depois.
     let publicImages = allPublicImages.slice(0, 6)
     try {
-      const filtered = await filterCleanImages(allPublicImages, { useVision: true, max: 6 })
+      // Mesma régua (e mesmo cache de vereditos) usada na auditoria do catálogo.
+      const visionClient = createClient(
+        Deno.env.get('DB_URL') ?? supabaseUrl ?? '',
+        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey ?? '',
+        { auth: { persistSession: false } },
+      )
+      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
+        max: 6,
+        maxChecks: Math.max(10, allPublicImages.length),
+      })
       if (filtered.rejected.length) {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
       }
-      if (filtered.clean.length >= MIN_REQUIRED_IMAGES) {
-        publicImages = filtered.clean
-      } else if (filtered.clean.length > 0) {
-        const rest = allPublicImages.filter(u => !filtered.clean.includes(u))
-        publicImages = [...filtered.clean, ...rest].slice(0, 6)
-        console.warn('[ml-publish] menos de 3 fotos limpas — completando com originais')
+      // O Mercado Livre aceita anúncio com 1 foto. Só bloqueamos quando NENHUMA
+      // foto passa na régua de diretrizes — antes exigíamos 3 e o produto com
+      // 2 fotos boas (mas 9 artes do fornecedor) ficava impossível de publicar.
+      if (filtered.clean.length < 1) {
+        await registrarVeredictoNoCatalogo(
+          product.id, 'blocked', ['imagens_insuficientes', 'imagens_arte_fornecedor'], filtered.clean.length,
+        )
+        return json({
+          error: `Nenhuma das fotos deste produto está dentro das diretrizes do Mercado Livre (todas têm texto, selo, marca d'água ou banner do fornecedor). Escolha outro produto ou adicione fotos limpas.`,
+          code: 'INSUFFICIENT_COMPLIANT_IMAGES',
+          rejected_images: filtered.rejected.length,
+        }, 409)
       }
+      publicImages = filtered.clean
+      await registrarVeredictoNoCatalogo(product.id, 'ok', [], filtered.clean.length)
+
     } catch (err) {
-      console.warn('[ml-publish] filtro visual de imagens indisponível:', String(err))
+      console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
+      return json({
+        error: 'Não foi possível validar as fotos agora. Tente novamente em alguns minutos; nenhuma publicação foi enviada ao Mercado Livre.',
+        code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
+      }, 503)
     }
 
     console.log('user_id:', user_id)
@@ -917,9 +1047,16 @@ Deno.serve(async (req) => {
     }
 
     // === TITLE (max 60 chars) ===
-    const title = product.title.length > 60
-      ? product.title.substring(0, 57) + '...'
-      : product.title
+    // Nunca truncar com reticências: o ML interpreta isso como título copiado
+    // ou incompleto. Também removemos termos promocionais antes da publicação.
+    const titleResult = sanitizeTitle(String(product.title), { maxLength: 60 })
+    const title = titleResult.title
+    if (!title) {
+      return json({ error: 'O título ficou vazio após a validação das diretrizes do Mercado Livre.', code: 'INVALID_TITLE' }, 400)
+    }
+    if (titleResult.removedTerms.length > 0) {
+      console.warn('[ml-publish] termos removidos do título:', titleResult.removedTerms)
+    }
     console.log('Título final:', title, `(${title.length} chars)`)
 
     // Prevent duplicate Mercado Livre listings for the same catalog product.
@@ -1179,6 +1316,24 @@ Deno.serve(async (req) => {
       value_name: cleanText(productRecord.external_id) || 'SKU-001',
     })
 
+    // 3.1) EMPTY_GTIN_REASON — sem isso o ML aceita a publicação mas deixa o
+    // anúncio em "Inativo para revisar" (status under_review / waiting_for_patch).
+    // Como o catálogo do fornecedor não traz código de barras, declaramos
+    // explicitamente que o produto não tem GTIN cadastrado.
+    {
+      const gtinDef = categoryAttrs.find(a => cleanText(a.id).toUpperCase() === 'EMPTY_GTIN_REASON') as
+        | Record<string, unknown>
+        | undefined
+      const hasGtin = allAttrs.some(a => String(a.id).toUpperCase() === 'GTIN' && cleanText((a as { value_name?: unknown }).value_name))
+      if (gtinDef && !hasGtin) {
+        const values = (gtinDef.values as Array<{ id?: string; name?: string }> | undefined) ?? []
+        const match = values.find(v => /não tem código|nao tem codigo/i.test(cleanText(v?.name)))
+          ?? values.find(v => /outro motivo/i.test(cleanText(v?.name)))
+        if (match?.id) mergeAttribute(allAttrs, { id: 'EMPTY_GTIN_REASON', value_id: match.id })
+      }
+    }
+
+
     // 3.5) PACKAGE_WEIGHT (peso da embalagem para frete)
     let rawWeight = null
     
@@ -1270,41 +1425,56 @@ Deno.serve(async (req) => {
       console.log(`[ml-publish] Peso ausente na origem — usando fallback por categoria (${catRaw || 'desconhecida'}): ${rawWeight} kg`)
     }
 
-    // Para SELLER_PACKAGE_WEIGHT, a API do Mercado Livre permite APENAS a unidade 'g' (gramas)
-    const weightGrams = Math.max(50, Math.round(rawWeight * 1000))
-    const weightValName = `${weightGrams} g`
+    // 3.6) Peso e medidas da embalagem — CRÍTICO para o cálculo do frete.
+    // Regra única compartilhada com a correção em massa (ml-fix-dimensions).
+    const pacote = montarPesoMedidas(rawWeight, productRecord.category as string | null)
+    const weightGrams = pacote.weightGrams
+    const weightValName = pacote.weightValName
+    const dimsValName = pacote.dimsValName
+    const shippingDimensions = pacote.shippingDimensions
 
-    if (categoryAttrIds.has('SELLER_PACKAGE_WEIGHT')) {
-      mergeAttribute(allAttrs, {
-        id: 'SELLER_PACKAGE_WEIGHT',
-        value_name: weightValName,
-      })
+    // Trava: nunca montamos um anúncio sem peso/medidas resolvidos.
+    if (!weightGrams || !/\d+x\d+x\d+,\d+/.test(shippingDimensions)) {
+      return json({
+        error: 'Não conseguimos calcular o peso e as medidas da embalagem deste produto. Escolha outro produto ou fale com o suporte.',
+        code: 'MISSING_PACKAGE_DIMENSIONS',
+      }, 400)
     }
 
-    // 3.6) Dimensões da embalagem — CRÍTICO para o cálculo do frete.
-    // Sem dimensões válidas, o Mercado Livre aplica uma tabela padrão de "pacote
-    // grande" que resulta em fretes absurdos (R$170+) independente do peso ou
-    // preço real. Estimamos dimensões proporcionais ao peso.
-    let dimsCm: [number, number, number]
-    if (rawWeight <= 0.3) dimsCm = [20, 15, 5]
-    else if (rawWeight <= 1) dimsCm = [25, 20, 10]
-    else if (rawWeight <= 3) dimsCm = [35, 25, 15]
-    else if (rawWeight <= 6) dimsCm = [40, 30, 20]
-    else dimsCm = [50, 40, 30]
-
-    // Formato aceito pelo ML: "AxBxC,cm" (vírgula antes da unidade). Antes
-    // enviávamos "AxBxC cm" com espaço, o que era descartado pela API — daí
-    // vinham os fretes gigantescos mesmo com peso correto.
-    const dimsValName = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},cm`
-    if (categoryAttrIds.has('SELLER_PACKAGE_DIMENSIONS')) {
-      mergeAttribute(allAttrs, {
-        id: 'SELLER_PACKAGE_DIMENSIONS',
-        value_name: dimsValName,
-      })
+    // Sempre enviados: em anúncios Mercado Envios (me2) o frete é calculado
+    // por estes atributos — `shipping.dimensions` nem sequer é editável depois.
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_PACKAGE_WEIGHT',
+      value_name: weightValName,
+    })
+    mergeAttribute(allAttrs, {
+      id: 'SELLER_PACKAGE_DIMENSIONS',
+      value_name: dimsValName,
+    })
+    // Em anúncios COM variação, algumas categorias calculam o frete pelas
+    // medidas da variação. MAS só podemos repetir esses atributos na variação
+    // quando a própria categoria os marca com `tags.allow_variations`; nas
+    // demais o ML rejeita a publicação inteira ("attributes are invalid /
+    // repeated"), que era o erro que os usuários estavam vendo.
+    const permiteAtributoNaVariacao = (attrId: string): boolean => {
+      const def = (categoryAttrs as Array<Record<string, unknown>>).find(
+        (a) => String(a?.id ?? '').toUpperCase() === attrId,
+      )
+      const tags = (def?.tags as Record<string, unknown> | undefined) ?? {}
+      return Boolean(tags.allow_variations)
     }
-    // Exposto no objeto para reaproveitar no payload de shipping abaixo.
-    const shippingDimensions = `${dimsCm[0]}x${dimsCm[1]}x${dimsCm[2]},${weightGrams}`
-    console.log(`[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg)`)
+    const shippingAttrsVariacao: MLAttribute[] = [
+      ...(permiteAtributoNaVariacao('SELLER_PACKAGE_WEIGHT')
+        ? [{ id: 'SELLER_PACKAGE_WEIGHT', value_name: weightValName }]
+        : []),
+      ...(permiteAtributoNaVariacao('SELLER_PACKAGE_DIMENSIONS')
+        ? [{ id: 'SELLER_PACKAGE_DIMENSIONS', value_name: dimsValName }]
+        : []),
+    ]
+    console.log(
+      `[ml-publish] Dimensões da embalagem: ${dimsValName} / shipping.dimensions=${shippingDimensions} (peso ${rawWeight}kg); na variação: ${shippingAttrsVariacao.map((a) => a.id).join(',') || 'nenhum'}`,
+    )
+
 
 
 
@@ -1407,6 +1577,23 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Quando o "Formato de venda" (SALE_FORMAT/UNIT) é enviado, o ML passa a
+    // exigir "Unidades por kit" (UNITS_PER_PACK / UNITS_PER_PACKAGE) —
+    // erro item.attribute.invalid_sale_units. Preenchemos com 1 sempre que a
+    // categoria aceitar o atributo.
+    const temFormatoDeVenda = allAttrs.some((a) => ['SALE_FORMAT', 'UNIT', 'SALE_UNIT'].includes(String(a.id)))
+    if (temFormatoDeVenda) {
+      for (const packId of ['UNITS_PER_PACK', 'UNITS_PER_PACKAGE']) {
+        const aceitaNaCategoria = (categoryAttrs as Array<Record<string, unknown>>)
+          .some((a) => String(a?.id ?? '') === packId)
+        const jaTem = allAttrs.some((a) => String(a.id) === packId)
+        if (aceitaNaCategoria && !jaTem) {
+          mergeAttribute(allAttrs, { id: packId, value_name: '1' })
+          console.log(`[ml-publish] ${packId}=1 adicionado (formato de venda preenchido)`)
+        }
+      }
+    }
+
     console.log('Atributos:', allAttrs.map(a => `${a.id}=${a.value_id ?? a.value_name}`))
 
 
@@ -1443,13 +1630,30 @@ Deno.serve(async (req) => {
       variantsSource,
       categoryAttrs as unknown as Array<Record<string, unknown>>,
       product.price,
-      product.available_quantity || 10,
+      Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
       pictures,
+      shippingAttrsVariacao,
     )
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
         JSON.stringify(mlVariations.map((v) => (v.attribute_combinations as Array<{ value_name: string }>).map((c) => c.value_name).join('/'))))
+
+      // O ML rejeita (cause 146) quando o MESMO atributo aparece no item e na
+      // variação. Tudo que define a variação (COLOR, SIZE...) sai do item.
+      const variationAttrIds = new Set<string>()
+      for (const v of mlVariations) {
+        for (const c of (v.attribute_combinations as Array<{ id?: string }>) ?? []) {
+          if (c?.id) variationAttrIds.add(String(c.id))
+        }
+      }
+      if (variationAttrIds.size > 0) {
+        for (let i = allAttrs.length - 1; i >= 0; i--) {
+          if (variationAttrIds.has(String(allAttrs[i].id))) allAttrs.splice(i, 1)
+        }
+        console.log('[ml-publish] Atributos removidos do item (definidos na variação):', [...variationAttrIds])
+      }
     }
+
 
     // === BUILD PAYLOAD ===
     const mlPayload = {
@@ -1460,7 +1664,7 @@ Deno.serve(async (req) => {
       category_id: categoryId,
       price: product.price,
       currency_id: 'BRL',
-      available_quantity: product.available_quantity || 10,
+      available_quantity: Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
       buying_mode: 'buy_it_now',
       condition: 'new',
       listing_type_id: 'gold_special',
@@ -1483,7 +1687,7 @@ Deno.serve(async (req) => {
       },
       // Com variações, o ML exige preço/estoque POR variação — enviar no item
       // inteiro causa erro. `variations` sobrepõe os campos acima.
-      ...(mlVariations.length > 0 ? { variations: mlVariations } : {}),
+      ...(mlVariations.length > 0 ? { variations: mlVariations.map(semMetadadosVelo) } : {}),
 
     }
 
@@ -1574,7 +1778,7 @@ Deno.serve(async (req) => {
           category_id: categoryId,
           price: product.price,
           currency_id: 'BRL',
-          available_quantity: product.available_quantity || 10,
+          available_quantity: Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
           buying_mode: 'buy_it_now',
           condition: 'new',
           listing_type_id: 'gold_special',
@@ -1669,6 +1873,132 @@ Deno.serve(async (req) => {
       console.log('Item criado (retry sem family_name):', JSON.stringify(itemData).substring(0, 800))
     }
 
+    // Contas migradas para o modelo User Products não aceitam `variations` no
+    // mesmo POST: o ML devolve "The field variations is invalid with family
+    // name" e, ao mesmo tempo, exige `family_name`. Nesse modelo as variações
+    // não vão dentro do item — cada variação é um anúncio próprio que o ML
+    // agrupa pelo mesmo `family_name`. Então:
+    //   1) tentamos ainda enviar `variations` (contas clássicas aceitam);
+    //   2) se o ML insistir no conflito, publicamos a 1ª variação como anúncio
+    //      principal e as demais como irmãos do mesmo family_name (logo abaixo,
+    //      depois que os atributos obrigatórios já foram acertados).
+    let variacoesIrmas: Array<Record<string, unknown>> = []
+    // Variação usada no anúncio PRINCIPAL quando caímos no modelo User Products
+    // (um anúncio por variação, agrupados pelo mesmo family_name).
+    let variacaoPrincipal: Record<string, unknown> | null = null
+
+    // Rede de segurança: se o ML recusar peso/medidas DENTRO da variação
+    // (categorias que não aceitam esses atributos por variação), reenviamos o
+    // mesmo anúncio sem eles — o frete continua correto pelo shipping.dimensions
+    // do item.
+    if (!itemResponse.ok && mlVariations.length > 0 && shippingAttrsVariacao.length > 0) {
+      const msgPeso = causeMessages(itemData)
+      if (msgPeso.includes('seller_package_weight') || msgPeso.includes('seller_package_dimensions')) {
+        console.warn('[ml-publish] Categoria não aceita peso/medidas por variação — reenviando sem esses atributos.')
+        const idsEnvio = new Set(shippingAttrsVariacao.map((a) => String(a.id)))
+        for (const v of mlVariations) {
+          const attrs = (v.attributes as MLAttribute[] | undefined) ?? []
+          const limpos = attrs.filter((a) => !idsEnvio.has(String(a.id)))
+          if (limpos.length > 0) v.attributes = limpos
+          else delete v.attributes
+        }
+        const payloadSemEnvio = {
+          ...(mlPayload as Record<string, unknown>),
+          variations: mlVariations.map(semMetadadosVelo),
+        }
+        itemResponse = await fetch('https://api.mercadolibre.com/items', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadSemEnvio),
+        })
+        itemData = await itemResponse.json()
+        console.log('Item criado (sem peso/medidas na variação):', JSON.stringify(itemData).substring(0, 800))
+        if (itemResponse.ok) effectivePayload = payloadSemEnvio as typeof mlPayload
+      }
+    }
+
+    if (!itemResponse.ok && mlVariations.length > 0) {
+      const msgVar = causeMessages(itemData)
+      if (
+        msgVar.includes('variations is invalid with family name') ||
+        msgVar.includes('family_name') ||
+        msgVar.includes('required_fields')
+      ) {
+        const base = mlPayload as Record<string, unknown>
+        const { family_name: _fn, title: _tt, variations: _vv, ...withoutBoth } = base as any
+
+        const tentativas: Array<{ label: string; payload: Record<string, unknown> }> = [
+          // Modelo clássico: title + variações, sem family_name.
+          { label: 'sem family_name (com variações)', payload: { ...withoutBoth, title: base.title, variations: mlVariations.map(semMetadadosVelo) } },
+          // Modelo User Products: family_name + variações, sem title.
+          { label: 'sem title (com variações)', payload: { ...withoutBoth, family_name: base.family_name, variations: mlVariations.map(semMetadadosVelo) } },
+        ]
+
+        for (const tentativa of tentativas) {
+          if (itemResponse.ok) break
+          console.warn(`[ml-publish] Reenviando ${tentativa.label}`)
+          itemResponse = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(tentativa.payload),
+          })
+          itemData = await itemResponse.json()
+          console.log(`Item criado (${tentativa.label}):`, JSON.stringify(itemData).substring(0, 800))
+          if (itemResponse.ok) effectivePayload = tentativa.payload as typeof mlPayload
+        }
+
+        // Ainda barrado pelo conflito → modelo User Products: um anúncio por
+        // variação, todos com o mesmo family_name.
+        if (!itemResponse.ok && causeMessages(itemData).includes('variations is invalid with family name')) {
+          console.warn('[ml-publish] Conta no modelo User Products — publicando uma variação por anúncio (mesmo family_name)')
+          const comboAttrs = (v: Record<string, unknown>) =>
+            ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => ({
+              id: String(c.id),
+              ...(c.value_id ? { value_id: String(c.value_id) } : {}),
+              ...(c.value_name ? { value_name: String(c.value_name) } : {}),
+            })) as MLAttribute[]
+
+          // Fotos específicas da variação (item 5): cada anúncio-irmão abre
+          // com a imagem daquele valor, e não com a do item principal.
+          const picturesDaVariacao = (v: Record<string, unknown>) => {
+            const fotos = (v._velo_pictures as string[] | undefined) ?? []
+            if (fotos.length === 0) return withoutBoth.pictures
+            return fotos.map((source) => ({ source }))
+          }
+
+          const payloadDaVariacao = (v: Record<string, unknown>) => ({
+            ...withoutBoth,
+            family_name: base.family_name,
+            pictures: picturesDaVariacao(v),
+            available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
+            price: Number(v.price) || (base.price as number),
+            attributes: [...(withoutBoth.attributes as MLAttribute[]), ...comboAttrs(v)],
+          })
+
+          const [primeira, ...restantes] = mlVariations as Array<Record<string, unknown>>
+          variacoesIrmas = restantes
+          variacaoPrincipal = primeira
+          const primeiroPayload = payloadDaVariacao(primeira)
+          effectivePayload = primeiroPayload as typeof mlPayload
+          itemResponse = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(primeiroPayload),
+          })
+          itemData = await itemResponse.json()
+          console.log('Item criado (1ª variação, modelo User Products):', JSON.stringify(itemData).substring(0, 800))
+        }
+      }
+    }
+
+
+
     // Última rede de segurança: se o ML ainda rejeitar por grade de medidas
     // (fashion_grid/SIZE_GRID_ID) mesmo depois do reencaminhamento inicial,
     // reenviamos o item para a categoria genérica "Outros" (MLB1051) e
@@ -1750,6 +2080,8 @@ Deno.serve(async (req) => {
         // aceitos pelo ML e que não geram penalização de qualidade.
         const defaults: Record<string, MLAttribute> = {
           GTIN:              { id: 'GTIN', value_name: 'Não aplicável' },
+          EMPTY_GTIN_REASON: { id: 'EMPTY_GTIN_REASON', value_name: 'O produto não tem código cadastrado' },
+
           COLOR:             { id: 'COLOR', value_name: 'Preto' },
           MAIN_COLOR:        { id: 'MAIN_COLOR', value_name: 'Preto' },
           SECONDARY_COLOR:   { id: 'SECONDARY_COLOR', value_name: 'Preto' },
@@ -1828,7 +2160,7 @@ Deno.serve(async (req) => {
             category_id: categoryId,
             price: product.price,
             currency_id: 'BRL',
-            available_quantity: product.available_quantity || 10,
+            available_quantity: Math.max(1, Math.floor(Number(product.available_quantity) || 1)),
             buying_mode: 'buy_it_now',
             condition: 'new',
             listing_type_id: 'gold_special',
@@ -1854,11 +2186,28 @@ Deno.serve(async (req) => {
 
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
       const mapped = itemResponse.ok
-        ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined }
+        ? { message: 'Falha ao criar produto no Mercado Livre.' as string, code: undefined as string | undefined, seller_codes: undefined as string[] | undefined }
         : mapMLError(itemData)
       if (/anatel|homologa/i.test(causeMessages(itemData))) {
         mapped.message = 'O Mercado Livre exige o número de homologação Anatel para este produto e não encontramos uma ficha de catálogo compatível. Escolha outro produto ou publique manualmente pelo Mercado Livre.'
         mapped.code = 'ANATEL_REQUIRED'
+      }
+
+      // Registro para auditoria: permite ver se um bloqueio é isolado ou geral.
+      try {
+        await supabase.from('ml_publish_errors').insert({
+          user_id,
+          ml_user_id: itemData?.seller_id ? String(itemData.seller_id) : null,
+          http_status: itemResponse.status,
+          raw_response: itemData,
+          cause: arrayFromUnknown(itemData?.cause),
+          mapped_code: mapped.code ?? null,
+          mapped_message: mapped.message,
+          product_title: title,
+          category_id: categoryId ?? null,
+        })
+      } catch (logErr) {
+        console.error('[ml-publish] Falha ao registrar erro de publicação:', logErr)
       }
 
       await notifyUser(supabase, {
@@ -1873,18 +2222,169 @@ Deno.serve(async (req) => {
           ml_response: itemData,
         },
       })
-      return json({ error: mapped.message, code: mapped.code, details: itemData }, 400)
+      return json({ error: mapped.message, code: mapped.code, seller_codes: mapped.seller_codes ?? null, details: itemData }, 400)
     }
 
 
     const itemId = itemData.id as string
     console.log('Item ID:', itemId)
 
+    // === CONFERÊNCIA OBRIGATÓRIA DE PESO/MEDIDAS ===
+    // O ML pode aceitar o anúncio e ainda assim descartar os campos de
+    // embalagem. Lemos o anúncio de volta; se faltar, corrigimos na hora e, em
+    // último caso, pausamos — melhor pausado que vendendo com frete absurdo.
+    let medidasOk = false
+    try {
+      const conferencia = await garantirMedidasNoAnuncio(accessToken, itemId, pacote)
+      medidasOk = conferencia.ok
+      console.log(
+        `[ml-publish] Conferência de medidas ${itemId}: ok=${conferencia.ok} jaEstavaOk=${conferencia.jaEstavaOk} antes=${conferencia.antes} depois=${conferencia.depois} ${conferencia.erro ?? ''}`,
+      )
+      if (!medidasOk) {
+        // Auto-reparo silencioso: pausamos para o anúncio não vender com frete
+        // errado e deixamos na fila — a rotina corrige e reativa sozinha, sem
+        // avisar o usuário.
+        await pausarAnuncio(accessToken, itemId)
+        await supabase.from('ml_dimension_fixes').upsert({
+          user_id,
+          ml_item_id: itemId,
+          status: 'pending',
+          attempts: 0,
+          paused_by_velo: true,
+          next_attempt_at: new Date(Date.now() + 60_000).toISOString(),
+          weight_g: pacote.weightGrams,
+          before_dimensions: conferencia.antes,
+          after_dimensions: conferencia.depois,
+          error: conferencia.erro ?? 'medidas não gravadas',
+          processed_at: new Date().toISOString(),
+        }, { onConflict: 'ml_item_id' })
+      }
+    } catch (erroMedidas) {
+      console.error('[ml-publish] Falha na conferência de medidas:', erroMedidas)
+    }
+    const statusAnuncio = medidasOk ? 'active' : 'paused'
+
+    // Modelo User Products: as demais variações viram anúncios irmãos, com o
+    // mesmo family_name (é assim que o ML agrupa as opções na vitrine).
+    // Reaproveitamos os atributos já aceitos no anúncio principal, trocando só
+    // a combinação da variação.
+    // Cada irmão publicado é registrado em user_publications (mesmo
+    // variation_group_id + family_name) para entrar no ml-sync-stock (Fase 3) e
+    // na pausa por falta de estoque do webhook de pedidos (Fase 4).
+    const grupoDeVariacao = variacoesIrmas.length > 0 ? crypto.randomUUID() : null
+    const familyName = String((effectivePayload as Record<string, unknown>).family_name ?? title)
+    const irmaosPublicados: Array<{ ml_item_id: string; variation_value: string | null; permalink: string | null }> = []
+    const irmaosFalhos: Array<{ variation_value: string | null; erro: string }> = []
+
+    if (variacoesIrmas.length > 0) {
+      const attrsAceitos = ((effectivePayload as Record<string, unknown>).attributes as MLAttribute[]) ?? []
+      const idsDaCombinacao = new Set(
+        variacoesIrmas.flatMap((v) =>
+          ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => String(c.id).toUpperCase()),
+        ),
+      )
+      const attrsBase = attrsAceitos.filter((a) => !idsDaCombinacao.has(String(a.id).toUpperCase()))
+
+      for (const v of variacoesIrmas) {
+        const combo = ((v.attribute_combinations as Array<Record<string, unknown>>) ?? []).map((c) => ({
+          id: String(c.id),
+          ...(c.value_id ? { value_id: String(c.value_id) } : {}),
+          ...(c.value_name ? { value_name: String(c.value_name) } : {}),
+        })) as MLAttribute[]
+        const fotosIrmao = (v._velo_pictures as string[] | undefined) ?? []
+        const valorDaVariacao = (v._velo_value as string | null) ?? combo[0]?.value_name ?? null
+        const payloadIrmao = {
+          ...(effectivePayload as Record<string, unknown>),
+          ...(fotosIrmao.length > 0 ? { pictures: fotosIrmao.map((source) => ({ source })) } : {}),
+          available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
+          price: Number(v.price) || (effectivePayload as Record<string, unknown>).price,
+          attributes: [...attrsBase, ...combo],
+        }
+        try {
+          const resIrmao = await fetch('https://api.mercadolibre.com/items', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payloadIrmao),
+          })
+          const dataIrmao = await resIrmao.json()
+          if (resIrmao.ok && dataIrmao?.id) {
+            console.log('[ml-publish] Variação irmã publicada:', dataIrmao.id, JSON.stringify(combo))
+            irmaosPublicados.push({
+              ml_item_id: String(dataIrmao.id),
+              variation_value: valorDaVariacao,
+              permalink: (dataIrmao.permalink as string | undefined) ?? null,
+            })
+          } else {
+            console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
+            irmaosFalhos.push({
+              variation_value: valorDaVariacao,
+              erro: mapMLError(dataIrmao as Record<string, unknown>).message,
+            })
+          }
+        } catch (erroIrmao) {
+          console.warn('[ml-publish] Erro ao publicar variação irmã:', erroIrmao)
+          irmaosFalhos.push({
+            variation_value: valorDaVariacao,
+            erro: erroIrmao instanceof Error ? erroIrmao.message : 'Erro desconhecido',
+          })
+        }
+      }
+
+      if (irmaosPublicados.length > 0) {
+        // Cada anúncio-irmão passa pela mesma conferência de peso/medidas.
+        const okPorIrmao = new Map<string, boolean>()
+        for (const irmao of irmaosPublicados) {
+          try {
+            const conf = await garantirMedidasNoAnuncio(accessToken, irmao.ml_item_id, pacote)
+            okPorIrmao.set(irmao.ml_item_id, conf.ok)
+            if (!conf.ok) await pausarAnuncio(accessToken, irmao.ml_item_id)
+          } catch (_e) {
+            okPorIrmao.set(irmao.ml_item_id, false)
+          }
+        }
+        const linhas = irmaosPublicados.map((irmao) => ({
+          user_id,
+          ml_item_id: irmao.ml_item_id,
+          title,
+          thumbnail: publicImages[0] || null,
+          price: product.price,
+          cost_price: product.cost_price || null,
+          status: okPorIrmao.get(irmao.ml_item_id) ? 'active' : 'paused',
+          permalink: irmao.permalink,
+          published_at: new Date().toISOString(),
+          catalog_product_id: catalogProductId,
+          family_name: familyName,
+          variation_group_id: grupoDeVariacao,
+          variation_name: (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
+          variation_value: irmao.variation_value,
+          package_weight_g: pacote.weightGrams,
+          package_dimensions: pacote.shippingDimensions,
+          dimensions_ok: okPorIrmao.get(irmao.ml_item_id) ?? false,
+          dimensions_checked_at: new Date().toISOString(),
+        }))
+        const { error: erroIrmaos } = await supabase.from('user_publications').insert(linhas)
+        if (erroIrmaos) {
+          console.error('[ml-publish] Falha ao registrar anúncios-irmãos:', erroIrmaos)
+        } else {
+          console.log(`[ml-publish] ${linhas.length} anúncio(s)-irmão(s) registrados no grupo ${grupoDeVariacao}`)
+        }
+      }
+    }
+
+
     // === DESCRIPTION (send only after item creation succeeds) ===
-    const descriptionText = typeof product.description === 'string'
-      ? product.description.trim()
-      : ''
-    console.log('Descrição:', descriptionText)
+    // Nunca envia HTML ou texto copiado diretamente do fornecedor. A descrição
+    // é reescrita a partir dos fatos e atributos já validados para a categoria.
+    const rawDescription = typeof product.description === 'string' ? product.description : ''
+    const descriptionText = await buildSafeDescription({
+      title,
+      attributes: allAttrs,
+      rawDescription,
+    })
+    console.log('Descrição validada:', descriptionText.slice(0, 200))
 
     if (descriptionText.length > 20) {
       try {
@@ -1921,10 +2421,19 @@ Deno.serve(async (req) => {
         thumbnail:          publicImages[0] || null,
         price:              product.price,
         cost_price:         product.cost_price || null,
-        status:             'active',
+        status:             statusAnuncio,
+        package_weight_g:   pacote.weightGrams,
+        package_dimensions: pacote.shippingDimensions,
+        dimensions_ok:      medidasOk,
+        dimensions_checked_at: new Date().toISOString(),
         permalink:          itemData.permalink,
         published_at:       new Date().toISOString(),
         catalog_product_id: catalogProductId,
+        // Agrupamento das variações publicadas como anúncios separados.
+        family_name:        grupoDeVariacao ? familyName : null,
+        variation_group_id: grupoDeVariacao,
+        variation_name:     (variacaoPrincipal?._velo_dimension as string | undefined) ?? null,
+        variation_value:    (variacaoPrincipal?._velo_value as string | undefined) ?? null,
         cj_product_id:      product.cj_product_id  ?? null,
         cj_product_url:     product.cj_product_url ?? null,
         cj_variant_id:      product.cj_variant_id  ?? null,
@@ -1987,7 +2496,30 @@ Deno.serve(async (req) => {
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
-    return json({ success: true, permalink: itemData.permalink, item_id: itemId })
+    // Falha parcial: quando o anúncio foi publicado por variação (modelo User
+    // Products) e alguma irmã falhou, o frontend NÃO pode mostrar "publicado
+    // com sucesso" puro — devolvemos o placar exato das variações.
+    const totalVariacoes = variacoesIrmas.length > 0 ? variacoesIrmas.length + 1 : 0
+    const publicadas = variacoesIrmas.length > 0 ? irmaosPublicados.length + 1 : 0
+    const parcial = irmaosFalhos.length > 0
+    return json({
+      success: true,
+      permalink: itemData.permalink,
+      item_id: itemId,
+      ...(totalVariacoes > 0
+        ? {
+          partial: parcial,
+          variations_total: totalVariacoes,
+          variations_published: publicadas,
+          variations_failed: irmaosFalhos.map((f) => ({ value: f.variation_value, error: f.erro })),
+          variation_group_id: grupoDeVariacao,
+          family_name: familyName,
+          message: parcial
+            ? `Publicado ${publicadas} de ${totalVariacoes} variações. Falharam: ${irmaosFalhos.map((f) => f.variation_value ?? '?').join(', ')}.`
+            : `Publicadas ${publicadas} variações no Mercado Livre.`,
+        }
+        : {}),
+    })
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erro desconhecido'

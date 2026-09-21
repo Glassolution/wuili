@@ -1,3 +1,4 @@
+import { Activity } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,6 +8,7 @@ import {
   BadgeDollarSign,
   BarChart3,
   Bell,
+  Bot,
   ChevronDown,
   FileSearch,
   LifeBuoy,
@@ -19,6 +21,7 @@ import {
   RefreshCcw,
   ShoppingBag,
   Sparkles,
+  Stethoscope,
   UsersRound,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -126,6 +129,9 @@ export const AdminNewSidebar = ({ onOpenSearch }: AdminNewSidebarProps) => {
       items: [
         { label: "Suporte", icon: MessagesSquare, to: "/admin/suporte", tone: "rose", badge: openTickets },
         { label: "Evidências", icon: FileSearch, to: "/admin/evidencias", tone: "teal" },
+        { label: "Consulta", icon: Stethoscope, to: "/admin/consulta", tone: "blue" },
+        { label: "Rastreio", icon: Activity, to: "/admin/rastreio", tone: "teal" },
+        { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot", tone: "amber" },
         { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress", tone: "violet" },
       ],
     },

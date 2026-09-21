@@ -533,6 +533,7 @@ const ProductScoutAI = ({
           .select("id, title, images, cost_price, suggested_price, category, stock_quantity, product_url")
           .in("id", orderedIds)
           .neq("source", "aliexpress")
+          .eq("is_active", true)
           .eq("is_blocked", false);
 
         if (!dbError && productsData) {

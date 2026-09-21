@@ -28,8 +28,10 @@ import {
   inferCategory,
   isBlocked,
   isFakeAdProduct,
+  isCellphoneProduct,
   hasEnoughImages,
 } from "../_shared/catalog-filters.ts";
+import { autoFixProduct, complianceColumns, precheckProduct } from "../_shared/ml-compliance-precheck.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +45,10 @@ const DETAIL_URL = (slug: string) => `${BASE}/api/products/${encodeURIComponent(
 const PER_PAGE = 50; // API atual limita em 50 mesmo pedindo mais
 const MAX_PAGES = 60;
 const CONCURRENCY = 6;
+// Produtos que o fornecedor marca como `manageStock: false` não têm controle de
+// estoque (reposição contínua). Não temos número real: publicamos com um
+// estoque padrão conservador em vez do antigo 999 fictício.
+const UNMANAGED_STOCK = 100;
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; VeloBot/1.0; +https://wuili.lovable.app)",
@@ -119,6 +125,50 @@ function normalizeImages(detail: ProductDetail, fallback?: string | null): strin
   return Array.from(new Set(list));
 }
 
+// A C7 devolve a mesma variante repetida por tier de preço (GRUPO_VIP, ATACADO,
+// DROPSHIPPING). Para o catálogo Velo interessa uma linha por (nome, valor),
+// com o preço do tier DROPSHIPPING e o estoque real informado pelo fornecedor.
+function normalizeVariants(detail: ProductDetail): Array<Record<string, unknown>> {
+  const raw = detail.variants ?? [];
+  const byKey = new Map<string, { name: string; value: string; stock: number; sku: string | null; cost_price: number | null; tier: string }>();
+  for (const v of raw) {
+    const name = (v.name ?? "").trim();
+    const value = (v.value ?? "").trim();
+    if (!name || !value) continue;
+    const key = `${name.toLowerCase()}|${value.toLowerCase()}`;
+    const tier = (v.tier ?? "").toUpperCase();
+    const price = toNumber(v.price);
+    const stock = toNumber(v.stock) ?? 0;
+    const atual = byKey.get(key);
+    const ehDrop = tier === "DROPSHIPPING";
+    if (!atual || (ehDrop && atual.tier !== "DROPSHIPPING")) {
+      byKey.set(key, {
+        name,
+        value,
+        stock: Math.max(stock, atual?.stock ?? 0),
+        sku: (v.sku ?? null) || null,
+        cost_price: price,
+        tier,
+      });
+    } else if (stock > atual.stock) {
+      atual.stock = stock;
+    }
+  }
+  const manageStock = detail.manageStock === true;
+  return Array.from(byKey.values()).map((v) => ({
+    name: v.name,
+    value: v.value,
+    sku: v.sku,
+    cost_price: v.cost_price,
+    // manageStock=false/ausente → fornecedor não controla estoque dessa linha,
+    // então `stock: 0` por variante NÃO significa "esgotado".
+    stock: manageStock ? v.stock : UNMANAGED_STOCK,
+    // Marca se o número acima veio de dado real do fornecedor. A sincronização
+    // de estoque (Fase 3) só confia no estoque por variante quando é `true`.
+    stock_managed: manageStock,
+  }));
+}
+
 function pickCategoryName(detail: ProductDetail): string | null {
   const raw = detail.categories?.[0];
   if (!raw) return null;
@@ -181,12 +231,14 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
   const images = normalizeImages(detail, listItem?.image ?? null);
   const price = extractDropshippingPrice(detail);
   // ML exige no mínimo 3 fotos: produto com galeria incompleta fica bloqueado.
-  const blockedFlag = isBlocked(title) || !hasEnoughImages(images);
+  // Celulares/smartphones (MLB1055) não publicam no ML sem homologação Anatel.
+  const blockedFlag =
+    isBlocked(title) || !hasEnoughImages(images) || isCellphoneProduct(title, pickCategoryName(detail));
   // A C7 usa `manageStock: false` para itens sem controle de estoque (sempre
   // disponíveis) — nesses casos `stock` vem 0/-1 e não significa esgotado.
   const manageStock = detail.manageStock ?? listItem?.manageStock ?? true;
   const rawStock = toNumber(detail.stock ?? listItem?.stock) ?? 0;
-  const stock = manageStock === false ? 999 : rawStock;
+  const stock = manageStock === false ? UNMANAGED_STOCK : rawStock;
   const compareAt = toNumber(detail.compareAtPrice ?? listItem?.compareAtPrice ?? null);
 
   const rawDesc = (detail.shortDescription && detail.shortDescription.trim().length > 0)
@@ -226,6 +278,7 @@ function buildRowFromDetail(detail: ProductDetail, listItem?: ListItem): Record<
     category,
     supplier_name: "C7 Drop",
     stock_quantity: stock > 0 ? stock : 0,
+    variants: normalizeVariants(detail),
     is_active: detail.active !== false,
     product_url: `${BASE}/produto/${detail.slug}`,
     is_blocked: blockedFlag,
@@ -297,9 +350,15 @@ Deno.serve(async (req) => {
             unchanged++;
             return;
           }
+          // Imagens novas => o veredito de diretrizes precisa ser refeito.
+          const veredito = precheckProduct({
+            title: detail.name ?? "",
+            description: detail.description ?? null,
+            images,
+          });
           const { error: upErr } = await supabase
             .from("catalog_products")
-            .update({ images, scraped_at: now, updated_at: now })
+            .update({ images, scraped_at: now, updated_at: now, ...complianceColumns(veredito, now) })
             .eq("id", row.id);
           if (upErr) {
             errors++;
@@ -315,6 +374,43 @@ Deno.serve(async (req) => {
 
       const summary = { ok: true, mode: "backfill_images", total: rows.length, updated, unchanged, missing, errors };
       console.log(`[scrape-c7drop] Backfill concluído:`, JSON.stringify(summary));
+      return new Response(JSON.stringify(summary), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Modo prune: revisita produtos que não foram vistos nas últimas rodadas
+    // e desativa os que o fornecedor removeu (detalhe responde 404). Evita
+    // que o lojista veja produto com link do fornecedor quebrado.
+    // ------------------------------------------------------------------
+    if (mode === "prune") {
+      const staleDays = Math.max(1, parseInt(url.searchParams.get("stale_days") ?? "3", 10) || 3);
+      const cutoff = new Date(Date.now() - staleDays * 86400_000).toISOString();
+      const { data: staleRows, error: staleErr } = await supabase
+        .from("catalog_products")
+        .select("id,external_id")
+        .eq("source", SOURCE)
+        .eq("is_active", true)
+        .lt("scraped_at", cutoff)
+        .limit(500);
+      if (staleErr) throw staleErr;
+      let deactivated = 0;
+      let stillAlive = 0;
+      await mapPool(staleRows ?? [], CONCURRENCY, async (row) => {
+        const detail = await fetchDetail(row.external_id);
+        if (detail) {
+          stillAlive++;
+          return;
+        }
+        const { error } = await supabase
+          .from("catalog_products")
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq("id", row.id);
+        if (!error) deactivated++;
+      });
+      const summary = { ok: true, mode: "prune", stale_days: staleDays, checked: staleRows?.length ?? 0, deactivated, still_alive: stillAlive };
+      console.log("[scrape-c7drop] Prune concluído:", JSON.stringify(summary));
       return new Response(JSON.stringify(summary), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -345,6 +441,8 @@ Deno.serve(async (req) => {
     let skippedFakeAds = 0;
     let noDetail = 0;
     let blocked = 0;
+    let naoConformes = 0;
+    const now = new Date().toISOString();
     const rows: Record<string, unknown>[] = [];
     await mapPool(list, CONCURRENCY, async (item) => {
       if (!item.slug || !item.name) return;
@@ -360,6 +458,20 @@ Deno.serve(async (req) => {
       const row = buildRowFromDetail(detail, item);
       if (!row) return;
       if (row.is_blocked) blocked++;
+      // Todo produto que chega já entra no catálogo com o veredito das
+      // diretrizes do Mercado Livre gravado, para o lojista saber antes de
+      // tentar publicar e para a publicação saber o que precisa reescrever.
+      // Título e descrição já entram corrigidos no catálogo: nada de aviso
+      // para o lojista, o produto chega pronto para publicar.
+      const corrigido = autoFixProduct({
+        title: row.title as string,
+        description: row.description as string | null,
+        images: row.images,
+      });
+      row.title = corrigido.title;
+      row.description = corrigido.description;
+      if (corrigido.result.status !== "ok") naoConformes++;
+      Object.assign(row, complianceColumns(corrigido.result, now));
       rows.push(row);
     });
 
@@ -367,12 +479,33 @@ Deno.serve(async (req) => {
       `[scrape-c7drop] Prontos p/ upsert: ${rows.length} (skipFakes=${skippedFakeAds}, semDetalhe=${noDetail}, blocked=${blocked})`,
     );
 
-    // Detecta insert vs update.
+    // Detecta insert vs update + preserva o bloqueio da auditoria visual.
     const { data: existing } = await supabase
       .from("catalog_products")
-      .select("external_id")
+      .select("external_id,is_blocked,images,ml_vision_clean_count")
       .eq("source", SOURCE);
     const existingIds = new Set((existing ?? []).map((r) => r.external_id));
+    const anteriores = new Map(
+      (existing ?? []).map((r) => [r.external_id as string, r]),
+    );
+
+    // O produto reprovado na auditoria visual (0 fotos dentro das diretrizes)
+    // não pode voltar ao catálogo só porque o scraper rodou de novo: ele some
+    // do catálogo e reaparece no dia seguinte para falhar na publicação.
+    // Só reabrimos quando as fotos realmente mudaram — e aí pedimos nova auditoria.
+    for (const row of rows) {
+      const anterior = anteriores.get(row.external_id as string);
+      if (!anterior || anterior.ml_vision_clean_count !== 0) continue;
+      const mesmasFotos =
+        JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
+      if (mesmasFotos) {
+        row.is_blocked = true;
+      } else {
+        (row as Record<string, unknown>).ml_vision_clean_count = null;
+        (row as Record<string, unknown>).ml_vision_checked_at = null;
+      }
+    }
+
 
     let inserted = 0;
     let updated = 0;
@@ -405,6 +538,7 @@ Deno.serve(async (req) => {
       blocked,
       skipped_fake_ads: skippedFakeAds,
       no_detail: noDetail,
+      fora_das_diretrizes_ml: naoConformes,
       ran_at: new Date().toISOString(),
     };
 

@@ -194,7 +194,7 @@ export function buildVariations(params: {
   }
 
   const attributeId = String(attrDef.id ?? '')
-  const qty = Math.max(1, params.quantityPerVariation ?? 10)
+  const qty = Math.max(1, params.quantityPerVariation ?? 1)
   const variations: MLVariation[] = []
   const sourceValues: string[] = []
 
@@ -204,7 +204,8 @@ export function buildVariations(params: {
     const resolved = resolveValueId(value, attrDef)
     variations.push({
       attribute_combinations: [{ id: attributeId, ...resolved }],
-      available_quantity: qty,
+      // Estoque real da variante quando o fornecedor informa; senão o padrão.
+      available_quantity: Number(v.stock ?? 0) > 0 ? Math.floor(Number(v.stock)) : qty,
       price: params.price,
     })
     sourceValues.push(value)

@@ -12,8 +12,8 @@ import { getCharge, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
 import {
-  applyPendingReferralRewards,
-  grantInviterMonthsForPaidInvitee,
+  consumeInviterReferralDiscount,
+  grantInviterDiscountForPaidInvitee,
 } from "../_shared/referral-rewards.ts";
 
 
@@ -57,7 +57,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.chargeId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
       .eq("validapay_charge_id", p.chargeId)
       .maybeSingle();
     if (data) return data;
@@ -65,7 +65,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.subscriptionId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
       .eq("validapay_subscription_id", p.subscriptionId)
       .maybeSingle();
     if (data) return data;
@@ -73,7 +73,7 @@ async function findSubscription(p: WebhookPayload) {
   if (metaUser) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
       .eq("user_id", metaUser)
       .eq("provider", "validapay")
       .order("created_at", { ascending: false })
@@ -89,6 +89,116 @@ const addMonths = (date: Date, months: number) => {
   d.setMonth(d.getMonth() + months);
   return d;
 };
+
+async function syncDropshipOrderPayment(
+  payload: WebhookPayload,
+  params: {
+    event: string;
+    eventRowId: string;
+    verifiedStatus: string | null;
+    verifiedAmount: number | null;
+  },
+): Promise<{ handled: boolean; orderId?: string; status?: string }> {
+  const chargeId = payload.chargeId ? String(payload.chargeId) : "";
+  const metadata = payload.metadata ?? {};
+  const kind = String(metadata.kind ?? metadata.type ?? "").toLowerCase();
+  const metadataOrderId =
+    typeof metadata.dropship_order_id === "string"
+      ? metadata.dropship_order_id
+      : typeof metadata.dropshipOrderId === "string"
+        ? metadata.dropshipOrderId
+        : kind === "dropship_order" && typeof metadata.order_id === "string"
+          ? metadata.order_id
+          : null;
+
+  if (!chargeId && !metadataOrderId) return { handled: false };
+
+  let query = admin
+    .from("dropship_orders")
+    .select("id,status,payment_status,metadata")
+    .limit(1);
+
+  query = metadataOrderId ? query.eq("id", metadataOrderId) : query.eq("payment_reference", chargeId);
+
+  const { data: rows, error: findError } = await query;
+  if (findError) throw new Error(`dropship_payment_lookup_failed:${findError.message}`);
+
+  const order = rows?.[0];
+  if (!order) return { handled: false };
+
+  const normalized = String(params.verifiedStatus ?? payload.status ?? "").toUpperCase();
+  const paid = ["PAID", "APPROVED", "CONFIRMED", "AUTHORIZED"].includes(normalized);
+  const failed = ["REJECTED", "CANCELLED", "CANCELED", "EXPIRED", "REFUNDED"].includes(normalized) ||
+    params.event === "payment.failed";
+
+  if (!paid && !failed) {
+    await admin
+      .from("validapay_webhook_events")
+      .update({ processed: true, status: normalized || (payload.status ?? null) })
+      .eq("id", params.eventRowId);
+    return { handled: true, orderId: order.id, status: "pending" };
+  }
+
+  const currentMetadata =
+    order.metadata && typeof order.metadata === "object" && !Array.isArray(order.metadata)
+      ? order.metadata as Record<string, unknown>
+      : {};
+  const validapayMetadata =
+    currentMetadata.validapay && typeof currentMetadata.validapay === "object" && !Array.isArray(currentMetadata.validapay)
+      ? currentMetadata.validapay as Record<string, unknown>
+      : {};
+
+  const patch = {
+    status: paid ? "pagamento_confirmado" : order.status,
+    payment_status: paid ? "paid" : "rejected",
+    payment_method: "pix",
+    payment_reference: chargeId || null,
+    metadata: {
+      ...currentMetadata,
+      validapay: {
+        ...validapayMetadata,
+        charge_id: chargeId || null,
+        event: params.event,
+        status: normalized || null,
+        amount: params.verifiedAmount ?? payload.amount ?? null,
+        webhook_event_id: params.eventRowId,
+        paid_at: paid ? payload.paidAt ?? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      },
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: updateError } = await admin
+    .from("dropship_orders")
+    .update(patch)
+    .eq("id", order.id);
+  if (updateError) throw new Error(`dropship_payment_update_failed:${updateError.message}`);
+
+  await admin.from("dropship_order_events").insert({
+    order_id: order.id,
+    event_type: paid ? "payment_confirmed" : "payment_rejected",
+    previous_status: order.status,
+    new_status: patch.status,
+    actor: "validapay-webhook",
+    message: paid
+      ? "Pagamento Pix confirmado pela ValidaPay; pedido liberado para o worker comprar na C7Drop."
+      : "Pagamento Pix rejeitado/cancelado pela ValidaPay.",
+    metadata: {
+      charge_id: chargeId || null,
+      webhook_event_id: params.eventRowId,
+      status: normalized || null,
+    },
+  });
+
+  await admin
+    .from("validapay_webhook_events")
+    .update({ processed: true, status: normalized || (payload.status ?? null) })
+    .eq("id", params.eventRowId);
+
+  console.log("validapay-webhook: pedido dropship atualizado", order.id, patch.status);
+  return { handled: true, orderId: order.id, status: patch.status };
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -197,6 +307,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    const dropshipPayment = await syncDropshipOrderPayment(payload, {
+      event,
+      eventRowId: eventRow.id,
+      verifiedStatus,
+      verifiedAmount,
+    });
+    if (dropshipPayment.handled) {
+      return json({
+        received: true,
+        kind: "dropship_order",
+        order: dropshipPayment.orderId,
+        status: dropshipPayment.status,
+      });
+    }
+
     // 2.1) Venda de loja do usuário (checkout público) — não é assinatura.
     const isStoreOrder =
       String(payload.metadata?.kind ?? "") === "store_order" || !!payload.metadata?.store_order_id;
@@ -233,7 +358,19 @@ Deno.serve(async (req) => {
     const nowIso = now.toISOString();
 
     const activate = async () => {
+      // Assinatura marcada para cancelar ao fim do ciclo não volta a ser
+      // renovada: encerramos e rebaixamos o perfil em vez de reativar.
+      if (subscription.cancel_at_period_end) {
+        console.log("validapay-webhook: renovação ignorada (cancelamento agendado)", subscription.id);
+        await admin
+          .from("subscriptions")
+          .update({ status: "expired", updated_at: nowIso })
+          .eq("id", subscription.id);
+        await admin.from("profiles").update({ plano: "gratis" }).eq("user_id", subscription.user_id);
+        return;
+      }
       await admin
+
         .from("subscriptions")
         .update({
           status: "active",
@@ -316,16 +453,16 @@ Deno.serve(async (req) => {
         });
         console.log("validapay-webhook: comissão", event, commission);
 
-        // Indicação: se este assinante veio de um convite, quem convidou ganha
-        // 3 meses grátis (idempotente por pagamento). Também aplicamos aqui
-        // eventuais recompensas pendentes do próprio assinante.
-        if (paymentKey) {
-          await grantInviterMonthsForPaidInvitee(admin, {
-            invitedUserId: subscription.user_id,
-            paymentRef: String(paymentKey),
-          });
+        // Indicação (15% para os dois): o pagamento do convidado libera o
+        // crédito de 15% para quem convidou. Se este pagamento já usou um
+        // crédito de convidador, ele é consumido agora.
+        await grantInviterDiscountForPaidInvitee(admin, {
+          invitedUserId: subscription.user_id,
+        });
+        const usedReferralId = (subscription as { referral_id?: string | null }).referral_id ?? null;
+        if (usedReferralId) {
+          await consumeInviterReferralDiscount(admin, usedReferralId);
         }
-        await applyPendingReferralRewards(admin, subscription.user_id);
         break;
       }
       case "payment.failed":

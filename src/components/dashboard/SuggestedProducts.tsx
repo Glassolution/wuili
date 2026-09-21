@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Package } from "lucide-react";
 import {
-  TrendUp,
   ShoppingBag as PhShoppingBag,
   Sparkle as PhSparkle,
   DeviceMobile,
@@ -181,14 +180,14 @@ const VitrineCard = ({
   const imageUrl = getFirstImage(product.images);
   const [imgFailed, setImgFailed] = useState(false);
 
-  const margin = Math.round(product.margin_percent);
-  const price = product.suggested_price > 0 ? product.suggested_price : product.cost_price;
+  // Exibimos só o custo real do fornecedor — preço sugerido e margem aparecem
+  // apenas no modal de publicação, quando o lojista define o preço de venda.
+  const price = product.cost_price;
 
   const catEntry = getCategoryIcon(product.category);
   const CatIcon = catEntry.Icon;
 
   // Avatar icon: indica o destaque do produto
-  const isHighMargin = margin >= 40;
   const isBestseller = (product.orders_count ?? 0) >= 100;
 
   return (
@@ -225,20 +224,6 @@ const VitrineCard = ({
               {product.category}
             </span>
           ) : <span />}
-
-          {margin > 0 && (
-            <span
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium"
-              style={{
-                background: "#ECFDF5",
-                color: "#059669",
-                border: "1px solid rgba(0,0,0,0.04)",
-              }}
-            >
-              <TrendUp size={11} weight="duotone" color="#059669" />
-              {margin}%
-            </span>
-          )}
         </div>
 
         {imageUrl && !imgFailed ? (
@@ -277,13 +262,11 @@ const VitrineCard = ({
         <div
           className="shrink-0 h-7 w-7 rounded-full grid place-items-center transition-transform duration-200 group-hover:scale-110"
           style={{
-            background: isHighMargin ? "#ECFDF5" : isBestseller ? "#EFF6FF" : "#F5F3FF",
+            background: isBestseller ? "#EFF6FF" : "#F5F3FF",
           }}
-          title={isHighMargin ? "Alta margem" : isBestseller ? "Mais vendido" : "Sugestão"}
+          title={isBestseller ? "Mais vendido" : "Sugestão"}
         >
-          {isHighMargin ? (
-            <TrendUp size={14} weight="duotone" color="#059669" />
-          ) : isBestseller ? (
+          {isBestseller ? (
             <PhShoppingBag size={14} weight="duotone" color="#3B82F6" />
           ) : (
             <PhSparkle size={14} weight="duotone" color="#7C3AED" />

@@ -12,7 +12,7 @@ export const CatalogMockup = () => (
     }}
   >
     <img
-      src="/hero.png"
+      src="/hero.webp"
       alt="Tela de catálogo dropshipping da Velo"
       style={{ width: "100%", height: "auto", display: "block" }}
       loading="lazy"

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth, ML_CONNECT_FALLBACK_MESSAGE } from "@/lib/mercadoLivreOAuth";
+import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 import OwnProductFormModal, { type OwnProduct } from "@/components/dashboard/OwnProductFormModal";
 
 const SUPABASE_URL = "https://nqzpoioxvbqavrtphtoa.supabase.co";
@@ -20,6 +21,9 @@ const OwnProductsPanel = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<OwnProduct | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  // Códigos crus do ML (ex.: "address_pending") quando o cadastro da conta
+  // bloqueia a publicação — alimentam o modal que diz o que falta preencher.
+  const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ["user-own-products", user?.id],
@@ -55,8 +59,11 @@ const OwnProductsPanel = () => {
       veloToast.error("Este produto precisa de pelo menos 3 fotos para ser publicado no Mercado Livre.");
       return;
     }
+    // O modal deve representar somente a tentativa de publicação atual.
+    setMlMissingCodes(null);
     setPublishingId(p.id);
-    const toastId = veloToast.loading("Publicando no Mercado Livre...");
+    // Não exibimos toast de carregamento: o botão já comunica o estado.
+    const toastId = `ml-publish-${Date.now()}`;
 
     try {
       const { data: sess } = await supabase.auth.getSession();
@@ -105,6 +112,11 @@ const OwnProductsPanel = () => {
           });
           return;
         }
+        if (code === "ML_SELLER_CANNOT_LIST") {
+          veloToast.dismiss(toastId);
+          setMlMissingCodes(Array.isArray(body?.seller_codes) ? body.seller_codes : []);
+          return;
+        }
         if (code === "DUPLICATE_PUBLICATION") {
           veloToast.info("Este produto já foi publicado no seu Mercado Livre.", { id: toastId });
           return;
@@ -120,6 +132,7 @@ const OwnProductsPanel = () => {
         return;
       }
 
+      setMlMissingCodes(null);
       await supabase.from("user_products" as any).update({ status: "published" }).eq("id", p.id);
       veloToast.success("Produto publicado no Mercado Livre.", { id: toastId });
       refresh();
@@ -256,6 +269,12 @@ const OwnProductsPanel = () => {
         product={editing}
         onClose={() => setFormOpen(false)}
         onSaved={refresh}
+      />
+
+      <MlMissingInfoModal
+        open={mlMissingCodes !== null}
+        sellerCodes={mlMissingCodes ?? []}
+        onClose={() => setMlMissingCodes(null)}
       />
     </div>
   );

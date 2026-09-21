@@ -7,6 +7,7 @@ import {
   Activity,
   AlertTriangle,
   Archive,
+  ArrowLeft,
   Bug,
   CalendarDays,
   CheckCircle2,
@@ -20,15 +21,20 @@ import {
   Lock,
   Mail,
   MessageCircle,
+  MonitorSmartphone,
   MoreHorizontal,
   Paperclip,
   Pencil,
   Plug,
   RefreshCcw,
+  Reply,
+  Route,
   Search,
   Send,
+  Stethoscope,
   Trash2,
   UserCircle2,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -41,9 +47,13 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { notifyTicketReplyEmail } from "@/lib/supportEmail";
 import {
   buildSupportImageMessage,
+  buildSupportRedirectMessage,
+  buildSupportReplyMessage,
   parseSupportMessage,
   removeSupportImage,
   supportMessagePreview,
+  touchSupportTicket,
+  type SupportReplyReference,
   uploadSupportImage,
   validateSupportImage,
 } from "@/lib/support";
@@ -54,6 +64,7 @@ type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso
 type TicketView = "all" | "new" | "in_progress";
 type TicketStatusFilter = "all" | "open" | "closed";
 type TicketDateFilter = "all" | "today" | "7d" | "30d";
+type MobileSupportPanel = "inbox" | "conversation" | "customer";
 
 type AdminTicket = {
   id: string;
@@ -68,6 +79,7 @@ type AdminTicket = {
   user_avatar_url: string | null;
   last_message: string | null;
   last_message_at: string | null;
+  last_message_sender: "user" | "admin" | "ai" | null;
   message_count: number;
   has_admin_reply: boolean;
 };
@@ -77,7 +89,7 @@ type SupportMessage = {
   ticket_id: string;
   user_id: string;
   message: string;
-  sender: "user" | "admin";
+  sender: "user" | "admin" | "ai";
   created_at: string;
 };
 
@@ -90,11 +102,21 @@ type CustomerContextData = {
   subscription_started_at: string | null;
   customer_since: string | null;
   last_seen_at: string | null;
+  payment_method: string | null;
+  user_agent: string | null;
 };
 
 type DirectRefundTarget = {
   ticket: AdminTicket;
   customer: CustomerContextData;
+};
+
+type RedirectDraft = {
+  ticket: AdminTicket;
+  sourceMessage: SupportMessage;
+  label: string;
+  url: string;
+  note: string;
 };
 
 const CATEGORY_META: Record<
@@ -158,10 +180,53 @@ const DATE_OPTIONS: Array<{ value: TicketDateFilter; label: string }> = [
   { value: "30d", label: "30 dias" },
 ];
 
+const REDIRECT_OPTIONS = [
+  { label: "Início", url: "/dashboard" },
+  { label: "Catálogo", url: "/dashboard/catalogo" },
+  { label: "Pedidos", url: "/dashboard/pedidos" },
+  { label: "Publicações", url: "/dashboard/publicacoes" },
+  { label: "Afiliados", url: "/dashboard/afiliados" },
+  { label: "Imagens com IA", url: "/dashboard/imagens-ia" },
+  { label: "Lojas", url: "/dashboard/integracoes" },
+  { label: "Configurações", url: "/dashboard/configuracoes" },
+  { label: "Config. Perfil", url: "/dashboard/configuracoes?tab=Perfil" },
+  { label: "Config. Lojas", url: "/dashboard/configuracoes?tab=Minhas%20Lojas" },
+  { label: "Config. Integrações", url: "/dashboard/configuracoes?tab=Integra%C3%A7%C3%B5es" },
+  { label: "Config. Plano", url: "/dashboard/configuracoes?tab=Plano" },
+  { label: "Config. Notificações", url: "/dashboard/configuracoes?tab=Notifica%C3%A7%C3%B5es" },
+  { label: "Config. Segurança", url: "/dashboard/configuracoes?tab=Seguran%C3%A7a" },
+  { label: "Config. Suporte", url: "/dashboard/configuracoes?tab=Suporte" },
+];
+
+const SUPPORT_READ_TICKETS_STORAGE_KEY = "velo:admin-support-read-tickets";
+
 type FilterOption<T extends string> = {
   value: T;
   label: string;
 };
+
+type TicketReadState = Record<string, string>;
+
+const getStoredReadTickets = (): TicketReadState => {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = JSON.parse(window.localStorage?.getItem(SUPPORT_READ_TICKETS_STORAGE_KEY) ?? "{}");
+    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
+    return Object.fromEntries(
+      Object.entries(stored).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    );
+  } catch {
+    return {};
+  }
+};
+
+const isUnreadCustomerMessage = (ticket: AdminTicket, readAt: string | null) => {
+  if (ticket.last_message_sender !== "user" || !ticket.last_message_at) return false;
+  if (!readAt) return true;
+  return new Date(ticket.last_message_at).getTime() > new Date(readAt).getTime();
+};
+
+const needsSupportReply = (ticket: Pick<AdminTicket, "last_message_sender">) => ticket.last_message_sender === "user";
 
 const getTicketActivityTime = (ticket: Pick<AdminTicket, "last_message_at" | "updated_at" | "created_at">) => {
   const time = new Date(ticket.last_message_at ?? ticket.updated_at ?? ticket.created_at).getTime();
@@ -247,6 +312,28 @@ const formatSubscriptionStatus = (status: string | null) => {
   return status || "Sem assinatura";
 };
 
+const formatPaymentMethod = (method: string | null) => {
+  const normalized = (method ?? "").toLowerCase();
+  if (!normalized) return "Não informado";
+  if (normalized.includes("pix")) return "Pix";
+  if (normalized.includes("credit") || normalized.includes("credito") || normalized.includes("cartao")) return "Cartão de crédito";
+  if (normalized.includes("debit") || normalized.includes("debito")) return "Cartão de débito";
+  if (normalized.includes("boleto")) return "Boleto";
+  return method ?? "Não informado";
+};
+
+const formatDevice = (userAgent: string | null) => {
+  if (!userAgent) return "Não identificado";
+  if (/mobile|android|iphone|ipad|ipod|windows phone/i.test(userAgent)) return "Celular";
+  return "PC";
+};
+
+const formatPreviousTickets = (count: number) => {
+  if (count <= 0) return "Não";
+  if (count === 1) return "Sim, 1 ticket anterior";
+  return `Sim, ${count} tickets anteriores`;
+};
+
 const getInitials = (name?: string | null, email?: string | null) =>
   (name || email || "Velo")
     .split(/[\s._@-]+/)
@@ -262,12 +349,16 @@ const AdminSupportPage = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
+  const [replyTarget, setReplyTarget] = useState<SupportReplyReference | null>(null);
   const [replyImage, setReplyImage] = useState<File | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<TicketView>("all");
   const [statusFilter, setStatusFilter] = useState<TicketStatusFilter>("open");
   const [dateFilter, setDateFilter] = useState<TicketDateFilter>("all");
+  const [mobilePanel, setMobilePanel] = useState<MobileSupportPanel>("inbox");
   const [directRefundTarget, setDirectRefundTarget] = useState<DirectRefundTarget | null>(null);
+  const [redirectDraft, setRedirectDraft] = useState<RedirectDraft | null>(null);
+  const [readTickets, setReadTickets] = useState<TicketReadState>(getStoredReadTickets);
 
   const fallbackAdmin = isAdminEmail(user?.email);
 
@@ -288,6 +379,8 @@ const AdminSupportPage = () => {
   const isAdmin = profile?.role === "admin" || fallbackAdmin;
 
   useEffect(() => {
+    setReply("");
+    setReplyTarget(null);
     setReplyImage(null);
   }, [openTicketId]);
 
@@ -392,8 +485,11 @@ const AdminSupportPage = () => {
       for (const message of allMessages) {
         messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
         const current = lastByTicket.get(message.ticket_id);
-        // Última mensagem do ticket, venha de quem vier (cliente, admin ou IA).
-        if (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime()) {
+        // A saudação automática não deve esconder a dúvida real na fila.
+        if (
+          message.sender !== "ai" &&
+          (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime())
+        ) {
           lastByTicket.set(message.ticket_id, message);
         }
         if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
@@ -416,6 +512,7 @@ const AdminSupportPage = () => {
           user_avatar_url: customer?.avatar_url ?? null,
           last_message: lastMessage ? supportMessagePreview(lastMessage.message) : null,
           last_message_at: lastMessage?.created_at ?? null,
+          last_message_sender: lastMessage?.sender ?? null,
           message_count: messageCountByTicket.get(ticket.id) ?? 0,
           has_admin_reply: adminReplyByTicket.has(ticket.id),
         } satisfies AdminTicket;
@@ -429,8 +526,8 @@ const AdminSupportPage = () => {
     return tickets.filter((ticket) => {
       const matchesView =
         view === "all" ||
-        (view === "new" && !ticket.has_admin_reply) ||
-        (view === "in_progress" && ticket.has_admin_reply);
+        (view === "new" && needsSupportReply(ticket)) ||
+        (view === "in_progress" && !needsSupportReply(ticket) && ticket.has_admin_reply);
       const matchesStatus = matchesTicketStatus(ticket, statusFilter);
       const matchesDate = matchesTicketDate(ticket, dateFilter);
       const matchesSearch =
@@ -456,10 +553,39 @@ const AdminSupportPage = () => {
     }
   }, [openTicketId, visibleTickets]);
 
+  useEffect(() => {
+    if (!openTicketId && mobilePanel !== "inbox") {
+      setMobilePanel("inbox");
+    }
+  }, [mobilePanel, openTicketId]);
+
   const openTicket = useMemo(
     () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
     [openTicketId, tickets],
   );
+  const previousTicketCount = useMemo(() => {
+    if (!openTicket) return 0;
+    return tickets.filter((ticket) => ticket.user_id === openTicket.user_id && ticket.id !== openTicket.id).length;
+  }, [openTicket, tickets]);
+
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(SUPPORT_READ_TICKETS_STORAGE_KEY, JSON.stringify(readTickets));
+    } catch {
+      // Mantém o suporte funcionando mesmo quando o navegador bloqueia storage.
+    }
+  }, [readTickets]);
+
+  useEffect(() => {
+    if (!openTicket?.last_message_at) return;
+    setReadTickets((current) => {
+      const previous = current[openTicket.id];
+      if (previous && new Date(previous).getTime() >= new Date(openTicket.last_message_at as string).getTime()) {
+        return current;
+      }
+      return { ...current, [openTicket.id]: openTicket.last_message_at as string };
+    });
+  }, [openTicket?.id, openTicket?.last_message_at]);
 
   const { data: customerContext, isLoading: loadingCustomerContext } = useQuery({
     queryKey: ["admin-support-customer-context", openTicket?.user_id],
@@ -474,13 +600,13 @@ const AdminSupportPage = () => {
           .maybeSingle(),
         (supabase as any)
           .from("subscriptions")
-          .select("plan,status,created_at,updated_at")
+          .select("plan,status,created_at,updated_at,payment_method")
           .eq("user_id", userId)
           .order("updated_at", { ascending: false })
           .limit(20),
         (supabase as any)
           .from("user_sessions")
-          .select("last_seen_at")
+          .select("last_seen_at,user_agent")
           .eq("user_id", userId)
           .order("last_seen_at", { ascending: false })
           .limit(1)
@@ -497,6 +623,7 @@ const AdminSupportPage = () => {
         status: string | null;
         created_at: string | null;
         updated_at: string | null;
+        payment_method: string | null;
       }>;
       const activeStatuses = new Set(["active", "paid", "approved", "authorized"]);
       const subscription =
@@ -513,6 +640,8 @@ const AdminSupportPage = () => {
         subscription_started_at: subscription?.created_at ?? null,
         customer_since: profileRow?.created_at ?? null,
         last_seen_at: sessionResult.data?.last_seen_at ?? openTicket?.last_message_at ?? openTicket?.updated_at ?? null,
+        payment_method: subscription?.payment_method ?? null,
+        user_agent: sessionResult.data?.user_agent ?? null,
       };
     },
     retry: false,
@@ -533,8 +662,16 @@ const AdminSupportPage = () => {
   });
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, openTicketId]);
+    if (loadingMessages) return;
+    const scrollToBottom = () => chatEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    scrollToBottom();
+    const frame = window.requestAnimationFrame(scrollToBottom);
+    const timeout = window.setTimeout(scrollToBottom, 80);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [chatEndRef, loadingMessages, messages.length, openTicketId]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -573,13 +710,18 @@ const AdminSupportPage = () => {
           ? await uploadSupportImage({ file: replyImage, ticketId: openTicket.id, userId: user.id })
           : null;
         uploadedPath = attachment?.path ?? null;
-        const messageValue = attachment ? buildSupportImageMessage(attachment, trimmed) : trimmed;
+        const messageValue = replyTarget
+          ? buildSupportReplyMessage({ text: trimmed, reply: replyTarget, attachment })
+          : attachment
+            ? buildSupportImageMessage(attachment, trimmed)
+            : trimmed;
         const { data, error } = await (supabase as any)
           .from("support_messages")
           .insert({ ticket_id: openTicket.id, user_id: user.id, message: messageValue, sender: "admin" })
           .select("*")
           .single();
         if (error) throw error;
+        await touchSupportTicket(openTicket.id);
         return data as SupportMessage;
       } catch (error) {
         if (uploadedPath) await removeSupportImage(uploadedPath);
@@ -589,6 +731,7 @@ const AdminSupportPage = () => {
     onSuccess: (message) => {
       if (!message) return;
       setReply("");
+      setReplyTarget(null);
       setReplyImage(null);
       qc.setQueryData<SupportMessage[]>(
         ["admin-support-messages", message.ticket_id],
@@ -612,7 +755,11 @@ const AdminSupportPage = () => {
       const parsed = parseSupportMessage(message.message);
       const trimmed = text.trim();
       if (!trimmed && !parsed.attachment) throw new Error("A mensagem não pode ficar vazia.");
-      const nextMessage = parsed.attachment ? buildSupportImageMessage(parsed.attachment, trimmed) : trimmed;
+      const nextMessage = parsed.reply
+        ? buildSupportReplyMessage({ text: trimmed, reply: parsed.reply, attachment: parsed.attachment })
+        : parsed.attachment
+          ? buildSupportImageMessage(parsed.attachment, trimmed)
+          : trimmed;
       const { data, error } = await (supabase as any)
         .from("support_messages")
         .update({ message: nextMessage })
@@ -657,6 +804,49 @@ const AdminSupportPage = () => {
       toast.success("Mensagem excluída.");
     },
     onError: () => toast.error("Não foi possível excluir a mensagem."),
+  });
+
+  const sendRedirect = useMutation({
+    mutationFn: async (draft: RedirectDraft) => {
+      if (!user?.id) return null;
+      const label = draft.label.trim();
+      const url = draft.url.trim();
+      if (!label || !url.startsWith("/") || url.startsWith("//")) {
+        throw new Error("Escolha uma página interna válida.");
+      }
+
+      const messageValue = buildSupportRedirectMessage({
+        label,
+        url,
+        note: draft.note,
+      });
+      const { data, error } = await (supabase as any)
+        .from("support_messages")
+        .insert({ ticket_id: draft.ticket.id, user_id: user.id, message: messageValue, sender: "admin" })
+        .select("*")
+        .single();
+      if (error) throw error;
+      await touchSupportTicket(draft.ticket.id);
+      return data as SupportMessage;
+    },
+    onSuccess: (message) => {
+      if (!message) return;
+      setRedirectDraft(null);
+      qc.setQueryData<SupportMessage[]>(
+        ["admin-support-messages", message.ticket_id],
+        (previous = []) =>
+          previous.some((item) => item.id === message.id) ? previous : [...previous, message],
+      );
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+      notifyTicketReplyEmail(message.ticket_id, message.id).catch((error) => {
+        console.error(error);
+        toast.error(error instanceof Error ? error.message : "Atalho enviado, mas o email não foi notificado.");
+      });
+      toast.success("Atalho enviado.");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o atalho.");
+    },
   });
 
   const closeTicket = useMutation({
@@ -754,13 +944,22 @@ const AdminSupportPage = () => {
   return (
     <AdminShell active="support" userId={user.id} fullBleed>
       <>
-        <div className="grid h-full min-h-0 grid-cols-[300px_minmax(0,1fr)_300px] overflow-hidden bg-[#f7f7f5]">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f7f7f5] lg:grid lg:grid-cols-[300px_minmax(0,1fr)_300px]">
+          <MobileSupportTabs
+            active={mobilePanel}
+            hasTicket={!!openTicket}
+            openTickets={tickets.filter((ticket) => ticket.status === "open").length}
+            onChange={setMobilePanel}
+          />
           <TicketInbox
             tickets={visibleTickets}
             allTickets={tickets}
             loading={loadingTickets}
             selectedId={openTicketId}
-            onSelect={setOpenTicketId}
+            onSelect={(id) => {
+              setOpenTicketId(id);
+              setMobilePanel("conversation");
+            }}
             search={search}
             onSearch={setSearch}
             view={view}
@@ -769,6 +968,8 @@ const AdminSupportPage = () => {
             onStatusFilter={setStatusFilter}
             dateFilter={dateFilter}
             onDateFilter={setDateFilter}
+            readTickets={readTickets}
+            className={mobilePanel === "inbox" ? "flex" : "hidden lg:flex"}
           />
 
           <ConversationPanel
@@ -777,6 +978,8 @@ const AdminSupportPage = () => {
             loadingMessages={loadingMessages}
             reply={reply}
             setReply={setReply}
+            replyTarget={replyTarget}
+            onClearReplyTarget={() => setReplyTarget(null)}
             replyImage={replyImage}
             onReplyImage={(file) => {
               const validationError = validateSupportImage(file);
@@ -795,8 +998,34 @@ const AdminSupportPage = () => {
             reopening={reopenTicket.isPending}
             onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
             onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
-            messageActionPending={editMessage.isPending || deleteMessage.isPending}
+            onReplyMessage={(message) => {
+              const preview = supportMessagePreview(message.message).replace(/\s+/g, " ").trim();
+              const author =
+                message.sender === "admin"
+                  ? "Suporte"
+                  : message.sender === "ai"
+                    ? "Atendimento automático"
+                    : openTicket?.user_name || "cliente";
+              setReplyTarget({
+                author,
+                text: preview,
+                sender: message.sender,
+              });
+            }}
+            onRedirectMessage={(message) => {
+              if (!openTicket) return;
+              setRedirectDraft({
+                ticket: openTicket,
+                sourceMessage: message,
+                label: REDIRECT_OPTIONS[0].label,
+                url: REDIRECT_OPTIONS[0].url,
+                note: "",
+              });
+            }}
+            messageActionPending={editMessage.isPending || deleteMessage.isPending || sendRedirect.isPending}
             chatEndRef={chatEndRef}
+            onShowCustomerMobile={() => setMobilePanel("customer")}
+            className={mobilePanel === "conversation" ? "flex" : "hidden lg:flex"}
           />
 
           <CustomerContextPanel
@@ -804,7 +1033,10 @@ const AdminSupportPage = () => {
             customer={customerContext ?? null}
             loading={loadingCustomerContext}
             refunding={directRefund.isPending}
+            previousTicketCount={previousTicketCount}
             onDirectRefund={(ticket, customer) => setDirectRefundTarget({ ticket, customer })}
+            onBackMobile={() => setMobilePanel("conversation")}
+            className={mobilePanel === "customer" ? "flex" : "hidden lg:flex"}
           />
         </div>
 
@@ -851,8 +1083,192 @@ const AdminSupportPage = () => {
             </div>
           </div>
         )}
+
+        <RedirectShortcutModal
+          draft={redirectDraft}
+          sending={sendRedirect.isPending}
+          onChange={setRedirectDraft}
+          onClose={() => setRedirectDraft(null)}
+          onSend={() => {
+            if (redirectDraft) sendRedirect.mutate(redirectDraft);
+          }}
+        />
       </>
     </AdminShell>
+  );
+};
+
+const RedirectShortcutModal = ({
+  draft,
+  sending,
+  onChange,
+  onClose,
+  onSend,
+}: {
+  draft: RedirectDraft | null;
+  sending: boolean;
+  onChange: (draft: RedirectDraft | null) => void;
+  onClose: () => void;
+  onSend: () => void;
+}) => {
+  if (!draft) return null;
+
+  const selectedPreset = REDIRECT_OPTIONS.find((option) => option.url === draft.url);
+  const preview = supportMessagePreview(draft.sourceMessage.message).replace(/\s+/g, " ").trim();
+  const canSend = draft.label.trim().length > 0 && draft.url.trim().startsWith("/") && !draft.url.trim().startsWith("//");
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[#111827]/38 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-[560px] overflow-hidden rounded-[18px] border border-[#E5E7EB] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F7] px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Redirecionar usuário</p>
+            <h2 className="mt-1 text-[16px] font-semibold tracking-[-0.02em] text-[#111827]">Enviar atalho na conversa</h2>
+            <p className="mt-1 max-w-sm truncate text-[11px] text-[#64748B]">
+              Referência: {preview || "mensagem sem texto"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#E5E7EB] text-[#64748B] transition hover:bg-[#F8FAFC] hover:text-[#111827] disabled:opacity-60"
+            aria-label="Fechar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <section>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Destino</span>
+              {selectedPreset ? (
+                <span className="truncate rounded-full bg-[#EEF4FF] px-2.5 py-1 text-[10px] font-bold text-[#2563EB]">
+                  {selectedPreset.label}
+                </span>
+              ) : null}
+            </div>
+            <div className="grid max-h-[230px] grid-cols-2 gap-1.5 overflow-y-auto rounded-[14px] border border-[#E5EAF3] bg-[#F8FAFC] p-1.5 sm:grid-cols-3">
+              {REDIRECT_OPTIONS.map((option) => {
+                const selected = option.url === draft.url;
+                return (
+                  <button
+                    key={option.url}
+                    type="button"
+                    onClick={() => onChange({ ...draft, label: option.label, url: option.url })}
+                    className={`min-h-10 rounded-[10px] px-3 py-2 text-left text-[12px] font-semibold transition ${
+                      selected
+                        ? "bg-[#2563EB] text-white shadow-[0_8px_18px_rgba(37,99,235,0.22)]"
+                        : "bg-white text-[#334155] hover:bg-[#EFF6FF] hover:text-[#1D4ED8]"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <div className="grid gap-3 sm:grid-cols-[0.85fr_1.15fr]">
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Texto do botão</span>
+              <input
+                value={draft.label}
+                onChange={(event) => onChange({ ...draft, label: event.target.value })}
+                placeholder="Abrir pedidos"
+                className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] font-semibold text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Link interno</span>
+              <input
+                value={draft.url}
+                onChange={(event) => onChange({ ...draft, url: event.target.value })}
+                placeholder="/dashboard/pedidos"
+                className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] font-semibold text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#8A93A3]">Mensagem curta</span>
+            <input
+              value={draft.note}
+              onChange={(event) => onChange({ ...draft, note: event.target.value })}
+              placeholder="Use este atalho para ir direto para a página certa."
+              className="mt-1.5 h-10 w-full rounded-[11px] border border-[#DDE4EF] bg-white px-3 text-[12.5px] text-[#111827] outline-none transition placeholder:text-[#A7B0BE] focus:border-[#93B4FF] focus:ring-2 focus:ring-[#DBEAFE]"
+            />
+          </label>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-[#EEF2F7] px-5 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-[12px] font-semibold text-[#475569] transition hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={sending || !canSend}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Route size={14} />}
+            Enviar atalho
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MobileSupportTabs = ({
+  active,
+  hasTicket,
+  openTickets,
+  onChange,
+}: {
+  active: MobileSupportPanel;
+  hasTicket: boolean;
+  openTickets: number;
+  onChange: (panel: MobileSupportPanel) => void;
+}) => {
+  const items: Array<{ value: MobileSupportPanel; label: string; count?: number; disabled?: boolean }> = [
+    { value: "inbox", label: "Fila", count: openTickets },
+    { value: "conversation", label: "Conversa", disabled: !hasTicket },
+    { value: "customer", label: "Cliente", disabled: !hasTicket },
+  ];
+
+  return (
+    <div className="shrink-0 border-b border-[#e1e1dd] bg-[#f7f7f5] px-3 py-2 lg:hidden">
+      <div className="grid grid-cols-3 gap-1 rounded-[12px] border border-[#deded9] bg-white p-1 shadow-[0_1px_2px_rgba(20,20,16,0.035)]">
+        {items.map((item) => {
+          const selected = active === item.value;
+          return (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => onChange(item.value)}
+              disabled={item.disabled}
+              className={`flex h-9 min-w-0 items-center justify-center gap-1 rounded-[9px] px-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                selected ? "bg-[#20201e] text-white" : "text-[#686862] hover:bg-[#f1f1ee] hover:text-[#20201e]"
+              }`}
+            >
+              <span className="truncate">{item.label}</span>
+              {item.count && item.count > 0 ? (
+                <span className={`rounded-full px-1.5 text-[9px] ${selected ? "bg-white/18 text-white" : "bg-[#ecece8] text-[#5d5d57]"}`}>
+                  {item.count > 99 ? "99+" : item.count}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 };
 
@@ -870,6 +1286,8 @@ const TicketInbox = ({
   onStatusFilter,
   dateFilter,
   onDateFilter,
+  readTickets,
+  className = "flex",
 }: {
   tickets: AdminTicket[];
   allTickets: AdminTicket[];
@@ -884,9 +1302,11 @@ const TicketInbox = ({
   onStatusFilter: (value: TicketStatusFilter) => void;
   dateFilter: TicketDateFilter;
   onDateFilter: (value: TicketDateFilter) => void;
+  readTickets: TicketReadState;
+  className?: string;
 }) => (
-  <aside className="flex min-h-0 flex-col border-r border-[#e4e4e0] bg-[#fafaf9]">
-    <div className="border-b border-[#e7e7e3] px-4 pb-3 pt-4">
+  <aside className={`${className} min-h-0 flex-1 flex-col border-r border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
+    <div className="border-b border-[#e7e7e3] px-3 pb-3 pt-3 sm:px-4 sm:pt-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[#deded9] bg-white text-[#333330] shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -899,9 +1319,6 @@ const TicketInbox = ({
             </p>
           </div>
         </div>
-        <button className="flex h-8 w-8 items-center justify-center rounded-lg text-[#83837e] transition hover:bg-[#eeeeeb] hover:text-[#1d1d1b]" aria-label="Mais opções">
-          <MoreHorizontal size={17} />
-        </button>
       </div>
 
       <label className="mt-3 flex h-9 items-center gap-2 rounded-[9px] border border-[#deded9] bg-white px-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] focus-within:border-[#aeb9d6] focus-within:ring-2 focus-within:ring-[#dfe6f8]">
@@ -912,7 +1329,6 @@ const TicketInbox = ({
           placeholder="Buscar cliente ou motivo"
           className="min-w-0 flex-1 bg-transparent text-[12px] text-[#252522] outline-none placeholder:text-[#a0a09a]"
         />
-        <kbd className="rounded border border-[#e4e4df] bg-[#f6f6f4] px-1.5 py-0.5 text-[9px] font-medium text-[#8a8a84]">⌘K</kbd>
       </label>
 
       <div className="mt-3 flex gap-1 overflow-x-auto">
@@ -923,7 +1339,9 @@ const TicketInbox = ({
               : allTickets.filter((ticket) =>
                   matchesTicketStatus(ticket, statusFilter) &&
                   matchesTicketDate(ticket, dateFilter) &&
-                  (option.value === "new" ? !ticket.has_admin_reply : ticket.has_admin_reply),
+                  (option.value === "new"
+                    ? needsSupportReply(ticket)
+                    : !needsSupportReply(ticket) && ticket.has_admin_reply),
                 ).length;
           return (
             <button
@@ -957,14 +1375,14 @@ const TicketInbox = ({
       </div>
     </div>
 
-    <div className="flex items-center justify-between border-b border-[#e8e8e4] px-4 py-2.5">
+    <div className="flex items-center justify-between border-b border-[#e8e8e4] px-3 py-2.5 sm:px-4">
       <span className="text-[9.5px] font-semibold uppercase tracking-[0.09em] text-[#999993]">Conversas</span>
       <span className="flex items-center gap-1 text-[10px] text-[#8b8b85]">
         Recentes <ChevronDown size={11} />
       </span>
     </div>
 
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+    <div className="velo-scroll-oculto min-h-0 flex-1 overflow-y-auto overscroll-contain">
       {loading ? (
         <TicketListSkeleton />
       ) : tickets.length === 0 ? (
@@ -979,6 +1397,7 @@ const TicketInbox = ({
             key={ticket.id}
             ticket={ticket}
             selected={ticket.id === selectedId}
+            readAt={readTickets[ticket.id] ?? null}
             onClick={() => onSelect(ticket.id)}
           />
         ))
@@ -992,17 +1411,23 @@ const CustomerContextPanel = ({
   customer,
   loading,
   refunding,
+  previousTicketCount,
   onDirectRefund,
+  onBackMobile,
+  className = "flex",
 }: {
   ticket: AdminTicket | null;
   customer: CustomerContextData | null;
   loading: boolean;
   refunding: boolean;
+  previousTicketCount: number;
   onDirectRefund: (ticket: AdminTicket, customer: CustomerContextData) => void;
+  onBackMobile: () => void;
+  className?: string;
 }) => {
   if (!ticket) {
     return (
-      <aside className="flex min-h-0 items-center justify-center border-l border-[#e4e4e0] bg-[#fafaf9] px-8 text-center">
+      <aside className={`${className} min-h-0 flex-1 items-center justify-center border-l border-[#e4e4e0] bg-[#fafaf9] px-8 text-center lg:flex-none`}>
         <div>
           <UserCircle2 size={24} strokeWidth={1.4} className="mx-auto text-[#afafa9]" />
           <p className="mt-3 text-[11px] leading-5 text-[#8d8d87]">Selecione um atendimento para visualizar os dados do cliente.</p>
@@ -1020,15 +1445,25 @@ const CustomerContextPanel = ({
     subscription_started_at: null,
     customer_since: null,
     last_seen_at: ticket.last_message_at ?? ticket.updated_at,
+    payment_method: null,
+    user_agent: null,
   };
   const subscriptionActive = ["active", "paid", "approved", "authorized"].includes(
     (data.subscription_status ?? "").toLowerCase(),
   );
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-y-auto border-l border-[#e4e4e0] bg-[#fafaf9]">
-      <div className="border-b border-[#e6e6e2] bg-white px-5 py-5">
-        <div className="flex items-center gap-3">
+    <aside className={`${className} min-h-0 flex-1 flex-col overflow-y-auto border-l border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
+      <div className="border-b border-[#e6e6e2] bg-white px-4 py-4 sm:px-5 sm:py-5">
+        <button
+          type="button"
+          onClick={onBackMobile}
+          className="mb-3 inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#deded9] bg-white px-2.5 text-[10.5px] font-semibold text-[#5f5f59] shadow-[0_1px_2px_rgba(0,0,0,0.03)] lg:hidden"
+        >
+          <ArrowLeft size={13} />
+          Conversa
+        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Avatar name={data.name} email={data.email} image={data.avatar_url} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold tracking-[-0.01em] text-[#252522]">
@@ -1040,7 +1475,7 @@ const CustomerContextPanel = ({
             type="button"
             onClick={() => onDirectRefund(ticket, data)}
             disabled={refunding || loading}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe]"
+            className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe] sm:h-8 sm:w-auto"
             title="Abrir reembolsos deste cliente"
           >
             {refunding ? <Loader2 size={13} className="animate-spin" /> : <HandCoins size={13} strokeWidth={2.1} />}
@@ -1057,17 +1492,19 @@ const CustomerContextPanel = ({
         </div>
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className="space-y-3 p-3 sm:p-4">
         <ContextCard title="Informações do cliente">
           <ContextRow icon={Mail} label="E-mail" value={data.email || "Não informado"} breakValue />
           <ContextRow icon={CalendarDays} label="Cliente há" value={elapsedTime(data.customer_since)} />
           <ContextRow icon={Activity} label="Última atividade" value={relativeTime(data.last_seen_at)} />
+          <ContextRow icon={MonitorSmartphone} label="Dispositivo" value={formatDevice(data.user_agent)} />
         </ContextCard>
 
         <ContextCard title="Assinatura">
           <ContextRow icon={CreditCard} label="Plano atual" value={formatPlan(data.plan)} />
           <ContextRow icon={CheckCircle2} label="Status" value={formatSubscriptionStatus(data.subscription_status)} />
           <ContextRow icon={Clock3} label="Assinante há" value={elapsedTime(data.subscription_started_at)} />
+          <ContextRow icon={CreditCard} label="Método de pagamento" value={formatPaymentMethod(data.payment_method)} />
         </ContextCard>
 
         <ContextCard title="Atendimento">
@@ -1075,7 +1512,10 @@ const CustomerContextPanel = ({
           <ContextRow icon={Hash} label="Ticket" value={`#${ticket.id.slice(0, 8)}`} />
           <ContextRow icon={Clock3} label="Aberto há" value={elapsedTime(ticket.created_at)} />
           <ContextRow icon={MessageCircle} label="Mensagens" value={String(ticket.message_count)} />
+          <ContextRow icon={MessageCircle} label="Já abriu ticket antes" value={formatPreviousTickets(previousTicketCount)} />
         </ContextCard>
+
+        <TicketDiagnostics ticketId={ticket.id} userEmail={data.email} />
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-2 text-[9.5px] text-[#999993]">
@@ -1084,6 +1524,68 @@ const CustomerContextPanel = ({
         ) : null}
       </div>
     </aside>
+  );
+};
+
+type DiagnosticCheck = { key: string; label: string; status: "ok" | "warn" | "fail"; detail: string };
+
+const TicketDiagnostics = ({ ticketId, userEmail }: { ticketId: string; userEmail: string | null }) => {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ overall?: string; summary?: string; checks?: DiagnosticCheck[]; found?: boolean } | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-user-diagnostics", {
+        body: { query: userEmail || ticketId },
+      });
+      if (error) throw error;
+      setResult(data as { overall?: string; summary?: string; checks?: DiagnosticCheck[]; found?: boolean });
+      if (data && (data as { found?: boolean }).found === false) {
+        toast.error("Não encontramos a conta deste usuário.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível consultar a conta.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tone = (status: string) =>
+    status === "ok"
+      ? "border-[#d9ead4] bg-[#f1f8ee] text-[#4f8247]"
+      : status === "warn"
+        ? "border-[#f2e3c2] bg-[#fdf8ee] text-[#8a6a25]"
+        : "border-[#f3d5d5] bg-[#fdf1f1] text-[#a34141]";
+
+  return (
+    <ContextCard title="Consulta da conta">
+      <div className="py-3">
+        <button
+          type="button"
+          onClick={run}
+          disabled={loading}
+          className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10.5px] font-semibold text-[#2563EB] transition hover:border-[#2563EB] hover:bg-[#dbeafe] disabled:opacity-60"
+        >
+          {loading ? <Loader2 size={13} className="animate-spin" /> : <Stethoscope size={13} strokeWidth={2.1} />}
+          {loading ? "Consultando..." : "Consultar conta do cliente"}
+        </button>
+
+        {result?.found ? (
+          <div className="mt-3 space-y-1.5">
+            <p className={`rounded-[8px] border px-2.5 py-2 text-[10px] font-medium leading-4 ${tone(String(result.overall))}`}>
+              {result.summary}
+            </p>
+            {(result.checks ?? []).map((check) => (
+              <div key={check.key} className={`rounded-[8px] border px-2.5 py-2 ${tone(check.status)}`}>
+                <p className="text-[10px] font-semibold">{check.label}</p>
+                <p className="mt-0.5 text-[9.5px] leading-4 opacity-90">{check.detail}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </ContextCard>
   );
 };
 
@@ -1186,8 +1688,19 @@ const FilterDropdown = <T extends string,>({
   );
 };
 
-const TicketListItem = ({ ticket, selected, onClick }: { ticket: AdminTicket; selected: boolean; onClick: () => void }) => {
+const TicketListItem = ({
+  ticket,
+  selected,
+  readAt,
+  onClick,
+}: {
+  ticket: AdminTicket;
+  selected: boolean;
+  readAt: string | null;
+  onClick: () => void;
+}) => {
   const meta = CATEGORY_META[ticket.category];
+  const hasCustomerUpdate = isUnreadCustomerMessage(ticket, readAt);
   return (
     <button
       onClick={onClick}
@@ -1200,7 +1713,7 @@ const TicketListItem = ({ ticket, selected, onClick }: { ticket: AdminTicket; se
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#252522]">{ticket.user_name || "Usuário sem nome"}</p>
-          {!ticket.has_admin_reply ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff725c]" title="Novo atendimento" /> : null}
+          {hasCustomerUpdate ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff725c]" title="Nova mensagem do cliente" /> : null}
         </div>
         <p className="mt-1 line-clamp-1 text-[10.5px] font-medium leading-4 text-[#686863]">{ticket.subject || ticket.last_message || meta.label}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2">
@@ -1224,6 +1737,8 @@ const ConversationPanel = ({
   loadingMessages,
   reply,
   setReply,
+  replyTarget,
+  onClearReplyTarget,
   replyImage,
   onReplyImage,
   onRemoveReplyImage,
@@ -1235,14 +1750,20 @@ const ConversationPanel = ({
   reopening,
   onEditMessage,
   onDeleteMessage,
+  onReplyMessage,
+  onRedirectMessage,
   messageActionPending,
   chatEndRef,
+  onShowCustomerMobile,
+  className = "flex",
 }: {
   ticket: AdminTicket | null;
   messages: SupportMessage[];
   loadingMessages: boolean;
   reply: string;
   setReply: (value: string) => void;
+  replyTarget: SupportReplyReference | null;
+  onClearReplyTarget: () => void;
   replyImage: File | null;
   onReplyImage: (file: File) => void;
   onRemoveReplyImage: () => void;
@@ -1254,14 +1775,38 @@ const ConversationPanel = ({
   reopening: boolean;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
+  onReplyMessage: (message: SupportMessage) => void;
+  onRedirectMessage: (message: SupportMessage) => void;
   messageActionPending: boolean;
   chatEndRef: React.RefObject<HTMLDivElement>;
+  onShowCustomerMobile: () => void;
+  className?: string;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ticket || loadingMessages) return;
+
+    const scrollToBottom = () => {
+      if (messageScrollRef.current) {
+        messageScrollRef.current.scrollTop = messageScrollRef.current.scrollHeight;
+      }
+      chatEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    };
+
+    scrollToBottom();
+    const frame = window.requestAnimationFrame(scrollToBottom);
+    const timeout = window.setTimeout(scrollToBottom, 90);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [chatEndRef, loadingMessages, messages.length, ticket?.id]);
 
   if (!ticket) {
     return (
-      <section className="flex min-h-0 items-center justify-center bg-white">
+      <section className={`${className} min-h-0 flex-1 items-center justify-center bg-white lg:flex-none`}>
         <div className="max-w-sm text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e3e3df] bg-[#fafaf8] text-[#797973]">
             <MessageCircle size={21} strokeWidth={1.5} />
@@ -1277,24 +1822,34 @@ const ConversationPanel = ({
   const closed = ticket.status === "closed";
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col bg-white">
-      <header className="border-b border-[#e5e5e1] bg-white px-5 py-3.5">
-        <div className="flex items-center justify-between gap-4">
+    <section className={`${className} min-h-0 min-w-0 flex-1 flex-col bg-white lg:flex-none`}>
+      <header className="border-b border-[#e5e5e1] bg-white px-3 py-2 sm:px-5 sm:py-3.5">
+        <div className="mb-1 flex justify-end lg:hidden">
+          <button
+            type="button"
+            onClick={onShowCustomerMobile}
+            className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[#d8e5ff] bg-[#eef5ff] px-2.5 text-[10px] font-semibold text-[#2563EB]"
+          >
+            <UserCircle2 size={13} />
+            Cliente
+          </button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
-              <h2 className="truncate text-[14px] font-semibold tracking-[-0.02em] text-[#20201e]">
+              <h2 className="truncate text-[13px] font-semibold tracking-[-0.02em] text-[#20201e] sm:text-[14px]">
                 {ticket.subject || meta.label}
               </h2>
               <span className={`hidden shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-semibold lg:inline-flex ${meta.badge}`}>
                 {meta.label}
               </span>
             </div>
-            <div className="mt-1.5 flex items-center gap-2.5 text-[10px] text-[#8f8f89]">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px] text-[#8f8f89] sm:mt-1.5 sm:gap-x-2.5 sm:text-[10px]">
               <span className="flex items-center gap-1"><Hash size={10} /> {ticket.id.slice(0, 8)}</span>
               <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
               <span>{ticket.message_count} {ticket.message_count === 1 ? "mensagem" : "mensagens"}</span>
-              <span className="h-1 w-1 rounded-full bg-[#c2c2bd]" />
+              <span className="hidden h-1 w-1 rounded-full bg-[#c2c2bd] sm:inline-flex" />
               <span>aberto {relativeTime(ticket.created_at)}</span>
             </div>
           </div>
@@ -1303,7 +1858,7 @@ const ConversationPanel = ({
               <button
                 onClick={onReopen}
                 disabled={reopening}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
+                className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#dcdcd7] bg-white px-3 text-[10px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px]"
               >
                 {reopening ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
                 Reabrir ticket
@@ -1312,20 +1867,20 @@ const ConversationPanel = ({
               <button
                 onClick={onResolve}
                 disabled={resolving}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dcdcd7] bg-white px-3 text-[10.5px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50"
+                className="inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#dcdcd7] bg-white px-3 text-[10px] font-semibold text-[#555550] shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition hover:border-[#bfc7bb] hover:bg-[#f5f8f3] hover:text-[#3b6f39] disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px]"
               >
                 {resolving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                Resolver
+                Resolvido
               </button>
             )}
-            <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1]" aria-label="Mais ações">
+            <button className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e2e2de] text-[#777772] transition hover:bg-[#f4f4f1] sm:h-8 sm:w-8 sm:rounded-lg" aria-label="Mais ações">
               <MoreHorizontal size={15} />
             </button>
           </div>
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f8f9fb] px-5 py-5">
+      <div ref={messageScrollRef} className="velo-scroll-oculto min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#f8f9fb] px-3 py-4 sm:px-5 sm:py-5">
         {loadingMessages ? (
           <MessageSkeleton />
         ) : messages.length === 0 ? (
@@ -1347,6 +1902,8 @@ const ConversationPanel = ({
                 customerAvatar={ticket.user_avatar_url}
                 onEditMessage={onEditMessage}
                 onDeleteMessage={onDeleteMessage}
+                onReplyMessage={onReplyMessage}
+                onRedirectMessage={onRedirectMessage}
                 actionPending={messageActionPending}
               />
             ))}
@@ -1355,19 +1912,36 @@ const ConversationPanel = ({
         )}
       </div>
 
-      <div className="border-t border-[#e4e6eb] bg-white p-3.5">
+      <div className="border-t border-[#e4e6eb] bg-white p-2.5 sm:p-3.5">
         <div className="mx-auto max-w-[860px] overflow-hidden rounded-[16px] border border-[#dfe3ec] bg-white shadow-[0_10px_30px_rgba(34,44,68,0.07)] transition focus-within:border-[#7b9cf2] focus-within:ring-2 focus-within:ring-[#dfe8ff]">
-          <div className="flex items-center justify-between border-b border-[#eef0f4] bg-[#fbfcfe] px-3.5 py-2.5">
+          <div className="flex items-center justify-between gap-2 border-b border-[#eef0f4] bg-[#fbfcfe] px-3 py-2.5 sm:px-3.5">
             <div className="flex items-center gap-2 text-[10px] text-[#777772]">
               <span className="grid h-6 w-6 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_1px_3px_rgba(46,102,235,0.1)]">
                 <AtlasAvatarIcon size={18} animated />
               </span>
-              <span>Respondendo como <strong className="font-semibold text-[#334155]">Suporte Velo</strong></span>
+              <span className="truncate">Respondendo como <strong className="font-semibold text-[#334155]">Suporte Velo</strong></span>
               <ChevronDown size={11} />
             </div>
-            <span className="text-[9.5px] text-[#a0a09a]">Enter para enviar</span>
+            <span className="hidden shrink-0 text-[9.5px] text-[#a0a09a] sm:inline">Enter para enviar</span>
           </div>
+          {replyTarget ? (
+            <div className="mx-3 mt-3 flex items-start gap-2 rounded-[10px] border border-[#dce6f7] border-l-[3px] border-l-[#2563EB] bg-[#f6f8fc] px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-bold leading-4 text-[#2563EB]">{replyTarget.author}</p>
+                <p className="line-clamp-2 text-[11.5px] leading-4 text-[#5f6978]">{replyTarget.text}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClearReplyTarget}
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[#8a94a5] transition hover:bg-white hover:text-[#1f2937]"
+                aria-label="Remover resposta"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ) : null}
           <textarea
+            aria-label="Responder ticket"
             value={reply}
             onChange={(event) => setReply(event.target.value)}
             onKeyDown={(event) => {
@@ -1381,7 +1955,7 @@ const ConversationPanel = ({
             className="min-h-[80px] w-full resize-none bg-white px-4 py-3 text-[12.5px] leading-5 text-[#252522] outline-none placeholder:text-[#a6aab3] disabled:bg-[#fafafa] disabled:text-[#9ca3af]"
           />
           {replyImage ? <SupportImagePreview file={replyImage} onRemove={onRemoveReplyImage} /> : null}
-          <div className="flex items-center justify-between px-3 pb-3">
+          <div className="flex items-center justify-between gap-2 px-3 pb-3">
             <div className="flex items-center gap-1">
               <input
                 ref={fileInputRef}
@@ -1408,7 +1982,7 @@ const ConversationPanel = ({
             <button
               onClick={onSend}
               disabled={closed || sending || (!reply.trim() && !replyImage)}
-              className="inline-flex h-9 items-center gap-2 rounded-full bg-[#2f66eb] px-4 text-[10.5px] font-semibold text-white shadow-[0_5px_14px_rgba(47,102,235,0.22)] transition hover:-translate-y-0.5 hover:bg-[#2459d8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+              className="inline-flex h-9 min-w-[118px] items-center justify-center gap-2 rounded-full bg-[#2f66eb] px-4 text-[10.5px] font-semibold text-white shadow-[0_5px_14px_rgba(47,102,235,0.22)] transition hover:-translate-y-0.5 hover:bg-[#2459d8] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
             >
               {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
               Enviar resposta
@@ -1428,6 +2002,8 @@ const ThreadMessage = ({
   customerAvatar,
   onEditMessage,
   onDeleteMessage,
+  onReplyMessage,
+  onRedirectMessage,
   actionPending,
 }: {
   message: SupportMessage;
@@ -1437,20 +2013,71 @@ const ThreadMessage = ({
   customerAvatar: string | null;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
+  onReplyMessage: (message: SupportMessage) => void;
+  onRedirectMessage: (message: SupportMessage) => void;
   actionPending: boolean;
 }) => {
   const admin = message.sender === "admin";
+  const automatic = message.sender === "ai";
+  const supportSide = admin || automatic;
   const parsed = parseSupportMessage(message.message);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(parsed.text);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPlacement, setContextMenuPlacement] = useState<"above" | "below">("above");
+  const [editWidth, setEditWidth] = useState<number | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressNextClickRef = useRef(false);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) return;
+    window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    longPressStartRef.current = null;
+  };
+
+  const openContextMenu = () => {
+    const rect = bubbleRef.current?.getBoundingClientRect();
+    const estimatedMenuHeight = admin ? 160 : 82;
+    const scrollContainer = bubbleRef.current?.closest(".velo-scroll-oculto");
+    const boundaryTop = scrollContainer?.getBoundingClientRect().top ?? 0;
+    const availableAbove = rect ? rect.top - boundaryTop : Number.POSITIVE_INFINITY;
+    setContextMenuPlacement(availableAbove < estimatedMenuHeight + 14 ? "below" : "above");
+    setContextMenuOpen(true);
+  };
 
   useEffect(() => {
     setDraft(parsed.text);
+    setEditWidth(null);
   }, [parsed.text]);
+
+  useEffect(() => {
+    if (!editing || !textareaRef.current) return;
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.max(34, textareaRef.current.scrollHeight)}px`;
+  }, [draft, editing]);
+
+  useEffect(() => {
+    if (!contextMenuOpen) return;
+
+    const close = () => setContextMenuOpen(false);
+    document.addEventListener("click", close);
+    window.addEventListener("blur", close);
+    return () => {
+      document.removeEventListener("click", close);
+      window.removeEventListener("blur", close);
+    };
+  }, [contextMenuOpen]);
+
+  useEffect(() => clearLongPressTimer, []);
 
   const saveEdit = async () => {
     await onEditMessage(message, draft);
     setEditing(false);
+    setEditWidth(null);
   };
 
   const deleteCurrentMessage = async () => {
@@ -1463,29 +2090,63 @@ const ThreadMessage = ({
       initial={{ opacity: 0, y: 8, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.28, delay: Math.min(index * 0.025, 0.18), ease: [0.22, 1, 0.36, 1] }}
-      className={`flex items-end gap-2.5 ${admin ? "justify-end" : "justify-start"}`}
+      className={`group/message flex items-end gap-2 sm:gap-2.5 ${supportSide ? "justify-end" : "justify-start"}`}
+      onContextMenu={(event) => {
+        if (editing) return;
+        event.preventDefault();
+        openContextMenu();
+      }}
+      onClick={(event) => {
+        if (!suppressNextClickRef.current) return;
+        event.stopPropagation();
+        suppressNextClickRef.current = false;
+      }}
     >
-      {!admin ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
-      <div className={`min-w-0 max-w-[82%] ${admin ? "items-end" : "items-start"}`}>
-        <div className={`mb-1.5 flex items-center gap-2 px-1 ${admin ? "justify-end" : "justify-start"}`}>
+      {!supportSide ? <Avatar name={customerName} email={customerEmail} image={customerAvatar} size="sm" /> : null}
+      <div className={`relative min-w-0 max-w-[86%] sm:max-w-[82%] ${supportSide ? "items-end" : "items-start"}`}>
+        <div className={`mb-1.5 flex items-center gap-2 px-1 ${supportSide ? "justify-end" : "justify-start"}`}>
           <span className="truncate text-[9.5px] font-semibold text-[#626977]">
-            {admin ? "Suporte Velo" : customerName || "Usuário"}
+            {automatic ? "Atendimento automático" : admin ? "Suporte Velo" : customerName || "Usuário"}
           </span>
           <span className="shrink-0 text-[8.5px] text-[#a0a5af]">{formatDateTime(message.created_at)}</span>
         </div>
         <div
-          className={`px-4 py-3 shadow-[0_3px_12px_rgba(25,35,55,0.055)] ${
+          ref={bubbleRef}
+          style={editing && editWidth ? { width: `${editWidth}px` } : undefined}
+          onPointerDown={(event) => {
+            if (editing || event.pointerType === "mouse") return;
+            clearLongPressTimer();
+            longPressStartRef.current = { x: event.clientX, y: event.clientY };
+            longPressTimerRef.current = window.setTimeout(() => {
+              openContextMenu();
+              suppressNextClickRef.current = true;
+              longPressTimerRef.current = null;
+            }, 520);
+          }}
+          onPointerUp={clearLongPressTimer}
+          onPointerCancel={clearLongPressTimer}
+          onPointerLeave={clearLongPressTimer}
+          onPointerMove={(event) => {
+            if (!longPressStartRef.current) return;
+            const distance = Math.hypot(event.clientX - longPressStartRef.current.x, event.clientY - longPressStartRef.current.y);
+            if (distance > 8) clearLongPressTimer();
+          }}
+          className={`px-3.5 py-2.5 shadow-[0_3px_12px_rgba(25,35,55,0.055)] sm:px-4 sm:py-3 ${
             admin
-              ? "rounded-[18px_18px_5px_18px] bg-[#2f66eb] text-white"
+              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
+              : automatic
+                ? "select-none rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
               : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
           }`}
         >
           {editing ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <textarea
+                ref={textareaRef}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                className="min-h-[120px] w-full resize-none rounded-[12px] border border-white/35 bg-white px-3 py-2 text-[12.5px] leading-5 text-[#172033] outline-none focus:ring-2 focus:ring-white/70"
+                rows={1}
+                className="block min-h-[34px] w-full resize-none overflow-hidden rounded-[12px] border border-white/35 bg-white px-3 py-2 text-[13px] leading-5 text-[#172033] outline-none focus:ring-2 focus:ring-white/70"
                 autoFocus
               />
               <div className="flex justify-end gap-2">
@@ -1494,6 +2155,7 @@ const ThreadMessage = ({
                   onClick={() => {
                     setDraft(parsed.text);
                     setEditing(false);
+                    setEditWidth(null);
                   }}
                   className="rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-semibold text-white transition hover:bg-white/25"
                 >
@@ -1512,41 +2174,106 @@ const ThreadMessage = ({
           ) : (
             <SupportMessageMedia
               value={message.message}
-              textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : "text-[#34363b]"}`}
-              imageClassName="max-h-[340px] max-w-[460px] w-full"
+              textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : automatic ? "text-[#1f3c76]" : "text-[#34363b]"}`}
+              imageClassName="max-h-[300px] max-w-full w-full sm:max-h-[340px] sm:max-w-[460px]"
+              tone={admin ? "admin" : "customer"}
             />
           )}
         </div>
-        {admin && !editing ? (
-          <div className="mt-1 flex justify-end gap-0.5 px-0.5">
+        {!editing ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (contextMenuOpen) {
+                setContextMenuOpen(false);
+              } else {
+                openContextMenu();
+              }
+            }}
+            className={`absolute right-2 top-7 z-[65] grid h-4 w-4 place-items-center rounded-sm transition ${
+              contextMenuOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 group-hover/message:scale-100 group-hover/message:opacity-100"
+            } ${
+              admin
+                ? "text-white/75 hover:text-white"
+                : automatic
+                  ? "text-[#6681b6] hover:text-[#315cc4]"
+                : "text-[#94A3B8] hover:text-[#64748B]"
+            }`}
+            aria-label="Abrir opções da mensagem"
+          >
+            <ChevronDown size={13} strokeWidth={2.4} />
+          </button>
+        ) : null}
+        {contextMenuOpen ? (
+          <div
+            className={`absolute z-[70] w-44 overflow-hidden rounded-[12px] border border-[#e1e5ef] bg-white py-1.5 shadow-[0_16px_38px_rgba(15,23,42,0.18)] ${
+              contextMenuPlacement === "above" ? "bottom-[calc(100%+6px)] translate-y-10" : "top-[calc(100%+6px)]"
+            } ${supportSide ? "right-0" : "left-0"}`}
+            onClick={(event) => event.stopPropagation()}
+            onContextMenu={(event) => event.preventDefault()}
+          >
             <button
               type="button"
-              aria-label="Editar mensagem"
-              title="Editar"
-              onClick={() => setEditing(true)}
-              disabled={actionPending}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#64748B] transition hover:bg-[#EEF4FF] hover:text-[#2563EB] disabled:opacity-50"
+              onClick={() => {
+                setContextMenuOpen(false);
+                onReplyMessage(message);
+              }}
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
             >
-              <Pencil size={12} />
+              <Reply size={13} />
+              Responder
             </button>
             <button
               type="button"
-              aria-label="Excluir mensagem"
-              title="Excluir"
-              onClick={() => void deleteCurrentMessage()}
+              onClick={() => {
+                setContextMenuOpen(false);
+                onRedirectMessage(message);
+              }}
               disabled={actionPending}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:opacity-50"
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
             >
-              <Trash2 size={12} />
+              <Route size={13} />
+              Redirecionar
             </button>
+            {admin ? (
+              <>
+                <div className="my-1 h-px bg-[#eef1f6]" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextMenuOpen(false);
+                    setEditWidth(bubbleRef.current?.offsetWidth ?? null);
+                    setEditing(true);
+                  }}
+                  disabled={actionPending}
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB] disabled:opacity-50"
+                >
+                  <Pencil size={13} />
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextMenuOpen(false);
+                    void deleteCurrentMessage();
+                  }}
+                  disabled={actionPending}
+                  className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#B91C1C] transition hover:bg-[#FEF2F2] disabled:opacity-50"
+                >
+                  <Trash2 size={13} />
+                  Excluir
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
-        {!admin && customerEmail ? (
+        {!supportSide && customerEmail ? (
           <p className="mt-1 px-1 text-[8.5px] text-[#a3a7b0]">{customerEmail}</p>
         ) : null}
       </div>
-      {admin ? (
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)]">
+      {supportSide ? (
+        <span className="hidden h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dce6ff] bg-white shadow-[0_2px_8px_rgba(46,102,235,0.12)] sm:grid">
           <AtlasAvatarIcon size={21} animated />
         </span>
       ) : null}

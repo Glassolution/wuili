@@ -8,6 +8,13 @@
   background: #f6f6f7;
 }
 
+.velo-admin-surface,
+.velo-admin-surface body,
+.velo-admin-surface #root {
+  height: 100%;
+  overflow: hidden;
+}
+
 .velo-admin-root {
   /* superfícies */
   --admin-canvas: #f6f6f7;
@@ -1015,6 +1022,17 @@
 .velo-admin-root ::-webkit-scrollbar-thumb:hover {
   background: #c2c2c2;
   background-clip: content-box;
+}
+
+.velo-admin-root .velo-scroll-oculto {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.velo-admin-root .velo-scroll-oculto::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* o card é o contêiner de referência: em 4 colunas o número em BRL é longo e

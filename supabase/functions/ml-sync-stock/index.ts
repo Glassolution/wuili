@@ -1,8 +1,7 @@
 // ml-sync-stock
 // -------------
-// Fase 3 do plano de estoque: sincroniza o estoque do fornecedor (C7Drop, já
-// atualizado pelo scrape-c7drop em catalog_products) com os anúncios ativos no
-// Mercado Livre.
+// Sincroniza estoque e aumentos de custo do fornecedor (C7Drop, já atualizados
+// pelo scrape-c7drop em catalog_products) com os anúncios no Mercado Livre.
 //
 // Regras:
 //  • Produto sem estoque (stock_quantity = 0) ou inativo (is_active = false)
@@ -10,9 +9,13 @@
 //      'velo_out_of_stock' para saber que a pausa foi nossa.
 //  • Produto voltou (stock > 0 e is_active) → reativamos SOMENTE o que nós
 //    pausamos por estoque. Nunca reabrimos o que o vendedor pausou à mão.
-//  • available_quantity divergente → corrigimos para min(estoque, 10).
+//  • available_quantity divergente → corrigimos para o estoque real do catálogo
+//    (sem teto artificial; antes era min(estoque, 10)).
 //  • Guarda de segurança: se mais de 20% do catálogo estiver zerado na rodada
 //    (sinal de scraper/C7 fora do ar), abortamos sem pausar nada.
+//  • Quando o custo C7 aumenta, o preço de venda sobe na mesma proporção para
+//    preservar a margem configurada pelo lojista. Quedas de custo não reduzem
+//    o preço. Se o ML recusar o reajuste, o anúncio é pausado e o lojista avisado.
 //
 // Modos:
 //  • Cron / service role (sem body): percorre todos os usuários.
@@ -27,10 +30,16 @@ const corsHeaders = {
 };
 
 const PAUSED_BY_VELO = "velo_out_of_stock";
-const MAX_QTY = 10;
+const PAUSED_PRICE_SYNC = "velo_price_sync_failed";
+// Sem teto artificial: enviamos o estoque real do catálogo (mínimo 1, que é o
+// que o ML aceita para um anúncio ativo).
+const qtyParaEnviar = (stock: number) => Math.max(1, Math.floor(stock));
 const OUT_OF_STOCK_ABORT_RATIO = 0.2;
 const REQUEST_DELAY_MS = 120;
-const QUANTITY_REFRESH_DAYS = 7;
+const QUANTITY_REFRESH_DAYS = 1; // toda publicação é reenviada ao menos 1x/dia
+// Lote por execução: garante que cada rodada termine dentro do orçamento de
+// tempo e que a próxima continue de onde parou (ordenação por stock_synced_at).
+const DEFAULT_BATCH_LIMIT = 600;
 const TIME_BUDGET_MS = 110_000; // a runtime encerra a invocação bem antes disso
 
 // Status nossos que representam anúncio no ar / pausado por nós.
@@ -44,6 +53,12 @@ type Pub = {
   catalog_product_id: string | null;
   paused_reason: string | null;
   stock_synced_at?: string | null;
+  // Anúncios-irmãos publicados por variação (modelo User Products do ML):
+  // cada linha representa UM valor da dimensão (ex.: Cor = Azul).
+  variation_value?: string | null;
+  variation_group_id?: string | null;
+  price: number | null;
+  cost_price: number | null;
 };
 
 type CatalogRow = {
@@ -51,6 +66,8 @@ type CatalogRow = {
   stock_quantity: number | null;
   is_active: boolean | null;
   title: string | null;
+  variants?: unknown;
+  cost_price: number | null;
 };
 
 // deno-lint-ignore no-explicit-any -- cliente supabase sem tipos gerados no Deno
@@ -58,13 +75,49 @@ type Supa = any;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const norm = (v: unknown) =>
+  String(v ?? "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Estoque do fornecedor para um valor específico de variação (ex.: "Azul").
+ *
+ * IMPORTANTE: o C7Drop só informa estoque por variante quando o produto tem
+ * `manageStock=true` (gravado como `stock_managed: true` pelo scraper). Na
+ * maioria dos produtos esse dado não existe e a variante vem com `stock: 0`,
+ * o que NÃO significa que aquela cor/tamanho acabou. Nesses casos devolvemos
+ * `null` para o chamador cair no estoque do produto pai.
+ */
+function estoqueDaVariante(variantsRaw: unknown, value: string): number | null {
+  let parsed: unknown = variantsRaw;
+  if (typeof parsed === "string") {
+    try { parsed = JSON.parse(parsed); } catch { return null; }
+  }
+  if (!Array.isArray(parsed)) return null;
+  const alvo = norm(value);
+  let encontrado: number | null = null;
+  for (const item of parsed) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as { value?: unknown; stock?: unknown; stock_managed?: unknown };
+    if (norm(row.value) !== alvo) continue;
+    // Só confiamos no número quando ele reflete dado real do fornecedor.
+    if (row.stock_managed !== true) continue;
+    const st = Math.max(0, Math.floor(Number(row.stock ?? 0)));
+    encontrado = Math.max(encontrado ?? 0, st);
+  }
+  return encontrado;
+}
+
 async function getFreshToken(supabase: Supa, userId: string): Promise<string | null> {
-  const { data: integ } = await supabase
+  // Há usuários com mais de uma linha de integração ML (reconexões antigas):
+  // `maybeSingle()` devolvia erro e derrubava a sincronização. Pegamos a mais recente.
+  const { data: integRows } = await supabase
     .from("user_integrations")
     .select("access_token, refresh_token, expires_at")
     .eq("user_id", userId)
     .eq("platform", "mercadolivre")
-    .maybeSingle();
+    .order("expires_at", { ascending: false, nullsFirst: false })
+    .limit(1);
+  const integ = Array.isArray(integRows) ? integRows[0] : null;
   if (!integ?.access_token) return null;
 
   const expiresAt = integ.expires_at ? new Date(integ.expires_at as string) : new Date(0);
@@ -81,7 +134,12 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
     }),
   });
   const rd = await rr.json().catch(() => ({}));
-  if (!rr.ok || !rd.access_token) return null;
+  if (!rr.ok || !rd.access_token) {
+    console.warn(
+      `[ml-sync-stock] refresh falhou user=${userId} status=${rr.status} body=${JSON.stringify(rd).slice(0, 300)}`,
+    );
+    return null;
+  }
 
   await supabase
     .from("user_integrations")
@@ -182,6 +240,8 @@ type UserResult = {
   paused: number;
   reactivated: number;
   quantityFixed: number;
+  pricesUpdated: number;
+  priceFailuresPaused: number;
   errors: number;
   deadListings: number;
   timedOut?: boolean;
@@ -196,16 +256,24 @@ async function syncUser(
   catalog: Map<string, CatalogRow>,
   dryRun: boolean,
   deadline: number,
+  onlyPause = false,
+  onlyPrices = false,
 ): Promise<UserResult> {
   const result: UserResult = {
     checked: 0,
     paused: 0,
     reactivated: 0,
     quantityFixed: 0,
+    pricesUpdated: 0,
+    priceFailuresPaused: 0,
     errors: 0,
     deadListings: 0,
     details: [],
   };
+
+  // Toda publicação percorrida (mesmo sem alteração) recebe stock_synced_at no
+  // fim da rodada — é isso que faz o cursor avançar entre execuções do cron.
+  const visitados: string[] = [];
 
   let token: string | null = null;
   if (!dryRun) {
@@ -222,13 +290,98 @@ async function syncUser(
       break;
     }
     const product = pub.catalog_product_id ? catalog.get(pub.catalog_product_id) : undefined;
-    if (!product) continue; // produto de outra fonte / não rastreado
+    if (!product) {
+      // Produto de outra fonte / vínculo perdido: marcamos como visitado para
+      // não travar o cursor da varredura nas próximas execuções.
+      visitados.push(pub.id);
+      continue;
+    }
+    visitados.push(pub.id);
     result.checked++;
 
-    const stock = Number(product.stock_quantity ?? 0);
+    // Anúncio-irmão de variação: o estoque que vale é o daquele valor no
+    // fornecedor, não o agregado do produto. Sem isso, um irmão continuaria
+    // vendendo uma cor já zerada só porque as outras cores têm estoque.
+    const stockDaVariante = pub.variation_value
+      ? estoqueDaVariante(product.variants, pub.variation_value)
+      : null;
+    const stock = stockDaVariante ?? Number(product.stock_quantity ?? 0);
     const available = product.is_active !== false && stock > 0;
     const isPaused = pub.status === "paused";
     const pausedByVelo = pub.paused_reason === PAUSED_BY_VELO;
+    const pausedByPrice = pub.paused_reason === PAUSED_PRICE_SYNC;
+
+    // ---- 0. Aumento de custo → preservar a mesma proporção custo/preço.
+    // O custo local só avança depois que o ML confirma o novo preço. Assim,
+    // uma falha permanece elegível para nova tentativa na próxima rodada.
+    const oldCost = Number(pub.cost_price ?? 0);
+    const newCost = Number(product.cost_price ?? 0);
+    const oldPrice = Number(pub.price ?? 0);
+    if (oldCost > 0 && newCost > oldCost && oldPrice > 0) {
+      const newPrice = Math.round((oldPrice * newCost / oldCost) * 100) / 100;
+      result.details.push({
+        ml_item_id: pub.ml_item_id,
+        action: "price_increase",
+        old_cost: oldCost,
+        new_cost: newCost,
+        old_price: oldPrice,
+        new_price: newPrice,
+      });
+      if (!dryRun) {
+        const priceResult = await updateItem(token!, pub.ml_item_id, { price: newPrice });
+        await sleep(REQUEST_DELAY_MS);
+        if (!priceResult.ok) {
+          const pauseResult = await updateItem(token!, pub.ml_item_id, { status: "paused" });
+          await sleep(REQUEST_DELAY_MS);
+          if (pauseResult.ok) {
+            await supabase
+              .from("user_publications")
+              .update({
+                status: "paused",
+                paused_reason: PAUSED_PRICE_SYNC,
+                stock_synced_at: new Date().toISOString(),
+              })
+              .eq("id", pub.id);
+            result.priceFailuresPaused++;
+          }
+          result.errors++;
+          if (!pausedByPrice) {
+            await notify(
+              supabase,
+              userId,
+              pauseResult.ok
+                ? "Anúncio pausado para proteger sua margem"
+                : "Atenção: preço não atualizado no Mercado Livre",
+              pauseResult.ok
+                ? `O custo de "${product.title ?? pub.ml_item_id}" aumentou de R$ ${oldCost.toFixed(2)} para R$ ${newCost.toFixed(2)}, mas o Mercado Livre recusou o novo preço. Pausamos o anúncio para evitar venda com prejuízo.`
+                : `O custo de "${product.title ?? pub.ml_item_id}" aumentou e o Mercado Livre recusou o novo preço. Também não foi possível pausar o anúncio; revise-o o quanto antes.`,
+            );
+          }
+          console.warn(`[ml-sync-stock] preço falhou ${pub.ml_item_id}: ${priceResult.error}`);
+          continue;
+        }
+
+        const publicationUpdate: Record<string, unknown> = {
+          price: newPrice,
+          cost_price: newCost,
+          stock_synced_at: new Date().toISOString(),
+        };
+        if (pausedByPrice && available) {
+          const activation = await updateItem(token!, pub.ml_item_id, { status: "active" });
+          await sleep(REQUEST_DELAY_MS);
+          if (activation.ok) {
+            publicationUpdate.status = "active";
+            publicationUpdate.paused_reason = null;
+            result.reactivated++;
+          }
+        }
+        await supabase.from("user_publications").update(publicationUpdate).eq("id", pub.id);
+        result.pricesUpdated++;
+      }
+    }
+
+    // Mutirão pontual de preços: não toca em estoque ou disponibilidade.
+    if (onlyPrices) continue;
 
     // ---- 1. Indisponível no fornecedor → pausar
     if (!available && !isPaused) {
@@ -265,9 +418,13 @@ async function syncUser(
       continue;
     }
 
+    // Modo `onlyPause`: usado em ações pontuais (ex.: mutirão de anúncios com
+    // estoque zerado). Não reativa nem reenvia quantidade.
+    if (onlyPause) continue;
+
     // ---- 2. Voltou a ter estoque → reativar somente o que nós pausamos
     if (available && isPaused && pausedByVelo) {
-      const qty = Math.max(1, Math.min(stock, MAX_QTY));
+      const qty = qtyParaEnviar(stock);
       result.details.push({ ml_item_id: pub.ml_item_id, action: "reactivate", stock });
       if (dryRun) continue;
       const r = await updateQuantity(token!, pub.ml_item_id, qty, { status: "active" });
@@ -302,7 +459,7 @@ async function syncUser(
       const lastSync = pub.stock_synced_at ? new Date(pub.stock_synced_at).getTime() : 0;
       const stale = Date.now() - lastSync > QUANTITY_REFRESH_DAYS * 86_400_000;
       if (!stale) continue;
-      const qty = Math.max(1, Math.min(stock, MAX_QTY));
+      const qty = qtyParaEnviar(stock);
       result.details.push({ ml_item_id: pub.ml_item_id, action: "quantity", qty });
       if (dryRun) continue;
 
@@ -327,6 +484,16 @@ async function syncUser(
     }
   }
 
+  if (!dryRun && visitados.length > 0) {
+    const agora = new Date().toISOString();
+    for (let i = 0; i < visitados.length; i += 200) {
+      await supabase
+        .from("user_publications")
+        .update({ stock_synced_at: agora })
+        .in("id", visitados.slice(i, i + 200));
+    }
+  }
+
   return result;
 }
 
@@ -343,6 +510,12 @@ Deno.serve(async (req) => {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const dryRun = body?.dryRun === true;
     const force = body?.force === true; // ignora a guarda dos 20%
+    // `onlyPause`: só pausa anúncios cujo produto está sem estoque/inativo.
+    const onlyPause = body?.onlyPause === true;
+    const onlyPrices = body?.onlyPrices === true;
+    const batchLimit = Number.isFinite(Number(body?.limit))
+      ? Math.max(1, Math.min(5000, Number(body.limit)))
+      : DEFAULT_BATCH_LIMIT;
 
     let targetUserId: string | null = null;
     const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -358,7 +531,7 @@ Deno.serve(async (req) => {
     for (let from = 0; from < 20_000; from += PAGE) {
       let pubQuery = supabase
         .from("user_publications")
-        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at")
+        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at,variation_value,variation_group_id,price,cost_price")
         .not("catalog_product_id", "is", null)
         .in("status", SYNCABLE_STATUSES)
         .order("stock_synced_at", { ascending: true, nullsFirst: true })
@@ -388,7 +561,7 @@ Deno.serve(async (req) => {
       const slice = ids.slice(i, i + 200);
       const { data, error } = await supabase
         .from("catalog_products")
-        .select("external_id,stock_quantity,is_active,title")
+        .select("external_id,stock_quantity,is_active,title,variants,cost_price")
         .in("external_id", slice);
       if (error) throw error;
       for (const row of (data ?? []) as CatalogRow[]) catalog.set(row.external_id, row);
@@ -418,27 +591,42 @@ Deno.serve(async (req) => {
     }
 
     // ---- Agrupa por usuário
+    const targets = onlyPause
+      ? pubs.filter((p) => {
+        const prod = p.catalog_product_id ? catalog.get(p.catalog_product_id) : undefined;
+        if (!prod) return false;
+        // Só estoque zerado: produtos apenas ocultados no Velo (is_active=false,
+        // ex.: celulares) não devem derrubar anúncios que ainda têm estoque.
+        return Number(prod.stock_quantity ?? 0) <= 0 && p.status !== "paused";
+      })
+      : pubs;
+    // Lote da execução: as publicações já vêm ordenadas por stock_synced_at
+    // (nulls primeiro), então cada rodada pega quem está há mais tempo sem sync.
+    const lote = targetUserId ? targets : targets.slice(0, batchLimit);
+    const restantes = Math.max(0, targets.length - lote.length);
     const byUser = new Map<string, Pub[]>();
-    for (const p of pubs) {
+    for (const p of lote) {
       const list = byUser.get(p.user_id) ?? [];
       list.push(p);
       byUser.set(p.user_id, list);
     }
 
     const perUser: Record<string, unknown> = {};
-    let checked = 0, paused = 0, reactivated = 0, quantityFixed = 0, errors = 0, deadListings = 0;
+    let checked = 0, paused = 0, reactivated = 0, quantityFixed = 0, pricesUpdated = 0, priceFailuresPaused = 0, errors = 0, deadListings = 0;
     const deadline = Date.now() + TIME_BUDGET_MS;
     let timedOut = false;
 
     for (const [userId, list] of byUser) {
       if (Date.now() > deadline) { timedOut = true; break; }
-      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline);
+      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline, onlyPause, onlyPrices);
       if (r.timedOut) timedOut = true;
       perUser[userId] = r;
       checked += r.checked;
       paused += r.paused;
       reactivated += r.reactivated;
       quantityFixed += r.quantityFixed;
+      pricesUpdated += r.pricesUpdated;
+      priceFailuresPaused += r.priceFailuresPaused;
       errors += r.errors;
       deadListings += r.deadListings;
     }
@@ -456,9 +644,13 @@ Deno.serve(async (req) => {
             paused,
             reactivated,
             quantityFixed,
+            pricesUpdated,
+            priceFailuresPaused,
             errors,
             deadListings,
             timedOut,
+            batchLimit,
+            pendentesProximaRodada: restantes,
           },
           perUser,
           ranAt: new Date().toISOString(),

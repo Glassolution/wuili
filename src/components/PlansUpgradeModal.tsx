@@ -1,9 +1,16 @@
-import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { ArrowLeft, Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { VeloLogo } from "@/components/VeloLogo";
 import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { useSandboxMode } from "@/lib/sandboxMode";
+import { createLocalSandboxSubscription } from "@/lib/localSandbox";
+import { VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 
 
@@ -32,8 +39,8 @@ const PLANS: PlanEntry[] = [
     name: "Plano Base",
     iconVariant: "base",
     tagline: "Pra quem quer começar a vender sem travar no operacional.",
-    monthly: 39.9,
-    annual: 430.92,
+    monthly: VELO_PLAN_PRICES.base.monthly,
+    annual: VELO_PLAN_PRICES.base.annual,
     features: [
       "Até 50 anúncios ativos no Mercado Livre (50 publicações por mês)",
       "1 página de vendas gerada por IA por mês",
@@ -57,8 +64,8 @@ const PLANS: PlanEntry[] = [
     name: "Plano Pro",
     iconVariant: "pro",
     tagline: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
-    monthly: 79.8,
-    annual: 861.84,
+    monthly: VELO_PLAN_PRICES.pro.monthly,
+    annual: VELO_PLAN_PRICES.pro.annual,
     ribbon: "Mais escolhido",
     highlighted: true,
     features: [
@@ -92,8 +99,8 @@ const PLANS: PlanEntry[] = [
     name: "Plano Business",
     iconVariant: "business",
     tagline: "Pra quem já vive disso e quer parar de contar produto.",
-    monthly: 159.6,
-    annual: 1723.68,
+    monthly: VELO_PLAN_PRICES.business.monthly,
+    annual: VELO_PLAN_PRICES.business.annual,
     features: [
       "Anúncios ilimitados no Mercado Livre, sem teto mensal de publicação",
       "Marketplaces ilimitados, publicação em lote e variações",
@@ -289,7 +296,7 @@ export const PlanBadgeIcon = ({ variant, className = "" }: { variant: PlanId; cl
 export type PlanBadgeId = PlanId;
 
 type UpgradeCtx = {
-  open: (opts?: { defaultPlan?: PlanId }) => void;
+  open: (opts?: { defaultPlan?: PlanId; origin?: string; productId?: string }) => void;
   close: () => void;
 };
 
@@ -304,11 +311,13 @@ export const useUpgradeModal = () => {
 export const UpgradeModalProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [defaultPlan, setDefaultPlan] = useState<PlanId | undefined>();
+  const [trackingContext, setTrackingContext] = useState<{ origin?: string; productId?: string }>({});
 
   const value = useMemo<UpgradeCtx>(
     () => ({
       open: (opts) => {
         setDefaultPlan(opts?.defaultPlan);
+        setTrackingContext({ origin: opts?.origin, productId: opts?.productId });
         setIsOpen(true);
       },
       close: () => setIsOpen(false),
@@ -319,7 +328,7 @@ export const UpgradeModalProvider = ({ children }: { children: ReactNode }) => {
   return (
     <UpgradeModalContext.Provider value={value}>
       {children}
-      <PlansUpgradeModal open={isOpen} onClose={() => setIsOpen(false)} defaultPlan={defaultPlan} />
+      <PlansUpgradeModal open={isOpen} onClose={() => setIsOpen(false)} defaultPlan={defaultPlan} trackingContext={trackingContext} />
     </UpgradeModalContext.Provider>
   );
 };
@@ -328,16 +337,32 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   defaultPlan?: PlanId;
+  trackingContext?: { origin?: string; productId?: string };
 };
 
-const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
+const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: ModalProps) => {
+  const { session, role } = useAuth();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
+  const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
+  const sandboxPurchaseEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(session?.user?.email));
+  const openedAt = useRef(Date.now());
+
+  const closeWithTracking = () => {
+    trackMobileHomeEvent(session?.user?.id, "plans_exit", {
+      productId: trackingContext?.productId,
+      detail: trackingContext?.origin ?? "unknown",
+      elapsedMs: Date.now() - openedAt.current,
+    });
+    onClose();
+  };
 
 
   useEffect(() => {
     if (!open) return;
+    openedAt.current = Date.now();
+    trackMobileHomeEvent(session?.user?.id, "plans_open", { productId: trackingContext?.productId, detail: trackingContext?.origin ?? "unknown" });
     setLoadingPlans(true);
     const timer = window.setTimeout(() => setLoadingPlans(false), 720);
     return () => window.clearTimeout(timer);
@@ -349,7 +374,24 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
     setCheckingOutPlanId(planId);
+    trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${cycle}` });
     try {
+      if (sandboxPurchaseEnabled) {
+        try {
+          const { data, error } = await supabase.functions.invoke("admin-sandbox-subscription", {
+            body: { plan: planId, cycle },
+          });
+          if (error || !data?.success) throw new Error(data?.error || data?.message || "Função Sandbox indisponível.");
+        } catch (error) {
+          if (!import.meta.env.DEV) throw error;
+          createLocalSandboxSubscription(session?.user?.id ?? session?.user?.email ?? null, planId, cycle);
+        }
+        toast.success("Assinatura Sandbox ativada sem cobrança.");
+        setCheckingOutPlanId(null);
+        closeWithTracking();
+        return;
+      }
+
       const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
       if (res.ok) return;
       setCheckingOutPlanId(null);
@@ -357,7 +399,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
     } catch (error) {
       console.error("checkout error", error);
       setCheckingOutPlanId(null);
-      toast.error("Não foi possível gerar o pagamento.");
+      toast.error(sandboxPurchaseEnabled ? "Não foi possível ativar o Sandbox." : "Não foi possível gerar o pagamento.");
     }
   };
 
@@ -386,14 +428,14 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
       <button
         type="button"
         aria-label="Fechar"
-        onClick={onClose}
+        onClick={closeWithTracking}
         className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
       />
 
       <div className="relative h-full w-full overflow-y-auto bg-white px-5 py-7 shadow-[0_40px_120px_rgba(0,0,0,0.28)] sm:h-auto sm:max-h-[94vh] sm:max-w-[1040px] sm:rounded-[18px] sm:px-9 sm:py-6">
         <button
           type="button"
-          onClick={onClose}
+          onClick={closeWithTracking}
           aria-label="Fechar modal"
           className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full text-[#6f7785] transition hover:bg-[#f1f1ef] hover:text-[#111827]"
         >
@@ -404,7 +446,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeWithTracking}
               className="grid h-11 w-11 place-items-center rounded-full bg-[#f3f3f1] text-black transition hover:bg-[#e9e9e7]"
               aria-label="Voltar"
             >
@@ -428,7 +470,9 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
               Escolha o plano que combina com você
             </h2>
             <p className="mt-2 text-[14px] leading-5 text-[#8A8A86]">
-              O checkout continua seguro via Mercado Pago.
+              {sandboxPurchaseEnabled
+                ? "Sandbox ligado: escolha um plano de teste sem cobrança real."
+                : "O checkout continua seguro via Mercado Pago."}
             </p>
           </div>
           <button
@@ -494,8 +538,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                       </span>
                     ) : null}
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
-                      {priceParts.main}
-                      <span className="text-[#9CA3AF]">{priceParts.cents}</span>
+                      {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
+                      <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
                     </span>
                     {originalPrice ? (
                       <span className="whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-[0_2px_5px_rgba(16,185,129,0.10)]">
@@ -515,10 +559,10 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan }: ModalProps) => {
                   {checkingOutPlanId === plan.id ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Redirecionando...
+                      {sandboxPurchaseEnabled ? "Ativando..." : "Redirecionando..."}
                     </span>
                   ) : (
-                    <>Assinar {plan.name.replace("Plano ", "")}</>
+                    <>{sandboxPurchaseEnabled ? "Testar" : "Assinar"} {plan.name.replace("Plano ", "")}</>
                   )}
                 </PremiumActionButton>
 

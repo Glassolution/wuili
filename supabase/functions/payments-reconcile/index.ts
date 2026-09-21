@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     // ---------------------------------------------------------------
     const { data: failedEvents } = await admin
       .from("validapay_webhook_events")
-      .select("id,event,charge_id,subscription_id,payment_id,amount,attempts,error")
+      .select("id,event,charge_id,subscription_id,payment_id,amount,attempts,error,payload")
       .eq("processed", false)
       .eq("retry_exhausted", false)
       .not("next_retry_at", "is", null)
@@ -97,10 +97,13 @@ Deno.serve(async (req) => {
             : isConfirmedPayment(await lookupPaymentStatus(reference));
 
           if (confirmed) {
+            // deno-lint-ignore no-explicit-any -- payload do gateway não é tipado
+            const meta = ((ev as any).payload?.metadata ?? {}) as Record<string, unknown>;
             recovered = await activateFromReference(admin, {
               chargeId: ev.charge_id,
               subscriptionId: ev.subscription_id,
               amount: ev.amount ? Number(ev.amount) : null,
+              userId: (meta.user_id ?? meta.userId) as string | undefined ?? null,
             }, usersToAudit);
           }
         }
@@ -229,16 +232,34 @@ Deno.serve(async (req) => {
 async function activateFromReference(
   // deno-lint-ignore no-explicit-any -- cliente Supabase tipado em runtime
   admin: any,
-  ref: { chargeId: string | null; subscriptionId: string | null; amount: number | null },
+  ref: {
+    chargeId: string | null;
+    subscriptionId: string | null;
+    amount: number | null;
+    userId?: string | null;
+  },
   usersToAudit: Set<string>,
 ): Promise<boolean> {
-  let query = admin.from("subscriptions").select("id,user_id,plan,status").limit(1);
-  if (ref.chargeId) query = query.eq("validapay_charge_id", ref.chargeId);
-  else if (ref.subscriptionId) query = query.eq("validapay_subscription_id", ref.subscriptionId);
-  else return false;
+  // A cobrança pode não estar gravada na assinatura ainda (o checkout guarda
+  // só a sessão cs_...). Por isso tentamos, em ordem: cobrança, assinatura do
+  // gateway e, por fim, a última assinatura do usuário indicado no evento.
+  const cols = "id,user_id,plan,status";
+  const byField = async (field: string, value: string) => {
+    const { data } = await admin
+      .from("subscriptions").select(cols).eq(field, value)
+      .order("created_at", { ascending: false }).limit(1);
+    return data?.[0] ?? null;
+  };
 
-  const { data } = await query.order("created_at", { ascending: false });
-  const sub = data?.[0];
+  let sub = ref.chargeId ? await byField("validapay_charge_id", ref.chargeId) : null;
+  if (!sub && ref.subscriptionId) sub = await byField("validapay_subscription_id", ref.subscriptionId);
+  if (!sub && ref.userId) {
+    const { data } = await admin
+      .from("subscriptions").select(cols).eq("user_id", ref.userId)
+      .in("status", ["pending", "expired"])
+      .order("created_at", { ascending: false }).limit(1);
+    sub = data?.[0] ?? null;
+  }
   if (!sub) return false;
 
   if (sub.status !== "active") {
@@ -247,6 +268,7 @@ async function activateFromReference(
       status: "active",
       provider: "validapay",
       validapay_charge_id: ref.chargeId ?? undefined,
+      validapay_subscription_id: ref.subscriptionId ?? undefined,
       current_period_start: now.toISOString(),
       current_period_end: addMonths(now, 1).toISOString(),
       updated_at: now.toISOString(),

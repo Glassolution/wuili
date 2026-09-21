@@ -2,6 +2,8 @@ import { CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
 
 /*
   Cada item aponta para uma seção que existe nesta página. Não há "Preços" aqui: a landing
@@ -98,16 +100,16 @@ const HERO_SLIDES = [
     foto específica tiver o sujeito muito fora do meio e ficar cortada no celular, onde
     cabe bem menos da largura original.
   */
-  { src: "/pessoa%2001.png", focus: "50% 50%", headline: "sem estoque, sem risco." },
-  { src: "/pessoa%2002.png", focus: "50% 50%", headline: "com o produto certo." },
-  { src: "/pessoa%2003.png", focus: "50% 50%", headline: "em poucos minutos." },
+  { src: "/pessoa%2001.webp", focus: "50% 50%", headline: "sem estoque, sem risco." },
+  { src: "/pessoa%2002.webp", focus: "50% 50%", headline: "com o produto certo." },
+  { src: "/pessoa%2003.webp", focus: "50% 50%", headline: "em poucos minutos." },
 ];
 
 /*
   PLACEHOLDER TEMPORÁRIO — some sozinho assim que qualquer foto de HERO_SLIDES carregar.
   É um mockup com avatar gerado por IA, não um vendedor real usando a Velo.
 */
-const HERO_PLACEHOLDER = "/hero-pasted-image-2.png";
+const HERO_PLACEHOLDER = "/hero-pasted-image-2.webp";
 
 /*
   Seção de prova visual, logo abaixo do hero.
@@ -137,11 +139,11 @@ const HEADLINE_TAMANHO = "text-[clamp(1.75rem,3.2vw,3rem)]";
 
 const PROVA_VISUAL = [
   {
-    src: "/barra%2001.png",
+    src: "/barra%2001.webp",
     alt: "Conversa com a IA da Velo recomendando produtos com preço e loja",
   },
   {
-    src: "/barra%2002.png",
+    src: "/barra%2002.webp",
     alt: "Loja da Velo com produtos selecionados e marketplaces conectados",
   },
 ];
@@ -252,6 +254,11 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
           alt=""
           aria-hidden="true"
           decoding="async"
+          /* A primeira foto é o que aparece primeiro na tela: prioridade alta. As outras
+             do carrossel só carregam depois, para não disputar banda no 4G. */
+          loading={slideIndex === 0 ? "eager" : "lazy"}
+          fetchPriority={slideIndex === 0 ? "high" : "low"}
+
           style={{ "--hero-focus": slide.focus } as CSSProperties}
           onLoad={slideIndex === 0 ? onFirstLoad : undefined}
           onError={() => onSlideError(slide.src)}
@@ -386,8 +393,58 @@ export default function Index() {
   const [headerSolid, setHeaderSolid] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showMobileStickyCta, setShowMobileStickyCta] = useState(false);
   const closeMenuTimer = useRef<number>();
+  const mobileHeroCtaRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = useReducedMotion();
+  /*
+    Funil da landing (só leitura de números agregados, nada de dado pessoal): visita,
+    clique no botão principal, clique em "Como funciona" e clique em "Já tenho conta".
+  */
+  const [assinantesAtivos, setAssinantesAtivos] = useState<number | null>(null);
+
+  const registrarEvento = async (evento: string) => {
+    try {
+      let visitor = window.localStorage.getItem("velo_visitor_id");
+      if (!visitor) {
+        visitor = crypto.randomUUID();
+        window.localStorage.setItem("velo_visitor_id", visitor);
+      }
+      const params = new URLSearchParams(window.location.search);
+      const ua = navigator.userAgent || "";
+      const interno = /Instagram|FBAN|FBAV|FB_IAB|Messenger|musical_ly|Bytedance|TikTok|Trill/i.test(ua);
+      let origem = params.get("utm_source") || params.get("ref") || null;
+      if (!origem && document.referrer) {
+        try { origem = new URL(document.referrer).hostname.replace(/^www\./, ""); } catch { origem = null; }
+      }
+      if (!origem && interno) origem = "rede-social";
+      await supabase.rpc("rpc_landing_track", {
+        p_event: evento,
+        p_visitor_id: visitor,
+        p_device: window.innerWidth < 640 ? "mobile" : "desktop",
+        p_referrer: document.referrer || null,
+        p_origem: origem ?? "direto",
+        p_utm_medium: params.get("utm_medium"),
+        p_utm_campaign: params.get("utm_campaign"),
+        p_browser: interno ? "interno" : "normal",
+      });
+    } catch {
+      /* medição nunca pode quebrar a página */
+    }
+  };
+
+  useEffect(() => {
+    void registrarEvento("landing_view");
+
+    supabase
+      .rpc("rpc_landing_stats")
+      .then(({ data }) => {
+        const total = (data as { assinantes_ativos?: number } | null)?.assinantes_ativos;
+        if (typeof total === "number") setAssinantesAtivos(total);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activePanel = navItems.find((item) => item.label === openMenu && item.panel);
   // Com a aba aberta o header precisa virar sólido: a faixa branca embaixo dele não pode
   // nascer de uma barra transparente sobre a foto.
@@ -406,6 +463,18 @@ export default function Index() {
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const button = mobileHeroCtaRef.current;
+    if (!button || window.innerWidth >= 640) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowMobileStickyCta(!entry.isIntersecting && entry.boundingClientRect.bottom < 0),
+      { threshold: 0 },
+    );
+    observer.observe(button);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -430,8 +499,11 @@ export default function Index() {
     return () => observer.disconnect();
   }, []);
 
-  const authTarget = !authLoading && user ? "/dashboard" : "/auth";
+  const authTarget = !authLoading && user ? "/dashboard" : "/login";
+  // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
+  const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
   const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
+
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -532,10 +604,29 @@ export default function Index() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
+      {/*
+        Barra de atenção mobile (some do desktop): laranja de sinalização, texto forte e
+        seta que empurra. É um botão — o toque faz o mesmo que o CTA principal.
+      */}
+      <button
+        type="button"
+        onClick={() => {
+          void registrarEvento("cta_offer_click");
+          navigate(signupTarget);
+        }}
+        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-11 w-full items-center justify-center gap-2 px-3 text-center sm:hidden"
+      >
+        <span className="landing-mobile-offer__text">
+          Conta sem cartão. Para publicar, assine um plano.
+        </span>
+        <span className="landing-mobile-offer__arrow" aria-hidden="true">
+          &rarr;
+        </span>
+      </button>
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-0 z-50 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
+        className={`fixed inset-x-0 top-11 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
             ? /*
                 Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
@@ -604,11 +695,24 @@ export default function Index() {
             <button
               type="button"
               onClick={() => navigate(authTarget)}
-              className={`h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:px-6 ${
+              className={`hidden h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:block sm:px-6 ${
                 headerOpaque ? "bg-[#2563EB] text-white hover:bg-[#1E3A8A]" : "bg-white text-[#0B1B3D] hover:bg-white/90"
               }`}
             >
               {ctaLabel}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                void registrarEvento("cta_header_login_click");
+                navigate(authTarget);
+              }}
+              className={`h-11 rounded-full px-3 text-[14px] font-semibold sm:hidden ${
+                headerOpaque ? "text-[#0B1B3D]" : "text-white"
+              }`}
+            >
+              Já sou cliente
             </button>
 
             {/*
@@ -622,7 +726,7 @@ export default function Index() {
               aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
               aria-expanded={mobileNavOpen}
               aria-controls="menu-mobile"
-              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors lg:hidden ${
+              className={`-mr-2 hidden h-11 w-11 items-center justify-center rounded-full transition-colors sm:flex lg:hidden ${
                 headerOpaque ? "text-[#0B1B3D] hover:bg-[#F4F7FE]" : "text-white hover:bg-white/10"
               }`}
             >
@@ -749,26 +853,110 @@ export default function Index() {
       */}
       <section
         data-velo-flat-buttons
-        className="relative isolate flex min-h-[100svh] flex-col justify-end overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
+        className="relative isolate flex min-h-0 flex-col justify-start overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] sm:justify-end [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
       >
-        <HeroBackdrop {...heroCarousel} />
+        {/*
+          No celular a foto de fundo cortava o rosto e disputava com o texto. Aqui ela
+          sai do fundo e vira um cartão enquadrado mais abaixo; o fundo passa a ser o
+          gradiente da marca. No desktop nada muda: o carrossel continua como estava.
+        */}
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
+          <HeroBackdrop {...heroCarousel} />
+        </div>
+
+        {/* Fundo do celular: gradiente azul da marca, sem recorte de foto. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(175deg,#0B1B3D_0%,#132B66_52%,#1E3A8A_100%)] sm:hidden"
+        />
 
         {/*
           Scrim direcional: escuro só no canto inferior esquerdo, onde o texto vive, e
           praticamente ausente no resto — a foto mantém cor e detalhe. Tom quase preto
           (8,14,28) de propósito: a função é contraste, não tingir a cena de azul.
         */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[rgba(8,14,28,0.1)]" />
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)]" />
-        {/* No celular o texto ocupa a largura toda, então o scrim do canto não basta. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(0deg,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.78)_28%,rgba(8,14,28,0.45)_50%,rgba(8,14,28,0.16)_68%,transparent_84%)] sm:hidden" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[rgba(8,14,28,0.1)] sm:block" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)] sm:block" />
         {/* Topo: só o necessário para a navbar não sumir sobre foto clara. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)] sm:block" />
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
+
+        <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-32 text-center sm:hidden">
+          {assinantesAtivos !== null && assinantesAtivos >= 50 && (
+            <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[13px] font-semibold text-white">
+              +{Math.floor(assinantesAtivos / 50) * 50} assinaturas ativas na Velo
+            </span>
+          )}
+
+          {/*
+            Peso semibold e tamanho maior: o peso fino era ilegível para quem tem mais
+            idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
+          */}
+          <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
+            Escolha um produto e publique no{" "}
+            <span className="inline whitespace-nowrap">
+              <img
+                src="/brand/mercado-livre.png"
+                alt=""
+                aria-hidden="true"
+                className="mr-1 inline-block h-[0.72em] w-[0.88em] rounded-full object-cover align-[-0.04em]"
+              />
+              Mercado Livre.
+            </span>
+          </h1>
+
+          <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
+            Você define o preço de venda e fica com a diferença entre o valor recebido e o custo do fornecedor.
+          </p>
+
+          <button
+            ref={mobileHeroCtaRef}
+            type="button"
+            onClick={() => {
+              void registrarEvento("cta_hero_signup_click");
+              navigate(signupTarget);
+            }}
+            className="mt-7 h-[58px] w-full rounded-full bg-white px-8 text-[17px] font-bold text-[#0B1B3D] shadow-[0_12px_34px_rgba(8,14,28,0.38)] transition-transform active:scale-[0.98]"
+          >
+            {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
+          </button>
+
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                void registrarEvento("cta_how_it_works_click");
+                scrollToSection("como-funciona");
+              }}
+              className="h-11 text-[15px] font-medium text-white/85 underline decoration-white/40 underline-offset-[6px]"
+            >
+              Como funciona
+            </button>
+          </div>
+
+          {/*
+            A foto vira um cartão com proporção fixa: enquadramento previsível em qualquer
+            tela, em vez do recorte aleatório do fundo de tela cheia.
+          */}
+          <div className="mt-6 w-full overflow-hidden rounded-[24px] border border-white/15 bg-white text-left shadow-[0_24px_60px_rgba(4,10,24,0.45)]">
+            <div className="relative h-[176px] overflow-hidden bg-[#F8FAFD]">
+              <img src="/prova-catalogo.webp" alt="Produto de exemplo do catálogo da Velo" decoding="async" loading="eager" fetchPriority="high" className="absolute left-0 top-0 h-full w-[205%] max-w-none object-cover object-left" />
+              <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold uppercase text-[#0B1B3D] shadow-sm">Exemplo na Velo</span>
+            </div>
+            <div className="grid grid-cols-3 border-t border-[#E4EAF5]">
+              <div className="px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Custo</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 22,00</strong></div>
+              <div className="border-x border-[#E4EAF5] px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Venda</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 44,00</strong></div>
+              <div className="px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Diferença</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 22,00</strong></div>
+            </div>
+            <p className="border-t border-[#E4EAF5] px-3 py-2 text-[11px] leading-[1.4] text-[#70809F]">Exemplo antes de taxas, impostos e outros custos da venda.</p>
+          </div>
+          <p className="mt-4 max-w-[340px] text-[11px] leading-[1.45] text-white/60">A Velo é uma plataforma independente e não faz parte do Mercado Livre.</p>
+        </div>
+
 
         {/* Mesmo gutter do header, em todas as resoluções. */}
-        <div className="relative w-full px-6 pb-14 pt-32 sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
+        <div className="relative hidden w-full px-6 pb-14 pt-32 sm:block sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
           {/* font-family explícito: a regra global de h1–h6 em index.css força Hanken Grotesk. */}
           {/*
             As duas linhas usam exatamente o mesmo estilo (peso 200, branco): a diferença
@@ -830,7 +1018,56 @@ export default function Index() {
         </button>
       </section>
 
+      {/*
+        Bloco só do celular: explica o processo em 3 passos com linguagem simples e traz
+        prova social com número real de assinantes (vindo do banco). No desktop nada disso
+        aparece — a estrutura original continua intacta.
+      */}
+      <section className="bg-white px-6 py-10 sm:hidden">
+        <h2 className="text-[22px] font-semibold leading-[1.2] tracking-[-0.02em] text-[#0B1B3D]">
+          Como funciona
+        </h2>
+        <p className="mt-2 text-[15px] leading-[1.55] text-[#5B6B8C]">
+          Três passos. Você não precisa comprar nada antes de vender.
+        </p>
+
+        <ol className="mt-6 flex flex-col gap-4">
+          {[
+            { n: "1", t: "Escolha um produto", d: "No catálogo da Velo você vê quanto custa no fornecedor e por quanto pode vender." },
+            { n: "2", t: "A Velo monta o anúncio", d: "Fotos, título e descrição prontos, dentro das regras do Mercado Livre." },
+            { n: "3", t: "Publique e acompanhe", d: "O anúncio vai para a sua conta do Mercado Livre e você acompanha os pedidos aqui." },
+          ].map((passo) => (
+            <li key={passo.n} className="flex gap-4 rounded-[18px] bg-[#F4F7FE] p-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-[17px] font-bold text-white">
+                {passo.n}
+              </span>
+              <span className="block">
+                <span className="block text-[17px] font-semibold leading-[1.25] text-[#0B1B3D]">{passo.t}</span>
+                <span className="mt-1 block text-[15px] leading-[1.5] text-[#5B6B8C]">{passo.d}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {/*
+          ESPAÇO RESERVADO PARA DEPOIMENTOS REAIS — não preencher com texto inventado.
+          Quando o Felipe enviar nome, foto e frase de clientes reais, substituir este bloco.
+        */}
+
+        <button
+          type="button"
+          onClick={() => {
+            void registrarEvento("cta_steps_signup_click");
+            navigate(signupTarget);
+          }}
+          className="mt-6 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white active:scale-[0.99]"
+        >
+          Criar minha conta
+        </button>
+      </section>
+
       <SecaoProvaVisual />
+
 
       {/*
         Headline à esquerda e texto de apoio à direita, como na referência, com o
@@ -854,13 +1091,14 @@ export default function Index() {
             className="mt-14 overflow-hidden rounded-[24px] border border-[#E9EEF8] bg-[#FBFCFF] shadow-[0_28px_70px_rgba(15,35,95,0.08)] lg:mt-20"
           >
             <img
-              src="/prova-catalogo.png"
+              src="/prova-catalogo.webp"
               alt="Tela de produto no catálogo da Velo: preço sugerido de R$ 44,00, margem de 100%, custo de R$ 22,00 ao fornecedor e lucro de R$ 22,00 por venda"
               loading="lazy"
               decoding="async"
               className="block h-auto w-full"
             />
           </div>
+          <button type="button" onClick={() => { void registrarEvento("cta_profit_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
         </div>
       </section>
 
@@ -917,7 +1155,7 @@ export default function Index() {
             <div data-reveal className="lg:col-span-7">
               <div className="overflow-hidden rounded-[20px] border border-white/10 bg-white">
                 <img
-                  src="/prova-atlas.png"
+                  src="/prova-atlas.webp"
                   alt="Conversa com o Atlas: o usuário pede um produto do nicho de beleza e o Atlas indica um kit de pincéis, explica o motivo e oferece abrir o catálogo"
                   loading="lazy"
                   decoding="async"
@@ -998,7 +1236,7 @@ export default function Index() {
 
             <form
               onSubmit={handleSubmit}
-              className="mx-auto mt-9 flex h-[58px] max-w-[480px] items-center rounded-full border border-[#E1E9F8] bg-white p-[5px] shadow-[0_12px_30px_rgba(15,35,95,0.07)]"
+              className="mx-auto mt-9 hidden h-[58px] max-w-[480px] items-center rounded-full border border-[#E1E9F8] bg-white p-[5px] shadow-[0_12px_30px_rgba(15,35,95,0.07)] sm:flex"
             >
               <input
                 type="email"
@@ -1014,13 +1252,22 @@ export default function Index() {
                 {!authLoading && user ? "Entrar no dashboard" : "Começar agora"}
               </button>
             </form>
+            <button type="button" onClick={() => { void registrarEvento("cta_final_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
 
-            <p className="mt-5 text-[14px] tracking-[-0.01em] text-[#8A97B1]">
+            <p className="mt-5 hidden text-[14px] tracking-[-0.01em] text-[#8A97B1] sm:block">
               Você concorda em receber e-mails de marketing da Velo.
             </p>
           </div>
         </div>
       </section>
+
+      <AnimatePresence>
+        {showMobileStickyCta && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#DCE5F7] bg-white/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(11,27,61,0.12)] backdrop-blur sm:hidden">
+            <button type="button" onClick={() => { void registrarEvento("cta_sticky_signup_click"); navigate(signupTarget); }} className="h-[54px] w-full rounded-full bg-[#2563EB] text-[17px] font-bold text-white">Criar minha conta</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <footer className="border-t border-[#EDF1F9] bg-white px-6 py-12 sm:px-8">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-8 md:flex-row md:items-center md:justify-between">

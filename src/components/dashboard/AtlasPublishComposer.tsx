@@ -18,6 +18,7 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 import {
   getActiveStore,
   getStorePublishedCount,
@@ -109,6 +110,9 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
   const [verificandoVendedor, setVerificandoVendedor] = useState(false);
   // Conta de vendedor recusada pelo ML: trava o botão e explica na conversa.
   const [contaBloqueada, setContaBloqueada] = useState(false);
+  // Códigos crus do ML (ex.: "address_pending") — alimentam o modal que diz
+  // exatamente o que falta no cadastro da conta.
+  const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [resultado, setResultado] = useState<{ permalink: string; item_id: string } | null>(null);
 
   const publicandoRef = useRef(false);
@@ -147,6 +151,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         setMarca(inferProductBrand(carregado, tituloCurto));
         setModelo((carregado.model ?? "").trim());
         setNomeDoAlbum(inferStickerAlbumName(carregado, tituloCurto));
+        setMlMissingCodes(null);
         setConectadoAoMl(Boolean((integracao.data as { access_token?: string } | null)?.access_token));
         setEtapa("specs");
       } catch (e) {
@@ -241,6 +246,9 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       return;
     }
 
+    // Descarta motivos de uma tentativa anterior antes de consultar o ML novamente.
+    setMlMissingCodes(null);
+
     // Limite de produtos da loja Velo ativa, quando existe uma.
     const loja = getActiveStore();
     if (loja) {
@@ -259,6 +267,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       const { data } = await supabase.functions.invoke("ml-seller-status");
       if (data?.connected && data?.canList === false) {
         setContaBloqueada(true);
+        setMlMissingCodes(Array.isArray(data?.codes) ? data.codes : []);
         avisarContaDeVendedorBloqueada();
         return;
       }
@@ -271,7 +280,8 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
 
     publicandoRef.current = true;
     setPublicando(true);
-    const toastId = veloToast.loading("Publicando no Mercado Livre...");
+    // Não exibimos toast de carregamento: o composer já comunica o estado.
+    const toastId = `ml-publish-${Date.now()}`;
     try {
       const dados = await publicarNoMercadoLivre({
         produto,
@@ -289,16 +299,22 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         estoque,
       });
 
+      setMlMissingCodes(null);
       setResultado(dados);
       setEtapa("publicado");
       if (loja) incrementStorePublishedCount(loja.id);
       void planLimits.refreshUsage();
-      veloToast.success("Produto publicado com sucesso", { id: toastId });
+      if (dados.parcial) {
+        veloToast.info(dados.mensagem ?? "Algumas variações não foram publicadas.", { id: toastId });
+      } else {
+        veloToast.success(dados.mensagem ?? "Produto publicado com sucesso", { id: toastId });
+      }
     } catch (erro) {
       const codigo = erro instanceof ErroDePublicacao ? erro.codigo : undefined;
       if (codigo === "ML_SELLER_CANNOT_LIST") {
         veloToast.dismiss(toastId);
         setContaBloqueada(true);
+        setMlMissingCodes(erro instanceof ErroDePublicacao ? (erro.sellerCodes ?? []) : []);
         avisarContaDeVendedorBloqueada();
         return;
       }
@@ -647,6 +663,11 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         </div>
       </section>
 
+      <MlMissingInfoModal
+        open={mlMissingCodes !== null}
+        sellerCodes={mlMissingCodes ?? []}
+        onClose={() => setMlMissingCodes(null)}
+      />
     </>
   );
 };

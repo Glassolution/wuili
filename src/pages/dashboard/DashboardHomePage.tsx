@@ -1,20 +1,23 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BadgePercent, Check, LayoutTemplate, Sparkles } from "lucide-react";
+import { ArrowRight, BadgePercent, Check, LayoutTemplate, PlayCircle, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
-import { hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
+import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
+import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
 import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
 import MobileHome from "@/components/dashboard/MobileHome";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
+import { Button } from "@/components/ui/button";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -79,8 +82,6 @@ const IMAGE_WIDTH = 1536;
 const CONTENT_SLICE_TOP = 300;
 const CONTENT_OFFSET = 100;
 const HERO_OFFSET = 45;
-const SUPPORT_WHATSAPP_URL =
-  "https://wa.me/5547999286334?text=Oi%2C%20preciso%20de%20ajuda%20com%20a%20minha%20conta%20Velo.";
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -98,6 +99,13 @@ const CHAT_PROMPT_SUGGESTIONS = [
   "Me dê uma ideia de negócio",
 ];
 
+const TUTORIAL_INICIO = {
+  src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
+  aspectPadding: "62.5%",
+  title: "Tutorial de início",
+  description: "Veja como dar os primeiros passos na Velo.",
+} as const;
+
 // Coreografia da introdução, em segundos. Os blocos entram enquanto o título ainda
 // está subindo: a sobreposição é o que faz a sequência ler como um movimento só,
 // em vez de uma fila de elementos esperando a vez.
@@ -109,9 +117,9 @@ const INTRO = {
   titleTravelDelay: 0.56,
   titleTravel: 1.05,
   revealDuration: 0.9,
-  promoDelay: 1,
-  supportDelay: 1.14,
+  // O chat vem logo depois do título; o atalho do tutorial entra junto dos cards.
   chatDelay: 1.28,
+  promoDelay: 1.5,
   // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
   // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
   // em vez de quase juntas.
@@ -243,11 +251,16 @@ const DashboardHomePage = () => {
   const introDecisionMade = useRef<string | null>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const welcomeChatRef = useRef<HTMLDivElement>(null);
+  const historyMenuRef = useRef<HTMLDivElement>(null);
   const suggestionListRef = useRef<HTMLDivElement>(null);
   const conversationScrollRef = useRef<HTMLDivElement>(null);
-  const [introState, setIntroState] = useState<"pending" | "play" | "done">("pending");
+  // "waiting": o onboarding está na frente da home. A intro fica guardada para
+  // tocar quando ele fecha — antes ela rodava escondida atrás do modal e a pessoa
+  // caía numa tela já parada.
+  const [introState, setIntroState] = useState<"pending" | "waiting" | "play" | "done">("pending");
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   /**
    * Existe conversa anterior para mostrar no histórico?
@@ -300,11 +313,34 @@ const DashboardHomePage = () => {
     // home não repete a introdução, mas recarregar o site ou reentrar na conta sim.
     introDecisionMade.current = userId;
 
+    if (user && shouldShowOnboarding(user)) {
+      setIntroState("waiting");
+      return;
+    }
+
     const shouldPlay = !reduceMotion && !hasPlayedDashboardIntro(userId);
     if (shouldPlay) markDashboardIntroAsPlayed(userId);
 
     setIntroState(shouldPlay ? "play" : "done");
-  }, [reduceMotion, user?.id]);
+  }, [reduceMotion, user]);
+
+  useEffect(() => {
+    if (introState !== "waiting" || !user?.id) return;
+    const userId = user.id;
+    let timer: number | undefined;
+    const aoConcluirOnboarding = () => {
+      // Espera o modal começar a desbotar para a home entrar por baixo dele.
+      timer = window.setTimeout(() => {
+        markDashboardIntroAsPlayed(userId);
+        setIntroState(reduceMotion ? "done" : "play");
+      }, reduceMotion ? 0 : ENTRADA_POS_ONBOARDING.homeStart * 1000);
+    };
+    window.addEventListener(ONBOARDING_COMPLETED_EVENT, aoConcluirOnboarding);
+    return () => {
+      window.removeEventListener(ONBOARDING_COMPLETED_EVENT, aoConcluirOnboarding);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [introState, reduceMotion, user?.id]);
 
   useEffect(() => {
     if (!chatActive) return;
@@ -330,7 +366,11 @@ const DashboardHomePage = () => {
     const closeWelcomeChat = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (welcomeChatRef.current?.contains(target) || suggestionListRef.current?.contains(target)) return;
+      if (
+        welcomeChatRef.current?.contains(target) ||
+        historyMenuRef.current?.contains(target) ||
+        suggestionListRef.current?.contains(target)
+      ) return;
 
       setChatActive(false);
       setChatInput("");
@@ -510,7 +550,7 @@ const DashboardHomePage = () => {
   });
 
 
-  if (introState === "pending") {
+  if (introState === "pending" || introState === "waiting") {
     return (
       <main
         aria-hidden="true"
@@ -570,44 +610,34 @@ const DashboardHomePage = () => {
             }}
           />
 
-
-          <motion.a
-            {...revealProps(INTRO.supportDelay, -10)}
-            href={SUPPORT_WHATSAPP_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Abrir WhatsApp do suporte Velo"
+          <motion.div
+            {...revealProps(INTRO.promoDelay, -6)}
             style={{
               position: "absolute",
               right: x(30),
               top: y(20),
-              width: x(195),
-              height: y(56),
-              borderRadius: fs(18),
-              border: "1px solid rgba(17, 24, 39, 0.09)",
-              background: "rgba(255, 255, 255, 0.97)",
-              boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-              display: "flex",
-              alignItems: "center",
-              gap: fs(12),
-              padding: `0 ${fs(15)}`,
-              textAlign: "left",
-              color: "#101114",
-              textDecoration: "none",
+              zIndex: 40,
             }}
           >
-            <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(27), height: fs(27), flex: "0 0 auto" }}>
-              <path d="M4.1 13.3v-1.7a7.9 7.9 0 0 1 15.8 0v1.7M5.5 12.7H4.2c-1 0-1.7.8-1.7 1.7v2.8c0 1 .8 1.7 1.7 1.7h1.3v-6.2Zm13 0h1.3c1 0 1.7.8 1.7 1.7v2.8c0 1-.8 1.7-1.7 1.7h-1.3v-6.2ZM18.5 18.1c-.7 2.1-2.4 3.1-5 3.1" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span style={{ display: "flex", flexDirection: "column", gap: fs(4), minWidth: 0 }}>
-              <span style={{ fontSize: fs(11), fontWeight: 600, color: "rgba(0,0,0,0.47)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                Precisa de ajuda?
-              </span>
-              <span style={{ fontSize: fs(11.8), fontWeight: 800, lineHeight: 1, whiteSpace: "nowrap" }}>
-                +55 47 99928-6334
-              </span>
-            </span>
-          </motion.a>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTutorialOpen(true)}
+              aria-label="Ver tutorial de início"
+              className="gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
+              style={{
+                height: y(56),
+                minHeight: 40,
+                borderRadius: fs(18),
+                paddingLeft: fs(15),
+                paddingRight: fs(17),
+                fontSize: fs(11.8),
+              }}
+            >
+              <PlayCircle aria-hidden="true" style={{ width: fs(17), height: fs(17) }} />
+              Ver tutorial
+            </Button>
+          </motion.div>
 
           {/* Histórico das conversas, espelhando o bloco de suporte do canto
               oposto. Só aparece com o chat aberto e com conversa anterior de
@@ -615,6 +645,7 @@ const DashboardHomePage = () => {
           <AnimatePresence>
             {chatActive && temHistorico && (
               <motion.div
+                ref={historyMenuRef}
                 key="atalho-historico"
                 initial={reduceMotion ? false : { opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -625,20 +656,6 @@ const DashboardHomePage = () => {
                   left: x(30),
                   top: y(20),
                   zIndex: 40,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: fs(8),
-                  height: y(56),
-                  // O gatilho do menu tem 36px fixos, enquanto a moldura escala
-                  // com a largura do canvas: sem o piso, ele vazava da pílula em
-                  // telas estreitas.
-                  minHeight: 40,
-                  padding: `0 ${fs(14)}`,
-                  borderRadius: fs(18),
-                  border: "1px solid rgba(17, 24, 39, 0.09)",
-                  background: "rgba(255, 255, 255, 0.97)",
-                  boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-                  color: "#101114",
                 }}
               >
                 <AtlasHistoryMenu
@@ -646,10 +663,18 @@ const DashboardHomePage = () => {
                   activeThreadId={threadId}
                   onSelectThread={abrirConversa}
                   onThreadDeleted={aoApagarConversa}
+                   triggerLabel="Suas conversas"
+                   triggerStyle={{
+                     height: y(56),
+                     minHeight: 40,
+                     borderRadius: fs(18),
+                     border: "1px solid rgba(17, 24, 39, 0.09)",
+                     background: "rgba(255, 255, 255, 0.97)",
+                     boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
+                     color: "#101114",
+                     fontSize: fs(11.8),
+                   }}
                 />
-                <span style={{ fontSize: fs(11.8), fontWeight: 700, lineHeight: 1, whiteSpace: "nowrap" }}>
-                  Suas conversas
-                </span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -701,6 +726,7 @@ const DashboardHomePage = () => {
           <motion.div
             {...revealProps(INTRO.chatDelay, 14)}
             ref={welcomeChatRef}
+            data-dashboard-tour="home-atlas-chat"
             role="search"
             aria-label="Assistente Atlas"
             aria-expanded={chatActive}
@@ -918,6 +944,14 @@ const DashboardHomePage = () => {
             title="Adicionar produto"
             className="rounded-[18%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(10,10,10,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
             style={buttonStyle(500, 520, 80, 79, 0, { background: "transparent" })}
+          />
+
+          {/* Alvo do tour do Atlas: moldura invisível sobre os dois cards de
+              primeiros passos, que são desenho da imagem de fundo. */}
+          <div
+            aria-hidden="true"
+            data-dashboard-tour="home-primeiros-passos"
+            style={{ position: "absolute", left: x(84), top: y(318), width: x(1372), height: y(312), pointerEvents: "none" }}
           />
 
           <span style={textStyle(813, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>02</span>
@@ -1541,6 +1575,14 @@ const DashboardHomePage = () => {
           ))}
         </div>
       </div>
+      <VideoTutorialModal
+        open={tutorialOpen}
+        onClose={() => setTutorialOpen(false)}
+        title={TUTORIAL_INICIO.title}
+        description={TUTORIAL_INICIO.description}
+        src={TUTORIAL_INICIO.src}
+        aspectPadding={TUTORIAL_INICIO.aspectPadding}
+      />
     </main>
   );
 };

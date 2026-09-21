@@ -21,7 +21,10 @@ const readUrl = (value: unknown) => (typeof value === "string" && value.trim() ?
  */
 export const startMercadoLivreOAuth = async (options?: { novaAba?: boolean }) => {
   // Padrão: nova aba. Assim o usuário nunca perde a página (chat do Atlas, catálogo, etc.).
-  const novaAba = options?.novaAba ?? true;
+  // No celular (Safari/Chrome iOS) a aba aberta antes do await muitas vezes é
+  // bloqueada ou fica em branco, então lá navegamos na mesma aba.
+  const ehCelular = typeof navigator !== "undefined" && /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+  const novaAba = (options?.novaAba ?? true) && !ehCelular;
   const aba = novaAba ? window.open("about:blank", "_blank") : null;
   // O opener é mantido de propósito: a aba do OAuth precisa se fechar sozinha
   // ao voltar e devolver o foco para a aba de Configurações.

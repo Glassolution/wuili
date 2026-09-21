@@ -156,7 +156,19 @@ async function fixItem(
   const oldShippingDimensions: string | null =
     (item?.shipping?.dimensions as string | undefined) ?? null;
 
-  if (oldShippingDimensions === newShippingDimensions) {
+  // Anúncios COM variação: o ML calcula o frete pelas medidas de cada variação
+  // e ignora as do item. Se faltarem lá, o frete continua na tabela de pacote
+  // grande mesmo com o item corrigido.
+  const variations = Array.isArray(item?.variations)
+    ? (item.variations as Array<{ id: number; attributes?: Array<{ id: string; value_name?: string }> }>)
+    : [];
+  const variationsNeedFix = variations.filter((v) => {
+    const attrs = v.attributes ?? [];
+    const dim = attrs.find((a) => a.id === "SELLER_PACKAGE_DIMENSIONS")?.value_name ?? null;
+    return dim !== newDimensions;
+  });
+
+  if (oldShippingDimensions === newShippingDimensions && variationsNeedFix.length === 0) {
     return {
       outcome: "already_ok",
       oldShippingDimensions,
@@ -175,6 +187,9 @@ async function fixItem(
   }
 
   // 2) PUT apenas com os campos de frete — nada de título/preço/imagens.
+  // Em anúncios Mercado Envios (me2) `shipping.dimensions` não é editável:
+  // o ML devolve `field_not_updatable` e usa só os atributos de embalagem.
+  const isMe2 = (item?.shipping?.mode as string | undefined) === "me2";
   const putRes = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
     method: "PUT",
     headers: {
@@ -182,10 +197,22 @@ async function fixItem(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      shipping: { dimensions: newShippingDimensions },
+      ...(isMe2 ? {} : { shipping: { dimensions: newShippingDimensions } }),
       attributes: [
         { id: "SELLER_PACKAGE_DIMENSIONS", value_name: newDimensions },
+        { id: "SELLER_PACKAGE_WEIGHT", value_name: `${weightGrams} g` },
       ],
+      ...(variationsNeedFix.length > 0
+        ? {
+          variations: variationsNeedFix.map((v) => ({
+            id: v.id,
+            attributes: [
+              { id: "SELLER_PACKAGE_DIMENSIONS", value_name: newDimensions },
+              { id: "SELLER_PACKAGE_WEIGHT", value_name: `${weightGrams} g` },
+            ],
+          })),
+        }
+        : {}),
     }),
   });
   if (!putRes.ok) {

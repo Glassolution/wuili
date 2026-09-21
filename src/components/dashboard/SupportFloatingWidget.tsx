@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   Paperclip,
+  PlayCircle,
   Search,
   Send,
   Sparkles,
@@ -26,7 +27,10 @@ import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import {
   CATEGORY_LABEL,
   ACTIVE_SUPPORT_TICKET_EVENT,
+  buildRefundPromptMessage,
   createSupportTicket,
+  messageHasRefundIntent,
+  parseSupportMessage,
   FAQ_ITEMS,
   formatTicketDate,
   formatTicketTime,
@@ -38,16 +42,57 @@ import {
   buildSupportImageMessage,
   removeSupportImage,
   supportDb as db,
+  touchSupportTicket,
   uploadSupportImage,
   validateSupportImage,
   type SupportMessage,
   type SupportTicket,
 } from "@/lib/support";
 import { supabase } from "@/integrations/supabase/client";
+import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
+import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
 type WidgetTab = "home" | "messages" | "help";
+
+/** Vídeo tutorial oferecido no fluxo de retenção de reembolso. */
+type RefundTutorial = {
+  src: string;
+  aspectPadding: string;
+  title: string;
+  description: string;
+  /** Motivos (chips) em que este vídeo aparece em primeiro lugar na fila. */
+  match: readonly string[];
+};
+
+const REFUND_TUTORIALS: readonly RefundTutorial[] = [
+  {
+    src: "https://www.youtube.com/embed/CtU-zqb0SM4?rel=0&modestbranding=1",
+    aspectPadding: "56.25%",
+    title: "Tutorial do catálogo",
+    description: "Veja como encontrar e importar bons produtos no catálogo Velo.",
+    match: ["Não consegui vender"],
+  },
+  { ...TUTORIAL_CONTA_VENDEDOR, match: ["Problemas técnicos"] },
+  {
+    src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
+    aspectPadding: "62.5%",
+    title: "Tutorial de início",
+    description: "Veja como dar os primeiros passos na Velo.",
+    match: ["Achei caro", "Estou sem tempo"],
+  },
+] as const;
+
+/** Fila de tutoriais ordenada pela dor informada: o mais relevante vem primeiro. */
+function tutorialsForReason(reason: string): RefundTutorial[] {
+  const normalized = reason.trim().toLowerCase();
+  return [...REFUND_TUTORIALS].sort((a, b) => {
+    const aMatch = a.match.some((m) => normalized.includes(m.toLowerCase())) ? 0 : 1;
+    const bMatch = b.match.some((m) => normalized.includes(m.toLowerCase())) ? 0 : 1;
+    return aMatch - bMatch;
+  });
+}
 
 const panelWidth = "min(400px, calc(100vw - 24px))";
 
@@ -82,6 +127,10 @@ const SupportFloatingWidget = () => {
   const [composingNewConversation, setComposingNewConversation] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [helpQuery, setHelpQuery] = useState("");
+  const [refundStep, setRefundStep] = useState<null | "reason" | "confirm">(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundTutorial, setRefundTutorial] = useState<RefundTutorial | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const openTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "open"), [tickets]);
@@ -189,7 +238,7 @@ const SupportFloatingWidget = () => {
 
         if (!active) return;
         if (error) throw error;
-        setMessages(((data ?? []) as SupportMessage[]).filter((message) => message.sender !== "ai"));
+        setMessages((data ?? []) as SupportMessage[]);
       } catch (error) {
         console.error(error);
         if (active) toast.error("Não foi possível carregar a conversa.");
@@ -212,7 +261,6 @@ const SupportFloatingWidget = () => {
         },
         (payload) => {
           const message = payload.new as SupportMessage;
-          if (message.sender === "ai") return;
           setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
           announceSupportReply(message);
         },
@@ -280,6 +328,12 @@ const SupportFloatingWidget = () => {
         firstMessage: attachment ? buildSupportImageMessage(attachment, message) : message,
       });
 
+      if (messageHasRefundIntent(message)) {
+        await db
+          .from("support_messages")
+          .insert({ ticket_id: ticket.id, user_id: user.id, message: buildRefundPromptMessage(), sender: "ai" });
+      }
+
       setTickets((current) => [ticket, ...current.filter((item) => item.id !== ticket.id)]);
       setSelectedTicketId(ticket.id);
       setMessages([]);
@@ -328,9 +382,25 @@ const SupportFloatingWidget = () => {
 
       if (error) throw error;
       const message = data as SupportMessage;
+      await touchSupportTicket(selectedTicket.id);
       setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
       setReplyImage(null);
       setActiveSupportTicketId(selectedTicket.id);
+
+      // Intenção de reembolso/cancelamento: exibe o cartão de retenção uma vez por conversa.
+      const alreadyPrompted = messages.some((item) => parseSupportMessage(item.message).refundPrompt);
+      if (messageHasRefundIntent(text) && !alreadyPrompted) {
+        const { data: promptMessage } = await db
+          .from("support_messages")
+          .insert({ ticket_id: selectedTicket.id, user_id: user.id, message: buildRefundPromptMessage(), sender: "ai" })
+          .select("*")
+          .single();
+        if (promptMessage) {
+          setMessages((current) =>
+            current.some((item) => item.id === promptMessage.id) ? current : [...current, promptMessage as SupportMessage],
+          );
+        }
+      }
     } catch (error) {
       if (uploadedPath) await removeSupportImage(uploadedPath);
       console.error(error);
@@ -338,6 +408,77 @@ const SupportFloatingWidget = () => {
       setReply(text);
     } finally {
       setSendingReply(false);
+    }
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!user?.id || !selectedTicket || refundSubmitting) return;
+    const reason = refundReason.trim() || "Não informado";
+
+    setRefundSubmitting(true);
+    try {
+      // 1) Encontra a assinatura ativa do usuário para abrir o pedido oficial.
+      const { data: sub } = await (supabase as any)
+        .from("subscriptions")
+        .select("id, created_at")
+        .eq("user_id", user.id)
+        .in("status", ["active", "paid", "approved", "authorized"])
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!sub?.id) {
+        toast.error("Não encontramos uma assinatura ativa na sua conta.");
+        return;
+      }
+
+      // 2) Dentro de 7 dias: reembolso. Fora do prazo: só cancela a renovação.
+      const dias = (Date.now() - new Date(sub.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      const fn = dias > 7 ? "cancel-subscription" : "request-refund";
+      const detalhes = `Solicitado pelo chat de suporte (ticket ${selectedTicket.id}). Motivo informado pelo cliente: ${reason}.`;
+
+      const { data: resp, error: fnError } = await supabase.functions.invoke(fn, {
+        body: { subscription_id: sub.id, reason, reason_details: detalhes },
+      });
+      if (fnError || !resp?.success) {
+        toast.error(resp?.error || resp?.message || "Não foi possível registrar o pedido. Tente novamente.");
+        return;
+      }
+
+      // 3) Registra no ticket para a equipe acompanhar pelo chat.
+      const { data, error } = await db
+        .from("support_messages")
+        .insert({
+          ticket_id: selectedTicket.id,
+          user_id: user.id,
+          message:
+            dias > 7
+              ? `Cancelamento da renovação confirmado. Motivo: ${reason}. (Fora do prazo de 7 dias para reembolso.)`
+              : `Solicitação de reembolso confirmada. Motivo: ${reason}. (Usuário ciente de que o estorno pode levar até 72h após a aprovação.)`,
+          sender: "user",
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+
+      await db.from("support_tickets").update({ category: "reembolso" }).eq("id", selectedTicket.id);
+      await touchSupportTicket(selectedTicket.id);
+      setMessages((current) => (current.some((item) => item.id === data.id) ? current : [...current, data as SupportMessage]));
+      setTickets((current) =>
+        current.map((ticket) => (ticket.id === selectedTicket.id ? { ...ticket, category: "reembolso" } : ticket)),
+      );
+      setRefundStep(null);
+      setRefundReason("");
+      toast.success(
+        dias > 7
+          ? "Cancelamento registrado. Você mantém o acesso até o fim do período pago."
+          : "Pedido de reembolso registrado. Nossa equipe vai analisar e responder por aqui.",
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Não foi possível registrar o pedido. Tente novamente.");
+    } finally {
+      setRefundSubmitting(false);
     }
   };
 
@@ -369,7 +510,7 @@ const SupportFloatingWidget = () => {
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.985 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
             style={{ width: panelWidth }}
-            className="mb-3 flex h-[min(620px,calc(100svh-170px))] max-h-[680px] flex-col overflow-hidden rounded-[24px] border border-white/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] md:h-[min(660px,calc(100svh-84px))]"
+            className="relative mb-3 flex h-[min(620px,calc(100svh-170px))] max-h-[680px] flex-col overflow-hidden rounded-[24px] border border-white/15 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] md:h-[min(660px,calc(100svh-84px))]"
             aria-label="Central de suporte"
           >
             {tab === "messages" ? (
@@ -488,6 +629,7 @@ const SupportFloatingWidget = () => {
                         setComposingNewConversation(false);
                       }}
                       onCreateTicket={handleCreateTicketFromChat}
+                      onOpenRefundFlow={() => setRefundStep("reason")}
                     />
                   )}
 
@@ -515,6 +657,155 @@ const SupportFloatingWidget = () => {
               />
               <WidgetNavButton tab="help" label="Ajuda" icon={HelpCircle} active={tab === "help"} onClick={setTab} />
             </nav>
+
+            <AnimatePresence>
+              {refundStep && (
+                <motion.div
+                  key="refund-modal"
+                  initial={prefersReducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
+                  className="absolute inset-0 z-10 grid place-items-center bg-black/45 p-4"
+                  onClick={() => !refundSubmitting && setRefundStep(null)}
+                >
+                  <motion.div
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 14, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
+                    className="w-full max-w-[330px] rounded-[20px] bg-white p-5 shadow-2xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {refundStep === "reason" ? (
+                      <>
+                        <h3 className="text-[16px] font-bold tracking-[-0.02em] text-[#111827]">
+                          Antes de continuar, o que aconteceu?
+                        </h3>
+                        <p className="mt-1.5 text-[12.5px] leading-5 text-[#6B7280]">
+                          Conte o motivo do reembolso — seu feedback nos ajuda a melhorar. Se preferir, nossa equipe
+                          pode tentar resolver o problema com você agora mesmo por aqui no chat.
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {["Não consegui vender", "Problemas técnicos", "Achei caro", "Estou sem tempo"].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => setRefundReason(chip)}
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                refundReason === chip
+                                  ? "border-[#DC2626] bg-[#FEF2F2] text-[#B91C1C]"
+                                  : "border-[#E5E7EB] text-[#6B7280] hover:border-[#D1D5DB]"
+                              }`}
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+
+                        <textarea
+                          value={refundReason}
+                          onChange={(event) => setRefundReason(event.target.value)}
+                          placeholder="Descreva o motivo..."
+                          className="mt-2.5 max-h-24 min-h-[64px] w-full resize-none rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] px-3 py-2 text-[12.5px] leading-5 text-[#111827] outline-none placeholder:text-[#9CA3AF] focus:border-[#2563EB]"
+                        />
+
+                        <div className="mt-3 rounded-[12px] border border-[#E5E7EB] bg-[#F9FAFB] p-2.5">
+                          <p className="px-1 text-[11px] font-semibold leading-4 text-[#6B7280]">
+                            Se você ainda estiver com dúvidas, temos vídeos tutoriais que podem ajudar:
+                          </p>
+                          <ul className="mt-1.5 space-y-1">
+                            {tutorialsForReason(refundReason).map((tutorial) => (
+                              <li key={tutorial.src}>
+                                <button
+                                  type="button"
+                                  onClick={() => setRefundTutorial(tutorial)}
+                                  className="flex w-full items-center gap-2 rounded-[9px] px-1.5 py-1.5 text-left transition hover:bg-white"
+                                >
+                                  <PlayCircle size={17} className="shrink-0 text-[#2563EB]" aria-hidden="true" />
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-[12px] font-bold text-[#111827]">
+                                      {tutorial.title}
+                                    </span>
+                                    <span className="block truncate text-[10.5px] text-[#9CA3AF]">
+                                      {tutorial.description}
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRefundStep(null);
+                            setRefundReason("");
+                            toast.success("Perfeito! Nossa equipe segue com você aqui no chat para resolver.");
+                          }}
+                          className="mt-3 flex h-10 w-full items-center justify-center rounded-[12px] bg-[#2563EB] text-[13px] font-bold text-white transition hover:bg-[#1D4ED8]"
+                        >
+                          Falar com a equipe
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRefundStep("confirm")}
+                          className="mt-2 flex h-9 w-full items-center justify-center rounded-[12px] text-[12.5px] font-bold text-[#DC2626] transition hover:bg-[#FEF2F2]"
+                        >
+                          Continuar com o reembolso
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-[16px] font-bold tracking-[-0.02em] text-[#111827]">
+                          Confirmar pedido de reembolso
+                        </h3>
+                        <div className="mt-3 rounded-[12px] border border-[#FECACA] bg-[#FEF2F2] px-3.5 py-3">
+                          <p className="text-[12.5px] font-semibold leading-5 text-[#991B1B]">
+                            Atenção: após a análise e aprovação da equipe, o reembolso pode levar até 72 horas para
+                            cair na sua conta.
+                          </p>
+                        </div>
+                        {refundReason.trim() && (
+                          <p className="mt-2.5 text-[12px] leading-5 text-[#6B7280]">
+                            <span className="font-semibold text-[#111827]">Motivo:</span> {refundReason.trim()}
+                          </p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={handleConfirmRefund}
+                          disabled={refundSubmitting}
+                          className="mt-3.5 flex h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-[#DC2626] text-[13px] font-bold text-white transition hover:bg-[#B91C1C] disabled:opacity-60"
+                        >
+                          {refundSubmitting && <Loader2 size={15} className="animate-spin" />}
+                          Confirmar pedido de reembolso
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRefundStep("reason")}
+                          disabled={refundSubmitting}
+                          className="mt-2 flex h-9 w-full items-center justify-center rounded-[12px] text-[12.5px] font-semibold text-[#6B7280] transition hover:bg-[#F3F4F6]"
+                        >
+                          Voltar
+                        </button>
+                      </>
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <VideoTutorialModal
+              open={refundTutorial !== null}
+              onClose={() => setRefundTutorial(null)}
+              title={refundTutorial?.title ?? ""}
+              description={refundTutorial?.description ?? ""}
+              src={refundTutorial?.src ?? ""}
+              aspectPadding={refundTutorial?.aspectPadding ?? "56.25%"}
+            />
           </motion.section>
         )}
       </AnimatePresence>
@@ -756,6 +1047,7 @@ const SupportMessages = ({
   onStartNewConversation,
   onCancelNewConversation,
   onCreateTicket,
+  onOpenRefundFlow,
 }: {
   tickets: SupportTicket[];
   ticketsLoading: boolean;
@@ -783,6 +1075,7 @@ const SupportMessages = ({
   onStartNewConversation: () => void;
   onCancelNewConversation: () => void;
   onCreateTicket: () => void;
+  onOpenRefundFlow: () => void;
 }) => {
   const replyFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -802,7 +1095,7 @@ const SupportMessages = ({
           {messagesLoading && <LoadingLine label="Carregando conversa..." />}
           {!messagesLoading && messages.length === 0 && <EmptyLine label="A conversa deste ticket ainda está vazia." />}
           {messages.map((message) => (
-            <SupportBubble key={message.id} message={message} />
+            <SupportBubble key={message.id} message={message} onRefundClick={onOpenRefundFlow} />
           ))}
           {sendingReply && <TypingBubble />}
           {closed && (
@@ -1154,8 +1447,33 @@ const StatusBadge = ({ status, compact = false }: { status: SupportTicket["statu
   </span>
 );
 
-const SupportBubble = ({ message }: { message: SupportMessage }) => {
+const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; onRefundClick?: () => void }) => {
   const isUser = message.sender === "user";
+
+  if (!isUser && parseSupportMessage(message.message).refundPrompt) {
+    return (
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
+          <AtlasAvatarIcon size={24} animated={false} />
+        </span>
+        <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
+          <p className="text-[13px] leading-5 text-[#111827]">
+            Entendemos a sua solicitação de reembolso ou cancelamento. Nossa equipe pode te ajudar por aqui antes
+            de qualquer decisão.
+          </p>
+          <button
+            type="button"
+            onClick={onRefundClick}
+            className="mt-2.5 flex h-9 w-full items-center justify-center rounded-[10px] bg-[#DC2626] text-[12.5px] font-bold text-white transition hover:bg-[#B91C1C]"
+          >
+            Pedir reembolso
+          </button>
+          <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isUser) {
     return (

@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle, Loader2, LifeBuoy } from "lucide-react";
 import VideoTutorialModal from "./VideoTutorialModal";
 import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
 import { lerProgressoTutorialMl, salvarProgressoTutorialMl } from "@/lib/mlVerificacaoTutorial";
+import { lerStatusVendedorMl } from "@/lib/mlConexao";
+import { veloToast } from "@/components/ui/velo-toast";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
   open: boolean;
@@ -16,6 +21,8 @@ type Props = {
    * "Publicar produto" de novo, o que reabria o tutorial do começo.
    */
   onFinish?: () => void;
+  /** Chamado quando a reverificação confirma que a conta já pode vender. */
+  onVerified?: () => void;
 };
 
 type Step = 1 | 2 | 3;
@@ -148,10 +155,44 @@ const StepVisual = ({ step }: { step: Step }) => {
   );
 };
 
-const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
+const MLAccountVerificationModal = ({ open, onClose, onFinish, onVerified }: Props) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [visible, setVisible] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+
+  useEffect(() => {
+    if (open) trackMobileHomeEvent(user?.id, "ml_seller_modal_open");
+  }, [open, user?.id]);
+
+  /** Revalida a conta sem refazer o fluxo de conexão. */
+  const recheck = async () => {
+    setRechecking(true);
+    trackMobileHomeEvent(user?.id, "ml_seller_recheck");
+    const status = await lerStatusVendedorMl();
+    setRechecking(false);
+
+    if (status.apta === true) {
+      trackMobileHomeEvent(user?.id, "ml_seller_ready", { detail: "recheck" });
+      veloToast.success("Sua conta já pode vender. Pode continuar!");
+      setVisible(false);
+      setTimeout(() => {
+        onClose();
+        onVerified?.();
+      }, 200);
+      return;
+    }
+
+    if (status.apta === false) {
+      veloToast.info("O Mercado Livre ainda não liberou sua conta. Termine o cadastro de vendedor e tente de novo.");
+      return;
+    }
+
+    veloToast.error("Não conseguimos verificar agora. Tente de novo em instantes.");
+  };
+
 
   /*
     Ref espelhando o estado: o listener de Esc é registrado uma vez só
@@ -249,10 +290,10 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 14, scale: 0.975 }}
             transition={{ duration: 0.42, ease: EASE_OUT }}
-            className="relative grid w-full max-w-[780px] max-h-[92vh] overflow-hidden rounded-[22px] bg-white shadow-[0_40px_120px_-30px_rgba(8,20,60,0.55)] md:h-[580px] md:max-h-[88vh] md:grid-cols-2"
+            className="relative grid w-full max-w-[780px] max-h-[92vh] overflow-y-auto overscroll-contain rounded-[22px] bg-white shadow-[0_40px_120px_-30px_rgba(8,20,60,0.55)] md:h-[580px] md:max-h-[88vh] md:grid-cols-2 md:overflow-hidden"
           >
             {/* Coluna de texto */}
-            <div className="order-2 flex flex-col overflow-y-auto p-7 sm:p-9 md:order-1 md:p-10">
+            <div className="order-2 flex min-h-0 flex-col p-6 sm:p-9 md:order-1 md:overflow-y-auto md:p-10">
               <span className="inline-flex w-fit items-center rounded-full bg-[#EFF4FF] px-2.5 py-1 text-[11.5px] font-semibold tracking-[-0.01em] text-[#2563EB]">
                 Passo {step} de 3
               </span>
@@ -292,21 +333,44 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
                 </motion.div>
               </AnimatePresence>
 
-              <div className="mt-auto pt-8">
-                <button onClick={primaryAction} className="btn-primary btn-primary--md w-full">
+              <div className="mt-auto pt-6 md:pt-8">
+                <button type="button" onClick={primaryAction} className="btn-primary btn-primary--md w-full">
                   {primaryLabel}
                   {step === 2 ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
                 </button>
 
                 {step === 2 && (
                   <button
-                    onClick={() => setVideoOpen(true)}
+                    onClick={() => {
+                      trackMobileHomeEvent(user?.id, "ml_seller_video_play");
+                      setVideoOpen(true);
+                    }}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] font-['Hanken_Grotesk',_sans-serif] text-[15px] font-medium tracking-[-0.01em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5]"
                   >
                     <PlayCircle size={16} />
                     Assistir vídeo tutorial
                   </button>
                 )}
+
+                <button
+                  onClick={() => void recheck()}
+                  disabled={rechecking}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] text-[15px] font-medium text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5] disabled:opacity-60"
+                >
+                  {rechecking ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  {rechecking ? "Verificando..." : "Já criei minha conta, verificar de novo"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    close();
+                    setTimeout(() => navigate("/dashboard/configuracoes?suporte=1"), 250);
+                  }}
+                  className="mx-auto mt-3 flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] text-[#5C5F66] transition-colors duration-150 hover:text-[#0A0A0A]"
+                >
+                  <LifeBuoy size={14} /> Falar com uma pessoa da Velo
+                </button>
+
 
                 {step > 1 && (
                   <button
@@ -320,11 +384,11 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
             </div>
 
             {/* Painel visual */}
-            <div className="relative order-1 h-[250px] shrink-0 overflow-hidden bg-[#FEF3E7] md:order-2 md:h-auto">
+            <div className="relative order-1 h-[190px] shrink-0 overflow-hidden bg-[#FEF3E7] sm:h-[230px] md:order-2 md:h-auto">
               {/* Mesmo gradiente do fundo dos prints, para a foto encostar sem emenda. */}
               <div className="absolute inset-0 bg-[linear-gradient(158deg,#FEEFDE_0%,#FEF4E9_48%,#FEF8F2_100%)]" />
 
-              <div className="relative flex h-full w-full items-center justify-center p-4 pt-16 sm:pt-16 md:pt-4">
+              <div className="relative flex h-full w-full items-center justify-center p-3 pt-14 sm:p-4 sm:pt-16 md:pt-4">
                 <AnimatePresence mode="wait">
                   <StepVisual key={step} step={step} />
                 </AnimatePresence>

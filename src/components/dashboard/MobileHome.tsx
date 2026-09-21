@@ -10,7 +10,7 @@
 // conta própria — para não acoplar de novo o mobile ao estado do desktop.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowUpRight, BadgePercent, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Folder, Package, Plus, Search, ShieldCheck, Star, Truck, Zap } from "lucide-react";
+import { ArrowUpRight, BadgePercent, Camera, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, Folder, Package, Plus, Search, ShieldCheck, Star, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,13 @@ import {
   formatReviewCount,
   getProductCatalogMetrics,
 } from "@/components/dashboard/ProductCard";
+import { CATEGORIAS_EXCLUIDAS, categoriasDoPerfil, lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
+import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
+import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
+import { lerStatusVendedorMl } from "@/lib/mlConexao";
+import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { getProductPricingEstimate } from "@/lib/productPricing";
 
 type CatalogProductRow = Database["public"]["Tables"]["catalog_products"]["Row"];
 
@@ -33,7 +40,11 @@ type ProductPreview = {
   image: string;
   images: string[];
   price: number;
+  suggestedPrice: number;
+  publicationCount: number;
+  createdAt: string | null;
   ordersCount: number;
+  supplierOrdersCount: number;
   rating: number | null;
   source: string | null;
 };
@@ -41,6 +52,7 @@ type ProductPreview = {
 const HOME_PRODUCTS_LIMIT = 1000;
 const HOME_PRODUCTS_PER_PAGE = 20;
 const HOME_FAVORITES_STORAGE_PREFIX = "velo:home-favorite-products";
+const HOME_CHOSEN_STORAGE_PREFIX = "velo:first-product-chosen";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
@@ -75,8 +87,9 @@ const getProductImages = (images: Json | null): string[] => {
 
 const MIN_PRODUCT_IMAGES = 3;
 
-const mapProductPreview = (product: CatalogProductRow): ProductPreview | null => {
+const mapProductPreview = (product: CatalogProductRow, publicationCount = 0): ProductPreview | null => {
   const images = getProductImages(product.images);
+  const pricing = getProductPricingEstimate(product.cost_price, product.suggested_price);
   // Regra: só mostra na home mobile produtos com pelo menos 3 fotos disponíveis,
   // pra evitar cards com uma única imagem antiga do fornecedor.
   if (images.length < MIN_PRODUCT_IMAGES) return null;
@@ -87,6 +100,9 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
     image: images[0],
     images,
     price: Number(product.cost_price) || 0,
+    suggestedPrice: pricing.suggestedSalePrice,
+    publicationCount,
+    createdAt: product.created_at,
     /*
       Mesmas funções do catálogo e da ficha do produto (src/lib/catalogFilters.ts). Elas
       NÃO leem o banco: derivam nota e vendas de um hash do id, porque
@@ -96,6 +112,7 @@ const mapProductPreview = (product: CatalogProductRow): ProductPreview | null =>
       foi decisão do produto, ciente de que o número é derivado e não medido.
     */
     ordersCount: Math.max(Number(product.orders_count) || 0, displayOrdersCountFor(product.id)),
+    supplierOrdersCount: Number(product.orders_count) || 0,
     rating: displayRatingFor(product.id),
     source: product.source ?? null,
   };
@@ -217,10 +234,12 @@ const MobileProductCard = ({
   product,
   isFavorite,
   onToggleFavorite,
+  onOpen,
 }: {
   product: ProductPreview;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  onOpen: () => void;
 }) => {
   const navigate = useNavigate();
   const { rating, ordersCount, hasMetrics } = getProductCatalogMetrics(product);
@@ -230,7 +249,10 @@ const MobileProductCard = ({
     <article className="relative min-w-0 overflow-hidden rounded-[8px] border border-black/[0.08] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       <button
         type="button"
-        onClick={() => navigate(`/dashboard/catalogo/${product.id}`)}
+        onClick={() => {
+          onOpen();
+          navigate(`/dashboard/catalogo/${product.id}`);
+        }}
         className="block w-full text-left"
       >
         <div className="aspect-square overflow-hidden bg-[#F3F3F3] flex items-center justify-center">
@@ -240,7 +262,7 @@ const MobileProductCard = ({
               alt={product.title}
               className="h-full w-full object-cover"
               referrerPolicy="no-referrer"
-              loading="eager"
+              loading="lazy"
               onError={() => setImgFailed(true)}
             />
           ) : (
@@ -272,9 +294,13 @@ const MobileProductCard = ({
                 <span className="truncate text-[#9A9A94]">({formatReviewCount(ordersCount)} vendas)</span>
               )}
             </div>
-            <span className="shrink-0 text-[13px] font-semibold tracking-[-0.025em] text-[#111111]">
-              {formatCurrency(product.price)}
+            <span className="shrink-0 text-right text-[9px] font-semibold text-[#6B7280]">
+              Preço sugerido<br /><strong className="text-[13px] text-[#111111]">{formatCurrency(product.suggestedPrice)}</strong>
             </span>
+          </div>
+          <div className="mt-2 border-t border-black/[0.06] pt-2">
+            <p className="text-[9px] font-semibold text-[#6B7280]">Sobra bruta estimada · antes de taxas</p>
+            <p className="text-[13px] font-black text-[#15803D]">{formatCurrency(Math.max(0, product.suggestedPrice - product.price))}</p>
           </div>
         </div>
       </button>
@@ -293,12 +319,33 @@ const MobileAliVeloHome = ({
   favoriteProductIds,
   onToggleFavoriteProduct,
   onCreateCollection,
+  isLoadingProducts = false,
+  hasProductsError = false,
+  onRetryProducts,
+  userId,
+  mlConnected,
+  hasPublication,
+  choseProduct,
+  needsMlSellerGuide,
+  sellerReady,
+  onChooseProduct,
 }: {
   products: ProductPreview[];
   collections: CollectionSummary[];
   favoriteProductIds: string[];
   onToggleFavoriteProduct: (productId: string) => void;
   onCreateCollection: () => void;
+  isLoadingProducts?: boolean;
+  hasProductsError?: boolean;
+  onRetryProducts?: () => void;
+  userId?: string;
+  mlConnected: boolean;
+  hasPublication: boolean;
+  choseProduct: boolean;
+  needsMlSellerGuide: boolean;
+  /** null = ainda não sabemos (sem conexão ou consulta indisponível). */
+  sellerReady: boolean | null;
+  onChooseProduct: (productId: string) => void;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -309,6 +356,30 @@ const MobileAliVeloHome = ({
   const [openMobileFilter, setOpenMobileFilter] = useState<"category" | "price" | "rating" | null>(null);
   const mobileFilterBarRef = useRef<HTMLDivElement | null>(null);
   const mobileCategoryTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const homeOpenedAt = useRef(Date.now());
+  const searchStarted = useRef(false);
+  const firstProductClick = useRef(false);
+  const isBeginner = !hasPublication;
+  const [prepareOpen, setPrepareOpen] = useState(false);
+  const [sellerGuideOpen, setSellerGuideOpen] = useState(false);
+  // Conectado mas sem permissão de venda conta como passo pendente: é o que
+  // trava a publicação mais adiante.
+  const contaPendente = needsMlSellerGuide || sellerReady === false;
+  const passoMlConcluido = mlConnected;
+
+  useEffect(() => {
+    trackMobileHomeEvent(userId, "home_view", { detail: isBeginner ? "primeiro_anuncio" : "home_normal" });
+  }, [isBeginner, userId]);
+
+  const openProduct = (productId: string, origin: string) => {
+    onChooseProduct(productId);
+    const elapsedMs = Date.now() - homeOpenedAt.current;
+    trackMobileHomeEvent(userId, "product_clicked", { detail: origin, productId, elapsedMs });
+    if (!firstProductClick.current) {
+      firstProductClick.current = true;
+      trackMobileHomeEvent(userId, "first_product_clicked", { detail: origin, productId, elapsedMs });
+    }
+  };
   /*
     Ordenadas por quantidade de produtos: a primeira aba depois de "Tudo" é sempre a que
     tem mais o que mostrar, e nenhuma aba leva a uma lista vazia.
@@ -325,6 +396,7 @@ const MobileAliVeloHome = ({
     for (const product of products) {
       const categoria = product.category.trim();
       if (!categoria) continue;
+      if (CATEGORIAS_EXCLUIDAS.some((blocked) => normalizeSearchText(blocked) === normalizeSearchText(categoria))) continue;
 
       const chave = normalizeSearchText(categoria);
       const grupo = grupos.get(chave) ?? { rotulo: categoria, total: 0, grafias: new Map() };
@@ -505,7 +577,18 @@ const MobileAliVeloHome = ({
               <input
                 type="search"
                 value={mobileSearchQuery}
-                onChange={(event) => setMobileSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setMobileSearchQuery(event.target.value);
+                  if (!searchStarted.current && event.target.value.trim()) {
+                    searchStarted.current = true;
+                    trackMobileHomeEvent(userId, "search_started");
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && mobileSearchQuery.trim()) {
+                    trackMobileHomeEvent(userId, "search_submitted", { detail: mobileSearchQuery.trim() });
+                  }
+                }}
                 placeholder="Buscar na Velo"
                 className="h-full min-w-0 flex-1 bg-transparent text-[14px] font-semibold tracking-[-0.02em] text-[#1F2933] outline-none placeholder:text-[#6B7280]"
               />
@@ -520,7 +603,8 @@ const MobileAliVeloHome = ({
             </div>
           </div>
 
-          <nav className="mt-3 flex gap-7 overflow-x-auto text-[16px] font-semibold tracking-[-0.03em] text-white/65 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="relative">
+          <nav aria-label="Categorias de produtos, deslize para ver mais" className="mt-3 flex gap-5 overflow-x-auto pr-10 text-[15px] font-semibold text-white/65 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categoriasDoCatalogo.map((categoria) => {
               const isActive = mobileCategoryFilter === categoria;
 
@@ -534,6 +618,7 @@ const MobileAliVeloHome = ({
                   onClick={() => {
                     setMobileCategoryFilter(categoria);
                     setOpenMobileFilter(null);
+                    trackMobileHomeEvent(userId, "category_clicked", { detail: categoria });
                   }}
                   className={`relative shrink-0 pb-2 transition-colors duration-200 ${isActive ? "text-white" : "text-white/65"}`}
                 >
@@ -543,9 +628,11 @@ const MobileAliVeloHome = ({
               );
             })}
           </nav>
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-end bg-gradient-to-l from-[#2563EB] to-transparent pr-0.5 text-[20px] text-white">›</span>
+          </div>
         </div>
 
-        <section className="bg-[linear-gradient(180deg,#2563EB_0%,#3B82F6_55%,#EFF4FF_100%)] px-4 pb-4 pt-3">
+        {!isBeginner && <section className="bg-[linear-gradient(180deg,#2563EB_0%,#3B82F6_55%,#EFF4FF_100%)] px-4 pb-4 pt-3">
           {/*
             O banner inteiro era um <button> que levava ao catálogo, e as miniaturas dos
             produtos eram <div> dentro dele — tocar um produto subia o clique para o botão
@@ -557,32 +644,30 @@ const MobileAliVeloHome = ({
           <div className="block w-full overflow-hidden rounded-[16px] bg-[linear-gradient(135deg,#1E3A8A_0%,#1D4ED8_55%,#3B82F6_100%)] p-3 text-left shadow-[0_12px_28px_rgba(30,58,138,0.35)]">
             <button
               type="button"
-              onClick={() => navigate("/dashboard/catalogo")}
+              onClick={() => {
+                trackMobileHomeEvent(userId, "banner_clicked");
+                navigate("/dashboard/catalogo");
+              }}
               className="block w-full text-left transition-transform active:scale-[0.99]"
             >
             <div className="flex items-start justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[-0.01em] text-white/90">
                 <ShieldCheck className="h-[14px] w-[14px]" strokeWidth={2.4} />
-                Curadoria Velo • estoque nacional
+                Produtos com estoque no Brasil
               </p>
-              <span className="rounded-[6px] bg-[#FACC15] px-2 py-0.5 text-[10px] font-black text-[#1E3A8A]">
-                Margem até 3x
-              </span>
             </div>
 
             <p className="mt-1.5 text-[22px] font-black uppercase leading-[0.95] tracking-[-0.05em] text-white">
-              Produtos prontos
+              Encontre produtos
               <br />
-              <span className="text-[#FACC15]">para vender hoje</span>
+              <span className="text-[#FACC15]">para seu próximo anúncio</span>
             </p>
 
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold text-white/85">
               <span className="flex items-center gap-1">
                 <Truck className="h-[13px] w-[13px]" strokeWidth={2.4} /> Envio nacional
               </span>
-              <span className="flex items-center gap-1">
-                <Zap className="h-[13px] w-[13px]" strokeWidth={2.4} /> Publica em 1 clique
-              </span>
+              <span>Revise, conecte e publique no Mercado Livre</span>
             </div>
             </button>
 
@@ -612,7 +697,10 @@ const MobileAliVeloHome = ({
                     */
                     key={index}
                     type="button"
-                    onClick={() => navigate(`/dashboard/catalogo/${item.id}`)}
+                    onClick={() => {
+                      openProduct(item.id, "banner");
+                      navigate(`/dashboard/catalogo/${item.id}`);
+                    }}
                     aria-label={item.title}
                     className="relative overflow-hidden rounded-[10px] bg-white/15 transition-transform active:scale-95"
                   >
@@ -632,7 +720,70 @@ const MobileAliVeloHome = ({
               )}
             </div>
           </div>
-        </section>
+        </section>}
+
+        {isBeginner && (
+          <section className="bg-white px-4 pb-1 pt-4" aria-labelledby="first-ad-title">
+            <div className="border-y border-black/[0.08] py-4">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase text-[#2563EB]">Comece por aqui</p>
+                  <h2 id="first-ad-title" className="mt-0.5 text-[21px] font-black text-[#111111]">Seu primeiro anúncio</h2>
+                </div>
+                <span className="text-[12px] font-bold text-[#475569]">{[choseProduct, passoMlConcluido, hasPublication].filter(Boolean).length}/3</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E5E7EB]">
+                <div className="h-full bg-[#2563EB] transition-all" style={{ width: `${([choseProduct, passoMlConcluido, hasPublication].filter(Boolean).length / 3) * 100}%` }} />
+              </div>
+              <div className="mt-3 divide-y divide-black/[0.06]">
+                {[
+                  { done: choseProduct, label: "Escolha um produto", help: choseProduct ? "Produto escolhido" : "Veja as opções logo abaixo", action: () => productsSectionRef.current?.scrollIntoView({ behavior: "smooth" }), key: "choose_product" },
+                  {
+                    // Conectar já conta como concluído: a liberação da conta de
+                    // vendedor deixou de ser exigida antes do pagamento.
+                    done: passoMlConcluido,
+                    label: "Conecte o Mercado Livre",
+                    help: mlConnected
+                      ? sellerReady === false
+                        ? "Conta conectada. Depois te ajudamos a liberá-la para vender"
+                        : "Conta conectada e liberada para vender"
+                      : needsMlSellerGuide
+                        ? "Conecte a conta que você já usa"
+                        : "Conecte sua conta de vendedor",
+                    action: () => (mlConnected && contaPendente ? setSellerGuideOpen(true) : setPrepareOpen(true)),
+                    key: "connect_ml",
+                  },
+                  { done: hasPublication, label: "Publique o anúncio", help: "Disponível após escolher e conectar", action: () => navigate(choseProduct ? "/dashboard/catalogo" : "#products"), key: "publish" },
+                ].map((step) => (
+                  <button key={step.key} type="button" onClick={() => { trackMobileHomeEvent(userId, "checklist_clicked", { detail: step.key }); step.action(); }} className="flex min-h-14 w-full items-center gap-3 py-2 text-left">
+                    {step.done ? <CheckCircle2 className="h-6 w-6 shrink-0 text-[#16A34A]" /> : <Circle className="h-6 w-6 shrink-0 text-[#94A3B8]" />}
+                    <span className="min-w-0 flex-1"><strong className="block text-[14px] text-[#111111]">{step.label}</strong><span className="block text-[12px] text-[#64748B]">{step.help}</span></span>
+                    {!step.done && <ChevronRight className="h-5 w-5 shrink-0 text-[#94A3B8]" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <MLConnectPrepareModal
+          open={prepareOpen}
+          onClose={() => setPrepareOpen(false)}
+          onConfirm={() => {
+            setPrepareOpen(false);
+            trackMobileHomeEvent(userId, "ml_connect_open", { detail: "home_checklist" });
+            void startMercadoLivreOAuth({ novaAba: false }).catch(() =>
+              veloToast.error("Não foi possível abrir o Mercado Livre agora. Tente de novo em instantes."),
+            );
+          }}
+        />
+        <MLAccountVerificationModal
+          open={sellerGuideOpen}
+          onClose={() => setSellerGuideOpen(false)}
+          onFinish={() => setSellerGuideOpen(false)}
+          onVerified={() => setSellerGuideOpen(false)}
+        />
+
 
 
 
@@ -685,6 +836,7 @@ const MobileAliVeloHome = ({
                   alt=""
                   className="absolute right-8 top-1 h-[82px] w-[82px] rotate-6 rounded-[18px] object-cover shadow-[0_18px_42px_rgba(0,0,0,0.6)]"
                   referrerPolicy="no-referrer"
+                      loading="lazy"
                 />
               )}
               {secondProduct && (
@@ -734,13 +886,13 @@ const MobileAliVeloHome = ({
         </div>
 
         {products.length > 0 && (
-          <section ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
-            <div className="mb-4 grid grid-cols-4 gap-1 pb-1">
+          <section id="products" ref={productsSectionRef} className="scroll-mt-4 bg-white px-4 pt-5">
+            {!isBeginner && <div className="mb-4 grid grid-cols-4 gap-1 pb-1">
               {mobileVeloActionItems.map((item, indice) => (
                 <button
                   key={item.label}
                   type="button"
-                  onClick={() => navigate(item.to)}
+                  onClick={() => { trackMobileHomeEvent(userId, "shortcut_clicked", { detail: item.label }); navigate(item.to); }}
                   /*
                     `backwards` é obrigatório aqui: `animate-fade-in` não tem fill, então
                     durante o atraso o item ficaria no estado normal (visível) e só então
@@ -777,9 +929,9 @@ const MobileAliVeloHome = ({
                   </span>
                 </button>
               ))}
-            </div>
+            </div>}
 
-            <div className="mb-5 flex items-center gap-2.5 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-2.5">
+            {!isBeginner && <div className="mb-5 flex items-center gap-2.5 rounded-[14px] border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-2.5">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#2563EB] text-white">
                 <Truck className="h-[17px] w-[17px]" strokeWidth={2.3} />
               </span>
@@ -793,7 +945,7 @@ const MobileAliVeloHome = ({
                 <BadgePercent className="h-[12px] w-[12px]" strokeWidth={2.6} />
                 Margem
               </span>
-            </div>
+            </div>}
 
             <div className="mb-3 flex items-end justify-between gap-3">
               <h2 className="text-[22px] font-black tracking-[-0.05em] text-[#111111]">Produtos para vender</h2>
@@ -866,6 +1018,7 @@ const MobileAliVeloHome = ({
                       product={product}
                       isFavorite={favoriteProductIds.includes(product.id)}
                       onToggleFavorite={() => onToggleFavoriteProduct(product.id)}
+                      onOpen={() => openProduct(product.id, "grid")}
                     />
                   ))}
                 </div>
@@ -918,6 +1071,54 @@ const MobileAliVeloHome = ({
           </section>
         )}
 
+        {/*
+          Antes, quando a lista chegava vazia (carregando, sem rede ou erro na
+          consulta), a home mobile simplesmente não desenhava nada: a pessoa via
+          só o banner azul e uma tela branca embaixo, sem explicação nem jeito de
+          tentar de novo. Agora há esqueleto enquanto carrega e um aviso com
+          botão de recarregar quando falha.
+        */}
+        {products.length === 0 && (
+          <section className="bg-white px-4 pb-6 pt-5">
+            {isLoadingProducts ? (
+              <>
+                <div className="mb-4 h-5 w-44 animate-pulse rounded-full bg-black/[0.07]" />
+                <div className="grid grid-cols-2 gap-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-[16px] border border-black/[0.06]">
+                      <div className="aspect-square w-full animate-pulse bg-black/[0.06]" />
+                      <div className="space-y-2 p-3">
+                        <div className="h-3 w-full animate-pulse rounded-full bg-black/[0.06]" />
+                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-black/[0.06]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-[16px] border border-black/[0.08] bg-[#F7F7F8] px-4 py-8 text-center">
+                <p className="text-[14px] font-black tracking-[-0.03em] text-[#111111]">
+                  {hasProductsError ? "Não conseguimos carregar os produtos" : "Nenhum produto disponível agora"}
+                </p>
+                <p className="mt-1 text-[12px] font-semibold text-black/45">
+                  {hasProductsError
+                    ? "Verifique sua internet e tente de novo."
+                    : "Estamos atualizando o catálogo. Tente novamente em instantes."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => (onRetryProducts ? onRetryProducts() : navigate("/dashboard/catalogo"))}
+                  className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-6 text-[13px] font-bold text-white transition active:scale-[0.98]"
+                >
+                  Tentar de novo
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+
+
       </div>
     </section>
   );
@@ -933,6 +1134,21 @@ const MobileHome = () => {
   const [products, setProducts] = useState<ProductPreview[]>([]);
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [hasProductsError, setHasProductsError] = useState(false);
+  const [productsReloadToken, setProductsReloadToken] = useState(0);
+  const [mlConnected, setMlConnected] = useState(false);
+  const [sellerReady, setSellerReady] = useState<boolean | null>(null);
+  const [hasPublication, setHasPublication] = useState(false);
+  const [choseProduct, setChoseProduct] = useState(false);
+  const completedSteps = useRef(new Set<string>());
+
+  const chosenStorageKey = user?.id ? `${HOME_CHOSEN_STORAGE_PREFIX}:${user.id}` : HOME_CHOSEN_STORAGE_PREFIX;
+  const quizAnswers = useMemo(() => lerRespostasDoQuiz(user), [user]);
+  const preferredCategories = useMemo(
+    () => new Set(categoriasDoPerfil(quizAnswers).map(normalizeSearchText)),
+    [quizAnswers],
+  );
 
   const favoritesStorageKey = user?.id
     ? `${HOME_FAVORITES_STORAGE_PREFIX}:${user.id}`
@@ -948,10 +1164,59 @@ const MobileHome = () => {
   }, [favoritesStorageKey]);
 
   useEffect(() => {
+    try {
+      setChoseProduct(window.localStorage.getItem(chosenStorageKey) === "true");
+    } catch {
+      setChoseProduct(false);
+    }
+  }, [chosenStorageKey]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    void Promise.all([
+      supabase.from("user_integrations").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("platform", "mercadolivre").not("access_token", "is", null),
+      supabase.from("user_publications").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+    ]).then(([integration, publication]) => {
+      if (!active) return;
+      setMlConnected((integration.count ?? 0) > 0);
+      setHasPublication((publication.count ?? 0) > 0);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
+
+  // Só consultamos o status de vendedor quando há conexão: sem token o ML não
+  // responde nada útil e o checklist seguiria igual.
+  useEffect(() => {
+    if (!user?.id || !mlConnected) return;
+    let active = true;
+    void lerStatusVendedorMl().then((status) => {
+      if (active) setSellerReady(status.apta);
+    });
+    return () => { active = false; };
+  }, [user?.id, mlConnected]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const states = { choose_product: choseProduct, connect_ml: mlConnected, publish: hasPublication };
+    Object.entries(states).forEach(([step, done]) => {
+      if (done && !completedSteps.current.has(step)) {
+        completedSteps.current.add(step);
+        trackMobileHomeEvent(user.id, "checklist_completed", { detail: step });
+      }
+    });
+  }, [choseProduct, hasPublication, mlConnected, user?.id]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const fetchProducts = async () => {
-      const columns = "id,title,category,images,cost_price,rating,is_active,is_blocked,stock_quantity,orders_count,source";
+      if (isMounted) {
+        setIsLoadingProducts(true);
+        setHasProductsError(false);
+      }
+
+      const columns = "id,title,category,images,cost_price,suggested_price,rating,is_active,is_blocked,stock_quantity,orders_count,source,created_at";
 
       // Busca produtos de todas as fontes disponíveis (c7drop, aliexpress, etc.)
       const result = await supabase
@@ -967,33 +1232,44 @@ const MobileHome = () => {
 
       let rows = result.data;
 
-      // Fallback: se não veio nada, tenta sem filtro de estoque
-      if (result.error || !rows?.length) {
-        const fallbackResult = await supabase
-          .from("catalog_products")
-          .select(columns)
-          .eq("is_active", true)
-          .eq("is_blocked", false)
-          .order("orders_count", { ascending: false, nullsFirst: false })
-          .range(0, HOME_PRODUCTS_LIMIT - 1);
-
-        if (!isMounted || fallbackResult.error) return;
-        rows = fallbackResult.data;
+      if (result.error) {
+        setHasProductsError(true);
+        setIsLoadingProducts(false);
+        return;
       }
 
+      const { data: popularityRows } = await supabase.rpc("mobile_catalog_popularity");
+      const popularity = new Map<string, number>(
+        (popularityRows ?? []).map((row): [string, number] => [row.product_id, Number(row.publication_count) || 0]),
+      );
       const previews = ((rows ?? []) as CatalogProductRow[])
-        .map(mapProductPreview)
-        .filter((product): product is ProductPreview => Boolean(product));
+        .map((row) => mapProductPreview(row, popularity.get(row.id) ?? 0))
+        .filter((product): product is ProductPreview => Boolean(product))
+        .sort((a, b) => {
+          const nicheDifference = Number(preferredCategories.has(normalizeSearchText(b.category))) - Number(preferredCategories.has(normalizeSearchText(a.category)));
+          if (nicheDifference !== 0) return nicheDifference;
+          if (b.publicationCount !== a.publicationCount) return b.publicationCount - a.publicationCount;
+          if (b.supplierOrdersCount !== a.supplierOrdersCount) return b.supplierOrdersCount - a.supplierOrdersCount;
+          return (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0);
+        });
 
-      if (isMounted) setProducts(previews);
+      if (isMounted) {
+        setProducts(previews);
+        setIsLoadingProducts(false);
+      }
     };
 
-    void fetchProducts();
+    void fetchProducts().catch(() => {
+      if (isMounted) {
+        setHasProductsError(true);
+        setIsLoadingProducts(false);
+      }
+    });
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [preferredCategories, productsReloadToken]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -1034,6 +1310,20 @@ const MobileHome = () => {
       favoriteProductIds={favoriteProductIds}
       onToggleFavoriteProduct={handleToggleFavoriteProduct}
       onCreateCollection={() => veloToast.info("Crie coleções pelo computador por enquanto.")}
+      isLoadingProducts={isLoadingProducts}
+      hasProductsError={hasProductsError}
+      onRetryProducts={() => setProductsReloadToken((token) => token + 1)}
+      userId={user?.id}
+      mlConnected={mlConnected}
+      hasPublication={hasPublication}
+      choseProduct={choseProduct}
+      needsMlSellerGuide={quizAnswers.mercadoLivre === "nao"}
+      sellerReady={sellerReady}
+      onChooseProduct={() => {
+        if (choseProduct) return;
+        setChoseProduct(true);
+        try { window.localStorage.setItem(chosenStorageKey, "true"); } catch { /* progresso continua na sessão */ }
+      }}
     />
   );
 };

@@ -12,6 +12,10 @@ import { VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
 import { getReferralCode, markAffiliateReachedPayment } from "@/lib/affiliateFunnel";
 import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { useSandboxMode } from "@/lib/sandboxMode";
+import { createLocalSandboxSubscription } from "@/lib/localSandbox";
+import { formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
 
 
 type PaymentMethod = "pix" | "credit_card";
@@ -30,7 +34,7 @@ type PlanData = {
 const PLANS_DATA: Record<string, PlanData> = {
   base: {
     name: "Base",
-    price: "R$ 39,90",
+    price: formatPlanPriceBRL(VELO_PLAN_PRICES.base.monthly),
     description: "Pra quem quer começar a vender sem travar no operacional.",
     features: [
       "Importação automática de até 50 produtos por mês pro Mercado Livre",
@@ -42,7 +46,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   pro: {
     name: "Pro",
-    price: "R$ 79,80",
+    price: formatPlanPriceBRL(VELO_PLAN_PRICES.pro.monthly),
     description: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     badge: "Mais escolhido",
     features: [
@@ -56,7 +60,7 @@ const PLANS_DATA: Record<string, PlanData> = {
   },
   business: {
     name: "Business",
-    price: "R$ 159,60",
+    price: formatPlanPriceBRL(VELO_PLAN_PRICES.business.monthly),
     description: "Pra quem já vive disso e quer parar de contar produto.",
     badge: "Escala",
     features: [
@@ -70,15 +74,15 @@ const PLANS_DATA: Record<string, PlanData> = {
 };
 
 const PLAN_AMOUNTS: Record<string, number> = {
-  base: 39.9,
-  pro: 79.8,
-  business: 159.6,
+  base: VELO_PLAN_PRICES.base.monthly,
+  pro: VELO_PLAN_PRICES.pro.monthly,
+  business: VELO_PLAN_PRICES.business.monthly,
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: 430.92,   // 39.90 * 12 * 0.9
-  pro: 861.84,    // 79.80 * 12 * 0.9
-  business: 1723.68, // 159.60 * 12 * 0.9
+  base: VELO_PLAN_PRICES.base.annual,
+  pro: VELO_PLAN_PRICES.pro.annual,
+  business: VELO_PLAN_PRICES.business.annual,
 };
 
 const splitPlanPrice = (price: string) => {
@@ -127,7 +131,7 @@ const getSavingsDisplay = (originalPrice: string | null, currentPrice: string) =
 
 const CheckoutPage = () => {
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { session, role } = useAuth();
   const [searchParams] = useSearchParams();
 
   const rawPlan = searchParams.get("plan") ?? "pro";
@@ -182,7 +186,10 @@ const CheckoutPage = () => {
   const [verifying, setVerifying] = useState(false);
   const [referralDiscount, setReferralDiscount] = useState(0);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<string | null>(null);
+  const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
   const pollRef = useRef<number | null>(null);
+  const isAdmin = role === "admin" || isAdminEmail(session?.user?.email);
+  const sandboxPurchaseEnabled = isAdmin && sandboxEnabled;
 
   useEffect(() => {
     if (session?.user?.email && !email) setEmail(session.user.email);
@@ -273,6 +280,10 @@ const CheckoutPage = () => {
       navigate("/login");
       return;
     }
+    if (sandboxPurchaseEnabled) {
+      setCheckingOutPlanId(null);
+      return;
+    }
     redirectedRef.current = true;
     setCheckingOutPlanId(planId);
     void (async () => {
@@ -288,7 +299,7 @@ const CheckoutPage = () => {
       toast.error(res.error ?? "Não foi possível gerar o pagamento.");
       setShowPaymentStep(false);
     })();
-  }, [showPaymentStep, session, planId, billingCycle, navigate]);
+  }, [showPaymentStep, session, planId, billingCycle, navigate, sandboxPurchaseEnabled]);
 
   // Polling: a cada 5s verifica se o pagamento foi aprovado
   useEffect(() => {
@@ -350,6 +361,41 @@ const CheckoutPage = () => {
     }
     if (!acceptPrivacy) {
       toast.error("Você precisa aceitar a Política de Privacidade.");
+      return;
+    }
+
+    if (sandboxPurchaseEnabled) {
+      setCheckoutState("loading");
+      const toastId = toast.loading("Ativando assinatura no Sandbox...");
+      try {
+        try {
+          const { data, error } = await supabase.functions.invoke("admin-sandbox-subscription", {
+            body: {
+              plan: planId,
+              cycle: billingCycle === "annual" ? "annual" : "monthly",
+            },
+          });
+          if (error || !data?.success) {
+            throw new Error(data?.error || data?.message || "Função Sandbox indisponível.");
+          }
+        } catch (error) {
+          if (!import.meta.env.DEV) throw error;
+          createLocalSandboxSubscription(
+            session?.user?.id ?? session?.user?.email ?? null,
+            planId,
+            billingCycle === "annual" ? "annual" : "monthly",
+          );
+        }
+        setCheckoutState("success");
+        if (session?.user?.id) {
+          void markCompletedPayment(session.user.id, { route: "/checkout", plan: planId, source: "sandbox" });
+        }
+        toast.success("Plano sandbox ativado.", { id: toastId });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Não foi possível ativar o Sandbox.";
+        toast.error(message, { id: toastId });
+        setCheckoutState("idle");
+      }
       return;
     }
 
@@ -456,6 +502,10 @@ const CheckoutPage = () => {
     if (!session) {
       toast.error("Você precisa estar logado");
       navigate("/login");
+      return;
+    }
+    if (sandboxPurchaseEnabled) {
+      setShowPaymentStep(true);
       return;
     }
     if (redirectedRef.current) return;
@@ -668,10 +718,10 @@ const CheckoutPage = () => {
                       {checkingOutPlanId === id ? (
                         <span className="flex items-center justify-center gap-2">
                           <Loader2 size={16} className="animate-spin" />
-                          Redirecionando...
+                          {sandboxPurchaseEnabled ? "Abrindo..." : "Redirecionando..."}
                         </span>
                       ) : (
-                        `Assinar ${currentPlan.name}`
+                        sandboxPurchaseEnabled ? `Testar ${currentPlan.name}` : `Assinar ${currentPlan.name}`
                       )}
                     </button>
 
@@ -704,10 +754,10 @@ const CheckoutPage = () => {
                 {checkingOutPlanId === "pro" ? (
                   <span className="flex items-center justify-center gap-1.5">
                     <Loader2 size={14} className="animate-spin" />
-                    Redirecionando...
+                    {sandboxPurchaseEnabled ? "Abrindo..." : "Redirecionando..."}
                   </span>
                 ) : (
-                  "Continuar com Pro"
+                  sandboxPurchaseEnabled ? "Testar Pro" : "Continuar com Pro"
                 )}
               </button>
             </div>
@@ -882,6 +932,11 @@ const CheckoutPage = () => {
             </div>
 
             <h3 className="mt-8 text-[16px] font-semibold">Principais recursos</h3>
+            {sandboxPurchaseEnabled && (
+              <div className="mt-5 rounded-[16px] border border-blue-200 bg-blue-50 px-4 py-3 text-[13px] leading-5 text-blue-800">
+                Sandbox ligado: esta assinatura será ativada para teste, sem cobrança real.
+              </div>
+            )}
             <ul className="mt-5 space-y-5">
               {plan.features.slice(0, 5).map((feature) => (
                 <li key={feature} className="flex items-start gap-4 text-[15px] leading-6 text-[#555]">
@@ -904,7 +959,7 @@ const CheckoutPage = () => {
               )}
               <div className="flex items-center justify-between text-[17px] font-bold">
                 <span>A pagar hoje</span>
-                <span>{finalCheckoutPrice}</span>
+                <span>{sandboxPurchaseEnabled ? "R$ 0,00" : finalCheckoutPrice}</span>
               </div>
             </div>
 
@@ -983,7 +1038,7 @@ const CheckoutPage = () => {
                       <Loader2 size={18} className="animate-spin" /> Processando...
                     </>
                   ) : (
-                    "Assinar"
+                    sandboxPurchaseEnabled ? "Ativar no Sandbox" : "Assinar"
                   )}
                 </button>
               </>
@@ -992,8 +1047,9 @@ const CheckoutPage = () => {
         </div>
 
         <p className="ml-auto mt-8 max-w-[390px] text-[13px] leading-5 text-[#777]">
-          Renovação {recurringCycleLabel} até cancelar. Cobraremos {finalCheckoutPrice}
-          {billingCycle === "monthly" ? "/mês" : "/ano"}.{" "}
+          {sandboxPurchaseEnabled
+            ? "Sandbox ligado: nenhuma cobrança real será criada."
+            : <>Renovação {recurringCycleLabel} até cancelar. Cobraremos {finalCheckoutPrice}{billingCycle === "monthly" ? "/mês" : "/ano"}.</>}{" "}
           <button type="button" className="font-medium text-black underline underline-offset-2">
             Cancele quando quiser
           </button>{" "}

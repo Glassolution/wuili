@@ -1,27 +1,27 @@
-// Recompensa de indicação: quando o AMIGO CONVIDADO conclui o primeiro pagamento
-// da assinatura, quem convidou ganha 3 meses grátis (extensão do período pago).
+// Recompensa de indicação: os DOIS ganham 15% de desconto na primeira assinatura.
 //
-// - Cumulativo: cada indicação paga soma +3 meses, sem teto.
-// - Permanente: não há data de expiração da mecânica.
-// - Idempotente: a concessão é registrada em public.referral_rewards com índices
-//   únicos por indicação e por pagamento, então webhooks repetidos não duplicam.
-// - Não altera o desconto de 15% do convidado nem o programa de afiliados.
+// - Convidado: 15% na primeira cobrança, aplicado automaticamente no checkout.
+// - Convidador: ganha um crédito de 15% quando o amigo convidado paga. O crédito
+//   só vale se ele ainda NÃO assinou (é usado na primeira assinatura dele).
+// - O crédito pendente do convidador fica em `referrals.inviter_rewarded = true`
+//   e é consumido quando o pagamento dele é confirmado.
+// - Substitui a antiga mecânica de 3 meses grátis.
 
 // deno-lint-ignore no-explicit-any -- cliente Supabase tipado genericamente entre funções
 type AdminClient = any;
 
-export const REFERRAL_FREE_MONTHS = 3;
+export const REFERRAL_DISCOUNT_PERCENT = 15;
 
 /**
- * Concede os 3 meses grátis ao convidador a partir do pagamento confirmado do convidado.
- * `paymentRef` deve ser um identificador estável do pagamento (id do provedor).
+ * Convidado pagou → marca a indicação como concluída e libera o crédito de 15%
+ * para quem convidou. Idempotente: reexecutar apenas reescreve os mesmos campos.
  */
-export async function grantInviterMonthsForPaidInvitee(
+export async function grantInviterDiscountForPaidInvitee(
   admin: AdminClient,
-  params: { invitedUserId: string; paymentRef: string; referralId?: string | null },
+  params: { invitedUserId: string; referralId?: string | null },
 ): Promise<{ ok: boolean; code: string; details?: unknown }> {
-  const { invitedUserId, paymentRef } = params;
-  if (!invitedUserId || !paymentRef) return { ok: false, code: "missing_params" };
+  const { invitedUserId } = params;
+  if (!invitedUserId) return { ok: false, code: "missing_params" };
 
   try {
     let referralId = params.referralId ?? null;
@@ -31,7 +31,7 @@ export async function grantInviterMonthsForPaidInvitee(
         .from("referrals")
         .select("id,status")
         .eq("invited_user_id", invitedUserId)
-        .in("status", ["linked", "subscribed"])
+        .in("status", ["linked", "pending", "subscribed"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -40,40 +40,47 @@ export async function grantInviterMonthsForPaidInvitee(
 
     if (!referralId) return { ok: true, code: "no_referral" };
 
-    const { data, error } = await admin.rpc("grant_referral_inviter_months", {
-      p_referral_id: referralId,
-      p_payment_ref: String(paymentRef),
-      p_months: REFERRAL_FREE_MONTHS,
-    });
+    const { error } = await admin
+      .from("referrals")
+      .update({
+        status: "subscribed",
+        subscribed_at: new Date().toISOString(),
+        invited_rewarded: true,
+        inviter_rewarded: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", referralId);
 
     if (error) {
-      console.error("referral reward rpc failed:", JSON.stringify(error));
-      return { ok: false, code: "rpc_error", details: error };
+      console.error("referral discount update failed:", JSON.stringify(error));
+      return { ok: false, code: "update_error", details: error };
     }
 
-    console.log("referral reward:", JSON.stringify({ referralId, paymentRef, result: data }));
-    return { ok: true, code: "granted", details: data };
+    console.log("referral discount liberado para o convidador:", referralId);
+    return { ok: true, code: "granted" };
   } catch (err) {
-    console.error("referral reward error:", String(err));
+    console.error("referral discount error:", String(err));
     return { ok: false, code: "exception", details: String(err) };
   }
 }
 
 /**
- * Aplica recompensas pendentes (usuário ganhou meses quando ainda não tinha
- * assinatura ativa) assim que ele passa a ter uma assinatura ativa.
+ * Consome o crédito de 15% do convidador depois que o pagamento dele é confirmado.
  */
-export async function applyPendingReferralRewards(admin: AdminClient, userId: string) {
-  if (!userId) return 0;
+export async function consumeInviterReferralDiscount(admin: AdminClient, referralId?: string | null) {
+  if (!referralId) return false;
   try {
-    const { data, error } = await admin.rpc("apply_pending_referral_rewards", { p_user_id: userId });
+    const { error } = await admin
+      .from("referrals")
+      .update({ inviter_rewarded: false, updated_at: new Date().toISOString() })
+      .eq("id", referralId);
     if (error) {
-      console.error("apply_pending_referral_rewards failed:", JSON.stringify(error));
-      return 0;
+      console.error("consume inviter discount failed:", JSON.stringify(error));
+      return false;
     }
-    return Number(data ?? 0);
+    return true;
   } catch (err) {
-    console.error("apply_pending_referral_rewards error:", String(err));
-    return 0;
+    console.error("consume inviter discount error:", String(err));
+    return false;
   }
 }

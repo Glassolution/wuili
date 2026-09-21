@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, PackageSearch, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageSearch, RefreshCw, Star } from "lucide-react";
 
 import { useAtlasChat, type NichoDaVitrine } from "@/contexts/AtlasChatContext";
 import { useProdutosRecomendados, type ProdutoRecomendado } from "@/hooks/useProdutosRecomendados";
@@ -37,7 +37,7 @@ const CardEsqueleto = ({ largura }: { largura: number }) => (
 const AtlasProductCarousel = ({ nicho = null, compacto = false }: Props) => {
   const navigate = useNavigate();
   const { selecionarProduto, enviando } = useAtlasChat();
-  const { produtos, carregando, erro, resumo } = useProdutosRecomendados(nicho ?? null);
+  const { produtos, carregando, erro, resumo, recarregar } = useProdutosRecomendados(nicho ?? null);
 
   const trilhoRef = useRef<HTMLDivElement>(null);
   const escolhendoRef = useRef(false);
@@ -201,8 +201,16 @@ const AtlasProductCarousel = ({ nicho = null, compacto = false }: Props) => {
       </div>
 
       {!carregando && (
-        <div className="mt-2 flex items-center gap-3">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <span className="text-[11px] text-[#9A9A94]">Toque no produto para seguir com ele</span>
+          <button
+            type="button"
+            onClick={recarregar}
+            className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-[#2563EB] hover:underline"
+          >
+            <RefreshCw size={13} strokeWidth={2.2} aria-hidden />
+            Ver outros produtos
+          </button>
           <button
             type="button"
             onClick={() => navigate("/dashboard/catalogo")}

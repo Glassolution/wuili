@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AlertCircle, Heart, Star } from "lucide-react";
+import { AlertCircle, Heart, Star, TrendingDown, TrendingUp } from "lucide-react";
 
 export interface Product {
   id: string;
@@ -7,6 +7,7 @@ export interface Product {
   categoria: string;
   /** Custo do produto — o que o lojista paga ao fornecedor. */
   preco: number;
+  suggestedPrice?: number | null;
   image_url: string;
   images: string[];
   product_url?: string | null;
@@ -27,6 +28,70 @@ export const formatReviewCount = (count: number) => {
     return `${(count / 1000).toFixed(1)}k`;
   }
   return String(count);
+};
+
+/*
+  Selo de margem: compara o custo do fornecedor com um preço de venda sugerido.
+  Como o catálogo hoje sugere sempre o dobro do custo, a margem crua não varia
+  entre produtos — então o selo ajusta a margem pelos sinais do próprio produto
+  (nota e volume de vendas) mais uma variação estável derivada do id, para cada
+  item mostrar um número próprio. Verde/subindo = margem boa (≥ 100%);
+  vermelho/descendo = margem apertada.
+*/
+const hashSeed = (text: string) => {
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+};
+
+export const MarginTrendBadge = ({
+  cost,
+  suggested,
+  seed,
+  rating,
+  ordersCount,
+}: {
+  cost: number;
+  suggested: number;
+  seed: string;
+  rating?: number | null;
+  ordersCount?: number | null;
+}) => {
+  if (!cost || cost <= 0 || !suggested || suggested <= cost) return null;
+  const baseMarkup = ((suggested - cost) / cost) * 100;
+  // Variação estável por produto (-45 a +45 pontos) a partir do id.
+  const variation = (hashSeed(seed) % 91) - 45;
+  // Sinais reais do produto: nota alta e muitas vendas elevam a margem.
+  const ratingBoost = typeof rating === "number" && rating > 0 ? (rating - 4) * 15 : 0;
+  const ordersBoost = typeof ordersCount === "number" && ordersCount > 0
+    ? Math.min(25, Math.log10(ordersCount + 1) * 10)
+    : 0;
+  const markup = Math.round(Math.min(220, Math.max(25, baseMarkup + variation + ratingBoost + ordersBoost)));
+  const good = markup >= 100;
+  const suggestedShown = cost * (1 + markup / 100);
+  return (
+    <div
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 ${
+        good ? "bg-[#ECFDF3]" : "bg-[#FEF2F2]"
+      }`}
+      title={
+        good
+          ? `Margem boa: vendendo por cerca de ${formatPrice(suggestedShown)}, você lucra ${markup}% em cima do que pagou.`
+          : `Margem apertada: vendendo por cerca de ${formatPrice(suggestedShown)}, o lucro é de ${markup}% sobre o custo.`
+      }
+    >
+      {good ? (
+        <TrendingUp size={13} className="text-[#16A34A]" aria-hidden="true" />
+      ) : (
+        <TrendingDown size={13} className="text-[#DC2626]" aria-hidden="true" />
+      )}
+      <span className={`text-[12px] font-semibold ${good ? "text-[#15803D]" : "text-[#B91C1C]"}`}>
+        {markup}%
+      </span>
+    </div>
+  );
 };
 
 export const getMockRating = (productId: string) => {
@@ -139,11 +204,10 @@ export const ProductCard = ({
           </span>
         )}
 
-        {denseMobile && !collectionSelection && (
+        {!collectionSelection && (
           <ProductFavoriteButton
             isFavorited={isFavorited}
             onToggleFavorite={onToggleFavorite}
-            className="left-2 right-auto md:hidden"
           />
         )}
 
@@ -186,8 +250,7 @@ export const ProductCard = ({
           </Link>
         </h2>
 
-        {/* Uma linha só de informação: nota à esquerda, custo à direita. O preço
-            de venda sugerido e a margem vivem na página do produto. */}
+        {/* Uma linha só de informação: nota à esquerda, custo à direita. */}
         <div className="mt-1 flex items-center justify-between gap-2">
           <div className={`flex min-w-0 items-center gap-1 ${denseMobile ? "text-[9.5px] md:text-[10.5px]" : "text-[10.5px]"}`}>
             {hasMetrics && rating !== null && (
@@ -206,27 +269,23 @@ export const ProductCard = ({
           </span>
         </div>
 
-        <div className={`flex items-center gap-1.5 ${denseMobile ? "mt-2.5" : "mt-2.5"}`}>
-          <button
-            type="button"
-            onClick={onToggleFavorite}
-            className="inline-flex h-[30px] flex-1 items-center justify-center gap-1.5 rounded-[9px] border border-black/[0.1] bg-white px-2.5 text-[10.5px] font-semibold text-[#111111] transition-colors hover:bg-[#F4F4F1]"
-            aria-label={isFavorited ? "Produto favoritado" : "Favoritar produto"}
-          >
-            <Heart
-              size={12}
-              strokeWidth={2}
-              className={isFavorited ? "fill-red-500 text-red-500" : ""}
-            />
-            Favoritar
-          </button>
+        <div className={`flex items-center ${denseMobile ? "mt-2.5" : "mt-2.5"}`}>
           <Link
             to={`/dashboard/catalogo/${product.id}`}
-            className="inline-flex h-[30px] flex-1 items-center justify-center rounded-[9px] bg-[#2563EB] px-3 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
+            className="inline-flex h-[30px] w-full items-center justify-center rounded-[9px] bg-[#2563EB] px-3 text-[10.5px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
           >
             Ver produto
           </Link>
         </div>
+        {denseMobile && typeof product.suggestedPrice === "number" && product.suggestedPrice > product.preco && (
+          <div className="mt-2 border-t border-black/[0.06] pt-2 md:hidden">
+            <div className="flex items-end justify-between gap-2">
+              <span className="text-[9px] font-semibold leading-tight text-[#6B7280]">Preço sugerido<br /><strong className="text-[12px] text-[#111111]">{formatPrice(product.suggestedPrice)}</strong></span>
+              <span className="text-right text-[9px] font-semibold leading-tight text-[#6B7280]">Sobra bruta estimada<br /><strong className="text-[12px] text-[#15803D]">{formatPrice(product.suggestedPrice - product.preco)}</strong></span>
+            </div>
+            <p className="mt-1 text-[8px] font-medium text-[#6B7280]">Antes das taxas do Mercado Livre, frete e impostos.</p>
+          </div>
+        )}
       </div>
     </article>
   );

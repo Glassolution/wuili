@@ -458,7 +458,13 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
   const fechar = useCallback(() => {
     setAberto(false);
     setRotaDeAbertura(null);
-  }, []);
+    // A tela cheia /dashboard/atlas existe só para sediar a conversa: fechar o
+    // chat ali deixava a pessoa presa numa página que não deveria existir,
+    // em vez de voltar ao painel inicial.
+    if (location.pathname.startsWith("/dashboard/atlas")) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [location.pathname, navigate]);
   // Reabrir a partir da página atual volta ao modo padrão dela: reancorar a rota
   // evita o chat continuar lateral sem necessidade.
   const abrir = useCallback(() => {

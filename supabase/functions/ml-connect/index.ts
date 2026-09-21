@@ -25,8 +25,10 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const clientId = Deno.env.get("ML_CLIENT_ID");
-  const redirectUri = Deno.env.get("ML_REDIRECT_URI");
+  // .trim(): espaço/quebra de linha colada junto do secret gera uma URL
+  // invalida no ML e a pagina de autorizacao responde "pagina nao existe".
+  const clientId = Deno.env.get("ML_CLIENT_ID")?.trim();
+  const redirectUri = Deno.env.get("ML_REDIRECT_URI")?.trim();
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !clientId || !redirectUri) {
     return json({ error: "Configuracao do servidor incompleta" }, 500);
@@ -45,7 +47,10 @@ serve(async (req) => {
   const dbKey = Deno.env.get("DB_SERVICE_ROLE_KEY") ?? serviceRoleKey;
   const adminClient = createClient(dbUrl, dbKey);
   const state = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  // 60 min: no celular o usuário costuma parar no meio do fluxo do ML
+  // (login, completar cadastro, código por SMS). Com 10 min o state expirava
+  // antes do callback e a conexão falhava sem motivo aparente.
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
   const { error: stateError } = await adminClient.from("ml_oauth_states").insert({
     state,
@@ -66,5 +71,11 @@ serve(async (req) => {
   });
 
   const authUrl = `https://auth.mercadolivre.com.br/authorization?${params}`;
+  console.log("[ml-connect] authUrl gerada:", JSON.stringify({
+    user_id: userData.user.id,
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    auth_url: authUrl,
+  }));
   return json({ authUrl, auth_url: authUrl, url: authUrl });
 });

@@ -2,6 +2,7 @@ import { useLayoutEffect, useState, type ReactNode } from "react";
 import {
   BadgeDollarSign,
   BarChart3,
+  Bot,
   FileSearch,
   type LucideIcon,
   MessagesSquare,
@@ -9,10 +10,14 @@ import {
   RefreshCcw,
   Settings2,
   ShoppingBag,
+  Stethoscope,
   UsersRound,
 } from "lucide-react";
 import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
+import { OldAdminShell } from "@/components/admin/OldAdminShell";
 import SearchPalette from "@/components/dashboard/SearchPalette";
+import { getAdminPanelStyle } from "@/lib/adminPanelStyle";
+import { Activity } from "lucide-react";
 import "@/styles/admin-theme.css";
 
 type AdminSection =
@@ -25,6 +30,9 @@ type AdminSection =
   | "support"
   | "refunds"
   | "evidence"
+  | "diagnostics"
+  | "tracking"
+  | "automation"
   | "settings";
 
 type AdminShellProps = {
@@ -47,6 +55,9 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   support: "Suporte",
   refunds: "Reembolsos",
   evidence: "Evidências",
+  diagnostics: "Consulta",
+  tracking: "Rastreio",
+  automation: "Automação BOT",
   settings: "Integrações",
 };
 
@@ -60,6 +71,9 @@ const SECTION_ICON: Record<AdminSection, LucideIcon> = {
   support: MessagesSquare,
   refunds: RefreshCcw,
   evidence: FileSearch,
+  diagnostics: Stethoscope,
+  tracking: Activity,
+  automation: Bot,
   settings: Settings2,
 };
 
@@ -91,11 +105,20 @@ const PageHeader = ({
 
 export const AdminShell = ({ children, active, fullBleed = false, title, subtitle, actions }: AdminShellProps) => {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [panelStyle] = useState(() => getAdminPanelStyle());
 
   useLayoutEffect(() => {
     document.documentElement.classList.add("velo-admin-surface");
     return () => document.documentElement.classList.remove("velo-admin-surface");
   }, []);
+
+  if (panelStyle === "old") {
+    return (
+      <OldAdminShell active={active} userId="admin" fullBleed={fullBleed} title={title} subtitle={subtitle} actions={actions}>
+        {children}
+      </OldAdminShell>
+    );
+  }
 
   return (
     <div className="velo-admin-root h-screen overflow-hidden">

@@ -1,13 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
+  CheckCircle2,
+  ChevronLeft,
   ChevronRight,
-  ExternalLink,
+  Copy,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LockKeyhole,
+  Mail,
   MapPin,
   Package,
+  Phone,
   ShoppingBag,
+  type LucideIcon,
+  UserPlus,
+  UserRound,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +28,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import { isAdminEmail } from "@/lib/adminAccess";
+import { usePlan, type PlanName } from "@/hooks/usePlan";
 
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
@@ -53,6 +66,9 @@ const pageFont = {
   fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif',
 };
 
+const mlOrdersGridClass =
+  "md:grid-cols-[minmax(200px,1.45fr)_minmax(110px,0.8fr)_88px_minmax(72px,0.55fr)_76px_104px_96px_0px] 2xl:grid-cols-[minmax(300px,1.6fr)_minmax(150px,0.75fr)_112px_144px_96px_132px_180px_24px]";
+
 const formatBRL = (value: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
 
@@ -77,6 +93,173 @@ type ShippingAddress = {
   neighborhood?: string | null;
   city?: string | null;
   state?: string | null;
+};
+
+type SupplierPurchaseInfo = {
+  supplierUrl: string;
+  supplierPrice: number | null;
+  dropshipOrderId: string | null;
+  orderCode: string;
+  productTitle: string;
+  quantity: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerDocument: string;
+  address: ShippingAddress | null;
+};
+
+type BotPurchaseAudience = "geral" | "admin";
+type BotPurchaseAccessLevel = "gratis" | "base" | "pro" | "business" | "admin";
+type BotPurchaseSettings = {
+  enabled: boolean;
+  audience: BotPurchaseAudience;
+  accessLevels: BotPurchaseAccessLevel[];
+};
+
+type C7DropAccountStatus = {
+  status: "not_connected" | "connected" | "signup_requested" | "manual_action_required" | "invalid_credentials";
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
+  document?: string | null;
+  message?: string | null;
+  last_tested_at?: string | null;
+  connected_at?: string | null;
+  updated_at?: string | null;
+};
+
+type C7DropAccountForm = {
+  email: string;
+  password: string;
+  confirm_password: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  document: string;
+};
+
+const getPasswordStrength = (password: string) => {
+  const checks = [
+    { key: "letters", label: "Letras", valid: /[a-zà-öø-ÿ]/.test(password) },
+    { key: "numbers", label: "Números", valid: /\d/.test(password) },
+    { key: "symbols", label: "Símbolos", valid: /[^A-Za-zÀ-ÖØ-öø-ÿ0-9\s]/.test(password) },
+    { key: "uppercase", label: "Maiúsculas", valid: /[A-ZÀ-ÖØ-Þ]/.test(password) },
+  ];
+  const score = checks.filter((check) => check.valid).length;
+  const hasMinimumLength = password.length >= 6;
+  const isGood = hasMinimumLength && (score >= 4 || (score >= 3 && password.length >= 7));
+  const label = !password
+    ? "Vazia"
+    : !hasMinimumLength
+      ? "Curta"
+      : isGood
+        ? score >= 4 ? "Forte" : "Boa"
+        : score >= 3
+          ? "Quase boa"
+          : score >= 2
+            ? "Média"
+            : "Fraca";
+  const color = isGood ? "#2563EB" : score >= 2 ? "#F59E0B" : "#DC2626";
+
+  return {
+    checks,
+    score,
+    label,
+    color,
+    isGood,
+  };
+};
+
+type SupplierPurchaseDraft = {
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerDocument: string;
+  zip: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+};
+
+const DEFAULT_BOT_PURCHASE_SETTINGS: BotPurchaseSettings = {
+  enabled: true,
+  audience: "geral",
+  accessLevels: ["gratis", "base", "pro", "business", "admin"],
+};
+
+const BOT_PURCHASE_ACCESS_LEVELS: BotPurchaseAccessLevel[] = ["gratis", "base", "pro", "business", "admin"];
+
+const normalizeBotPurchaseSettings = (row: Record<string, unknown> | null | undefined): BotPurchaseSettings => {
+  const audience = row?.audience === "admin" ? "admin" : "geral";
+  const accessLevels = Array.isArray(row?.access_levels)
+    ? row.access_levels.filter((item): item is BotPurchaseAccessLevel =>
+        BOT_PURCHASE_ACCESS_LEVELS.includes(item as BotPurchaseAccessLevel),
+      )
+    : audience === "admin"
+      ? ["admin" as const]
+      : DEFAULT_BOT_PURCHASE_SETTINGS.accessLevels;
+
+  return {
+    enabled: row?.enabled !== false,
+    audience,
+    accessLevels: Array.from(new Set(accessLevels)),
+  };
+};
+
+const planToBotAccess = (plan: PlanName): BotPurchaseAccessLevel => {
+  if (plan === "business") return "business";
+  if (plan === "pro") return "pro";
+  if (plan === "base") return "base";
+  return "gratis";
+};
+
+const fetchBotPurchaseSettings = async (): Promise<BotPurchaseSettings> => {
+  const { data, error } = await supabase
+    .from("dropship_worker_settings" as never)
+    .select("enabled,audience,access_levels")
+    .eq("id" as never, true as never)
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeBotPurchaseSettings(data as unknown as Record<string, unknown> | null);
+};
+
+const fetchC7DropAccountStatus = async (): Promise<C7DropAccountStatus> => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: { action: "get_status" },
+  });
+  if (error) throw error;
+  return (data as { account?: C7DropAccountStatus } | null)?.account ?? { status: "not_connected" };
+};
+
+const saveC7DropAccount = async (mode: "connect" | "signup", form: C7DropAccountForm) => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: {
+      action: mode === "connect" ? "save_credentials" : "request_signup",
+      ...form,
+    },
+  });
+  const response = data as { account?: C7DropAccountStatus; error?: string } | null;
+  if (error || response?.error) {
+    throw new Error(response?.error ?? error?.message ?? "Não foi possível salvar a conta do fornecedor");
+  }
+  return response?.account ?? { status: "not_connected" as const };
+};
+
+const disconnectC7DropAccount = async () => {
+  const { data, error } = await supabase.functions.invoke("c7drop-account", {
+    body: { action: "disconnect" },
+  });
+  const response = data as { account?: C7DropAccountStatus; error?: string } | null;
+  if (error || response?.error) {
+    throw new Error(response?.error ?? error?.message ?? "Não foi possível desconectar a conta do fornecedor");
+  }
+  return response?.account ?? { status: "not_connected" as const };
 };
 
 const jsonText = (value: Json | undefined): string | null => {
@@ -106,6 +289,18 @@ const addressLines = (address: ShippingAddress | null) => {
   return [street, address.complement, address.neighborhood, cityState, address.zip ? `CEP ${address.zip}` : null]
     .map((line) => line?.trim())
     .filter((line): line is string => Boolean(line));
+};
+
+const formatStatusDateTime = (dateStr: string | null | undefined) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 const addressEntries = (address: ShippingAddress | null) => {
@@ -140,6 +335,12 @@ const getOrderImage = (order: MlOrderRow) => {
   return null;
 };
 
+const shortenTrackingCode = (code: string) => {
+  const trimmed = code.trim();
+  if (trimmed.length <= 14) return trimmed;
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-5)}`;
+};
+
 const supplierHref = (url: string | null | undefined) => {
   const trimmed = url?.trim();
   if (!trimmed) return null;
@@ -148,11 +349,125 @@ const supplierHref = (url: string | null | undefined) => {
   return `https://${trimmed}`;
 };
 
-const SupplierButton = ({ url, compact = false }: { url: string | null | undefined; compact?: boolean }) => {
+const purchaseInfoFromMlOrder = (order: MlOrderRow): SupplierPurchaseInfo | null => {
+  const supplierUrl = supplierHref(order.supplier_url);
+  if (!supplierUrl) return null;
+  return {
+    supplierUrl,
+    supplierPrice: order.cost_price && order.cost_price > 0 ? order.cost_price : null,
+    dropshipOrderId: null,
+    orderCode: getOrderCode(order),
+    productTitle: getProductName(order),
+    quantity: clean(order.quantity),
+    buyerName: clean(order.buyer_name),
+    buyerEmail: clean(order.buyer_email),
+    buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
+    address: {
+      zip: order.buyer_zip,
+      street: order.buyer_address,
+      number: order.buyer_number,
+      complement: order.buyer_complement,
+      neighborhood: order.buyer_neighborhood,
+      city: order.buyer_city,
+      state: order.buyer_state,
+    },
+  };
+};
+
+const purchaseInfoFromStoreOrder = (order: StoreOrderRow): SupplierPurchaseInfo | null => {
+  const supplierUrl = supplierHref(order.supplier_url);
+  if (!supplierUrl) return null;
+  return {
+    supplierUrl,
+    supplierPrice: order.supplier_price && order.supplier_price > 0 ? order.supplier_price : null,
+    dropshipOrderId: null,
+    orderCode: order.id,
+    productTitle: order.product_title,
+    quantity: clean(order.quantity),
+    buyerName: clean(order.buyer_name),
+    buyerEmail: clean(order.buyer_email),
+    buyerPhone: clean(order.buyer_phone),
+    buyerDocument: "",
+    address: normalizeShippingAddress(order.shipping_address),
+  };
+};
+
+const attachDropshipOrderId = async (info: SupplierPurchaseInfo, order: MlOrderRow): Promise<SupplierPurchaseInfo> => {
+  let supplierPrice = info.supplierPrice;
+  let buyerDocument = info.buyerDocument;
+
+  // Custo real do fornecedor: catálogo Velo (C7Drop) x quantidade.
+  if (!supplierPrice && order.catalog_product_id) {
+    const { data: catalog } = await supabase
+      .from("catalog_products")
+      .select("cost_price")
+      .eq("id", order.catalog_product_id)
+      .maybeSingle();
+    const unit = Number(catalog?.cost_price ?? 0);
+    if (unit > 0) supplierPrice = Number((unit * Math.max(1, Number(order.quantity ?? 1))).toFixed(2));
+  }
+
+  const mlOrderId = order.ml_order_id ?? order.external_order_id;
+  if (!mlOrderId) return { ...info, supplierPrice, buyerDocument };
+
+  const { data, error } = await supabase
+    .from("dropship_orders")
+    .select("id, customer_document")
+    .eq("ml_order_id", String(mlOrderId))
+    .maybeSingle();
+
+  if (error) throw error;
+  if (typeof data?.customer_document === "string" && data.customer_document.trim()) {
+    buyerDocument = data.customer_document.trim();
+  }
+
+  return {
+    ...info,
+    supplierPrice,
+    buyerDocument,
+    dropshipOrderId: typeof data?.id === "string" ? data.id : null,
+  };
+};
+
+const createPurchaseDraft = (info: SupplierPurchaseInfo): SupplierPurchaseDraft => ({
+  buyerName: info.buyerName === "—" ? "" : info.buyerName,
+  buyerEmail: info.buyerEmail === "—" ? "" : info.buyerEmail,
+  buyerPhone: info.buyerPhone === "—" ? "" : info.buyerPhone,
+  buyerDocument: info.buyerDocument ?? "",
+  zip: info.address?.zip ?? "",
+  street: info.address?.street ?? "",
+  number: info.address?.number ?? "",
+  complement: info.address?.complement ?? "",
+  neighborhood: info.address?.neighborhood ?? "",
+  city: info.address?.city ?? "",
+  state: info.address?.state ?? "",
+});
+
+
+const SupplierButton = ({
+  url,
+  compact = false,
+  onOpen,
+  manual = false,
+}: {
+  url: string | null | undefined;
+  compact?: boolean;
+  onOpen: () => void;
+  manual?: boolean;
+}) => {
   const href = supplierHref(url);
   const classes = compact
-    ? "inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-[#2563EB] px-3 text-[11px] font-semibold text-white transition hover:bg-[#1D4ED8]"
+    ? "inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-[#2563EB] px-3 text-[11px] font-semibold text-white transition hover:bg-[#1D4ED8]"
     : "inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[13px] font-semibold text-white transition hover:bg-[#1D4ED8]";
+  const label = compact ? (
+    <>
+      <span className="hidden 2xl:inline">Comprar no Fornecedor</span>
+      <span className="2xl:hidden">Comprar</span>
+    </>
+  ) : (
+    "Comprar no Fornecedor"
+  );
 
   if (!href) {
     return (
@@ -165,7 +480,7 @@ const SupplierButton = ({ url, compact = false }: { url: string | null | undefin
               className={`${classes} cursor-not-allowed opacity-40`}
             >
               <ShoppingBag size={15} strokeWidth={1.5} />
-              Comprar no Fornecedor
+              {label}
             </button>
           </span>
         </TooltipTrigger>
@@ -176,22 +491,895 @@ const SupplierButton = ({ url, compact = false }: { url: string | null | undefin
     );
   }
 
+  if (manual) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={classes}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <ShoppingBag size={15} strokeWidth={1.5} />
+        {label}
+      </a>
+    );
+  }
+
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
+    <button
+      type="button"
       className={classes}
-      onClick={(event) => event.stopPropagation()}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
     >
       <ShoppingBag size={15} strokeWidth={1.5} />
-      Comprar no Fornecedor
-      <ExternalLink size={14} strokeWidth={1.5} />
-    </a>
+      {label}
+    </button>
   );
 };
 
-const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void }) => {
+type C7DropPixState = {
+  copyPaste: string | null;
+  pixKey: string | null;
+  generatedAt: string | null;
+  expiresAt: string | null;
+  renewalCount: number;
+  paymentStatus: string | null;
+  status: string | null;
+};
+
+const SupplierPurchaseModal = ({ info, onClose, onCreatedPix }: { info: SupplierPurchaseInfo | null; onClose: () => void; onCreatedPix?: () => void }) => {
+  const [draft, setDraft] = useState<SupplierPurchaseDraft | null>(() => (info ? createPurchaseDraft(info) : null));
+  const [pixOrderId, setPixOrderId] = useState<string | null>(null);
+  const [pix, setPix] = useState<C7DropPixState | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+
+  useEffect(() => {
+    setDraft(info ? createPurchaseDraft(info) : null);
+    setPixOrderId(null);
+    setPix(null);
+    setQrDataUrl(null);
+    setIsGeneratingQr(false);
+  }, [info]);
+
+  // O bot da Railway grava o Pix da C7Drop no pedido; ficamos ouvindo até chegar.
+  useEffect(() => {
+    if (!pixOrderId) return;
+    let active = true;
+
+    const load = async () => {
+      const { data } = await supabase
+        .from("dropship_orders")
+        .select("status,payment_status,c7drop_pix_copy_paste,c7drop_pix_key,c7drop_pix_generated_at,c7drop_pix_expires_at,c7drop_pix_renewal_count")
+        .eq("id", pixOrderId)
+        .maybeSingle();
+      if (!active || !data) return;
+      setPix({
+        copyPaste: data.c7drop_pix_copy_paste ?? null,
+        pixKey: data.c7drop_pix_key ?? null,
+        generatedAt: data.c7drop_pix_generated_at ?? null,
+        expiresAt: data.c7drop_pix_expires_at ?? null,
+        renewalCount: Number(data.c7drop_pix_renewal_count ?? 0),
+        paymentStatus: data.payment_status ?? null,
+        status: data.status ?? null,
+      });
+    };
+
+    void load();
+    const timer = window.setInterval(load, 6000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [pixOrderId]);
+
+  useEffect(() => {
+    const code = pix?.copyPaste?.trim();
+    if (!code) {
+      setQrDataUrl(null);
+      return;
+    }
+    let active = true;
+    void import("qrcode").then(async (mod) => {
+      const url = await mod.default.toDataURL(code, { width: 320, margin: 1 }).catch(() => null);
+      if (active) setQrDataUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pix?.copyPaste]);
+
+  if (!info || !draft) return null;
+
+  const update = (field: keyof SupplierPurchaseDraft, value: string) => {
+    setDraft((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const handleBuy = async () => {
+    if (isGeneratingQr) return;
+    if (!info.dropshipOrderId) {
+      veloToast.error("Este pedido ainda não está conectado ao bot. Sincronize os pedidos e tente novamente.");
+      return;
+    }
+    const document = draft.buyerDocument.replace(/\D/g, "");
+    if (document.length !== 11 && document.length !== 14) {
+      veloToast.error("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido do comprador.");
+      return;
+    }
+    setIsGeneratingQr(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("dropship-request-c7drop-pix", {
+        body: {
+          order_id: info.dropshipOrderId,
+          payer_document: document,
+          payer_name: draft.buyerName || undefined,
+          payer_email: draft.buyerEmail || undefined,
+          buyer_phone: draft.buyerPhone || undefined,
+          address: {
+            zip: draft.zip || undefined,
+            street: draft.street || undefined,
+            number: draft.number || undefined,
+            complement: draft.complement || undefined,
+            neighborhood: draft.neighborhood || undefined,
+            city: draft.city || undefined,
+            state: draft.state || undefined,
+          },
+        },
+      });
+      const response = data as { error?: string } | null;
+      if (error || response?.error) {
+        let detail = response?.error ?? null;
+        // deno-lint-ignore no-explicit-any -- context não é tipado pelo SDK
+        const context = (error as any)?.context;
+        if (!detail && context && typeof context.json === "function") {
+          const body = await context.json().catch(() => null);
+          detail = typeof body?.error === "string" ? body.error : null;
+        }
+        throw new Error(detail ?? error?.message ?? "Não foi possível gerar o Pix.");
+      }
+
+      setPixOrderId(info.dropshipOrderId);
+      onCreatedPix?.();
+      veloToast.success("Pedido enviado ao bot. O Pix do fornecedor aparece aqui em instantes.");
+    } catch (error) {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível gerar o Pix.");
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  const supplierPriceLabel = info.supplierPrice ? formatBRL(info.supplierPrice) : "Não informado";
+
+  if (pixOrderId) {
+    const isPaid = pix?.paymentStatus === "paid";
+    const expiresLabel = pix?.expiresAt
+      ? new Date(pix.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      : null;
+
+    return (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]" onClick={onClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="supplier-qr-title"
+          className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="h-1.5 bg-[#2563EB]" />
+          <div className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
+                <h2 id="supplier-qr-title" className="mt-1 text-[22px] font-black tracking-[-0.04em] text-[#020817]">
+                  Pix do fornecedor
+                </h2>
+              </div>
+              <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-6 grid place-items-center rounded-[22px] border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+              {isPaid ? (
+                <p className="text-center text-[13px] font-black text-[#137443]">Pagamento confirmado. O bot está finalizando o pedido no fornecedor.</p>
+              ) : qrDataUrl ? (
+                <img src={qrDataUrl} alt="QR Code Pix da compra no fornecedor" className="h-56 w-56" />
+              ) : (
+                <p className="text-center text-[13px] font-semibold text-[#64748B]">
+                  Gerando o Pix no fornecedor... isso leva alguns instantes. Deixe esta janela aberta.
+                </p>
+              )}
+            </div>
+
+            {!isPaid && pix?.copyPaste ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(pix.copyPaste ?? "");
+                    veloToast.success("Código Pix copiado.");
+                  } catch {
+                    veloToast.error("Não foi possível copiar o código.");
+                  }
+                }}
+                className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[14px] border border-[#C7D7FE] bg-[#EFF6FF] px-4 text-[12px] font-black text-[#1D4ED8] transition hover:bg-[#E0EAFF]"
+              >
+                <Copy size={14} strokeWidth={2} />
+                Copiar código Pix (copia e cola)
+              </button>
+            ) : null}
+
+            <div className="mt-5 text-center">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#94A3B8]">Preço do fornecedor</p>
+              <p className="mt-1 text-[30px] font-black tracking-[-0.05em] text-[#020817]">{supplierPriceLabel}</p>
+            </div>
+
+            {!isPaid ? (
+              <div className="mt-5 rounded-[16px] border border-[#FACC15]/50 bg-[#FEFCE8] px-4 py-3 text-center">
+                <p className="text-[13px] font-black text-[#854D0E]">
+                  Validade estimada: 45 minutos{expiresLabel ? ` (até ${expiresLabel})` : ""}.
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#A16207]">
+                  Se vencer, o bot gera um novo Pix automaticamente (até 3 vezes).
+                  {pix?.renewalCount ? ` Renovações até agora: ${pix.renewalCount}.` : ""}
+                </p>
+              </div>
+            ) : null}
+
+            {!isPaid ? (
+              <div className="mt-4 rounded-[16px] border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-3 text-center">
+                <p className="text-[13px] font-black text-[#137443]">
+                  Depois de pagar, aguarde a confirmação automática.
+                </p>
+                <p className="mt-1 text-[12px] font-semibold leading-relaxed text-[#15803D]">
+                  O bot acompanha o fornecedor e atualiza o pedido quando o pagamento for identificado.
+                </p>
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-[#020817]/45 px-4 pb-[calc(128px+env(safe-area-inset-bottom))] pt-4 backdrop-blur-[3px] sm:items-center sm:py-6" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="supplier-purchase-title"
+        className="flex max-h-[calc(100dvh-144px-env(safe-area-inset-bottom))] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] border border-[#D8E3F8] bg-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] sm:max-h-[calc(100dvh-48px)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="h-1.5 bg-[#2563EB]" />
+        <div className="min-h-0 overflow-y-auto p-6 pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Comprar no fornecedor</p>
+              <h2 id="supplier-purchase-title" className="mt-1 text-[20px] font-black tracking-[-0.04em] text-[#020817]">
+                Informações do comprador
+              </h2>
+              <p className="mt-1 line-clamp-2 text-[12px] font-medium text-[#64748B]">
+                Confira ou complete os dados antes de comprar: {info.productTitle}
+              </p>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-full p-1.5 text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-3 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 sm:grid-cols-4">
+            <MiniInfo label="Pedido" value={info.orderCode} />
+            <MiniInfo label="Quantidade" value={info.quantity} />
+            <MiniInfo label="Fornecedor" value="Fornecedor Velo" />
+            <MiniInfo label="Preço do fornecedor" value={supplierPriceLabel} />
+          </div>
+
+          <div className="mt-5 grid gap-5 lg:grid-cols-2">
+            <section>
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#64748B]">
+                <UserRound size={14} />
+                Comprador
+              </div>
+              <div className="space-y-3">
+                <PurchaseField label="Nome" icon={UserRound} value={draft.buyerName} onChange={(value) => update("buyerName", value)} />
+                <PurchaseField label="E-mail" icon={Mail} value={draft.buyerEmail} onChange={(value) => update("buyerEmail", value)} />
+                <PurchaseField label="Telefone" icon={Phone} value={draft.buyerPhone} onChange={(value) => update("buyerPhone", value)} />
+                <PurchaseField label="CPF / CNPJ" value={draft.buyerDocument} onChange={(value) => update("buyerDocument", value)} />
+
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-3 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.12em] text-[#64748B]">
+                <MapPin size={14} />
+                Entrega
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <PurchaseField label="CEP" value={draft.zip} onChange={(value) => update("zip", value)} />
+                <PurchaseField label="Estado" value={draft.state} onChange={(value) => update("state", value)} />
+                <PurchaseField label="Cidade" value={draft.city} onChange={(value) => update("city", value)} />
+                <PurchaseField label="Bairro" value={draft.neighborhood} onChange={(value) => update("neighborhood", value)} />
+                <PurchaseField label="Rua" value={draft.street} onChange={(value) => update("street", value)} className="sm:col-span-2" />
+                <PurchaseField label="Número" value={draft.number} onChange={(value) => update("number", value)} />
+                <PurchaseField label="Complemento" value={draft.complement} onChange={(value) => update("complement", value)} />
+              </div>
+            </section>
+          </div>
+
+        </div>
+        <div className="shrink-0 border-t border-[#E2E8F0] bg-white/95 p-4 backdrop-blur sm:flex sm:justify-end">
+          <button
+            type="button"
+            onClick={handleBuy}
+            disabled={isGeneratingQr}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+          >
+            <ShoppingBag size={15} />
+            {isGeneratingQr ? "Gerando Pix..." : "Gerar Pix do fornecedor"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const C7DropAccountBanner = ({
+  account,
+  onOpen,
+}: {
+  account: C7DropAccountStatus;
+  onOpen: () => void;
+}) => {
+  const connected = account.status === "connected";
+  const pending = account.status === "signup_requested";
+  const pendingSince = account.updated_at ? new Date(account.updated_at).getTime() : null;
+  const pendingMinutes = pendingSince && !Number.isNaN(pendingSince)
+    ? Math.floor((Date.now() - pendingSince) / 60_000)
+    : null;
+  const pendingDelayed = pending && pendingMinutes !== null && pendingMinutes >= 3;
+  const needsManualAction = account.status === "manual_action_required";
+  const invalidCredentials = account.status === "invalid_credentials";
+  const hasIssue = needsManualAction || invalidCredentials;
+  const hasWarning = hasIssue || pendingDelayed;
+  const statusView = connected
+    ? {
+        badge: "Conta criada",
+        badgeClass: "bg-[#DCFCE7] text-[#15803D] ring-[#86EFAC]",
+        step: 3,
+        detail: `Pronta${formatStatusDateTime(account.connected_at ?? account.updated_at) ? ` em ${formatStatusDateTime(account.connected_at ?? account.updated_at)}` : ""}`,
+      }
+    : pending
+      ? {
+          badge: pendingDelayed ? "Bot sem resposta" : "Em criação",
+          badgeClass: pendingDelayed ? "bg-[#FFEDD5] text-[#C2410C] ring-[#FDBA74]" : "bg-[#EFF6FF] text-[#2563EB] ring-[#BFDBFE]",
+          step: pendingDelayed ? 1 : 2,
+          detail: pendingDelayed
+            ? `Salva ha ${pendingMinutes} min, mas o bot ainda nao confirmou. Verifique se o worker esta online.`
+            : `Na fila do bot${formatStatusDateTime(account.updated_at) ? ` desde ${formatStatusDateTime(account.updated_at)}` : ""}`,
+        }
+      : hasIssue
+        ? {
+            badge: needsManualAction ? "Ação manual" : "Problema",
+            badgeClass: "bg-[#FFEDD5] text-[#C2410C] ring-[#FDBA74]",
+            step: 1,
+            detail: formatStatusDateTime(account.last_tested_at ?? account.updated_at)
+              ? `Última tentativa em ${formatStatusDateTime(account.last_tested_at ?? account.updated_at)}`
+              : "O bot tentou e parou nesse status",
+          }
+        : {
+            badge: "Não conectada",
+            badgeClass: "bg-[#F1F5F9] text-[#64748B] ring-[#E2E8F0]",
+            step: 0,
+            detail: "Preencha os dados para iniciar",
+          };
+  const title = connected
+    ? "Conta do fornecedor conectada"
+    : pendingDelayed
+      ? "O bot ainda não confirmou essa conta"
+    : needsManualAction
+      ? "Fornecedor pediu validação manual"
+      : invalidCredentials
+        ? "Revise os dados da conta do fornecedor"
+        : "Crie uma conta no fornecedor e automatize seus pedidos direto na Velo";
+  const copy = connected
+    ? "O bot vai comprar no fornecedor usando a conta conectada, mantendo reembolso e suporte no acesso do vendedor."
+    : pendingDelayed
+      ? "A solicitação foi salva, mas passou do tempo normal de processamento. Isso costuma acontecer quando o worker do bot não está rodando ou ainda não recebeu o deploy."
+    : pending
+      ? "Sua solicitação de conta no fornecedor está salva. O bot vai tentar criar a conta e avisar se precisar de validação."
+      : needsManualAction
+        ? account.message ?? "O fornecedor pediu uma validação manual antes de liberar a conta."
+        : invalidCredentials
+          ? account.message ?? "Os dados salvos não permitiram conectar. Abra o formulário, confira e salve novamente."
+          : "Conecte uma conta existente ou deixe os dados prontos para criar uma conta. Assim cada vendedor mantém seus próprios pedidos, reembolsos e suporte direto no fornecedor.";
+
+  return (
+    <section className={`mb-5 overflow-hidden rounded-2xl border p-4 shadow-[0_14px_34px_rgba(37,99,235,0.08)] md:mb-7 md:flex md:items-center md:justify-between md:gap-5 ${hasWarning ? "border-[#FED7AA] bg-gradient-to-r from-[#FFF7ED] via-white to-[#FFFBEB]" : "border-[#D7E4FF] bg-gradient-to-r from-[#EFF6FF] via-white to-[#F8FAFC]"}`}>
+      <div className="flex min-w-0 items-start gap-3">
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ${hasWarning ? "bg-[#F97316]" : "bg-[#2563EB]"}`}>
+          {connected ? <CheckCircle2 size={20} /> : <UserPlus size={20} />}
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-black tracking-[-0.04em] text-[#0F172A]">
+              {title}
+            </p>
+            <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-[10px] font-black uppercase tracking-[0.08em] ring-1 ${statusView.badgeClass}`}>
+              {statusView.badge}
+            </span>
+          </div>
+          <p className="mt-1 max-w-2xl text-[12.5px] font-medium leading-relaxed text-[#64748B]">
+            {copy}
+          </p>
+          {!connected ? (
+          <div className="mt-3 max-w-xl">
+            <div className="grid grid-cols-3 gap-1.5">
+              {["Dados salvos", "Bot criando", "Conta pronta"].map((label, index) => {
+                const active = statusView.step >= index + 1;
+                const failed = hasIssue && index >= 1;
+                const delayed = pendingDelayed && index === 1;
+                return (
+                  <div key={label} className="min-w-0">
+                    <span
+                      className={`block h-1.5 rounded-full ${
+                        failed || delayed ? "bg-[#FDBA74]" : active ? "bg-[#2563EB]" : "bg-[#E2E8F0]"
+                      }`}
+                    />
+                    <span className={`mt-1 block truncate text-[10px] font-bold ${active || failed || delayed ? "text-[#475569]" : "text-[#94A3B8]"}`}>
+                      {label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={`mt-2 text-[11.5px] font-bold ${hasWarning ? "text-[#C2410C]" : connected ? "text-[#15803D]" : "text-[#64748B]"}`}>
+              {statusView.detail}
+            </p>
+          </div>
+          ) : null}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#2563EB] px-4 text-[12.5px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] md:mt-0 md:w-auto md:shrink-0"
+      >
+        <KeyRound size={15} />
+        {connected ? "Gerenciar fornecedor" : hasIssue ? "Corrigir conta" : "Conectar fornecedor"}
+      </button>
+    </section>
+  );
+};
+
+const C7DropAccountManageModal = ({
+  open,
+  account,
+  disconnecting,
+  onClose,
+  onChangeAccount,
+  onDisconnect,
+}: {
+  open: boolean;
+  account: C7DropAccountStatus;
+  disconnecting: boolean;
+  onClose: () => void;
+  onChangeAccount: () => void;
+  onDisconnect: () => void;
+}) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
+      <div className="w-full max-w-sm overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_22px_58px_rgba(15,23,42,0.18)]">
+        <div className="h-1 bg-[#2563EB]" />
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Fornecedor</p>
+            <h2 className="mt-1 text-[18px] font-black tracking-[-0.04em] text-[#020817]">Gerenciar conta</h2>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="rounded-2xl border border-[#D7E4FF] bg-[#F8FAFC] p-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#64748B]">Conta conectada</p>
+            <p className="mt-1 truncate text-[14px] font-black text-[#0F172A]">{account.email ?? "Conta C7 conectada"}</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onChangeAccount}
+            className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-4 text-[13px] font-black text-white shadow-[0_12px_24px_rgba(37,99,235,0.22)] transition hover:bg-[#1D4ED8]"
+          >
+            <KeyRound size={15} />
+            Trocar conta
+          </button>
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={disconnecting}
+            className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[14px] border border-[#FCA5A5] bg-white px-4 text-[13px] font-black text-[#DC2626] transition hover:bg-[#FEF2F2] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <X size={15} />
+            {disconnecting ? "Desconectando..." : "Desconectar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const C7DropAccountModal = ({
+  open,
+  account,
+  saving,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  account: C7DropAccountStatus;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (mode: "connect" | "signup", form: C7DropAccountForm) => void;
+}) => {
+  const [mode, setMode] = useState<"connect" | "signup">("connect");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [form, setForm] = useState<C7DropAccountForm>({
+    email: account.email ?? "",
+    password: "",
+    confirm_password: "",
+    first_name: account.first_name ?? "",
+    last_name: account.last_name ?? "",
+    phone: account.phone ?? "",
+    document: account.document ?? "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setMode("connect");
+    setStep(1);
+    setForm({
+      email: account.email ?? "",
+      password: "",
+      confirm_password: "",
+      first_name: account.first_name ?? "",
+      last_name: account.last_name ?? "",
+      phone: account.phone ?? "",
+      document: account.document ?? "",
+    });
+  }, [account.document, account.email, account.first_name, account.last_name, account.phone, open]);
+
+  if (!open) return null;
+
+  const update = (key: keyof C7DropAccountForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const passwordMatches = form.password === form.confirm_password;
+  const passwordStrength = getPasswordStrength(form.password);
+  const isSignup = mode === "signup";
+  const loginReady =
+    form.email &&
+    form.password &&
+    passwordStrength.isGood &&
+    (!isSignup || (form.confirm_password && passwordMatches));
+  const purchaseReady =
+    form.first_name &&
+    form.last_name &&
+    form.phone &&
+    form.document;
+  const canSave = loginReady && purchaseReady;
+  const switchMode = (nextMode: "connect" | "signup") => {
+    setMode(nextMode);
+    setStep(1);
+    if (nextMode === "connect") {
+      setForm((current) => ({ ...current, confirm_password: "" }));
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#020817]/45 px-4 py-6 backdrop-blur-[3px]">
+      <div className="flex max-h-[calc(100dvh-48px)] w-full max-w-lg flex-col overflow-hidden rounded-[22px] border border-[#D8E3F8] bg-white shadow-[0_22px_58px_rgba(15,23,42,0.18)]">
+        <div className="h-1 bg-[#2563EB]" />
+        <div className="flex items-start justify-between gap-4 border-b border-[#EEF1F6] p-4">
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2563EB]">Fornecedor</p>
+            <h2 className="mt-1 text-[18px] font-black tracking-[-0.04em] text-[#020817]">Conta do fornecedor</h2>
+            <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">O bot usará essa conta para comprar os pedidos desse vendedor.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]" aria-label="Fechar">
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-4">
+          <div>
+            {step === 1 ? (
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#2563EB]">
+                  {isSignup ? "Criar conta" : "Login do fornecedor"}
+                </p>
+                <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
+                  {isSignup
+                    ? "Escolha o e-mail e a senha para a nova conta."
+                    : "Use o e-mail e a senha da conta já criada."}
+                </p>
+                <div className="mt-4 grid gap-3">
+                  <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
+                  <PasswordPurchaseField
+                    label="Senha da conta"
+                    value={form.password}
+                    onChange={(value) => update("password", value)}
+                    visible={showPassword}
+                    onToggleVisible={() => setShowPassword((current) => !current)}
+                  />
+                  {isSignup ? (
+                    <PasswordPurchaseField
+                      label="Confirmar senha"
+                      value={form.confirm_password}
+                      onChange={(value) => update("confirm_password", value)}
+                      visible={showConfirmPassword}
+                      onToggleVisible={() => setShowConfirmPassword((current) => !current)}
+                    />
+                  ) : null}
+                </div>
+                <PasswordStrengthMeter strength={passwordStrength} />
+                {form.password && !passwordStrength.isGood ? (
+                  <p className="mt-2 text-[12px] font-bold text-[#DC2626]">
+                    Mínimo 6 caracteres: com 6 use os 4 tipos; com 7+ use pelo menos 3 tipos.
+                  </p>
+                ) : null}
+                {form.confirm_password && !passwordMatches ? (
+                  <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
+                ) : null}
+                <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
+                  {isSignup ? "Já tem uma conta?" : "Não tem uma conta?"}{" "}
+                  <button
+                    type="button"
+                    onClick={() => switchMode(isSignup ? "connect" : "signup")}
+                    className="font-bold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                  >
+                    {isSignup ? "Fazer login" : "Criar conta grátis"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-[12px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Dados para compra</p>
+                <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
+                  O bot usa esses dados quando o checkout do fornecedor pedir identificação.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
+                  <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
+                  <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
+                  <PurchaseField label="CPF/CNPJ" value={form.document} onChange={(value) => update("document", value)} icon={KeyRound} />
+                </div>
+                <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
+                  <p>
+                    {isSignup ? "Criando uma conta nova" : "Usando uma conta existente"}
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="font-bold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                    >
+                      alterar login
+                    </button>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-[#EEF1F6] px-4 py-3">
+          {step === 1 ? (
+            <>
+              <button type="button" onClick={onClose} className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!loginReady}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Continuar
+                <ChevronRight size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" onClick={() => setStep(1)} className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#D8E3F8] bg-white px-4 text-[12px] font-bold text-[#475569] transition hover:bg-[#F8FAFC]">
+                <ChevronLeft size={14} />
+                Voltar
+              </button>
+              <button
+                type="button"
+                onClick={() => onSave(mode, form)}
+                disabled={saving || !canSave}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <KeyRound size={14} />
+                {mode === "connect" ? "Salvar conexão" : "Salvar para criar"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MiniInfo = ({ label, value }: { label: string; value: string }) => (
+  <div className="min-w-0">
+    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#94A3B8]">{label}</p>
+    <p className="mt-1 truncate text-[13px] font-black text-[#020817]">{value}</p>
+  </div>
+);
+
+const PurchaseField = ({
+  label,
+  value,
+  onChange,
+  icon: Icon,
+  className = "",
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  icon?: LucideIcon;
+  className?: string;
+  type?: string;
+}) => (
+  <label className={`block min-w-0 ${className}`}>
+    <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">
+      {Icon ? <Icon size={12} /> : null}
+      {label}
+    </span>
+    <input
+      type={type}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-10 w-full rounded-[12px] border border-[#D8E3F8] bg-white px-3 text-[13px] font-semibold text-[#020817] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+      placeholder="-"
+    />
+  </label>
+);
+
+const PasswordPurchaseField = ({
+  label,
+  value,
+  onChange,
+  visible,
+  onToggleVisible,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggleVisible: () => void;
+}) => {
+  const Icon = visible ? EyeOff : Eye;
+
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#64748B]">
+        <LockKeyhole size={12} />
+        {label}
+      </span>
+      <span className="relative block">
+        <input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 w-full rounded-[12px] border border-[#D8E3F8] bg-white px-3 pr-10 text-[13px] font-semibold text-[#020817] outline-none transition placeholder:text-[#94A3B8] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+          placeholder="-"
+        />
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-[#64748B] transition hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+          aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+        >
+          <Icon size={15} strokeWidth={2} />
+        </button>
+      </span>
+    </label>
+  );
+};
+
+const PasswordStrengthMeter = ({ strength }: { strength: ReturnType<typeof getPasswordStrength> }) => (
+  <div className="mt-3">
+    <div className="grid grid-cols-4 gap-1">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <span
+          key={index}
+          className="h-1.5 rounded-full transition"
+          style={{
+            backgroundColor: index < strength.score ? strength.color : "#E2E8F0",
+          }}
+        />
+      ))}
+    </div>
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-bold">
+      <span style={{ color: strength.color }}>Força: {strength.label}</span>
+      <span className="text-[#94A3B8]">mínimo 6 caracteres</span>
+    </div>
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {strength.checks.map((check) => (
+        <span
+          key={check.key}
+          className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${
+            check.valid ? "bg-[#EFF6FF] text-[#2563EB]" : "bg-[#F8FAFC] text-[#94A3B8]"
+          }`}
+        >
+          {check.label}
+        </span>
+      ))}
+    </div>
+  </div>
+);
+
+const TrackingCodeBadge = ({ code }: { code: string | null | undefined }) => {
+  const trackingCode = code?.trim();
+
+  if (!trackingCode) {
+    return <span className="text-[13px] font-semibold text-[#A3A3A3]">—</span>;
+  }
+
+  const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(trackingCode);
+      veloToast.success("Código de rastreio copiado.");
+    } catch {
+      veloToast.error("Não foi possível copiar o código.");
+    }
+  };
+
+  return (
+    <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[#DBEAFE] bg-[#EFF6FF] px-2.5 py-1 text-[#1D4ED8]" title={trackingCode}>
+      <span className="truncate text-[12px] font-black">{shortenTrackingCode(trackingCode)}</span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[#2563EB] transition hover:bg-white"
+        aria-label="Copiar código de rastreio"
+      >
+        <Copy size={12} strokeWidth={2} />
+      </button>
+    </div>
+  );
+};
+
+const OrderRow = ({
+  order,
+  onSelect,
+  onSupplierPurchase,
+  useBotPurchase,
+}: {
+  order: MlOrderRow;
+  onSelect: () => void;
+  onSupplierPurchase: (order: MlOrderRow) => Promise<void> | void;
+  useBotPurchase: boolean;
+}) => {
   const image = getOrderImage(order);
 
   return (
@@ -240,9 +1428,19 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
             </span>
           </div>
           <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-[#8E8E87]">Rastreio</p>
+            <div className="mt-1">
+              <TrackingCodeBadge code={order.tracking_code} />
+            </div>
+          </div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold text-[#8E8E87]">Data</p>
             <p className="mt-1 text-[13px] font-semibold leading-tight text-[#111111]">{formatDate(order.ordered_at ?? order.created_at)}</p>
           </div>
+        </div>
+
+        <div className="mt-4 border-t border-[#EFEFEB] pt-3">
+          <SupplierButton url={order.supplier_url} compact manual={!useBotPurchase} onOpen={() => onSupplierPurchase(order)} />
         </div>
       </div>
 
@@ -256,7 +1454,7 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
             onSelect();
           }
         }}
-        className="group hidden cursor-pointer grid-cols-1 gap-3 border-b border-[#EFEFEB] bg-white px-4 py-4 outline-none transition hover:bg-[#F7F7F8] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:grid md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center"
+        className={`group hidden cursor-pointer grid-cols-1 gap-4 border-b border-[#EFEFEB] bg-white px-4 py-4 outline-none transition hover:bg-[#F7F7F8] focus-visible:ring-2 focus-visible:ring-[#2563EB]/30 md:grid ${mlOrdersGridClass} md:items-center`}
       >
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-[#EFEFEC]">
@@ -277,28 +1475,33 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
           <p className="truncate text-[13px] font-semibold text-[#0A0A0A]">{clean(order.buyer_name)}</p>
         </div>
 
-        <div>
+        <div className="min-w-0 md:flex md:justify-center">
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Status</p>
           <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-[12px] font-semibold ${getStatusStyle(order.status)}`}>
             {getStatusLabel(order.status)}
           </span>
         </div>
 
-        <div>
+        <div className="min-w-0 md:flex md:justify-center">
+          <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Rastreio</p>
+          <TrackingCodeBadge code={order.tracking_code} />
+        </div>
+
+        <div className="min-w-0 md:text-right">
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Valor</p>
           <p className="text-[13px] font-semibold text-[#0A0A0A]">{formatBRL(order.total_amount ?? order.sale_price)}</p>
         </div>
 
-        <div>
+        <div className="min-w-0 md:text-right">
           <p className="text-[12px] font-medium uppercase text-[#A3A3A3] md:hidden">Data</p>
           <p className="text-[13px] font-medium text-[#525252]">{formatDate(order.ordered_at ?? order.created_at)}</p>
         </div>
 
         <div className="flex items-center gap-2 md:justify-end">
-          <SupplierButton url={order.supplier_url} compact />
+          <SupplierButton url={order.supplier_url} compact manual={!useBotPurchase} onOpen={() => onSupplierPurchase(order)} />
         </div>
 
-        <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] md:block" />
+        <ChevronRight size={18} strokeWidth={1.5} className="hidden text-[#A3A3A3] transition group-hover:translate-x-0.5 group-hover:text-[#0A0A0A] 2xl:block" />
       </div>
     </>
   );
@@ -307,7 +1510,7 @@ const OrderRow = ({ order, onSelect }: { order: MlOrderRow; onSelect: () => void
 const OrderSkeleton = () => (
   <div className="rounded-2xl border border-[#E5E7EB] bg-white">
     {[1, 2, 3, 4].map((item) => (
-      <div key={item} className="grid gap-3 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] md:items-center">
+      <div key={item} className={`grid gap-4 border-b border-[#EFEFEB] px-4 py-4 last:border-b-0 ${mlOrdersGridClass} md:items-center`}>
         <div className="flex items-center gap-3">
           <Skeleton className="h-12 w-12 rounded-lg" />
           <div className="flex-1 space-y-2">
@@ -317,6 +1520,7 @@ const OrderSkeleton = () => (
         </div>
         <Skeleton className="h-4 w-28" />
         <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-28 rounded-full" />
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-9 w-40 rounded-lg" />
@@ -341,14 +1545,16 @@ type StoreOrderRow = {
   created_at: string;
   catalog_product_id: string | null;
   supplier_url: string | null;
+  supplier_price: number | null;
   /** Variação vendida ("Cor: Azul · Tamanho: G"), quando o produto tem. */
   variant_label: string | null;
   variant_sku: string | null;
   shipping_address: Json | null;
 };
 
-const StoreOrdersList = ({ userId }: { userId: string }) => {
+const StoreOrdersList = ({ userId, useBotPurchase }: { userId: string; useBotPurchase: boolean }) => {
   const [addressOrder, setAddressOrder] = useState<StoreOrderRow | null>(null);
+  const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["store-orders", userId],
     queryFn: async () => {
@@ -359,17 +1565,32 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
-      const rows = (data ?? []) as Omit<StoreOrderRow, "supplier_url">[];
+      const rows = (data ?? []) as Omit<StoreOrderRow, "supplier_url" | "supplier_price">[];
       const ids = Array.from(new Set(rows.map((r) => r.catalog_product_id).filter((v): v is string => Boolean(v))));
-      let urlMap = new Map<string, string | null>();
+      let productMap = new Map<string, { url: string | null; cost: number | null }>();
       if (ids.length > 0) {
         const { data: prods } = await supabase
           .from("catalog_products")
-          .select("id,product_url")
+          .select("id,product_url,cost_price")
           .in("id", ids);
-        urlMap = new Map((prods ?? []).map((p) => [p.id as string, (p.product_url as string | null) ?? null]));
+        productMap = new Map(
+          (prods ?? []).map((p) => [
+            p.id as string,
+            {
+              url: (p.product_url as string | null) ?? null,
+              cost: typeof p.cost_price === "number" ? p.cost_price : null,
+            },
+          ]),
+        );
       }
-      return rows.map((r) => ({ ...r, supplier_url: r.catalog_product_id ? urlMap.get(r.catalog_product_id) ?? null : null })) as StoreOrderRow[];
+      return rows.map((r) => {
+        const product = r.catalog_product_id ? productMap.get(r.catalog_product_id) : null;
+        return {
+          ...r,
+          supplier_url: product?.url ?? null,
+          supplier_price: product?.cost ?? null,
+        };
+      }) as StoreOrderRow[];
     },
   });
 
@@ -439,13 +1660,23 @@ const StoreOrdersList = ({ userId }: { userId: string }) => {
               </span>
               <p className="text-[13px] text-[#525252]">{formatDate(order.created_at)}</p>
               <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                <SupplierButton url={order.supplier_url} compact />
+                <SupplierButton
+                  url={order.supplier_url}
+                  compact
+                  manual={!useBotPurchase}
+                  onOpen={() => {
+                    const info = purchaseInfoFromStoreOrder(order);
+                    if (info) setSupplierPurchaseInfo(info);
+                    else veloToast.error("Este pedido não possui fornecedor vinculado.");
+                  }}
+                />
               </div>
             </div>
           );
         })}
       </div>
       <StoreOrderAddressModal order={addressOrder} onClose={() => setAddressOrder(null)} />
+      <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} />
     </>
   );
 };
@@ -513,11 +1744,77 @@ const StoreOrderAddressModal = ({ order, onClose }: { order: StoreOrderRow | nul
 };
 
 const OrdersPage = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const { plan } = usePlan();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<OrderTab>("ml");
+  const [supplierPurchaseInfo, setSupplierPurchaseInfo] = useState<SupplierPurchaseInfo | null>(null);
+  const [c7DropAccountModalOpen, setC7DropAccountModalOpen] = useState(false);
+  const [c7DropAccountManageOpen, setC7DropAccountManageOpen] = useState(false);
   const syncedRef = useRef(false);
+  const isAdminUser = useMemo(() => {
+    const metadataRole =
+      (user?.app_metadata?.role as string | undefined) ??
+      (user?.user_metadata?.role as string | undefined) ??
+      null;
+    return role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email);
+  }, [role, user?.app_metadata?.role, user?.email, user?.user_metadata?.role]);
+
+  const { data: botPurchaseSettings = DEFAULT_BOT_PURCHASE_SETTINGS } = useQuery({
+    queryKey: ["dropship-worker-settings"],
+    queryFn: fetchBotPurchaseSettings,
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
+
+  const userAccessLevels = useMemo(() => {
+    const levels = new Set<BotPurchaseAccessLevel>([planToBotAccess(plan)]);
+    if (isAdminUser) levels.add("admin");
+    return levels;
+  }, [isAdminUser, plan]);
+
+  const useBotPurchase =
+    botPurchaseSettings.enabled &&
+    botPurchaseSettings.accessLevels.some((level) => userAccessLevels.has(level));
+
+  const { data: c7DropAccount = { status: "not_connected" as const } } = useQuery({
+    queryKey: ["c7drop-account", user?.id],
+    queryFn: fetchC7DropAccountStatus,
+    enabled: !!user?.id && useBotPurchase,
+    refetchInterval: 60_000,
+  });
+
+  const c7DropAccountMutation = useMutation({
+    mutationFn: ({ mode, form }: { mode: "connect" | "signup"; form: C7DropAccountForm }) => {
+      if (!useBotPurchase) {
+        throw new Error("A automação por fornecedor não está liberada para este acesso.");
+      }
+      return saveC7DropAccount(mode, form);
+    },
+    onSuccess: (account) => {
+      queryClient.setQueryData(["c7drop-account", user?.id], account);
+      setC7DropAccountModalOpen(false);
+      setC7DropAccountManageOpen(false);
+      veloToast.success(account.status === "connected" ? "Conta do fornecedor conectada." : "Solicitação de conta no fornecedor salva.");
+    },
+    onError: (error: unknown) => {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível salvar a conta do fornecedor.");
+    },
+  });
+
+  const c7DropDisconnectMutation = useMutation({
+    mutationFn: () => disconnectC7DropAccount(),
+    onSuccess: (account) => {
+      queryClient.setQueryData(["c7drop-account", user?.id], account);
+      setC7DropAccountManageOpen(false);
+      setC7DropAccountModalOpen(false);
+      veloToast.success("Conta do fornecedor desconectada.");
+    },
+    onError: (error: unknown) => {
+      veloToast.error(error instanceof Error ? error.message : "Não foi possível desconectar a conta do fornecedor.");
+    },
+  });
 
   const triggerSync = useMemo(
     () => () => {
@@ -708,8 +2005,21 @@ const OrdersPage = () => {
           <div className="hidden xl:block xl:flex-1" />
         </div>
 
+        {useBotPurchase ? (
+          <C7DropAccountBanner
+            account={c7DropAccount}
+            onOpen={() => {
+              if (c7DropAccount.status === "connected") {
+                setC7DropAccountManageOpen(true);
+                return;
+              }
+              setC7DropAccountModalOpen(true);
+            }}
+          />
+        ) : null}
+
         {tab === "loja" && user?.id ? (
-          <StoreOrdersList userId={user.id} />
+          <StoreOrdersList userId={user.id} useBotPurchase={useBotPurchase} />
         ) : isLoading ? (
           <OrderSkeleton />
         ) : isEmpty ? (
@@ -724,12 +2034,13 @@ const OrdersPage = () => {
           </div>
         ) : (
           <div data-dashboard-tour="pedidos-lista" className="space-y-3 bg-transparent md:space-y-0 md:overflow-hidden md:rounded-2xl md:border md:border-[#E5E7EB] md:bg-white">
-            <div className="hidden grid-cols-[minmax(0,1.7fr)_minmax(130px,0.7fr)_112px_112px_118px_190px_28px] border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid">
+            <div className={`hidden gap-4 border-b border-[#EFEFEB] bg-[#F7F7F8] px-4 py-3 text-[11px] font-semibold uppercase text-[#777771] md:grid ${mlOrdersGridClass}`}>
               <span>Produto</span>
               <span>Comprador</span>
-              <span>Status</span>
-              <span>Valor</span>
-              <span>Data</span>
+              <span className="text-center">Status</span>
+              <span className="text-center">Rastreio</span>
+              <span className="text-right">Valor</span>
+              <span className="text-right">Data</span>
               <span className="text-right">Fornecedor</span>
               <span />
             </div>
@@ -742,10 +2053,42 @@ const OrdersPage = () => {
                   if (routeId) navigate(`/dashboard/orders/${encodeURIComponent(routeId)}`);
                   else veloToast.error("Este pedido não possui um identificador válido.");
                 }}
+                onSupplierPurchase={async (selectedOrder) => {
+                  const info = purchaseInfoFromMlOrder(selectedOrder);
+                  if (!info) {
+                    veloToast.error("Este pedido não possui fornecedor vinculado.");
+                    return;
+                  }
+                  try {
+                    setSupplierPurchaseInfo(await attachDropshipOrderId(info, selectedOrder));
+                  } catch {
+                    veloToast.error("Não foi possível localizar este pedido na fila do bot.");
+                  }
+                }}
+                useBotPurchase={useBotPurchase}
               />
             ))}
           </div>
         )}
+        <C7DropAccountManageModal
+          open={useBotPurchase && c7DropAccountManageOpen && c7DropAccount.status === "connected"}
+          account={c7DropAccount}
+          disconnecting={c7DropDisconnectMutation.isPending}
+          onClose={() => setC7DropAccountManageOpen(false)}
+          onChangeAccount={() => {
+            setC7DropAccountManageOpen(false);
+            setC7DropAccountModalOpen(true);
+          }}
+          onDisconnect={() => c7DropDisconnectMutation.mutate()}
+        />
+        <C7DropAccountModal
+          open={useBotPurchase && c7DropAccountModalOpen}
+          account={c7DropAccount}
+          saving={c7DropAccountMutation.isPending}
+          onClose={() => setC7DropAccountModalOpen(false)}
+          onSave={(mode, form) => c7DropAccountMutation.mutate({ mode, form })}
+        />
+        <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} onCreatedPix={() => queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user?.id] })} />
       </DashboardPageShell>
     </TooltipProvider>
   );
