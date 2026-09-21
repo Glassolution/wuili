@@ -508,32 +508,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     if (planLimits.canPublishProducts) {
-      // Único ponto em que o tutorial pode abrir: o usuário pediu para publicar.
-      // Revalidamos com o ML na hora, porque ele pode ter ajustado a conta desde
-      // a última tentativa. Só liberamos a publicação com a conta apta.
-      setCheckingSeller(true);
-      const live = await fetchSellerReady();
-      setCheckingSeller(false);
-      const ready = live ?? !mlAccountNeedsVerification;
-      if (!ready) {
-        setMlVerifyModalOpen(true);
-        return;
-      }
+      // Quem já paga publica direto. Se o Mercado Livre recusar por conta sem
+      // perfil de vendedor, o próprio handlePublish guarda o anúncio e abre a
+      // ajuda com texto e vídeo.
       void handlePublish();
       return;
     }
 
-    // Quem ainda não assina vê a etapa de plano somente depois de conectar e revisar.
-    // Antes de mostrar o pagamento, conferimos se a conta consegue vender: ninguém
-    // deve pagar para só depois descobrir que o Mercado Livre não libera anúncios.
-    setCheckingSeller(true);
-    const apta = await fetchSellerReady();
-    setCheckingSeller(false);
-    if (apta === false) {
-      trackMobileHomeEvent(user?.id, "ml_seller_not_ready", { productId: product?.id, detail: "antes_do_plano" });
-      setMlVerifyModalOpen(true);
-      return;
-    }
+    // Quem ainda não assina segue direto para o plano: a conta de vendedor
+    // deixou de bloquear o caminho antes do pagamento. A ajuda para ativar a
+    // conta acontece depois, com o anúncio já pronto e salvo.
     advanceTo(4);
   };
 
