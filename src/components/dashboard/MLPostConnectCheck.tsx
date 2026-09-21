@@ -7,13 +7,13 @@ import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerifica
 import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 
 /**
- * Verifica se a conta recém-conectada do Mercado Livre pode vender.
+ * Verifica em segundo plano se a conta recém-conectada do Mercado Livre pode
+ * vender.
  *
- * Antes isso só acontecia no clique em publicar — depois da tela de planos —,
- * então dava para assinar e só então descobrir que a conta estava bloqueada.
- * Aqui a checagem roda assim que o OAuth volta (`?ml_connected=true`), antes
- * de qualquer cobrança. Falha de rede não bloqueia ninguém: sem resposta clara
- * o fluxo segue como antes.
+ * Por decisão de produto, o pagamento vem antes da ativação da conta de
+ * vendedor: aqui NÃO abrimos modal nem interrompemos ninguém. A checagem serve
+ * só para medir e para o app adaptar as mensagens depois. A ajuda com texto e
+ * vídeo aparece depois do pagamento, na hora de publicar.
  */
 const MLPostConnectCheck = () => {
   const { user } = useAuth();
