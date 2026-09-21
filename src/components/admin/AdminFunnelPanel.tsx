@@ -148,7 +148,7 @@ const AdminFunnelPanel = () => {
         <div className="space-y-3">
           <div>
             <p className="mb-1 text-[12px] font-medium text-[#8c8c87]">Período</p>
-            <Chips value={days} options={PERIODOS.map((p) => ({ id: p, label: `${p} dias` }))} onChange={setDays} />
+            <Chips<number> value={days} options={PERIODOS.map((p) => ({ id: p, label: `${p} dias` }))} onChange={setDays} />
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
