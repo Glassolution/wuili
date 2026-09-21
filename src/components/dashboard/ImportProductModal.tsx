@@ -25,6 +25,7 @@ import {
   inferStickerAlbumName,
   isStickerAlbumProduct,
   montarAtributosMl,
+  montarCorpoDePublicacao,
   primeiraImagemDoProduto,
   publicarNoMercadoLivre,
   type ResultadoDaPublicacao,
