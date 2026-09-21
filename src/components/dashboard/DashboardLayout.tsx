@@ -781,13 +781,7 @@ const DashboardLayoutInner = () => {
 
     if (params.get("ml_error")) {
       trackMobileHomeEvent(user?.id, "ml_connect_result", { detail: `error:${params.get("ml_error")}` });
-      const errors: Record<string, string> = {
-        missing_params: "Parametros ausentes na resposta do Mercado Livre.",
-        token_failed: "Nao foi possivel obter o token. Tente novamente.",
-        db_failed: "Erro ao salvar a integracao. Tente novamente.",
-      };
-      const msg = errors[params.get("ml_error")!] ?? "Erro desconhecido na integracao.";
-      veloToast.error(`Erro ao conectar Mercado Livre: ${msg}`);
+      veloToast.error(mensagemDeErroDaConexaoMl(params.get("ml_error")));
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
