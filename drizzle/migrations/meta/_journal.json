@@ -113,6 +113,13 @@
       "when": 1789979570567,
       "tag": "0015_fix_paying_daily_count",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789986221581,
+      "tag": "0016_funil_por_coorte_admin",
+      "breakpoints": true
     }
   ]
 }

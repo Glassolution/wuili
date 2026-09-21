@@ -4375,6 +4375,31 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      rpc_admin_cohort_entry: {
+        Args: { p_days?: number; p_offset_days?: number }
+        Returns: {
+          direto: number
+          total: number
+          via_landing: number
+        }[]
+      }
+      rpc_admin_cohort_funnel: {
+        Args: {
+          p_browser?: string
+          p_days?: number
+          p_device?: string
+          p_offset_days?: number
+          p_origem?: string
+        }
+        Returns: {
+          definicao: string
+          etapa: string
+          medicao_desde: string
+          nao_precisava: number
+          ordem: number
+          pessoas: number
+        }[]
+      }
       rpc_admin_error_breakdown: {
         Args: { p_days?: number }
         Returns: {
@@ -4416,6 +4441,15 @@ export type Database = {
         }[]
       }
       rpc_admin_paid_without_seller: {
+        Args: { p_days?: number }
+        Returns: {
+          ativaram: number
+          horas_medias: number
+          pagaram: number
+          reembolsos: number
+        }[]
+      }
+      rpc_admin_paid_without_seller_cohort: {
         Args: { p_days?: number }
         Returns: {
           ativaram: number
