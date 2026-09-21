@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import TourLab from "@/pages/__TourLab";
 import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
 import DashboardIntroSessionGuard from "@/components/DashboardIntroSessionGuard";
@@ -167,7 +168,18 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
-const PlanosPage = lazy(() => import("./pages/dashboard/PlanosPage"));
+const OpenPlansModalRoute = () => {
+  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
+
+  useEffect(() => {
+    upgradeModal.open();
+    navigate("/dashboard", { replace: true });
+  }, [navigate, upgradeModal]);
+
+  return null;
+};
+
 
 
 const MorePage = () => (
@@ -305,7 +317,7 @@ const App = () => (
                 <Route path="transacoes" element={<TransacoesPage />} />
                 <Route path="comissoes" element={<CommissionsPage />} />
                 <Route path="pagamentos" element={<PagamentosPage />} />
-                <Route path="planos" element={<PlanosPage />} />
+                <Route path="planos" element={<OpenPlansModalRoute />} />
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="produtos" element={<CatalogPage />} />
                 <Route path="pedidos" element={<OrdersPage />} />
