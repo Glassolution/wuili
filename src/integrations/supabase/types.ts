@@ -1583,30 +1583,42 @@ export type Database = {
       }
       landing_events: {
         Row: {
+          browser_kind: string | null
           created_at: string
           detail: string | null
           device: string | null
           event: string
           id: string
+          origem: string | null
           referrer: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
           visitor_id: string | null
         }
         Insert: {
+          browser_kind?: string | null
           created_at?: string
           detail?: string | null
           device?: string | null
           event: string
           id?: string
+          origem?: string | null
           referrer?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
           visitor_id?: string | null
         }
         Update: {
+          browser_kind?: string | null
           created_at?: string
           detail?: string | null
           device?: string | null
           event?: string
           id?: string
+          origem?: string | null
           referrer?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
           visitor_id?: string | null
         }
         Relationships: []
@@ -2047,8 +2059,10 @@ export type Database = {
       }
       mobile_home_events: {
         Row: {
+          browser_kind: string | null
           created_at: string
           detail: string | null
+          device: string | null
           elapsed_ms: number | null
           event_name: string
           id: string
@@ -2057,8 +2071,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          browser_kind?: string | null
           created_at?: string
           detail?: string | null
+          device?: string | null
           elapsed_ms?: number | null
           event_name: string
           id?: string
@@ -2067,8 +2083,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          browser_kind?: string | null
           created_at?: string
           detail?: string | null
+          device?: string | null
           elapsed_ms?: number | null
           event_name?: string
           id?: string
@@ -2405,6 +2423,7 @@ export type Database = {
           utm_campaign: string | null
           utm_medium: string | null
           utm_source: string | null
+          visitor_id: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -2440,6 +2459,7 @@ export type Database = {
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          visitor_id?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -2475,6 +2495,7 @@ export type Database = {
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          visitor_id?: string | null
           whatsapp?: string | null
         }
         Relationships: []
@@ -4354,6 +4375,15 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      rpc_admin_error_breakdown: {
+        Args: { p_days?: number }
+        Returns: {
+          motivo: string
+          ocorrencias: number
+          pessoas: number
+          tipo: string
+        }[]
+      }
       rpc_admin_exit_pages: {
         Args: { p_days?: number; p_limit?: number }
         Returns: {
@@ -4362,12 +4392,36 @@ export type Database = {
           saidas: number
         }[]
       }
+      rpc_admin_full_funnel: {
+        Args: {
+          p_browser?: string
+          p_days?: number
+          p_device?: string
+          p_offset_days?: number
+          p_origem?: string
+        }
+        Returns: {
+          definicao: string
+          etapa: string
+          ordem: number
+          pessoas: number
+        }[]
+      }
       rpc_admin_landing_funnel: {
         Args: { p_days?: number }
         Returns: {
           evento: string
           total: number
           visitantes: number
+        }[]
+      }
+      rpc_admin_paid_without_seller: {
+        Args: { p_days?: number }
+        Returns: {
+          ativaram: number
+          horas_medias: number
+          pagaram: number
+          reembolsos: number
         }[]
       }
       rpc_admin_paying_daily: {
@@ -4501,9 +4555,13 @@ export type Database = {
       rpc_landing_stats: { Args: never; Returns: Json }
       rpc_landing_track: {
         Args: {
+          p_browser?: string
           p_device?: string
           p_event: string
+          p_origem?: string
           p_referrer?: string
+          p_utm_campaign?: string
+          p_utm_medium?: string
           p_visitor_id?: string
         }
         Returns: boolean
@@ -4520,9 +4578,11 @@ export type Database = {
       }
       rpc_signup_track: {
         Args: {
+          p_browser?: string
           p_detail?: string
           p_device?: string
           p_event: string
+          p_origem?: string
           p_referrer?: string
           p_visitor_id?: string
         }

@@ -49,13 +49,22 @@ export function detectInAppBrowser(): string | null {
 
 export function trackSignup(event: string, detail?: string) {
   try {
-    void supabase.rpc("rpc_signup_track", {
-      p_event: event,
-      p_visitor_id: getVisitorId(),
-      p_device: getDevice(),
-      p_detail: detail ?? null,
-      p_referrer: typeof document !== "undefined" ? document.referrer || null : null,
-    });
+    const origem = readOrigin();
+    // O cliente do banco só dispara a chamada quando alguém "escuta" a promessa:
+    // sem o .then() abaixo nenhum evento de cadastro era gravado.
+    void supabase
+      .rpc("rpc_signup_track", {
+        p_event: event,
+        p_visitor_id: getVisitorId(),
+        p_device: getDevice(),
+        p_detail: detail ?? null,
+        p_referrer: typeof document !== "undefined" ? document.referrer || null : null,
+        p_origem: origem.utm_source || origem.signup_source || null,
+        p_browser: detectInAppBrowser() ? "interno" : "normal",
+      })
+      .then(({ error }) => {
+        if (error) console.warn("[medição] cadastro não registrado:", error.message);
+      });
   } catch {
     /* medição nunca pode atrapalhar o cadastro */
   }

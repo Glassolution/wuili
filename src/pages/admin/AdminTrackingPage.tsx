@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import AdminFunnelPanel from "@/components/admin/AdminFunnelPanel";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -93,6 +94,7 @@ const ROTULO_FUNIL: Record<string, string> = {
 
 const AdminTrackingPage = () => {
   const [days, setDays] = useState(30);
+  const [aba, setAba] = useState<"funil" | "geral">("funil");
 
   const traffic = useQuery({
     queryKey: ["admin-traffic", days],
@@ -188,6 +190,24 @@ const AdminTrackingPage = () => {
       }
     >
       <div className="space-y-4">
+        <div className="flex items-center gap-1 rounded-2xl border border-[#ececE6] bg-white p-1">
+          {(["funil", "geral"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setAba(t)}
+              className={`flex-1 rounded-xl px-3 py-2 text-[13px] font-medium transition ${
+                aba === t ? "bg-[#171715] text-white" : "text-[#77776f] hover:bg-[#f6f6f3]"
+              }`}
+            >
+              {t === "funil" ? "Funil completo" : "Visão geral"}
+            </button>
+          ))}
+        </div>
+
+        {aba === "funil" ? <AdminFunnelPanel /> : null}
+
+        <div className={aba === "geral" ? "space-y-4" : "hidden"}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi icon={Users} label="Acessos hoje" value={String(last?.usuarios ?? 0)} sub={`${last?.sessoes ?? 0} sessões`} />
           <Kpi
@@ -342,6 +362,7 @@ const AdminTrackingPage = () => {
             <p className="text-[13px] text-[#77776f]">Nenhum pedido de reembolso no período.</p>
           )}
         </Card>
+        </div>
       </div>
     </AdminShell>
   );
