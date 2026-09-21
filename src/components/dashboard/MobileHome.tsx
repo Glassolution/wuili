@@ -1182,6 +1182,17 @@ const MobileHome = () => {
     return () => { active = false; };
   }, [user?.id]);
 
+  // Só consultamos o status de vendedor quando há conexão: sem token o ML não
+  // responde nada útil e o checklist seguiria igual.
+  useEffect(() => {
+    if (!user?.id || !mlConnected) return;
+    let active = true;
+    void lerStatusVendedorMl().then((status) => {
+      if (active) setSellerReady(status.apta);
+    });
+    return () => { active = false; };
+  }, [user?.id, mlConnected]);
+
   useEffect(() => {
     if (!user?.id) return;
     const states = { choose_product: choseProduct, connect_ml: mlConnected, publish: hasPublication };
