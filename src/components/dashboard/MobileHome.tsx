@@ -324,6 +324,7 @@ const MobileAliVeloHome = ({
   hasPublication,
   choseProduct,
   needsMlSellerGuide,
+  sellerReady,
   onChooseProduct,
 }: {
   products: ProductPreview[];
@@ -339,6 +340,8 @@ const MobileAliVeloHome = ({
   hasPublication: boolean;
   choseProduct: boolean;
   needsMlSellerGuide: boolean;
+  /** null = ainda não sabemos (sem conexão ou consulta indisponível). */
+  sellerReady: boolean | null;
   onChooseProduct: (productId: string) => void;
 }) => {
   const navigate = useNavigate();
