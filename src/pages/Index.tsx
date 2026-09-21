@@ -410,11 +410,23 @@ export default function Index() {
         visitor = crypto.randomUUID();
         window.localStorage.setItem("velo_visitor_id", visitor);
       }
+      const params = new URLSearchParams(window.location.search);
+      const ua = navigator.userAgent || "";
+      const interno = /Instagram|FBAN|FBAV|FB_IAB|Messenger|musical_ly|Bytedance|TikTok|Trill/i.test(ua);
+      let origem = params.get("utm_source") || params.get("ref") || null;
+      if (!origem && document.referrer) {
+        try { origem = new URL(document.referrer).hostname.replace(/^www\./, ""); } catch { origem = null; }
+      }
+      if (!origem && interno) origem = "rede-social";
       await supabase.rpc("rpc_landing_track", {
         p_event: evento,
         p_visitor_id: visitor,
         p_device: window.innerWidth < 640 ? "mobile" : "desktop",
         p_referrer: document.referrer || null,
+        p_origem: origem ?? "direto",
+        p_utm_medium: params.get("utm_medium"),
+        p_utm_campaign: params.get("utm_campaign"),
+        p_browser: interno ? "interno" : "normal",
       });
     } catch {
       /* medição nunca pode quebrar a página */

@@ -339,6 +339,8 @@ const LoginPage = () => {
           utm_source: origem.utm_source,
           utm_medium: origem.utm_medium,
           utm_campaign: origem.utm_campaign,
+          // Liga o visitante anônimo da landing à conta criada (funil ponta a ponta).
+          visitor_id: getVisitorId(),
         })
         .eq("user_id", data.user.id);
       // Marca o onboarding como pendente para este usuário: garante que o modal
