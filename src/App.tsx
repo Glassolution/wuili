@@ -167,7 +167,18 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
-const PlanosPage = lazy(() => import("./pages/dashboard/PlanosPage"));
+const OpenPlansModalRoute = () => {
+  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
+
+  useEffect(() => {
+    upgradeModal.open();
+    navigate("/dashboard", { replace: true });
+  }, [navigate, upgradeModal]);
+
+  return null;
+};
+
 
 
 const MorePage = () => (
