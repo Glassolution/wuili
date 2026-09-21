@@ -180,8 +180,8 @@ const AdminFunnelPanel = () => {
           <div>
             <p className="font-semibold">Medição possivelmente falhando</p>
             <p>
-              Estas etapas estão com zero pessoas, mas há gente nas etapas seguintes — o aviso do navegador não está
-              chegando: {lacunas.join(", ")}.
+              Estas etapas mostram menos gente do que a etapa seguinte, o que é impossível: o aviso dessas telas não
+              está sendo registrado direito: {lacunas.join(", ")}.
             </p>
           </div>
         </div>
