@@ -319,13 +319,36 @@ const MLAccountVerificationModal = ({ open, onClose, onFinish, onVerified }: Pro
 
                 {step === 2 && (
                   <button
-                    onClick={() => setVideoOpen(true)}
+                    onClick={() => {
+                      trackMobileHomeEvent(user?.id, "ml_seller_video_play");
+                      setVideoOpen(true);
+                    }}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] font-['Hanken_Grotesk',_sans-serif] text-[15px] font-medium tracking-[-0.01em] text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5]"
                   >
                     <PlayCircle size={16} />
                     Assistir vídeo tutorial
                   </button>
                 )}
+
+                <button
+                  onClick={() => void recheck()}
+                  disabled={rechecking}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/[0.1] bg-white px-7 py-[13px] text-[15px] font-medium text-[#0A0A0A] transition-colors duration-150 hover:bg-[#F5F5F5] disabled:opacity-60"
+                >
+                  {rechecking ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  {rechecking ? "Verificando..." : "Já criei minha conta, verificar de novo"}
+                </button>
+
+                <button
+                  onClick={() => {
+                    close();
+                    setTimeout(() => navigate("/dashboard/configuracoes?suporte=1"), 250);
+                  }}
+                  className="mx-auto mt-3 flex items-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] text-[#5C5F66] transition-colors duration-150 hover:text-[#0A0A0A]"
+                >
+                  <LifeBuoy size={14} /> Falar com uma pessoa da Velo
+                </button>
+
 
                 {step > 1 && (
                   <button
