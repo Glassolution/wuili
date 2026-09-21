@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth, ML_CONNECT_FALLBACK_MESSAGE } from "@/lib/mercadoLivreOAuth";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 const DISMISS_KEY = "velo:ml-reconnect-banner-dismissed";
 
