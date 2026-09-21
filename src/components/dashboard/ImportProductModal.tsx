@@ -35,6 +35,7 @@ import { getProductPricingEstimate } from "@/lib/productPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
+import { enfileirarPublicacaoPendente, tentarPublicarPendentesAgora } from "@/lib/publicacaoPendente";
 import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
 import { lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
 
