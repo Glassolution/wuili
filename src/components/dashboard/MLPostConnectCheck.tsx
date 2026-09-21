@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { tentarPublicarPendentesAgora } from "@/lib/publicacaoPendente";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { lerStatusVendedorMl } from "@/lib/mlConexao";
