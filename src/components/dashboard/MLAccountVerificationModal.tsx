@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle } from "lucide-react";
+import { X, ArrowRight, ArrowLeft, ExternalLink, ShieldCheck, Check, PlayCircle, Loader2, LifeBuoy } from "lucide-react";
 import VideoTutorialModal from "./VideoTutorialModal";
 import { TUTORIAL_CONTA_VENDEDOR } from "@/lib/tutorialMercadoLivre";
+import { lerStatusVendedorMl } from "@/lib/mlConexao";
+import { veloToast } from "@/components/ui/velo-toast";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
   open: boolean;
@@ -13,6 +18,8 @@ type Props = {
    * Use para retomar o fluxo de publicação de onde parou.
    */
   onFinish?: () => void;
+  /** Chamado quando a reverificação confirma que a conta já pode vender. */
+  onVerified?: () => void;
 };
 
 type Step = 1 | 2 | 3;
