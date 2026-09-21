@@ -131,11 +131,14 @@ const AdminFunnelPanel = () => {
     return calc.map((l, i) => ({ ...l, destaque: i > 0 && l.perda > 0 && l.perda >= maiorPerda * 0.6 }));
   }, [atual.data, anterior.data]);
 
-  // Lacunas de medição: etapa zerada com gente na etapa seguinte = evento não disparou.
+  /*
+    Lacunas de medição: etapa zerada (ou menor que a seguinte) indica que o aviso
+    daquela tela não está chegando — o número não dá para confiar ainda.
+  */
   const lacunas = useMemo(
     () =>
       linhas
-        .filter((l, i) => l.pessoas === 0 && Number(linhas[i + 1]?.pessoas ?? 0) > 0)
+        .filter((l, i) => i < linhas.length - 1 && l.pessoas < Number(linhas[i + 1]?.pessoas ?? 0))
         .map((l) => l.etapa),
     [linhas],
   );
