@@ -5,6 +5,7 @@ import TourLab from "@/pages/__TourLab";
 import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
 import DashboardIntroSessionGuard from "@/components/DashboardIntroSessionGuard";
 import MLReconnectModal from "@/components/dashboard/MLReconnectModal";
+import MLPostConnectCheck from "@/components/dashboard/MLPostConnectCheck";
 import { VeloToaster } from "@/components/ui/velo-toast";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { TooltipProvider } from "@/components/ui/tooltip";
