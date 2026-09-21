@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
 import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
+import { getVisitorId } from "@/lib/signupFunnel";
 
 const enter = {
   initial: { opacity: 0, y: 14, filter: "blur(6px)" },
