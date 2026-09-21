@@ -6,6 +6,7 @@ import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
 import DashboardIntroSessionGuard from "@/components/DashboardIntroSessionGuard";
 import MLReconnectModal from "@/components/dashboard/MLReconnectModal";
 import MLPostConnectCheck from "@/components/dashboard/MLPostConnectCheck";
+import PosPagamentoRetomada from "@/components/dashboard/PosPagamentoRetomada";
 import { VeloToaster } from "@/components/ui/velo-toast";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,7 +15,7 @@ import { ProfileProvider } from "@/lib/profileContext";
 import AdminRoute from "@/components/AdminRoute";
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { UpgradeModalProvider, useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -166,17 +167,7 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
-const OpenPlansModalRoute = () => {
-  const navigate = useNavigate();
-  const upgradeModal = useUpgradeModal();
-
-  useEffect(() => {
-    upgradeModal.open();
-    navigate("/dashboard", { replace: true });
-  }, [navigate, upgradeModal]);
-
-  return null;
-};
+const PlanosPage = lazy(() => import("./pages/dashboard/PlanosPage"));
 
 
 const MorePage = () => (
@@ -215,6 +206,7 @@ const App = () => (
           <MarcarAppCarregado />
           <MLReconnectModal />
           <MLPostConnectCheck />
+          <PosPagamentoRetomada />
           <Suspense fallback={<RouteFallback />}>
 
             <Routes>
@@ -313,7 +305,7 @@ const App = () => (
                 <Route path="transacoes" element={<TransacoesPage />} />
                 <Route path="comissoes" element={<CommissionsPage />} />
                 <Route path="pagamentos" element={<PagamentosPage />} />
-                <Route path="planos" element={<OpenPlansModalRoute />} />
+                <Route path="planos" element={<PlanosPage />} />
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="produtos" element={<CatalogPage />} />
                 <Route path="pedidos" element={<OrdersPage />} />

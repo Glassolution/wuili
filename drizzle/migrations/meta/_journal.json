@@ -78,6 +78,20 @@
       "when": 1789950325421,
       "tag": "0010_create_pending_publications",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789951607209,
+      "tag": "0011_rpc_active_subscribers_count",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789951889249,
+      "tag": "0012_cron_lembrete_planos",
+      "breakpoints": true
     }
   ]
 }

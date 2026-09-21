@@ -52,6 +52,11 @@ export type MobileHomeEvent =
   | "ml_reconnect_prompt"
   | "plans_open"
   | "plans_exit"
+  | "plans_scroll"
+  | "plans_plan_selected"
+  | "plans_faq_opened"
+  | "plans_back_to_review"
+  | "plans_return_after_payment"
   | "plan_checkout_clicked"
   | "publish_result";
 

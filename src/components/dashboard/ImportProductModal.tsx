@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { X, Check, Loader2, Sparkles, Globe, ExternalLink, ArrowRight, Store, ShieldCheck, CheckCircle2, Link2 } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,7 @@ import {
 import { getProductPricingEstimate } from "@/lib/productPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { clearProductImportDraft, readProductImportDraft, saveProductImportDraft } from "@/lib/productImportDraft";
+import { salvarContextoDePlanos } from "@/lib/planosCheckoutContexto";
 import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { enfileirarPublicacaoPendente, tentarPublicarPendentesAgora } from "@/lib/publicacaoPendente";
 import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
@@ -68,11 +70,11 @@ const STEPS = [
   { num: 1, label: "Detalhes" },
   { num: 2, label: "Conexão" },
   { num: 3, label: "Revisão" },
-  { num: 4, label: "Plano" },
 ];
 
 const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification }: Props) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
   const planLimits = usePlanLimits();
   const isStartMode = false;
@@ -511,6 +513,38 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
   };
 
+  /**
+   * Leva para a página de planos guardando o anúncio: o rascunho já é salvo a
+   * cada mudança, e aqui guardamos também o resumo que a página de planos
+   * mostra e o produto para onde a pessoa volta depois de pagar.
+   */
+  const irParaPaginaDePlanos = () => {
+    if (!product) return;
+    if (user?.id) {
+      saveProductImportDraft(user.id, {
+        productId: product.id,
+        step: 3,
+        title,
+        sellPrice,
+        description,
+        brand,
+        model,
+        albumName,
+        saleFormat,
+      });
+    }
+    salvarContextoDePlanos({
+      productId: product.id,
+      title: title || product.title,
+      image: img,
+      sellPrice,
+      profit,
+    });
+    trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product.id, detail: "para_planos" });
+    onClose();
+    navigate("/dashboard/planos");
+  };
+
   const handleContinueFromReview = async () => {
     if (planLimits.loading) {
       veloToast.info("Verificando seu plano...");
@@ -537,10 +571,10 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
       return;
     }
 
-    // Quem ainda não assina segue direto para o plano: a conta de vendedor
-    // deixou de bloquear o caminho antes do pagamento. A ajuda para ativar a
-    // conta acontece depois, com o anúncio já pronto e salvo.
-    advanceTo(4);
+    // Quem ainda não assina vai para a página de planos, com o anúncio já
+    // guardado. A conta de vendedor não bloqueia o caminho antes do pagamento:
+    // a ajuda para ativar a conta acontece depois.
+    irParaPaginaDePlanos();
   };
 
   if (!open && !visible) return null;
@@ -550,7 +584,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const canAdvanceDetails = hasStock && !!title.trim() && sellPrice > totalCost;
   const canAdvanceConnection = isConnectedToML === true;
   const titleNeedsTranslation = /[\u3040-\u30ff\u3400-\u9fff]|\b(with|wireless|women|men|kids|portable|for|and)\b/i.test(title);
-  const visibleSteps = planLimits.canPublishProducts ? STEPS.slice(0, 3) : STEPS;
+  const visibleSteps = STEPS;
   const startModeOffset = isStartMode ? 48 : 0;
   const reachedProProductLimit = planLimits.plan === "pro" && planLimits.productLimitReached;
   const publishUpgradeTitle = reachedProProductLimit
@@ -606,7 +640,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                 <p className="text-[12.5px] text-[#64748B] mt-0.5">
                   {planLimits.canPublishProducts
                     ? "Confira os detalhes, conecte sua conta e revise antes de publicar."
-                    : "Confira os detalhes, conecte sua conta, revise e escolha seu plano."}
+                    : "Confira os detalhes, conecte sua conta e revise. Depois você escolhe seu plano."}
                 </p>
               </div>
             </div>
@@ -956,78 +990,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               </div>
             )}
 
-            {/* STEP 3 — Assinatura */}
-            {step === 4 && (
-              <div key="s3-plan" className="step-fade pb-6">
-                <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-[0_24px_60px_-44px_rgba(0,0,0,0.45)]">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#2563EB] text-white">
-                      <ShieldCheck size={22} strokeWidth={1.5} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Plano Velo Pro</p>
-                      <h3 className="mt-1 text-[22px] font-semibold leading-tight text-[#0A0A0A]">
-                        Assine o Pro para publicar este produto
-                      </h3>
-                      <p className="mt-2 max-w-[520px] text-[13.5px] leading-relaxed text-gray-500">
-                        Seu anúncio já está pronto. Revise o produto abaixo e assine o plano Pro para publicar.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Aviso honesto antes do pagamento: a conta precisa poder vender,
-                      e quem ainda não pode é ajudado logo depois de assinar. */}
-                  <div className="mt-5 rounded-2xl border border-[#DBEAFE] bg-[#F8FBFF] p-4">
-                    <p className="text-[13px] leading-5 text-[#334155]">
-                      Para o anúncio ir ao ar, sua conta do Mercado Livre precisa estar liberada para vender.
-                      Se ainda não estiver, mostramos o passo a passo logo depois e seu anúncio fica guardado —
-                      ele sobe sozinho assim que a conta for liberada.
-                    </p>
-                  </div>
-
-                  <div className="mt-6 rounded-3xl bg-gray-50 p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
-                        {img ? <img src={img} alt={title} className="h-full w-full object-cover" /> : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-medium text-gray-500">Produto customizado</p>
-                        <p className="mt-1 line-clamp-2 text-[15px] font-semibold leading-snug text-[#0A0A0A]">
-                          {title || product.title}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px] text-gray-500">
-                          <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
-                            Preço definido: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice)}</strong>
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1 ring-1 ring-gray-100">
-                            Sobra bruta estimada: <strong className="font-semibold text-[#0A0A0A]">{formatBRL(profit)}</strong>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id })}
-                    className="mt-6 flex h-[52px] w-full items-center justify-center rounded-full bg-[#2563EB] px-5 text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8]"
-                  >
-                    Assinar Base — R$ 39,90/mês
-                  </button>
-                  <p className="mt-3 text-center text-[12.5px] leading-relaxed text-gray-500">
-                    Assinatura mensal do plano Base. Cancele quando quiser.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => upgradeModal.open({ defaultPlan: "pro", origin: "product_import", productId: product.id })}
-                    className="mx-auto mt-4 block max-w-[520px] text-center text-[12.5px] font-medium leading-relaxed text-gray-500 underline underline-offset-4 transition-colors hover:text-[#2563EB]"
-                  >
-                    Prefere começar direto no Pro (R$ 79,80/mês) com automações completas?
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* STEP 4 — Success */}
             {step === 5 && publishResult && (
               <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
@@ -1189,7 +1151,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           // Conta liberada: sobe o que estiver guardado e publica este anúncio.
           void tentarPublicarPendentesAgora();
           if (planLimits.canPublishProducts) void handlePublish();
-          else if (isConnectedToML) advanceTo(4);
+          else if (isConnectedToML) irParaPaginaDePlanos();
         }}
       />
 

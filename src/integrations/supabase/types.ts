@@ -4337,6 +4337,7 @@ export type Database = {
           publication_count: number
         }[]
       }
+      rpc_active_subscribers_count: { Args: never; Returns: number }
       rpc_admin_accept_affiliate_application: {
         Args: { p_user_id: string }
         Returns: Json
