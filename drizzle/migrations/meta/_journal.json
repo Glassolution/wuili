@@ -99,6 +99,13 @@
       "when": 1789962340533,
       "tag": "0013_funil_completo_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789962686444,
+      "tag": "0014_ajusta_funil_pagamento_vendedor",
+      "breakpoints": true
     }
   ]
 }

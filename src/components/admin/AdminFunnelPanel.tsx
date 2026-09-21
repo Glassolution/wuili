@@ -131,11 +131,14 @@ const AdminFunnelPanel = () => {
     return calc.map((l, i) => ({ ...l, destaque: i > 0 && l.perda > 0 && l.perda >= maiorPerda * 0.6 }));
   }, [atual.data, anterior.data]);
 
-  // Lacunas de medição: etapa zerada com gente na etapa seguinte = evento não disparou.
+  /*
+    Lacunas de medição: etapa zerada (ou menor que a seguinte) indica que o aviso
+    daquela tela não está chegando — o número não dá para confiar ainda.
+  */
   const lacunas = useMemo(
     () =>
       linhas
-        .filter((l, i) => l.pessoas === 0 && Number(linhas[i + 1]?.pessoas ?? 0) > 0)
+        .filter((l, i) => i < linhas.length - 1 && l.pessoas < Number(linhas[i + 1]?.pessoas ?? 0))
         .map((l) => l.etapa),
     [linhas],
   );
@@ -177,8 +180,8 @@ const AdminFunnelPanel = () => {
           <div>
             <p className="font-semibold">Medição possivelmente falhando</p>
             <p>
-              Estas etapas estão com zero pessoas, mas há gente nas etapas seguintes — o aviso do navegador não está
-              chegando: {lacunas.join(", ")}.
+              Estas etapas mostram menos gente do que a etapa seguinte, o que é impossível: o aviso dessas telas não
+              está sendo registrado direito: {lacunas.join(", ")}.
             </p>
           </div>
         </div>
