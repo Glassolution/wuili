@@ -524,6 +524,16 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     }
 
     // Quem ainda não assina vê a etapa de plano somente depois de conectar e revisar.
+    // Antes de mostrar o pagamento, conferimos se a conta consegue vender: ninguém
+    // deve pagar para só depois descobrir que o Mercado Livre não libera anúncios.
+    setCheckingSeller(true);
+    const apta = await fetchSellerReady();
+    setCheckingSeller(false);
+    if (apta === false) {
+      trackMobileHomeEvent(user?.id, "ml_seller_not_ready", { productId: product?.id, detail: "antes_do_plano" });
+      setMlVerifyModalOpen(true);
+      return;
+    }
     advanceTo(4);
   };
 
