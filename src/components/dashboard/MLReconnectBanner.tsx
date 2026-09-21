@@ -23,19 +23,35 @@ const MLReconnectBanner = () => {
     let active = true;
 
     (async () => {
-      const { data } = await supabase
-        .from("user_integrations")
-        .select("access_token, refresh_token")
-        .eq("user_id", user.id)
-        .eq("platform", "mercadolivre")
-        .maybeSingle();
+      const [{ data }, { count }] = await Promise.all([
+        supabase
+          .from("user_integrations")
+          .select("access_token, refresh_token")
+          .eq("user_id", user.id)
+          .eq("platform", "mercadolivre")
+          .maybeSingle(),
+        supabase
+          .from("user_publications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
+      ]);
 
       if (!active) return;
       // O access_token do Mercado Livre vale apenas 6h e é renovado
       // automaticamente pelo servidor usando o refresh_token. Portanto
       // "expirado" NÃO significa desconectado — só pedimos reconexão quando
-      // não existe refresh_token (conexão realmente quebrada).
-      setNeedsReconnect(!!data?.access_token && !data?.refresh_token);
+      // não existe refresh_token (conexão realmente quebrada) ou quando o
+      // seller tem anúncios no ar e nenhuma integração salva (conta revogada
+      // no próprio Mercado Livre). Os anúncios continuam intactos.
+      const conexaoQuebrada = !!data?.access_token && !data?.refresh_token;
+      const semIntegracaoComAnuncios = !data?.access_token && (count ?? 0) > 0;
+      const precisa = conexaoQuebrada || semIntegracaoComAnuncios;
+      setNeedsReconnect(precisa);
+      if (precisa) {
+        trackMobileHomeEvent(user.id, "ml_reconnect_prompt", {
+          detail: conexaoQuebrada ? "sem_refresh_token" : "sem_integracao_com_anuncios",
+        });
+      }
     })();
 
 
