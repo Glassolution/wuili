@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
 import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
+import { mensagemDeErroDaConexaoMl } from "@/lib/mlConexao";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
