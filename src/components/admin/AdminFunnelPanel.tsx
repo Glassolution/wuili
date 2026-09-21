@@ -4,16 +4,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, ArrowDown, Info } from "lucide-react";
 
 /*
-  Funil completo: do primeiro acesso na landing até o anúncio publicado.
-  Cada etapa conta PESSOAS diferentes (não cliques) e traz a definição do que
-  está sendo contado, para o número nunca ficar aberto a interpretação.
+  Funil POR COORTE: só pessoas que criaram conta dentro do período escolhido e
+  que ainda não assinavam antes dele. Todas as etapas usam a mesma janela de
+  tempo, para nunca comparar evento recente com tabela histórica.
 */
 
-type EtapaRow = { ordem: number; etapa: string; definicao: string; pessoas: number };
+type EtapaRow = {
+  ordem: number;
+  etapa: string;
+  definicao: string;
+  pessoas: number;
+  nao_precisava: number;
+  medicao_desde: string | null;
+};
+type EntradaRow = { total: number; via_landing: number; direto: number };
 type PagouRow = { pagaram: number; ativaram: number; horas_medias: number | null; reembolsos: number };
 type ErroRow = { tipo: string; motivo: string; ocorrencias: number; pessoas: number };
 
 const PERIODOS = [7, 14, 30, 90];
+const BASE_MINIMA = 30; // abaixo disso não mostramos porcentagem
 const DISPOSITIVOS = [
   { id: null as string | null, label: "Todos" },
   { id: "mobile", label: "Celular" },
@@ -32,7 +41,11 @@ const ORIGENS = [
   { id: "direto", label: "Direto" },
 ];
 
-const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : "—");
+const pctOuNada = (a: number, base: number) =>
+  base >= BASE_MINIMA ? `${Math.round((a / base) * 100)}%` : null;
+
+const fmtData = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
 
 const Chips = <T extends string | number | null>({
   value,
@@ -69,10 +82,10 @@ const AdminFunnelPanel = () => {
   const args = { p_days: days, p_origem: origem, p_device: device, p_browser: browser };
 
   const atual = useQuery({
-    queryKey: ["admin-funil", days, origem, device, browser],
+    queryKey: ["admin-funil-coorte", days, origem, device, browser],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RPC nova ainda não tipada
-      const { data, error } = await (supabase as any).rpc("rpc_admin_full_funnel", { ...args, p_offset_days: 0 });
+      const { data, error } = await (supabase as any).rpc("rpc_admin_cohort_funnel", { ...args, p_offset_days: 0 });
       if (error) throw error;
       return (data ?? []) as EtapaRow[];
     },
@@ -80,20 +93,30 @@ const AdminFunnelPanel = () => {
 
   const anterior = useQuery({
     enabled: comparar,
-    queryKey: ["admin-funil-ant", days, origem, device, browser],
+    queryKey: ["admin-funil-coorte-ant", days, origem, device, browser],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- idem
-      const { data, error } = await (supabase as any).rpc("rpc_admin_full_funnel", { ...args, p_offset_days: days });
+      const { data, error } = await (supabase as any).rpc("rpc_admin_cohort_funnel", { ...args, p_offset_days: days });
       if (error) throw error;
       return (data ?? []) as EtapaRow[];
     },
   });
 
-  const pagou = useQuery({
-    queryKey: ["admin-pagou-sem-vendedor", days],
+  const entrada = useQuery({
+    queryKey: ["admin-funil-entrada", days],
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- idem
-      const { data, error } = await (supabase as any).rpc("rpc_admin_paid_without_seller", { p_days: days });
+      const { data, error } = await (supabase as any).rpc("rpc_admin_cohort_entry", { p_days: days, p_offset_days: 0 });
+      if (error) throw error;
+      return ((data ?? [])[0] ?? null) as EntradaRow | null;
+    },
+  });
+
+  const pagou = useQuery({
+    queryKey: ["admin-pagou-sem-vendedor-coorte", days],
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- idem
+      const { data, error } = await (supabase as any).rpc("rpc_admin_paid_without_seller_cohort", { p_days: days });
       if (error) throw error;
       return ((data ?? [])[0] ?? null) as PagouRow | null;
     },
@@ -116,15 +139,20 @@ const AdminFunnelPanel = () => {
     let maiorPerda = 0;
     const calc = etapas.map((e, i) => {
       const pessoas = Number(e.pessoas);
-      const anteriorQtd = i === 0 ? pessoas : Number(etapas[i - 1].pessoas);
-      const perda = Math.max(anteriorQtd - pessoas, 0);
+      const naoPrecisava = Number(e.nao_precisava ?? 0);
+      const avancaram = pessoas + naoPrecisava;
+      const anteriorQtd =
+        i === 0 ? avancaram : Number(etapas[i - 1].pessoas) + Number(etapas[i - 1].nao_precisava ?? 0);
+      const perda = Math.max(anteriorQtd - avancaram, 0);
       if (i > 0 && perda > maiorPerda) maiorPerda = perda;
       return {
         ...e,
         pessoas,
+        naoPrecisava,
+        avancaram,
         perda,
-        avanco: i === 0 ? "100%" : pct(pessoas, anteriorQtd),
-        acumulado: pct(pessoas, inicio),
+        avanco: i === 0 ? null : pctOuNada(avancaram, anteriorQtd),
+        acumulado: pctOuNada(avancaram, inicio),
         comparado: antes.get(e.ordem) ?? null,
       };
     });
@@ -132,18 +160,25 @@ const AdminFunnelPanel = () => {
   }, [atual.data, anterior.data]);
 
   /*
-    Lacunas de medição: etapa zerada (ou menor que a seguinte) indica que o aviso
-    daquela tela não está chegando — o número não dá para confiar ainda.
+    Lacunas: etapa com menos gente do que a seguinte é impossível — significa que
+    o registro daquela tela não está chegando.
   */
   const lacunas = useMemo(
     () =>
       linhas
-        .filter((l, i) => i < linhas.length - 1 && l.pessoas < Number(linhas[i + 1]?.pessoas ?? 0))
+        .filter((l, i) => i < linhas.length - 1 && l.avancaram < Number(linhas[i + 1]?.avancaram ?? 0))
         .map((l) => l.etapa),
     [linhas],
   );
 
-  const maxPessoas = Math.max(1, ...linhas.map((l) => l.pessoas));
+  const medicaoDesde = useMemo(() => {
+    const datas = (atual.data ?? []).map((e) => e.medicao_desde).filter(Boolean) as string[];
+    if (!datas.length) return null;
+    return datas.sort().at(-1) ?? null;
+  }, [atual.data]);
+
+  const maxPessoas = Math.max(1, ...linhas.map((l) => l.avancaram));
+  const baseCoorte = Number(linhas.find((l) => l.ordem === 3)?.pessoas ?? 0);
 
   return (
     <div className="space-y-4">
@@ -174,14 +209,52 @@ const AdminFunnelPanel = () => {
         </div>
       </section>
 
+      <div className="rounded-2xl border border-[#dbe6ff] bg-[#f3f7ff] p-4 text-[12px] leading-relaxed text-[#1e3a8a]">
+        <p className="font-semibold">Como ler este funil</p>
+        <p>
+          Só entram pessoas que criaram conta nos últimos {days} dias e que ainda não assinavam antes disso. Clientes
+          antigos ficam de fora. Medição confiável a partir de <strong>{fmtData(medicaoDesde)}</strong> — antes disso
+          não havia registro dessas telas.
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-[#ececE6] bg-white p-4">
+        <h2 className="text-[14px] font-semibold text-[#171715]">Por onde as pessoas entraram</h2>
+        <p className="mb-3 text-[12px] text-[#8c8c87]">
+          Nem todo mundo passa pela página inicial: quem vem de um anúncio pode cair direto no cadastro.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Contas novas", v: entrada.data?.total ?? 0 },
+            { label: "Pela página inicial", v: entrada.data?.via_landing ?? 0 },
+            { label: "Direto no cadastro", v: entrada.data?.direto ?? 0 },
+          ].map((k) => (
+            <div key={k.label} className="rounded-2xl border border-[#f1f1ee] bg-[#fbfbf9] p-3">
+              <p className="text-[11px] text-[#8c8c87]">{k.label}</p>
+              <p className="mt-1 text-[20px] font-semibold text-[#171715]">{k.v}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {baseCoorte > 0 && baseCoorte < BASE_MINIMA ? (
+        <div className="flex gap-2 rounded-2xl border border-[#ececE6] bg-[#fbfbf9] p-4 text-[13px] text-[#44443f]">
+          <Info className="mt-[2px] h-4 w-4 shrink-0 text-[#8c8c87]" />
+          <p>
+            Base pequena: {baseCoorte} pessoas novas no período. Mostramos só os números, sem porcentagem — com tão
+            pouca gente, qualquer taxa engana.
+          </p>
+        </div>
+      ) : null}
+
       {lacunas.length ? (
         <div className="flex gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-[13px] text-amber-900">
           <AlertTriangle className="mt-[2px] h-4 w-4 shrink-0" />
           <div>
             <p className="font-semibold">Medição possivelmente falhando</p>
             <p>
-              Estas etapas mostram menos gente do que a etapa seguinte, o que é impossível: o aviso dessas telas não
-              está sendo registrado direito: {lacunas.join(", ")}.
+              Estas etapas mostram menos gente do que a etapa seguinte, o que é impossível — o registro dessas telas
+              não está chegando direito: {lacunas.join(", ")}.
             </p>
           </div>
         </div>
@@ -210,13 +283,17 @@ const AdminFunnelPanel = () => {
                   </p>
                   <p className="mt-[2px] flex items-start gap-1 text-[11px] leading-snug text-[#8c8c87]">
                     <Info className="mt-[2px] h-3 w-3 shrink-0" />
-                    {l.definicao}
+                    {l.definicao} · desde {fmtData(l.medicao_desde)}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-[20px] font-semibold tracking-[-0.02em] text-[#171715]">{l.pessoas}</p>
+                  {l.naoPrecisava > 0 ? (
+                    <p className="text-[11px] text-[#8c8c87]">+{l.naoPrecisava} não precisavam passar</p>
+                  ) : null}
                   <p className="text-[11px] text-[#8c8c87]">
-                    {l.avanco} da etapa anterior · {l.acumulado} do início
+                    {l.avanco ? `${l.avanco} da etapa anterior · ` : ""}
+                    {l.acumulado ? `${l.acumulado} do início` : "pessoas (base pequena)"}
                   </p>
                   {comparar && l.comparado !== null ? (
                     <p className="text-[11px] text-[#77776f]">período anterior: {l.comparado}</p>
@@ -226,7 +303,7 @@ const AdminFunnelPanel = () => {
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#ececE6]">
                 <div
                   className={`h-full rounded-full ${l.destaque ? "bg-rose-500" : "bg-[#2563EB]"}`}
-                  style={{ width: `${Math.max((l.pessoas / maxPessoas) * 100, 2)}%` }}
+                  style={{ width: `${Math.max((l.avancaram / maxPessoas) * 100, 2)}%` }}
                 />
               </div>
               {i > 0 && l.perda > 0 ? (
@@ -241,16 +318,16 @@ const AdminFunnelPanel = () => {
       </section>
 
       <section className="rounded-2xl border border-[#ececE6] bg-white p-4">
-        <h2 className="text-[14px] font-semibold text-[#171715]">Pagou antes da conta de vendedor ficar pronta</h2>
+        <h2 className="text-[14px] font-semibold text-[#171715]">Pagou antes de ligar o Mercado Livre</h2>
         <p className="mb-3 text-[12px] text-[#8c8c87]">
-          Quem assinou sem a conta do Mercado Livre liberada: quantos conseguiram ativar, em quanto tempo e quantos
-          pediram dinheiro de volta.
+          Dentro da mesma coorte: quem assinou sem a conta do Mercado Livre ligada, quantos conseguiram ligar depois,
+          em quanto tempo e quantos pediram dinheiro de volta.
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: "Pagaram sem conta apta", v: pagou.data?.pagaram ?? 0 },
-            { label: "Conseguiram ativar", v: pagou.data?.ativaram ?? 0 },
-            { label: "Tempo médio até ativar", v: pagou.data?.horas_medias != null ? `${pagou.data.horas_medias}h` : "—" },
+            { label: "Pagaram sem conta ligada", v: pagou.data?.pagaram ?? 0 },
+            { label: "Conseguiram ligar depois", v: pagou.data?.ativaram ?? 0 },
+            { label: "Tempo médio até ligar", v: pagou.data?.horas_medias != null ? `${pagou.data.horas_medias}h` : "—" },
             { label: "Pediram reembolso", v: pagou.data?.reembolsos ?? 0 },
           ].map((k) => (
             <div key={k.label} className="rounded-2xl border border-[#f1f1ee] bg-[#fbfbf9] p-3">

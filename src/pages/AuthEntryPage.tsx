@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { VeloLogo } from "@/components/VeloLogo";
 import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/lib/onboardingAnalytics";
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
+import { getVisitorId } from "@/lib/signupFunnel";
 
 const enter = {
   initial: { opacity: 0, y: 14, filter: "blur(6px)" },
@@ -150,6 +151,8 @@ const AuthEntryPage = () => {
         {
           user_id: data.user.id,
           display_name: form.name.trim(),
+          // Liga o visitante anônimo da landing à conta criada (funil ponta a ponta).
+          visitor_id: getVisitorId(),
         },
         { onConflict: "user_id" }
       );

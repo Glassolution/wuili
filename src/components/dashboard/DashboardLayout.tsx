@@ -631,12 +631,18 @@ const DashboardLayoutInner = () => {
       do e-mail criado pelo gatilho do banco.
     */
     const nome = (respostas.nome ?? "").trim();
-    if (nome) {
-      void (supabase as any)
-        .from("profiles")
-        .update({ display_name: nome })
-        .eq("user_id", user.id);
-    }
+    /*
+      A conclusão também é gravada no perfil: o painel de funil lia
+      `onboarding_completed` e via zero porque só a marca do Auth era limpa.
+    */
+    void (supabase as any)
+      .from("profiles")
+      .update({
+        ...(nome ? { display_name: nome } : {}),
+        onboarding_completed: true,
+        onboarding_completed_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id);
     // Limpa a flag durável no Supabase Auth: `velo_onboarding_pending` é gravada
     // no cadastro e persiste no servidor. Sem isto, `isFreshSignup` continuaria
     // verdadeiro para sempre e o modal reapareceria em qualquer navegador/
