@@ -205,6 +205,7 @@ const App = () => (
           <MarcarAppCarregado />
           <MLReconnectModal />
           <MLPostConnectCheck />
+          <PosPagamentoRetomada />
           <Suspense fallback={<RouteFallback />}>
 
             <Routes>
