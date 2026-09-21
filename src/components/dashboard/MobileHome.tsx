@@ -365,7 +365,7 @@ const MobileAliVeloHome = ({
   // Conectado mas sem permissão de venda conta como passo pendente: é o que
   // trava a publicação mais adiante.
   const contaPendente = needsMlSellerGuide || sellerReady === false;
-  const passoMlConcluido = mlConnected && sellerReady !== false;
+  const passoMlConcluido = mlConnected;
 
   useEffect(() => {
     trackMobileHomeEvent(userId, "home_view", { detail: isBeginner ? "primeiro_anuncio" : "home_normal" });
