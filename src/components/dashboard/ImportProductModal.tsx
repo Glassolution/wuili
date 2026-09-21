@@ -1175,6 +1175,9 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // não tem plano segue para a etapa de plano, quem já tem publica.
         onVerified={() => {
           setMlVerifyModalOpen(false);
+          if (user) trackMobileHomeEvent(user.id, "seller_ready_after_paid", { productId: product?.id });
+          // Conta liberada: sobe o que estiver guardado e publica este anúncio.
+          void tentarPublicarPendentesAgora();
           if (planLimits.canPublishProducts) void handlePublish();
           else if (isConnectedToML) advanceTo(4);
         }}
