@@ -91,7 +91,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   const [prepareOpen, setPrepareOpen] = useState(false);
   // Resposta do onboarding: quem disse que ainda não tem conta de vendedor vê
   // o guia de criação antes de tentar conectar.
-  const semContaDeVendedor = lerRespostasDoQuiz().mercadoLivre === "nao";
+  const semContaDeVendedor = lerRespostasDoQuiz(user).mercadoLivre === "nao";
   const flowOpenedAt = useRef(Date.now());
   const stepOpenedAt = useRef(Date.now());
   const previousStep = useRef(1);
