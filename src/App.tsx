@@ -15,7 +15,7 @@ import { ProfileProvider } from "@/lib/profileContext";
 import AdminRoute from "@/components/AdminRoute";
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { UpgradeModalProvider, useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
