@@ -442,11 +442,31 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           return;
         }
 
-        // Conta do ML bloqueada para publicar → modal dizendo exatamente o que
-        // falta no cadastro (endereço, telefone…). Sem códigos, cai no tutorial.
+        // Conta do ML ainda não habilitada a vender. Como o pagamento vem antes
+        // da ativação, o anúncio não se perde: guardamos pronto e ele sobe
+        // sozinho assim que a conta for liberada.
         if (codigo === "ML_SELLER_CANNOT_LIST") {
           trackError("publish:ml_seller_cannot_list");
           veloToast.dismiss(toastId);
+          trackMobileHomeEvent(user.id, "paid_without_seller", { productId: product.id, detail: "na_publicacao" });
+          void enfileirarPublicacaoPendente({
+            userId: user.id,
+            productId: product.id,
+            title: title.trim(),
+            payload: montarCorpoDePublicacao({
+              produto: product,
+              titulo: title,
+              preco: sellPrice,
+              descricao: description,
+              marca: brand,
+              modelo: model,
+              atributos: mlAttributes,
+              estoque: stockQty,
+              override,
+            }),
+          }).then((id) => {
+            if (id) trackMobileHomeEvent(user.id, "pending_publication_queued", { productId: product.id });
+          });
           if (erro instanceof ErroDePublicacao && erro.sellerCodes?.length) {
             setMlMissingCodes(erro.sellerCodes);
           } else {
