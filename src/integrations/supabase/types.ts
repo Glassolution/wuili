@@ -2012,6 +2012,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_seller_readiness: {
+        Row: {
+          can_list: boolean | null
+          checked_at: string
+          codes: string[]
+          created_at: string
+          last_error: string | null
+          ml_user_id: number | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          can_list?: boolean | null
+          checked_at?: string
+          codes?: string[]
+          created_at?: string
+          last_error?: string | null
+          ml_user_id?: number | null
+          source?: string
+          user_id: string
+        }
+        Update: {
+          can_list?: boolean | null
+          checked_at?: string
+          codes?: string[]
+          created_at?: string
+          last_error?: string | null
+          ml_user_id?: number | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ml_webhook_queue: {
         Row: {
           application_id: string | null
@@ -4438,6 +4471,31 @@ export type Database = {
           evento: string
           total: number
           visitantes: number
+        }[]
+      }
+      rpc_admin_paid_not_published: {
+        Args: { p_days?: number }
+        Returns: {
+          apto: boolean
+          categoria: string
+          conectado_em: string
+          detalhe: string
+          dias_parado: number
+          email: string
+          nome: string
+          pago_em: string
+          plano: string
+          ultima_verificacao: string
+          user_id: string
+          whatsapp: string
+        }[]
+      }
+      rpc_admin_paid_not_published_summary: {
+        Args: { p_days?: number }
+        Returns: {
+          categoria: string
+          mediana_dias: number
+          pessoas: number
         }[]
       }
       rpc_admin_paid_without_seller: {

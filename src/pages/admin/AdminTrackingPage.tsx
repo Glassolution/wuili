@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import AdminFunnelPanel from "@/components/admin/AdminFunnelPanel";
+import AdminPaidNotPublishedPanel from "@/components/admin/AdminPaidNotPublishedPanel";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -94,7 +95,7 @@ const ROTULO_FUNIL: Record<string, string> = {
 
 const AdminTrackingPage = () => {
   const [days, setDays] = useState(30);
-  const [aba, setAba] = useState<"funil" | "geral">("funil");
+  const [aba, setAba] = useState<"funil" | "pagou" | "geral">("funil");
 
   const traffic = useQuery({
     queryKey: ["admin-traffic", days],
@@ -191,7 +192,7 @@ const AdminTrackingPage = () => {
     >
       <div className="space-y-4">
         <div className="flex items-center gap-1 rounded-2xl border border-[#ececE6] bg-white p-1">
-          {(["funil", "geral"] as const).map((t) => (
+          {(["funil", "pagou", "geral"] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -200,12 +201,13 @@ const AdminTrackingPage = () => {
                 aba === t ? "bg-[#171715] text-white" : "text-[#77776f] hover:bg-[#f6f6f3]"
               }`}
             >
-              {t === "funil" ? "Funil completo" : "Visão geral"}
+              {t === "funil" ? "Funil completo" : t === "pagou" ? "Pagou e não publicou" : "Visão geral"}
             </button>
           ))}
         </div>
 
         {aba === "funil" ? <AdminFunnelPanel /> : null}
+        {aba === "pagou" ? <AdminPaidNotPublishedPanel /> : null}
 
         <div className={aba === "geral" ? "space-y-4" : "hidden"}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

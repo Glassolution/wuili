@@ -120,6 +120,27 @@
       "when": 1789986221581,
       "tag": "0016_funil_por_coorte_admin",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789993064792,
+      "tag": "0017_ml_seller_readiness_e_pagou_sem_publicar",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789993267674,
+      "tag": "0018_classifica_conexao_expirada_por_verificacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789993378878,
+      "tag": "0019_cron_ml_seller_readiness",
+      "breakpoints": true
     }
   ]
 }
