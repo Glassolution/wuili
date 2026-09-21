@@ -727,15 +727,27 @@ const MobileAliVeloHome = ({
                   <p className="text-[11px] font-bold uppercase text-[#2563EB]">Comece por aqui</p>
                   <h2 id="first-ad-title" className="mt-0.5 text-[21px] font-black text-[#111111]">Seu primeiro anúncio</h2>
                 </div>
-                <span className="text-[12px] font-bold text-[#475569]">{[choseProduct, mlConnected, hasPublication].filter(Boolean).length}/3</span>
+                <span className="text-[12px] font-bold text-[#475569]">{[choseProduct, passoMlConcluido, hasPublication].filter(Boolean).length}/3</span>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#E5E7EB]">
-                <div className="h-full bg-[#2563EB] transition-all" style={{ width: `${([choseProduct, mlConnected, hasPublication].filter(Boolean).length / 3) * 100}%` }} />
+                <div className="h-full bg-[#2563EB] transition-all" style={{ width: `${([choseProduct, passoMlConcluido, hasPublication].filter(Boolean).length / 3) * 100}%` }} />
               </div>
               <div className="mt-3 divide-y divide-black/[0.06]">
                 {[
                   { done: choseProduct, label: "Escolha um produto", help: choseProduct ? "Produto escolhido" : "Veja as opções logo abaixo", action: () => productsSectionRef.current?.scrollIntoView({ behavior: "smooth" }), key: "choose_product" },
-                  { done: mlConnected, label: "Conecte o Mercado Livre", help: mlConnected ? "Conta conectada" : needsMlSellerGuide ? "Veja como ativar sua conta de vendedor" : "Conecte sua conta de vendedor", action: () => needsMlSellerGuide ? window.open("https://www.mercadolivre.com.br/vender", "_blank", "noopener,noreferrer") : void startMercadoLivreOAuth({ novaAba: false }).catch(() => veloToast.error("Não foi possível abrir o Mercado Livre agora.")), key: "connect_ml" },
+                  {
+                    done: passoMlConcluido,
+                    label: contaPendente ? "Ative sua conta de vendedor" : "Conecte o Mercado Livre",
+                    help: passoMlConcluido
+                      ? "Conta conectada e liberada para vender"
+                      : sellerReady === false
+                        ? "Falta liberar sua conta para vender no Mercado Livre"
+                        : needsMlSellerGuide
+                          ? "Veja como criar sua conta de vendedor"
+                          : "Conecte sua conta de vendedor",
+                    action: () => (contaPendente ? setSellerGuideOpen(true) : setPrepareOpen(true)),
+                    key: "connect_ml",
+                  },
                   { done: hasPublication, label: "Publique o anúncio", help: "Disponível após escolher e conectar", action: () => navigate(choseProduct ? "/dashboard/catalogo" : "#products"), key: "publish" },
                 ].map((step) => (
                   <button key={step.key} type="button" onClick={() => { trackMobileHomeEvent(userId, "checklist_clicked", { detail: step.key }); step.action(); }} className="flex min-h-14 w-full items-center gap-3 py-2 text-left">
@@ -748,6 +760,25 @@ const MobileAliVeloHome = ({
             </div>
           </section>
         )}
+
+        <MLConnectPrepareModal
+          open={prepareOpen}
+          onClose={() => setPrepareOpen(false)}
+          onConfirm={() => {
+            setPrepareOpen(false);
+            trackMobileHomeEvent(userId, "ml_connect_open", { detail: "home_checklist" });
+            void startMercadoLivreOAuth({ novaAba: false }).catch(() =>
+              veloToast.error("Não foi possível abrir o Mercado Livre agora. Tente de novo em instantes."),
+            );
+          }}
+        />
+        <MLAccountVerificationModal
+          open={sellerGuideOpen}
+          onClose={() => setSellerGuideOpen(false)}
+          onFinish={() => setSellerGuideOpen(false)}
+          onVerified={() => setSellerGuideOpen(false)}
+        />
+
 
 
 
