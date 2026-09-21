@@ -739,16 +739,18 @@ const MobileAliVeloHome = ({
                 {[
                   { done: choseProduct, label: "Escolha um produto", help: choseProduct ? "Produto escolhido" : "Veja as opções logo abaixo", action: () => productsSectionRef.current?.scrollIntoView({ behavior: "smooth" }), key: "choose_product" },
                   {
+                    // Conectar já conta como concluído: a liberação da conta de
+                    // vendedor deixou de ser exigida antes do pagamento.
                     done: passoMlConcluido,
-                    label: contaPendente ? "Ative sua conta de vendedor" : "Conecte o Mercado Livre",
-                    help: passoMlConcluido
-                      ? "Conta conectada e liberada para vender"
-                      : sellerReady === false
-                        ? "Falta liberar sua conta para vender no Mercado Livre"
-                        : needsMlSellerGuide
-                          ? "Veja como criar sua conta de vendedor"
-                          : "Conecte sua conta de vendedor",
-                    action: () => (contaPendente ? setSellerGuideOpen(true) : setPrepareOpen(true)),
+                    label: "Conecte o Mercado Livre",
+                    help: mlConnected
+                      ? sellerReady === false
+                        ? "Conta conectada. Depois te ajudamos a liberá-la para vender"
+                        : "Conta conectada e liberada para vender"
+                      : needsMlSellerGuide
+                        ? "Conecte a conta que você já usa"
+                        : "Conecte sua conta de vendedor",
+                    action: () => (mlConnected && contaPendente ? setSellerGuideOpen(true) : setPrepareOpen(true)),
                     key: "connect_ml",
                   },
                   { done: hasPublication, label: "Publique o anúncio", help: "Disponível após escolher e conectar", action: () => navigate(choseProduct ? "/dashboard/catalogo" : "#products"), key: "publish" },
