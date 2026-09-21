@@ -66,6 +66,8 @@ export const trackMobileHomeEvent = (
   options: { detail?: string; productId?: string; elapsedMs?: number } = {},
 ) => {
   if (!userId) return;
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const navegadorInterno = /Instagram|FBAN|FBAV|FB_IAB|Messenger|musical_ly|Bytedance|TikTok|Trill/i.test(ua);
   void supabase
     .from("mobile_home_events")
     .insert({
@@ -75,6 +77,8 @@ export const trackMobileHomeEvent = (
       detail: options.detail?.slice(0, 160),
       product_id: options.productId,
       elapsed_ms: options.elapsedMs,
+      device: typeof window !== "undefined" && window.innerWidth < 1024 ? "mobile" : "desktop",
+      browser_kind: navegadorInterno ? "interno" : "normal",
     })
     .then(({ error }) => {
       if (error) console.warn("Falha ao medir interação da home", error.message);
