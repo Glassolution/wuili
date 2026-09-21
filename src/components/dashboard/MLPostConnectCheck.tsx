@@ -4,8 +4,6 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { lerStatusVendedorMl } from "@/lib/mlConexao";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
-import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
-import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 
 /**
  * Verifica em segundo plano se a conta recém-conectada do Mercado Livre pode
