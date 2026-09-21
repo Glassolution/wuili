@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   const { data: eventos, error } = await admin
     .from('mobile_home_events')
     .select('user_id,product_id,created_at')
-    .eq('event', 'plans_open')
+    .eq('event_name', 'plans_open')
     .gte('created_at', desde)
     .order('created_at', { ascending: false })
     .limit(2000)
