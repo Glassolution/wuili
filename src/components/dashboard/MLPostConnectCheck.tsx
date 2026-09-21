@@ -18,8 +18,6 @@ import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
 const MLPostConnectCheck = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const [tutorialOpen, setTutorialOpen] = useState(false);
-  const [codigos, setCodigos] = useState<string[] | null>(null);
   const jaVerificado = useRef(false);
 
   useEffect(() => {
@@ -34,13 +32,14 @@ const MLPostConnectCheck = () => {
       if (!ativo) return;
       if (status.apta === true) {
         trackMobileHomeEvent(user.id, "ml_seller_ready", { detail: "pos_conexao" });
+        // Se havia anúncio esperando a conta ser liberada, ele sobe agora.
+        void tentarPublicarPendentesAgora();
         return;
       }
       if (status.apta === false) {
-        trackMobileHomeEvent(user.id, "ml_seller_not_ready", { detail: status.codigos.join(",") || "sem_codigo" });
-        // Com códigos do ML mostramos exatamente o que falta; sem eles, o tutorial.
-        if (status.codigos.length) setCodigos(status.codigos);
-        else setTutorialOpen(true);
+        trackMobileHomeEvent(user.id, "ml_seller_not_ready", {
+          detail: `pos_conexao:${status.codigos.join(",") || "sem_codigo"}`,
+        });
       }
     })();
 
@@ -49,21 +48,7 @@ const MLPostConnectCheck = () => {
     };
   }, [location.search, user]);
 
-  return (
-    <>
-      <MLAccountVerificationModal
-        open={tutorialOpen}
-        onClose={() => setTutorialOpen(false)}
-        onFinish={() => setTutorialOpen(false)}
-        onVerified={() => setTutorialOpen(false)}
-      />
-      <MlMissingInfoModal
-        open={codigos !== null}
-        sellerCodes={codigos ?? []}
-        onClose={() => setCodigos(null)}
-      />
-    </>
-  );
+  return null;
 };
 
 export default MLPostConnectCheck;
