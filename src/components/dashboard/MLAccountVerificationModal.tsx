@@ -152,10 +152,44 @@ const StepVisual = ({ step }: { step: Step }) => {
   );
 };
 
-const MLAccountVerificationModal = ({ open, onClose, onFinish }: Props) => {
+const MLAccountVerificationModal = ({ open, onClose, onFinish, onVerified }: Props) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [visible, setVisible] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
+  const [rechecking, setRechecking] = useState(false);
+
+  useEffect(() => {
+    if (open) trackMobileHomeEvent(user?.id, "ml_seller_modal_open");
+  }, [open, user?.id]);
+
+  /** Revalida a conta sem refazer o fluxo de conexão. */
+  const recheck = async () => {
+    setRechecking(true);
+    trackMobileHomeEvent(user?.id, "ml_seller_recheck");
+    const status = await lerStatusVendedorMl();
+    setRechecking(false);
+
+    if (status.apta === true) {
+      trackMobileHomeEvent(user?.id, "ml_seller_ready", { detail: "recheck" });
+      veloToast.success("Sua conta já pode vender. Pode continuar!");
+      setVisible(false);
+      setTimeout(() => {
+        onClose();
+        onVerified?.();
+      }, 200);
+      return;
+    }
+
+    if (status.apta === false) {
+      veloToast.info("O Mercado Livre ainda não liberou sua conta. Termine o cadastro de vendedor e tente de novo.");
+      return;
+    }
+
+    veloToast.error("Não conseguimos verificar agora. Tente de novo em instantes.");
+  };
+
 
   /*
     Ref espelhando o estado: o listener de Esc é registrado uma vez só
