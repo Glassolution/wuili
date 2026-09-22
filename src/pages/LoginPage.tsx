@@ -1,11 +1,11 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import {
   captureOrigin,
   detectInAppBrowser,
@@ -17,6 +17,8 @@ import {
   trackSignup,
 } from "@/lib/signupFunnel";
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
+import { EVENTOS_LANDING, medirLanding } from "@/lib/landingFunnel";
+import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -172,9 +174,24 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
 
-  const [step, setStep]                   = useState<"initial" | "login" | "signup">("initial");
+  /*
+    Quem chega por /cadastro (ou por ?modo=cadastro) veio do botão principal da
+    landing, que é dirigido a quem ainda NÃO tem conta. Abrir na etapa de e-mail,
+    sob o título "Entre na Velo", é pedir login a quem nunca se cadastrou — e era
+    aí que essa pessoa desistia. O e-mail fica destravado: ninguém o digitou ainda.
+  */
+  const location = useLocation();
+  const entradaPeloCadastro =
+    location.pathname === "/cadastro" ||
+    new URLSearchParams(location.search).get("modo") === "cadastro";
+  // Vindo de um link com ?email=, o campo já chega preenchido.
+  const emailDaUrl = new URLSearchParams(location.search).get("email")?.trim() ?? "";
+
+  const [step, setStep]                   = useState<"initial" | "login" | "signup">(
+    entradaPeloCadastro ? "signup" : "initial",
+  );
   const [emailLocked, setEmailLocked]     = useState(false);
-  const [email, setEmail]                 = useState("");
+  const [email, setEmail]                 = useState(emailDaUrl);
   const [password, setPassword]           = useState("");
   const [nome, setNome]                   = useState("");
   const [showPw, setShowPw]               = useState(false);
@@ -331,6 +348,7 @@ const LoginPage = () => {
     }
     if (data.user) {
       trackSignup("signup_success");
+      medirLanding(EVENTOS_LANDING.contaCriada, { confirmacao_pendente: !data.session });
       // Registro do aceite e da origem do visitante (comprovação e atribuição de canal).
       await supabase
         .from("profiles")
@@ -426,6 +444,14 @@ const LoginPage = () => {
     if (detectInAppBrowser()) trackSignup("signup_inapp_browser", detectInAppBrowser() ?? undefined);
   }, []);
 
+  /*
+    Fecha o funil da landing: sem este evento dá para saber quantas pessoas
+    clicaram no botão, mas não quantas realmente chegaram à tela de cadastro.
+  */
+  useEffect(() => {
+    if (entradaPeloCadastro) medirLanding(EVENTOS_LANDING.chegouNoCadastro, { origem_tela: "cadastro" });
+  }, [entradaPeloCadastro]);
+
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
 
 
@@ -445,9 +471,9 @@ const LoginPage = () => {
   const cadastroDireto = step === "signup" && !emailLocked;
   const mostraSocial = step === "initial" || cadastroDireto;
   const inputCls =
-    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
+    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 max-lg:h-14 max-lg:rounded-[16px] max-lg:pl-5 max-lg:text-[15px] text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
   const primaryBtnCls =
-    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
+    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] max-lg:h-14 max-lg:rounded-full max-lg:text-[16px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
 
   return (
     <main
@@ -457,11 +483,46 @@ const LoginPage = () => {
       data-velo-flat-buttons
       /* Azul chapado, o mesmo #0B1B3D do hero da landing. Sem degradê: o brilho radial
          não dizia nada sobre a marca e podia estar em qualquer produto. */
-      className={`relative flex min-h-screen bg-[#0B1B3D] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
+      className={`relative flex min-h-screen bg-[#0F0F12] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
     >
+      {/*
+        Celular: foto cheia no topo e o formulário numa folha clara que sobe do rodapé.
+        A foto é decoração — no desktop a coluna da vitrine faz esse papel.
+      */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[52vh] overflow-hidden lg:hidden">
+        <ImagemResponsiva
+          base="pessoa-02"
+          larguras={[640, 960, 1280]}
+          original="/pessoa%2002.webp"
+          sizes="200vw"
+          alt=""
+          prioritaria
+          className="h-full w-full object-cover object-[64%_40%]"
+        />
+        {/* Topo: segura a leitura do logo e do botão sobre o céu claro. */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,18,0.45)_0%,rgba(15,15,18,0)_28%)]" />
+        {/* Base: a foto se desfaz no fundo escuro atrás da folha. */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,18,0)_45%,#0F0F12_100%)]" />
+      </div>
+
+      {/* Atalho entre entrar e criar conta, como pílula no canto — só no celular. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (resetMode) { setAviso(null); setResetMode(false); return; }
+          if (step === "signup") {
+            if (entradaPeloCadastro) navigate("/login");
+            else voltarParaInicio();
+          } else irParaCadastro();
+        }}
+        className="absolute right-4 top-5 z-10 h-11 rounded-full bg-white/25 px-5 text-[15px] font-semibold text-white backdrop-blur-md transition active:scale-[0.97] lg:hidden"
+      >
+        {step === "signup" && !resetMode ? "Entrar" : "Criar conta"}
+      </button>
+
       {/* ── Coluna do formulário ─────────────────────────────────────────── */}
-      <div className="relative flex w-full flex-col px-5 pb-10 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
-        <div className="flex flex-1 flex-col justify-center py-6 lg:py-12">
+      <div className="relative flex w-full flex-col px-3 pb-3 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
+        <div className="flex flex-1 flex-col justify-end py-6 max-lg:pb-0 lg:justify-center lg:py-12">
           {/*
             No celular a marca faz parte do mesmo bloco do título: fora dele, o
             `justify-center` do miolo abria um vão morto entre uma coisa e outra e a parte
@@ -473,10 +534,10 @@ const LoginPage = () => {
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease }}
-            className="mx-auto mb-8 w-fit lg:absolute lg:left-16 lg:top-12 lg:mx-0 lg:mb-0"
+            className="absolute left-5 top-5 z-10 w-fit lg:left-16 lg:top-12"
           >
             <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
-              <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
+              <img src="/logo.png" alt="Velo" className="h-10 w-10 rounded-[12px] lg:h-11 lg:w-11 lg:rounded-[13px]" />
               {/* Mesma métrica do logotipo da landing. No desktop só o ícone, como sempre foi. */}
               <span className="text-[26px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
                 Velo
@@ -488,8 +549,16 @@ const LoginPage = () => {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="mx-auto w-full max-w-[420px]"
+            className="relative mx-auto w-full max-w-[420px] max-lg:rounded-[32px] max-lg:bg-[#FCFBF8] max-lg:px-6 max-lg:pb-6 max-lg:pt-14 max-lg:shadow-[0_-20px_60px_rgba(0,0,0,0.35)]"
           >
+            {/* Fechar volta para a landing — só no celular, como na folha de referência. */}
+            <Link
+              to="/"
+              aria-label="Fechar"
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-[#141414] transition hover:bg-black/5 lg:hidden"
+            >
+              <X size={22} strokeWidth={1.6} />
+            </Link>
             {/*
               A dupla título+subtítulo troca junto com a etapa: `key` no copy faz o texto
               antigo sair e o novo entrar, em vez de mudar de conteúdo no mesmo lugar.
@@ -503,10 +572,10 @@ const LoginPage = () => {
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
                   transition={{ duration: 0.26, ease }}
                 >
-                  <h1 className={`text-center text-[30px] leading-[1.12] text-white lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
+                  <h1 className={`text-center text-[28px] leading-[1.12] text-[#141414] max-lg:!font-bold max-lg:!tracking-[-0.035em] lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
                     {copy.title}
                   </h1>
-                  <p className="mx-auto mt-2.5 max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
+                  <p className="mx-auto mt-2.5 hidden max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:block lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
                     {copy.subtitle}
                   </p>
 
@@ -521,7 +590,7 @@ const LoginPage = () => {
             */}
             <motion.div
               variants={reduceMotion ? semMovimento : cardEntrada}
-              className={`mt-7 rounded-[24px] bg-white p-5 shadow-[0_28px_70px_-24px_rgba(2,8,23,0.75)] ring-1 ring-white/10 lg:mt-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none lg:ring-0 ${FONTE_FORMULARIO}`}
+              className={`mt-6 lg:mt-0 ${FONTE_FORMULARIO}`}
             >
 
             {/*
@@ -556,7 +625,7 @@ const LoginPage = () => {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={googleLoading}
-                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 lg:mt-7"
+                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 max-lg:h-14 max-lg:rounded-full max-lg:border-0 max-lg:bg-[#141414] max-lg:text-[16px] max-lg:text-white max-lg:active:scale-[0.99] max-lg:hover:bg-[#141414] lg:mt-7"
                 >
                   <GoogleIcon />
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
@@ -589,7 +658,7 @@ const LoginPage = () => {
                   </div>
                 )}
 
-                <div className="my-6 flex items-center gap-4">
+                <div className="my-6 flex items-center gap-4 max-lg:my-5">
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
                   <span className="text-[13px] text-[#94A3B8]">
                     {cadastroDireto ? "ou cadastre-se com e-mail" : "ou entre com e-mail"}
@@ -741,7 +810,7 @@ const LoginPage = () => {
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Crie uma senha (8 ou mais caracteres)"
+                            placeholder="Senha (mín. 8 caracteres)"
                             autoComplete="new-password"
                             enterKeyHint="go"
                             className={`${inputCls} pr-11`}
@@ -799,7 +868,7 @@ const LoginPage = () => {
                         onClick={irParaCadastro}
                         className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                       >
-                        Criar conta grátis
+                        Criar minha conta
                       </button>
                     </>
                   )}
@@ -822,7 +891,9 @@ const LoginPage = () => {
                       Já tem uma conta?{" "}
                       <button
                         type="button"
-                        onClick={voltarParaInicio}
+                        /* Veio de /cadastro: trocar só a etapa deixaria a pessoa numa
+                           tela de login com o endereço /cadastro na barra. */
+                        onClick={() => (entradaPeloCadastro ? navigate("/login") : voltarParaInicio())}
                         className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                       >
                         Entrar
@@ -844,7 +915,7 @@ const LoginPage = () => {
         */}
         <Link
           to="/docs"
-          className="mx-auto mb-6 w-fit text-[13px] font-semibold text-white/70 underline underline-offset-4 transition hover:text-white lg:hidden"
+          className="mx-auto mb-1 mt-4 w-fit text-[13px] font-medium text-white/55 underline underline-offset-4 transition hover:text-white lg:hidden"
         >
           Precisa de ajuda?
         </Link>

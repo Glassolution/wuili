@@ -911,7 +911,7 @@ const PLAN_DATA = [
   {
     id: "business",
     name: "Business",
-    price: "R$159,60",
+    price: "R$189,90",
     period: "/mês",
     description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
     features: [

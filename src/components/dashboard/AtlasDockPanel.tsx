@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, Copy, Maximize2, PackageSearch, PlayCircle, SquarePen, ThumbsDown, ThumbsUp, X as CloseIcon } from "lucide-react";
 
@@ -49,6 +50,7 @@ const formatPrice = (price?: number | null) =>
 
 const AtlasDockPanel = () => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const { user } = useAuth();
   const reduzirMovimento = useReducedMotion();
   const {
@@ -453,7 +455,7 @@ const AtlasDockPanel = () => {
             {quota.plano === "gratis" && (
               <button
                 type="button"
-                onClick={() => navigate("/dashboard/planos")}
+                onClick={() => upgradeModal.open({ origin: "atlas_quota" })}
                 className="ml-1 font-medium text-[#2563EB] hover:underline"
               >
                 Ver planos

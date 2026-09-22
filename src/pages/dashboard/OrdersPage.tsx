@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
+import { MobileOrdersView } from "@/components/dashboard/MobileOrdersView";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { usePlan, type PlanName } from "@/hooks/usePlan";
 
@@ -1958,9 +1959,61 @@ const OrdersPage = () => {
 
   const isEmpty = !isLoading && orders.length === 0;
   const activeTabCount = tab === "ml" ? orders.length : 0;
+  const supplierMobile =
+    useBotPurchase
+      ? {
+          connected: c7DropAccount.status === "connected",
+          label:
+            c7DropAccount.status === "connected"
+              ? "Conta conectada"
+              : c7DropAccount.status === "signup_requested"
+                ? "Conta em criação"
+                : "Não conectada",
+          action:
+            c7DropAccount.status === "connected"
+              ? "Gerenciar"
+              : c7DropAccount.status === "invalid_credentials" || c7DropAccount.status === "manual_action_required"
+                ? "Corrigir"
+                : "Conectar",
+          onOpen: () => {
+            if (c7DropAccount.status === "connected") {
+              setC7DropAccountManageOpen(true);
+              return;
+            }
+            setC7DropAccountModalOpen(true);
+          },
+        }
+      : null;
 
   return (
     <TooltipProvider delayDuration={120}>
+      <div className="md:hidden">
+        <MobileOrdersView
+          orders={orders}
+          isLoading={isLoading}
+          useBotPurchase={useBotPurchase}
+          supplier={supplierMobile}
+          onSelect={(selectedOrder) => {
+            const routeId = selectedOrder.ml_order_id ?? selectedOrder.id ?? selectedOrder.external_order_id;
+            if (routeId) navigate(`/dashboard/orders/${encodeURIComponent(routeId)}`);
+            else veloToast.error("Este pedido não possui um identificador válido.");
+          }}
+          onBuy={async (selectedOrder) => {
+            const info = purchaseInfoFromMlOrder(selectedOrder);
+            if (!info) {
+              veloToast.error("Este pedido não possui fornecedor vinculado.");
+              return;
+            }
+            try {
+              setSupplierPurchaseInfo(await attachDropshipOrderId(info, selectedOrder));
+            } catch {
+              veloToast.error("Não foi possível localizar este pedido na fila do bot.");
+            }
+          }}
+        />
+      </div>
+
+      <div className="hidden md:block">
       <DashboardPageShell
         title="Pedidos"
         className="overflow-visible"
@@ -2006,6 +2059,7 @@ const OrdersPage = () => {
         </div>
 
         {useBotPurchase ? (
+          <div className="hidden md:block">
           <C7DropAccountBanner
             account={c7DropAccount}
             onOpen={() => {
@@ -2016,6 +2070,7 @@ const OrdersPage = () => {
               setC7DropAccountModalOpen(true);
             }}
           />
+          </div>
         ) : null}
 
         {tab === "loja" && user?.id ? (
@@ -2070,26 +2125,27 @@ const OrdersPage = () => {
             ))}
           </div>
         )}
-        <C7DropAccountManageModal
-          open={useBotPurchase && c7DropAccountManageOpen && c7DropAccount.status === "connected"}
-          account={c7DropAccount}
-          disconnecting={c7DropDisconnectMutation.isPending}
-          onClose={() => setC7DropAccountManageOpen(false)}
-          onChangeAccount={() => {
-            setC7DropAccountManageOpen(false);
-            setC7DropAccountModalOpen(true);
-          }}
-          onDisconnect={() => c7DropDisconnectMutation.mutate()}
-        />
-        <C7DropAccountModal
-          open={useBotPurchase && c7DropAccountModalOpen}
-          account={c7DropAccount}
-          saving={c7DropAccountMutation.isPending}
-          onClose={() => setC7DropAccountModalOpen(false)}
-          onSave={(mode, form) => c7DropAccountMutation.mutate({ mode, form })}
-        />
-        <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} onCreatedPix={() => queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user?.id] })} />
       </DashboardPageShell>
+      </div>
+      <C7DropAccountManageModal
+        open={useBotPurchase && c7DropAccountManageOpen && c7DropAccount.status === "connected"}
+        account={c7DropAccount}
+        disconnecting={c7DropDisconnectMutation.isPending}
+        onClose={() => setC7DropAccountManageOpen(false)}
+        onChangeAccount={() => {
+          setC7DropAccountManageOpen(false);
+          setC7DropAccountModalOpen(true);
+        }}
+        onDisconnect={() => c7DropDisconnectMutation.mutate()}
+      />
+      <C7DropAccountModal
+        open={useBotPurchase && c7DropAccountModalOpen}
+        account={c7DropAccount}
+        saving={c7DropAccountMutation.isPending}
+        onClose={() => setC7DropAccountModalOpen(false)}
+        onSave={(mode, form) => c7DropAccountMutation.mutate({ mode, form })}
+      />
+      <SupplierPurchaseModal info={supplierPurchaseInfo} onClose={() => setSupplierPurchaseInfo(null)} onCreatedPix={() => queryClient.invalidateQueries({ queryKey: ["ml-orders-view", user?.id] })} />
     </TooltipProvider>
   );
 };

@@ -132,9 +132,29 @@ export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: s.gap }}>
+      {/*
+        WebP direto no src, e não dentro de um <picture>.
+
+        Motivo medido: este logo aparece na tela de carregamento, antes de
+        qualquer página. Com <picture>, o React cria o <img> já com o src do PNG
+        e só depois o prende ao <picture> — o navegador começa a baixar o PNG
+        nesse intervalo e os 146 KB saem da rede de qualquer jeito. Apontando o
+        src direto para o WebP (3 KB), isso não acontece.
+
+        O onError cobre o navegador antigo sem WebP: ele falha na imagem e cai
+        no PNG. Na prática é raro — WebP funciona em Android desde o 4.2 e no
+        iPhone desde o iOS 14.
+      */}
       <img
-        src="/logo.png"
+        src="/landing/logo-96.webp"
+        onError={(evento) => {
+          const img = evento.currentTarget;
+          if (img.src.endsWith("/logo.png")) return;
+          img.src = "/logo.png";
+        }}
         alt=""
+        width={s.icon}
+        height={s.icon}
         style={{ width: s.icon, height: s.icon, objectFit: "contain", display: "block", flexShrink: 0 }}
       />
       <span

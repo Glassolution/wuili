@@ -24,6 +24,7 @@ import ImportProductModal from "@/components/dashboard/ImportProductModal";
 import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import { getActiveStore } from "@/components/dashboard/FirstStoreOnboarding";
 import { veloToast } from "@/components/ui/velo-toast";
+import { marcarProdutoEscolhido } from "@/lib/primeiroProduto";
 import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import { proxyImageList } from "@/lib/imageProxy";
 import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
@@ -159,6 +160,11 @@ const CatalogoProductDetailPage = () => {
   const openedAt = useRef(Date.now());
   const trackedDepths = useRef(new Set<number>());
   const [product, setProduct] = useState<DetailedProduct | null>(null);
+
+  // Abrir a ficha de um produto conclui o passo "Escolher um produto" do Início no celular.
+  useEffect(() => {
+    if (user?.id && product?.id) marcarProdutoEscolhido(user.id);
+  }, [user?.id, product?.id]);
   const [related, setRelated] = useState<DetailedProduct[]>([]);
   const [activeImg, setActiveImg] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -418,7 +424,7 @@ const CatalogoProductDetailPage = () => {
   };
 
   return (
-    <div ref={pageRef} className="-m-5 shrink-0 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white pb-24 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:pb-0">
+    <div ref={pageRef} className="-m-5 shrink-0 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] bg-white pb-4 text-[#111111] sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:pb-0">
       <div key={product.id} className="mx-auto min-h-screen w-full max-w-[1200px] animate-fade-in px-5 py-6 sm:px-8 sm:py-8 lg:px-8 lg:py-10">
 
         {/* CABEÇALHO DA PÁGINA */}
@@ -903,19 +909,6 @@ const CatalogoProductDetailPage = () => {
           </section>
         )}
 
-      </div>
-
-      <div className="fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 border-t border-black/[0.08] bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.10)] backdrop-blur-xl md:hidden">
-        <div className="mx-auto flex max-w-[480px] items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold text-[#64748B]">Sobra bruta estimada</p>
-            <p className="text-[17px] font-bold text-[#15803D]">{formatPrice(pricing.grossRemainder)}</p>
-          </div>
-          <button type="button" onClick={() => openImportFlow("publish_sticky")} className="inline-flex h-12 min-w-[176px] items-center justify-center rounded-[10px] bg-[#2563EB] px-5 text-[15px] font-bold text-white active:bg-[#1D4ED8]">
-            Publicar produto
-          </button>
-        </div>
-        <p className="mx-auto mt-1 max-w-[480px] text-right text-[10px] text-[#64748B]">É preciso ter um plano ativo.</p>
       </div>
 
       <ImportProductModal

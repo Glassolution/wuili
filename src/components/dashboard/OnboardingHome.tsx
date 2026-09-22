@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { CheckCircle2, Link2, Package, ArrowRight, Lock } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 
 interface OnboardingHomeProps {
@@ -12,6 +13,7 @@ interface OnboardingHomeProps {
 
 const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomeProps) => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
 
   const handleConnectML = async () => {
     try {
@@ -41,7 +43,7 @@ const OnboardingHome = ({ name, mlConnected, hasPublication }: OnboardingHomePro
             </span>
           </div>
           <button
-            onClick={() => navigate("/dashboard/planos")}
+            onClick={() => upgradeModal.open({ origin: "onboarding_home" })}
             className="rounded-full bg-[#111111] px-4 py-2 text-[12px] font-bold text-white transition-opacity hover:opacity-90"
           >
             Upgrade para Pro

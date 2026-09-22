@@ -1,5 +1,22 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
-import { ArrowLeft, Check, Loader2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Clapperboard,
+  Headphones,
+  Image,
+  Infinity as InfinityIcon,
+  LayoutTemplate,
+  Layers,
+  Loader2,
+  MessageCircle,
+  Package,
+  RefreshCw,
+  Sparkle,
+  Store,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { VeloLogo } from "@/components/VeloLogo";
@@ -9,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
-import { VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { VELO_PLAN_PRICES, billingCycleForPlan } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 
@@ -127,6 +144,45 @@ const PLANS: PlanEntry[] = [
     ],
   },
 ];
+
+const MOBILE_HEADLINE: Record<PlanId, string> = {
+  base: "Comece a vender",
+  pro: "Venda no automático",
+  business: "Opere sem teto",
+};
+
+const MOBILE_HIGHLIGHTS: Record<PlanId, { from: string; items: { icon: LucideIcon; text: string }[] }> = {
+  base: {
+    from: "Grátis",
+    items: [
+      { icon: Store, text: "50 anúncios ativos no Mercado Livre" },
+      { icon: MessageCircle, text: "40 mensagens por dia com o Atlas" },
+      { icon: Image, text: "20 imagens de produto com IA por mês" },
+      { icon: LayoutTemplate, text: "1 página de vendas gerada por IA" },
+      { icon: Package, text: "Acesso ao catálogo validado da Velo" },
+    ],
+  },
+  pro: {
+    from: "Base",
+    items: [
+      { icon: Layers, text: "300 anúncios, lote e variações" },
+      { icon: RefreshCw, text: "Sincronização de preço e estoque" },
+      { icon: MessageCircle, text: "150 mensagens por dia com o Atlas" },
+      { icon: Image, text: "100 imagens e 10 vídeos com IA" },
+      { icon: Store, text: "3 lojas completas geradas por IA" },
+    ],
+  },
+  business: {
+    from: "Pro",
+    items: [
+      { icon: InfinityIcon, text: "Anúncios ilimitados no Mercado Livre" },
+      { icon: Layers, text: "Marketplaces ilimitados" },
+      { icon: MessageCircle, text: "400 mensagens por dia com o Atlas" },
+      { icon: Clapperboard, text: "300 imagens e 30 vídeos com IA" },
+      { icon: Headphones, text: "Suporte dedicado" },
+    ],
+  },
+};
 
 const formatBRL = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(value);
@@ -340,9 +396,222 @@ type ModalProps = {
   trackingContext?: { origin?: string; productId?: string };
 };
 
+const MobilePlansSheet = ({
+  cycle,
+  setCycle,
+  selectedPlanId,
+  setSelectedPlanId,
+  loadingPlans,
+  checkingOutPlanId,
+  sandboxPurchaseEnabled,
+  onChoose,
+  onClose,
+}: {
+  cycle: BillingCycle;
+  setCycle: (value: BillingCycle | ((current: BillingCycle) => BillingCycle)) => void;
+  selectedPlanId: PlanId;
+  setSelectedPlanId: (id: PlanId) => void;
+  loadingPlans: boolean;
+  checkingOutPlanId: PlanId | null;
+  sandboxPurchaseEnabled: boolean;
+  onChoose: (id: PlanId) => void;
+  onClose: () => void;
+}) => {
+  const plan = PLANS.find((item) => item.id === selectedPlanId) ?? PLANS[0];
+  const highlights = MOBILE_HIGHLIGHTS[plan.id];
+  const price = cycle === "annual" ? plan.annual / 12 : plan.monthly;
+  const priceParts = splitBRL(price);
+  const temDescontoAnual = cycle === "annual" && plan.annual / 12 < plan.monthly - 0.01;
+  const originalPrice = temDescontoAnual ? formatBRL(plan.monthly) : null;
+  const nomeDoPlano = plan.name.replace("Plano ", "");
+  const escolherPlano = (id: PlanId) => {
+    setSelectedPlanId(id);
+    setCycle(billingCycleForPlan(id));
+  };
+
+  return (
+    <div className="relative flex h-full w-full flex-col overflow-y-auto bg-[#E8ECF2] px-4 pb-[calc(24px+env(safe-area-inset-bottom))] pt-[calc(14px+env(safe-area-inset-top))] text-[#111111] antialiased sm:hidden">
+      <div className="flex items-start justify-between gap-4">
+        <h2 className="min-w-0 flex-1 text-[22px] font-semibold leading-tight tracking-[-0.03em]">
+          Experimente o {nomeDoPlano}
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-black/40"
+        >
+          <X size={18} strokeWidth={2} />
+        </button>
+      </div>
+
+      <div className="mt-5 flex rounded-full bg-black/[0.06] p-[3px]">
+        {PLANS.map((item) => {
+          const ativo = item.id === selectedPlanId;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => escolherPlano(item.id)}
+              className={`h-9 flex-1 rounded-full text-[13px] font-medium transition-colors ${
+                ativo ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(15,23,42,0.10)]" : "bg-transparent text-black/35"
+              }`}
+            >
+              {item.name.replace("Plano ", "")}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="relative mt-6">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-[3px] rounded-[25px]"
+          style={{
+            padding: "4px",
+            background: "linear-gradient(180deg, #C8E0FF 0%, #4C8DFF 34%, #6BA4FF 70%, #B7D0F2 100%)",
+            WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            WebkitMaskComposite: "xor",
+            mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            maskComposite: "exclude",
+            filter: "blur(7px)",
+            opacity: 0.88,
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-px rounded-[23px]"
+          style={{
+            padding: "1.5px",
+            background: "linear-gradient(180deg, #F7FBFF 0%, #8EBBFF 16%, #3B82F6 46%, #7EB0FF 78%, #D4E6FF 100%)",
+            WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            WebkitMaskComposite: "xor",
+            mask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            maskComposite: "exclude",
+            filter: "blur(1.5px)",
+          }}
+        />
+        <div
+          className="relative overflow-hidden rounded-[22px] bg-white"
+          style={{
+            boxShadow: "0 0 0 1px rgba(91,156,255,0.28), inset 0 1px 0 rgba(255,255,255,0.95), inset 0 18px 36px rgba(191,219,254,0.18)",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-px"
+            style={{
+              background: "linear-gradient(90deg, transparent 8%, rgba(255,255,255,0.95) 50%, transparent 92%)",
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 rounded-[22px]"
+            style={{
+              boxShadow: "inset 0 0 0 1px rgba(110,168,255,0.42)",
+            }}
+          />
+          <div className="relative px-[18px] pb-5 pt-[18px]">
+            {loadingPlans ? (
+              <div className="space-y-4 py-2">
+                <div className="h-5 w-28 animate-pulse rounded-full bg-black/[0.05]" />
+                <div className="h-8 w-48 animate-pulse rounded-full bg-black/[0.05]" />
+                <div className="h-4 w-full animate-pulse rounded-full bg-black/[0.05]" />
+                <div className="h-12 w-full animate-pulse rounded-full bg-black/[0.05]" />
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[16px] font-medium tracking-[-0.02em] text-[#111111]">{nomeDoPlano}</p>
+                  {plan.id === "business" ? (
+                    <span className="rounded-full border border-[#5B9CFF]/45 bg-[#F3F8FF]/80 px-2.5 py-[5px] text-[10px] font-semibold uppercase tracking-[0.06em] text-[#2B6DE8]">
+                      Anual
+                    </span>
+                  ) : plan.ribbon ? (
+                    <span className="rounded-full border border-[#5B9CFF]/45 bg-[#F3F8FF]/80 px-2.5 py-[5px] text-[10px] font-semibold uppercase tracking-[0.06em] text-[#2B6DE8]">
+                      {plan.ribbon}
+                    </span>
+                  ) : null}
+                </div>
+
+                <h3 className="mt-5 text-[28px] font-semibold leading-[1.08] tracking-[-0.038em] text-[#111111]">
+                  {MOBILE_HEADLINE[plan.id]}
+                </h3>
+                <p className="mt-2 max-w-[34ch] text-[15px] leading-[1.45] text-[#8A8F98]">{plan.tagline}</p>
+
+                <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  {originalPrice ? (
+                    <span className="text-[20px] font-medium text-[#C5C7CC] line-through decoration-[1.5px]">{originalPrice}</span>
+                  ) : null}
+                  <span className="text-[36px] font-semibold leading-none tracking-[-0.05em] text-[#111111]">
+                    {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
+                    <span className="text-[24px] font-semibold tracking-[-0.04em]">
+                      {sandboxPurchaseEnabled ? ",00" : priceParts.cents}
+                    </span>
+                  </span>
+                  <span className="text-[15px] text-[#9AA0A8]">/mês</span>
+                </div>
+
+                {plan.id === "business" ? (
+                  <p className="mt-2 text-[13px] font-medium text-[#2B6DE8]">Cobrança anual</p>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => onChoose(plan.id)}
+                  disabled={checkingOutPlanId !== null}
+                  className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full text-[16px] font-semibold text-white transition-opacity disabled:opacity-70"
+                  style={{
+                    background: "linear-gradient(180deg, #6BA4FF 0%, #4C8DFF 48%, #3B7EFF 100%)",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.32), 0 6px 16px rgba(59,130,246,0.28)",
+                  }}
+                >
+                  {checkingOutPlanId === plan.id ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {sandboxPurchaseEnabled ? "Ativando..." : "Redirecionando..."}
+                    </span>
+                  ) : (
+                    <>
+                      <Sparkle className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />
+                      {sandboxPurchaseEnabled ? "Testar" : "Assinar"} {nomeDoPlano}
+                    </>
+                  )}
+                </button>
+
+                <p className="mt-6 text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">Tudo do {highlights.from}, e:</p>
+                <ul className="mt-3.5 space-y-3.5">
+                  {highlights.items.map((item) => {
+                    const Icone = item.icon;
+                    return (
+                      <li key={item.text} className="flex items-start gap-3 text-[15px] leading-snug text-[#3F4650]">
+                        <Icone className="mt-px h-[18px] w-[18px] shrink-0 text-[#7BA3E8]" strokeWidth={1.6} />
+                        <span>{item.text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <p className="mt-6 text-[12px] leading-relaxed text-[#9AA0A8]">
+                  {sandboxPurchaseEnabled
+                    ? "Sandbox ligado: este plano é ativado sem cobrança real."
+                    : plan.id === "business"
+                      ? "Cobrança anual. Cancele quando quiser."
+                      : "Cancele quando quiser. O checkout continua seguro via Mercado Pago."}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: ModalProps) => {
   const { session, role } = useAuth();
-  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+  const [cycle, setCycle] = useState<BillingCycle>(billingCycleForPlan(defaultPlan ?? "base"));
+  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlan ?? "base");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
   const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
@@ -364,6 +633,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
     openedAt.current = Date.now();
     trackMobileHomeEvent(session?.user?.id, "plans_open", { productId: trackingContext?.productId, detail: trackingContext?.origin ?? "unknown" });
     setLoadingPlans(true);
+    setSelectedPlanId(defaultPlan ?? "base");
+    setCycle(billingCycleForPlan(defaultPlan ?? "base"));
     const timer = window.setTimeout(() => setLoadingPlans(false), 720);
     return () => window.clearTimeout(timer);
   }, [open]);
@@ -373,18 +644,19 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   // Fluxo Velo v1: cria a sessão e segue direto para o checkout hospedado da ValidaPay.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
+    const checkoutCycle = billingCycleForPlan(planId);
     setCheckingOutPlanId(planId);
-    trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${cycle}` });
+    trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${checkoutCycle}` });
     try {
       if (sandboxPurchaseEnabled) {
         try {
           const { data, error } = await supabase.functions.invoke("admin-sandbox-subscription", {
-            body: { plan: planId, cycle },
+            body: { plan: planId, cycle: checkoutCycle },
           });
           if (error || !data?.success) throw new Error(data?.error || data?.message || "Função Sandbox indisponível.");
         } catch (error) {
           if (!import.meta.env.DEV) throw error;
-          createLocalSandboxSubscription(session?.user?.id ?? session?.user?.email ?? null, planId, cycle);
+          createLocalSandboxSubscription(session?.user?.id ?? session?.user?.email ?? null, planId, checkoutCycle);
         }
         toast.success("Assinatura Sandbox ativada sem cobrança.");
         setCheckingOutPlanId(null);
@@ -392,7 +664,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
         return;
       }
 
-      const res = await startValidaPayCheckout(planId as VelloPlanId, cycle);
+      const res = await startValidaPayCheckout(planId as VelloPlanId, checkoutCycle);
       if (res.ok) return;
       setCheckingOutPlanId(null);
       toast.error(res.error ?? "Não foi possível gerar o pagamento.");
@@ -424,15 +696,27 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   );
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-0 sm:p-6">
+    <div className="fixed inset-0 z-[80] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
       <button
         type="button"
         aria-label="Fechar"
         onClick={closeWithTracking}
-        className="absolute inset-0 bg-black/55 backdrop-blur-[3px]"
+        className="absolute inset-0 hidden bg-black/55 backdrop-blur-[3px] sm:block"
       />
 
-      <div className="relative h-full w-full overflow-y-auto bg-white px-5 py-7 shadow-[0_40px_120px_rgba(0,0,0,0.28)] sm:h-auto sm:max-h-[94vh] sm:max-w-[1040px] sm:rounded-[18px] sm:px-9 sm:py-6">
+      <MobilePlansSheet
+        cycle={cycle}
+        setCycle={setCycle}
+        selectedPlanId={selectedPlanId}
+        setSelectedPlanId={setSelectedPlanId}
+        loadingPlans={loadingPlans}
+        checkingOutPlanId={checkingOutPlanId}
+        sandboxPurchaseEnabled={sandboxPurchaseEnabled}
+        onChoose={(planId) => void handleChoose(planId)}
+        onClose={closeWithTracking}
+      />
+
+      <div className="relative hidden h-full w-full overflow-y-auto bg-white px-5 py-7 shadow-[0_40px_120px_rgba(0,0,0,0.28)] sm:block sm:h-auto sm:max-h-[94vh] sm:max-w-[1040px] sm:rounded-[18px] sm:px-9 sm:py-6">
         <button
           type="button"
           onClick={closeWithTracking}
@@ -475,28 +759,13 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                 : "O checkout continua seguro via Mercado Pago."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setCycle((current) => (current === "monthly" ? "annual" : "monthly"))}
-            className="flex w-fit shrink-0 items-center gap-3 text-[14px] font-semibold text-[#3D3D3A]"
-            aria-pressed={cycle === "annual"}
-          >
-            <span className={`relative h-6 w-11 rounded-full transition-colors ${cycle === "annual" ? "bg-black" : "bg-[#dfdeda]"}`}>
-              <span className={`absolute left-1 top-1/2 h-[18px] w-[18px] -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.20)] transition-transform ${cycle === "annual" ? "translate-x-[18px]" : "translate-x-0"}`} />
-            </span>
-            Cobrança anual
-            <span className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-              Economize 10%
-            </span>
-          </button>
         </div>
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
           {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((plan) => {
-            const price = cycle === "monthly" ? plan.monthly : plan.annual / 12;
+            const planCycle = billingCycleForPlan(plan.id);
+            const price = planCycle === "annual" ? plan.annual / 12 : plan.monthly;
             const priceParts = splitBRL(price);
-            const originalPrice = cycle === "annual" ? formatBRL(plan.monthly) : null;
-            const savings = originalPrice ? Math.round((1 - price / plan.monthly) * 100) : 0;
             const isHighlighted = plan.id === defaultPlan || (!defaultPlan && plan.highlighted);
 
             return (
@@ -532,22 +801,15 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
 
                 <div className="mt-6">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-['Manrope','Inter',ui-sans-serif,system-ui]">
-                    {originalPrice ? (
-                      <span className="text-[17px] font-semibold leading-none text-[#9CA3AF] line-through decoration-2">
-                        {originalPrice}
-                      </span>
-                    ) : null}
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
                       {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
                       <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
                     </span>
-                    {originalPrice ? (
-                      <span className="whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-[0_2px_5px_rgba(16,185,129,0.10)]">
-                        {savings}% OFF
-                      </span>
-                    ) : null}
                     <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">/mês</span>
                   </div>
+                  {plan.id === "business" ? (
+                    <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">Cobrança anual</p>
+                  ) : null}
                 </div>
 
                 <PremiumActionButton
