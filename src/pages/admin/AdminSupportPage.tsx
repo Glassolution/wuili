@@ -406,12 +406,12 @@ const AdminSupportPage = () => {
 
       const { data: profilesData } = await (supabase as any)
         .from("profiles")
-        .select("user_id,display_name,email,full_name,avatar_url")
+        .select("user_id,display_name,email,avatar_url")
         .in("user_id", userIds);
 
       for (const item of (profilesData ?? []) as any[]) {
         profilesByUser.set(item.user_id, {
-          display_name: item.full_name ?? item.display_name ?? null,
+          display_name: item.display_name ?? null,
           email: item.email ?? null,
           avatar_url: item.avatar_url ?? null,
         });
