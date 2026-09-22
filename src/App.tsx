@@ -2,8 +2,6 @@ import { Suspense, lazy, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
-import TourLab from "@/pages/__TourLab";
-import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
 import DashboardIntroSessionGuard from "@/components/DashboardIntroSessionGuard";
 import MLReconnectModal from "@/components/dashboard/MLReconnectModal";
 import MLPostConnectCheck from "@/components/dashboard/MLPostConnectCheck";
@@ -17,6 +15,18 @@ import AdminRoute from "@/components/AdminRoute";
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
+
+/*
+  TourLab e AtlasChatProvider entram por lazy(): os dois só existem dentro do
+  painel, mas eram importados no topo do App — ou seja, iam junto com o JavaScript
+  que um visitante da landing precisa baixar antes de ver qualquer coisa.
+  O TourLab ainda puxa o GuidedTour inteiro; o Atlas puxa o histórico de conversa.
+  Nada disso tem uso em "/".
+*/
+const TourLab = lazy(() => import("@/pages/__TourLab"));
+const AtlasChatProvider = lazy(() =>
+  import("@/contexts/AtlasChatContext").then((m) => ({ default: m.AtlasChatProvider })),
+);
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -174,7 +184,11 @@ const OpenPlansModalRoute = () => {
 
   useEffect(() => {
     upgradeModal.open();
-    navigate("/dashboard", { replace: true });
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   }, [navigate, upgradeModal]);
 
   return null;
@@ -237,7 +251,11 @@ const App = () => (
               <Route path="/velods/produto/editor" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
 
               <Route path="/catalogo" element={<StoreCatalogPage />} />
-              <Route path="/cadastro" element={<Navigate to="/login" replace />} />
+              {/* Cadastro tem endereço próprio: o botão principal da landing é para
+                  quem ainda não tem conta, e cair na tela de login faz essa pessoa
+                  pensar que precisa de uma conta para poder criar uma conta.
+                  É a mesma LoginPage — ela abre direto no passo "criar conta". */}
+              <Route path="/cadastro" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/convite/:token" element={<ReferralAcceptPage />} />
               <Route path="/setup" element={<SetupPage />} />

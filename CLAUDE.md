@@ -132,7 +132,44 @@ Usuário navega no catálogo Velo alimentado pelo scraping C7Drop
 
 ---
 
-## 11. Comandos Úteis
+## 11. Landing Page (rota `/`)
+
+Arquivo: `src/pages/Index.tsx`. Pensada para celular simples com 4G — é de onde
+vem a maior parte do público.
+
+**Regras que não podem ser quebradas nesta página:**
+
+- Nenhum número, depoimento ou resultado inventado. Prova social só aparece se
+  vier do banco (`src/hooks/useLandingStats.ts`) ou da lista `DEPOIMENTOS`, que
+  nasce vazia e, vazia, esconde a seção em produção.
+- Nenhuma promessa de ganho. A página diz o que a plataforma faz, nunca quanto a
+  pessoa vai ganhar.
+- Nada de "grátis" nos botões: **não existe plano gratuito** (planos a partir de
+  R$ 39,90/mês, ver `PlansUpgradeModal`).
+
+**Caminho até o cadastro:** o botão principal leva para `/cadastro`, que abre a
+`LoginPage` já no passo "Crie sua conta Velo". `/login` continua sendo a porta de
+quem já tem conta.
+
+**Imagens:** os PNGs de `public/` são a fonte; o que vai para o ar são os WebP
+responsivos em `public/landing/`, gerados por
+`./scripts/otimizar-imagens-landing.sh` (precisa de `cwebp`). Trocou um PNG?
+Rode o script de novo. Use `<ImagemResponsiva>` em vez de `<img>` — e não use
+`<picture>`: o React começa a baixar o PNG antes de prender o `<source>`.
+
+**Medição do funil:** `src/lib/landingFunnel.ts`. Os eventos vão para
+`window.dataLayer` (GTM), `gtag` e `fbq`, e ficam em `window.__veloFunil` para
+conferência no console. Para ligar o GA4, basta preencher `VITE_GA_MEASUREMENT_ID`.
+
+**Números reais:** a edge function `landing-stats` devolve produtos ativos e
+assinantes ativos. Precisa de `supabase functions deploy landing-stats
+--no-verify-jwt`. Sem ela, a landing cai no endpoint `catalog` e mostra só o
+total de produtos. O piso de assinantes para exibição fica em
+`LANDING_MIN_ASSINANTES` (padrão 50).
+
+---
+
+## 12. Comandos Úteis
 
 ```bash
 # Desenvolvimento local

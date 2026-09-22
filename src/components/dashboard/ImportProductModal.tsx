@@ -575,7 +575,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     });
     trackMobileHomeEvent(user?.id, "import_flow_exit", { productId: product.id, detail: "para_planos" });
     onClose();
-    navigate("/dashboard/planos");
+    upgradeModal.open({ defaultPlan: "base", origin: "product_import", productId: product.id });
   };
 
   const handleContinueFromReview = async () => {

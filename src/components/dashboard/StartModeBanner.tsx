@@ -1,11 +1,11 @@
-import { useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 interface StartModeBannerProps {
   isStartMode: boolean;
 }
 
 const StartModeBanner = ({ isStartMode }: StartModeBannerProps) => {
-  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
 
   return (
     <div
@@ -60,7 +60,7 @@ const StartModeBanner = ({ isStartMode }: StartModeBannerProps) => {
 
       {/* Right: Button */}
       <button
-        onClick={() => navigate("/dashboard/planos")}
+        onClick={() => upgradeModal.open({ origin: "start_mode_banner" })}
         style={{
           justifySelf: "end",
           height: "34px",

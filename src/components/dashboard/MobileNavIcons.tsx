@@ -4,7 +4,7 @@
  * Feitos à mão em vez de vir de uma biblioteca: as famílias prontas (Lucide,
  * Phosphor) só têm contorno, e a barra precisa do par contorno/preenchido —
  * é o preenchimento que marca a aba ativa agora que o fundo azul saiu. Todos
- * compartilham a mesma grade 24×24, traço 1.7 e cantos arredondados, então o
+ * compartilham a mesma grade 24×24, traço 1.5 e cantos arredondados, então o
  * conjunto lê como um só desenho.
  */
 
@@ -24,31 +24,64 @@ const baseProps = (size: number) => ({
 
 const strokeProps = {
   stroke: "currentColor",
-  strokeWidth: 1.7,
+  strokeWidth: 1.5,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 };
 
-/** Início — casa com telhado contínuo e porta recortada quando preenchida. */
+/**
+ * Início — casa de telhado largo (a água passa das paredes) e porta recortada
+ * no meio, como no desenho de referência. Preenchida, a porta vira um vão
+ * (evenodd); em contorno, aparece como um retângulo.
+ */
 export const NavHomeIcon = ({ active = false, size = 23 }: MobileNavIconProps) => (
   <svg {...baseProps(size)}>
     <path
-      d="M3.7 10.2 12 3.7l8.3 6.5v8.1a2 2 0 0 1-2 2h-2.9v-5.1a1.4 1.4 0 0 0-1.4-1.4h-4a1.4 1.4 0 0 0-1.4 1.4v5.1H5.7a2 2 0 0 1-2-2z"
+      d="M12 3.4 21.4 11h-2.4v9H5v-9H2.6zM10.2 14.8h3.6V20h-3.6z"
       fill={active ? "currentColor" : "none"}
+      fillRule="evenodd"
       {...strokeProps}
     />
   </svg>
 );
 
-/** Pedidos — sacola de compra: alça em arco e corpo levemente trapezoidal. */
-export const NavOrdersIcon = ({ active = false, size = 23 }: MobileNavIconProps) => (
+/**
+ * Catálogo — caixa em perspectiva (três faces) com a fita no topo, como no
+ * desenho de referência. Preenchida, as arestas internas viram linhas brancas
+ * para a caixa não virar um hexágono chapado.
+ */
+export const NavCatalogIcon = ({ active = false, size = 23 }: MobileNavIconProps) => (
   <svg {...baseProps(size)}>
     <path
-      d="M5.6 8.3h12.8l-.9 10.4a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8z"
+      d="M12 2.9 20.2 7.4v9.2L12 21.1l-8.2-4.5V7.4z"
       fill={active ? "currentColor" : "none"}
       {...strokeProps}
     />
-    <path d="M9.1 8.3V7a2.9 2.9 0 0 1 5.8 0v1.3" {...strokeProps} />
+    <path
+      d="M3.9 7.5 12 12l8.1-4.5M12 12v9M7.9 5.15l8.2 4.6"
+      {...strokeProps}
+      stroke={active ? "#FFFFFF" : "currentColor"}
+    />
+  </svg>
+);
+
+/**
+ * Pedidos — recibo da referência: topo liso com cantos arredondados, recortes
+ * em U só na base, duas linhas de texto à esquerda (a de cima mais longa).
+ * Preenchido, as linhas viram brancas.
+ */
+export const NavOrdersIcon = ({ active = false, size = 23 }: MobileNavIconProps) => (
+  <svg {...baseProps(size)}>
+    <path
+      d="M6 20.8V6.1A1.9 1.9 0 0 1 7.9 4.2h8.2A1.9 1.9 0 0 1 18 6.1v14.7l-3-1.9-3 1.9-3-1.9z"
+      fill={active ? "currentColor" : "none"}
+      {...strokeProps}
+    />
+    <path
+      d="M8.4 8.2h7M8.4 11.7h3.6"
+      {...strokeProps}
+      stroke={active ? "#FFFFFF" : "currentColor"}
+    />
   </svg>
 );
 
@@ -93,6 +126,19 @@ export const NavAccountIcon = ({ active = false, size = 23 }: MobileNavIconProps
       d="M4.9 20.3c0-3.7 3.2-5.9 7.1-5.9s7.1 2.2 7.1 5.9"
       fill={active ? "currentColor" : "none"}
       {...strokeProps}
+    />
+  </svg>
+);
+
+/**
+ * Atlas — balão de conversa. Fica no círculo escuro do meio, então é só o
+ * preenchimento branco: um chat reconhecível, sem cara de IA.
+ */
+export const NavAtlasIcon = ({ size = 22 }: MobileNavIconProps) => (
+  <svg {...baseProps(size)}>
+    <path
+      fill="currentColor"
+      d="M7.1 3.6h9.8A3.5 3.5 0 0 1 20.4 7.1v6.4a3.5 3.5 0 0 1-3.5 3.5h-3.4l-3.8 3.2c-.5.4-1.2.05-1.2-.55v-2.65H7.1A3.5 3.5 0 0 1 3.6 13.5V7.1A3.5 3.5 0 0 1 7.1 3.6z"
     />
   </svg>
 );

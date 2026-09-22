@@ -28,6 +28,7 @@ import { Navigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
@@ -50,9 +51,10 @@ import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import {
   NavAccountIcon,
+  NavAtlasIcon,
+  NavCatalogIcon,
   NavHomeIcon,
   NavOrdersIcon,
-  NavResultsIcon,
   type MobileNavIconProps,
 } from "@/components/dashboard/MobileNavIcons";
 
@@ -152,8 +154,9 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 /**
  * Item da barra inferior do mobile.
  *
- * Sem fundo na aba ativa: o retângulo azul competia com o próprio ícone. Quem
- * marca a seleção agora é o desenho, que passa de contorno a preenchido.
+ * Só o ícone, no desenho de referência: a aba ativa é o ícone preenchido e as
+ * outras ficam em contorno, as duas em tom escuro. O nome continua para leitor
+ * de tela (sr-only) e no aria-label.
  */
 const MobileBottomItem = ({
   to,
@@ -161,35 +164,40 @@ const MobileBottomItem = ({
   icon: Icon,
   active,
   onClick,
+  badge,
 }: {
   to?: string;
   label: string;
   icon: (props: MobileNavIconProps) => JSX.Element;
   active: boolean;
   onClick?: () => void;
+  badge?: number;
 }) => {
   const className =
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5 px-1 py-2 text-[10px] transition-transform duration-200 active:scale-95";
-  const style = active
-    ? { color: "#2563EB", fontWeight: 700 }
-    : { color: "rgba(17,17,17,0.45)", fontWeight: 600 };
+    "flex h-14 min-w-0 flex-1 items-center justify-center transition-transform duration-200 active:scale-90";
+  const style = { color: active ? "#1A1A1A" : "#3A3A3A" };
   const content = (
-    <>
-      <Icon active={active} />
-      <span className="max-w-full truncate">{label}</span>
-    </>
+    <span className="relative inline-flex">
+      <Icon active={active} size={26} />
+      {typeof badge === "number" && badge > 0 && (
+        <span className="absolute -right-2.5 -top-2.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#F04438] px-[5px] text-[10px] font-semibold leading-none text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+      <span className="sr-only">{label}</span>
+    </span>
   );
 
   if (to) {
     return (
-      <Link to={to} onClick={onClick} className={className} style={style} aria-current={active ? "page" : undefined}>
+      <Link to={to} onClick={onClick} className={className} style={style} aria-label={label} aria-current={active ? "page" : undefined}>
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} className={className} style={style}>
+    <button type="button" onClick={onClick} className={className} style={style} aria-label={label}>
       {content}
     </button>
   );
@@ -198,30 +206,20 @@ const MobileBottomItem = ({
 /**
  * Botão central do Atlas.
  *
- * Disco elevado que rompe a borda da barra, o gesto que os apps usam para a
- * ação principal. A pílula com texto dentro parecia banner de anúncio e não
- * dizia que ali mora o assistente; aqui o desenho fala por si e o rótulo
- * "Atlas" fica na mesma linha dos outros, mantendo o ritmo da barra.
+ * O círculo escuro da referência continua; o "+" virou um balão de conversa
+ * porque o meio abre o chat, não uma ação de criar.
  */
 const MobileAtlasButton = ({ active }: { active: boolean }) => (
   <Link
     to="/dashboard/atlas"
     aria-label="Abrir o Atlas"
     aria-current={active ? "page" : undefined}
-    className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5 px-1 py-2 text-[10px] transition-transform duration-200 active:scale-95"
-    style={{ color: active ? "#2563EB" : "rgba(17,17,17,0.45)", fontWeight: active ? 700 : 600 }}
+    className="flex h-14 min-w-0 flex-1 items-center justify-center transition-transform duration-200 active:scale-90"
   >
-    <span
-      className="-mt-[26px] flex h-[46px] w-[46px] items-center justify-center rounded-full"
-      style={{
-        background: "linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)",
-        // O anel branco recorta a barra e faz o disco flutuar sobre ela.
-        boxShadow: "0 0 0 4px #FFFFFF, 0 8px 20px rgba(37,99,235,0.45)",
-      }}
-    >
-      <AtlasAvatarIcon size={24} />
+    <span className="grid h-12 w-12 place-items-center rounded-full bg-[#2B2B2B] text-white">
+      <NavAtlasIcon size={20} />
     </span>
-    <span className="max-w-full truncate">Atlas</span>
+    <span className="sr-only">Atlas</span>
   </Link>
 );
 
@@ -278,6 +276,7 @@ const MobileAccountPage = ({
   initials,
   planLabel,
   planLoading,
+  hasPaidPlan,
   isAdmin,
 }: {
   displayName: string;
@@ -285,6 +284,7 @@ const MobileAccountPage = ({
   initials: string;
   planLabel: string;
   planLoading: boolean;
+  hasPaidPlan: boolean;
   isAdmin: boolean;
 }) => {
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -296,7 +296,8 @@ const MobileAccountPage = ({
     return () => window.removeEventListener("velo:open-invite-modal", open);
   }, []);
   const { signOut } = useAuth();
-  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
+  const rotuloAssinatura = hasPaidPlan ? "Melhorar plano" : "Assinar plano";
 
   /*
     No celular o botão "Sair" travava: quando o refresh token já estava inválido
@@ -347,12 +348,29 @@ const MobileAccountPage = ({
           <p className="mt-0.5 truncate text-[13px] font-medium text-white/75">Meu perfil ›</p>
         </div>
       </Link>
-      <div className="mt-6 flex h-14 items-center rounded-2xl bg-white px-4 text-[#1E3A8A] shadow-[0_10px_25px_rgba(30,58,138,0.18)]">
-        <div>
-          <p className="text-[13px] font-bold">Sua conta Velo</p>
-          <p className="text-[11px] text-black/50">Seu plano e sua loja, do seu jeito.</p>
-        </div>
-      </div>
+      {planLoading ? (
+        <div className="mt-6 h-14 animate-pulse rounded-2xl bg-white/70" />
+      ) : (
+        <button
+          type="button"
+          onClick={() => upgradeModal.open({ origin: "minha_conta" })}
+          className="mt-6 flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-left text-[#1E3A8A] shadow-[0_10px_25px_rgba(30,58,138,0.18)]"
+        >
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold">
+              {hasPaidPlan ? "Melhore sua assinatura" : "Sua assinatura"}
+            </p>
+            <p className="text-[11px] leading-snug text-black/50">
+              {hasPaidPlan
+                ? `Plano ${planLabel}. Mais recursos para vender sem travar.`
+                : "Assine para liberar anúncios, Atlas e o catálogo."}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-[#2563EB] px-3 py-[7px] text-[12px] font-semibold text-white">
+            {rotuloAssinatura}
+          </span>
+        </button>
+      )}
     </div>
 
     <div className="px-5 pb-6">
@@ -399,6 +417,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const { plan, loading: planLoading } = usePlan();
   const { nome, foto } = useProfile();
   const [showStartModeModal, setShowStartModeModal] = useState(false);
+  const [pedidosCount, setPedidosCount] = useState(0);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined) ??
@@ -414,6 +433,9 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const isRootDashboard = location.pathname === "/dashboard";
   const isAccountPage = location.pathname === "/dashboard/minha-conta";
   const isCatalogProductDetail = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
+  const isCatalogList = location.pathname === "/dashboard/catalogo";
+  const isOrdersList = location.pathname === "/dashboard/pedidos";
+  const isEdgeToEdgeMobile = isRootDashboard || isCatalogList || isOrdersList;
   const isModelsRoute = location.pathname.startsWith("/dashboard/modelos");
   // O Atlas no mobile é tela cheia, no formato de um app de chat: sem a faixa
   // azul em cima nem a barra de abas embaixo, que roubavam duas faixas da
@@ -430,6 +452,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const planLabel = {
     gratis: "Grátis",
     go: "Go",
+    base: "Base",
     pro: "Pro",
     business: "Business",
   }[plan] ?? "Grátis";
@@ -437,6 +460,26 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setResolvedRole(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
   }, [emailAffiliateRole, emailRole, role, metadataRole]);
+
+  useEffect(() => {
+    if (!user?.id || !isSupabaseEnabled) {
+      setPedidosCount(0);
+      return;
+    }
+
+    let active = true;
+    void supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .then(({ count }) => {
+        if (active) setPedidosCount(count ?? 0);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
@@ -482,7 +525,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         marca com a logo e os ícones bare, como no cabeçalho da referência. Os ícones
         perderam a pastilha `bg-white/10` — sobre a cor cheia ela virava ruído.
       */}
-      {!isRootDashboard && !isAccountPage && !isModelsRoute && !isAtlasRoute && (
+      {!isRootDashboard && !isAccountPage && !isModelsRoute && !isAtlasRoute && !isCatalogList && !isOrdersList && (
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between bg-[#2563EB] px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {isCatalogProductDetail ? (
@@ -543,7 +586,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         className={`min-h-0 flex-1 overflow-x-hidden ${
           isAtlasRoute
             ? "flex overflow-hidden p-0"
-            : `overflow-y-auto pb-[calc(96px+env(safe-area-inset-bottom))] ${isRootDashboard ? "px-0 pt-0" : "px-4 pt-4"}`
+            : `overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))] ${isEdgeToEdgeMobile ? "px-0 pt-0" : "px-4 pt-4"}`
         }`}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
@@ -557,6 +600,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
               initials={initials}
               planLabel={planLabel}
               planLoading={planLoading}
+              hasPaidPlan={plan !== "gratis"}
               isAdmin={isAdmin}
             />
           ) : (
@@ -566,16 +610,16 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       </main>
 
       <nav
-        className={`fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden ${
+        data-velo-flat-buttons
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-white px-3 pb-[calc(18px+env(safe-area-inset-bottom))] pt-4 md:hidden ${
           isAtlasRoute ? "hidden" : ""
         }`}
       >
-        {/* items-end: o disco do Atlas sobe, mas os rótulos ficam na mesma linha. */}
-        <div className="mx-auto flex max-w-[480px] items-end gap-1">
+        <div className="mx-auto flex max-w-[480px] items-center">
           <MobileBottomItem to="/dashboard" label="Início" icon={NavHomeIcon} active={location.pathname === "/dashboard"} />
-          <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={NavOrdersIcon} active={location.pathname.startsWith("/dashboard/pedidos")} />
+          <MobileBottomItem to="/dashboard/catalogo" label="Catálogo" icon={NavCatalogIcon} active={location.pathname.startsWith("/dashboard/catalogo") || location.pathname.startsWith("/catalogo")} />
           <MobileAtlasButton active={location.pathname.startsWith("/dashboard/atlas")} />
-          <MobileBottomItem to="/dashboard/resultados" label="Resultados" icon={NavResultsIcon} active={location.pathname.startsWith("/dashboard/resultados")} />
+          <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={NavOrdersIcon} active={location.pathname.startsWith("/dashboard/pedidos")} badge={pedidosCount} />
           <MobileBottomItem to="/dashboard/minha-conta" label="Minha Conta" icon={NavAccountIcon} active={isAccountPage || location.pathname === "/colecoes" || location.pathname.startsWith("/dashboard/configuracoes")} />
         </div>
       </nav>
@@ -743,6 +787,8 @@ const DashboardLayoutInner = () => {
   const showSupportWidget =
     location.pathname !== "/dashboard" &&
     location.pathname !== "/colecoes" &&
+    location.pathname !== "/dashboard/catalogo" &&
+    location.pathname !== "/dashboard/pedidos" &&
     !location.pathname.startsWith("/dashboard/atlas") &&
     // Na ficha do produto a bolha cobria o botão de publicar, que é a ação da tela.
     !isCatalogProductDetailRoute;
@@ -850,7 +896,6 @@ const DashboardLayoutInner = () => {
           </MobileDashboardChrome>
         </div>
         <NotificationBannerStack />
-        {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
         <AnimatePresence>
           {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} />}
         </AnimatePresence>

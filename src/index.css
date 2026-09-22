@@ -385,6 +385,28 @@
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
   }
+
+  /*
+    Exceção pontual ao Hanken do painel: os cartões de números do Início usam Inter,
+    no desenho de referência. A especificidade maior (duas classes) vence o
+    `.dashboard-inter *` acima, que também usa !important.
+  */
+  .dashboard-inter .velo-fonte-inter,
+  .dashboard-inter .velo-fonte-inter *,
+  .velo-fonte-inter,
+  .velo-fonte-inter * {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+    font-feature-settings: "tnum" !important;
+  }
+
+  /* Preço do catálogo mobile: SF Pro como na referência, não o Hanken/Inter do painel. */
+  .dashboard-inter .velo-fonte-inter .velo-catalogo-preco,
+  .velo-fonte-inter .velo-catalogo-preco {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, ui-sans-serif, sans-serif !important;
+    font-feature-settings: "tnum" 1 !important;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
   .dashboard-inter h1,
   .dashboard-inter h2,
   .dashboard-inter h3,

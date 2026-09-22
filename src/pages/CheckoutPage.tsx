@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
+import { carregarSdkMercadoPago } from "@/lib/mercadoPagoSdk";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { VeloMark } from "@/components/VeloLogo";
 import { markCompletedPayment, markReachedPayment } from "@/lib/onboardingAnalytics";
@@ -15,7 +16,7 @@ import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckou
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
-import { formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { billingCycleForPlan, formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
 
 
 type PaymentMethod = "pix" | "credit_card";
@@ -138,16 +139,6 @@ const CheckoutPage = () => {
   const initialPlanId = PLANS_DATA[rawPlan] ? rawPlan : "pro";
   // Trial de 5 dias descontinuado — todo checkout é assinatura mensal cheia.
   const isTrial = false;
-  const initialBillingCycleParam = (
-    searchParams.get("billing_cycle") ??
-    searchParams.get("billing") ??
-    searchParams.get("period") ??
-    searchParams.get("cycle") ??
-    ""
-  ).toLowerCase();
-  const initialBillingCycle: BillingCycle = ["annual", "anual", "yearly", "ano"].includes(initialBillingCycleParam)
-    ? "annual"
-    : "monthly";
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
   // Destaque visual (borda preta, sombra, logo sólido) segue o hover do mouse,
   // não mais o plano selecionado. A seleção continua no clique e alimenta o
@@ -156,8 +147,8 @@ const CheckoutPage = () => {
   const skipSelect = searchParams.get("skipSelect") === "1";
   const directPaymentStep = searchParams.get("step") === "payment";
   const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect || directPaymentStep);
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>(initialBillingCycle);
   const planId = selectedPlanId;
+  const billingCycle = billingCycleForPlan(planId);
   const plan = PLANS_DATA[planId];
   const recurringPrice = getDisplayPrice(planId, billingCycle);
   const recurringCycleLabel = billingCycle === "annual" ? "anual" : "mensal";
@@ -190,6 +181,17 @@ const CheckoutPage = () => {
   const pollRef = useRef<number | null>(null);
   const isAdmin = role === "admin" || isAdminEmail(session?.user?.email);
   const sandboxPurchaseEnabled = isAdmin && sandboxEnabled;
+
+  /*
+    Pede o SDK do cartão assim que a tela abre. Ele deixou de vir no index.html
+    (que o carregava em todas as páginas, inclusive na landing); aqui chega com
+    folga, enquanto a pessoa ainda escolhe o plano e digita os dados.
+  */
+  useEffect(() => {
+    void carregarSdkMercadoPago().catch(() => {
+      // Silencioso: se falhar aqui, a tentativa no envio mostra o aviso.
+    });
+  }, []);
 
   useEffect(() => {
     if (session?.user?.email && !email) setEmail(session.user.email);
@@ -439,7 +441,16 @@ const CheckoutPage = () => {
           setCheckoutState("idle");
           return;
         }
-        // @ts-ignore - MercadoPago SDK loaded via script tag
+        // O SDK não vem mais no index.html: é pedido por esta tela (ver
+        // src/lib/mercadoPagoSdk.ts). Aqui só se garante que já chegou.
+        try {
+          await carregarSdkMercadoPago();
+        } catch {
+          toast.error("Não foi possível carregar o pagamento por cartão. Tente novamente.", { id: toastId });
+          setCheckoutState("idle");
+          return;
+        }
+        // @ts-expect-error - SDK do Mercado Pago carregado por script, sem tipagem
         const mp = new window.MercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
         const [expMonth, expYear] = cardExpiry.split("/");
         const cardTokenRes = await mp.createCardToken({
@@ -599,28 +610,6 @@ const CheckoutPage = () => {
                   O checkout continua seguro via Mercado Pago.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setBillingCycle((current) => (current === "monthly" ? "annual" : "monthly"))}
-                className="flex w-fit shrink-0 items-center gap-2.5 text-[13px] font-medium text-[#3D3D3A] transition"
-                aria-pressed={billingCycle === "annual"}
-              >
-                <span
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-                    billingCycle === "annual" ? "bg-[#0A0A0A]" : "bg-[#DFDEDA]"
-                  }`}
-                >
-                  <span
-                    className={`absolute left-1 top-1/2 h-[18px] w-[18px] -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.20)] transition-transform duration-200 ${
-                      billingCycle === "annual" ? "translate-x-[18px]" : "translate-x-0"
-                    }`}
-                  />
-                </span>
-                Cobrança anual
-                <span className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-                  Economize 10%
-                </span>
-              </button>
             </div>
 
 
@@ -636,12 +625,11 @@ const CheckoutPage = () => {
             <div className="mx-auto mt-7 grid max-w-6xl items-stretch gap-5 md:grid-cols-3">
               {plans.map(([id, currentPlan]) => {
                 const isSelected = id === selectedPlanId;
-                const rawDisplayPrice = getDisplayPrice(id, billingCycle);
+                const cardCycle = billingCycleForPlan(id);
+                const rawDisplayPrice = formatBRL(PLAN_AMOUNTS[id] ?? 0);
                 const displayPrice = hasReferralDiscount ? applyReferral(rawDisplayPrice) : rawDisplayPrice;
                 const priceParts = splitPlanPrice(displayPrice);
-                const originalPrice = hasReferralDiscount
-                  ? rawDisplayPrice
-                  : getOriginalDisplayPrice(id, billingCycle);
+                const originalPrice = hasReferralDiscount ? rawDisplayPrice : null;
                 const savings = hasReferralDiscount ? null : getSavingsDisplay(originalPrice, displayPrice);
 
                 // O destaque (borda preta, ícone sólido, sombra, elevação) segue o
@@ -702,10 +690,11 @@ const CheckoutPage = () => {
                           {priceParts.main}
                           <span className="text-[#A8A8A3]">{priceParts.cents}</span>
                         </span>
-                        <span className="pb-1.5 text-[14px] font-medium text-[#7A7A77]">
-                          {billingCycle === "annual" ? "/ano" : "/mês"}
-                        </span>
+                        <span className="pb-1.5 text-[14px] font-medium text-[#7A7A77]">/mês</span>
                       </div>
+                      {cardCycle === "annual" ? (
+                        <p className="mt-1 text-[12px] font-medium text-[#2563EB]">Cobrança anual</p>
+                      ) : null}
                     </div>
 
                     {/* CTA acima da lista de recursos. */}

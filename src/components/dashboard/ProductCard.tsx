@@ -15,6 +15,7 @@ export interface Product {
   ordersCount?: number | null;
   reviewsCount?: number | null;
   supplierLabel?: string | null;
+  stockQuantity?: number | null;
 }
 
 export const formatPrice = (price: number) =>

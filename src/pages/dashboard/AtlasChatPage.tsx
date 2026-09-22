@@ -19,11 +19,11 @@ import {
   Search,
   Settings,
   ShoppingBag,
-  Sparkles,
   SquarePen,
   Store,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePlan } from "@/hooks/usePlan";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
@@ -210,7 +210,9 @@ const AtlasChatPage = () => {
   // No celular a tela vira um app de chat: gaveta de conversas, barra de topo
   // enxuta e composer em pílula. O desktop segue com a sidebar fixa.
   const isMobile = useIsMobile();
+  const { plan: planoAtual } = usePlan();
   const upgradeModal = useUpgradeModal();
+  const rotuloDoPlano = planoAtual === "gratis" ? "Assinar plano" : "Melhorar plano";
   const [gavetaAberta, setGavetaAberta] = useState(false);
   const [buscaConversa, setBuscaConversa] = useState("");
   const [buscaVisivel, setBuscaVisivel] = useState(false);
@@ -672,10 +674,9 @@ const AtlasChatPage = () => {
           <button
             type="button"
             onClick={() => upgradeModal.open()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#EFF4FF] px-3.5 py-2 text-[15px] font-semibold text-[#2563EB] transition-transform active:scale-95"
+            className="inline-flex h-8 items-center rounded-full bg-[#F5F5F5] px-3.5 text-[14px] font-medium tracking-[-0.02em] text-[#111111] transition-transform active:scale-[0.97]"
           >
-            <Sparkles className="h-4 w-4" strokeWidth={2.2} />
-            Melhorar o plano
+            {rotuloDoPlano}
           </button>
 
           <button

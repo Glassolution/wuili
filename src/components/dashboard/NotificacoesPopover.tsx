@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bell, CheckCircle2, Info, RefreshCcw, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -119,8 +119,15 @@ const isPaymentType = (type: string, title: string, message: string) => {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const NotificacoesPopover = () => {
+type NotificacoesPopoverProps = {
+  /** "redondo": botão cinza-claro com ponto vermelho, usado no topo do Início no celular. */
+  variante?: "padrao" | "redondo";
+};
+
+const NotificacoesPopover = ({ variante = "padrao" }: NotificacoesPopoverProps) => {
   const [open, setOpen]  = useState(false);
+  // Canal próprio por instância: o sino pode estar montado em mais de um lugar ao mesmo tempo.
+  const instancia        = useId();
   const ref              = useRef<HTMLDivElement>(null);
   const { user }         = useAuth();
   const qc               = useQueryClient();
@@ -150,7 +157,7 @@ const NotificacoesPopover = () => {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel(`notifications:${user.id}`)
+      .channel(`notifications:${user.id}:${instancia}`)
       .on(
         "postgres_changes",
         {
@@ -168,7 +175,7 @@ const NotificacoesPopover = () => {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [qc, user?.id]);
+  }, [instancia, qc, user?.id]);
 
   // ── Mark single as read ──────────────────────────────────────────────────
   const markRead = useMutation({
@@ -212,17 +219,35 @@ const NotificacoesPopover = () => {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((v) => !v)} className="relative">
-        <Bell size={22} strokeWidth={1.5} style={{ color: "#6B7280" }} />
-        {naoLidas > 0 && (
-          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center">
-            {naoLidas > 9 ? "9+" : naoLidas}
-          </span>
-        )}
-      </button>
+      {variante === "redondo" ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={naoLidas > 0 ? `Notificações, ${naoLidas} não lidas` : "Notificações"}
+          className="relative grid h-10 w-10 place-items-center rounded-full bg-[#F4F5F7] text-[#111111] transition-transform active:scale-95"
+        >
+          <Bell size={19} strokeWidth={1.9} />
+          {naoLidas > 0 && (
+            <span className="absolute right-[9px] top-[8px] h-2.5 w-2.5 rounded-full bg-[#EF4444] ring-2 ring-[#F4F5F7]" />
+          )}
+        </button>
+      ) : (
+        <button onClick={() => setOpen((v) => !v)} className="relative">
+          <Bell size={22} strokeWidth={1.5} style={{ color: "#6B7280" }} />
+          {naoLidas > 0 && (
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center">
+              {naoLidas > 9 ? "9+" : naoLidas}
+            </span>
+          )}
+        </button>
+      )}
 
       {open && (
-        <div className="absolute right-0 top-8 z-50 w-80 rounded-2xl border border-border bg-background shadow-2xl overflow-hidden">
+        <div
+          className={`absolute right-0 z-50 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl ${
+            variante === "redondo" ? "top-12 w-[min(20rem,calc(100vw-40px))]" : "top-8 w-80"
+          }`}
+        >
           {/* header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div>

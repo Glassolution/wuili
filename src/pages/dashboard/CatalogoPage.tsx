@@ -37,11 +37,13 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import { proxyImageList } from "@/lib/imageProxy";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ProductCard, ProductCardSkeleton, type Product, formatPrice } from "@/components/dashboard/ProductCard";
+import { MobileCatalogView } from "@/components/dashboard/MobileCatalogView";
 import {
   displayOrdersCountFor,
   displayRatingFor,
@@ -762,6 +764,7 @@ const SidebarCustomers = () => {
 
 const SidebarDrawerFooter = () => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   return (
     <div className="mt-2 space-y-3 pt-4 border-t border-black/[0.04]">
       <div className="rounded-xl bg-neutral-50 border border-black/[0.04] p-3 text-[11px]">
@@ -773,7 +776,7 @@ const SidebarDrawerFooter = () => {
           Faça upgrade para o Pro e desbloqueie ferramentas de IA.
         </p>
         <button
-          onClick={() => navigate("/dashboard/planos")}
+          onClick={() => upgradeModal.open({ origin: "catalogo" })}
           className="mt-2 text-neutral-800 hover:text-neutral-600 font-bold inline-flex items-center gap-0.5"
         >
           Ver Planos <ChevronRight className="h-3 w-3" />
@@ -1108,6 +1111,7 @@ const CatalogoPage = () => {
       ordersCount: displayOrdersCount,
       reviewsCount: p.reviews_count,
       supplierLabel,
+      stockQuantity: toNumber(p.stock_quantity) || null,
     };
   };
 
@@ -1341,6 +1345,15 @@ const CatalogoPage = () => {
     [categoriasDoBanco],
   );
 
+  const opcoesDeCategoriaMobile = useMemo(
+    () => [
+      { valor: CATEGORIA_TODOS, rotulo: "Todos os produtos" },
+      { valor: CATEGORIA_FAVORITOS, rotulo: "Favoritos" },
+      ...categoriasDoBanco.map((item) => ({ valor: item.valor, rotulo: item.valor })),
+    ],
+    [categoriasDoBanco],
+  );
+
   const handleCategoryChange = (category: CategoryKey) => {
     setActiveCategory(category);
     setCurrentPage(1);
@@ -1365,8 +1378,53 @@ const CatalogoPage = () => {
     return pages;
   };
 
+  const collectionSelectionFor = isCollectionSelectionMode
+    ? (productId: string) => ({
+        selected: collectionProductIds.includes(productId),
+        loading: collectionToggleLoadingId === productId,
+        onToggle: () => toggleCollectionProduct(productId),
+      })
+    : undefined;
+
   return (
-    <div className="-m-5 min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] overflow-visible bg-white p-5 sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] sm:p-6 lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:p-7" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
+    <>
+    <div className="md:hidden">
+      <MobileCatalogView
+        products={products}
+        isLoading={isLoading}
+        error={error}
+        searchQuery={searchQuery}
+        onSearchQuery={(value) => {
+          setSearchQuery(value);
+          setCurrentPage(1);
+        }}
+        activeCategory={activeCategory}
+        onCategoryChange={handleCategoryChange}
+        categories={opcoesDeCategoriaMobile}
+        selectedPriceRange={selectedPriceRange}
+        onPriceRange={(value) => {
+          setSelectedPriceRange(value);
+          setCurrentPage(1);
+        }}
+        selectedRating={selectedRating}
+        onRating={(value) => {
+          setSelectedRating(value);
+          setCurrentPage(1);
+        }}
+        favoritedIds={favoritedIds}
+        onToggleFavorite={toggleFavorite}
+        collectionSelectionFor={collectionSelectionFor}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        onRetry={() => setCurrentPage(1)}
+        isCollectionSelectionMode={isCollectionSelectionMode}
+        selectionCollectionName={selectionCollectionName}
+        onFinishCollection={() => navigate("/colecoes")}
+        onExitCollection={() => navigate("/dashboard/catalogo", { replace: true })}
+      />
+    </div>
+    <div className="-m-5 hidden min-h-[calc(100%+2.5rem)] w-[calc(100%+2.5rem)] overflow-visible bg-white p-5 sm:-m-6 sm:min-h-[calc(100%+3rem)] sm:w-[calc(100%+3rem)] sm:p-6 md:block lg:-m-7 lg:min-h-[calc(100%+3.5rem)] lg:w-[calc(100%+3.5rem)] lg:p-7" style={{ fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       {isCollectionSelectionMode && selectionCollectionId && (
         <div className="sticky top-0 z-40 mb-4 rounded-2xl border border-black/[0.08] bg-[#111111] px-4 py-3 text-white shadow-[0_18px_44px_rgba(17,17,17,0.22)]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1770,6 +1828,7 @@ const CatalogoPage = () => {
         aspectPadding={TUTORIAL_CATALOGO.aspectPadding}
       />
     </div>
+    </>
   );
 };
 

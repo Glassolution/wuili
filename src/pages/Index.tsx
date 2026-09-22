@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 
 /*
@@ -93,6 +94,14 @@ const faqItems = [
 */
 const HERO_ASSET_VERSION = 2;
 
+/*
+  Larguras geradas por scripts/otimizar-imagens-landing.sh. A foto do topo
+  ocupa a largura toda da tela, então precisa da maior; as demais aparecem em
+  molduras de no máximo ~600px no desktop.
+*/
+const LARGURAS_FOTO = [640, 960, 1280, 1672];
+const LARGURAS_BARRA = [640, 960, 1280];
+
 const HERO_SLIDES = [
   /*
     focus: ponto focal do recorte, no formato de object-position ("50% 50%" = centro).
@@ -100,9 +109,9 @@ const HERO_SLIDES = [
     foto específica tiver o sujeito muito fora do meio e ficar cortada no celular, onde
     cabe bem menos da largura original.
   */
-  { src: "/pessoa%2001.webp", focus: "50% 50%", headline: "sem estoque, sem risco." },
-  { src: "/pessoa%2002.webp", focus: "50% 50%", headline: "com o produto certo." },
-  { src: "/pessoa%2003.webp", focus: "50% 50%", headline: "em poucos minutos." },
+  { src: "/pessoa%2001.webp", base: "pessoa-01", focus: "50% 50%", headline: "sem estoque, sem risco." },
+  { src: "/pessoa%2002.webp", base: "pessoa-02", focus: "50% 50%", headline: "com o produto certo." },
+  { src: "/pessoa%2003.webp", base: "pessoa-03", focus: "50% 50%", headline: "em poucos minutos." },
 ];
 
 /*
@@ -140,10 +149,12 @@ const HEADLINE_TAMANHO = "text-[clamp(1.75rem,3.2vw,3rem)]";
 const PROVA_VISUAL = [
   {
     src: "/barra%2001.webp",
+    base: "barra-01",
     alt: "Conversa com a IA da Velo recomendando produtos com preço e loja",
   },
   {
     src: "/barra%2002.webp",
+    base: "barra-02",
     alt: "Loja da Velo com produtos selecionados e marketplaces conectados",
   },
 ];
@@ -248,17 +259,24 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
       )}
 
       {visibleSlides.map((slide, slideIndex) => (
-        <img
-          key={slide.src}
-          src={`${slide.src}?v=${HERO_ASSET_VERSION}`}
-          alt=""
-          aria-hidden="true"
-          decoding="async"
-          /* A primeira foto é o que aparece primeiro na tela: prioridade alta. As outras
-             do carrossel só carregam depois, para não disputar banda no 4G. */
-          loading={slideIndex === 0 ? "eager" : "lazy"}
-          fetchPriority={slideIndex === 0 ? "high" : "low"}
+        /*
+          A foto do topo cobre a tela inteira, por isso sizes="100vw": o
+          navegador pega a de 640px num celular comum e a de 1672px num monitor
+          grande, em vez do PNG de ~1,9 MB que vinha antes para todo mundo.
 
+          A primeira é prioritária — é o maior elemento da primeira tela e o
+          index.html já manda buscá-la antes do JavaScript montar a página.
+          As seguintes só entram no DOM depois que ela pinta (ver preloadRest).
+        */
+        <ImagemResponsiva
+          key={slide.src}
+          base={slide.base}
+          larguras={LARGURAS_FOTO}
+          original={`${slide.src}?v=${HERO_ASSET_VERSION}`}
+          sizes="100vw"
+          alt=""
+          aria-hidden
+          prioritaria={slideIndex === 0}
           style={{ "--hero-focus": slide.focus } as CSSProperties}
           onLoad={slideIndex === 0 ? onFirstLoad : undefined}
           onError={() => onSlideError(slide.src)}
@@ -282,7 +300,7 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
 */
 function SecaoProvaVisual() {
   return (
-    <section id="como-funciona" className="scroll-mt-20 bg-white px-6 py-28 sm:px-10 lg:px-12 lg:py-40">
+    <section id="como-funciona" className="scroll-mt-20 bg-white px-6 py-16 sm:px-10 sm:py-28 lg:px-12 lg:py-40">
       <div className="mx-auto w-full max-w-[1200px]">
         <motion.h2
           initial={{ opacity: 0, y: 24 }}
@@ -320,11 +338,17 @@ function SecaoProvaVisual() {
                 className="overflow-hidden rounded-[20px] border border-[#E9EEF8] bg-[#FBFCFF]"
                 style={{ aspectRatio: PROPORCAO_PROVA }}
               >
-                <img
-                  src={item.src}
+                {/*
+                  Até 640px a barra ocupa a largura da tela menos os 24px de
+                  respiro de cada lado; a partir daí a grade vira duas colunas
+                  e cada uma fica com metade, limitada pelos 1200px do container.
+                */}
+                <ImagemResponsiva
+                  base={item.base}
+                  larguras={LARGURAS_BARRA}
+                  original={item.src}
+                  sizes="(min-width: 1200px) 600px, (min-width: 640px) 50vw, calc(100vw - 48px)"
                   alt={item.alt}
-                  loading="lazy"
-                  decoding="async"
                   className="block h-full w-full object-cover"
                 />
               </div>
@@ -339,7 +363,19 @@ function SecaoProvaVisual() {
 function VeloLogo({ tone = "dark" }: { tone?: "dark" | "light" }) {
   return (
     <div className={`flex items-center gap-2.5 transition-colors duration-200 ${tone === "light" ? "text-white" : "text-[#0B1B3D]"}`}>
-      <img src="/logo.png" alt="Velo" className="block h-9 w-9 shrink-0 object-contain" />
+      {/* 36x36 na tela: o PNG de 146 KB era desperdício puro. O WebP de 96px
+          cobre retina com 2 KB. */}
+      <ImagemResponsiva
+        base="logo"
+        larguras={[96]}
+        original="/logo.png"
+        sizes="36px"
+        alt="Velo"
+        prioritaria
+        width={36}
+        height={36}
+        className="block h-9 w-9 shrink-0 object-contain"
+      />
       <span className="text-[26px] font-bold leading-none tracking-[-0.06em]">Velo</span>
     </div>
   );
@@ -604,29 +640,10 @@ export default function Index() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
-      {/*
-        Barra de atenção mobile (some do desktop): laranja de sinalização, texto forte e
-        seta que empurra. É um botão — o toque faz o mesmo que o CTA principal.
-      */}
-      <button
-        type="button"
-        onClick={() => {
-          void registrarEvento("cta_offer_click");
-          navigate(signupTarget);
-        }}
-        className="landing-mobile-offer fixed inset-x-0 top-0 z-[60] flex h-11 w-full items-center justify-center gap-2 px-3 text-center sm:hidden"
-      >
-        <span className="landing-mobile-offer__text">
-          Conta sem cartão. Para publicar, assine um plano.
-        </span>
-        <span className="landing-mobile-offer__arrow" aria-hidden="true">
-          &rarr;
-        </span>
-      </button>
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-11 z-50 sm:top-0 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
+        className={`fixed inset-x-0 top-0 z-50 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
           headerOpaque
             ? /*
                 Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
@@ -640,7 +657,13 @@ export default function Index() {
         <div className="flex w-full items-center justify-between px-6 py-4 sm:px-10 lg:px-12">
           <div className="flex items-center gap-10">
             <button type="button" onClick={() => navigate("/")} aria-label="Velo">
-              <VeloLogo tone={headerOpaque ? "dark" : "light"} />
+              {/* No celular o topo é claro: o logo é sempre escuro. */}
+              <span className="sm:hidden">
+                <VeloLogo tone="dark" />
+              </span>
+              <span className="hidden sm:block">
+                <VeloLogo tone={headerOpaque ? "dark" : "light"} />
+              </span>
             </button>
 
             <nav className="hidden items-center gap-8 lg:flex">
@@ -702,23 +725,11 @@ export default function Index() {
               {ctaLabel}
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                void registrarEvento("cta_header_login_click");
-                navigate(authTarget);
-              }}
-              className={`h-11 rounded-full px-3 text-[14px] font-semibold sm:hidden ${
-                headerOpaque ? "text-[#0B1B3D]" : "text-white"
-              }`}
-            >
-              Já sou cliente
-            </button>
-
             {/*
               Abaixo de lg a navegação inteira fica escondida (a <nav> é lg:flex), então sem
               este botão "Como funciona", "Recursos", "FAQ" e "Entrar" simplesmente não existem
-              no celular. As duas barras viram X quando o painel abre.
+              no celular. As duas barras viram X quando o painel abre. No celular o header é
+              só logo e menu: "Entrar" mora dentro do painel.
             */}
             <button
               type="button"
@@ -726,7 +737,7 @@ export default function Index() {
               aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
               aria-expanded={mobileNavOpen}
               aria-controls="menu-mobile"
-              className={`-mr-2 hidden h-11 w-11 items-center justify-center rounded-full transition-colors sm:flex lg:hidden ${
+              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors max-sm:text-[#141414] lg:hidden ${
                 headerOpaque ? "text-[#0B1B3D] hover:bg-[#F4F7FE]" : "text-white hover:bg-white/10"
               }`}
             >
@@ -822,6 +833,7 @@ export default function Index() {
                 <button
                   type="button"
                   onClick={() => {
+                    void registrarEvento("cta_header_login_click");
                     setMobileNavOpen(false);
                     navigate(authTarget);
                   }}
@@ -864,11 +876,8 @@ export default function Index() {
           <HeroBackdrop {...heroCarousel} />
         </div>
 
-        {/* Fundo do celular: gradiente azul da marca, sem recorte de foto. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(175deg,#0B1B3D_0%,#132B66_52%,#1E3A8A_100%)] sm:hidden"
-        />
+        {/* Fundo do celular: off-white quente, liso. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[#F6F4EF] sm:hidden" />
 
         {/*
           Scrim direcional: escuro só no canto inferior esquerdo, onde o texto vive, e
@@ -882,32 +891,39 @@ export default function Index() {
         {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
         <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
 
-        <div className="relative flex w-full flex-col items-center px-5 pb-10 pt-32 text-center sm:hidden">
-          {assinantesAtivos !== null && assinantesAtivos >= 50 && (
-            <span className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3.5 py-2 text-[13px] font-semibold text-white">
-              +{Math.floor(assinantesAtivos / 50) * 50} assinaturas ativas na Velo
-            </span>
-          )}
+        {/*
+          Hero do celular: fundo claro, uma frase, um botão, fotos embaixo. Tudo o que
+          não ajuda a decidir em 3 segundos saiu daqui — o passo a passo e o exemplo de
+          lucro vêm logo em seguida, rolando.
+        */}
+        <div className="relative flex w-full flex-col items-center px-6 pt-28 text-center sm:hidden">
+          <span className="inline-flex items-center gap-2.5 text-[13.5px] font-medium text-[#6F6A62]">
+            <span className="h-2 w-2 rounded-full bg-[#2563EB] ring-4 ring-[#2563EB]/15" aria-hidden="true" />
+            {assinantesAtivos !== null && assinantesAtivos >= 50
+              ? `+${Math.floor(assinantesAtivos / 50) * 50} assinaturas ativas`
+              : "Catálogo pronto para o Mercado Livre"}
+          </span>
 
-          {/*
-            Peso semibold e tamanho maior: o peso fino era ilegível para quem tem mais
-            idade ou está no sol. Centralizado sobre o gradiente, sem foto atrás.
-          */}
-          <h1 className="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-[-0.03em] text-white antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            Escolha um produto e publique no{" "}
-            <span className="inline whitespace-nowrap">
+          <h1 className="mt-6 max-w-[340px] text-[2.35rem] font-medium leading-[1.08] tracking-[-0.035em] text-[#141414] antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
+            Escolha um produto e venda no{" "}
+            <span className="inline-flex items-center gap-[0.18em] whitespace-nowrap">
               <img
                 src="/brand/mercado-livre.png"
                 alt=""
                 aria-hidden="true"
-                className="mr-1 inline-block h-[0.72em] w-[0.88em] rounded-full object-cover align-[-0.04em]"
+                width={200}
+                height={200}
+                // O PNG tem fundo branco: multiply faz o branco sumir no off-white do hero.
+                className="-my-[0.1em] h-[1.3em] w-[1.3em] shrink-0 object-contain mix-blend-multiply"
               />
-              Mercado Livre.
+              <span className="text-[1.12em] font-normal italic tracking-[-0.01em] [font-family:'Instrument_Serif',Georgia,serif]">
+                Mercado Livre
+              </span>
             </span>
           </h1>
 
-          <p className="mt-4 max-w-[330px] text-[15.5px] font-medium leading-[1.55] text-white/80">
-            Você define o preço de venda e fica com a diferença entre o valor recebido e o custo do fornecedor.
+          <p className="mt-4 max-w-[310px] text-[15.5px] leading-[1.55] text-[#6F6A62]">
+            Você define o preço e fica com a diferença para o custo do fornecedor.
           </p>
 
           <button
@@ -917,41 +933,38 @@ export default function Index() {
               void registrarEvento("cta_hero_signup_click");
               navigate(signupTarget);
             }}
-            className="mt-7 h-[58px] w-full rounded-full bg-white px-8 text-[17px] font-bold text-[#0B1B3D] shadow-[0_12px_34px_rgba(8,14,28,0.38)] transition-transform active:scale-[0.98]"
+            className="mt-7 h-12 rounded-full bg-[#141414] px-7 text-[15px] font-semibold text-white transition-transform active:scale-[0.97]"
           >
             {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
           </button>
 
-          <div className="mt-4 flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                void registrarEvento("cta_how_it_works_click");
-                scrollToSection("como-funciona");
-              }}
-              className="h-11 text-[15px] font-medium text-white/85 underline decoration-white/40 underline-offset-[6px]"
-            >
-              Como funciona
-            </button>
-          </div>
-
           {/*
-            A foto vira um cartão com proporção fixa: enquadramento previsível em qualquer
-            tela, em vez do recorte aleatório do fundo de tela cheia.
+            Duas fotos levemente inclinadas, sangrando nas laterais e no rodapé da seção.
+            A seção tem overflow-hidden, então o corte embaixo é intencional.
           */}
-          <div className="mt-6 w-full overflow-hidden rounded-[24px] border border-white/15 bg-white text-left shadow-[0_24px_60px_rgba(4,10,24,0.45)]">
-            <div className="relative h-[176px] overflow-hidden bg-[#F8FAFD]">
-              <img src="/prova-catalogo.webp" alt="Produto de exemplo do catálogo da Velo" decoding="async" loading="eager" fetchPriority="high" className="absolute left-0 top-0 h-full w-[205%] max-w-none object-cover object-left" />
-              <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold uppercase text-[#0B1B3D] shadow-sm">Exemplo na Velo</span>
+          <div aria-hidden="true" className="relative mt-12 h-[250px] w-[calc(100%+48px)]">
+            <div className="absolute -left-[4%] top-2 h-[300px] w-[56%] -rotate-[4deg] overflow-hidden rounded-[18px] shadow-[0_18px_40px_rgba(40,32,20,0.18)]">
+              <ImagemResponsiva
+                base="pessoa-01"
+                larguras={[640, 960]}
+                original="/pessoa%2001.webp"
+                sizes="60vw"
+                alt=""
+                prioritaria
+                className="h-full w-full object-cover object-[55%_50%]"
+              />
             </div>
-            <div className="grid grid-cols-3 border-t border-[#E4EAF5]">
-              <div className="px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Custo</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 22,00</strong></div>
-              <div className="border-x border-[#E4EAF5] px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Venda</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 44,00</strong></div>
-              <div className="px-3 py-3"><span className="block text-[10px] font-semibold uppercase text-[#70809F]">Diferença</span><strong className="mt-1 block text-[15px] text-[#0B1B3D]">R$ 22,00</strong></div>
+            <div className="absolute -right-[4%] top-0 h-[300px] w-[56%] rotate-[3deg] overflow-hidden rounded-[18px] shadow-[0_18px_40px_rgba(40,32,20,0.18)]">
+              <ImagemResponsiva
+                base="pessoa-02"
+                larguras={[640, 960]}
+                original="/pessoa%2002.webp"
+                sizes="60vw"
+                alt=""
+                className="h-full w-full object-cover object-[66%_50%]"
+              />
             </div>
-            <p className="border-t border-[#E4EAF5] px-3 py-2 text-[11px] leading-[1.4] text-[#70809F]">Exemplo antes de taxas, impostos e outros custos da venda.</p>
           </div>
-          <p className="mt-4 max-w-[340px] text-[11px] leading-[1.45] text-white/60">A Velo é uma plataforma independente e não faz parte do Mercado Livre.</p>
         </div>
 
 
@@ -998,7 +1011,7 @@ export default function Index() {
             <button
               type="button"
               onClick={() => scrollToSection("como-funciona")}
-              className="self-center text-[16px] font-medium text-white underline decoration-white/50 underline-offset-[6px] transition hover:decoration-white sm:h-[54px] sm:self-auto sm:rounded-full sm:border sm:border-white/70 sm:px-8 sm:no-underline sm:hover:border-white sm:hover:bg-white/10"
+              className="self-center text-[16px] font-medium text-white underline decoration-white/50 underline-offset-[6px] transition hover:decoration-white max-sm:inline-flex max-sm:min-h-[44px] max-sm:items-center max-sm:justify-center sm:h-[54px] sm:self-auto sm:rounded-full sm:border sm:border-white/70 sm:px-8 sm:no-underline sm:hover:border-white sm:hover:bg-white/10"
             >
               Ver como funciona
             </button>
@@ -1064,6 +1077,9 @@ export default function Index() {
         >
           Criar minha conta
         </button>
+        <p className="mt-4 text-center text-[11px] leading-[1.45] text-[#8A94A8]">
+          A Velo é uma plataforma independente e não faz parte do Mercado Livre.
+        </p>
       </section>
 
       <SecaoProvaVisual />
@@ -1074,7 +1090,7 @@ export default function Index() {
         print ocupando a largura inteira logo abaixo. O print é real (a tela de
         produto do catálogo), não um mockup ilustrativo.
       */}
-      <section className="bg-white px-6 py-24 sm:px-10 lg:px-12 lg:py-32">
+      <section className="bg-white px-6 py-14 sm:px-10 sm:py-24 lg:px-12 lg:py-32">
         <div className="mx-auto w-full max-w-[1200px]">
           <div className="grid gap-8 lg:grid-cols-2 lg:items-end lg:gap-16">
             <h2 data-reveal className={`${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
@@ -1090,11 +1106,14 @@ export default function Index() {
             data-reveal
             className="mt-14 overflow-hidden rounded-[24px] border border-[#E9EEF8] bg-[#FBFCFF] shadow-[0_28px_70px_rgba(15,35,95,0.08)] lg:mt-20"
           >
-            <img
-              src="/prova-catalogo.webp"
+            <ImagemResponsiva
+              base="prova-catalogo"
+              larguras={[640, 960, 1440]}
+              original="/prova-catalogo.webp"
+              width={2308}
+              height={1440}
+              sizes="(min-width: 1200px) 1200px, calc(100vw - 48px)"
               alt="Tela de produto no catálogo da Velo: preço sugerido de R$ 44,00, margem de 100%, custo de R$ 22,00 ao fornecedor e lucro de R$ 22,00 por venda"
-              loading="lazy"
-              decoding="async"
               className="block h-auto w-full"
             />
           </div>
@@ -1103,7 +1122,7 @@ export default function Index() {
       </section>
 
 
-      <section id="recursos" className="scroll-mt-20 bg-white px-6 py-24 sm:px-8 lg:py-32">
+      <section id="recursos" className="scroll-mt-20 bg-white px-6 py-14 sm:px-8 sm:py-24 lg:py-32">
         <div className="mx-auto max-w-[1200px]">
           <div data-reveal className="max-w-[680px]">
             <h2 className={`${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
@@ -1141,7 +1160,7 @@ export default function Index() {
         pouco mais grossa que nas seções brancas — é o mesmo efeito óptico que
         levou o restante da página a usar 300 em vez de 200.
       */}
-      <section className="bg-white px-6 py-16 sm:px-10 lg:px-12 lg:py-20">
+      <section className="bg-white px-6 py-10 sm:px-10 sm:py-16 lg:px-12 lg:py-20">
         <div className="mx-auto w-full max-w-[1200px] overflow-hidden rounded-[32px] bg-[linear-gradient(160deg,#1E3A8A,#0B1B3D)] px-6 py-20 sm:px-12 lg:px-16 lg:py-28">
           <h2 data-reveal className={`max-w-[900px] ${HEADLINE_TAMANHO} ${HEADLINE} text-white`}>
             Conheça o Atlas, seu agente de vendas
@@ -1154,11 +1173,14 @@ export default function Index() {
           <div className="mt-14 grid gap-6 lg:mt-16 lg:grid-cols-12 lg:items-start lg:gap-7">
             <div data-reveal className="lg:col-span-7">
               <div className="overflow-hidden rounded-[20px] border border-white/10 bg-white">
-                <img
-                  src="/prova-atlas.webp"
+                <ImagemResponsiva
+                  base="prova-atlas"
+                  larguras={[640, 960, 1360]}
+                  original="/prova-atlas.webp"
+                  width={1712}
+                  height={1000}
+                  sizes="(min-width: 1024px) 700px, calc(100vw - 48px)"
                   alt="Conversa com o Atlas: o usuário pede um produto do nicho de beleza e o Atlas indica um kit de pincéis, explica o motivo e oferece abrir o catálogo"
-                  loading="lazy"
-                  decoding="async"
                   className="block h-auto w-full"
                 />
               </div>
@@ -1185,7 +1207,7 @@ export default function Index() {
         </div>
       </section>
 
-      <section id="perguntas-frequentes" className="scroll-mt-20 bg-[#FBFCFF] px-6 py-24 sm:px-8 lg:py-28">
+      <section id="perguntas-frequentes" className="scroll-mt-20 bg-[#FBFCFF] px-6 py-14 sm:px-8 sm:py-24 lg:py-28">
         <div className="mx-auto max-w-[900px]">
           <h2 data-reveal className={`text-center ${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
             Perguntas frequentes
@@ -1225,7 +1247,7 @@ export default function Index() {
         </div>
       </section>
 
-      <section className="bg-white px-6 py-24 sm:px-8 lg:py-28">
+      <section className="bg-white px-6 py-14 sm:px-8 sm:py-24 lg:py-28">
         <div data-reveal className="relative mx-auto max-w-[1000px] overflow-hidden rounded-[30px] border border-[#E1E9F8] bg-[linear-gradient(180deg,#F7FAFF,#EDF3FF)] px-6 py-16 text-center sm:px-14">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,99,235,0.12),transparent_60%)]" />
 
@@ -1234,6 +1256,15 @@ export default function Index() {
               A plataforma é nossa, mas as oportunidades são suas.
             </h2>
 
+            {/*
+              Na pílula de 58px o campo e o botão dividem a largura. Isso funciona
+              a partir de 640px, mas num celular de 375px sobram ~127px para o
+              campo: o "Digite seu e-mail" aparecia cortado como "Digite seu" e o
+              botão espremia a borda arredondada.
+
+              Abaixo de 640px os dois passam a ocupar uma linha cada, na largura
+              toda. Tudo em max-sm: — de 640px para cima a pílula continua igual.
+            */}
             <form
               onSubmit={handleSubmit}
               className="mx-auto mt-9 hidden h-[58px] max-w-[480px] items-center rounded-full border border-[#E1E9F8] bg-white p-[5px] shadow-[0_12px_30px_rgba(15,35,95,0.07)] sm:flex"
@@ -1243,11 +1274,11 @@ export default function Index() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Digite seu e-mail"
-                className="min-w-0 flex-1 bg-transparent px-5 text-[15px] text-[#0B1B3D] outline-none placeholder:text-[#9AA6BE]"
+                className="min-w-0 flex-1 bg-transparent px-5 text-[15px] text-[#0B1B3D] outline-none placeholder:text-[#9AA6BE] max-sm:h-[48px] max-sm:w-full max-sm:flex-none max-sm:px-4 max-sm:text-center"
               />
               <button
                 type="submit"
-                className="h-[48px] rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.24)] transition hover:bg-[#1E3A8A]"
+                className="h-[48px] rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.24)] transition hover:bg-[#1E3A8A] max-sm:w-full max-sm:shrink-0"
               >
                 {!authLoading && user ? "Entrar no dashboard" : "Começar agora"}
               </button>
@@ -1269,7 +1300,7 @@ export default function Index() {
         )}
       </AnimatePresence>
 
-      <footer className="border-t border-[#EDF1F9] bg-white px-6 py-12 sm:px-8">
+      <footer className="border-t border-[#EDF1F9] bg-white px-6 py-8 sm:px-8 sm:py-12">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2.5">
             <div className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#2563EB] text-white">
@@ -1281,11 +1312,18 @@ export default function Index() {
             <span className="text-[22px] font-bold tracking-[-0.05em] text-[#0B1B3D]">Velo</span>
           </div>
 
-          <div className="flex flex-wrap gap-x-8 gap-y-3 text-[15px] text-[#5B6B8C]">
-            <a href="#top" className="transition hover:text-[#2563EB]">Produto</a>
-            <a href="#top" className="transition hover:text-[#2563EB]">Integrações</a>
-            <a href="#top" className="transition hover:text-[#2563EB]">Privacidade</a>
-            <a href="#top" className="transition hover:text-[#2563EB]">Termos</a>
+          <div className="flex flex-wrap gap-x-8 gap-y-3 text-[15px] text-[#5B6B8C] max-sm:gap-y-0">
+            {/* max-sm:min-h-[44px]: no dedo, 23px de altura é alvo de errar.
+                De 640px para cima nada muda — lá o ponteiro é preciso. */}
+            {["Produto", "Integrações", "Privacidade", "Termos"].map((item) => (
+              <a
+                key={item}
+                href="#top"
+                className="transition hover:text-[#2563EB] max-sm:inline-flex max-sm:min-h-[44px] max-sm:items-center"
+              >
+                {item}
+              </a>
+            ))}
           </div>
         </div>
       </footer>
