@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
-import { VELO_PLAN_PRICES, billingCycleForPlan } from "@/lib/planPricing";
+import { VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 
