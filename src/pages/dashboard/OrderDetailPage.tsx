@@ -68,8 +68,10 @@ const clean = (value: string | number | null | undefined) => {
 
 const isMissing = (value: string | number | null | undefined) => clean(value) === "—";
 
-const mlOrderHref = (o: MlOrderDetail) => {
-  const id = (o.ml_order_id ?? o.external_order_id ?? "").toString().trim();
+// Vendas com carrinho (pack) só abrem no ML pelo pack_id; com o id do pedido
+// a página de detalhe não mostra os dados do comprador.
+const mlOrderHref = (o: MlOrderDetail, packId?: string | null) => {
+  const id = (packId || o.ml_order_id || o.external_order_id || "").toString().trim();
   if (!id) return null;
   return `https://www.mercadolivre.com.br/vendas/${id}/detalhe`;
 };
@@ -139,6 +141,17 @@ const OrderDetailPage = () => {
     },
   });
 
+  const { data: packId } = useQuery({
+    queryKey: ["ml-order-pack", order?.id],
+    enabled: Boolean(order?.id),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("orders").select("raw").eq("id", order!.id).maybeSingle();
+      const raw = (data as { raw?: { pack_id?: string | number | null } } | null)?.raw;
+      return raw?.pack_id ? String(raw.pack_id) : null;
+    },
+  });
+
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -203,7 +216,7 @@ const OrderDetailPage = () => {
   const image = getProductImage(order);
   const stage = getTrackingStage(order);
   const supplier = supplierHref(order.supplier_url);
-  const mlHref = mlOrderHref(order);
+  const mlHref = mlOrderHref(order, packId);
 
 
   const steps = [
