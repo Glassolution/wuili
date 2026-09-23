@@ -663,7 +663,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   // Fluxo Velo v1: cria a sessão e segue direto para o checkout hospedado da ValidaPay.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
-    const checkoutCycle = billingCycleForPlan(planId);
+    const checkoutCycle = cycle;
     setCheckingOutPlanId(planId);
     trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${checkoutCycle}` });
     try {
