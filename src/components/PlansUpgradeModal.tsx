@@ -569,9 +569,11 @@ const MobilePlansSheet = ({
                   <span className="text-[15px] text-[#9AA0A8]">/mês</span>
                 </div>
 
-                {plan.id === "business" ? (
-                  <p className="mt-2 text-[13px] font-medium text-[#2B6DE8]">Cobrança anual</p>
-                ) : null}
+                <p className="mt-2 text-[13px] font-medium text-[#2B6DE8]">
+                  {cycle === "annual"
+                    ? `Cobrança anual de ${formatBRL(plan.annual)}`
+                    : "Cobrança mensal"}
+                </p>
 
                 <button
                   type="button"
