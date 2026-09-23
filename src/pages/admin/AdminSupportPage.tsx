@@ -1944,6 +1944,15 @@ const ConversationPanel = ({
             aria-label="Responder ticket"
             value={reply}
             onChange={(event) => setReply(event.target.value)}
+            onPaste={(event) => {
+              if (closed || sending) return;
+              const item = Array.from(event.clipboardData?.items ?? []).find((i) => i.kind === "file" && i.type.startsWith("image/"));
+              const file = item?.getAsFile();
+              if (file) {
+                event.preventDefault();
+                onReplyImage(file);
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -2133,9 +2142,9 @@ const ThreadMessage = ({
           }}
           className={`px-3.5 py-2.5 shadow-[0_3px_12px_rgba(25,35,55,0.055)] sm:px-4 sm:py-3 ${
             admin
-              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
+              ? "select-text rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
               : automatic
-                ? "select-none rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
+                ? "select-text rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
               : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
           }`}
         >
