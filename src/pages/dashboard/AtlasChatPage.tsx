@@ -659,7 +659,7 @@ const AtlasChatPage = () => {
     const mostrarSugestoes = (!hasMessages && !isThinking) || sugestoesAbertas;
 
     return (
-      <div data-atlas-chat className="flex min-h-0 w-full flex-1 flex-col bg-white text-[#111111]" style={fontStyle}>
+      <div data-atlas-chat className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white text-[#111111]" style={fontStyle}>
         {/* Topo: gaveta de conversas, plano e nova conversa — nada mais. */}
         <header className="flex h-14 shrink-0 items-center justify-between px-1.5">
           <button
@@ -692,7 +692,7 @@ const AtlasChatPage = () => {
         {/* Conversa */}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4">
           {!hasMessages && !isThinking ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 pb-10">
+            <div className="flex h-full flex-col items-center justify-center gap-4">
               <AtlasAvatar size={44} />
               <h2 className="text-[22px] font-bold tracking-[-0.02em]">Em que posso ajudar?</h2>
             </div>
@@ -746,7 +746,7 @@ const AtlasChatPage = () => {
         {/* Composer em pílula: "+" abre os atalhos, disco azul envia. */}
         <form
           onSubmit={handleSubmit}
-          className="shrink-0 px-3 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2"
+          className="shrink-0 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-1.5"
         >
           <div className="flex items-end gap-1 rounded-[26px] bg-[#F4F4F4] px-2 py-1.5">
             <button

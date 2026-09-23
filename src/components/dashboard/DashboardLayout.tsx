@@ -1,4 +1,4 @@
-import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -585,7 +585,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       <main
         className={`min-h-0 flex-1 overflow-x-hidden ${
           isAtlasRoute
-            ? "flex overflow-hidden p-0"
+            ? "flex h-full min-h-0 flex-col overflow-hidden p-0"
             : `overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))] ${isEdgeToEdgeMobile ? "px-0 pt-0" : "px-4 pt-4"}`
         }`}
         style={{ WebkitOverflowScrolling: "touch" }}
@@ -636,6 +636,41 @@ const DashboardLayoutInner = () => {
   const { user, loading } = useAuth();
   const { aberto: atlasAberto, enviar: enviarParaAtlas } = useAtlasChat();
   const isMobile = useIsMobile();
+  const mobileShellRef = useRef<HTMLDivElement>(null);
+  // iOS Safari: 100vh/h-screen usa o viewport "grande" (atrás da barra e da
+  // toolbar). Sem travar na visualViewport o Atlas fica cortado e a pessoa
+  // precisa arrastar a página para ver o campo de mensagem.
+  useLayoutEffect(() => {
+    if (!isMobile || loading || !user) return;
+    const el = mobileShellRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      const viewport = window.visualViewport;
+      const height = Math.round(viewport?.height ?? window.innerHeight);
+      const offsetTop = Math.round(viewport?.offsetTop ?? 0);
+      el.style.position = "fixed";
+      el.style.left = "0";
+      el.style.right = "0";
+      el.style.top = `${offsetTop}px`;
+      el.style.width = "100%";
+      el.style.height = `${height}px`;
+      el.style.maxHeight = `${height}px`;
+    };
+
+    apply();
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", apply);
+    viewport?.addEventListener("scroll", apply);
+    window.addEventListener("orientationchange", apply);
+    window.addEventListener("resize", apply);
+    return () => {
+      viewport?.removeEventListener("resize", apply);
+      viewport?.removeEventListener("scroll", apply);
+      window.removeEventListener("orientationchange", apply);
+      window.removeEventListener("resize", apply);
+    };
+  }, [isMobile, loading, user]);
   // Exibição do novo onboarding em modal — gating próprio, independente do
   // estado de loja/perfil no Supabase. Abre no primeiro acesso após o cadastro
   // e não reaparece depois de concluído (flag em localStorage por usuário).
@@ -871,7 +906,8 @@ const DashboardLayoutInner = () => {
   if (isMobile) {
     return (
       <div
-        className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col"
+        ref={mobileShellRef}
+        className="dashboard-inter flex h-svh max-h-svh min-h-0 w-full max-w-full overflow-hidden flex-col"
         style={{
           background: isStartMode ? "#FFA640" : "linear-gradient(135deg, #F7F6F4 0%, #EFEDEA 48%, #E8E7E4 100%)",
           transition: "background-color 280ms ease",
@@ -879,16 +915,15 @@ const DashboardLayoutInner = () => {
       >
         <StartModeBanner isStartMode={isStartMode} />
         <div
-          className="flex min-h-0 w-full flex-1 overflow-hidden"
+          className="flex min-h-0 h-full w-full flex-1 overflow-hidden"
           style={{
-            marginTop: isStartMode ? "48px" : "0",
-            minHeight: isStartMode ? "calc(100vh - 48px)" : "100vh",
+            paddingTop: isStartMode ? "48px" : "0",
             borderTopLeftRadius: isStartMode ? "24px" : "0",
             borderTopRightRadius: isStartMode ? "24px" : "0",
             background: "transparent",
             position: "relative",
             zIndex: 2,
-            transition: "margin-top 280ms ease, border-radius 280ms ease, min-height 280ms ease",
+            transition: "padding-top 280ms ease, border-radius 280ms ease",
           }}
         >
           <MobileDashboardChrome>
