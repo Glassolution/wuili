@@ -826,9 +826,9 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                     </span>
                     <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">/mês</span>
                   </div>
-                  {plan.id === "business" ? (
-                    <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">Cobrança anual</p>
-                  ) : null}
+                  <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">
+                    {cycle === "annual" ? `Cobrança anual de ${formatBRL(plan.annual)}` : "Cobrança mensal"}
+                  </p>
                 </div>
 
                 <PremiumActionButton
