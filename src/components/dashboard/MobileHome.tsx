@@ -101,9 +101,15 @@ const PLATAFORMAS: Record<string, { rotulo: string; cor: string; logo?: string }
 
 const valorDoPedido = (pedido: LinhaPedido) => Number(pedido.total_amount ?? pedido.sale_price * pedido.quantity) || 0;
 
-const lucroDoPedido = (pedido: LinhaPedido) => {
+/*
+  Lucro só existe quando o pedido tem lucro gravado ou custo do produto. Venda
+  vinda do Mercado Livre de anúncio que não saiu do catálogo Velo não tem custo:
+  antes ela entrava como zero e puxava o "Lucro estimado" para baixo. Agora
+  devolve null e fica de fora da conta.
+*/
+const lucroDoPedido = (pedido: LinhaPedido): number | null => {
   if (pedido.profit !== null && pedido.profit !== undefined) return Number(pedido.profit) || 0;
-  if (pedido.cost_price === null || pedido.cost_price === undefined) return 0;
+  if (pedido.cost_price === null || pedido.cost_price === undefined) return null;
   return (Number(pedido.sale_price) - Number(pedido.cost_price)) * (pedido.quantity || 1);
 };
 
