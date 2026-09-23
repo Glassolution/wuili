@@ -614,9 +614,9 @@ const MobilePlansSheet = ({
                 <p className="mt-6 text-[12px] leading-relaxed text-[#9AA0A8]">
                   {sandboxPurchaseEnabled
                     ? "Sandbox ligado: este plano é ativado sem cobrança real."
-                    : plan.id === "business"
+                    : cycle === "annual"
                       ? "Cobrança anual. Cancele quando quiser."
-                      : "Cancele quando quiser. O checkout continua seguro via Mercado Pago."}
+                      : "Cobrança mensal. Cancele quando quiser."}
                 </p>
               </>
             )}
