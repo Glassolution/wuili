@@ -629,7 +629,7 @@ const MobilePlansSheet = ({
 
 const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: ModalProps) => {
   const { session, role } = useAuth();
-  const [cycle, setCycle] = useState<BillingCycle>(billingCycleForPlan(defaultPlan ?? "base"));
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlan ?? "base");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
@@ -653,7 +653,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
     trackMobileHomeEvent(session?.user?.id, "plans_open", { productId: trackingContext?.productId, detail: trackingContext?.origin ?? "unknown" });
     setLoadingPlans(true);
     setSelectedPlanId(defaultPlan ?? "base");
-    setCycle(billingCycleForPlan(defaultPlan ?? "base"));
+    setCycle("monthly");
     const timer = window.setTimeout(() => setLoadingPlans(false), 720);
     return () => window.clearTimeout(timer);
   }, [open]);
