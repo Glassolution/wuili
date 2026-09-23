@@ -48,7 +48,11 @@ type PedidoRecente = {
 
 type ResumoVendas = {
   receita: number;
-  lucro: number;
+  /** Soma só dos pedidos com custo registrado; null quando nenhum tem custo. */
+  lucro: number | null;
+  /** Quantos pedidos válidos entraram no lucro e quantos ficaram de fora. */
+  lucroPedidosComCusto: number;
+  lucroPedidosSemCusto: number;
   pedidos: number;
   /** Variação contra o período anterior; null quando não há base para comparar. */
   receitaVariacao: number | null;
