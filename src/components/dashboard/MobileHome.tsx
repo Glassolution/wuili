@@ -395,7 +395,13 @@ const MobileAliVeloHome = ({
                 {valor}
               </p>
               <div className="mt-2.5 min-h-[28px]">
-                {resumo ? <Variacao valor={v} rotulo={resumo.variacaoRotulo} /> : <span className="text-[12px] text-[#8A8A8A]">carregando</span>}
+                {!resumo ? (
+                  <span className="text-[12px] text-[#8A8A8A]">carregando</span>
+                ) : legenda ? (
+                  <span className="block text-[12px] leading-tight text-[#8A8A8A]">{legenda}</span>
+                ) : (
+                  <Variacao valor={v} rotulo={resumo.variacaoRotulo} />
+                )}
               </div>
             </div>
           ))}
