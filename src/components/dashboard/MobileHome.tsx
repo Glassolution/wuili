@@ -167,12 +167,18 @@ const montarResumoVendas = (linhas: LinhaPedido[]): ResumoVendas => {
   const validosAtual = janela.atual.filter((pedido) => !STATUS_ANULADOS.includes(String(pedido.status ?? "").toLowerCase()));
   const validosAnterior = janela.anterior.filter((pedido) => !STATUS_ANULADOS.includes(String(pedido.status ?? "").toLowerCase()));
 
+  const comCusto = (lista: LinhaPedido[]) => lista.filter((pedido) => lucroDoPedido(pedido) !== null);
+  const somaLucro = (lista: LinhaPedido[]) => soma(comCusto(lista), (pedido) => lucroDoPedido(pedido) ?? 0);
+  const validosComCusto = comCusto(validos);
+
   return {
     receita: soma(validos, valorDoPedido),
-    lucro: soma(validos, lucroDoPedido),
+    lucro: validosComCusto.length > 0 ? somaLucro(validos) : null,
+    lucroPedidosComCusto: validosComCusto.length,
+    lucroPedidosSemCusto: validos.length - validosComCusto.length,
     pedidos: linhas.length,
     receitaVariacao: variacao(soma(validosAtual, valorDoPedido), soma(validosAnterior, valorDoPedido)),
-    lucroVariacao: variacao(soma(validosAtual, lucroDoPedido), soma(validosAnterior, lucroDoPedido)),
+    lucroVariacao: comCusto(validosAtual).length > 0 ? variacao(somaLucro(validosAtual), somaLucro(validosAnterior)) : null,
     pedidosVariacao: variacao(janela.atual.length, janela.anterior.length),
     variacaoRotulo: janela.rotulo,
     recentes: linhas.slice(0, 3).map((pedido) => ({
