@@ -778,6 +778,28 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                 : "O checkout continua seguro via Mercado Pago."}
             </p>
           </div>
+
+          <div className="inline-flex rounded-full bg-black/[0.06] p-[3px]">
+            {([
+              { id: "monthly" as BillingCycle, label: "Mensal" },
+              { id: "annual" as BillingCycle, label: "Anual" },
+            ]).map((opcao) => {
+              const ativo = cycle === opcao.id;
+              return (
+                <button
+                  key={opcao.id}
+                  type="button"
+                  onClick={() => setCycle(opcao.id)}
+                  aria-pressed={ativo}
+                  className={`h-9 min-w-[104px] rounded-full px-4 text-[13px] font-semibold transition-colors ${
+                    ativo ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(15,23,42,0.10)]" : "text-black/40"
+                  }`}
+                >
+                  {opcao.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
