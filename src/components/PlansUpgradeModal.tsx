@@ -544,11 +544,7 @@ const MobilePlansSheet = ({
               <>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[16px] font-medium tracking-[-0.02em] text-[#111111]">{nomeDoPlano}</p>
-                  {plan.id === "business" ? (
-                    <span className="rounded-full border border-[#5B9CFF]/45 bg-[#F3F8FF]/80 px-2.5 py-[5px] text-[10px] font-semibold uppercase tracking-[0.06em] text-[#2B6DE8]">
-                      Anual
-                    </span>
-                  ) : plan.ribbon ? (
+                  {plan.ribbon ? (
                     <span className="rounded-full border border-[#5B9CFF]/45 bg-[#F3F8FF]/80 px-2.5 py-[5px] text-[10px] font-semibold uppercase tracking-[0.06em] text-[#2B6DE8]">
                       {plan.ribbon}
                     </span>
