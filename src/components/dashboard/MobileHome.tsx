@@ -371,9 +371,21 @@ const MobileAliVeloHome = ({
         {/* Cartões no desenho de referência: número grande em tabular, variação embaixo. */}
         <div className="velo-fonte-inter grid grid-cols-2 gap-2.5 px-5 pt-5">
           {[
-            { rotulo: "Lucro estimado", icone: Banknote, valor: resumo ? formatCurrency(resumo.lucro) : "—", variacao: resumo?.lucroVariacao ?? null },
-            { rotulo: "Pedidos", icone: ReceiptText, valor: resumo ? formatInteger(resumo.pedidos) : "—", variacao: resumo?.pedidosVariacao ?? null },
-          ].map(({ rotulo, icone: Icone, valor, variacao: v }) => (
+            {
+              rotulo: "Lucro estimado",
+              icone: Banknote,
+              valor: resumo ? (resumo.lucro === null ? "—" : formatCurrency(resumo.lucro)) : "—",
+              variacao: resumo?.lucroVariacao ?? null,
+              // Pedido sem custo do produto (venda de anúncio que não veio do catálogo) não tem lucro para somar.
+              legenda:
+                resumo && resumo.lucro === null && resumo.pedidos > 0
+                  ? "sem custo registrado"
+                  : resumo && resumo.lucroPedidosSemCusto > 0
+                    ? `${resumo.lucroPedidosComCusto} de ${resumo.lucroPedidosComCusto + resumo.lucroPedidosSemCusto} pedidos com custo`
+                    : null,
+            },
+            { rotulo: "Pedidos", icone: ReceiptText, valor: resumo ? formatInteger(resumo.pedidos) : "—", variacao: resumo?.pedidosVariacao ?? null, legenda: null },
+          ].map(({ rotulo, icone: Icone, valor, variacao: v, legenda }) => (
             <div key={rotulo} className="rounded-[18px] bg-[#F5F5F5] px-3.5 py-4">
               <p className="flex items-center gap-1.5 text-[13px] font-normal text-[#6B6B6B]">
                 <Icone className="h-3.5 w-3.5 shrink-0 text-[#1A1A1A]" strokeWidth={1.6} />
