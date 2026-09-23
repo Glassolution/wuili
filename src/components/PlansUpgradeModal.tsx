@@ -426,7 +426,6 @@ const MobilePlansSheet = ({
   const nomeDoPlano = plan.name.replace("Plano ", "");
   const escolherPlano = (id: PlanId) => {
     setSelectedPlanId(id);
-    setCycle(billingCycleForPlan(id));
   };
 
   return (
