@@ -462,6 +462,28 @@ const MobilePlansSheet = ({
         })}
       </div>
 
+      <div className="mt-3 flex rounded-full bg-black/[0.06] p-[3px]">
+        {([
+          { id: "monthly" as BillingCycle, label: "Mensal" },
+          { id: "annual" as BillingCycle, label: "Anual" },
+        ]).map((opcao) => {
+          const ativo = cycle === opcao.id;
+          return (
+            <button
+              key={opcao.id}
+              type="button"
+              onClick={() => setCycle(opcao.id)}
+              aria-pressed={ativo}
+              className={`h-9 flex-1 rounded-full text-[13px] font-medium transition-colors ${
+                ativo ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(15,23,42,0.10)]" : "bg-transparent text-black/35"
+              }`}
+            >
+              {opcao.label}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="relative mt-6">
         <div
           aria-hidden="true"
