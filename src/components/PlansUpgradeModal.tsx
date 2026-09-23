@@ -782,8 +782,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
           {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((plan) => {
-            const planCycle = billingCycleForPlan(plan.id);
-            const price = planCycle === "annual" ? plan.annual / 12 : plan.monthly;
+            const price = cycle === "annual" ? plan.annual / 12 : plan.monthly;
             const priceParts = splitBRL(price);
             const isHighlighted = plan.id === defaultPlan || (!defaultPlan && plan.highlighted);
 
