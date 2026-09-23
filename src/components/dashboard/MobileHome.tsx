@@ -48,7 +48,11 @@ type PedidoRecente = {
 
 type ResumoVendas = {
   receita: number;
-  lucro: number;
+  /** Soma só dos pedidos com custo registrado; null quando nenhum tem custo. */
+  lucro: number | null;
+  /** Quantos pedidos válidos entraram no lucro e quantos ficaram de fora. */
+  lucroPedidosComCusto: number;
+  lucroPedidosSemCusto: number;
   pedidos: number;
   /** Variação contra o período anterior; null quando não há base para comparar. */
   receitaVariacao: number | null;
@@ -97,9 +101,15 @@ const PLATAFORMAS: Record<string, { rotulo: string; cor: string; logo?: string }
 
 const valorDoPedido = (pedido: LinhaPedido) => Number(pedido.total_amount ?? pedido.sale_price * pedido.quantity) || 0;
 
-const lucroDoPedido = (pedido: LinhaPedido) => {
+/*
+  Lucro só existe quando o pedido tem lucro gravado ou custo do produto. Venda
+  vinda do Mercado Livre de anúncio que não saiu do catálogo Velo não tem custo:
+  antes ela entrava como zero e puxava o "Lucro estimado" para baixo. Agora
+  devolve null e fica de fora da conta.
+*/
+const lucroDoPedido = (pedido: LinhaPedido): number | null => {
   if (pedido.profit !== null && pedido.profit !== undefined) return Number(pedido.profit) || 0;
-  if (pedido.cost_price === null || pedido.cost_price === undefined) return 0;
+  if (pedido.cost_price === null || pedido.cost_price === undefined) return null;
   return (Number(pedido.sale_price) - Number(pedido.cost_price)) * (pedido.quantity || 1);
 };
 
@@ -157,12 +167,18 @@ const montarResumoVendas = (linhas: LinhaPedido[]): ResumoVendas => {
   const validosAtual = janela.atual.filter((pedido) => !STATUS_ANULADOS.includes(String(pedido.status ?? "").toLowerCase()));
   const validosAnterior = janela.anterior.filter((pedido) => !STATUS_ANULADOS.includes(String(pedido.status ?? "").toLowerCase()));
 
+  const comCusto = (lista: LinhaPedido[]) => lista.filter((pedido) => lucroDoPedido(pedido) !== null);
+  const somaLucro = (lista: LinhaPedido[]) => soma(comCusto(lista), (pedido) => lucroDoPedido(pedido) ?? 0);
+  const validosComCusto = comCusto(validos);
+
   return {
     receita: soma(validos, valorDoPedido),
-    lucro: soma(validos, lucroDoPedido),
+    lucro: validosComCusto.length > 0 ? somaLucro(validos) : null,
+    lucroPedidosComCusto: validosComCusto.length,
+    lucroPedidosSemCusto: validos.length - validosComCusto.length,
     pedidos: linhas.length,
     receitaVariacao: variacao(soma(validosAtual, valorDoPedido), soma(validosAnterior, valorDoPedido)),
-    lucroVariacao: variacao(soma(validosAtual, lucroDoPedido), soma(validosAnterior, lucroDoPedido)),
+    lucroVariacao: comCusto(validosAtual).length > 0 ? variacao(somaLucro(validosAtual), somaLucro(validosAnterior)) : null,
     pedidosVariacao: variacao(janela.atual.length, janela.anterior.length),
     variacaoRotulo: janela.rotulo,
     recentes: linhas.slice(0, 3).map((pedido) => ({
@@ -355,9 +371,21 @@ const MobileAliVeloHome = ({
         {/* Cartões no desenho de referência: número grande em tabular, variação embaixo. */}
         <div className="velo-fonte-inter grid grid-cols-2 gap-2.5 px-5 pt-5">
           {[
-            { rotulo: "Lucro estimado", icone: Banknote, valor: resumo ? formatCurrency(resumo.lucro) : "—", variacao: resumo?.lucroVariacao ?? null },
-            { rotulo: "Pedidos", icone: ReceiptText, valor: resumo ? formatInteger(resumo.pedidos) : "—", variacao: resumo?.pedidosVariacao ?? null },
-          ].map(({ rotulo, icone: Icone, valor, variacao: v }) => (
+            {
+              rotulo: "Lucro estimado",
+              icone: Banknote,
+              valor: resumo ? (resumo.lucro === null ? "—" : formatCurrency(resumo.lucro)) : "—",
+              variacao: resumo?.lucroVariacao ?? null,
+              // Pedido sem custo do produto (venda de anúncio que não veio do catálogo) não tem lucro para somar.
+              legenda:
+                resumo && resumo.lucro === null && resumo.pedidos > 0
+                  ? "sem custo registrado"
+                  : resumo && resumo.lucroPedidosSemCusto > 0
+                    ? `${resumo.lucroPedidosComCusto} de ${resumo.lucroPedidosComCusto + resumo.lucroPedidosSemCusto} pedidos com custo`
+                    : null,
+            },
+            { rotulo: "Pedidos", icone: ReceiptText, valor: resumo ? formatInteger(resumo.pedidos) : "—", variacao: resumo?.pedidosVariacao ?? null, legenda: null },
+          ].map(({ rotulo, icone: Icone, valor, variacao: v, legenda }) => (
             <div key={rotulo} className="rounded-[18px] bg-[#F5F5F5] px-3.5 py-4">
               <p className="flex items-center gap-1.5 text-[13px] font-normal text-[#6B6B6B]">
                 <Icone className="h-3.5 w-3.5 shrink-0 text-[#1A1A1A]" strokeWidth={1.6} />
@@ -367,7 +395,13 @@ const MobileAliVeloHome = ({
                 {valor}
               </p>
               <div className="mt-2.5 min-h-[28px]">
-                {resumo ? <Variacao valor={v} rotulo={resumo.variacaoRotulo} /> : <span className="text-[12px] text-[#8A8A8A]">carregando</span>}
+                {!resumo ? (
+                  <span className="text-[12px] text-[#8A8A8A]">carregando</span>
+                ) : legenda ? (
+                  <span className="block text-[12px] leading-tight text-[#8A8A8A]">{legenda}</span>
+                ) : (
+                  <Variacao valor={v} rotulo={resumo.variacaoRotulo} />
+                )}
               </div>
             </div>
           ))}
