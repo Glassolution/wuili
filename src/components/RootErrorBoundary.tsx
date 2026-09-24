@@ -29,9 +29,12 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, RootErrorBoun
               ? "Há uma versão mais recente disponível. Atualize para continuar."
               : "Ocorreu um erro inesperado. Tente novamente."}
           </p>
+          {!chunkLoadFailed && error.message ? (
+            <p className="mt-3 break-words text-xs text-muted-foreground/80">Detalhe: {error.message}</p>
+          ) : null}
           <button
             type="button"
-            onClick={() => chunkLoadFailed ? window.location.reload() : this.setState({ error: null })}
+            onClick={() => window.location.reload()}
             className="mt-6 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
           >
             {chunkLoadFailed ? "Atualizar página" : "Tentar novamente"}
