@@ -470,7 +470,7 @@ const LoginPage = () => {
     return () => window.clearInterval(timer);
   }, [slide]);
 
-  if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
+  if (!authLoading && user && !loading && !googleLoading) return <Navigate to={destinoPosLogin()} replace />;
 
   const copy = getCopy(step, resetMode);
   // Cadastro alcançado pelo link, e não pela detecção de e-mail.
