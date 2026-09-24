@@ -93,6 +93,12 @@ const AVISO_ESTILO = {
   ok: "border-[#BBF0D0] bg-[#F0FDF4] text-[#15803D]",
 } as const;
 
+// No celular, quem entra cai direto no catálogo; no computador, no dashboard.
+const destinoPosLogin = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+    ? "/dashboard/catalogo"
+    : "/dashboard";
+
 const AvisoIcone = ({ tipo }: { tipo: "erro" | "info" | "ok" }) => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-[1px] shrink-0">
     <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.45" strokeWidth="1.3" />
@@ -255,7 +261,7 @@ const LoginPage = () => {
       const [result] = await Promise.all([
         supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/dashboard`, skipBrowserRedirect: true },
+          options: { redirectTo: `${window.location.origin}${destinoPosLogin()}`, skipBrowserRedirect: true },
         }),
         veloToast.waitForMinimum(toastId),
       ]);
@@ -291,7 +297,7 @@ const LoginPage = () => {
       if (data.session || data.user) {
         trackSignup("login_success");
         // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
-        navigate("/dashboard", { replace: true }); return;
+        navigate(destinoPosLogin(), { replace: true }); return;
       }
       setAviso({ tipo: "erro", texto: "Não foi possível concluir o login." });
     } catch (error) {
@@ -367,7 +373,7 @@ const LoginPage = () => {
       markOnboardingPending(data.user.id);
       // A Velo não usa confirmação de e-mail: a conta já entra direto.
       if (data.session) {
-        navigate("/dashboard", { replace: true });
+        navigate(destinoPosLogin(), { replace: true });
         return;
       }
       // Rede de segurança: se por algum motivo a sessão não veio, entramos com a
@@ -377,7 +383,7 @@ const LoginPage = () => {
         password,
       });
       if (!entrarErro) {
-        navigate("/dashboard", { replace: true });
+        navigate(destinoPosLogin(), { replace: true });
         return;
       }
       setAviso({ tipo: "erro", texto: mensagemDeErro(entrarErro.message) });
