@@ -178,6 +178,19 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
+// Logo após entrar, no celular, o painel inicial abre direto o catálogo.
+const DashboardIndexPosLogin = () => {
+  let posLogin = false;
+  try {
+    posLogin = window.sessionStorage.getItem("velo_pos_login") === "1";
+    if (posLogin) window.sessionStorage.removeItem("velo_pos_login");
+  } catch { /* sem storage */ }
+  if (posLogin && window.matchMedia("(max-width: 767px)").matches) {
+    return <Navigate to="/dashboard/catalogo" replace />;
+  }
+  return <DashboardHomePage />;
+};
+
 const OpenPlansModalRoute = () => {
   const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
@@ -317,7 +330,7 @@ const App = () => (
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
-                <Route index element={<DashboardHomePage />} />
+                <Route index element={<DashboardIndexPosLogin />} />
                 <Route path="atlas" element={<AtlasChatPage />} />
                 <Route path="atlas/:threadId" element={<AtlasChatPage />} />
                 <Route path="tiktok" element={<TikTokPage />} />
