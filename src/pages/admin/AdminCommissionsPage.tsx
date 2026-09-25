@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, Loader2, Trash2, UsersRound, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -173,7 +173,12 @@ const AdminCommissionsPage = () => {
   const ADMIN_EMAILS = useMemo(() => new Set(["xavierluisfelipe12@gmail.com"]), []);
   const isAdmin = role === "admin" || (!!user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AffiliateAdminTab>("approved");
+  // `?aba=` vem das pendências da página inicial do admin no celular.
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<AffiliateAdminTab>(() => {
+    const aba = searchParams.get("aba");
+    return AFFILIATE_TABS.some((tab) => tab.key === aba) ? (aba as AffiliateAdminTab) : "approved";
+  });
   const [rowToRemove, setRowToRemove] = useState<AffiliateRow | null>(null);
   const [removing, setRemoving] = useState(false);
   const queryClient = useQueryClient();

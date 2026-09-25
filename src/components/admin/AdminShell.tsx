@@ -14,6 +14,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
+import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
 import { OldAdminShell } from "@/components/admin/OldAdminShell";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 import { getAdminPanelStyle } from "@/lib/adminPanelStyle";
@@ -121,12 +122,12 @@ export const AdminShell = ({ children, active, fullBleed = false, title, subtitl
   }
 
   return (
-    <div className="velo-admin-root h-screen overflow-hidden">
+    <div className="velo-admin-root h-screen overflow-hidden max-md:h-[100dvh]">
       <div className="flex h-full overflow-hidden">
         <AdminNewSidebar onOpenSearch={() => setSearchOpen(true)} />
 
         <div className="admin-shell-main min-w-0 flex-1">
-          <main className="admin-page-surface h-full min-w-0 overflow-y-auto overflow-x-hidden">
+          <main className="admin-page-surface h-full min-w-0 overflow-y-auto overflow-x-hidden max-md:pb-[calc(76px+env(safe-area-inset-bottom))]">
             {fullBleed ? (
               children
             ) : (
@@ -139,6 +140,7 @@ export const AdminShell = ({ children, active, fullBleed = false, title, subtitl
         </div>
       </div>
 
+      <AdminMobileNav />
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
     </div>
   );
