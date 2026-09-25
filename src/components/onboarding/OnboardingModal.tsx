@@ -96,7 +96,7 @@ const QUESTIONS: Question[] = [
     kind: "choice",
     id: "nicho",
     label: "O que você gostaria de vender?",
-    subtitle: "Para separar produtos com a sua cara. Dá para mudar depois.",
+    subtitle: "Escolha uma categoria. Dá para mudar depois.",
     optional: true,
     options: [
       // "Ainda não sei" grava "geral", a resposta mais comum, tratada pela vitrine.
@@ -307,12 +307,15 @@ const PRINTS_VELO = {
 } as const;
 type PrintVelo = (typeof PRINTS_VELO)[keyof typeof PRINTS_VELO];
 
-const NICHOS_CARTAO = [
-  { value: "beleza", rotulo: "Beleza", icon: Sparkles, cor: "linear-gradient(135deg,#F472B6,#EC4899)" },
-  { value: "moda", rotulo: "Moda", icon: Shirt, cor: "linear-gradient(135deg,#A78BFA,#7C3AED)" },
-  { value: "tech", rotulo: "Eletrônicos", icon: Cpu, cor: "linear-gradient(135deg,#60A5FA,#2563EB)" },
-  { value: "casa", rotulo: "Casa", icon: Home, cor: "linear-gradient(135deg,#FBBF24,#F59E0B)" },
-];
+// Cor do ícone de cada categoria na grade do celular. "geral" fica fora: vira o link "Ainda não sei".
+const COR_NICHO: Record<string, string> = {
+  beleza: "linear-gradient(135deg,#F472B6,#EC4899)",
+  moda: "linear-gradient(135deg,#A78BFA,#7C3AED)",
+  tech: "linear-gradient(135deg,#60A5FA,#2563EB)",
+  casa: "linear-gradient(135deg,#FBBF24,#F59E0B)",
+  saude: "linear-gradient(135deg,#34D399,#10B981)",
+  outro: "linear-gradient(135deg,#94A3B8,#64748B)",
+};
 
 /*
   Baralho: o cartão da etapa na frente e dois cartões menores atrás, um de cada
@@ -626,7 +629,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         ? "São 3 perguntas rápidas. Depois você já entra no catálogo de produtos."
         : screen.kind === "ml-guide"
           ? "Leva poucos minutos. Você pode olhar os produtos enquanto isso."
-          : `${screen.question.kind === "choice" && screen.question.optional ? "Opcional · " : ""}${screen.question.subtitle}`;
+          : screen.question.subtitle;
 
     const botaoSeguir = (onClick: () => void, rotulo: string, enabled = true) => (
       <motion.button
@@ -702,10 +705,16 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
               ) : null}
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div
+              className={`flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+                chaveTela === "nicho" ? "justify-center" : ""
+              }`}
+            >
+              {/* No nicho a ilustração repetia as mesmas categorias da grade logo abaixo. */}
+              {chaveTela !== "nicho" && (
               <motion.div
                 variants={illustrationVariants}
-                className={`flex flex-1 ${screen.kind === "ml-guide" || chaveTela === "nicho" ? "min-h-[170px]" : "min-h-[210px]"}`}
+                className={`flex flex-1 ${screen.kind === "ml-guide" ? "min-h-[170px]" : "min-h-[210px]"}`}
               >
                 <OrbitaMobile bolhas={BOLHAS_MOBILE[chaveTela] ?? BOLHAS_MOBILE.welcome} reduce={reduce}>
                   {screen.kind === "welcome" ? (
@@ -758,30 +767,10 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         </div>
                       </div>
                     </Baralho>
-                  ) : (
-                    <Baralho atras={[PRINTS_VELO.home, PRINTS_VELO.chat]}>
-                      <div className="grid h-[112px] grid-cols-2 gap-1 bg-white p-1">
-                        {NICHOS_CARTAO.map(({ value, icon: Icon, cor, rotulo }) => (
-                          <span
-                            key={value}
-                            className={`flex flex-col items-center justify-center gap-1 rounded-[12px] text-[10px] font-semibold text-white transition-shadow ${
-                              answers.nicho === value ? "ring-2 ring-[#0B1B3D] ring-offset-1" : ""
-                            }`}
-                            style={{ background: cor }}
-                          >
-                            <Icon size={18} strokeWidth={2} />
-                            {rotulo}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="px-3 pb-3 pt-2 text-center">
-                        <p className="text-[12.5px] font-semibold leading-tight text-[#0B1B3D]">Produtos com a sua cara</p>
-                        <p className="mt-0.5 text-[10.5px] text-[#64748B]">O catálogo começa pelo que você escolher</p>
-                      </div>
-                    </Baralho>
-                  )}
+                  ) : null}
                 </OrbitaMobile>
               </motion.div>
+              )}
 
               <div className="shrink-0 px-6 pt-2 text-center">
                 <motion.div
@@ -873,30 +862,41 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                   </div>
                 ) : null}
 
-                {/* Nicho: muitas opções curtas — chips cabem na tela sem rolar. */}
+                {/* Nicho: grade 2×3 de cartões. "Ainda não sei" sai da grade e vira o link do rodapé. */}
                 {screen.kind === "question" && screen.question.kind === "choice" && screen.question.optional ? (
-                  <div role="radiogroup" aria-label={screen.question.label} className="mt-5 flex flex-wrap justify-center gap-1.5">
-                    {screen.question.options.map((option) => {
-                      const selected = answers[screen.question.id] === option.value;
-                      const Icon = option.icon;
-                      return (
-                        <motion.button
-                          key={option.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          variants={itemVariants}
-                          onClick={() => escolher(screen.question.id, option.value)}
-                          whileTap={reduce ? undefined : { scale: 0.96 }}
-                          className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-[13.5px] font-medium transition-colors duration-200 ${
-                            selected ? "border-white bg-white text-[#0B1B3D]" : "border-white/20 bg-white/[0.1] text-white"
-                          }`}
-                        >
-                          <Icon size={16} strokeWidth={1.9} />
-                          {option.label}
-                        </motion.button>
-                      );
-                    })}
+                  <div role="radiogroup" aria-label={screen.question.label} className="mt-7 grid grid-cols-2 gap-2.5">
+                    {screen.question.options
+                      .filter((option) => option.value !== "geral")
+                      .map((option) => {
+                        const selected = answers[screen.question.id] === option.value;
+                        const Icon = option.icon;
+                        return (
+                          <motion.button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            variants={itemVariants}
+                            onClick={() => escolher(screen.question.id, option.value)}
+                            whileTap={reduce ? undefined : { scale: 0.97 }}
+                            className={`flex h-[96px] flex-col items-start justify-between rounded-[20px] border p-3.5 text-left transition-colors duration-200 ${
+                              selected ? "border-white bg-white" : "border-white/15 bg-white/[0.08] active:bg-white/[0.14]"
+                            }`}
+                          >
+                            <span
+                              className="grid h-9 w-9 place-items-center rounded-full text-white"
+                              style={{ background: COR_NICHO[option.value] }}
+                            >
+                              <Icon size={18} strokeWidth={2} />
+                            </span>
+                            <span
+                              className={`text-[15px] font-semibold leading-tight ${selected ? "text-[#0B1B3D]" : "text-white"}`}
+                            >
+                              {option.label}
+                            </span>
+                          </motion.button>
+                        );
+                      })}
                   </div>
                 ) : null}
 
@@ -943,10 +943,10 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                 <motion.button
                   variants={itemVariants}
                   type="button"
-                  onClick={pular}
-                  className="h-16 px-4 text-[15px] font-medium text-white/65 transition-opacity active:opacity-60"
+                  onClick={() => escolher(screen.question.id, "geral")}
+                  className="h-12 px-4 text-[15px] font-medium text-white/75 underline decoration-white/35 underline-offset-[6px] transition-opacity active:opacity-60"
                 >
-                  Pular esta pergunta
+                  Ainda não sei
                 </motion.button>
               ) : null}
             </div>

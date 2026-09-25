@@ -180,6 +180,19 @@ const AdminFunnelPanel = () => {
   const maxPessoas = Math.max(1, ...linhas.map((l) => l.avancaram));
   const baseCoorte = Number(linhas.find((l) => l.ordem === 3)?.pessoas ?? 0);
 
+  /*
+    Taxa principal da landing: contas criadas por quem passou pela página, sobre os
+    visitantes. Não depende de quais botões existem na página, ao contrário do clique.
+    A contagem de "pela página inicial" não aceita filtros, então com filtro ligado
+    a divisão misturaria bases diferentes.
+  */
+  const visitantesLanding = Number(linhas.find((l) => l.ordem === 1)?.pessoas ?? 0);
+  const semFiltros = device === null && origem === null && browser === null;
+  const conversaoLanding =
+    semFiltros && visitantesLanding >= BASE_MINIMA
+      ? `${((Number(entrada.data?.via_landing ?? 0) / visitantesLanding) * 100).toFixed(1).replace(".", ",")}%`
+      : null;
+
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-[#ececE6] bg-white p-4">
@@ -223,11 +236,15 @@ const AdminFunnelPanel = () => {
         <p className="mb-3 text-[12px] text-[#8c8c87]">
           Nem todo mundo passa pela página inicial: quem vem de um anúncio pode cair direto no cadastro.
         </p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: "Contas novas", v: entrada.data?.total ?? 0 },
             { label: "Pela página inicial", v: entrada.data?.via_landing ?? 0 },
             { label: "Direto no cadastro", v: entrada.data?.direto ?? 0 },
+            {
+              label: "Visitantes da página que criaram conta",
+              v: conversaoLanding ?? (semFiltros ? "base pequena" : "tire os filtros"),
+            },
           ].map((k) => (
             <div key={k.label} className="rounded-2xl border border-[#f1f1ee] bg-[#fbfbf9] p-3">
               <p className="text-[11px] text-[#8c8c87]">{k.label}</p>

@@ -305,7 +305,8 @@ function SecaoProvaVisual() {
         <motion.h2
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
+          // Logo abaixo do topo: esperar 30% do título deixava uma faixa branca sob as fotos.
+          viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           /*
             Cada frase precisa caber em UMA linha, como na referência. Com o
@@ -535,6 +536,11 @@ export default function Index() {
     return () => observer.disconnect();
   }, []);
 
+  // Logado, o botão só leva ao dashboard: contar como clique de cadastro inflaria o funil.
+  const registrarCliqueCadastro = (evento: string) => {
+    if (!user) void registrarEvento(evento);
+  };
+
   const authTarget = !authLoading && user ? "/dashboard" : "/login";
   // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
   const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
@@ -549,6 +555,7 @@ export default function Index() {
       return;
     }
 
+    registrarCliqueCadastro("cta_final_signup_click");
     const cleanEmail = email.trim();
     if (cleanEmail) window.localStorage.setItem("velo_auth_email", cleanEmail);
     navigate(cleanEmail ? `/auth?email=${encodeURIComponent(cleanEmail)}` : "/auth", {
@@ -708,7 +715,10 @@ export default function Index() {
           <div className="flex items-center gap-5 sm:gap-6">
             <button
               type="button"
-              onClick={() => navigate(authTarget)}
+              onClick={() => {
+                void registrarEvento("cta_header_login_click");
+                navigate(authTarget);
+              }}
               className={`hidden text-[15px] font-medium transition-colors duration-200 sm:block ${
                 headerOpaque ? "text-[#0B1B3D] hover:text-[#2563EB]" : "text-white hover:text-white/70"
               }`}
@@ -717,7 +727,10 @@ export default function Index() {
             </button>
             <button
               type="button"
-              onClick={() => navigate(authTarget)}
+              onClick={() => {
+                registrarCliqueCadastro("cta_primary_click");
+                navigate(authTarget);
+              }}
               className={`hidden h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:block sm:px-6 ${
                 headerOpaque ? "bg-[#2563EB] text-white hover:bg-[#1E3A8A]" : "bg-white text-[#0B1B3D] hover:bg-white/90"
               }`}
@@ -845,6 +858,7 @@ export default function Index() {
                 <button
                   type="button"
                   onClick={() => {
+                    registrarCliqueCadastro("cta_primary_click");
                     setMobileNavOpen(false);
                     navigate(authTarget);
                   }}
@@ -892,9 +906,7 @@ export default function Index() {
         <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
 
         {/*
-          Hero do celular: fundo claro, uma frase, um botão, fotos embaixo. Tudo o que
-          não ajuda a decidir em 3 segundos saiu daqui — o passo a passo e o exemplo de
-          lucro vêm logo em seguida, rolando.
+          Hero do celular: fundo claro, uma frase, um botão, fotos embaixo.
         */}
         <div className="relative flex w-full flex-col items-center px-6 pt-28 text-center sm:hidden">
           <span className="inline-flex items-center gap-2.5 text-[13.5px] font-medium text-[#6F6A62]">
@@ -930,13 +942,59 @@ export default function Index() {
             ref={mobileHeroCtaRef}
             type="button"
             onClick={() => {
-              void registrarEvento("cta_hero_signup_click");
+              registrarCliqueCadastro("cta_hero_signup_click");
               navigate(signupTarget);
             }}
-            className="mt-7 h-12 rounded-full bg-[#141414] px-7 text-[15px] font-semibold text-white transition-transform active:scale-[0.97]"
+            className="relative mt-7 h-[58px] w-full rounded-full bg-[#2563EB] px-8 text-[17px] font-bold text-white transition-transform active:scale-[0.98]"
           >
-            {!authLoading && user ? "Continuar na Velo" : "Criar minha conta"}
+            {!authLoading && user ? "Continuar na Velo" : "Começar a vender"}
+
+            {/*
+              Cursor "tocando" o botão: o ponto de origem do span é a ponta do dedo, e a
+              onda sai dali a cada toque. O SVG é deslocado para a ponta cair nesse ponto.
+            */}
+            <span aria-hidden="true" className="pointer-events-none absolute right-[11%] top-[34%]">
+              {!reduceMotion && (
+                <motion.span
+                  className="absolute -left-2 -top-2 block h-4 w-4 rounded-full bg-white/70"
+                  animate={{ scale: [0.4, 2.2], opacity: [0.8, 0] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut", delay: 0.25 }}
+                />
+              )}
+              <motion.svg
+                width="32"
+                height="31"
+                viewBox="0 0 24 23"
+                className="relative block drop-shadow-[0_2px_3px_rgba(11,27,61,0.35)]"
+                style={{ x: -12, originX: 0.37, originY: 0 }}
+                animate={reduceMotion ? undefined : { y: [4, 0, 0, 4], scale: [1, 0.88, 1, 1] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", times: [0, 0.18, 0.35, 1] }}
+              >
+                {/* Mãozinha do macOS: luva branca gordinha, contorno preto grosso, indicador para cima. */}
+                <path
+                  d="M6.9 3C6.9 1.9 7.8 1.2 8.8 1.2S10.5 1.9 10.6 2.9L11.1 7.4C11.4 6.4 12.3 5.9 13.2 6.1S14.5 7 14.5 7.9C14.9 7 15.9 6.5 16.8 6.8S18 7.8 18 8.7C18.5 8 19.4 7.8 20.2 8.2S21.4 9.4 21.4 10.3V14C21.4 16.2 20.7 17.8 19.7 19V21.2H16.6L15 19.9 13.6 21.2H9.2L8.6 19C7.4 17.6 5.6 16.3 4.3 14.6 3 13 2.2 11.8 2.6 10.4S4.3 9 5.3 9.6C5.9 10 6.5 10.6 6.9 11.2Z"
+                  fill="#fff"
+                  stroke="#000"
+                  strokeWidth="1.25"
+                  strokeLinejoin="round"
+                />
+                <path d="M12 13.2v3.4M14.4 13.2v3.4M16.8 13.2v3.4" stroke="#000" strokeWidth="1.2" strokeLinecap="round" />
+              </motion.svg>
+            </span>
           </button>
+
+          {(authLoading || !user) && (
+            <p className="mt-3 max-w-[320px] text-[13.5px] font-medium leading-[1.45] text-[#4A463F] [text-wrap:balance]">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mr-1.5 inline-block -translate-y-px align-middle text-[#16A34A]">
+                <path d="M3 8.5 6.5 12 13 4.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+              </svg>
+              Comece sem cartão e sem estoque.
+            </p>
+          )}
+
+          <p className="mt-4 max-w-[340px] text-[11px] leading-[1.45] text-[#8A857C]">
+            A Velo é uma plataforma independente e não faz parte do Mercado Livre.
+          </p>
 
           {/*
             Duas fotos levemente inclinadas, sangrando nas laterais e no rodapé da seção.
@@ -1003,14 +1061,20 @@ export default function Index() {
           <div className="mt-8 flex flex-col gap-4 sm:mt-9 sm:flex-row sm:items-center sm:gap-3">
             <button
               type="button"
-              onClick={() => navigate(authTarget)}
+              onClick={() => {
+                registrarCliqueCadastro("cta_hero_signup_click");
+                navigate(authTarget);
+              }}
               className="h-[56px] w-full rounded-full bg-white px-8 text-[17px] font-semibold text-[#0B1B3D] transition-colors hover:bg-white/90 sm:h-[54px] sm:w-auto sm:text-[16px]"
             >
               {ctaLabel}
             </button>
             <button
               type="button"
-              onClick={() => scrollToSection("como-funciona")}
+              onClick={() => {
+                void registrarEvento("cta_how_it_works_click");
+                scrollToSection("como-funciona");
+              }}
               className="self-center text-[16px] font-medium text-white underline decoration-white/50 underline-offset-[6px] transition hover:decoration-white max-sm:inline-flex max-sm:min-h-[44px] max-sm:items-center max-sm:justify-center sm:h-[54px] sm:self-auto sm:rounded-full sm:border sm:border-white/70 sm:px-8 sm:no-underline sm:hover:border-white sm:hover:bg-white/10"
             >
               Ver como funciona
@@ -1020,7 +1084,10 @@ export default function Index() {
 
         <button
           type="button"
-          onClick={() => scrollToSection("como-funciona")}
+          onClick={() => {
+            void registrarEvento("cta_how_it_works_click");
+            scrollToSection("como-funciona");
+          }}
           className="group absolute bottom-10 right-8 hidden items-center gap-3 text-[14px] text-white/55 transition hover:text-white lg:flex"
         >
           <span className="h-px w-10 bg-white/35 transition group-hover:bg-white/80" />
@@ -1029,57 +1096,6 @@ export default function Index() {
             <path d="M8 2.5v11M3.5 9.5 8 14l4.5-4.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
           </svg>
         </button>
-      </section>
-
-      {/*
-        Bloco só do celular: explica o processo em 3 passos com linguagem simples e traz
-        prova social com número real de assinantes (vindo do banco). No desktop nada disso
-        aparece — a estrutura original continua intacta.
-      */}
-      <section className="bg-white px-6 py-10 sm:hidden">
-        <h2 className="text-[22px] font-semibold leading-[1.2] tracking-[-0.02em] text-[#0B1B3D]">
-          Como funciona
-        </h2>
-        <p className="mt-2 text-[15px] leading-[1.55] text-[#5B6B8C]">
-          Três passos. Você não precisa comprar nada antes de vender.
-        </p>
-
-        <ol className="mt-6 flex flex-col gap-4">
-          {[
-            { n: "1", t: "Escolha um produto", d: "No catálogo da Velo você vê quanto custa no fornecedor e por quanto pode vender." },
-            { n: "2", t: "A Velo monta o anúncio", d: "Fotos, título e descrição prontos, dentro das regras do Mercado Livre." },
-            { n: "3", t: "Publique e acompanhe", d: "O anúncio vai para a sua conta do Mercado Livre e você acompanha os pedidos aqui." },
-          ].map((passo) => (
-            <li key={passo.n} className="flex gap-4 rounded-[18px] bg-[#F4F7FE] p-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2563EB] text-[17px] font-bold text-white">
-                {passo.n}
-              </span>
-              <span className="block">
-                <span className="block text-[17px] font-semibold leading-[1.25] text-[#0B1B3D]">{passo.t}</span>
-                <span className="mt-1 block text-[15px] leading-[1.5] text-[#5B6B8C]">{passo.d}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-
-        {/*
-          ESPAÇO RESERVADO PARA DEPOIMENTOS REAIS — não preencher com texto inventado.
-          Quando o Felipe enviar nome, foto e frase de clientes reais, substituir este bloco.
-        */}
-
-        <button
-          type="button"
-          onClick={() => {
-            void registrarEvento("cta_steps_signup_click");
-            navigate(signupTarget);
-          }}
-          className="mt-6 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white active:scale-[0.99]"
-        >
-          Criar minha conta
-        </button>
-        <p className="mt-4 text-center text-[11px] leading-[1.45] text-[#8A94A8]">
-          A Velo é uma plataforma independente e não faz parte do Mercado Livre.
-        </p>
       </section>
 
       <SecaoProvaVisual />
@@ -1117,7 +1133,7 @@ export default function Index() {
               className="block h-auto w-full"
             />
           </div>
-          <button type="button" onClick={() => { void registrarEvento("cta_profit_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
+          <button type="button" onClick={() => { registrarCliqueCadastro("cta_profit_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
         </div>
       </section>
 
@@ -1197,7 +1213,10 @@ export default function Index() {
 
               <button
                 type="button"
-                onClick={() => navigate(authTarget)}
+                onClick={() => {
+                  registrarCliqueCadastro("cta_primary_click");
+                  navigate(authTarget);
+                }}
                 className="mt-8 inline-flex h-[52px] items-center rounded-full bg-white px-7 text-[15px] font-semibold text-[#0B1B3D] transition hover:bg-white/90"
               >
                 {ctaLabel}
@@ -1283,7 +1302,7 @@ export default function Index() {
                 {!authLoading && user ? "Entrar no dashboard" : "Começar agora"}
               </button>
             </form>
-            <button type="button" onClick={() => { void registrarEvento("cta_final_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
+            <button type="button" onClick={() => { registrarCliqueCadastro("cta_final_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
 
             <p className="mt-5 hidden text-[14px] tracking-[-0.01em] text-[#8A97B1] sm:block">
               Você concorda em receber e-mails de marketing da Velo.
@@ -1295,7 +1314,7 @@ export default function Index() {
       <AnimatePresence>
         {showMobileStickyCta && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#DCE5F7] bg-white/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(11,27,61,0.12)] backdrop-blur sm:hidden">
-            <button type="button" onClick={() => { void registrarEvento("cta_sticky_signup_click"); navigate(signupTarget); }} className="h-[54px] w-full rounded-full bg-[#2563EB] text-[17px] font-bold text-white">Criar minha conta</button>
+            <button type="button" onClick={() => { registrarCliqueCadastro("cta_sticky_signup_click"); navigate(signupTarget); }} className="h-[54px] w-full rounded-full bg-[#2563EB] text-[17px] font-bold text-white">Criar minha conta</button>
           </motion.div>
         )}
       </AnimatePresence>

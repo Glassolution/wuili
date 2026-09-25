@@ -32,6 +32,7 @@ import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
+import { atribuirCadastroOAuth } from "@/lib/signupFunnel";
 import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import { Image as ImageIcon,
   ArrowLeft,
@@ -689,6 +690,7 @@ const DashboardLayoutInner = () => {
     const mostrar = shouldShowOnboarding(user);
     setShowOnboarding(mostrar);
     if (mostrar) setEntrada("waiting");
+    atribuirCadastroOAuth(user);
   }, [user]);
 
   useEffect(

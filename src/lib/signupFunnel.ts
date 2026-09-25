@@ -184,6 +184,50 @@ export function tipoDeErro(bruta: string): string {
 }
 
 /*
+  Cadastro pelo Google volta do OAuth direto para /dashboard, sem passar pelo trecho
+  do LoginPage que liga o visitante da landing à conta e registra signup_success.
+  Sem isto, quase toda conta Google aparecia como "direto" e fora do funil.
+  Só vale para conta recém-criada (até 30 min) e roda uma vez por conta neste navegador.
+*/
+export function atribuirCadastroOAuth(user: {
+  id: string;
+  created_at?: string;
+  app_metadata?: { provider?: string } | null;
+} | null) {
+  if (typeof window === "undefined" || !user?.id) return;
+  const provedor = user.app_metadata?.provider;
+  if (!provedor || provedor === "email") return;
+  const criadaEm = new Date(user.created_at ?? "").getTime();
+  if (!Number.isFinite(criadaEm) || Date.now() - criadaEm > 30 * 60 * 1000) return;
+
+  const chave = `velo-atribuicao-oauth:${user.id}`;
+  try {
+    if (window.localStorage.getItem(chave)) return;
+    window.localStorage.setItem(chave, "1");
+  } catch {
+    return;
+  }
+
+  trackSignup("signup_success", provedor);
+  const origem = readOrigin();
+  // O filtro em visitor_id nulo impede sobrescrever uma atribuição feita em outro navegador.
+  void supabase
+    .from("profiles")
+    .update({
+      signup_source: origem.signup_source,
+      utm_source: origem.utm_source,
+      utm_medium: origem.utm_medium,
+      utm_campaign: origem.utm_campaign,
+      visitor_id: getVisitorId(),
+    })
+    .eq("user_id", user.id)
+    .is("visitor_id", null)
+    .then(({ error }) => {
+      if (error) console.warn("[medição] origem do cadastro Google não gravada:", error.message);
+    });
+}
+
+/*
   Primeira vez que a pessoa vê produto de verdade depois de criar a conta.
   Guardamos só o tempo em faixas (não o instante exato) porque o que interessa
   é saber se o caminho cadastro → catálogo está rápido, e o evento é anônimo

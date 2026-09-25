@@ -481,9 +481,10 @@ const LoginPage = () => {
   const cadastroDireto = step === "signup" && !emailLocked;
   const mostraSocial = step === "initial" || cadastroDireto;
   const inputCls =
-    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 max-lg:h-14 max-lg:rounded-[16px] max-lg:pl-5 max-lg:text-[15px] text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
+    // 16px no celular: abaixo disso o Safari do iPhone dá zoom na página ao focar o campo.
+    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 max-lg:h-12 max-lg:rounded-[14px] max-lg:pl-4 max-lg:text-[16px] text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
   const primaryBtnCls =
-    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] max-lg:h-14 max-lg:rounded-full max-lg:text-[16px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
+    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] max-lg:h-12 max-lg:rounded-full max-lg:text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
 
   return (
     <main
@@ -525,7 +526,7 @@ const LoginPage = () => {
             else voltarParaInicio();
           } else irParaCadastro();
         }}
-        className="absolute right-4 top-5 z-10 h-11 rounded-full bg-white/25 px-5 text-[15px] font-semibold text-white backdrop-blur-md transition active:scale-[0.97] lg:hidden"
+        className="absolute right-4 top-5 z-10 h-9 rounded-full bg-white/25 px-4 text-[14px] font-semibold text-white backdrop-blur-md transition active:scale-[0.97] lg:hidden"
       >
         {step === "signup" && !resetMode ? "Entrar" : "Criar conta"}
       </button>
@@ -547,9 +548,9 @@ const LoginPage = () => {
             className="absolute left-5 top-5 z-10 w-fit lg:left-16 lg:top-12"
           >
             <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
-              <img src="/logo.png" alt="Velo" className="h-10 w-10 rounded-[12px] lg:h-11 lg:w-11 lg:rounded-[13px]" />
+              <img src="/logo.png" alt="Velo" className="h-8 w-8 rounded-[10px] lg:h-11 lg:w-11 lg:rounded-[13px]" />
               {/* Mesma métrica do logotipo da landing. No desktop só o ícone, como sempre foi. */}
-              <span className="text-[26px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
+              <span className="text-[22px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
                 Velo
               </span>
             </Link>
@@ -559,15 +560,15 @@ const LoginPage = () => {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="relative mx-auto w-full max-w-[420px] max-lg:rounded-[32px] max-lg:bg-[#FCFBF8] max-lg:px-6 max-lg:pb-6 max-lg:pt-14 max-lg:shadow-[0_-20px_60px_rgba(0,0,0,0.35)]"
+            className="relative mx-auto w-full max-w-[420px] max-lg:rounded-[24px] max-lg:bg-[#FCFBF8] max-lg:px-5 max-lg:pb-5 max-lg:pt-10 max-lg:shadow-[0_-20px_60px_rgba(0,0,0,0.35)]"
           >
             {/* Fechar volta para a landing — só no celular, como na folha de referência. */}
             <Link
               to="/"
               aria-label="Fechar"
-              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-[#141414] transition hover:bg-black/5 lg:hidden"
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-[#141414] transition hover:bg-black/5 lg:hidden"
             >
-              <X size={22} strokeWidth={1.6} />
+              <X size={20} strokeWidth={1.6} />
             </Link>
             {/*
               A dupla título+subtítulo troca junto com a etapa: `key` no copy faz o texto
@@ -582,7 +583,7 @@ const LoginPage = () => {
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
                   transition={{ duration: 0.26, ease }}
                 >
-                  <h1 className={`text-center text-[28px] leading-[1.12] text-[#141414] max-lg:!font-bold max-lg:!tracking-[-0.035em] lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
+                  <h1 className={`text-center text-[23px] leading-[1.15] text-[#141414] max-lg:!font-bold max-lg:!tracking-[-0.035em] lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
                     {copy.title}
                   </h1>
                   <p className="mx-auto mt-2.5 hidden max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:block lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
@@ -600,7 +601,7 @@ const LoginPage = () => {
             */}
             <motion.div
               variants={reduceMotion ? semMovimento : cardEntrada}
-              className={`mt-6 lg:mt-0 ${FONTE_FORMULARIO}`}
+              className={`mt-5 lg:mt-0 ${FONTE_FORMULARIO}`}
             >
 
             {/*
@@ -635,7 +636,7 @@ const LoginPage = () => {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={googleLoading}
-                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 max-lg:h-14 max-lg:rounded-full max-lg:border-0 max-lg:bg-[#141414] max-lg:text-[16px] max-lg:text-white max-lg:active:scale-[0.99] max-lg:hover:bg-[#141414] lg:mt-7"
+                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 max-lg:h-12 max-lg:rounded-full max-lg:border-0 max-lg:bg-[#141414] max-lg:text-[15px] max-lg:text-white max-lg:active:scale-[0.99] max-lg:hover:bg-[#141414] lg:mt-7"
                 >
                   <GoogleIcon />
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
@@ -668,7 +669,7 @@ const LoginPage = () => {
                   </div>
                 )}
 
-                <div className="my-6 flex items-center gap-4 max-lg:my-5">
+                <div className="my-6 flex items-center gap-4 max-lg:my-4">
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
                   <span className="text-[13px] text-[#94A3B8]">
                     {cadastroDireto ? "ou cadastre-se com e-mail" : "ou entre com e-mail"}
