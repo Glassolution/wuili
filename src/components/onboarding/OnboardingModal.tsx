@@ -99,12 +99,13 @@ const QUESTIONS: Question[] = [
     subtitle: "Para separar produtos com a sua cara. Dá para mudar depois.",
     optional: true,
     options: [
+      // "Ainda não sei" grava "geral", a resposta mais comum, tratada pela vitrine.
+      { value: "geral", label: "Ainda não sei", icon: CircleDashed },
       { value: "beleza", label: "Beleza e cuidados", icon: Sparkles },
       { value: "moda", label: "Moda e acessórios", icon: Shirt },
       { value: "tech", label: "Eletrônicos", icon: Cpu },
       { value: "casa", label: "Casa e cozinha", icon: Home },
       { value: "saude", label: "Saúde e fitness", icon: HeartPulse },
-      { value: "geral", label: "Quero ver de tudo", icon: LayoutGrid },
       { value: "outro", label: "Outra coisa", icon: MoreHorizontal },
     ],
   },

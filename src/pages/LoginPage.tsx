@@ -350,6 +350,10 @@ const LoginPage = () => {
         return;
       }
       setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
+      // Senha recusada: mantém o e-mail e deixa a senha selecionada para trocar.
+      if (/password/i.test(error.message)) {
+        window.setTimeout(() => { nomeRef.current?.focus(); nomeRef.current?.select(); }, 120);
+      }
       return;
     }
     if (data.user) {
@@ -831,6 +835,18 @@ const LoginPage = () => {
                           </button>
                         </div>
 
+                        {/* Regras conferidas antes do envio. O Auth exige 6+ caracteres e
+                            bloqueia senhas vazadas; a Velo pede 8+. Não há exigência de
+                            letras, números ou símbolos. */}
+                        <div className="-mt-1 space-y-1 text-[13px]">
+                          <p className={`flex items-center gap-1.5 ${password.length >= 8 ? "text-[#16A34A]" : "text-[#64748B]"}`}>
+                            <span aria-hidden>{password.length >= 8 ? "✓" : "○"}</span>
+                            8 caracteres ou mais
+                          </p>
+                          <p className="text-[#64748B]">Evite senhas comuns, como 12345678 ou seu nome.</p>
+                        </div>
+
+
                         {/* Aceite único, numa linha só. A data e a hora ficam gravadas
                             no perfil no momento em que a conta é criada. */}
                         <div className="pt-1">
@@ -855,7 +871,7 @@ const LoginPage = () => {
 
                         <button
                           type="submit"
-                          disabled={loading || !acceptTerms}
+                          disabled={loading || !acceptTerms || password.length < 8}
                           className={primaryBtnCls}
                         >
                           {loading ? "Criando conta..." : "Criar minha conta"}

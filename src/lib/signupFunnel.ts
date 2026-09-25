@@ -151,10 +151,12 @@ export function mensagemDeErro(bruta: string): string {
   if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos. Confira e tente de novo.";
   if (m.includes("user already registered") || m.includes("already been registered"))
     return "Este e-mail já tem conta na Velo. Entre com a sua senha.";
+  if (m.includes("pwned") || m.includes("compromised") || m.includes("known to be weak"))
+    return "Essa senha é comum demais e já apareceu em vazamentos. Evite senhas comuns, como 12345678 ou seu nome.";
   if (m.includes("password should be at least") || m.includes("password is too short"))
     return "A senha precisa ter pelo menos 8 caracteres.";
-  if (m.includes("pwned") || m.includes("compromised"))
-    return "Essa senha é muito comum e insegura. Escolha outra.";
+  if (m.includes("password should contain"))
+    return "A senha precisa ter os tipos de caracteres exigidos. Tente outra.";
   if (m.includes("email not confirmed"))
     return "Falta confirmar seu e-mail. Abra o e-mail que enviamos e toque no link.";
   if (m.includes("rate limit") || m.includes("too many"))
@@ -172,7 +174,9 @@ export function tipoDeErro(bruta: string): string {
   const m = bruta.toLowerCase();
   if (m.includes("invalid login credentials")) return "senha_incorreta";
   if (m.includes("already registered")) return "email_existente";
-  if (m.includes("password")) return "senha_fraca";
+  if (m.includes("pwned") || m.includes("compromised") || m.includes("known to be weak")) return "senha_vazada";
+  if (m.includes("should be at least") || m.includes("too short")) return "senha_curta";
+  if (m.includes("password should contain") || m.includes("password")) return "senha_requisitos";
   if (m.includes("email not confirmed")) return "email_nao_confirmado";
   if (m.includes("rate limit") || m.includes("too many")) return "limite_tentativas";
   if (m.includes("network") || m.includes("fetch")) return "rede";
