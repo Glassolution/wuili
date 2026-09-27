@@ -13,7 +13,7 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.8-flash";
 const LIMITE_DIARIO = 40;
 const APP_URL = Deno.env.get("APP_URL") ?? "https://velods.com.br";
 
