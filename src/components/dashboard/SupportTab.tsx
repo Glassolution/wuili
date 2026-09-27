@@ -190,6 +190,7 @@ const SupportTab = () => {
         .from("support_messages")
         .select("*")
         .eq("ticket_id", selectedId)
+        .eq("internal", false)
         .order("created_at", { ascending: true });
 
       if (cancelled) return;

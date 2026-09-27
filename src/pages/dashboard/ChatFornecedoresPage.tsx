@@ -188,6 +188,7 @@ async function fetchAdminTickets(): Promise<AdminTicket[]> {
     .from("support_messages")
     .select("id,ticket_id,user_id,message,sender,created_at")
     .in("ticket_id", ticketIds)
+    .eq("internal", false)
     .order("created_at", { ascending: false });
 
   if (messagesError) throw messagesError;
