@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import {
   Activity,
   AlertTriangle,
+  Pause,
+  Play,
   Archive,
   ArrowLeft,
   Bug,
