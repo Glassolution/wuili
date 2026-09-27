@@ -147,3 +147,5 @@ supabase functions deploy <nome-da-function>
 # Rodar migrations
 supabase db push
 ```
+
+- Suporte: a IA (support-assistant) responde tickets via gatilho no banco; avisos internos usam support_messages.internal e ficam ocultos do cliente pelas regras de acesso. Motivo: cobre todas as telas de envio de ticket.
