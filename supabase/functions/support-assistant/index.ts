@@ -354,7 +354,10 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   }
 
   const contents: Content[] = [];
-  for (const m of publicas) {
+  // Mensagens automáticas (ex.: horário de atendimento) podem chegar depois da
+  // pergunta; o Gemini exige que a conversa termine com a vez do usuário.
+  const ateUltimaUser = publicas.slice(0, publicas.findIndex((m) => m.id === ultimaUser.id) + 1);
+  for (const m of ateUltimaUser) {
     const role = m.sender === "user" ? "user" : "model";
     let text = String(m.message ?? "");
     if (m.attachment_url) text += "\n[o usuário enviou uma imagem]";

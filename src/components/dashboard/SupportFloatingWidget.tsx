@@ -234,6 +234,7 @@ const SupportFloatingWidget = () => {
           .from("support_messages")
           .select("*")
           .eq("ticket_id", selectedTicketId)
+          .eq("internal", false)
           .order("created_at", { ascending: true });
 
         if (!active) return;
@@ -261,6 +262,7 @@ const SupportFloatingWidget = () => {
         },
         (payload) => {
           const message = payload.new as SupportMessage;
+          if ((message as { internal?: boolean }).internal) return;
           setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
           announceSupportReply(message);
         },

@@ -190,6 +190,7 @@ const SupportTab = () => {
         .from("support_messages")
         .select("*")
         .eq("ticket_id", selectedId)
+        .eq("internal", false)
         .order("created_at", { ascending: true });
 
       if (cancelled) return;
@@ -217,6 +218,7 @@ const SupportTab = () => {
         },
         (payload) => {
           const message = payload.new as SupportMessage;
+          if ((message as { internal?: boolean }).internal) return;
           setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
           announceSupportReply(message);
         },
