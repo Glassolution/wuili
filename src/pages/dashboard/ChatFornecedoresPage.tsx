@@ -627,6 +627,7 @@ function AdminSupportPanel() {
         { event: "INSERT", schema: "public", table: "support_messages" },
         (payload) => {
           const message = payload.new as SupportMessage;
+          if ((message as { internal?: boolean }).internal) return;
           void qc.invalidateQueries({ queryKey: ["chat-admin-support-tickets"] });
           qc.setQueryData<SupportMessage[]>(
             ["chat-admin-support-messages", message.ticket_id],
