@@ -113,6 +113,9 @@ const SupportTab = () => {
   const trialAutoOpenRef = useRef(false);
 
   const selectedTicket = tickets.find((t) => t.id === selectedId) ?? null;
+  const assistantIsReplying = Boolean(
+    selectedTicket?.status === "open" && messages.length > 0 && messages[messages.length - 1]?.sender === "user",
+  );
 
   /* ── carrega os tickets do usuário ── */
   useEffect(() => {
@@ -248,7 +251,7 @@ const SupportTab = () => {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, sending, messagesLoading]);
+  }, [assistantIsReplying, messages, sending, messagesLoading]);
 
   /* ── criação de ticket ── */
   const createTicket = async (opts: {
@@ -674,6 +677,7 @@ const SupportTab = () => {
           messages={messages}
           loading={messagesLoading}
           sending={sending}
+          assistantIsReplying={assistantIsReplying}
           input={input}
           image={messageImage}
           onInputChange={setInput}
@@ -717,6 +721,7 @@ const TicketChatModal = ({
   messages,
   loading,
   sending,
+  assistantIsReplying,
   input,
   image,
   onInputChange,
@@ -730,6 +735,7 @@ const TicketChatModal = ({
   messages: SupportMessage[];
   loading: boolean;
   sending: boolean;
+  assistantIsReplying: boolean;
   input: string;
   image: File | null;
   onInputChange: (v: string) => void;
@@ -803,7 +809,7 @@ const TicketChatModal = ({
             <HumanMessageBubble key={m.id} msg={m} />
           ))}
 
-          {sending && <TypingBubble />}
+          {(sending || assistantIsReplying) && <TypingBubble />}
           <div ref={endRef} />
         </div>
 
