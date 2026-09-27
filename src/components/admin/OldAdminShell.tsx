@@ -6,6 +6,7 @@ import {
   Bot,
   FileSearch,
   LayoutDashboard,
+  LifeBuoy,
   Menu,
   MessagesSquare,
   PackageSearch,
@@ -30,6 +31,7 @@ type AdminSection =
   | "diagnostics"
   | "tracking"
   | "automation"
+  | "helpCenter"
   | "settings";
 
 type AdminShellProps = {
@@ -55,6 +57,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   diagnostics: "Consulta",
   tracking: "Rastreio",
   automation: "Automação BOT",
+  helpCenter: "Central de ajuda",
   settings: "Integrações",
 };
 
@@ -67,6 +70,7 @@ const MOBILE_NAV_ITEMS: Array<{ section: AdminSection; label: string; to: string
   { section: "refunds", label: "Reembolsos", to: "/admin/reembolsos", icon: RefreshCcw },
   { section: "evidence", label: "Evidências", to: "/admin/evidencias", icon: FileSearch },
   { section: "automation", label: "Automação BOT", to: "/admin/automacao-bot", icon: Bot },
+  { section: "helpCenter", label: "Central de ajuda", to: "/admin/central-de-ajuda", icon: LifeBuoy },
   { section: "settings", label: "AliExpress", to: "/admin/aliexpress", icon: PackageSearch },
 ];
 

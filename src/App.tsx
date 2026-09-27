@@ -113,6 +113,9 @@ const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/admin/AdminDiagnosticsPage"));
 const AdminTrackingPage = lazy(() => import("./pages/admin/AdminTrackingPage"));
 const AdminBotAutomationPage = lazy(() => import("./pages/admin/AdminBotAutomationPage"));
+const AdminHelpCenterPage = lazy(() => import("./pages/admin/AdminHelpCenterPage"));
+const HelpCenterPage = lazy(() => import("./pages/HelpCenterPage"));
+const HelpCenterDashboardPage = lazy(() => import("./pages/dashboard/HelpCenterDashboardPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
 const queryClient = new QueryClient({
@@ -275,6 +278,10 @@ const App = () => (
               {/* Endereço antigo da Comunidade e Ajuda. Mantido como redirecionamento
                   porque circula em links e posts antigos. */}
               <Route path="/docs" element={<Navigate to="/dashboard/comunidade" replace />} />
+              {/* Central de Ajuda pública: sem login, para quem chega pelo suporte ou por busca. */}
+              <Route path="/ajuda" element={<HelpCenterPage />} />
+              <Route path="/ajuda/:categorySlug" element={<HelpCenterPage />} />
+              <Route path="/ajuda/:categorySlug/:articleSlug" element={<HelpCenterPage />} />
               <Route path="/termos-de-servico" element={<TermsPage />} />
               <Route path="/termos" element={<Navigate to="/termos-de-servico" replace />} />
               {/* Retorno da ValidaPay após pagamento aprovado. Pública: o
@@ -326,6 +333,7 @@ const App = () => (
               <Route path="/admin/consulta" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
               <Route path="/admin/rastreio" element={<AdminRoute><AdminTrackingPage /></AdminRoute>} />
               <Route path="/admin/automacao-bot" element={<AdminRoute><AdminBotAutomationPage /></AdminRoute>} />
+              <Route path="/admin/central-de-ajuda" element={<AdminRoute><AdminHelpCenterPage /></AdminRoute>} />
               <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />
@@ -372,6 +380,9 @@ const App = () => (
                     uma rota solta em /docs, com sidebar e tema próprios, e a
                     pessoa sentia que tinha saído da Velo. */}
                 <Route path="comunidade" element={<Docs />} />
+                <Route path="ajuda" element={<HelpCenterDashboardPage />} />
+                <Route path="ajuda/:categorySlug" element={<HelpCenterDashboardPage />} />
+                <Route path="ajuda/:categorySlug/:articleSlug" element={<HelpCenterDashboardPage />} />
                 <Route path="sugestoes" element={<SugestoesPage />} />
                 <Route path="minha-loja" element={<StoreProjectsPage />} />
               </Route>

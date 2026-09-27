@@ -132,6 +132,7 @@ export const AdminNewSidebar = ({ onOpenSearch }: AdminNewSidebarProps) => {
         { label: "Consulta", icon: Stethoscope, to: "/admin/consulta", tone: "blue" },
         { label: "Rastreio", icon: Activity, to: "/admin/rastreio", tone: "teal" },
         { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot", tone: "amber" },
+        { label: "Central de ajuda", icon: LifeBuoy, to: "/admin/central-de-ajuda", tone: "blue" },
         { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress", tone: "violet" },
       ],
     },

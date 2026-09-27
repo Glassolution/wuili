@@ -10,6 +10,7 @@ import {
   FileSearch,
   Home,
   LayoutGrid,
+  LifeBuoy,
   LogOut,
   type LucideIcon,
   MessagesSquare,
@@ -45,6 +46,7 @@ const MAIS: Item[] = [
   { label: "Consulta", icon: Stethoscope, to: "/admin/consulta" },
   { label: "Rastreio", icon: Activity, to: "/admin/rastreio" },
   { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot" },
+  { label: "Central de ajuda", icon: LifeBuoy, to: "/admin/central-de-ajuda" },
   { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress" },
 ];
 

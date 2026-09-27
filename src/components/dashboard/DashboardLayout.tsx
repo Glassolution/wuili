@@ -382,7 +382,8 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
         <MobileDrawerLink to="/dashboard/imagens-ia" label="Imagens com IA" icon={ImageIcon} />
         <MobileDrawerButton label="Convidar amigo" icon={UserPlus} onClick={() => setInviteOpen(true)} />
-        <MobileDrawerLink to="/dashboard/comunidade" label="Ajuda & Central" icon={HelpCircle} />
+        <MobileDrawerLink to="/dashboard/ajuda" label="Central de ajuda" icon={HelpCircle} />
+        <MobileDrawerLink to="/dashboard/comunidade" label="Comunidade" icon={HelpCircle} />
         {isAdmin && (
           <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} badge="Admin" />
         )}
@@ -818,6 +819,7 @@ const DashboardLayoutInner = () => {
   const isCatalogProductDetailRoute = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
   // Configurações usa layout sem moldura, então o fundo da área principal é branco.
   const isSettingsRoute = location.pathname.startsWith("/dashboard/configuracoes");
+  const isHelpCenterRoute = location.pathname.startsWith("/dashboard/ajuda");
   // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
   // é quase branco e, sobre bege, a diferença de temperatura ficava evidente.
   const isAiImagesRoute = location.pathname.startsWith("/dashboard/imagens-ia");
@@ -993,7 +995,7 @@ const DashboardLayoutInner = () => {
               data-dashboard-tour="dashboard-main"
               className="flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7"
               style={{
-                background: isCatalogRoute || isSettingsRoute
+                background: isCatalogRoute || isSettingsRoute || isHelpCenterRoute
                   ? "#FFFFFF"
                   : isAiImagesRoute
                     ? "#F4F4F6"

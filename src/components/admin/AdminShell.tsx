@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bot,
   FileSearch,
+  LifeBuoy,
   type LucideIcon,
   MessagesSquare,
   PackageSearch,
@@ -34,6 +35,7 @@ type AdminSection =
   | "diagnostics"
   | "tracking"
   | "automation"
+  | "helpCenter"
   | "settings";
 
 type AdminShellProps = {
@@ -59,6 +61,7 @@ const SECTION_LABEL: Record<AdminSection, string> = {
   diagnostics: "Consulta",
   tracking: "Rastreio",
   automation: "Automação BOT",
+  helpCenter: "Central de ajuda",
   settings: "Integrações",
 };
 
@@ -75,6 +78,7 @@ const SECTION_ICON: Record<AdminSection, LucideIcon> = {
   diagnostics: Stethoscope,
   tracking: Activity,
   automation: Bot,
+  helpCenter: LifeBuoy,
   settings: Settings2,
 };
 
