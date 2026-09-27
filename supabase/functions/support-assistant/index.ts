@@ -179,6 +179,8 @@ Deno.serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    const supportToken = req.headers.get("x-support-token");
+    if (supportToken) return await responderTicket(admin, req, supportToken);
     const authHeader = req.headers.get("Authorization") ?? "";
     const { data: u } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!u?.user) return json({ error: "Faça login novamente." }, 401);
