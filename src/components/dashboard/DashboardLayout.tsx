@@ -823,14 +823,17 @@ const DashboardLayoutInner = () => {
   // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
   // é quase branco e, sobre bege, a diferença de temperatura ficava evidente.
   const isAiImagesRoute = location.pathname.startsWith("/dashboard/imagens-ia");
+  // As exclusões por tela existem por causa do mobile (bolha cobrindo ações
+  // importantes). No computador o chat de suporte fica sempre visível.
   const showSupportWidget =
-    location.pathname !== "/dashboard" &&
-    location.pathname !== "/colecoes" &&
-    location.pathname !== "/dashboard/catalogo" &&
-    location.pathname !== "/dashboard/pedidos" &&
-    !location.pathname.startsWith("/dashboard/atlas") &&
-    // Na ficha do produto a bolha cobria o botão de publicar, que é a ação da tela.
-    !isCatalogProductDetailRoute;
+    !isMobile ||
+    (location.pathname !== "/dashboard" &&
+      location.pathname !== "/colecoes" &&
+      location.pathname !== "/dashboard/catalogo" &&
+      location.pathname !== "/dashboard/pedidos" &&
+      !location.pathname.startsWith("/dashboard/atlas") &&
+      // Na ficha do produto a bolha cobria o botão de publicar, que é a ação da tela.
+      !isCatalogProductDetailRoute);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
