@@ -13,7 +13,6 @@ import StartModeModal from "@/components/dashboard/StartModeModal";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
-import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
 import OnboardingModal, {
