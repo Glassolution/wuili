@@ -3426,6 +3426,75 @@ export type Database = {
         }
         Relationships: []
       }
+      support_ai_messages: {
+        Row: {
+          archived: boolean
+          content: string
+          created_at: string
+          id: string
+          role: string
+          tool_calls: Json | null
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          tool_calls?: Json | null
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          tool_calls?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      support_escalations: {
+        Row: {
+          assigned_admin: string | null
+          created_at: string
+          id: string
+          ml_diagnostic: Json | null
+          reason: string
+          resolved_at: string | null
+          status: string
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_admin?: string | null
+          created_at?: string
+          id?: string
+          ml_diagnostic?: Json | null
+          reason: string
+          resolved_at?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_admin?: string | null
+          created_at?: string
+          id?: string
+          ml_diagnostic?: Json | null
+          reason?: string
+          resolved_at?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       support_messages: {
         Row: {
           attachment_type: string | null

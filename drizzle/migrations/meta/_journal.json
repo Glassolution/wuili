@@ -148,6 +148,13 @@
       "when": 1790520806505,
       "tag": "0020_central_de_ajuda",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790544545040,
+      "tag": "0021_support_ai_assistant",
+      "breakpoints": true
     }
   ]
 }
