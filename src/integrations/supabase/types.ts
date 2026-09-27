@@ -3502,6 +3502,7 @@ export type Database = {
           created_at: string | null
           edited_at: string | null
           id: string
+          internal: boolean
           message: string
           sender: string
           ticket_id: string
@@ -3513,6 +3514,7 @@ export type Database = {
           created_at?: string | null
           edited_at?: string | null
           id?: string
+          internal?: boolean
           message: string
           sender: string
           ticket_id: string
@@ -3524,6 +3526,7 @@ export type Database = {
           created_at?: string | null
           edited_at?: string | null
           id?: string
+          internal?: boolean
           message?: string
           sender?: string
           ticket_id?: string
@@ -3543,9 +3546,13 @@ export type Database = {
         Row: {
           admin_last_seen_at: string | null
           ai_active: boolean | null
+          ai_paused: boolean
           category: string
           created_at: string | null
           id: string
+          needs_human: boolean
+          needs_human_at: string | null
+          needs_human_reason: string | null
           status: string | null
           subject: string | null
           updated_at: string | null
@@ -3554,9 +3561,13 @@ export type Database = {
         Insert: {
           admin_last_seen_at?: string | null
           ai_active?: boolean | null
+          ai_paused?: boolean
           category?: string
           created_at?: string | null
           id?: string
+          needs_human?: boolean
+          needs_human_at?: string | null
+          needs_human_reason?: string | null
           status?: string | null
           subject?: string | null
           updated_at?: string | null
@@ -3565,9 +3576,13 @@ export type Database = {
         Update: {
           admin_last_seen_at?: string | null
           ai_active?: boolean | null
+          ai_paused?: boolean
           category?: string
           created_at?: string | null
           id?: string
+          needs_human?: boolean
+          needs_human_at?: string | null
+          needs_human_reason?: string | null
           status?: string | null
           subject?: string | null
           updated_at?: string | null

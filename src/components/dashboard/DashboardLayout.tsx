@@ -1,5 +1,5 @@
 import { Component, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import SupportAssistantWidget from "@/components/dashboard/SupportAssistantWidget";
+import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -1018,7 +1018,7 @@ const DashboardLayoutInner = () => {
       </AnimatePresence>
       {!isMobile && <AtlasTour open={tourAberto} onClose={fecharTour} onAsk={perguntarAoAtlas} />}
       <NotificationBannerStack />
-      {showSupportWidget && !atlasAberto && <SupportAssistantWidget />}
+      {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
     </div>
   );
 };

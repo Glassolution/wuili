@@ -19,6 +19,10 @@ const APP_URL = Deno.env.get("APP_URL") ?? "https://velods.com.br";
 
 const SYSTEM = `Você é o assistente de suporte da Velo, plataforma brasileira que ajuda iniciantes a vender no Mercado Livre com produtos de fornecedores nacionais. Fale SEMPRE em português brasileiro simples, frases curtas, tom acolhedor. Sem jargão técnico.
 
+Como a Velo funciona (fatos confirmados, pode responder direto):
+- Quando o usuário vende no Mercado Livre, ele NÃO compra, embala nem envia nada por conta própria. Ele entra em Pedidos no painel da Velo e paga o custo do produto ao fornecedor. Depois do pagamento, o fornecedor envia o produto direto para o cliente dele.
+- Os anúncios são publicados na conta do Mercado Livre que o usuário conectou em Integrações.
+
 Regras:
 - Dúvida sobre publicar, conta de vendedor, anúncio que não sobe, conexão com o Mercado Livre: chame "verificar_conta_mercado_livre" ANTES de responder e explique exatamente o que falta, com passo a passo curto (ex.: entrar em mercadolivre.com.br > Meu perfil > Dados pessoais/Endereços e cadastrar CEP e endereço; ou cadastrar/confirmar celular).
 - Outras dúvidas: chame "buscar_central_de_ajuda" e responda com base nos artigos, incluindo o link do artigo em markdown.
@@ -179,6 +183,8 @@ Deno.serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    const supportToken = req.headers.get("x-support-token");
+    if (supportToken) return await responderTicket(admin, req, supportToken);
     const authHeader = req.headers.get("Authorization") ?? "";
     const { data: u } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!u?.user) return json({ error: "Faça login novamente." }, 401);
@@ -287,3 +293,116 @@ Deno.serve(async (req) => {
     return json({ error: "Erro inesperado. Tente de novo em instantes." }, 500);
   }
 });
+
+// ───────── Respostas automáticas nos tickets da Caixa de entrada ─────────
+const AVISO_ESPERA = "Já solicitei o atendimento humano. Aguarde, que em breve alguém da equipe Velo vai te responder por aqui.";
+
+const SYSTEM_TICKET = `${SYSTEM}
+
+Contexto: você está respondendo um ticket de suporte da Velo.
+Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), responda ao usuário explicando brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
+
+async function responderTicket(admin: SupabaseClient, req: Request, token: string) {
+  const { data: tk } = await admin.from("cron_tokens").select("token").eq("name", "support-assistant").maybeSingle();
+  if (!tk?.token || tk.token !== token) return json({ error: "não autorizado" }, 401);
+  const body = await req.json().catch(() => ({}));
+  const ticketId = String(body?.ticket_id ?? "");
+  const messageId = String(body?.message_id ?? "");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!ticketId || !messageId || !GEMINI_API_KEY) return json({ skip: "dados" });
+
+  // Espera o cliente terminar de digitar: só responde a última mensagem enviada.
+  await new Promise((ok) => setTimeout(ok, 5000));
+
+  const { data: ticket } = await admin.from("support_tickets")
+    .select("id,user_id,status,ai_paused,needs_human").eq("id", ticketId).maybeSingle();
+  if (!ticket || ticket.ai_paused || ticket.status === "closed") return json({ skip: "pausado_ou_fechado" });
+
+  const { data: msgs } = await admin.from("support_messages")
+    .select("id,message,sender,internal,attachment_url,created_at")
+    .eq("ticket_id", ticketId).order("created_at", { ascending: true }).limit(200);
+  const publicas = (msgs ?? []).filter((m) => !m.internal);
+  // Depois que alguém da equipe responde, a IA sai da conversa.
+  if (publicas.some((m) => m.sender === "admin")) return json({ skip: "humano_assumiu" });
+  const ultimaUser = [...publicas].reverse().find((m) => m.sender === "user");
+  if (!ultimaUser || ultimaUser.id !== messageId) return json({ skip: "nao_e_a_ultima" });
+
+  const desde = Date.now() - 86400_000;
+  const respostasIA = publicas.filter((m) => m.sender === "ai" && new Date(m.created_at).getTime() > desde).length;
+
+  const marcarHumano = async (motivo: string, resumo: string) => {
+    await admin.from("support_tickets").update({
+      needs_human: true, needs_human_reason: motivo, needs_human_at: new Date().toISOString(),
+    }).eq("id", ticketId);
+    await admin.from("support_messages").insert({
+      ticket_id: ticketId, user_id: ticket.user_id, sender: "ai", internal: true,
+      message: `IA acionou atendimento humano — motivo: ${motivo}. ${resumo}`.slice(0, 1500),
+    });
+  };
+
+  const enviar = async (texto: string) => {
+    await admin.from("support_messages").insert({ ticket_id: ticketId, user_id: ticket.user_id, sender: "ai", message: texto });
+    await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", ticketId);
+  };
+
+  if (respostasIA >= 15) {
+    if (!ticket.needs_human) {
+      await marcarHumano("limite_ia", "A conversa ficou longa demais para a IA.");
+      await enviar(AVISO_ESPERA);
+    }
+    return json({ skip: "limite" });
+  }
+
+  const contents: Content[] = [];
+  for (const m of publicas) {
+    const role = m.sender === "user" ? "user" : "model";
+    let text = String(m.message ?? "");
+    if (m.attachment_url) text += "\n[o usuário enviou uma imagem]";
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts.push({ text });
+    else contents.push({ role, parts: [{ text }] });
+  }
+  if (contents[0]?.role === "model") contents.unshift({ role: "user", parts: [{ text: "Olá" }] });
+
+  let escalou = false;
+  let reply = "";
+  for (let i = 0; i < 6; i++) {
+    const r = await chamarGemini(GEMINI_API_KEY, contents, SYSTEM_TICKET);
+    if (!r.ok) {
+      console.error("gemini ticket", r.status, (await r.text()).slice(0, 300));
+      break;
+    }
+    const d = await r.json();
+    const parts: Part[] = d?.candidates?.[0]?.content?.parts ?? [];
+    const calls = parts.filter((p) => p.functionCall);
+    if (!calls.length) { reply = parts.map((p) => p.text ?? "").join("").trim(); break; }
+    contents.push({ role: "model", parts });
+    const respostas: Part[] = [];
+    for (const c of calls) {
+      const { name, args = {} } = c.functionCall!;
+      let result: unknown;
+      try {
+        if (name === "verificar_conta_mercado_livre") result = await verificarContaML(admin, ticket.user_id);
+        else if (name === "buscar_central_de_ajuda") result = await buscarAjuda(admin, String(args.consulta ?? ultimaUser.message));
+        else if (name === "acionar_suporte_humano") {
+          if (!escalou) await marcarHumano(String(args.motivo ?? "outro"), String(args.resumo ?? ""));
+          escalou = true; result = { ok: true };
+        } else result = { erro: "ferramenta desconhecida" };
+      } catch (e) {
+        console.error("tool", name, e);
+        result = { erro: "falha ao executar, acione o suporte humano" };
+      }
+      respostas.push({ functionResponse: { name, response: { result } } });
+    }
+    contents.push({ role: "user", parts: respostas });
+  }
+
+  if (!reply) {
+    if (!escalou && !ticket.needs_human) await marcarHumano("erro_desconhecido", "A IA não conseguiu responder esta mensagem.");
+    escalou = true;
+    reply = AVISO_ESPERA;
+  }
+  if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
+  await enviar(reply);
+  return json({ ok: true, escalou });
+}
