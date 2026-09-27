@@ -141,6 +141,13 @@
       "when": 1789993378878,
       "tag": "0019_cron_ml_seller_readiness",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790520806505,
+      "tag": "0020_central_de_ajuda",
+      "breakpoints": true
     }
   ]
 }

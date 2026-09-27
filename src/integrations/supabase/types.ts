@@ -1442,6 +1442,107 @@ export type Database = {
           },
         ]
       }
+      help_articles: {
+        Row: {
+          category_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          keywords: string[]
+          position: number
+          published_at: string | null
+          search_vector: unknown
+          slug: string
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category_id: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          keywords?: string[]
+          position?: number
+          published_at?: string | null
+          search_vector?: unknown
+          slug: string
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          keywords?: string[]
+          position?: number
+          published_at?: string | null
+          search_vector?: unknown
+          slug?: string
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "help_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          featured: boolean
+          icon: string | null
+          id: string
+          position: number
+          section: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          featured?: boolean
+          icon?: string | null
+          id?: string
+          position?: number
+          section?: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          featured?: boolean
+          icon?: string | null
+          id?: string
+          position?: number
+          section?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       help_feed_comments: {
         Row: {
           author_id: string
@@ -4110,6 +4211,22 @@ export type Database = {
       }
     }
     Views: {
+      help_center_documents: {
+        Row: {
+          category_slug: string | null
+          category_title: string | null
+          content: string | null
+          id: string | null
+          keywords: string[] | null
+          path: string | null
+          published_at: string | null
+          slug: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       ml_orders_view: {
         Row: {
           buyer_address: string | null
@@ -4679,6 +4796,20 @@ export type Database = {
           p_visitor_id?: string
         }
         Returns: boolean
+      }
+      search_help_articles: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          category_slug: string
+          category_title: string
+          content: string
+          id: string
+          path: string
+          rank: number
+          slug: string
+          summary: string
+          title: string
+        }[]
       }
       set_aliexpress_cron_active: {
         Args: { p_active: boolean }
