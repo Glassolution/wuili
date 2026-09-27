@@ -311,8 +311,8 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   if (!ticketId || !messageId || !GEMINI_API_KEY) return json({ skip: "dados" });
 
-  // Espera o cliente terminar de digitar: só responde a última mensagem enviada.
-  await new Promise((ok) => setTimeout(ok, 5000));
+  // Pequeno debounce para agrupar mensagens seguidas sem deixar o cliente esperando.
+  await new Promise((ok) => setTimeout(ok, 1000));
 
   const { data: ticket } = await admin.from("support_tickets")
     .select("id,user_id,status,ai_paused,needs_human").eq("id", ticketId).maybeSingle();
