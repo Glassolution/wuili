@@ -504,7 +504,6 @@ export const createSupportTicket = async (opts: {
   if (messageError) throw messageError;
 
   await touchSupportTicket(ticket.id);
-  await insertSupportAutoGreeting({ ticketId: ticket.id, userId: opts.userId });
 
   return { ticket, messageId: message.id as string };
 };

@@ -4,7 +4,7 @@ import { CheckCircle2, Loader2, XCircle, AlertTriangle, MessageCircle, Clock } f
 import { veloToast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { insertSupportAutoGreeting, touchSupportTicket } from "@/lib/support";
+import { touchSupportTicket } from "@/lib/support";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import {
@@ -172,7 +172,6 @@ const RefundSection = () => {
         ticket_id: ticket.id, user_id: user.id, sender: "user", message: ctx,
       });
       await touchSupportTicket(ticket.id);
-      await insertSupportAutoGreeting({ ticketId: ticket.id, userId: user.id });
       veloToast.success("Conectando você ao suporte...");
       closeModal();
       navigate("/dashboard/configuracoes?tab=Suporte");
