@@ -29,7 +29,6 @@ import {
   shouldAnnounceSupportReply,
   SUPPORT_CATEGORIES,
   buildSupportImageMessage,
-  insertSupportAutoGreeting,
   removeSupportImage,
   supportDb as db,
   touchSupportTicket,
@@ -293,7 +292,6 @@ const SupportTab = () => {
       if (messageError) throw messageError;
 
       await touchSupportTicket(created.id);
-      await insertSupportAutoGreeting({ ticketId: created.id, userId: user.id });
 
       setTickets((prev) => [created, ...prev]);
       setActiveSupportTicketId(created.id);
