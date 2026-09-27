@@ -21,7 +21,7 @@
   - `support_ai_messages` (user_id, role `user|assistant|admin`, content, tool_calls jsonb, created_at). RLS: usuário lê/insere as próprias mensagens `user`; `assistant`/`admin` só via service role ou admin (`has_role`).
   - `support_escalations` (user_id, status, reason, summary, ml_diagnostic jsonb, assigned_admin, created_at, updated_at, resolved_at). RLS: só admins leem/atualizam; inserção só pelo servidor. Um pedido aberto por usuário por vez (índice parcial único), novas escalações reaproveitam o aberto.
 - **Função de servidor `support-assistant`** (Deno), autenticada por JWT:
-  - Chama o Gemini direto (`generativelanguage.googleapis.com`, modelo `gemini-2.5-flash`) com function calling, usando `Deno.env.get("GEMINI_API_KEY")`.
+  - Chama o Gemini direto (`generativelanguage.googleapis.com`, modelo `gemini-3.8-flash`) com function calling, usando `Deno.env.get("GEMINI_API_KEY")`.
   - Ferramentas:
     - `verificar_conta_mercado_livre`: reaproveita a mesma lógica da consulta admin (`ml-seller-readiness-refresh` / `ml_seller_readiness`), extraída para `_shared/`, sempre restrita ao `user_id` do token. Tokens do ML nunca vão para o modelo nem para o cliente; só o diagnóstico traduzido (campos faltando, bloqueios de `/users/me` como `address_pending`, `phone`, etc.).
     - `buscar_central_de_ajuda`: usa a função de busca já existente da Central de Ajuda e devolve título, trecho e link.

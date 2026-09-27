@@ -13,7 +13,7 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.8-flash";
 const LIMITE_DIARIO = 40;
 const APP_URL = Deno.env.get("APP_URL") ?? "https://velods.com.br";
 
@@ -151,6 +151,17 @@ type Part = { text?: string; functionCall?: { name: string; args?: Record<string
 type Content = { role: "user" | "model"; parts: Part[] };
 
 async function chamarGemini(key: string, contents: Content[]) {
+  // Até 3 tentativas com espera crescente, só para 429/5xx (sobrecarga passageira).
+  let r: Response | null = null;
+  for (let t = 0; t < 3; t++) {
+    if (t) await new Promise((ok) => setTimeout(ok, 1500 * t + Math.random() * 500));
+    r = await chamarGeminiUmaVez(key, contents);
+    if (r.ok || (r.status !== 429 && r.status < 500)) return r;
+  }
+  return r!;
+}
+
+async function chamarGeminiUmaVez(key: string, contents: Content[]) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": key },

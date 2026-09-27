@@ -1,4 +1,5 @@
 import { Component, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import SupportAssistantWidget from "@/components/dashboard/SupportAssistantWidget";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -12,7 +13,6 @@ import StartModeModal from "@/components/dashboard/StartModeModal";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
-import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
 import OnboardingModal, {
@@ -1018,7 +1018,7 @@ const DashboardLayoutInner = () => {
       </AnimatePresence>
       {!isMobile && <AtlasTour open={tourAberto} onClose={fecharTour} onAsk={perguntarAoAtlas} />}
       <NotificationBannerStack />
-      {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
+      {showSupportWidget && !atlasAberto && <SupportAssistantWidget />}
     </div>
   );
 };

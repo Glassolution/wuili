@@ -128,6 +128,7 @@ export const AdminNewSidebar = ({ onOpenSearch }: AdminNewSidebarProps) => {
       label: "Ferramentas",
       items: [
         { label: "Suporte", icon: MessagesSquare, to: "/admin/suporte", tone: "rose", badge: openTickets },
+        { label: "Assistente IA", icon: Bot, to: "/admin/assistente-ia", tone: "blue" },
         { label: "Evidências", icon: FileSearch, to: "/admin/evidencias", tone: "teal" },
         { label: "Consulta", icon: Stethoscope, to: "/admin/consulta", tone: "blue" },
         { label: "Rastreio", icon: Activity, to: "/admin/rastreio", tone: "teal" },

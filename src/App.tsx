@@ -103,6 +103,7 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
+const AdminAiEscalationsPage = lazy(() => import("./pages/admin/AdminAiEscalationsPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersRoutePage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsRoutePage"));
 const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
@@ -327,6 +328,7 @@ const App = () => (
               <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
               <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />
               <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
+              <Route path="/admin/assistente-ia" element={<AdminRoute><AdminAiEscalationsPage /></AdminRoute>} />
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
               <Route path="/admin/vendas" element={<AdminRoute><AdminSalesPage /></AdminRoute>} />
               <Route path="/admin/evidencias" element={<AdminRoute><AdminEvidencePage /></AdminRoute>} />
