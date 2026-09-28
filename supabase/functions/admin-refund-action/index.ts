@@ -232,6 +232,20 @@ Deno.serve(async (req) => {
       type: "refund",
     });
 
+    // Aviso no chat de suporte: reembolso aprovado por uma pessoa da equipe.
+    if (refundOk) try {
+      const { data: tk } = await admin.from("support_tickets")
+        .select("id").eq("user_id", refund.user_id)
+        .order("updated_at", { ascending: false }).limit(1).maybeSingle();
+      if (tk?.id) {
+        await admin.from("support_messages").insert({
+          ticket_id: tk.id, user_id: refund.user_id, sender: "admin",
+          message: "Olá! Seu reembolso foi analisado e aprovado por uma pessoa da nossa equipe. O valor já foi enviado para estorno e deve aparecer em breve na mesma forma de pagamento que você usou. Qualquer dúvida, estamos por aqui.",
+        });
+        await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", tk.id);
+      }
+    } catch (e) { console.error("aviso suporte reembolso", e); }
+
     return json({ success: refundOk, processing: refundProcessing, providerResponse });
   } catch (err) {
     console.error("admin-refund-action:", err);
