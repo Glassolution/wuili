@@ -297,10 +297,35 @@ Deno.serve(async (req) => {
 // ───────── Respostas automáticas nos tickets da Caixa de entrada ─────────
 const AVISO_ESPERA = "Já solicitei o atendimento humano. Aguarde, que em breve alguém da equipe Velo vai te responder por aqui.";
 
+const AVISO_REEMBOLSO = "Pode ficar tranquilo(a): vou solicitar o seu reembolso à nossa equipe agora mesmo. O prazo para ele ser feito é de até 5 dias.";
+
 const SYSTEM_TICKET = `${SYSTEM}
 
-Contexto: você está respondendo um ticket de suporte da Velo.
-Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), responda ao usuário explicando brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
+Jeito de escrever nos tickets (muito importante):
+- Escreva como uma pessoa real do atendimento conversando pelo chat: cordial, educada, formal na medida certa, leve e didática. Imagine que a pessoa nunca mexeu com tecnologia.
+- NUNCA use termos técnicos, códigos ou palavras em inglês (ex.: rejected_by_regulations, address_pending, status, API, OAuth, token, integração). Traduza sempre para o que a pessoa entende: "o Mercado Livre ainda não liberou sua conta para vender", "falta cadastrar seu celular".
+- NÃO use markdown: sem asteriscos, sem negrito, sem colchetes de link. Escreva endereços de site como texto simples (ex.: mercadolivre.com.br).
+- Divida a resposta em mensagens curtas, como alguém digitando no chat: cada mensagem separada por uma linha em branco, no máximo 4 mensagens, 1 a 3 frases cada. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
+
+Reembolso: quando o usuário pedir reembolso ou dinheiro de volta, chame "acionar_suporte_humano" com motivo "reembolso" e um resumo claro, e diga ao usuário com gentileza que você vai solicitar o reembolso e que o prazo é de até 5 dias. Não diga que o reembolso já foi feito nem tente convencer a pessoa a desistir.
+
+Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
+
+// Remove marcações que o cliente veria como símbolos soltos.
+function limparTexto(t: string): string {
+  return t
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 ($2)")
+    .replace(/\*\*|__|`/g, "")
+    .replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,!?)]|$)/g, "$1$2")
+    .replace(/^#+\s*/gm, "")
+    .trim();
+}
+
+function dividirMensagens(t: string): string[] {
+  const partes = limparTexto(t).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  if (partes.length <= 5) return partes;
+  return [...partes.slice(0, 4), partes.slice(4).join("\n\n")];
+}
 
 async function responderTicket(admin: SupabaseClient, req: Request, token: string) {
   const { data: tk } = await admin.from("cron_tokens").select("token").eq("name", "support-assistant").maybeSingle();
@@ -368,6 +393,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   if (contents[0]?.role === "model") contents.unshift({ role: "user", parts: [{ text: "Olá" }] });
 
   let escalou = false;
+  let reembolso = false;
   let reply = "";
   for (let i = 0; i < 6; i++) {
     const r = await chamarGemini(GEMINI_API_KEY, contents, SYSTEM_TICKET);
@@ -388,7 +414,12 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
         if (name === "verificar_conta_mercado_livre") result = await verificarContaML(admin, ticket.user_id);
         else if (name === "buscar_central_de_ajuda") result = await buscarAjuda(admin, String(args.consulta ?? ultimaUser.message));
         else if (name === "acionar_suporte_humano") {
-          if (!escalou) await marcarHumano(String(args.motivo ?? "outro"), String(args.resumo ?? ""));
+          const motivo = String(args.motivo ?? "outro");
+          if (motivo === "reembolso") reembolso = true;
+          if (!escalou) {
+            const resumo = String(args.resumo ?? "");
+            await marcarHumano(motivo, motivo === "reembolso" ? `SOLICITAÇÃO DE REEMBOLSO — prazo prometido ao cliente: até 5 dias. ${resumo}` : resumo);
+          }
           escalou = true; result = { ok: true };
         } else result = { erro: "ferramenta desconhecida" };
       } catch (e) {
@@ -405,7 +436,12 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     escalou = true;
     reply = AVISO_ESPERA;
   }
+  if (reembolso && !/5 dias/.test(reply)) reply = `${reply}\n\n${AVISO_REEMBOLSO}`;
   if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
-  await enviar(reply);
+  const mensagens = dividirMensagens(reply);
+  for (let i = 0; i < mensagens.length; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, Math.min(3500, 900 + mensagens[i].length * 18)));
+    await enviar(mensagens[i]);
+  }
   return json({ ok: true, escalou });
 }
