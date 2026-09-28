@@ -314,12 +314,14 @@ export type DadosDaPublicacao = {
  * (CATEGORY_REQUIRES_MANUAL, ML_SELLER_CANNOT_LIST) se perde. Com fetch, status
  * e corpo saem de uma leitura só.
  */
-export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<ResultadoDaPublicacao> => {
+/**
+ * Monta o corpo aceito pela função `ml-publish`. Exportado para a fila de
+ * publicação pendente guardar exatamente o mesmo conteúdo que seria enviado
+ * agora — assim a publicação automática não diverge da manual.
+ */
+export const montarCorpoDePublicacao = (dados: DadosDaPublicacao) => {
   const { produto } = dados;
-  const { data: sessao } = await supabase.auth.getSession();
-  const accessToken = sessao?.session?.access_token ?? supabaseAnonKey;
-
-  const corpo = {
+  return {
     product: {
       id: produto.id,
       external_id: produto.external_id,
@@ -343,6 +345,12 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
       size_grid_id: dados.override?.sizeGridId,
     },
   };
+};
+
+export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<ResultadoDaPublicacao> => {
+  const { data: sessao } = await supabase.auth.getSession();
+  const accessToken = sessao?.session?.access_token ?? supabaseAnonKey;
+  const corpo = montarCorpoDePublicacao(dados);
 
   let status = 0;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resposta da função, formato varia por erro

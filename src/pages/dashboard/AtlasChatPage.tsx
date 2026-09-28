@@ -19,11 +19,11 @@ import {
   Search,
   Settings,
   ShoppingBag,
-  Sparkles,
   SquarePen,
   Store,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePlan } from "@/hooks/usePlan";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import AtlasMessageText from "@/components/dashboard/AtlasMessageText";
@@ -210,7 +210,9 @@ const AtlasChatPage = () => {
   // No celular a tela vira um app de chat: gaveta de conversas, barra de topo
   // enxuta e composer em pílula. O desktop segue com a sidebar fixa.
   const isMobile = useIsMobile();
+  const { plan: planoAtual } = usePlan();
   const upgradeModal = useUpgradeModal();
+  const rotuloDoPlano = planoAtual === "gratis" ? "Assinar plano" : "Melhorar plano";
   const [gavetaAberta, setGavetaAberta] = useState(false);
   const [buscaConversa, setBuscaConversa] = useState("");
   const [buscaVisivel, setBuscaVisivel] = useState(false);
@@ -657,7 +659,7 @@ const AtlasChatPage = () => {
     const mostrarSugestoes = (!hasMessages && !isThinking) || sugestoesAbertas;
 
     return (
-      <div data-atlas-chat className="flex min-h-0 w-full flex-1 flex-col bg-white text-[#111111]" style={fontStyle}>
+      <div data-atlas-chat className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-white text-[#111111]" style={fontStyle}>
         {/* Topo: gaveta de conversas, plano e nova conversa — nada mais. */}
         <header className="flex h-14 shrink-0 items-center justify-between px-1.5">
           <button
@@ -672,10 +674,9 @@ const AtlasChatPage = () => {
           <button
             type="button"
             onClick={() => upgradeModal.open()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#EFF4FF] px-3.5 py-2 text-[15px] font-semibold text-[#2563EB] transition-transform active:scale-95"
+            className="inline-flex h-8 items-center rounded-full bg-[#F5F5F5] px-3.5 text-[14px] font-medium tracking-[-0.02em] text-[#111111] transition-transform active:scale-[0.97]"
           >
-            <Sparkles className="h-4 w-4" strokeWidth={2.2} />
-            Melhorar o plano
+            {rotuloDoPlano}
           </button>
 
           <button
@@ -691,7 +692,7 @@ const AtlasChatPage = () => {
         {/* Conversa */}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4">
           {!hasMessages && !isThinking ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 pb-10">
+            <div className="flex h-full flex-col items-center justify-center gap-4">
               <AtlasAvatar size={44} />
               <h2 className="text-[22px] font-bold tracking-[-0.02em]">Em que posso ajudar?</h2>
             </div>
@@ -745,7 +746,7 @@ const AtlasChatPage = () => {
         {/* Composer em pílula: "+" abre os atalhos, disco azul envia. */}
         <form
           onSubmit={handleSubmit}
-          className="shrink-0 px-3 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2"
+          className="shrink-0 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-1.5"
         >
           <div className="flex items-end gap-1 rounded-[26px] bg-[#F4F4F4] px-2 py-1.5">
             <button

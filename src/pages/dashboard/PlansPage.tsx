@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
+import { carregarSdkMercadoPago } from "@/lib/mercadoPagoSdk";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
@@ -45,7 +46,7 @@ const PLANS = [
   {
     id: "business",
     name: "Business",
-    price: "R$ 159,60",
+    price: "R$ 189,90",
     period: "/mês",
     features: [
       "Anúncios no Mercado Livre ilimitados",
@@ -160,7 +161,16 @@ const PlansPage = () => {
           setCheckoutState("idle");
           return;
         }
-        // @ts-ignore - MercadoPago SDK loaded via script
+        // O SDK é carregado sob demanda (src/lib/mercadoPagoSdk.ts), e não mais
+        // por uma <script> fixa no index.html.
+        try {
+          await carregarSdkMercadoPago();
+        } catch {
+          toast.error("Não foi possível carregar o pagamento por cartão. Tente novamente.", { id: toastId });
+          setCheckoutState("idle");
+          return;
+        }
+        // @ts-expect-error - SDK do Mercado Pago carregado por script, sem tipagem
         const mp = new window.MercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
 
         const [expMonth, expYear] = cardExpiry.split("/");

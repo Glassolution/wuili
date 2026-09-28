@@ -30,7 +30,7 @@ const TermsPage = () => (
     <LegalSection title="4. Planos e Pagamento">
       <p>
         4.1. A Velo oferece planos pagos com cobrança mensal recorrente (Base a R$39,90/mês, Pro a R$79,80/mês ou
-        Business a R$159,60/mês), renovando-se automaticamente a cada ciclo, salvo cancelamento
+        Business a R$189,90/mês, cobrado anualmente), renovando-se automaticamente a cada ciclo, salvo cancelamento
         expresso pelo Usuário antes do vencimento.
       </p>
       <p>

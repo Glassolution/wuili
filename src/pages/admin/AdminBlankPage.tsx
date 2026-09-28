@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminMobileHome } from "@/components/admin/AdminMobileHome";
 import {
   AdminBadge,
   AdminCard,
@@ -323,6 +324,14 @@ const GROUPING_OPTIONS: Array<{ value: Grouping | "auto"; label: string }> = [
   { value: "day", label: "Por dia" },
   { value: "week", label: "Por semana" },
   { value: "month", label: "Por mês" },
+];
+
+const MOBILE_GROUPING_OPTIONS: Array<{ value: Grouping | "auto"; label: string }> = [
+  { value: "auto", label: "Automático" },
+  { value: "hour", label: "Por hora" },
+  { value: "day", label: "Diário" },
+  { value: "week", label: "Semanal" },
+  { value: "month", label: "Mensal" },
 ];
 
 const getPeriodLabel = (period: Period) =>
@@ -766,7 +775,9 @@ const getValidaPayEventKey = (row: ValidaPayEventRow) =>
 
 const AdminPainelPage = () => {
   const [period, setPeriod] = useState<Period>(getStoredPeriod);
-  const [groupingChoice, setGroupingChoice] = useState<Grouping | "auto">("auto");
+  const [groupingChoice, setGroupingChoice] = useState<Grouping | "auto">(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "week" : "auto",
+  );
   const [compareEnabled, setCompareEnabled] = useState(true);
   const periodRange = useMemo(() => getPeriodRange(period), [period]);
   const grouping: Grouping = groupingChoice === "auto" ? getAutoGrouping(periodRange) : groupingChoice;
@@ -1330,12 +1341,32 @@ const AdminPainelPage = () => {
   return (
     <AdminShell active="dashboard" userId="admin" fullBleed>
       <motion.div
-        className="relative min-h-full px-5 pb-8 pt-1 lg:px-7"
+        className="relative min-h-full px-5 pb-8 pt-1 max-md:p-0 lg:px-7"
         initial={reduceMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
         transition={{ duration: reduceMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
       >
+        <div className="min-h-full md:hidden">
+          <AdminMobileHome
+            loading={hideFinancialValues}
+            approvedSales={finance.metrics.approved_sales}
+            grossRevenue={finance.metrics.gross_revenue}
+            costs={finance.metrics.costs}
+            churnRate={churnRate}
+            netRevenue={finance.metrics.net_revenue}
+            series={netSparklineValues}
+            comparison={previousNetSeries}
+            labels={revenueSparklineLabels}
+            grouping={grouping}
+            groupingChoice={groupingChoice}
+            groupingOptions={MOBILE_GROUPING_OPTIONS}
+            onGroupingChange={(value) => setGroupingChoice(value as Grouping | "auto")}
+            days={daysBetween(periodRange.startKey, periodRange.endKey)}
+          />
+        </div>
+
+        <div className="max-md:hidden">
         <AnimatePresence>
           {panelRefreshing ? <PanelRefreshIndicator /> : null}
         </AnimatePresence>
@@ -1632,6 +1663,7 @@ const AdminPainelPage = () => {
             />
           ) : null}
         </motion.section>
+        </div>
       </motion.div>
     </AdminShell>
   );

@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 interface StartModeModalProps {
   isOpen: boolean;
@@ -7,13 +7,13 @@ interface StartModeModalProps {
 }
 
 const StartModeModal = ({ isOpen, onClose }: StartModeModalProps) => {
-  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
 
   if (!isOpen) return null;
 
   const handleViewPlans = () => {
     onClose();
-    navigate("/dashboard/planos");
+    upgradeModal.open({ origin: "start_mode" });
   };
 
   return (

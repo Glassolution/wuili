@@ -55,6 +55,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // while the initial server-side validation below is still running.
         if (!initialSessionValidated && event === "INITIAL_SESSION") return;
 
+        // Marca um login novo: no celular, a primeira ida ao painel vira catálogo.
+        if (event === "SIGNED_IN" && session?.user && !user) {
+          try { window.sessionStorage.setItem("velo_pos_login", "1"); } catch { /* sem storage */ }
+        }
         setSession(session ?? null);
         setUser(session?.user ?? null);
         setLoading(false);

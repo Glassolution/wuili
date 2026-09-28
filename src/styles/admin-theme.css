@@ -65,9 +65,14 @@
    Normalização — mantém as páginas legadas dentro do novo sistema
    -------------------------------------------------------------------------- */
 
-.velo-admin-root *,
-.velo-admin-root *::before,
-.velo-admin-root *::after {
+/*
+  [data-admin-native] marca as telas do celular (início e barra de abas), desenhadas
+  com as próprias cores e raios. As normalizações abaixo foram feitas para as páginas
+  legadas e desfariam esse visual.
+*/
+.velo-admin-root *:not([data-admin-native], [data-admin-native] *),
+.velo-admin-root *:not([data-admin-native], [data-admin-native] *)::before,
+.velo-admin-root *:not([data-admin-native], [data-admin-native] *)::after {
   border-color: var(--admin-border) !important;
 }
 
@@ -75,7 +80,7 @@
   border-width: 1px !important;
 }
 
-.velo-admin-root [class*="rounded-"]:not([class*="rounded-full"]) {
+.velo-admin-root [class*="rounded-"]:not([class*="rounded-full"]):not([data-admin-native] *) {
   border-radius: var(--admin-radius-control) !important;
 }
 
@@ -89,7 +94,7 @@
   --tw-ring-shadow: 0 0 #0000 !important;
 }
 
-.velo-admin-root :is(button, input, select, textarea) {
+.velo-admin-root :is(button, input, select, textarea):not([data-admin-native] *) {
   font-size: 13px;
 }
 
@@ -414,7 +419,7 @@
 .velo-admin-root .admin-card,
 .velo-admin-root .admin-chart-card,
 .velo-admin-root .admin-metric-card,
-.velo-admin-root :is(section, article, nav)[class*="bg-white"][class*="rounded-"],
+.velo-admin-root :is(section, article, nav)[class*="bg-white"][class*="rounded-"]:not([data-admin-native] *),
 .velo-admin-root :is(section, article)[class*="bg-[#F7FAFF]"][class*="rounded-"] {
   border: 1px solid var(--admin-border) !important;
   border-radius: var(--admin-radius-card) !important;
@@ -503,9 +508,9 @@
   box-shadow: var(--admin-shadow) !important;
 }
 
-.velo-admin-root button svg,
-.velo-admin-root a svg,
-.velo-admin-root label svg,
+.velo-admin-root button svg:not([data-admin-native] *),
+.velo-admin-root a svg:not([data-admin-native] *),
+.velo-admin-root label svg:not([data-admin-native] *),
 .velo-admin-root th svg,
 .velo-admin-root td svg {
   width: 15px;
@@ -534,7 +539,7 @@
   stroke-width: 1.5;
 }
 
-.velo-admin-root :is(span, div)[class*="bg-"]:has(> svg:only-child):not(.admin-tool-tile):not(.admin-avatar) {
+.velo-admin-root :is(span, div)[class*="bg-"]:has(> svg:only-child):not(.admin-tool-tile):not(.admin-avatar):not([data-admin-native] *) {
   width: auto !important;
   height: auto !important;
   min-width: 0 !important;
@@ -545,7 +550,7 @@
   box-shadow: none !important;
 }
 
-.velo-admin-root :is(span, div)[class*="bg-"]:has(> svg:only-child):not(.admin-tool-tile):not(.admin-avatar) svg {
+.velo-admin-root :is(span, div)[class*="bg-"]:has(> svg:only-child):not(.admin-tool-tile):not(.admin-avatar):not([data-admin-native] *) svg {
   width: 15px;
   height: 15px;
   stroke-width: 1.7;

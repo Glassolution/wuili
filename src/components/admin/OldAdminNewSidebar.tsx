@@ -9,6 +9,7 @@ import {
   ChevronDown,
   FileSearch,
   LayoutDashboard,
+  LifeBuoy,
   type LucideIcon,
   MessagesSquare,
   Minus,
@@ -193,6 +194,7 @@ export const OldAdminNewSidebar = () => {
       items: [
         { label: "Evidências", icon: FileSearch, to: "/admin/evidencias" },
         { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot" },
+        { label: "Central de ajuda", icon: LifeBuoy, to: "/admin/central-de-ajuda" },
         { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress" },
       ],
     },

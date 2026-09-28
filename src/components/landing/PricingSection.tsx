@@ -80,9 +80,9 @@ const plans: Plan[] = [
   {
     id: "business",
     name: "Business",
-    price: "159,60",
+    price: "189,90",
     currency: "R$",
-    period: "BRL / mês",
+    period: "BRL / mês · cobrança anual",
     desc: "Pra quem já vive disso e quer parar de contar produto.",
     cta: "Assinar Business",
     ctaStyle: "filled",

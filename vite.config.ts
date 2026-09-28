@@ -122,6 +122,23 @@ export default defineConfig(({ mode }) => {
             if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
             if (id.includes("@radix-ui")) return "vendor-radix";
             if (id.includes("lucide-react")) return "vendor-icons";
+            /*
+              Estas bibliotecas só são usadas dentro do painel, mas caíam todas no
+              mesmo pacote "vendor" genérico — e esse pacote é baixado por quem
+              abre a landing. O jszip sozinho (usado para baixar imagens de
+              produto em lote) pesava mais que toda a primeira tela da landing
+              depois da otimização das fotos. Separando por biblioteca, cada uma
+              só é buscada na tela que realmente a usa.
+            */
+            if (id.includes("jszip")) return "vendor-zip";
+            if (id.includes("qrcode")) return "vendor-qrcode";
+            if (id.includes("mercadopago")) return "vendor-mercadopago";
+            if (/node_modules[/\\](react-markdown|remark|micromark|mdast|hast|unified|vfile|unist|decode-named|character-entities|property-information|space-separated|comma-separated|zwitch|longest-streak|ccount|escape-string-regexp|markdown-table|trim-lines|bail|is-plain-obj|trough|devlop|html-url-attributes)/.test(id))
+              return "vendor-markdown";
+            if (id.includes("embla")) return "vendor-carousel";
+            if (id.includes("date-fns") || id.includes("react-day-picker")) return "vendor-date";
+            if (id.includes("zod") || id.includes("react-hook-form") || id.includes("@hookform")) return "vendor-forms";
+            if (id.includes("recharts") || id.includes("victory") || id.includes("d3-")) return "vendor-charts";
             if (/node_modules[/\\](react|react-dom|scheduler)[/\\]/.test(id)) return "vendor-react";
             return "vendor";
           },

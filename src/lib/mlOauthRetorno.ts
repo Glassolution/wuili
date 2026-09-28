@@ -5,7 +5,7 @@
  * então o estado em memória do chat se perde. Guardamos aqui a rota, a conversa
  * e a origem para reconstruir exatamente o ponto em que ele estava.
  */
-export type OrigemDaConexaoMl = "atlas" | "config";
+export type OrigemDaConexaoMl = "atlas" | "config" | "product_import";
 
 export type RetornoMl = {
   origem: OrigemDaConexaoMl;

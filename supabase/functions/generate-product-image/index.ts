@@ -6,6 +6,7 @@
 // guardar histórico, é só adicionar o upload aqui.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { PLAN_LIMITS, normalizePlanKey } from "../_shared/plan-limits.ts";
+import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "../_shared/disposableEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,6 +159,11 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData.user) return json({ error: "unauthorized" }, 401);
+
+    // Contas de e-mail temporário não usam IA paga (defesa contra abuso em massa).
+    if (emailEhDescartavel(userData.user.email)) {
+      return json({ error: MENSAGEM_EMAIL_DESCARTAVEL }, 403);
+    }
 
     const payload = (await req.json().catch(() => ({}))) as Payload;
 

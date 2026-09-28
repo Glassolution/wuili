@@ -138,6 +138,11 @@ const SupportFloatingWidget = () => {
     () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? null,
     [selectedTicketId, tickets],
   );
+  const assistantIsReplying = useMemo(() => {
+    if (!selectedTicket || selectedTicket.status !== "open" || messages.length === 0) return false;
+    const lastMessage = messages[messages.length - 1];
+    return lastMessage.sender === "user";
+  }, [messages, selectedTicket]);
   const visibleFaqs = useMemo(() => {
     const query = helpQuery.trim().toLowerCase();
     if (!query) return FAQ_ITEMS;
@@ -234,6 +239,7 @@ const SupportFloatingWidget = () => {
           .from("support_messages")
           .select("*")
           .eq("ticket_id", selectedTicketId)
+          .eq("internal", false)
           .order("created_at", { ascending: true });
 
         if (!active) return;
@@ -261,6 +267,7 @@ const SupportFloatingWidget = () => {
         },
         (payload) => {
           const message = payload.new as SupportMessage;
+          if ((message as { internal?: boolean }).internal) return;
           setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
           announceSupportReply(message);
         },
@@ -291,7 +298,7 @@ const SupportFloatingWidget = () => {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "end" });
-  }, [messages.length, messagesLoading, prefersReducedMotion, sendingReply, selectedTicketId]);
+  }, [assistantIsReplying, messages.length, messagesLoading, prefersReducedMotion, sendingReply, selectedTicketId]);
 
   const subjectFromMessage = (message: string) => {
     const firstLine = message.split("\n").find((line) => line.trim())?.trim() ?? "Nova conversa com suporte";
@@ -588,6 +595,7 @@ const SupportFloatingWidget = () => {
                       reply={reply}
                       replyImage={replyImage}
                       sendingReply={sendingReply}
+                      assistantIsReplying={assistantIsReplying}
                       newConversationText={newConversationText}
                       newConversationImage={newConversationImage}
                       composingNewConversation={composingNewConversation}
@@ -1030,6 +1038,7 @@ const SupportMessages = ({
   reply,
   replyImage,
   sendingReply,
+  assistantIsReplying,
   newConversationText,
   newConversationImage,
   composingNewConversation,
@@ -1058,6 +1067,7 @@ const SupportMessages = ({
   reply: string;
   replyImage: File | null;
   sendingReply: boolean;
+  assistantIsReplying: boolean;
   newConversationText: string;
   newConversationImage: File | null;
   composingNewConversation: boolean;
@@ -1097,7 +1107,7 @@ const SupportMessages = ({
           {messages.map((message) => (
             <SupportBubble key={message.id} message={message} onRefundClick={onOpenRefundFlow} />
           ))}
-          {sendingReply && <TypingBubble />}
+          {(sendingReply || assistantIsReplying) && <TypingBubble />}
           {closed && (
             <div className="rounded-full bg-emerald-50 px-3 py-2 text-center text-[11px] font-bold text-emerald-700">
               Este ticket foi marcado como resolvido.

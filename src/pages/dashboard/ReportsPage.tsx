@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
-import { Link } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { toast } from "sonner";
 import { Sparkles, X, Maximize2, Download, FileText, Plus, Loader2, ChevronRight } from "lucide-react";
 
@@ -45,6 +45,7 @@ const scoreBadge = (n: number) =>
 const ReportsPage = () => {
   const { user } = useAuth();
   const planLimits = usePlanLimits();
+  const upgradeModal = useUpgradeModal();
   const qc = useQueryClient();
   const [openReport, setOpenReport] = useState<SalesReport | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -94,12 +95,13 @@ const ReportsPage = () => {
                 Faça upgrade para gerar relatórios de vendas analisados por IA com base nos seus pedidos, publicações e desempenho no Mercado Livre.
               </p>
             </div>
-            <Link
-              to="/dashboard/planos"
+            <button
+              type="button"
+              onClick={() => upgradeModal.open({ origin: "relatorios" })}
               className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-[13px] font-semibold text-white transition hover:bg-zinc-800"
             >
               Fazer upgrade
-            </Link>
+            </button>
           </div>
         </div>
       </div>

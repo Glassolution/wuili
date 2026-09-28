@@ -19,7 +19,8 @@ const defaultItems: SearchItem[] = [
   { label: "Afiliados", to: "/dashboard/comissoes", icon: Users, keywords: ["comissoes", "indicacoes"] },
   { label: "Configurações", to: "/dashboard/configuracoes", icon: Settings2, keywords: ["ajustes", "conta"] },
   { label: "Assinatura", to: "/dashboard/assinatura", icon: CreditCard, keywords: ["plano", "billing", "pagamento"] },
-  { label: "Ajuda & Central", to: "/dashboard/comunidade", icon: Info, keywords: ["docs", "duvidas", "suporte"] },
+  { label: "Central de ajuda", to: "/dashboard/ajuda", icon: Info, keywords: ["ajuda", "artigos", "duvidas", "tutorial", "faq"] },
+  { label: "Comunidade", to: "/dashboard/comunidade", icon: Info, keywords: ["docs", "duvidas", "suporte", "feed"] },
   { label: "Suporte", to: "/dashboard/suporte", icon: MessagesSquare, keywords: ["ajuda", "contato"] },
 ];
 

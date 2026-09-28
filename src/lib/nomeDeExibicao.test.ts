@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nomeDeExibicao, primeiroNome } from "./nomeDeExibicao";
+import { nomeDeExibicao, primeiroNome, primeiroNomeSaudacao } from "./nomeDeExibicao";
 
 describe("nomeDeExibicao", () => {
   it("corta em dois nomes quando o cadastro tem nome completo", () => {
@@ -29,5 +29,28 @@ describe("nomeDeExibicao", () => {
   it("primeiroNome devolve só o primeiro", () => {
     expect(primeiroNome("Luis Felipe Ferreira Xavier")).toBe("Luis");
     expect(primeiroNome("", "luisfelipe@gmail.com")).toBe("luisfelipe");
+  });
+
+  it("não trata e-mail como se fosse nome", () => {
+    expect(nomeDeExibicao("xavierluisfelipe12@gmail.com", "xavierluisfelipe12@gmail.com")).toBe(
+      "xavierluisfelipe12",
+    );
+  });
+});
+
+describe("primeiroNomeSaudacao", () => {
+  it("usa o primeiro nome de pessoa, no formato da saudação", () => {
+    expect(primeiroNomeSaudacao("Luis Felipe Xavier")).toBe("Luis");
+    expect(primeiroNomeSaudacao("felipe")).toBe("Felipe");
+  });
+
+  it("ignora e-mail, placeholder e cai no próximo candidato", () => {
+    expect(
+      primeiroNomeSaudacao("xavierluisfelipe12@gmail.com", "Usuario", "Felipe Xavier"),
+    ).toBe("Felipe");
+  });
+
+  it("fica vazio quando não há nome de pessoa", () => {
+    expect(primeiroNomeSaudacao("xavierluisfelipe12@gmail.com", "xavierluisfelipe12")).toBe("");
   });
 });

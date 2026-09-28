@@ -1,8 +1,7 @@
 // ml-sync-stock
 // -------------
-// Fase 3 do plano de estoque: sincroniza o estoque do fornecedor (C7Drop, já
-// atualizado pelo scrape-c7drop em catalog_products) com os anúncios ativos no
-// Mercado Livre.
+// Sincroniza estoque e aumentos de custo do fornecedor (C7Drop, já atualizados
+// pelo scrape-c7drop em catalog_products) com os anúncios no Mercado Livre.
 //
 // Regras:
 //  • Produto sem estoque (stock_quantity = 0) ou inativo (is_active = false)
@@ -14,6 +13,9 @@
 //    (sem teto artificial; antes era min(estoque, 10)).
 //  • Guarda de segurança: se mais de 20% do catálogo estiver zerado na rodada
 //    (sinal de scraper/C7 fora do ar), abortamos sem pausar nada.
+//  • Quando o custo C7 aumenta, o preço de venda sobe na mesma proporção para
+//    preservar a margem configurada pelo lojista. Quedas de custo não reduzem
+//    o preço. Se o ML recusar o reajuste, o anúncio é pausado e o lojista avisado.
 //
 // Modos:
 //  • Cron / service role (sem body): percorre todos os usuários.
@@ -28,6 +30,7 @@ const corsHeaders = {
 };
 
 const PAUSED_BY_VELO = "velo_out_of_stock";
+const PAUSED_PRICE_SYNC = "velo_price_sync_failed";
 // Sem teto artificial: enviamos o estoque real do catálogo (mínimo 1, que é o
 // que o ML aceita para um anúncio ativo).
 const qtyParaEnviar = (stock: number) => Math.max(1, Math.floor(stock));
@@ -54,6 +57,8 @@ type Pub = {
   // cada linha representa UM valor da dimensão (ex.: Cor = Azul).
   variation_value?: string | null;
   variation_group_id?: string | null;
+  price: number | null;
+  cost_price: number | null;
 };
 
 type CatalogRow = {
@@ -62,6 +67,7 @@ type CatalogRow = {
   is_active: boolean | null;
   title: string | null;
   variants?: unknown;
+  cost_price: number | null;
 };
 
 // deno-lint-ignore no-explicit-any -- cliente supabase sem tipos gerados no Deno
@@ -234,6 +240,8 @@ type UserResult = {
   paused: number;
   reactivated: number;
   quantityFixed: number;
+  pricesUpdated: number;
+  priceFailuresPaused: number;
   errors: number;
   deadListings: number;
   timedOut?: boolean;
@@ -249,12 +257,15 @@ async function syncUser(
   dryRun: boolean,
   deadline: number,
   onlyPause = false,
+  onlyPrices = false,
 ): Promise<UserResult> {
   const result: UserResult = {
     checked: 0,
     paused: 0,
     reactivated: 0,
     quantityFixed: 0,
+    pricesUpdated: 0,
+    priceFailuresPaused: 0,
     errors: 0,
     deadListings: 0,
     details: [],
@@ -298,6 +309,79 @@ async function syncUser(
     const available = product.is_active !== false && stock > 0;
     const isPaused = pub.status === "paused";
     const pausedByVelo = pub.paused_reason === PAUSED_BY_VELO;
+    const pausedByPrice = pub.paused_reason === PAUSED_PRICE_SYNC;
+
+    // ---- 0. Aumento de custo → preservar a mesma proporção custo/preço.
+    // O custo local só avança depois que o ML confirma o novo preço. Assim,
+    // uma falha permanece elegível para nova tentativa na próxima rodada.
+    const oldCost = Number(pub.cost_price ?? 0);
+    const newCost = Number(product.cost_price ?? 0);
+    const oldPrice = Number(pub.price ?? 0);
+    if (oldCost > 0 && newCost > oldCost && oldPrice > 0) {
+      const newPrice = Math.round((oldPrice * newCost / oldCost) * 100) / 100;
+      result.details.push({
+        ml_item_id: pub.ml_item_id,
+        action: "price_increase",
+        old_cost: oldCost,
+        new_cost: newCost,
+        old_price: oldPrice,
+        new_price: newPrice,
+      });
+      if (!dryRun) {
+        const priceResult = await updateItem(token!, pub.ml_item_id, { price: newPrice });
+        await sleep(REQUEST_DELAY_MS);
+        if (!priceResult.ok) {
+          const pauseResult = await updateItem(token!, pub.ml_item_id, { status: "paused" });
+          await sleep(REQUEST_DELAY_MS);
+          if (pauseResult.ok) {
+            await supabase
+              .from("user_publications")
+              .update({
+                status: "paused",
+                paused_reason: PAUSED_PRICE_SYNC,
+                stock_synced_at: new Date().toISOString(),
+              })
+              .eq("id", pub.id);
+            result.priceFailuresPaused++;
+          }
+          result.errors++;
+          if (!pausedByPrice) {
+            await notify(
+              supabase,
+              userId,
+              pauseResult.ok
+                ? "Anúncio pausado para proteger sua margem"
+                : "Atenção: preço não atualizado no Mercado Livre",
+              pauseResult.ok
+                ? `O custo de "${product.title ?? pub.ml_item_id}" aumentou de R$ ${oldCost.toFixed(2)} para R$ ${newCost.toFixed(2)}, mas o Mercado Livre recusou o novo preço. Pausamos o anúncio para evitar venda com prejuízo.`
+                : `O custo de "${product.title ?? pub.ml_item_id}" aumentou e o Mercado Livre recusou o novo preço. Também não foi possível pausar o anúncio; revise-o o quanto antes.`,
+            );
+          }
+          console.warn(`[ml-sync-stock] preço falhou ${pub.ml_item_id}: ${priceResult.error}`);
+          continue;
+        }
+
+        const publicationUpdate: Record<string, unknown> = {
+          price: newPrice,
+          cost_price: newCost,
+          stock_synced_at: new Date().toISOString(),
+        };
+        if (pausedByPrice && available) {
+          const activation = await updateItem(token!, pub.ml_item_id, { status: "active" });
+          await sleep(REQUEST_DELAY_MS);
+          if (activation.ok) {
+            publicationUpdate.status = "active";
+            publicationUpdate.paused_reason = null;
+            result.reactivated++;
+          }
+        }
+        await supabase.from("user_publications").update(publicationUpdate).eq("id", pub.id);
+        result.pricesUpdated++;
+      }
+    }
+
+    // Mutirão pontual de preços: não toca em estoque ou disponibilidade.
+    if (onlyPrices) continue;
 
     // ---- 1. Indisponível no fornecedor → pausar
     if (!available && !isPaused) {
@@ -428,6 +512,7 @@ Deno.serve(async (req) => {
     const force = body?.force === true; // ignora a guarda dos 20%
     // `onlyPause`: só pausa anúncios cujo produto está sem estoque/inativo.
     const onlyPause = body?.onlyPause === true;
+    const onlyPrices = body?.onlyPrices === true;
     const batchLimit = Number.isFinite(Number(body?.limit))
       ? Math.max(1, Math.min(5000, Number(body.limit)))
       : DEFAULT_BATCH_LIMIT;
@@ -446,7 +531,7 @@ Deno.serve(async (req) => {
     for (let from = 0; from < 20_000; from += PAGE) {
       let pubQuery = supabase
         .from("user_publications")
-        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at,variation_value,variation_group_id")
+        .select("id,user_id,ml_item_id,status,catalog_product_id,paused_reason,stock_synced_at,variation_value,variation_group_id,price,cost_price")
         .not("catalog_product_id", "is", null)
         .in("status", SYNCABLE_STATUSES)
         .order("stock_synced_at", { ascending: true, nullsFirst: true })
@@ -476,7 +561,7 @@ Deno.serve(async (req) => {
       const slice = ids.slice(i, i + 200);
       const { data, error } = await supabase
         .from("catalog_products")
-        .select("external_id,stock_quantity,is_active,title,variants")
+        .select("external_id,stock_quantity,is_active,title,variants,cost_price")
         .in("external_id", slice);
       if (error) throw error;
       for (const row of (data ?? []) as CatalogRow[]) catalog.set(row.external_id, row);
@@ -527,19 +612,21 @@ Deno.serve(async (req) => {
     }
 
     const perUser: Record<string, unknown> = {};
-    let checked = 0, paused = 0, reactivated = 0, quantityFixed = 0, errors = 0, deadListings = 0;
+    let checked = 0, paused = 0, reactivated = 0, quantityFixed = 0, pricesUpdated = 0, priceFailuresPaused = 0, errors = 0, deadListings = 0;
     const deadline = Date.now() + TIME_BUDGET_MS;
     let timedOut = false;
 
     for (const [userId, list] of byUser) {
       if (Date.now() > deadline) { timedOut = true; break; }
-      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline, onlyPause);
+      const r = await syncUser(supabase, userId, list, catalog, dryRun, deadline, onlyPause, onlyPrices);
       if (r.timedOut) timedOut = true;
       perUser[userId] = r;
       checked += r.checked;
       paused += r.paused;
       reactivated += r.reactivated;
       quantityFixed += r.quantityFixed;
+      pricesUpdated += r.pricesUpdated;
+      priceFailuresPaused += r.priceFailuresPaused;
       errors += r.errors;
       deadListings += r.deadListings;
     }
@@ -557,6 +644,8 @@ Deno.serve(async (req) => {
             paused,
             reactivated,
             quantityFixed,
+            pricesUpdated,
+            priceFailuresPaused,
             errors,
             deadListings,
             timedOut,

@@ -1,10 +1,11 @@
 import { Suspense, lazy, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import TourLab from "@/pages/__TourLab";
-import { AtlasChatProvider } from "@/contexts/AtlasChatContext";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import DashboardIntroSessionGuard from "@/components/DashboardIntroSessionGuard";
 import MLReconnectModal from "@/components/dashboard/MLReconnectModal";
+import MLPostConnectCheck from "@/components/dashboard/MLPostConnectCheck";
+import PosPagamentoRetomada from "@/components/dashboard/PosPagamentoRetomada";
 import { VeloToaster } from "@/components/ui/velo-toast";
 import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +14,19 @@ import { ProfileProvider } from "@/lib/profileContext";
 import AdminRoute from "@/components/AdminRoute";
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import { UpgradeModalProvider, useUpgradeModal } from "@/components/PlansUpgradeModal";
+import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
+
+/*
+  TourLab e AtlasChatProvider entram por lazy(): os dois só existem dentro do
+  painel, mas eram importados no topo do App — ou seja, iam junto com o JavaScript
+  que um visitante da landing precisa baixar antes de ver qualquer coisa.
+  O TourLab ainda puxa o GuidedTour inteiro; o Atlas puxa o histórico de conversa.
+  Nada disso tem uso em "/".
+*/
+const TourLab = lazy(() => import("@/pages/__TourLab"));
+const AtlasChatProvider = lazy(() =>
+  import("@/contexts/AtlasChatContext").then((m) => ({ default: m.AtlasChatProvider })),
+);
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -90,6 +103,7 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
+const AdminAiEscalationsPage = lazy(() => import("./pages/admin/AdminAiEscalationsPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersRoutePage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsRoutePage"));
 const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
@@ -100,6 +114,9 @@ const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/admin/AdminDiagnosticsPage"));
 const AdminTrackingPage = lazy(() => import("./pages/admin/AdminTrackingPage"));
 const AdminBotAutomationPage = lazy(() => import("./pages/admin/AdminBotAutomationPage"));
+const AdminHelpCenterPage = lazy(() => import("./pages/admin/AdminHelpCenterPage"));
+const HelpCenterPage = lazy(() => import("./pages/HelpCenterPage"));
+const HelpCenterDashboardPage = lazy(() => import("./pages/dashboard/HelpCenterDashboardPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
 const queryClient = new QueryClient({
@@ -165,17 +182,35 @@ const DashboardShell = () => (
   </ProfileProvider>
 );
 
+// Logo após entrar, no celular, o painel inicial abre direto o catálogo.
+const DashboardIndexPosLogin = () => {
+  let posLogin = false;
+  try {
+    posLogin = window.sessionStorage.getItem("velo_pos_login") === "1";
+    if (posLogin) window.sessionStorage.removeItem("velo_pos_login");
+  } catch { /* sem storage */ }
+  if (posLogin && window.matchMedia("(max-width: 767px)").matches) {
+    return <Navigate to="/dashboard/catalogo" replace />;
+  }
+  return <DashboardHomePage />;
+};
+
 const OpenPlansModalRoute = () => {
   const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
 
   useEffect(() => {
     upgradeModal.open();
-    navigate("/dashboard", { replace: true });
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
   }, [navigate, upgradeModal]);
 
   return null;
 };
+
 
 
 const MorePage = () => (
@@ -213,6 +248,8 @@ const App = () => (
           <FlatButtonsOnCatalog />
           <MarcarAppCarregado />
           <MLReconnectModal />
+          <MLPostConnectCheck />
+          <PosPagamentoRetomada />
           <Suspense fallback={<RouteFallback />}>
 
             <Routes>
@@ -231,13 +268,21 @@ const App = () => (
               <Route path="/velods/produto/editor" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
 
               <Route path="/catalogo" element={<StoreCatalogPage />} />
-              <Route path="/cadastro" element={<Navigate to="/login" replace />} />
+              {/* Cadastro tem endereço próprio: o botão principal da landing é para
+                  quem ainda não tem conta, e cair na tela de login faz essa pessoa
+                  pensar que precisa de uma conta para poder criar uma conta.
+                  É a mesma LoginPage — ela abre direto no passo "criar conta". */}
+              <Route path="/cadastro" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/convite/:token" element={<ReferralAcceptPage />} />
               <Route path="/setup" element={<SetupPage />} />
               {/* Endereço antigo da Comunidade e Ajuda. Mantido como redirecionamento
                   porque circula em links e posts antigos. */}
               <Route path="/docs" element={<Navigate to="/dashboard/comunidade" replace />} />
+              {/* Central de Ajuda pública: sem login, para quem chega pelo suporte ou por busca. */}
+              <Route path="/ajuda" element={<HelpCenterPage />} />
+              <Route path="/ajuda/:categorySlug" element={<HelpCenterPage />} />
+              <Route path="/ajuda/:categorySlug/:articleSlug" element={<HelpCenterPage />} />
               <Route path="/termos-de-servico" element={<TermsPage />} />
               <Route path="/termos" element={<Navigate to="/termos-de-servico" replace />} />
               {/* Retorno da ValidaPay após pagamento aprovado. Pública: o
@@ -283,17 +328,19 @@ const App = () => (
               <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
               <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />
               <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
+              <Route path="/admin/assistente-ia" element={<AdminRoute><AdminAiEscalationsPage /></AdminRoute>} />
               <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
               <Route path="/admin/vendas" element={<AdminRoute><AdminSalesPage /></AdminRoute>} />
               <Route path="/admin/evidencias" element={<AdminRoute><AdminEvidencePage /></AdminRoute>} />
               <Route path="/admin/consulta" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
               <Route path="/admin/rastreio" element={<AdminRoute><AdminTrackingPage /></AdminRoute>} />
               <Route path="/admin/automacao-bot" element={<AdminRoute><AdminBotAutomationPage /></AdminRoute>} />
+              <Route path="/admin/central-de-ajuda" element={<AdminRoute><AdminHelpCenterPage /></AdminRoute>} />
               <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
-                <Route index element={<DashboardHomePage />} />
+                <Route index element={<DashboardIndexPosLogin />} />
                 <Route path="atlas" element={<AtlasChatPage />} />
                 <Route path="atlas/:threadId" element={<AtlasChatPage />} />
                 <Route path="tiktok" element={<TikTokPage />} />
@@ -335,6 +382,9 @@ const App = () => (
                     uma rota solta em /docs, com sidebar e tema próprios, e a
                     pessoa sentia que tinha saído da Velo. */}
                 <Route path="comunidade" element={<Docs />} />
+                <Route path="ajuda" element={<HelpCenterDashboardPage />} />
+                <Route path="ajuda/:categorySlug" element={<HelpCenterDashboardPage />} />
+                <Route path="ajuda/:categorySlug/:articleSlug" element={<HelpCenterDashboardPage />} />
                 <Route path="sugestoes" element={<SugestoesPage />} />
                 <Route path="minha-loja" element={<StoreProjectsPage />} />
               </Route>

@@ -1,11 +1,24 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
+import {
+  captureOrigin,
+  detectInAppBrowser,
+  getVisitorId,
+  mensagemDeErro,
+  readOrigin,
+  sugerirEmail,
+  tipoDeErro,
+  trackSignup,
+} from "@/lib/signupFunnel";
+import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
+import { EVENTOS_LANDING, medirLanding } from "@/lib/landingFunnel";
+import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -80,6 +93,12 @@ const AVISO_ESTILO = {
   ok: "border-[#BBF0D0] bg-[#F0FDF4] text-[#15803D]",
 } as const;
 
+// No celular, quem entra cai direto no catálogo; no computador, no dashboard.
+const destinoPosLogin = () =>
+  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+    ? "/dashboard/catalogo"
+    : "/dashboard";
+
 const AvisoIcone = ({ tipo }: { tipo: "erro" | "info" | "ok" }) => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-[1px] shrink-0">
     <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.45" strokeWidth="1.3" />
@@ -150,8 +169,8 @@ const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
     };
   }
   return {
-    title: "Entre na Velo",
-    subtitle: "Use seu e-mail para continuar. A gente identifica se você já tem conta.",
+    title: "Crie sua conta Velo",
+    subtitle: "Digite seu e-mail para começar. Se você já tem conta, a gente te leva direto para entrar.",
   };
 };
 
@@ -161,9 +180,24 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
 
-  const [step, setStep]                   = useState<"initial" | "login" | "signup">("initial");
+  /*
+    Quem chega por /cadastro (ou por ?modo=cadastro) veio do botão principal da
+    landing, que é dirigido a quem ainda NÃO tem conta. Abrir na etapa de e-mail,
+    sob o título "Entre na Velo", é pedir login a quem nunca se cadastrou — e era
+    aí que essa pessoa desistia. O e-mail fica destravado: ninguém o digitou ainda.
+  */
+  const location = useLocation();
+  const entradaPeloCadastro =
+    location.pathname === "/cadastro" ||
+    new URLSearchParams(location.search).get("modo") === "cadastro";
+  // Vindo de um link com ?email=, o campo já chega preenchido.
+  const emailDaUrl = new URLSearchParams(location.search).get("email")?.trim() ?? "";
+
+  const [step, setStep]                   = useState<"initial" | "login" | "signup">(
+    entradaPeloCadastro ? "signup" : "initial",
+  );
   const [emailLocked, setEmailLocked]     = useState(false);
-  const [email, setEmail]                 = useState("");
+  const [email, setEmail]                 = useState(emailDaUrl);
   const [password, setPassword]           = useState("");
   const [nome, setNome]                   = useState("");
   const [showPw, setShowPw]               = useState(false);
@@ -171,8 +205,11 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
   const [resetMode, setResetMode]         = useState(false);
-  const [acceptTerms, setAcceptTerms]     = useState(false);
-  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [acceptTerms, setAcceptTerms]     = useState(true);
+  const [emailSugerido, setEmailSugerido] = useState<string | null>(null);
+  const [navegadorInterno]                = useState<string | null>(() => detectInAppBrowser());
+  const [linkCopiado, setLinkCopiado]     = useState(false);
+  const [avisoNavegador, setAvisoNavegador] = useState(false);
   const [slide, setSlide]                 = useState(0);
   /*
     Todo retorno desta tela (erro, aviso, confirmação) aparece aqui dentro do card, e não
@@ -207,13 +244,24 @@ const LoginPage = () => {
 
   /* ── Auth ── */
   const handleGoogleLogin = async () => {
+    trackSignup("signup_google_click");
+    /*
+      Instagram/TikTok abrem links num navegador embutido, e o Google recusa OAuth ali
+      (403 disallowed_useragent). Em vez de mandar a pessoa para um erro, mostramos a
+      orientação para abrir no navegador do celular — o caminho por e-mail segue ao lado.
+    */
+    if (navegadorInterno) {
+      trackSignup("signup_inapp_browser", navegadorInterno);
+      setAvisoNavegador(true);
+      return;
+    }
     setGoogleLoading(true);
     const toastId = veloToast.loading("Conectando com o Google...", { fullscreen: true, minDuration: 3000 });
     try {
       const [result] = await Promise.all([
         supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: `${window.location.origin}/dashboard`, skipBrowserRedirect: true },
+          options: { redirectTo: `${window.location.origin}${destinoPosLogin()}`, skipBrowserRedirect: true },
         }),
         veloToast.waitForMinimum(toastId),
       ]);
@@ -232,6 +280,7 @@ const LoginPage = () => {
 
   const handleSignIn = async (e: FormEvent) => {
     e.preventDefault();
+    trackSignup("login_submit");
     setLoading(true);
     const toastId = veloToast.loading("Entrando...", { fullscreen: true, minDuration: 3000 });
     try {
@@ -240,16 +289,21 @@ const LoginPage = () => {
         veloToast.waitForMinimum(toastId),
       ]);
       veloToast.dismiss(toastId);
-      if (error) { setAviso({ tipo: "erro", texto: error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message }); return; }
+      if (error) {
+        trackSignup("login_error", tipoDeErro(error.message));
+        setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
+        return;
+      }
       if (data.session || data.user) {
+        trackSignup("login_success");
         // Quem faz login já tem conta: vai direto ao dashboard, pulando o fluxo de cadastro.
-        navigate("/dashboard", { replace: true }); return;
+        navigate(destinoPosLogin(), { replace: true }); return;
       }
       setAviso({ tipo: "erro", texto: "Não foi possível concluir o login." });
     } catch (error) {
       await veloToast.waitForMinimum(toastId);
       veloToast.dismiss(toastId);
-      setAviso({ tipo: "erro", texto: error instanceof Error ? error.message : "Erro inesperado." });
+      setAviso({ tipo: "erro", texto: mensagemDeErro(error instanceof Error ? error.message : "") });
     } finally { setLoading(false); }
   };
 
@@ -257,44 +311,86 @@ const LoginPage = () => {
     e.preventDefault();
     // No cadastro direto o e-mail não passou pela validação da etapa inicial.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setAviso({ tipo: "erro", texto: "Digite um e-mail válido." }); return; }
-    if (nome.trim().length < 2) { setAviso({ tipo: "erro", texto: "Informe seu nome." }); return; }
-    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Senha precisa ter pelo menos 8 caracteres." }); return; }
-    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Você precisa aceitar os Termos de Uso." }); return; }
-    if (!acceptPrivacy) { setAviso({ tipo: "erro", texto: "Você precisa aceitar a Política de Privacidade." }); return; }
+    if (emailEhDescartavel(email)) { setAviso({ tipo: "erro", texto: MENSAGEM_EMAIL_DESCARTAVEL }); return; }
+    if (password.length < 8)    { setAviso({ tipo: "erro", texto: "Crie uma senha com pelo menos 8 caracteres." }); return; }
+    if (!acceptTerms)   { setAviso({ tipo: "erro", texto: "Marque o aceite dos Termos e da Política de Privacidade para continuar." }); return; }
+    trackSignup("signup_submit");
     setLoading(true);
     const toastId = veloToast.loading("Criando conta...", { fullscreen: true, minDuration: 3000 });
+    /*
+      O nome completo saiu do cadastro: é atrito puro na entrada e pode ser preenchido
+      depois no Perfil. O gatilho do banco já cria o perfil com um nome a partir do
+      e-mail, então nada mais adiante fica sem nome.
+    */
+    const nomeInicial = email.trim().split("@")[0].replace(/[._-]+/g, " ").trim();
+    const origem = readOrigin();
+    const aceiteEm = new Date().toISOString();
     const [{ data, error }] = await Promise.all([
       supabase.auth.signUp({
         email: email.trim(), password,
-        options: { data: { full_name: nome.trim(), velo_onboarding_pending: true }, emailRedirectTo: `${window.location.origin}/setup` },
+        options: {
+          data: {
+            full_name: nomeInicial,
+            velo_onboarding_pending: true,
+            terms_accepted_at: aceiteEm,
+            signup_source: origem.signup_source,
+          },
+        },
       }),
       veloToast.waitForMinimum(toastId),
     ]);
     veloToast.dismiss(toastId);
     if (error) {
       setLoading(false);
-      if (error.message === "User already registered") {
+      trackSignup("signup_error", tipoDeErro(error.message));
+      if (/already registered/i.test(error.message)) {
         setStep("login");
-        setAviso({ tipo: "info", texto: "Este e-mail já possui conta. Entre com sua senha." });
+        setAviso({ tipo: "info", texto: "Este e-mail já tem conta na Velo. Entre com a sua senha." });
         window.setTimeout(() => passwordRef.current?.focus(), 120);
         return;
       }
-      setAviso({ tipo: "erro", texto: error.message });
+      setAviso({ tipo: "erro", texto: mensagemDeErro(error.message) });
+      // Senha recusada: mantém o e-mail e deixa a senha selecionada para trocar.
+      if (/password/i.test(error.message)) {
+        window.setTimeout(() => { nomeRef.current?.focus(); nomeRef.current?.select(); }, 120);
+      }
       return;
     }
     if (data.user) {
-      await supabase.from("profiles").update({ display_name: nome.trim() }).eq("user_id", data.user.id);
+      trackSignup("signup_success");
+      medirLanding(EVENTOS_LANDING.contaCriada, { confirmacao_pendente: !data.session });
+      // Registro do aceite e da origem do visitante (comprovação e atribuição de canal).
+      await supabase
+        .from("profiles")
+        .update({
+          terms_accepted_at: aceiteEm,
+          signup_source: origem.signup_source,
+          utm_source: origem.utm_source,
+          utm_medium: origem.utm_medium,
+          utm_campaign: origem.utm_campaign,
+          // Liga o visitante anônimo da landing à conta criada (funil ponta a ponta).
+          visitor_id: getVisitorId(),
+        })
+        .eq("user_id", data.user.id);
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);
-      // Se a sessão foi criada (auto-confirm), segue para o onboarding.
-      // Caso contrário (confirmação por e-mail pendente), volta o botão ao
-      // estado normal e informa o usuário para conferir o e-mail.
+      // A Velo não usa confirmação de e-mail: a conta já entra direto.
       if (data.session) {
-        navigate("/dashboard", { replace: true });
+        navigate(destinoPosLogin(), { replace: true });
         return;
       }
-      setAviso({ tipo: "ok", texto: "Conta criada. Confirme seu e-mail para continuar." });
+      // Rede de segurança: se por algum motivo a sessão não veio, entramos com a
+      // própria senha recém-criada, sem pedir confirmação de e-mail.
+      const { error: entrarErro } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (!entrarErro) {
+        navigate(destinoPosLogin(), { replace: true });
+        return;
+      }
+      setAviso({ tipo: "erro", texto: mensagemDeErro(entrarErro.message) });
     }
     setLoading(false);
   };
@@ -350,8 +446,24 @@ const LoginPage = () => {
     setStep("initial");
   };
 
+  // Quem vem do botão principal da landing (?novo=1) já cai na criação de conta.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("novo") === "1") setStep("signup");
+    captureOrigin();
+    trackSignup("signup_view");
+    if (detectInAppBrowser()) trackSignup("signup_inapp_browser", detectInAppBrowser() ?? undefined);
+  }, []);
+
+  /*
+    Fecha o funil da landing: sem este evento dá para saber quantas pessoas
+    clicaram no botão, mas não quantas realmente chegaram à tela de cadastro.
+  */
+  useEffect(() => {
+    if (entradaPeloCadastro) medirLanding(EVENTOS_LANDING.chegouNoCadastro, { origem_tela: "cadastro" });
+  }, [entradaPeloCadastro]);
+
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
-  useEffect(() => { if (step === "signup") setTimeout(() => nomeRef.current?.focus(), 320);     }, [step]);
+
 
   // Troca de slide sozinha; clicar num ponto reinicia a contagem.
   useEffect(() => {
@@ -362,16 +474,17 @@ const LoginPage = () => {
     return () => window.clearInterval(timer);
   }, [slide]);
 
-  if (!authLoading && user && !loading && !googleLoading) return <Navigate to="/dashboard" replace />;
+  if (!authLoading && user && !loading && !googleLoading) return <Navigate to={destinoPosLogin()} replace />;
 
   const copy = getCopy(step, resetMode);
   // Cadastro alcançado pelo link, e não pela detecção de e-mail.
   const cadastroDireto = step === "signup" && !emailLocked;
   const mostraSocial = step === "initial" || cadastroDireto;
   const inputCls =
-    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
+    // 16px no celular: abaixo disso o Safari do iPhone dá zoom na página ao focar o campo.
+    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 max-lg:h-12 max-lg:rounded-[14px] max-lg:pl-4 max-lg:text-[16px] text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
   const primaryBtnCls =
-    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
+    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] max-lg:h-12 max-lg:rounded-full max-lg:text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
 
   return (
     <main
@@ -381,11 +494,46 @@ const LoginPage = () => {
       data-velo-flat-buttons
       /* Azul chapado, o mesmo #0B1B3D do hero da landing. Sem degradê: o brilho radial
          não dizia nada sobre a marca e podia estar em qualquer produto. */
-      className={`relative flex min-h-screen bg-[#0B1B3D] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
+      className={`relative flex min-h-screen bg-[#0F0F12] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
     >
+      {/*
+        Celular: foto cheia no topo e o formulário numa folha clara que sobe do rodapé.
+        A foto é decoração — no desktop a coluna da vitrine faz esse papel.
+      */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[52vh] overflow-hidden lg:hidden">
+        <ImagemResponsiva
+          base="pessoa-02"
+          larguras={[640, 960, 1280]}
+          original="/pessoa%2002.webp"
+          sizes="200vw"
+          alt=""
+          prioritaria
+          className="h-full w-full object-cover object-[64%_40%]"
+        />
+        {/* Topo: segura a leitura do logo e do botão sobre o céu claro. */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,18,0.45)_0%,rgba(15,15,18,0)_28%)]" />
+        {/* Base: a foto se desfaz no fundo escuro atrás da folha. */}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,18,0)_45%,#0F0F12_100%)]" />
+      </div>
+
+      {/* Atalho entre entrar e criar conta, como pílula no canto — só no celular. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (resetMode) { setAviso(null); setResetMode(false); return; }
+          if (step === "signup") {
+            if (entradaPeloCadastro) navigate("/login");
+            else voltarParaInicio();
+          } else irParaCadastro();
+        }}
+        className="absolute right-4 top-5 z-10 h-9 rounded-full bg-white/25 px-4 text-[14px] font-semibold text-white backdrop-blur-md transition active:scale-[0.97] lg:hidden"
+      >
+        {step === "signup" && !resetMode ? "Entrar" : "Criar conta"}
+      </button>
+
       {/* ── Coluna do formulário ─────────────────────────────────────────── */}
-      <div className="relative flex w-full flex-col px-5 pb-10 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
-        <div className="flex flex-1 flex-col justify-center py-6 lg:py-12">
+      <div className="relative flex w-full flex-col px-3 pb-3 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
+        <div className="flex flex-1 flex-col justify-end py-6 max-lg:pb-0 lg:justify-center lg:py-12">
           {/*
             No celular a marca faz parte do mesmo bloco do título: fora dele, o
             `justify-center` do miolo abria um vão morto entre uma coisa e outra e a parte
@@ -397,12 +545,12 @@ const LoginPage = () => {
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease }}
-            className="mx-auto mb-8 w-fit lg:absolute lg:left-16 lg:top-12 lg:mx-0 lg:mb-0"
+            className="absolute left-5 top-5 z-10 w-fit lg:left-16 lg:top-12"
           >
             <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
-              <img src="/logo.png" alt="Velo" className="h-11 w-11 rounded-[13px]" />
+              <img src="/logo.png" alt="Velo" className="h-8 w-8 rounded-[10px] lg:h-11 lg:w-11 lg:rounded-[13px]" />
               {/* Mesma métrica do logotipo da landing. No desktop só o ícone, como sempre foi. */}
-              <span className="text-[26px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
+              <span className="text-[22px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
                 Velo
               </span>
             </Link>
@@ -412,8 +560,16 @@ const LoginPage = () => {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="mx-auto w-full max-w-[420px]"
+            className="relative mx-auto w-full max-w-[420px] max-lg:rounded-[24px] max-lg:bg-[#FCFBF8] max-lg:px-5 max-lg:pb-5 max-lg:pt-10 max-lg:shadow-[0_-20px_60px_rgba(0,0,0,0.35)]"
           >
+            {/* Fechar volta para a landing — só no celular, como na folha de referência. */}
+            <Link
+              to="/"
+              aria-label="Fechar"
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-[#141414] transition hover:bg-black/5 lg:hidden"
+            >
+              <X size={20} strokeWidth={1.6} />
+            </Link>
             {/*
               A dupla título+subtítulo troca junto com a etapa: `key` no copy faz o texto
               antigo sair e o novo entrar, em vez de mudar de conteúdo no mesmo lugar.
@@ -427,10 +583,10 @@ const LoginPage = () => {
                   exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
                   transition={{ duration: 0.26, ease }}
                 >
-                  <h1 className={`text-center text-[30px] leading-[1.12] text-white lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
+                  <h1 className={`text-center text-[23px] leading-[1.15] text-[#141414] max-lg:!font-bold max-lg:!tracking-[-0.035em] lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
                     {copy.title}
                   </h1>
-                  <p className="mx-auto mt-2.5 max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
+                  <p className="mx-auto mt-2.5 hidden max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:block lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
                     {copy.subtitle}
                   </p>
 
@@ -445,7 +601,7 @@ const LoginPage = () => {
             */}
             <motion.div
               variants={reduceMotion ? semMovimento : cardEntrada}
-              className={`mt-7 rounded-[24px] bg-white p-5 shadow-[0_28px_70px_-24px_rgba(2,8,23,0.75)] ring-1 ring-white/10 lg:mt-0 lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none lg:ring-0 ${FONTE_FORMULARIO}`}
+              className={`mt-5 lg:mt-0 ${FONTE_FORMULARIO}`}
             >
 
             {/*
@@ -480,13 +636,40 @@ const LoginPage = () => {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={googleLoading}
-                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 lg:mt-7"
+                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 max-lg:h-12 max-lg:rounded-full max-lg:border-0 max-lg:bg-[#141414] max-lg:text-[15px] max-lg:text-white max-lg:active:scale-[0.99] max-lg:hover:bg-[#141414] lg:mt-7"
                 >
                   <GoogleIcon />
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
                 </button>
 
-                <div className="my-6 flex items-center gap-4">
+                {/* Navegador embutido de rede social: o Google não permite o login ali.
+                    Em vez do erro do Google, explicamos o que fazer em uma frase. */}
+                {avisoNavegador && (
+                  <div className="mt-3 rounded-[12px] border border-[#FDE3C0] bg-[#FFF8EE] px-3.5 py-3 text-[13px] leading-[1.55] text-[#92400E]">
+                    <p>
+                      O {navegadorInterno ?? "aplicativo"} abre a Velo numa janela própria, e o Google não
+                      permite login por aqui. Toque nos três pontinhos e escolha
+                      <strong> “Abrir no navegador”</strong> — ou continue com seu e-mail logo abaixo.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(window.location.href);
+                          setLinkCopiado(true);
+                          window.setTimeout(() => setLinkCopiado(false), 2500);
+                        } catch {
+                          setLinkCopiado(false);
+                        }
+                      }}
+                      className="mt-2 inline-flex h-9 items-center rounded-full bg-[#92400E] px-4 text-[13px] font-semibold text-white"
+                    >
+                      {linkCopiado ? "Link copiado!" : "Copiar link da Velo"}
+                    </button>
+                  </div>
+                )}
+
+                <div className="my-6 flex items-center gap-4 max-lg:my-4">
                   <span className="h-px flex-1 bg-[#E9EDF3]" />
                   <span className="text-[13px] text-[#94A3B8]">
                     {cadastroDireto ? "ou cadastre-se com e-mail" : "ou entre com e-mail"}
@@ -535,13 +718,40 @@ const LoginPage = () => {
                   <input
                     type="email"
                     value={email}
-                    onChange={aoDigitar(setEmail)}
-                    placeholder="Endereço de e-mail"
+                    onChange={(e) => {
+                      if (!email) trackSignup("signup_start");
+                      setEmailSugerido(null);
+                      aoDigitar(setEmail)(e);
+                    }}
+                    onBlur={() => setEmailSugerido(sugerirEmail(email))}
+                    placeholder="Seu e-mail"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="next"
                     readOnly={emailLocked}
                     // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
                     // não pela ordem das classes na string.
                     className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F5F9] text-[#64748B]" : ""}`}
                   />
+
+                  {/* Erro comum de digitação: oferecemos a correção em vez de deixar
+                      a pessoa criar conta num e-mail que nunca vai receber nada. */}
+                  {emailSugerido && !emailLocked && (
+                    <p className="-mt-1 text-[13px] leading-[1.5] text-[#64748B]">
+                      Você quis dizer{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setEmail(emailSugerido); setEmailSugerido(null); }}
+                        className="font-semibold text-[#2563EB] underline underline-offset-2"
+                      >
+                        {emailSugerido}
+                      </button>
+                      ?
+                    </p>
+                  )}
 
                   {step === "initial" && (
                     <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
@@ -566,7 +776,9 @@ const LoginPage = () => {
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Senha"
+                            placeholder="Sua senha"
+                            autoComplete="current-password"
+                            enterKeyHint="go"
                             className={`${inputCls} pr-11`}
                           />
                           <button
@@ -602,23 +814,16 @@ const LoginPage = () => {
                       className="overflow-hidden"
                     >
                       <div className="space-y-4">
-                        <input
-                          ref={nomeRef}
-                          type="text"
-                          value={nome}
-                          onChange={aoDigitar(setNome)}
-                          required
-                          placeholder="Nome completo"
-                          className={inputCls}
-                        />
-
                         <div className="relative">
                           <input
+                            ref={nomeRef}
                             type={showPw ? "text" : "password"}
                             value={password}
                             onChange={aoDigitar(setPassword)}
                             required
-                            placeholder="Senha com 8+ caracteres"
+                            placeholder="Senha (mín. 8 caracteres)"
+                            autoComplete="new-password"
+                            enterKeyHint="go"
                             className={`${inputCls} pr-11`}
                           />
                           <button
@@ -631,28 +836,35 @@ const LoginPage = () => {
                           </button>
                         </div>
 
-                        <div className="space-y-2.5 pt-1">
+                        {/* Regras conferidas antes do envio. O Auth exige 6+ caracteres e
+                            bloqueia senhas vazadas; a Velo pede 8+. Não há exigência de
+                            letras, números ou símbolos. */}
+                        <div className="-mt-1 space-y-1 text-[13px]">
+                          <p className={`flex items-center gap-1.5 ${password.length >= 8 ? "text-[#16A34A]" : "text-[#64748B]"}`}>
+                            <span aria-hidden>{password.length >= 8 ? "✓" : "○"}</span>
+                            8 caracteres ou mais
+                          </p>
+                          <p className="text-[#64748B]">Evite senhas comuns, como 12345678 ou seu nome.</p>
+                        </div>
+
+
+                        {/* Aceite único, numa linha só. A data e a hora ficam gravadas
+                            no perfil no momento em que a conta é criada. */}
+                        <div className="pt-1">
                           <LegalCheckbox
                             checked={acceptTerms}
                             onChange={setAcceptTerms}
                             label={
                               <>
-                                Li e aceito os{" "}
+                                Aceito os{" "}
                                 <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Termos de Uso
-                                </Link>
-                              </>
-                            }
-                          />
-                          <LegalCheckbox
-                            checked={acceptPrivacy}
-                            onChange={setAcceptPrivacy}
-                            label={
-                              <>
-                                Li e aceito a{" "}
+                                </Link>{" "}
+                                e a{" "}
                                 <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
                                   Política de Privacidade
                                 </Link>
+                                .
                               </>
                             }
                           />
@@ -660,10 +872,10 @@ const LoginPage = () => {
 
                         <button
                           type="submit"
-                          disabled={loading || !acceptTerms || !acceptPrivacy}
+                          disabled={loading || !acceptTerms || password.length < 8}
                           className={primaryBtnCls}
                         >
-                          {loading ? "Criando conta..." : "Criar conta grátis"}
+                          {loading ? "Criando conta..." : "Criar minha conta"}
                         </button>
                       </div>
                     </motion.form>
@@ -679,7 +891,7 @@ const LoginPage = () => {
                         onClick={irParaCadastro}
                         className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                       >
-                        Criar conta grátis
+                        Criar minha conta
                       </button>
                     </>
                   )}
@@ -702,7 +914,9 @@ const LoginPage = () => {
                       Já tem uma conta?{" "}
                       <button
                         type="button"
-                        onClick={voltarParaInicio}
+                        /* Veio de /cadastro: trocar só a etapa deixaria a pessoa numa
+                           tela de login com o endereço /cadastro na barra. */
+                        onClick={() => (entradaPeloCadastro ? navigate("/login") : voltarParaInicio())}
                         className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
                       >
                         Entrar
@@ -724,22 +938,13 @@ const LoginPage = () => {
         */}
         <Link
           to="/docs"
-          className="mx-auto mb-6 w-fit text-[13px] font-semibold text-white/70 underline underline-offset-4 transition hover:text-white lg:hidden"
+          className="mx-auto mb-1 mt-4 w-fit text-[13px] font-medium text-white/55 underline underline-offset-4 transition hover:text-white lg:hidden"
         >
           Precisa de ajuda?
         </Link>
 
-        <p className="text-center text-[12.5px] leading-[1.6] text-white/45 lg:text-left lg:text-[#94A3B8]">
-          Ao continuar, você concorda com a{" "}
-          <Link to="/politica-de-privacidade" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
-            Política de Privacidade
-          </Link>{" "}
-          e os{" "}
-          <Link to="/termos-de-servico" className="text-white/70 underline underline-offset-2 hover:text-white lg:text-[#64748B] lg:hover:text-[#0F172A]">
-            Termos de Uso
-          </Link>
-          .
-        </p>
+        {/* O aceite legal vive agora numa linha única dentro do formulário de cadastro;
+            repetir aqui embaixo era a segunda vez que a pessoa lia a mesma coisa. */}
       </div>
 
       {/* ── Coluna da vitrine ────────────────────────────────────────────── */}

@@ -516,15 +516,8 @@ const ProfileTab = () => {
 
       <div className={rowDivider} />
 
-      <FieldRow label="E-mail" desc="Endereço de login da conta. Não pode ser alterado por aqui." fieldLabel="E-mail">
-        <div className="relative">
-          <input
-            readOnly
-            value={user?.email ?? ""}
-            className={`${enterpriseInput} cursor-not-allowed pr-8 text-[#8A8A8A] dark:text-zinc-400`}
-          />
-          <Lock size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B5B5B5]" />
-        </div>
+      <FieldRow label="E-mail" desc="Endereço de login da conta. Para trocar, confirme pelo link enviado ao novo e-mail." fieldLabel="E-mail">
+        <TrocarEmailField />
       </FieldRow>
 
       <div className={rowDivider} />
@@ -911,7 +904,7 @@ const PLAN_DATA = [
   {
     id: "business",
     name: "Business",
-    price: "R$159,60",
+    price: "R$189,90",
     period: "/mês",
     description: "Para quem quer escalar catálogo, automações e análise avançada sem limites.",
     features: [
@@ -1152,17 +1145,7 @@ const SecurityTab = () => {
       <div>
         <h2 className={sectionTitle}>Alterar senha</h2>
         <p className="mt-1 text-[13px] text-[#737373] dark:text-zinc-400">Use uma senha forte que voce nao usa em outros lugares.</p>
-        <div className="mt-6 space-y-6">
-          {["Senha atual", "Nova senha", "Confirmar nova senha"].map((l) => (
-            <div key={l}>
-              <label className={fieldLabel}>{l}</label>
-              <input type="password" placeholder="••••••••" className={underlineInput} />
-            </div>
-          ))}
-        </div>
-        <div className="mt-7">
-          <button className={saveBtn}>Salvar</button>
-        </div>
+        <TrocarSenhaForm labelClass={fieldLabel} inputClass={underlineInput} btnClass={saveBtn} />
       </div>
 
       <div className={divider} />
@@ -1200,3 +1183,101 @@ const SecurityTab = () => {
 };
 
 export default SettingsPage;
+
+
+function TrocarEmailField() {
+  const { user } = useAuth();
+  const [editando, setEditando] = useState(false);
+  const [novo, setNovo] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const pendente = (user as { new_email?: string } | null)?.new_email;
+
+  const enviar = async () => {
+    const email = novo.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { veloToast.error("Digite um e-mail válido."); return; }
+    if (email === user?.email?.toLowerCase()) { veloToast.error("Esse já é o seu e-mail atual."); return; }
+    setEnviando(true);
+    const { error } = await supabase.auth.updateUser({ email }, { emailRedirectTo: `${window.location.origin}/dashboard/configuracoes` });
+    setEnviando(false);
+    if (error) {
+      const m = /already|registered|exists/i.test(error.message) ? "Esse e-mail já está em uso em outra conta." : "Não foi possível solicitar a troca. Tente novamente.";
+      veloToast.error(m); return;
+    }
+    veloToast.success("Enviamos um link de confirmação para o novo e-mail (e um aviso para o atual). A troca só vale depois de confirmar.");
+    setEditando(false); setNovo("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input readOnly value={user?.email ?? ""} className="w-full rounded-md border border-black/10 bg-transparent px-3 py-2 text-[14px] text-[#8A8A8A] dark:border-white/10 dark:text-zinc-400" />
+        {!editando && (
+          <button type="button" onClick={() => setEditando(true)} className="shrink-0 rounded-md border border-black/10 px-3 text-[13px] font-medium dark:border-white/10">Alterar</button>
+        )}
+      </div>
+      {pendente && <p className="text-[12px] text-[#737373]">Aguardando confirmação de {pendente}.</p>}
+      {editando && (
+        <div className="flex gap-2">
+          <input type="email" autoFocus placeholder="novo@email.com" value={novo} onChange={(e) => setNovo(e.target.value)} className="w-full rounded-md border border-black/10 bg-transparent px-3 py-2 text-[14px] dark:border-white/10" />
+          <button type="button" disabled={enviando} onClick={enviar} className="shrink-0 rounded-md bg-[#171717] px-3 text-[13px] font-medium text-white disabled:opacity-60 dark:bg-white dark:text-black">
+            {enviando ? <Loader2 size={14} className="animate-spin" /> : "Enviar"}
+          </button>
+          <button type="button" onClick={() => { setEditando(false); setNovo(""); }} className="shrink-0 px-2 text-[13px] text-[#737373]">Cancelar</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrocarSenhaForm({ labelClass, inputClass, btnClass }: { labelClass: string; inputClass: string; btnClass: string }) {
+  const { user } = useAuth();
+  const [atual, setAtual] = useState("");
+  const [nova, setNova] = useState("");
+  const [conf, setConf] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const soGoogle = !(user?.identities ?? []).some((i) => i.provider === "email");
+
+  const salvar = async () => {
+    if (!user?.email) return;
+    if (!soGoogle && !atual) { veloToast.error("Digite sua senha atual."); return; }
+    if (nova.length < 8) { veloToast.error("A nova senha precisa ter pelo menos 8 caracteres."); return; }
+    if (nova !== conf) { veloToast.error("A confirmação não confere com a nova senha."); return; }
+    if (!soGoogle && nova === atual) { veloToast.error("A nova senha deve ser diferente da atual."); return; }
+    setSalvando(true);
+    const t = veloToast.loading("Atualizando senha...");
+    try {
+      if (!soGoogle) {
+        const { error: e1 } = await supabase.auth.signInWithPassword({ email: user.email, password: atual });
+        if (e1) { veloToast.error("Senha atual incorreta.", { id: t }); return; }
+      }
+      const { error } = await supabase.auth.updateUser({ password: nova });
+      if (error) {
+        const m = /pwned|leak|compromised|weak/i.test(error.message)
+          ? "Essa senha é muito comum ou já apareceu em vazamentos. Escolha outra."
+          : /reauth|nonce/i.test(error.message)
+            ? "Por segurança, use \"Esqueci minha senha\" no login para definir a senha."
+            : "Não foi possível atualizar a senha. Tente novamente.";
+        veloToast.error(m, { id: t }); return;
+      }
+      veloToast.success("Senha atualizada com sucesso.", { id: t });
+      setAtual(""); setNova(""); setConf("");
+    } finally { setSalvando(false); }
+  };
+
+  return (
+    <>
+      <div className="mt-6 space-y-6">
+        {soGoogle ? (
+          <p className="text-[13px] text-[#737373] dark:text-zinc-400">Você entra com o Google. Crie uma senha abaixo para também poder entrar com e-mail e senha.</p>
+        ) : (
+          <div><label className={labelClass}>Senha atual</label><input type="password" autoComplete="current-password" value={atual} onChange={(e) => setAtual(e.target.value)} placeholder="••••••••" className={inputClass} /></div>
+        )}
+        <div><label className={labelClass}>Nova senha</label><input type="password" autoComplete="new-password" value={nova} onChange={(e) => setNova(e.target.value)} placeholder="Mínimo de 8 caracteres" className={inputClass} /></div>
+        <div><label className={labelClass}>Confirmar nova senha</label><input type="password" autoComplete="new-password" value={conf} onChange={(e) => setConf(e.target.value)} placeholder="••••••••" className={inputClass} /></div>
+      </div>
+      <div className="mt-7">
+        <button type="button" disabled={salvando} onClick={salvar} className={`${btnClass} disabled:opacity-60`}>{salvando ? "Salvando..." : "Salvar"}</button>
+      </div>
+    </>
+  );
+}

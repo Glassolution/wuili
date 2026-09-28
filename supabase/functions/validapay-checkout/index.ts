@@ -20,8 +20,8 @@ const PRICE_ENV: Record<string, Record<string, string>> = {
 };
 
 const PLAN_AMOUNT: Record<string, Record<string, number>> = {
-  monthly: { base: 39.9, pro: 79.8, business: 159.6 },
-  annual: { base: 430.92, pro: 861.84, business: 1723.68 },
+  monthly: { base: 39.9, pro: 79.8, business: 189.9 },
+  annual: { base: 430.92, pro: 861.84, business: 2278.8 },
 };
 
 const json = (body: unknown, status = 200) =>

@@ -29,7 +29,6 @@ import {
   shouldAnnounceSupportReply,
   SUPPORT_CATEGORIES,
   buildSupportImageMessage,
-  insertSupportAutoGreeting,
   removeSupportImage,
   supportDb as db,
   touchSupportTicket,
@@ -114,6 +113,9 @@ const SupportTab = () => {
   const trialAutoOpenRef = useRef(false);
 
   const selectedTicket = tickets.find((t) => t.id === selectedId) ?? null;
+  const assistantIsReplying = Boolean(
+    selectedTicket?.status === "open" && messages.length > 0 && messages[messages.length - 1]?.sender === "user",
+  );
 
   /* ── carrega os tickets do usuário ── */
   useEffect(() => {
@@ -190,6 +192,7 @@ const SupportTab = () => {
         .from("support_messages")
         .select("*")
         .eq("ticket_id", selectedId)
+        .eq("internal", false)
         .order("created_at", { ascending: true });
 
       if (cancelled) return;
@@ -217,6 +220,7 @@ const SupportTab = () => {
         },
         (payload) => {
           const message = payload.new as SupportMessage;
+          if ((message as { internal?: boolean }).internal) return;
           setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
           announceSupportReply(message);
         },
@@ -247,7 +251,7 @@ const SupportTab = () => {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, sending, messagesLoading]);
+  }, [assistantIsReplying, messages, sending, messagesLoading]);
 
   /* ── criação de ticket ── */
   const createTicket = async (opts: {
@@ -291,7 +295,6 @@ const SupportTab = () => {
       if (messageError) throw messageError;
 
       await touchSupportTicket(created.id);
-      await insertSupportAutoGreeting({ ticketId: created.id, userId: user.id });
 
       setTickets((prev) => [created, ...prev]);
       setActiveSupportTicketId(created.id);
@@ -674,6 +677,7 @@ const SupportTab = () => {
           messages={messages}
           loading={messagesLoading}
           sending={sending}
+          assistantIsReplying={assistantIsReplying}
           input={input}
           image={messageImage}
           onInputChange={setInput}
@@ -717,6 +721,7 @@ const TicketChatModal = ({
   messages,
   loading,
   sending,
+  assistantIsReplying,
   input,
   image,
   onInputChange,
@@ -730,6 +735,7 @@ const TicketChatModal = ({
   messages: SupportMessage[];
   loading: boolean;
   sending: boolean;
+  assistantIsReplying: boolean;
   input: string;
   image: File | null;
   onInputChange: (v: string) => void;
@@ -803,7 +809,7 @@ const TicketChatModal = ({
             <HumanMessageBubble key={m.id} msg={m} />
           ))}
 
-          {sending && <TypingBubble />}
+          {(sending || assistantIsReplying) && <TypingBubble />}
           <div ref={endRef} />
         </div>
 

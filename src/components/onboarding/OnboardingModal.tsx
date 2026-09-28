@@ -1,164 +1,112 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   BadgeCheck,
   Check,
   CircleDashed,
-  Code2,
-  Compass,
   Cpu,
-  Facebook,
-  FileX,
+  ExternalLink,
   HeartPulse,
   Home,
-  Instagram,
   LayoutGrid,
-  LayoutPanelTop,
+  MessageCircle,
   MoreHorizontal,
-  Music2,
   Package,
-  PanelsTopLeft,
-  Rocket,
-  ShieldCheck,
   Shirt,
+  ShoppingBag,
+  Smile,
   Sparkles,
   Store,
-  Tag,
-  Tags,
-  Target,
   TrendingUp,
   Truck,
-  Users,
-  Wrench,
-  Youtube,
+  User,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ENTRADA_POS_ONBOARDING } from "@/lib/dashboardIntro";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { trackSignup } from "@/lib/signupFunnel";
 
-// Novo onboarding da Velo em modal de 3 etapas (substitui o antigo fluxo de
-// cadastro). Puramente frontend: as respostas ficam em estado local e NÃO são
-// persistidas no Supabase nesta etapa (a persistência é um próximo passo,
-// responsabilidade da ferramenta de backend do projeto).
+/*
+  Onboarding curto da Velo (3 perguntas).
+
+  Antes eram 7 perguntas antes de ver qualquer produto. Ficaram só as que mudam
+  a experiência agora:
+    1. nome    — como a pessoa quer ser chamada (saudação no painel)
+    2. mercadoLivre — única resposta que muda o caminho seguinte
+    3. nicho   — opcional, personaliza o catálogo
+
+  As outras perguntas do quiz antigo (perfil, produtos, dificuldade,
+  metodoAtual) não sumiram do produto: passaram para um convite discreto no
+  painel, depois da primeira publicação (src/components/dashboard/PerfilPerguntaCard.tsx).
+  "Como conheceu a Velo" saiu de vez — a origem real já é capturada no cadastro.
+
+  Os `id`/`value` são lidos por src/lib/perfilDoQuiz.ts: mude só textos e ícones
+  sem revisar lá.
+*/
 
 type Option = {
   value: string;
   label: string;
-  /** Segunda linha do card: descrição leve/cinza que explica a opção. */
-  description: string;
+  description?: string;
   icon: LucideIcon;
 };
 
-type Question = {
+type ChoiceQuestion = {
+  kind: "choice";
   id: string;
   label: string;
+  subtitle: string;
   optional?: boolean;
   options: Option[];
 };
 
-type StepConfig = {
-  title: string;
+type TextQuestion = {
+  kind: "text";
+  id: string;
+  label: string;
   subtitle: string;
-  questions: Question[];
+  placeholder: string;
 };
 
-// Os `id` e `value` abaixo são lidos por src/lib/perfilDoQuiz.ts para montar a
-// vitrine de produtos recomendados — mude só textos e ícones sem revisar lá.
-const STEPS: StepConfig[] = [
+type Question = ChoiceQuestion | TextQuestion;
+
+const QUESTIONS: Question[] = [
   {
-    title: "Sobre você",
-    subtitle: "Queremos entender de onde você está partindo",
-    questions: [
-      {
-        id: "mercadoLivre",
-        label: "Você já tem conta de vendedor no Mercado Livre?",
-        options: [
-          { value: "sim", label: "Sim, já tenho", description: "Mesmo que ainda não tenha vendido", icon: BadgeCheck },
-          { value: "nao", label: "Ainda não", description: "Sem problema, te ajudamos a criar", icon: CircleDashed },
-        ],
-      },
-      {
-        id: "perfil",
-        label: "Qual frase descreve melhor o seu momento?",
-        options: [
-          { value: "dropshipper", label: "Vendo sem estoque", description: "O fornecedor envia direto ao cliente", icon: Truck },
-          { value: "marca", label: "Tenho marca ou loja", description: "Vendo produtos meus ou que eu compro", icon: Store },
-          { value: "agencia", label: "Cuido de lojas de clientes", description: "Sou agência ou freelancer", icon: Users },
-          { value: "explorando", label: "Estou conhecendo", description: "Quero entender antes de começar", icon: Compass },
-        ],
-      },
-      {
-        id: "produtos",
-        label: "Quantos produtos você tem à venda hoje?",
-        options: [
-          { value: "nenhum", label: "Nenhum ainda", description: "O primeiro vai ser com a Velo", icon: Rocket },
-          { value: "1-10", label: "De 1 a 10", description: "Estou dando os primeiros passos", icon: Tag },
-          { value: "10-50", label: "De 11 a 50", description: "Minha operação está crescendo", icon: Tags },
-          { value: "50+", label: "Mais de 50", description: "Já tenho uma operação consolidada", icon: Package },
-        ],
-      },
+    kind: "text",
+    id: "nome",
+    label: "Como podemos te chamar?",
+    subtitle: "Só o primeiro nome, para a Velo falar com você.",
+    placeholder: "Seu primeiro nome",
+  },
+  {
+    kind: "choice",
+    id: "mercadoLivre",
+    label: "Você já vende no Mercado Livre?",
+    subtitle: "Isso muda o caminho que vamos te mostrar.",
+    options: [
+      { value: "sim", label: "Sim, já tenho conta", description: "Mesmo que ainda não tenha vendido", icon: BadgeCheck },
+      { value: "nao", label: "Ainda não tenho", description: "Tudo bem, te mostro como criar", icon: CircleDashed },
     ],
   },
   {
-    title: "Seu desafio",
-    subtitle: "Não existe resposta certa — conte o que mais pesa hoje",
-    questions: [
-      {
-        id: "dificuldade",
-        label: "O que mais te impede de vender mais hoje?",
-        options: [
-          { value: "anuncios", label: "Anúncios que convencem", description: "Título, fotos e descrição", icon: LayoutPanelTop },
-          { value: "testar", label: "Achar o produto certo", description: "Demoro a saber o que vende", icon: Target },
-          { value: "trafego", label: "Ser encontrado", description: "Meus anúncios têm poucas visitas", icon: TrendingUp },
-          { value: "profissional", label: "Passar confiança", description: "Quero parecer mais profissional", icon: ShieldCheck },
-        ],
-      },
-      {
-        id: "metodoAtual",
-        label: "Como você cria seus anúncios hoje?",
-        options: [
-          { value: "manual", label: "Faço tudo à mão", description: "Um por um, no Mercado Livre", icon: Wrench },
-          { value: "outra-ferramenta", label: "Uso outra ferramenta", description: "Um app ou plataforma me ajuda", icon: PanelsTopLeft },
-          { value: "sem-anuncios", label: "Ainda não criei", description: "O primeiro vai ser com a Velo", icon: FileX },
-          { value: "desenvolvedor", label: "Alguém faz por mim", description: "Um desenvolvedor ou minha equipe", icon: Code2 },
-        ],
-      },
-    ],
-  },
-  {
-    title: "Sua loja",
-    subtitle: "Com isso, a Velo já separa produtos com a sua cara",
-    questions: [
-      {
-        id: "nicho",
-        label: "Que tipo de produto você quer vender?",
-        optional: true,
-        options: [
-          { value: "beleza", label: "Beleza e skincare", description: "", icon: Sparkles },
-          { value: "moda", label: "Moda e acessórios", description: "", icon: Shirt },
-          { value: "tech", label: "Tech e gadgets", description: "", icon: Cpu },
-          { value: "casa", label: "Casa e cozinha", description: "", icon: Home },
-          { value: "saude", label: "Saúde e fitness", description: "", icon: HeartPulse },
-          { value: "geral", label: "Um pouco de tudo", description: "", icon: LayoutGrid },
-          { value: "outro", label: "Outro nicho", description: "", icon: MoreHorizontal },
-        ],
-      },
-      {
-        id: "origem",
-        label: "Como você conheceu a Velo?",
-        optional: true,
-        options: [
-          { value: "instagram", label: "Instagram", description: "", icon: Instagram },
-          { value: "tiktok", label: "TikTok", description: "", icon: Music2 },
-          { value: "youtube", label: "YouTube", description: "", icon: Youtube },
-          { value: "facebook", label: "Facebook", description: "", icon: Facebook },
-          { value: "indicacao", label: "Indicação", description: "", icon: Users },
-          { value: "outro", label: "Outro lugar", description: "", icon: MoreHorizontal },
-        ],
-      },
+    kind: "choice",
+    id: "nicho",
+    label: "O que você gostaria de vender?",
+    subtitle: "Escolha uma categoria. Dá para mudar depois.",
+    optional: true,
+    options: [
+      // "Ainda não sei" grava "geral", a resposta mais comum, tratada pela vitrine.
+      { value: "geral", label: "Ainda não sei", icon: CircleDashed },
+      { value: "beleza", label: "Beleza e cuidados", icon: Sparkles },
+      { value: "moda", label: "Moda e acessórios", icon: Shirt },
+      { value: "tech", label: "Eletrônicos", icon: Cpu },
+      { value: "casa", label: "Casa e cozinha", icon: Home },
+      { value: "saude", label: "Saúde e fitness", icon: HeartPulse },
+      { value: "outro", label: "Outra coisa", icon: MoreHorizontal },
     ],
   },
 ];
@@ -245,21 +193,25 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 // ── Paleta do onboarding — ISOLADA a esta tela ───────────────────────────────
 const ELECTRIC_BLUE = "#0B5FFF";
 const INK = "#111111";
-const MUTED = "#6B6B6B";
+const MUTED = "#5A5A63";
 const SERIF = '"Instrument Serif", "Iowan Old Style", "Times New Roman", serif';
 const SANS = '"Inter", system-ui, -apple-system, sans-serif';
 
-/*
-  Ilustração de fundo em tela cheia (paisagem, como na referência). Basta
-  colocar a arte neste caminho em public/. Enquanto o arquivo não existir, a
-  tela usa o céu azul desenhado em CSS abaixo — a imagem só é aplicada depois
-  de carregar, então nunca aparece quebrada.
-*/
 const BACKGROUND_SRC = "/assets/onboarding-fundo.jpg";
-
-// Logo oficial da Velo (a mesma da sidebar): cesta azul com o "C". Aparece no
-// cabeçalho e, maior, como ilustração do card de boas-vindas.
 const VELO_LOGO_SRC = "/logo.png";
+
+/*
+  PARA REVISÃO (Felipe): passos genéricos de criação de conta no Mercado Livre.
+  De propósito NÃO afirmam exigências específicas (documento, CNPJ, prazo de
+  liberação, idade mínima), porque isso muda com o tempo e não foi confirmado
+  numa fonte oficial. Se quiser detalhar, edite só os textos abaixo.
+*/
+const PASSOS_MERCADO_LIVRE = [
+  "Abra o Mercado Livre e crie sua conta com o seu e-mail.",
+  "Dentro da conta, escolha a opção de começar a vender.",
+  "Preencha os dados que o Mercado Livre pedir para vendedores.",
+  "Volte aqui na Velo e conecte a sua conta para publicar.",
+];
 
 const useBackgroundImage = (src: string) => {
   const [loaded, setLoaded] = useState(false);
@@ -300,9 +252,6 @@ const SkyBackdrop = () => (
           width: c.w,
           height: c.h,
           opacity: c.o,
-          // Só gradiente, sem `filter: blur`: o degradê já nasce macio, e o blur
-          // obrigava a GPU a redesenhar nuvens enormes a cada quadro (em tela
-          // retina a animação caía para poucos quadros por segundo).
           background:
             "radial-gradient(closest-side, #FFF6E6 0%, rgba(255,246,230,0.62) 40%, rgba(255,246,230,0.22) 72%, rgba(255,246,230,0) 100%)",
         }}
@@ -311,69 +260,241 @@ const SkyBackdrop = () => (
   </div>
 );
 
-// ── Fluxo linear: uma pergunta por tela ──────────────────────────────────────
-// As 3 macro-etapas continuam sendo o agrupamento visual/lógico, mas a navegação
-// interna é por pergunta individual. Cada pergunta guarda o índice da etapa.
-type FlatQuestion = Question & { stepIndex: number };
-const FLAT_QUESTIONS: FlatQuestion[] = STEPS.flatMap((s, stepIndex) =>
-  s.questions.map((q) => ({ ...q, stepIndex })),
+/* ── Ilustração do celular ────────────────────────────────────────────────────
+   Anéis concêntricos com um cartão branco no centro e ícones flutuando em volta.
+   Os anéis são proporcionais à altura disponível: encolhem nas etapas com mais
+   conteúdo embaixo (guia do ML, nicho) sem empurrar nada para fora da tela. */
+type Bolha = { icon: LucideIcon; x: string; y: string };
+
+const BOLHAS_MOBILE: Record<string, Bolha[]> = {
+  welcome: [
+    { icon: ShoppingBag, x: "18%", y: "20%" },
+    { icon: Package, x: "82%", y: "16%" },
+    { icon: Sparkles, x: "88%", y: "66%" },
+    { icon: Store, x: "13%", y: "72%" },
+    { icon: TrendingUp, x: "56%", y: "92%" },
+  ],
+  nome: [
+    { icon: MessageCircle, x: "16%", y: "24%" },
+    { icon: Smile, x: "84%", y: "20%" },
+    { icon: Sparkles, x: "86%", y: "74%" },
+    { icon: User, x: "18%", y: "78%" },
+  ],
+  mercadoLivre: [
+    { icon: Store, x: "16%", y: "22%" },
+    { icon: Truck, x: "84%", y: "18%" },
+    { icon: BadgeCheck, x: "87%", y: "72%" },
+    { icon: Package, x: "14%", y: "74%" },
+  ],
+  "ml-guide": [
+    { icon: BadgeCheck, x: "16%", y: "24%" },
+    { icon: Store, x: "85%", y: "22%" },
+    { icon: Truck, x: "84%", y: "78%" },
+  ],
+  nicho: [
+    { icon: Sparkles, x: "16%", y: "20%" },
+    { icon: Shirt, x: "84%", y: "16%" },
+    { icon: Cpu, x: "88%", y: "70%" },
+    { icon: Home, x: "12%", y: "72%" },
+  ],
+};
+
+/* Prints reais da Velo (os mesmos da landing) para os cartões de trás do baralho. */
+const PRINTS_VELO = {
+  produto: { src: "/landing/prova-catalogo-640.webp", pos: "27% 50%" },
+  chat: { src: "/landing/barra-01-640.webp", pos: "50% 45%" },
+  home: { src: "/landing/barra-02-640.webp", pos: "30% 88%" },
+} as const;
+type PrintVelo = (typeof PRINTS_VELO)[keyof typeof PRINTS_VELO];
+
+// Cor do ícone de cada categoria na grade do celular. "geral" fica fora: vira o link "Ainda não sei".
+const COR_NICHO: Record<string, string> = {
+  beleza: "linear-gradient(135deg,#F472B6,#EC4899)",
+  moda: "linear-gradient(135deg,#A78BFA,#7C3AED)",
+  tech: "linear-gradient(135deg,#60A5FA,#2563EB)",
+  casa: "linear-gradient(135deg,#FBBF24,#F59E0B)",
+  saude: "linear-gradient(135deg,#34D399,#10B981)",
+  outro: "linear-gradient(135deg,#94A3B8,#64748B)",
+};
+
+/*
+  Baralho: o cartão da etapa na frente e dois cartões menores atrás, um de cada
+  lado, como uma pilha aberta. Os de trás mostram prints de verdade da Velo.
+*/
+const Baralho = ({ atras, children }: { atras: [PrintVelo, PrintVelo]; children: React.ReactNode }) => (
+  <div className="relative w-[176px]">
+    {atras.map((print, i) => (
+      <div
+        key={print.src}
+        className={`absolute top-1/2 h-[80%] w-[150px] -translate-y-1/2 overflow-hidden rounded-[20px] border border-white/20 bg-white/80 shadow-[0_16px_36px_rgba(8,22,70,0.35)] ${
+          i === 0 ? "right-[52%]" : "left-[52%]"
+        }`}
+      >
+        <img src={print.src} alt="" className="h-full w-full object-cover opacity-75" style={{ objectPosition: print.pos }} />
+      </div>
+    ))}
+    <div className="relative overflow-hidden rounded-[22px] bg-white text-left shadow-[0_24px_50px_rgba(8,22,70,0.45)]">
+      {children}
+    </div>
+  </div>
 );
 
+const OrbitaMobile = ({
+  bolhas,
+  reduce,
+  children,
+}: {
+  bolhas: Bolha[];
+  reduce: boolean | null;
+  children: React.ReactNode;
+}) => (
+  <div className="relative flex w-full flex-1 items-center justify-center">
+    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+      {[100, 74, 48].map((tamanho) => (
+        <span
+          key={tamanho}
+          className="absolute left-1/2 top-1/2 aspect-square -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.12]"
+          style={{ height: `${tamanho}%` }}
+        />
+      ))}
+      <span className="absolute left-1/2 top-1/2 aspect-square h-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(147,197,253,0.28),transparent)]" />
+    </div>
+    <div className="relative">{children}</div>
+    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+      {bolhas.map((bolha, i) => {
+        const Icon = bolha.icon;
+        return (
+          <span key={i} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: bolha.x, top: bolha.y }}>
+            <motion.span
+              className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#0B1B3D] shadow-[0_8px_22px_rgba(2,8,23,0.35)]"
+              animate={reduce ? undefined : { y: [0, -6, 0] }}
+              transition={{ duration: 4 + i * 0.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.35 }}
+            >
+              <Icon size={19} strokeWidth={1.9} />
+            </motion.span>
+          </span>
+        );
+      })}
+    </div>
+  </div>
+);
+
+/* ── Telas do fluxo ──────────────────────────────────────────────────────────
+   welcome → nome → mercadoLivre → (guia do ML, só para quem respondeu "não")
+   → nicho → fim. */
+type Screen = { kind: "welcome" } | { kind: "question"; question: Question } | { kind: "ml-guide" };
+
 const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
-  // Tela de boas-vindas antes da primeira pergunta.
   const [started, setStarted] = useState(false);
-  // Navegação por PERGUNTA. `index` aponta para a pergunta atual no fluxo
-  // linear; a macro-etapa é derivada dela.
   const [index, setIndex] = useState(0);
+  const [mostrandoGuiaML, setMostrandoGuiaML] = useState(false);
   const [direction, setDirection] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
+  const [nome, setNome] = useState("");
   const reduce = useReducedMotion();
-  // O hook só acorda depois do primeiro render; a leitura direta evita um
-  // quadro do layout de desktop piscando no celular.
   const isMobileHook = useIsMobile();
   const isMobile = isMobileHook || (typeof window !== "undefined" && window.innerWidth < 768);
   const backgroundLoaded = useBackgroundImage(BACKGROUND_SRC);
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const nomeInputRef = useRef<HTMLInputElement | null>(null);
+  const concluido = useRef(false);
 
-  const question = FLAT_QUESTIONS[index];
-  const currentStepIndex = question.stepIndex;
-  const currentStep = STEPS[currentStepIndex];
-  const isLastQuestion = index === FLAT_QUESTIONS.length - 1;
-  const selectedValue = answers[question.id];
-  const canContinue = Boolean(selectedValue) || Boolean(question.optional);
-  const continueLabel = !selectedValue && question.optional ? "Pular" : isLastQuestion ? "Concluir" : "Continuar";
-  // Perguntas com muitas opções usam cards compactos (só ícone + rótulo).
-  const compact = question.options.length > 4;
+  const question = QUESTIONS[index];
+  const screen: Screen = !started
+    ? { kind: "welcome" }
+    : mostrandoGuiaML
+      ? { kind: "ml-guide" }
+      : { kind: "question", question };
 
-  // Selecionar só marca a opção; quem avança é o botão "Continuar".
-  const select = (questionId: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  /* ── Medição ──────────────────────────────────────────────────────────────
+     Por pergunta: viu / respondeu / pulou / voltou / concluiu. O abandono é
+     deduzido no painel (viu a pergunta e não tem "answer" nem "complete"). */
+  useEffect(() => {
+    trackSignup("onboarding_view");
+    return () => {
+      if (!concluido.current) trackSignup("onboarding_skip", "abandonou");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez por montagem
+  }, []);
+
+  useEffect(() => {
+    if (!started || mostrandoGuiaML) return;
+    trackSignup("onboarding_question_view", question.id);
+    if (question.kind === "text") {
+      const timer = window.setTimeout(() => nomeInputRef.current?.focus(), 420);
+      return () => window.clearTimeout(timer);
+    }
+  }, [started, mostrandoGuiaML, question.id, question.kind]);
+
+  const finalizar = (respostas: Answers) => {
+    concluido.current = true;
+    trackSignup("onboarding_complete");
+    onComplete(respostas);
   };
 
-  const handleContinue = () => {
-    if (!canContinue) return;
-    if (isLastQuestion) {
-      onComplete(answers);
+  const avancar = (respostas: Answers) => {
+    setDirection(1);
+    if (index >= QUESTIONS.length - 1) {
+      finalizar(respostas);
       return;
     }
-    setDirection(1);
-    setIndex((value) => value + 1);
+    setIndex((v) => v + 1);
   };
 
-  // Voltar por pergunta; na primeira, volta para as boas-vindas.
+  // Escolha única avança sozinha: sem botão "Continuar".
+  const escolher = (questionId: string, value: string) => {
+    const respostas = { ...answers, [questionId]: value };
+    setAnswers(respostas);
+    trackSignup("onboarding_answer", `${questionId}:${value}`);
+    if (questionId === "mercadoLivre" && value === "nao") {
+      setDirection(1);
+      setMostrandoGuiaML(true);
+      trackSignup("onboarding_ml_guide");
+      return;
+    }
+    // Pequeno atraso: a pessoa vê o card marcar antes da tela trocar.
+    window.setTimeout(() => avancar(respostas), reduce ? 0 : 260);
+  };
+
+  const confirmarNome = () => {
+    const limpo = nome.trim().split(/\s+/)[0]?.slice(0, 24) ?? "";
+    const respostas = { ...answers, nome: limpo };
+    setAnswers(respostas);
+    trackSignup(limpo ? "onboarding_answer" : "onboarding_skip", "nome");
+    avancar(respostas);
+  };
+
+  const pular = () => {
+    trackSignup("onboarding_skip", question.id);
+    avancar(answers);
+  };
+
+  const sairDoGuia = () => {
+    setMostrandoGuiaML(false);
+    setDirection(1);
+    if (index >= QUESTIONS.length - 1) finalizar(answers);
+    else setIndex((v) => v + 1);
+  };
+
   const handleBack = () => {
     setDirection(-1);
+    trackSignup("onboarding_back", question.id);
+    if (mostrandoGuiaML) {
+      setMostrandoGuiaML(false);
+      return;
+    }
     if (index === 0) {
       setStarted(false);
       return;
     }
-    setIndex((value) => Math.max(0, value - 1));
+    setIndex((v) => Math.max(0, v - 1));
   };
 
   const handleStart = () => {
     setDirection(1);
     setStarted(true);
+    trackSignup("onboarding_start");
   };
 
   const handleSignOut = async () => {
@@ -381,224 +502,329 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
     navigate("/login", { replace: true });
   };
 
-  // Na primeira abertura o conteúdo do card espera o card assentar antes de
-  // entrar; nas trocas de pergunta a sequência começa quase imediatamente.
   const isFirstEntrance = useRef(true);
   useEffect(() => {
     isFirstEntrance.current = false;
   }, []);
 
-  // Slide + fade direcional do conteúdo (respeitando reduced-motion).
-  const contentVariants: Variants = {
-    initial: (dir: number) => ({ opacity: 0, x: reduce || isFirstEntrance.current ? 0 : dir >= 0 ? 24 : -24 }),
-    animate: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: reduce ? 0.001 : 0.34,
-        ease: EASE,
-        staggerChildren: reduce ? 0 : isFirstEntrance.current ? 0.09 : 0.035,
-        delayChildren: reduce ? 0 : isFirstEntrance.current ? 0.55 : 0.04,
+  const contentVariants: Variants = useMemo(
+    () => ({
+      initial: (dir: number) => ({ opacity: 0, x: reduce || isFirstEntrance.current ? 0 : dir >= 0 ? 24 : -24 }),
+      animate: {
+        opacity: 1,
+        x: 0,
+        transition: {
+          duration: reduce ? 0.001 : 0.34,
+          ease: EASE,
+          staggerChildren: reduce ? 0 : isFirstEntrance.current ? 0.09 : 0.035,
+          delayChildren: reduce ? 0 : isFirstEntrance.current ? 0.55 : 0.04,
+        },
       },
-    },
-    exit: (dir: number) => ({
-      opacity: 0,
-      x: reduce ? 0 : dir >= 0 ? -24 : 24,
-      transition: { duration: reduce ? 0.001 : 0.2, ease: EASE },
+      exit: (dir: number) => ({
+        opacity: 0,
+        x: reduce ? 0 : dir >= 0 ? -24 : 24,
+        transition: { duration: reduce ? 0.001 : 0.2, ease: EASE },
+      }),
     }),
-  };
+    [reduce],
+  );
 
-  // Cada elemento sobe alguns pixels enquanto aparece. Só opacidade e
-  // transform — propriedades que a GPU compõe sem redesenhar. O desfoque de
-  // entrada (`filter: blur`) foi tirado: redesenhava cada texto e card a cada
-  // quadro, por cima do vidro, e derrubava a fluidez.
   const itemVariants: Variants = {
     initial: { opacity: 0, y: reduce ? 0 : 14 },
-    animate: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: reduce ? 0.001 : 0.7, ease: EASE },
-    },
+    animate: { opacity: 1, y: 0, transition: { duration: reduce ? 0.001 : 0.7, ease: EASE } },
   };
 
-  // A ilustração ganha também um leve crescimento, para ser o primeiro foco.
   const illustrationVariants: Variants = {
     initial: { opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.9 },
-    animate: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { duration: reduce ? 0.001 : 0.9, ease: EASE },
-    },
+    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: reduce ? 0.001 : 0.9, ease: EASE } },
   };
 
-  // ── Celular: tela cheia e botão fixo embaixo ─────────────────────────────────
-  // Sem o card de vidro: no celular a moldura ocupava espaço demais e espremia as
-  // opções. O céu da Velo vira o fundo da tela inteira, o conteúdo fica
-  // centralizado e a ação principal presa no rodapé, ao alcance do polegar.
-  // O céu é azul da metade para cima e clareia embaixo: por isso título e marca
-  // são brancos, o texto do rodapé é escuro e as opções são cards de vidro claro.
+  const passoAtual = mostrandoGuiaML ? 1 : index;
+
+  /* ── Blocos compartilhados ─────────────────────────────────────────────── */
+
+  const cabecalhoPergunta = (claro: boolean) => (
+    <motion.div variants={itemVariants} className="text-center">
+      <h2
+        className={`mx-auto max-w-[340px] font-semibold leading-[1.15] ${isMobile ? "text-[27px]" : "text-[26px]"}`}
+        style={
+          claro
+            ? { color: "#FFFFFF", letterSpacing: "-0.03em", textShadow: "0 2px 16px rgba(8,22,70,0.22)" }
+            : { fontFamily: SERIF, color: INK, fontWeight: 400 }
+        }
+      >
+        {mostrandoGuiaML ? "Criar sua conta no Mercado Livre" : question.label}
+      </h2>
+      <p
+        className={`mx-auto mt-2.5 max-w-[320px] leading-snug ${isMobile ? "text-[15px]" : "text-[13.5px]"}`}
+        style={
+          claro
+            ? { color: "rgba(255,255,255,0.9)", textShadow: "0 1px 10px rgba(8,22,70,0.3)" }
+            : { color: MUTED }
+        }
+      >
+        {mostrandoGuiaML
+          ? "Leva poucos minutos. Você pode olhar os produtos enquanto isso."
+          : `${question.kind === "choice" && question.optional ? "Opcional · " : ""}${question.subtitle}`}
+      </p>
+    </motion.div>
+  );
+
+  const listaGuiaML = (claro: boolean) => (
+    <div className="mt-7 flex flex-col gap-2.5">
+      {PASSOS_MERCADO_LIVRE.map((passo, i) => (
+        <motion.div
+          key={passo}
+          variants={itemVariants}
+          className="flex items-start gap-3 rounded-[18px] px-4 py-3.5"
+          style={{
+            background: claro ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.72)",
+            boxShadow: claro ? "0 6px 18px rgba(8,22,70,0.08)" : "inset 0 0 0 1.5px rgba(17,17,17,0.06)",
+          }}
+        >
+          <span
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px] font-semibold"
+            style={{ background: ELECTRIC_BLUE, color: "#FFFFFF" }}
+          >
+            {i + 1}
+          </span>
+          <span className="text-[15px] leading-snug" style={{ color: INK }}>
+            {passo}
+          </span>
+        </motion.div>
+      ))}
+      <motion.a
+        variants={itemVariants}
+        href="https://www.mercadolivre.com.br/registration"
+        target="_blank"
+        rel="noreferrer noopener"
+        className="mt-1 flex items-center justify-center gap-2 rounded-full px-4 py-3.5 text-[15px] font-medium"
+        style={{ background: "rgba(255,255,255,0.9)", color: ELECTRIC_BLUE }}
+      >
+        Abrir o Mercado Livre
+        <ExternalLink size={16} strokeWidth={2} />
+      </motion.a>
+    </div>
+  );
+
+  /* ── Celular ───────────────────────────────────────────────────────────────
+     Uma etapa por tela, no mesmo desenho: ilustração no alto (anéis, um cartão
+     e ícones em volta), bolinhas de progresso, título, a resposta e o botão
+     redondo de seguir. O cartão de cada etapa mostra o que aquela resposta muda
+     — na do nome, por exemplo, a saudação do painel já aparece com o nome. */
   if (isMobile) {
-    const mobileButton = (label: string, onClick: () => void, enabled = true) => (
+    const totalPassos = QUESTIONS.length + 1;
+    const passoMobile = screen.kind === "welcome" ? 0 : passoAtual + 1;
+    const chaveTela =
+      screen.kind === "welcome" ? "welcome" : screen.kind === "ml-guide" ? "ml-guide" : screen.question.id;
+
+    const titulo =
+      screen.kind === "welcome"
+        ? "Bem-vindo à Velo"
+        : screen.kind === "ml-guide"
+          ? "Crie sua conta no Mercado Livre"
+          : screen.question.label;
+    const subtitulo =
+      screen.kind === "welcome"
+        ? "São 3 perguntas rápidas. Depois você já entra no catálogo de produtos."
+        : screen.kind === "ml-guide"
+          ? "Leva poucos minutos. Você pode olhar os produtos enquanto isso."
+          : screen.question.subtitle;
+
+    const botaoSeguir = (onClick: () => void, rotulo: string, enabled = true) => (
       <motion.button
         variants={itemVariants}
         type="button"
         onClick={onClick}
         disabled={!enabled}
-        whileTap={reduce || !enabled ? undefined : { scale: 0.98 }}
-        className={`h-[56px] w-full rounded-full text-[17px] font-medium transition-colors duration-200 ${
-          enabled ? "bg-[#0B5FFF] text-white active:bg-[#0A52DD]" : "bg-white/60 text-[#111111]/35"
+        aria-label={rotulo}
+        whileTap={reduce || !enabled ? undefined : { scale: 0.94 }}
+        className={`mx-auto grid h-16 w-16 place-items-center rounded-full transition-colors duration-200 ${
+          enabled ? "bg-white text-[#0B1B3D]" : "bg-white/15 text-white/45"
         }`}
-        style={
-          enabled
-            ? { boxShadow: "0 10px 24px rgba(11,95,255,0.22)" }
-            : undefined
-        }
+        style={enabled ? { boxShadow: "0 0 0 9px rgba(255,255,255,0.1), 0 14px 34px rgba(8,22,70,0.35)" } : undefined}
       >
-        {label}
+        <ArrowRight size={24} strokeWidth={2.2} />
       </motion.button>
     );
+
+    const nomeDigitado = nome.trim().split(/\s+/)[0] ?? "";
 
     return (
       <motion.div
         className="fixed inset-0 z-[120] flex flex-col overflow-hidden"
         role="dialog"
         aria-modal="true"
-        aria-label="Onboarding da Velo"
+        aria-label="Boas-vindas da Velo"
         data-velo-flat-buttons=""
         initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0, transition: { duration: reduce ? 0.001 : ENTRADA_POS_ONBOARDING.modalExit, ease: "easeInOut" } }}
         transition={{ duration: reduce ? 0.001 : 0.5, ease: "easeOut" }}
-        style={{ fontFamily: SANS, background: "#1E4FC4" }}
+        style={{
+          fontFamily: SANS,
+          background: "radial-gradient(130% 80% at 50% 30%, #2F5FD8 0%, #1C43A8 45%, #132F7D 100%)",
+        }}
       >
-        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <SkyBackdrop />
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
-            style={{ backgroundImage: `url("${BACKGROUND_SRC}")`, opacity: backgroundLoaded ? 1 : 0 }}
-          />
-          {/* Véu azul na metade de cima: na tela estreita as nuvens caem atrás do
-              título e do subtítulo brancos e roubavam o contraste. */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(14,42,138,0.42) 0%, rgba(20,60,170,0.34) 45%, rgba(30,79,196,0.12) 68%, rgba(30,79,196,0) 80%)",
-            }}
-          />
-        </div>
-
         <AnimatePresence mode="wait" custom={direction}>
-          {!started ? (
-            <motion.div
-              key="welcome"
-              custom={direction}
-              variants={contentVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="relative z-10 flex min-h-0 flex-1 flex-col px-5"
-              style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}
+          <motion.div
+            key={chaveTela}
+            custom={direction}
+            variants={contentVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="relative z-10 flex min-h-0 flex-1 flex-col"
+            style={{ paddingBottom: "calc(max(20px, env(safe-area-inset-bottom)) + 44px)" }}
+          >
+            {/* Topo: "Sair" nas boas-vindas, voltar nas perguntas. */}
+            <div
+              className="flex h-14 shrink-0 items-center justify-between px-3"
+              style={{ marginTop: "env(safe-area-inset-top)" }}
             >
-              <div className="flex h-14 shrink-0 items-center justify-end" style={{ marginTop: "env(safe-area-inset-top)" }}>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="px-1 py-2 text-[14px] font-medium text-white/90 transition-opacity active:opacity-60"
-                  style={{ textShadow: "0 1px 2px rgba(0,0,0,0.12)" }}
-                >
-                  Sair
-                </button>
-              </div>
-
-              <div className="flex flex-1 flex-col items-center justify-center">
-                <motion.img
-                  variants={illustrationVariants}
-                  src={VELO_LOGO_SRC}
-                  alt=""
-                  style={{ filter: "drop-shadow(0 14px 18px rgba(11,95,255,0.22))" }}
-                  className="block h-[92px] w-[92px] object-contain"
-                />
-                <motion.span
-                  variants={itemVariants}
-                  className="mt-3 text-[54px] font-extrabold leading-none text-white"
-                  style={{ letterSpacing: "-0.05em", textShadow: "0 2px 18px rgba(8,22,70,0.25)" }}
-                >
-                  Velo
-                </motion.span>
-              </div>
-
-              <motion.p
-                variants={itemVariants}
-                className="mx-auto mb-5 max-w-[300px] text-center text-[15px] leading-[1.45]"
-                style={{ color: "#52525B" }}
-              >
-                Responda <span style={{ color: INK, fontWeight: 500 }}>{FLAT_QUESTIONS.length} perguntas rápidas</span> para a Velo
-                se ajustar ao seu negócio
-              </motion.p>
-              {mobileButton("Começar", handleStart)}
-            </motion.div>
-          ) : (
-            <motion.div
-              key={`q-${index}`}
-              custom={direction}
-              variants={contentVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="relative z-10 flex min-h-0 flex-1 flex-col"
-            >
-              {/* Topo: voltar + progresso. */}
-              <div
-                className="flex h-14 shrink-0 items-center justify-between px-3"
-                style={{ marginTop: "env(safe-area-inset-top)" }}
-              >
+              {screen.kind === "welcome" ? (
+                <span className="w-11" />
+              ) : (
                 <button
                   type="button"
                   onClick={handleBack}
                   aria-label="Voltar"
-                  className="grid h-10 w-10 place-items-center rounded-full text-white transition-colors active:bg-white/15"
+                  className="grid h-11 w-11 place-items-center rounded-full text-white/90 transition-colors active:bg-white/10"
                 >
-                  <ArrowLeft size={20} strokeWidth={1.9} />
+                  <ArrowLeft size={22} strokeWidth={2} />
                 </button>
-                <div className="flex items-center gap-1.5" aria-label={`Pergunta ${index + 1} de ${FLAT_QUESTIONS.length}`}>
-                  {FLAT_QUESTIONS.map((q, i) => (
+              )}
+              {screen.kind === "welcome" ? (
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="px-3 py-2 text-[15px] font-medium text-white/70 transition-opacity active:opacity-60"
+                >
+                  Sair
+                </button>
+              ) : null}
+            </div>
+
+            <div
+              className={`flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+                chaveTela === "nicho" ? "justify-center" : ""
+              }`}
+            >
+              {/* No nicho a ilustração repetia as mesmas categorias da grade logo abaixo. */}
+              {chaveTela !== "nicho" && (
+              <motion.div
+                variants={illustrationVariants}
+                className={`flex flex-1 ${screen.kind === "ml-guide" ? "min-h-[170px]" : "min-h-[210px]"}`}
+              >
+                <OrbitaMobile bolhas={BOLHAS_MOBILE[chaveTela] ?? BOLHAS_MOBILE.welcome} reduce={reduce}>
+                  {screen.kind === "welcome" ? (
+                    <Baralho atras={[PRINTS_VELO.chat, PRINTS_VELO.home]}>
+                      <div className="relative h-[112px] overflow-hidden bg-white">
+                        <img src={PRINTS_VELO.produto.src} alt="" className="absolute left-[-22px] top-[-40px] h-[190px] w-auto max-w-none" />
+                        <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-white/95 py-1 pl-1 pr-2 text-[10px] font-bold text-[#0B1B3D] shadow-sm">
+                          <img src={VELO_LOGO_SRC} alt="" className="h-4 w-4 object-contain" />
+                          Catálogo
+                        </span>
+                      </div>
+                      <div className="px-3 pb-3 pt-2.5">
+                        <p className="text-[12.5px] font-semibold leading-tight text-[#0B1B3D]">Escolha, ajuste e publique</p>
+                        <p className="mt-0.5 text-[10.5px] text-[#64748B]">Tudo em um só lugar</p>
+                        <div className="mt-2.5 flex h-8 items-center justify-center gap-1.5 rounded-full bg-[#0B1B3D] text-[11px] font-semibold text-white">
+                          <img src="/brand/mercado-livre.png" alt="" className="h-4 w-4 rounded-full bg-white object-contain" />
+                          Publicar
+                        </div>
+                      </div>
+                    </Baralho>
+                  ) : chaveTela === "nome" ? (
+                    <Baralho atras={[PRINTS_VELO.produto, PRINTS_VELO.chat]}>
+                      <div className="relative flex h-[104px] items-center justify-center bg-[linear-gradient(135deg,#1D4ED8_0%,#3B82F6_55%,#93C5FD_100%)]">
+                        <span className="grid h-14 w-14 place-items-center rounded-full bg-white text-[24px] font-bold text-[#1D4ED8] shadow-[0_8px_20px_rgba(15,35,95,0.3)]">
+                          {nomeDigitado ? nomeDigitado[0].toUpperCase() : <User size={24} strokeWidth={2} />}
+                        </span>
+                      </div>
+                      <div className="px-3 pb-3.5 pt-2.5 text-center">
+                        <p className="truncate text-[14px] font-semibold leading-tight text-[#0B1B3D]">Olá, {nomeDigitado || "…"}!</p>
+                        <p className="mt-0.5 text-[10.5px] text-[#64748B]">É assim que a Velo vai te chamar</p>
+                        <div className="mx-auto mt-2.5 space-y-1.5">
+                          <span className="block h-1.5 w-full rounded-full bg-[#EEF2F7]" />
+                          <span className="mx-auto block h-1.5 w-2/3 rounded-full bg-[#EEF2F7]" />
+                        </div>
+                      </div>
+                    </Baralho>
+                  ) : chaveTela === "mercadoLivre" || chaveTela === "ml-guide" ? (
+                    <Baralho atras={[PRINTS_VELO.produto, PRINTS_VELO.home]}>
+                      <div className="flex h-[104px] items-center justify-center bg-[#FFE600]">
+                        {/* SVG com fundo transparente: as mãos continuam brancas sobre o amarelo. */}
+                        <img src="/brand/mercado-livre-handshake.svg" alt="" className="h-[64px] w-auto drop-shadow-[0_4px_10px_rgba(45,50,119,0.18)]" />
+                      </div>
+                      <div className="px-3 pb-3 pt-2.5 text-center">
+                        <p className="text-[13px] font-semibold leading-tight text-[#0B1B3D]">Mercado Livre</p>
+                        <p className="mt-0.5 text-[10.5px] text-[#64748B]">
+                          {chaveTela === "ml-guide" ? "Conta de vendedor" : "Onde seus anúncios aparecem"}
+                        </p>
+                        <div className="mt-2.5 flex h-8 items-center justify-center rounded-full bg-[#0B1B3D] text-[11px] font-semibold text-white">
+                          {chaveTela === "ml-guide" ? "Criar conta" : "Conectar conta"}
+                        </div>
+                      </div>
+                    </Baralho>
+                  ) : null}
+                </OrbitaMobile>
+              </motion.div>
+              )}
+
+              <div className="shrink-0 px-6 pt-2 text-center">
+                <motion.div
+                  variants={itemVariants}
+                  className="flex items-center justify-center gap-1.5"
+                  aria-label={`Etapa ${passoMobile + 1} de ${totalPassos}`}
+                >
+                  {Array.from({ length: totalPassos }, (_, i) => (
                     <span
-                      key={q.id}
-                      className="h-[4px] rounded-full transition-all duration-300"
+                      key={i}
+                      className="h-[5px] rounded-full transition-all duration-300"
                       style={{
-                        width: i === index ? 20 : 6,
-                        background: i <= index ? "#FFFFFF" : "rgba(255,255,255,0.32)",
+                        width: i === passoMobile ? 22 : 6,
+                        background: i === passoMobile ? "#FFFFFF" : "rgba(255,255,255,0.3)",
                       }}
                     />
                   ))}
-                </div>
-                <span className="w-10" />
-              </div>
+                </motion.div>
 
-              {/* Conteúdo: centralizado quando cabe, rola sem barra quando não. */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="my-auto py-6">
-                  <motion.div variants={itemVariants} className="text-center">
-                    <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-white/70">
-                      {currentStep.title}
-                    </p>
-                    <h2
-                      className="mx-auto mt-3 max-w-[320px] text-[27px] font-semibold leading-[1.15] text-white"
-                      style={{ letterSpacing: "-0.03em", textShadow: "0 2px 16px rgba(8,22,70,0.22)" }}
-                    >
-                      {question.label}
-                    </h2>
-                    <p className="mx-auto mt-2.5 max-w-[300px] text-[15px] leading-snug text-white/85" style={{ textShadow: "0 1px 10px rgba(8,22,70,0.3)" }}>
-                      {question.optional ? "Opcional · " : ""}
-                      {currentStep.subtitle}
-                    </p>
+                <motion.h2
+                  variants={itemVariants}
+                  className="mx-auto mt-6 max-w-[330px] text-[29px] font-medium leading-[1.14] text-white"
+                  style={{ letterSpacing: "-0.03em" }}
+                >
+                  {titulo}
+                </motion.h2>
+                <motion.p variants={itemVariants} className="mx-auto mt-2.5 max-w-[320px] text-[15px] leading-[1.5] text-white/75">
+                  {subtitulo}
+                </motion.p>
+
+                {/* Resposta de cada etapa */}
+                {screen.kind === "question" && screen.question.kind === "text" ? (
+                  <motion.div variants={itemVariants} className="mt-6">
+                    <input
+                      ref={nomeInputRef}
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && nome.trim()) confirmarNome();
+                      }}
+                      placeholder={screen.question.placeholder}
+                      autoComplete="given-name"
+                      autoCapitalize="words"
+                      enterKeyHint="next"
+                      maxLength={24}
+                      className="h-14 w-full rounded-[16px] border border-white/25 bg-white/[0.12] px-5 text-center text-[17px] text-white outline-none transition-colors placeholder:text-white/50 focus:border-white focus:bg-white/[0.16]"
+                    />
                   </motion.div>
+                ) : null}
 
-                  <div role="radiogroup" aria-label={question.label} className={`mt-8 flex flex-col ${compact ? "gap-2" : "gap-2.5"}`}>
-                    {question.options.map((option) => {
-                      const selected = selectedValue === option.value;
+                {screen.kind === "question" && screen.question.kind === "choice" && !screen.question.optional ? (
+                  <div role="radiogroup" aria-label={screen.question.label} className="mt-6 flex flex-col gap-2.5">
+                    {screen.question.options.map((option) => {
+                      const selected = answers[screen.question.id] === option.value;
                       const Icon = option.icon;
                       return (
                         <motion.button
@@ -607,104 +833,152 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                           role="radio"
                           aria-checked={selected}
                           variants={itemVariants}
-                          onClick={() => select(question.id, option.value)}
+                          onClick={() => escolher(screen.question.id, option.value)}
                           whileTap={reduce ? undefined : { scale: 0.985 }}
-                          className={`flex w-full items-center gap-3.5 rounded-[20px] px-4 text-left transition-[background-color,box-shadow] duration-200 ${
-                            compact ? "min-h-[54px] py-2" : "min-h-[72px] py-3"
+                          className={`flex min-h-[64px] w-full items-center gap-3 rounded-[18px] border px-4 py-3 text-left transition-colors duration-200 ${
+                            selected ? "border-white bg-white" : "border-white/20 bg-white/[0.1]"
                           }`}
-                          style={{
-                            // Branco quase opaco em vez de vidro: sete cards com
-                            // backdrop-filter entrando em cascata pesavam no celular.
-                            background: selected ? "#FFFFFF" : "rgba(255,255,255,0.82)",
-                            boxShadow: selected
-                              ? `inset 0 0 0 2px ${ELECTRIC_BLUE}, 0 10px 26px rgba(8,22,70,0.18)`
-                              : "0 6px 18px rgba(8,22,70,0.08), inset 0 0 0 1px rgba(255,255,255,0.6)",
-                          }}
                         >
                           <span
-                            className={`grid shrink-0 place-items-center rounded-full transition-colors duration-200 ${
-                              compact ? "h-9 w-9" : "h-10 w-10"
+                            className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                              selected ? "bg-[#2563EB] text-white" : "bg-white/10 text-white"
                             }`}
-                            style={
-                              selected
-                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
-                                : { background: "rgba(17,17,17,0.05)", color: "#27272A" }
-                            }
                           >
-                            <Icon size={18} strokeWidth={1.8} />
+                            <Icon size={19} strokeWidth={1.9} />
                           </span>
                           <span className="flex min-w-0 flex-1 flex-col">
-                            <span className="text-[16px] font-medium leading-tight" style={{ color: INK }}>
+                            <span className={`text-[16px] font-semibold leading-tight ${selected ? "text-[#0B1B3D]" : "text-white"}`}>
                               {option.label}
                             </span>
-                            {option.description && !compact ? (
-                              <span className="mt-0.5 text-[13.5px] leading-snug" style={{ color: MUTED }}>
+                            {option.description ? (
+                              <span className={`mt-0.5 text-[13px] leading-snug ${selected ? "text-[#64748B]" : "text-white/55"}`}>
                                 {option.description}
                               </span>
                             ) : null}
-                          </span>
-                          <span
-                            className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full transition-all duration-200"
-                            style={
-                              selected
-                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
-                                : { boxShadow: "inset 0 0 0 1.5px rgba(17,17,17,0.18)", color: "transparent" }
-                            }
-                            aria-hidden="true"
-                          >
-                            <Check size={13} strokeWidth={3} />
                           </span>
                         </motion.button>
                       );
                     })}
                   </div>
-                </div>
-              </div>
+                ) : null}
 
-              <div
-                className="shrink-0 px-5 pt-3"
-                style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}
-              >
-                {mobileButton(continueLabel, handleContinue, canContinue)}
+                {/* Nicho: grade 2×3 de cartões. "Ainda não sei" sai da grade e vira o link do rodapé. */}
+                {screen.kind === "question" && screen.question.kind === "choice" && screen.question.optional ? (
+                  <div role="radiogroup" aria-label={screen.question.label} className="mt-7 grid grid-cols-2 gap-2.5">
+                    {screen.question.options
+                      .filter((option) => option.value !== "geral")
+                      .map((option) => {
+                        const selected = answers[screen.question.id] === option.value;
+                        const Icon = option.icon;
+                        return (
+                          <motion.button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            variants={itemVariants}
+                            onClick={() => escolher(screen.question.id, option.value)}
+                            whileTap={reduce ? undefined : { scale: 0.97 }}
+                            className={`flex h-[96px] flex-col items-start justify-between rounded-[20px] border p-3.5 text-left transition-colors duration-200 ${
+                              selected ? "border-white bg-white" : "border-white/15 bg-white/[0.08] active:bg-white/[0.14]"
+                            }`}
+                          >
+                            <span
+                              className="grid h-9 w-9 place-items-center rounded-full text-white"
+                              style={{ background: COR_NICHO[option.value] }}
+                            >
+                              <Icon size={18} strokeWidth={2} />
+                            </span>
+                            <span
+                              className={`text-[15px] font-semibold leading-tight ${selected ? "text-[#0B1B3D]" : "text-white"}`}
+                            >
+                              {option.label}
+                            </span>
+                          </motion.button>
+                        );
+                      })}
+                  </div>
+                ) : null}
+
+                {screen.kind === "ml-guide" ? (
+                  <div className="mt-5 flex flex-col gap-3 rounded-[18px] bg-white/[0.1] px-4 py-4 text-left">
+                    {PASSOS_MERCADO_LIVRE.map((passo, i) => (
+                      <motion.div key={passo} variants={itemVariants} className="flex items-start gap-3">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2563EB] text-[12px] font-semibold text-white">
+                          {i + 1}
+                        </span>
+                        <span className="pt-[2px] text-[14px] leading-snug text-white/85">{passo}</span>
+                      </motion.div>
+                    ))}
+                    <motion.a
+                      variants={itemVariants}
+                      href="https://www.mercadolivre.com.br/registration"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="-mb-1 flex items-center justify-center gap-2 pt-1 text-[15px] font-medium text-white underline decoration-white/40 underline-offset-4"
+                    >
+                      Abrir o Mercado Livre
+                      <ExternalLink size={15} strokeWidth={2} />
+                    </motion.a>
+                  </div>
+                ) : null}
               </div>
-            </motion.div>
-          )}
+            </div>
+
+            {/* Rodapé: botão redondo quando a etapa pede confirmação; escolha única avança sozinha. */}
+            {/* Escolha obrigatória (Mercado Livre) avança no toque: sem rodapé, as opções usam o espaço. */}
+            {screen.kind === "question" && screen.question.kind === "choice" && !screen.question.optional ? (
+              <div className="h-4 shrink-0" />
+            ) : (
+            <div className="flex shrink-0 items-center justify-center px-6 pt-8">
+              {/* pt-8: respiro entre o texto e o botão — o bloco inteiro (bolinhas, título,
+                  texto) sobe junto, em vez de o botão encostar no subtítulo. */}
+              {screen.kind === "welcome" ? (
+                botaoSeguir(handleStart, "Começar")
+              ) : screen.kind === "ml-guide" ? (
+                botaoSeguir(sairDoGuia, "Ver o catálogo agora")
+              ) : screen.question.kind === "text" ? (
+                botaoSeguir(confirmarNome, "Continuar", nome.trim().length > 0)
+              ) : screen.question.optional ? (
+                <motion.button
+                  variants={itemVariants}
+                  type="button"
+                  onClick={() => escolher(screen.question.id, "geral")}
+                  className="h-12 px-4 text-[15px] font-medium text-white/75 underline decoration-white/35 underline-offset-[6px] transition-opacity active:opacity-60"
+                >
+                  Ainda não sei
+                </motion.button>
+              ) : null}
+            </div>
+            )}
+          </motion.div>
         </AnimatePresence>
       </motion.div>
     );
   }
 
+  /* ── Desktop ───────────────────────────────────────────────────────────── */
   return (
     <motion.div
       className="fixed inset-0 z-[120] overflow-hidden"
       role="dialog"
       aria-modal="true"
-      aria-label="Onboarding da Velo"
-      // Botões chapados: desliga o relevo global (brilho no topo + sombra) do index.css.
+      aria-label="Boas-vindas da Velo"
       data-velo-flat-buttons=""
       initial={reduce ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
-      // Saída: desbota revelando o dashboard, que começa a entrar por baixo.
       exit={{ opacity: 0, transition: { duration: reduce ? 0.001 : ENTRADA_POS_ONBOARDING.modalExit, ease: "easeInOut" } }}
       transition={{ duration: reduce ? 0.001 : 0.5, ease: "easeOut" }}
       style={{ fontFamily: SANS, background: "#1E4FC4" }}
     >
-      {/* ── Fundo em tela cheia ───────────────────────────────────────────────
-          Parado de propósito: o card de vidro desfoca o que está atrás dele, e
-          um fundo em movimento obrigava esse desfoque a ser refeito a cada
-          quadro — era o que travava a animação. */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <SkyBackdrop />
         <div
           className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
-          style={{
-            backgroundImage: `url("${BACKGROUND_SRC}")`,
-            opacity: backgroundLoaded ? 1 : 0,
-          }}
+          style={{ backgroundImage: `url("${BACKGROUND_SRC}")`, opacity: backgroundLoaded ? 1 : 0 }}
         />
       </div>
 
-      {/* ── Cabeçalho: marca à esquerda, "Sair" à direita ───────────────────── */}
       <motion.header
         className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-6 pt-6 sm:px-14 sm:pt-8"
         initial={reduce ? false : { opacity: 0, y: -10 }}
@@ -730,15 +1004,12 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         </button>
       </motion.header>
 
-      {/* ── Card de vidro centralizado ──────────────────────────────────────── */}
       <div className="relative z-10 flex h-full w-full items-center justify-center px-4 py-20">
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduce ? undefined : { opacity: 0, y: -12, transition: { duration: 0.45, ease: EASE } }}
           transition={{ duration: reduce ? 0.001 : 0.9, delay: reduce ? 0 : 0.15, ease: EASE }}
-          // Largura única nas boas-vindas e nas perguntas: animar a largura de
-          // um card com vidro refazia o desfoque a cada quadro.
           className="relative flex max-h-full w-full max-w-[468px] flex-col overflow-hidden rounded-[26px]"
           style={{
             minHeight: "min(632px, 100%)",
@@ -751,7 +1022,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
           }}
         >
           <AnimatePresence mode="wait" custom={direction}>
-            {!started ? (
+            {screen.kind === "welcome" ? (
               <motion.div
                 key="welcome"
                 custom={direction}
@@ -770,17 +1041,17 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                 />
                 <motion.h1
                   variants={itemVariants}
-                  className="max-w-[300px] text-[31px] leading-[1.12]"
+                  className="max-w-[320px] text-[31px] leading-[1.12]"
                   style={{ fontFamily: SERIF, color: INK, letterSpacing: "-0.01em", fontWeight: 400 }}
                 >
-                  Boas-vindas! Vamos começar configurando sua conta
+                  Boas-vindas! Vamos deixar a Velo do seu jeito
                 </motion.h1>
                 <motion.p
                   variants={itemVariants}
-                  className="mt-3 max-w-[272px] text-[13.5px] leading-[1.45]"
+                  className="mt-3 max-w-[290px] text-[14px] leading-[1.5]"
                   style={{ color: MUTED }}
                 >
-                  Responda algumas perguntas rápidas para a Velo se ajustar ao seu negócio e publicar seu primeiro anúncio
+                  São 3 perguntas — menos de um minuto. Depois você já entra no catálogo de produtos.
                 </motion.p>
                 <motion.button
                   variants={itemVariants}
@@ -794,7 +1065,7 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
               </motion.div>
             ) : (
               <motion.div
-                key={`q-${index}`}
+                key={screen.kind === "ml-guide" ? "ml-guide" : `q-${index}`}
                 custom={direction}
                 variants={contentVariants}
                 initial="initial"
@@ -802,144 +1073,154 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                 exit="exit"
                 className="flex min-h-0 flex-1 flex-col px-6 pb-6 pt-6 sm:px-8 sm:pb-8"
               >
-                {/* Topo: voltar + progresso por macro-etapa. */}
                 <div className="flex shrink-0 items-center justify-between">
                   <button
                     type="button"
                     onClick={handleBack}
                     aria-label="Voltar"
-                    className="grid h-8 w-8 place-items-center rounded-full text-[#3F3F46] transition-colors hover:bg-black/[0.05]"
+                    className="grid h-9 w-9 place-items-center rounded-full text-[#3F3F46] transition-colors hover:bg-black/[0.05]"
                   >
-                    <ArrowLeft size={17} strokeWidth={1.8} />
+                    <ArrowLeft size={18} strokeWidth={1.9} />
                   </button>
-                  <div className="flex items-center gap-1.5" aria-label={`Etapa ${currentStepIndex + 1} de ${STEPS.length}`}>
-                    {STEPS.map((s, stepIdx) => (
+                  <div className="flex items-center gap-1.5" aria-label={`Pergunta ${passoAtual + 1} de ${QUESTIONS.length}`}>
+                    {QUESTIONS.map((q, i) => (
                       <span
-                        key={s.title}
+                        key={q.id}
                         className="h-[4px] rounded-full transition-all duration-300"
                         style={{
-                          width: stepIdx === currentStepIndex ? 22 : 8,
-                          background: stepIdx <= currentStepIndex ? ELECTRIC_BLUE : "rgba(17,17,17,0.14)",
+                          width: i === passoAtual ? 22 : 8,
+                          background: i <= passoAtual ? ELECTRIC_BLUE : "rgba(17,17,17,0.14)",
                         }}
                       />
                     ))}
                   </div>
-                  <span className="w-8 text-right text-[12px] tabular-nums" style={{ color: MUTED }}>
-                    {index + 1}/{FLAT_QUESTIONS.length}
+                  <span className="w-9 text-right text-[12px] tabular-nums" style={{ color: MUTED }}>
+                    {passoAtual + 1}/{QUESTIONS.length}
                   </span>
                 </div>
 
                 <div className="flex min-h-0 flex-1 flex-col justify-center py-6">
-                  <motion.div variants={itemVariants} className="shrink-0 text-center">
-                    <p className="text-[12px] font-medium uppercase tracking-[0.08em]" style={{ color: MUTED }}>
-                      {currentStep.title}
-                    </p>
-                    <h2
-                      className="mx-auto mt-2 max-w-[360px] text-[26px] leading-[1.15]"
-                      style={{ fontFamily: SERIF, color: INK, fontWeight: 400 }}
-                    >
-                      {question.label}
-                    </h2>
-                    <p className="mx-auto mt-2 max-w-[340px] text-[13px] leading-snug" style={{ color: MUTED }}>
-                      {question.optional ? "Opcional · " : ""}
-                      {currentStep.subtitle}
-                    </p>
-                  </motion.div>
+                  {cabecalhoPergunta(false)}
 
-                  {/* Opções em grade de 2 colunas, conteúdo centralizado. A
-                      seleção só marca o card; o avanço é no "Continuar". */}
-                  <div
-                    role="radiogroup"
-                    aria-label={question.label}
-                    // Rolagem só como rede de segurança em telas muito baixas, sem
-                    // barra visível: na entrada os cards nascem deslocados/desfocados
-                    // e estouravam a área por um instante, piscando a barra.
-                    className="-mx-1 mt-7 grid min-h-0 grid-cols-2 gap-2.5 overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                    {question.options.map((option, optionIndex) => {
-                      const selected = selectedValue === option.value;
-                      const Icon = option.icon;
-                      // Quantidade ímpar: o último card ocupa a linha inteira.
-                      const spanFull = optionIndex === question.options.length - 1 && question.options.length % 2 === 1;
-                      return (
-                        <motion.button
-                          key={option.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          variants={itemVariants}
-                          onClick={() => select(question.id, option.value)}
-                          whileTap={reduce ? undefined : { scale: 0.98 }}
-                          className={`relative flex flex-col items-center justify-center rounded-[18px] text-center outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-[#0B5FFF]/40 ${
-                            compact ? "min-h-[88px] gap-2 px-3 py-3" : "min-h-[128px] gap-2.5 px-4 py-4"
-                          } ${spanFull ? "col-span-2" : ""} ${selected ? "" : "hover:bg-white/90"}`}
-                          style={
-                            selected
-                              ? {
-                                  background: "#FFFFFF",
-                                  border: `1.5px solid ${ELECTRIC_BLUE}`,
-                                  boxShadow: "0 0 0 4px rgba(11,95,255,0.10)",
-                                }
-                              : {
-                                  background: "rgba(255,255,255,0.6)",
-                                  border: "1.5px solid rgba(17,17,17,0.06)",
-                                }
-                          }
-                        >
-                          {/* Marca de seleção no canto. */}
-                          <span
-                            className="absolute right-2.5 top-2.5 grid h-[18px] w-[18px] place-items-center rounded-full transition-all duration-200"
+                  {screen.kind === "ml-guide" ? (
+                    listaGuiaML(false)
+                  ) : screen.question.kind === "text" ? (
+                    <motion.div variants={itemVariants} className="mt-7">
+                      <input
+                        ref={nomeInputRef}
+                        value={nome}
+                        onChange={(e) => setNome(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") confirmarNome();
+                        }}
+                        placeholder={screen.question.placeholder}
+                        autoComplete="given-name"
+                        maxLength={24}
+                        className="h-[56px] w-full rounded-[16px] bg-white px-5 text-[16px] outline-none focus:ring-2 focus:ring-[#0B5FFF]/30"
+                        style={{ color: INK, border: "1.5px solid rgba(17,17,17,0.08)" }}
+                      />
+                    </motion.div>
+                  ) : (
+                    <div
+                      role="radiogroup"
+                      aria-label={screen.question.label}
+                      className="-mx-1 mt-7 flex min-h-0 flex-col gap-2.5 overflow-y-auto px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                      {screen.question.options.map((option) => {
+                        const selected = answers[screen.question.id] === option.value;
+                        const Icon = option.icon;
+                        return (
+                          <motion.button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            variants={itemVariants}
+                            onClick={() => escolher(screen.question.id, option.value)}
+                            whileTap={reduce ? undefined : { scale: 0.98 }}
+                            className="flex min-h-[62px] items-center gap-3.5 rounded-[18px] px-4 py-3 text-left outline-none transition-[background-color,border-color,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-[#0B5FFF]/40 hover:bg-white"
                             style={
                               selected
-                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF", transform: "scale(1)", opacity: 1 }
-                                : { background: ELECTRIC_BLUE, color: "#FFFFFF", transform: "scale(0.6)", opacity: 0 }
-                            }
-                            aria-hidden="true"
-                          >
-                            <Check size={11} strokeWidth={3} />
-                          </span>
-                          <span
-                            className={`grid shrink-0 place-items-center rounded-full transition-colors duration-200 ${
-                              compact ? "h-9 w-9" : "h-11 w-11"
-                            }`}
-                            style={
-                              selected
-                                ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
-                                : { background: "rgba(17,17,17,0.05)", color: "#27272A" }
+                                ? {
+                                    background: "#FFFFFF",
+                                    border: `2px solid ${ELECTRIC_BLUE}`,
+                                    boxShadow: "0 0 0 4px rgba(11,95,255,0.10)",
+                                  }
+                                : { background: "rgba(255,255,255,0.75)", border: "2px solid rgba(17,17,17,0.06)" }
                             }
                           >
-                            <Icon size={compact ? 17 : 20} strokeWidth={1.8} />
-                          </span>
-                          <span className="flex flex-col items-center">
-                            <span className="text-[13.5px] font-medium leading-tight" style={{ color: INK }}>
-                              {option.label}
+                            <span
+                              className="grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors duration-200"
+                              style={
+                                selected
+                                  ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
+                                  : { background: "rgba(11,95,255,0.08)", color: ELECTRIC_BLUE }
+                              }
+                            >
+                              <Icon size={19} strokeWidth={1.8} />
                             </span>
-                            {option.description && !compact ? (
-                              <span className="mt-1 text-[12px] leading-snug" style={{ color: MUTED }}>
-                                {option.description}
+                            <span className="flex min-w-0 flex-1 flex-col">
+                              <span className="text-[15.5px] font-medium leading-tight" style={{ color: INK }}>
+                                {option.label}
                               </span>
-                            ) : null}
-                          </span>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
+                              {option.description ? (
+                                <span className="mt-0.5 text-[13px] leading-snug" style={{ color: MUTED }}>
+                                  {option.description}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span
+                              className="grid h-[20px] w-[20px] shrink-0 place-items-center rounded-full transition-all duration-200"
+                              style={
+                                selected
+                                  ? { background: ELECTRIC_BLUE, color: "#FFFFFF" }
+                                  : { boxShadow: "inset 0 0 0 2px rgba(17,17,17,0.16)", color: "transparent" }
+                              }
+                              aria-hidden="true"
+                            >
+                              <Check size={12} strokeWidth={3} />
+                            </span>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                <motion.button
-                  variants={itemVariants}
-                  type="button"
-                  onClick={handleContinue}
-                  disabled={!canContinue}
-                  whileTap={reduce || !canContinue ? undefined : { scale: 0.98 }}
-                  className={`h-[50px] w-full shrink-0 rounded-full text-[14px] font-medium transition-colors duration-200 ${
-                    canContinue
-                      ? "bg-[#0B5FFF] text-white hover:bg-[#0A52DD]"
-                      : "cursor-not-allowed bg-black/[0.07] text-black/35"
-                  }`}
-                >
-                  {continueLabel}
-                </motion.button>
+                {screen.kind === "ml-guide" ? (
+                  <motion.button
+                    variants={itemVariants}
+                    type="button"
+                    onClick={sairDoGuia}
+                    className="h-[50px] w-full shrink-0 rounded-full bg-[#0B5FFF] text-[14px] font-medium text-white transition-colors duration-200 hover:bg-[#0A52DD]"
+                  >
+                    Ver o catálogo agora
+                  </motion.button>
+                ) : screen.question.kind === "text" ? (
+                  <motion.button
+                    variants={itemVariants}
+                    type="button"
+                    onClick={confirmarNome}
+                    disabled={nome.trim().length === 0}
+                    className={`h-[50px] w-full shrink-0 rounded-full text-[14px] font-medium transition-colors duration-200 ${
+                      nome.trim().length > 0
+                        ? "bg-[#0B5FFF] text-white hover:bg-[#0A52DD]"
+                        : "cursor-not-allowed bg-black/[0.07] text-black/35"
+                    }`}
+                  >
+                    Continuar
+                  </motion.button>
+                ) : screen.question.optional ? (
+                  <motion.button
+                    variants={itemVariants}
+                    type="button"
+                    onClick={pular}
+                    className="h-[50px] w-full shrink-0 rounded-full text-[14px] font-medium transition-colors duration-200 hover:bg-black/[0.04]"
+                    style={{ color: MUTED, border: "1.5px solid rgba(17,17,17,0.12)" }}
+                  >
+                    Pular esta pergunta
+                  </motion.button>
+                ) : null}
               </motion.div>
             )}
           </AnimatePresence>

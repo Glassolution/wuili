@@ -1,12 +1,12 @@
 import { ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 interface FreePlanBannerProps {
   isVisible: boolean;
 }
 
 const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
-  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
 
   return (
     <div
@@ -49,7 +49,7 @@ const FreePlanBanner = ({ isVisible }: FreePlanBannerProps) => {
 
       <button
         type="button"
-        onClick={() => navigate("/dashboard/planos")}
+        onClick={() => upgradeModal.open({ origin: "free_plan_banner" })}
         style={{
           display: "inline-flex",
           alignItems: "center",

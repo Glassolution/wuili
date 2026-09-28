@@ -1,8 +1,10 @@
-import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { veloToast } from "@/components/ui/velo-toast";
 import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
+import { mensagemDeErroDaConexaoMl } from "@/lib/mlConexao";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
@@ -11,7 +13,6 @@ import StartModeModal from "@/components/dashboard/StartModeModal";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
-import SupportFloatingWidget from "@/components/dashboard/SupportFloatingWidget";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
 import OnboardingModal, {
@@ -27,9 +28,11 @@ import { Navigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useProfile } from "@/lib/profileContext";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
+import { atribuirCadastroOAuth } from "@/lib/signupFunnel";
 import { isChunkLoadError, recoverFromChunkLoadError } from "@/lib/chunkRecovery";
 import { Image as ImageIcon,
   ArrowLeft,
@@ -46,11 +49,13 @@ import { Image as ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import {
   NavAccountIcon,
+  NavAtlasIcon,
+  NavCatalogIcon,
   NavHomeIcon,
   NavOrdersIcon,
-  NavResultsIcon,
   type MobileNavIconProps,
 } from "@/components/dashboard/MobileNavIcons";
 
@@ -150,8 +155,9 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, EBState> {
 /**
  * Item da barra inferior do mobile.
  *
- * Sem fundo na aba ativa: o retângulo azul competia com o próprio ícone. Quem
- * marca a seleção agora é o desenho, que passa de contorno a preenchido.
+ * Só o ícone, no desenho de referência: a aba ativa é o ícone preenchido e as
+ * outras ficam em contorno, as duas em tom escuro. O nome continua para leitor
+ * de tela (sr-only) e no aria-label.
  */
 const MobileBottomItem = ({
   to,
@@ -159,35 +165,40 @@ const MobileBottomItem = ({
   icon: Icon,
   active,
   onClick,
+  badge,
 }: {
   to?: string;
   label: string;
   icon: (props: MobileNavIconProps) => JSX.Element;
   active: boolean;
   onClick?: () => void;
+  badge?: number;
 }) => {
   const className =
-    "flex min-w-0 flex-1 flex-col items-center justify-center gap-1.5 px-1 py-2 text-[10px] transition-transform duration-200 active:scale-95";
-  const style = active
-    ? { color: "#2563EB", fontWeight: 700 }
-    : { color: "rgba(17,17,17,0.45)", fontWeight: 600 };
+    "flex h-14 min-w-0 flex-1 items-center justify-center transition-transform duration-200 active:scale-90";
+  const style = { color: active ? "#1A1A1A" : "#3A3A3A" };
   const content = (
-    <>
-      <Icon active={active} />
-      <span className="max-w-full truncate">{label}</span>
-    </>
+    <span className="relative inline-flex">
+      <Icon active={active} size={26} />
+      {typeof badge === "number" && badge > 0 && (
+        <span className="absolute -right-2.5 -top-2.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#F04438] px-[5px] text-[10px] font-semibold leading-none text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+      <span className="sr-only">{label}</span>
+    </span>
   );
 
   if (to) {
     return (
-      <Link to={to} onClick={onClick} className={className} style={style} aria-current={active ? "page" : undefined}>
+      <Link to={to} onClick={onClick} className={className} style={style} aria-label={label} aria-current={active ? "page" : undefined}>
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} className={className} style={style}>
+    <button type="button" onClick={onClick} className={className} style={style} aria-label={label}>
       {content}
     </button>
   );
@@ -196,30 +207,20 @@ const MobileBottomItem = ({
 /**
  * Botão central do Atlas.
  *
- * Disco elevado que rompe a borda da barra, o gesto que os apps usam para a
- * ação principal. A pílula com texto dentro parecia banner de anúncio e não
- * dizia que ali mora o assistente; aqui o desenho fala por si e o rótulo
- * "Atlas" fica na mesma linha dos outros, mantendo o ritmo da barra.
+ * O círculo escuro da referência continua; o "+" virou um balão de conversa
+ * porque o meio abre o chat, não uma ação de criar.
  */
 const MobileAtlasButton = ({ active }: { active: boolean }) => (
   <Link
     to="/dashboard/atlas"
     aria-label="Abrir o Atlas"
     aria-current={active ? "page" : undefined}
-    className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5 px-1 py-2 text-[10px] transition-transform duration-200 active:scale-95"
-    style={{ color: active ? "#2563EB" : "rgba(17,17,17,0.45)", fontWeight: active ? 700 : 600 }}
+    className="flex h-14 min-w-0 flex-1 items-center justify-center transition-transform duration-200 active:scale-90"
   >
-    <span
-      className="-mt-[26px] flex h-[46px] w-[46px] items-center justify-center rounded-full"
-      style={{
-        background: "linear-gradient(135deg, #2563EB 0%, #1E3A8A 100%)",
-        // O anel branco recorta a barra e faz o disco flutuar sobre ela.
-        boxShadow: "0 0 0 4px #FFFFFF, 0 8px 20px rgba(37,99,235,0.45)",
-      }}
-    >
-      <AtlasAvatarIcon size={24} />
+    <span className="grid h-12 w-12 place-items-center rounded-full bg-[#2B2B2B] text-white">
+      <NavAtlasIcon size={20} />
     </span>
-    <span className="max-w-full truncate">Atlas</span>
+    <span className="sr-only">Atlas</span>
   </Link>
 );
 
@@ -276,6 +277,7 @@ const MobileAccountPage = ({
   initials,
   planLabel,
   planLoading,
+  hasPaidPlan,
   isAdmin,
 }: {
   displayName: string;
@@ -283,6 +285,7 @@ const MobileAccountPage = ({
   initials: string;
   planLabel: string;
   planLoading: boolean;
+  hasPaidPlan: boolean;
   isAdmin: boolean;
 }) => {
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -294,11 +297,34 @@ const MobileAccountPage = ({
     return () => window.removeEventListener("velo:open-invite-modal", open);
   }, []);
   const { signOut } = useAuth();
-  const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
+  const rotuloAssinatura = hasPaidPlan ? "Melhorar plano" : "Assinar plano";
 
+  /*
+    No celular o botão "Sair" travava: quando o refresh token já estava inválido
+    o `signOut()` rejeitava e a navegação para o login nunca acontecia, então
+    nada visível parecia mudar. Agora o erro é engolido, o armazenamento local
+    da sessão é limpo na mão e a saída é sempre concluída — com `location.replace`
+    como garantia final de que a pessoa cai na tela de login com o estado zerado.
+  */
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/login", { replace: true });
+    try {
+      await signOut();
+    } catch {
+      // Sessão já inválida no servidor: seguir com a limpeza local mesmo assim.
+    }
+
+    try {
+      for (const key of Object.keys(window.localStorage)) {
+        if (key.startsWith("sb-") && key.includes("auth-token")) {
+          window.localStorage.removeItem(key);
+        }
+      }
+    } catch {
+      // Navegador com armazenamento bloqueado: o redirecionamento abaixo ainda resolve.
+    }
+
+    window.location.replace("/login");
   };
 
   return (
@@ -323,12 +349,29 @@ const MobileAccountPage = ({
           <p className="mt-0.5 truncate text-[13px] font-medium text-white/75">Meu perfil ›</p>
         </div>
       </Link>
-      <div className="mt-6 flex h-14 items-center rounded-2xl bg-white px-4 text-[#1E3A8A] shadow-[0_10px_25px_rgba(30,58,138,0.18)]">
-        <div>
-          <p className="text-[13px] font-bold">Sua conta Velo</p>
-          <p className="text-[11px] text-black/50">Seu plano e sua loja, do seu jeito.</p>
-        </div>
-      </div>
+      {planLoading ? (
+        <div className="mt-6 h-14 animate-pulse rounded-2xl bg-white/70" />
+      ) : (
+        <button
+          type="button"
+          onClick={() => upgradeModal.open({ origin: "minha_conta" })}
+          className="mt-6 flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2.5 text-left text-[#1E3A8A] shadow-[0_10px_25px_rgba(30,58,138,0.18)]"
+        >
+          <div className="min-w-0">
+            <p className="text-[13px] font-bold">
+              {hasPaidPlan ? "Melhore sua assinatura" : "Sua assinatura"}
+            </p>
+            <p className="text-[11px] leading-snug text-black/50">
+              {hasPaidPlan
+                ? `Plano ${planLabel}. Mais recursos para vender sem travar.`
+                : "Assine para liberar anúncios, Atlas e o catálogo."}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-[#2563EB] px-3 py-[7px] text-[12px] font-semibold text-white">
+            {rotuloAssinatura}
+          </span>
+        </button>
+      )}
     </div>
 
     <div className="px-5 pb-6">
@@ -339,7 +382,8 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
         <MobileDrawerLink to="/dashboard/imagens-ia" label="Imagens com IA" icon={ImageIcon} />
         <MobileDrawerButton label="Convidar amigo" icon={UserPlus} onClick={() => setInviteOpen(true)} />
-        <MobileDrawerLink to="/dashboard/comunidade" label="Ajuda & Central" icon={HelpCircle} />
+        <MobileDrawerLink to="/dashboard/ajuda" label="Central de ajuda" icon={HelpCircle} />
+        <MobileDrawerLink to="/dashboard/comunidade" label="Comunidade" icon={HelpCircle} />
         {isAdmin && (
           <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} badge="Admin" />
         )}
@@ -375,6 +419,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const { plan, loading: planLoading } = usePlan();
   const { nome, foto } = useProfile();
   const [showStartModeModal, setShowStartModeModal] = useState(false);
+  const [pedidosCount, setPedidosCount] = useState(0);
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined) ??
@@ -390,6 +435,9 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const isRootDashboard = location.pathname === "/dashboard";
   const isAccountPage = location.pathname === "/dashboard/minha-conta";
   const isCatalogProductDetail = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
+  const isCatalogList = location.pathname === "/dashboard/catalogo";
+  const isOrdersList = location.pathname === "/dashboard/pedidos";
+  const isEdgeToEdgeMobile = isRootDashboard || isCatalogList || isOrdersList;
   const isModelsRoute = location.pathname.startsWith("/dashboard/modelos");
   // O Atlas no mobile é tela cheia, no formato de um app de chat: sem a faixa
   // azul em cima nem a barra de abas embaixo, que roubavam duas faixas da
@@ -406,6 +454,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   const planLabel = {
     gratis: "Grátis",
     go: "Go",
+    base: "Base",
     pro: "Pro",
     business: "Business",
   }[plan] ?? "Grátis";
@@ -413,6 +462,26 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setResolvedRole(emailRole ?? emailAffiliateRole ?? role ?? metadataRole);
   }, [emailAffiliateRole, emailRole, role, metadataRole]);
+
+  useEffect(() => {
+    if (!user?.id || !isSupabaseEnabled) {
+      setPedidosCount(0);
+      return;
+    }
+
+    let active = true;
+    void supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .then(({ count }) => {
+        if (active) setPedidosCount(count ?? 0);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user || !isSupabaseEnabled) return;
@@ -458,7 +527,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
         marca com a logo e os ícones bare, como no cabeçalho da referência. Os ícones
         perderam a pastilha `bg-white/10` — sobre a cor cheia ela virava ruído.
       */}
-      {!isRootDashboard && !isAccountPage && !isModelsRoute && !isAtlasRoute && (
+      {!isRootDashboard && !isAccountPage && !isModelsRoute && !isAtlasRoute && !isCatalogList && !isOrdersList && (
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between bg-[#2563EB] px-4">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             {isCatalogProductDetail ? (
@@ -518,8 +587,8 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       <main
         className={`min-h-0 flex-1 overflow-x-hidden ${
           isAtlasRoute
-            ? "flex overflow-hidden p-0"
-            : `overflow-y-auto pb-[calc(96px+env(safe-area-inset-bottom))] ${isRootDashboard ? "px-0 pt-0" : "px-4 pt-4"}`
+            ? "flex h-full min-h-0 flex-col overflow-hidden p-0"
+            : `overflow-y-auto pb-[calc(108px+env(safe-area-inset-bottom))] ${isEdgeToEdgeMobile ? "px-0 pt-0" : "px-4 pt-4"}`
         }`}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
@@ -533,6 +602,7 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
               initials={initials}
               planLabel={planLabel}
               planLoading={planLoading}
+              hasPaidPlan={plan !== "gratis"}
               isAdmin={isAdmin}
             />
           ) : (
@@ -542,16 +612,16 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
       </main>
 
       <nav
-        className={`fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.08] bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] backdrop-blur-xl md:hidden ${
+        data-velo-flat-buttons
+        className={`fixed inset-x-0 bottom-0 z-40 border-t border-black/[0.06] bg-white px-3 pb-[calc(18px+env(safe-area-inset-bottom))] pt-4 md:hidden ${
           isAtlasRoute ? "hidden" : ""
         }`}
       >
-        {/* items-end: o disco do Atlas sobe, mas os rótulos ficam na mesma linha. */}
-        <div className="mx-auto flex max-w-[480px] items-end gap-1">
+        <div className="mx-auto flex max-w-[480px] items-center">
           <MobileBottomItem to="/dashboard" label="Início" icon={NavHomeIcon} active={location.pathname === "/dashboard"} />
-          <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={NavOrdersIcon} active={location.pathname.startsWith("/dashboard/pedidos")} />
+          <MobileBottomItem to="/dashboard/catalogo" label="Catálogo" icon={NavCatalogIcon} active={location.pathname.startsWith("/dashboard/catalogo") || location.pathname.startsWith("/catalogo")} />
           <MobileAtlasButton active={location.pathname.startsWith("/dashboard/atlas")} />
-          <MobileBottomItem to="/dashboard/resultados" label="Resultados" icon={NavResultsIcon} active={location.pathname.startsWith("/dashboard/resultados")} />
+          <MobileBottomItem to="/dashboard/pedidos" label="Pedidos" icon={NavOrdersIcon} active={location.pathname.startsWith("/dashboard/pedidos")} badge={pedidosCount} />
           <MobileBottomItem to="/dashboard/minha-conta" label="Minha Conta" icon={NavAccountIcon} active={isAccountPage || location.pathname === "/colecoes" || location.pathname.startsWith("/dashboard/configuracoes")} />
         </div>
       </nav>
@@ -568,6 +638,41 @@ const DashboardLayoutInner = () => {
   const { user, loading } = useAuth();
   const { aberto: atlasAberto, enviar: enviarParaAtlas } = useAtlasChat();
   const isMobile = useIsMobile();
+  const mobileShellRef = useRef<HTMLDivElement>(null);
+  // iOS Safari: 100vh/h-screen usa o viewport "grande" (atrás da barra e da
+  // toolbar). Sem travar na visualViewport o Atlas fica cortado e a pessoa
+  // precisa arrastar a página para ver o campo de mensagem.
+  useLayoutEffect(() => {
+    if (!isMobile || loading || !user) return;
+    const el = mobileShellRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      const viewport = window.visualViewport;
+      const height = Math.round(viewport?.height ?? window.innerHeight);
+      const offsetTop = Math.round(viewport?.offsetTop ?? 0);
+      el.style.position = "fixed";
+      el.style.left = "0";
+      el.style.right = "0";
+      el.style.top = `${offsetTop}px`;
+      el.style.width = "100%";
+      el.style.height = `${height}px`;
+      el.style.maxHeight = `${height}px`;
+    };
+
+    apply();
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", apply);
+    viewport?.addEventListener("scroll", apply);
+    window.addEventListener("orientationchange", apply);
+    window.addEventListener("resize", apply);
+    return () => {
+      viewport?.removeEventListener("resize", apply);
+      viewport?.removeEventListener("scroll", apply);
+      window.removeEventListener("orientationchange", apply);
+      window.removeEventListener("resize", apply);
+    };
+  }, [isMobile, loading, user]);
   // Exibição do novo onboarding em modal — gating próprio, independente do
   // estado de loja/perfil no Supabase. Abre no primeiro acesso após o cadastro
   // e não reaparece depois de concluído (flag em localStorage por usuário).
@@ -586,6 +691,7 @@ const DashboardLayoutInner = () => {
     const mostrar = shouldShowOnboarding(user);
     setShowOnboarding(mostrar);
     if (mostrar) setEntrada("waiting");
+    atribuirCadastroOAuth(user);
   }, [user]);
 
   useEffect(
@@ -599,6 +705,26 @@ const DashboardLayoutInner = () => {
   const handleOnboardingComplete = (respostas: Record<string, string>) => {
     if (!user?.id) return;
     markOnboardingSeen(user.id);
+
+    /*
+      O nome escolhido no onboarding vira o nome de exibição do produto inteiro
+      (saudação, perfil, suporte). O cadastro não pede mais nome completo, então
+      esta é a primeira vez que temos um nome de verdade — antes ficava o pedaço
+      do e-mail criado pelo gatilho do banco.
+    */
+    const nome = (respostas.nome ?? "").trim();
+    /*
+      A conclusão também é gravada no perfil: o painel de funil lia
+      `onboarding_completed` e via zero porque só a marca do Auth era limpa.
+    */
+    void (supabase as any)
+      .from("profiles")
+      .update({
+        ...(nome ? { display_name: nome } : {}),
+        onboarding_completed: true,
+        onboarding_completed_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id);
     // Limpa a flag durável no Supabase Auth: `velo_onboarding_pending` é gravada
     // no cadastro e persiste no servidor. Sem isto, `isFreshSignup` continuaria
     // verdadeiro para sempre e o modal reapareceria em qualquer navegador/
@@ -607,12 +733,19 @@ const DashboardLayoutInner = () => {
     // As respostas do quiz vão junto: são elas que a vitrine do guia usa para
     // recomendar produtos. Antes eram descartadas ao fechar o modal.
     void supabase.auth.updateUser({
-      data: { velo_onboarding_pending: false, [CHAVE_RESPOSTAS_DO_QUIZ]: respostas },
+      data: {
+        velo_onboarding_pending: false,
+        [CHAVE_RESPOSTAS_DO_QUIZ]: respostas,
+        ...(nome ? { full_name: nome } : {}),
+      },
     });
     markTourPending(user.id);
     setShowOnboarding(false);
     setEntrada("play");
     entradaTimer.current = window.setTimeout(() => setEntrada("idle"), ENTRADA_POS_ONBOARDING.total * 1000);
+    // O onboarding termina no catálogo: o primeiro contato com a Velo tem que
+    // ser produto, não painel.
+    navigate("/dashboard/catalogo");
   };
 
   // Tour do Atlas: primeira visita, começa no Início do desktop, só depois que o
@@ -686,25 +819,38 @@ const DashboardLayoutInner = () => {
   const isCatalogProductDetailRoute = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
   // Configurações usa layout sem moldura, então o fundo da área principal é branco.
   const isSettingsRoute = location.pathname.startsWith("/dashboard/configuracoes");
+  const isHelpCenterRoute = location.pathname.startsWith("/dashboard/ajuda");
   // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
   // é quase branco e, sobre bege, a diferença de temperatura ficava evidente.
   const isAiImagesRoute = location.pathname.startsWith("/dashboard/imagens-ia");
+  // As exclusões por tela existem por causa do mobile (bolha cobrindo ações
+  // importantes). No computador o chat de suporte fica sempre visível.
   const showSupportWidget =
-    location.pathname !== "/dashboard" &&
-    location.pathname !== "/colecoes" &&
-    !location.pathname.startsWith("/dashboard/atlas") &&
-    // Na ficha do produto a bolha cobria o botão de publicar, que é a ação da tela.
-    !isCatalogProductDetailRoute;
+    !isMobile ||
+    (location.pathname !== "/dashboard" &&
+      location.pathname !== "/colecoes" &&
+      location.pathname !== "/dashboard/catalogo" &&
+      location.pathname !== "/dashboard/pedidos" &&
+      !location.pathname.startsWith("/dashboard/atlas") &&
+      // Na ficha do produto a bolha cobria o botão de publicar, que é a ação da tela.
+      !isCatalogProductDetailRoute);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
 
     if (params.get("ml_connected") === "true") {
+      trackMobileHomeEvent(user?.id, "ml_connect_result", { detail: "success" });
       const retorno = lerRetornoMl();
 
       // Quem começou pelo chat do Atlas volta pela própria conversa: o
       // AtlasChatProvider cuida da restauração, então aqui não mexemos na URL.
       if (retorno?.origem === "atlas") return;
+
+      if (retorno?.origem === "product_import" && retorno.rota) {
+        limparRetornoMl();
+        navigate(retorno.rota, { replace: true });
+        return;
+      }
 
       veloToast.success("Mercado Livre conectado com sucesso!", {
         action: { label: "Ver", onClick: () => navigate("/dashboard/configuracoes") },
@@ -729,13 +875,8 @@ const DashboardLayoutInner = () => {
     }
 
     if (params.get("ml_error")) {
-      const errors: Record<string, string> = {
-        missing_params: "Parametros ausentes na resposta do Mercado Livre.",
-        token_failed: "Nao foi possivel obter o token. Tente novamente.",
-        db_failed: "Erro ao salvar a integracao. Tente novamente.",
-      };
-      const msg = errors[params.get("ml_error")!] ?? "Erro desconhecido na integracao.";
-      veloToast.error(`Erro ao conectar Mercado Livre: ${msg}`);
+      trackMobileHomeEvent(user?.id, "ml_connect_result", { detail: `error:${params.get("ml_error")}` });
+      veloToast.error(mensagemDeErroDaConexaoMl(params.get("ml_error")));
       navigate(location.pathname, { replace: true });
     }
   }, [location.search]);
@@ -772,7 +913,8 @@ const DashboardLayoutInner = () => {
   if (isMobile) {
     return (
       <div
-        className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col"
+        ref={mobileShellRef}
+        className="dashboard-inter flex h-svh max-h-svh min-h-0 w-full max-w-full overflow-hidden flex-col"
         style={{
           background: isStartMode ? "#FFA640" : "linear-gradient(135deg, #F7F6F4 0%, #EFEDEA 48%, #E8E7E4 100%)",
           transition: "background-color 280ms ease",
@@ -780,16 +922,15 @@ const DashboardLayoutInner = () => {
       >
         <StartModeBanner isStartMode={isStartMode} />
         <div
-          className="flex min-h-0 w-full flex-1 overflow-hidden"
+          className="flex min-h-0 h-full w-full flex-1 overflow-hidden"
           style={{
-            marginTop: isStartMode ? "48px" : "0",
-            minHeight: isStartMode ? "calc(100vh - 48px)" : "100vh",
+            paddingTop: isStartMode ? "48px" : "0",
             borderTopLeftRadius: isStartMode ? "24px" : "0",
             borderTopRightRadius: isStartMode ? "24px" : "0",
             background: "transparent",
             position: "relative",
             zIndex: 2,
-            transition: "margin-top 280ms ease, border-radius 280ms ease, min-height 280ms ease",
+            transition: "padding-top 280ms ease, border-radius 280ms ease",
           }}
         >
           <MobileDashboardChrome>
@@ -858,7 +999,7 @@ const DashboardLayoutInner = () => {
               data-dashboard-tour="dashboard-main"
               className="flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7"
               style={{
-                background: isCatalogRoute || isSettingsRoute
+                background: isCatalogRoute || isSettingsRoute || isHelpCenterRoute
                   ? "#FFFFFF"
                   : isAiImagesRoute
                     ? "#F4F4F6"

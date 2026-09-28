@@ -66,6 +66,20 @@ Deno.serve(async (req) => {
     const canList = listAllow && sellAllow
     const codes = Array.isArray(list.codes) ? list.codes : []
 
+    // Guarda a aptidão real para o painel admin saber o motivo mesmo sem a
+    // pessoa estar usando o app.
+    await admin.from('ml_seller_readiness').upsert(
+      {
+        user_id: userId,
+        can_list: canList,
+        codes: codes.map(String),
+        source: 'check',
+        last_error: null,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    )
+
     return json({
       connected: true,
       canList,

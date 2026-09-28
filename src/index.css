@@ -2,6 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+@media (max-width: 639px) {
+  :root {
+    /* Laranja de sinalização: o mais longe possível do azul-marinho do hero. */
+    --landing-mobile-highlight: 18 100% 47%;
+    --landing-mobile-highlight-foreground: 220 69% 14%;
+  }
+
+  .landing-mobile-offer {
+    border: 0;
+    background: hsl(var(--landing-mobile-highlight));
+    color: hsl(var(--landing-mobile-highlight-foreground));
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: -0.012em;
+    box-shadow: 0 1px 0 rgba(120, 36, 0, 0.35);
+    animation: velo-offer-drop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .landing-mobile-offer:active {
+    filter: brightness(0.96);
+  }
+
+  .landing-mobile-offer__text {
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .landing-mobile-offer__arrow {
+    flex: 0 0 auto;
+    font-weight: 800;
+    animation: velo-offer-nudge 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes velo-offer-drop {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes velo-offer-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
 @layer components {
   .velo-prime-button {
     --prime-top: #7058ff;
@@ -115,7 +170,7 @@
   }
 
   #root {
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   *,
@@ -329,6 +384,28 @@
     font-family: "Hanken Grotesk", sans-serif !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
+  }
+
+  /*
+    Exceção pontual ao Hanken do painel: os cartões de números do Início usam Inter,
+    no desenho de referência. A especificidade maior (duas classes) vence o
+    `.dashboard-inter *` acima, que também usa !important.
+  */
+  .dashboard-inter .velo-fonte-inter,
+  .dashboard-inter .velo-fonte-inter *,
+  .velo-fonte-inter,
+  .velo-fonte-inter * {
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+    font-feature-settings: "tnum" !important;
+  }
+
+  /* Preço do catálogo mobile: SF Pro como na referência, não o Hanken/Inter do painel. */
+  .dashboard-inter .velo-fonte-inter .velo-catalogo-preco,
+  .velo-fonte-inter .velo-catalogo-preco {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, ui-sans-serif, sans-serif !important;
+    font-feature-settings: "tnum" 1 !important;
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
   .dashboard-inter h1,
   .dashboard-inter h2,
@@ -1541,6 +1618,11 @@ button[class*="bg-[#1"]:hover:not(:disabled) {
   }
 
   .atlas-avatar-icon--animated .atlas-avatar-lid {
+    animation: none !important;
+  }
+
+  .landing-mobile-offer,
+  .landing-mobile-offer__arrow {
     animation: none !important;
   }
 }

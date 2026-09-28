@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { proxyImageList } from "@/lib/imageProxy";
 import { useAiImageQuota } from "@/hooks/useAiImageQuota";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 
 /**
  * Criação de imagem de produto com IA.
@@ -212,6 +213,7 @@ const ToolButton = ({
 const AiImagesPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const reduceMotion = useReducedMotion();
   const { characters, urls } = useCharacterLibrary();
   const { quota, aplicarQuotaDoServidor } = useAiImageQuota();
@@ -856,7 +858,7 @@ const AiImagesPage = () => {
               <span aria-hidden>·</span>
               <button
                 type="button"
-                onClick={() => navigate("/dashboard/planos")}
+                onClick={() => upgradeModal.open({ origin: "imagens_ia" })}
                 className="font-semibold text-[#2563EB] outline-none transition hover:underline focus-visible:ring-2 focus-visible:ring-[#2563EB]/30"
               >
                 Fazer upgrade

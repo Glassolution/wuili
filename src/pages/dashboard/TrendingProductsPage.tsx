@@ -33,6 +33,7 @@ import ProjectCreationWizard from "@/components/projects/ProjectCreationWizard";
 import ImportProductModal, { type CatalogProduct } from "@/components/dashboard/ImportProductModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePlan } from "@/hooks/usePlan";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/types/onboarding";
@@ -418,6 +419,7 @@ const SalesPageSoonModal = ({ product, onClose }: { product: TrendingProduct; on
 
 const TrendingProductsPage = () => {
   const navigate = useNavigate();
+  const upgradeModal = useUpgradeModal();
   const { user, role } = useAuth();
   const [products, setProducts] = useState<TrendingProduct[]>([]);
   const [niche, setNiche] = useState<string | null>(null);
@@ -739,7 +741,7 @@ const TrendingProductsPage = () => {
                 Nome, imagens e link de origem dos produtos ficam ocultos no plano gratuito.{" "}
                 <button
                   type="button"
-                  onClick={() => navigate("/dashboard/planos")}
+                  onClick={() => upgradeModal.open({ origin: "produtos_em_alta" })}
                   className="font-semibold underline underline-offset-2 hover:text-[#7A4610]"
                 >
                   Escolha um plano para desbloquear todos os recursos
@@ -1320,7 +1322,7 @@ const TrendingProductsPage = () => {
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
+                                onClick={() => (isFreePlan ? upgradeModal.open({ origin: "produtos_em_alta" }) : handleCreateSalesPage(product))}
                                 disabled={creatingSalesPageId === product.id}
                                 className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.08] bg-white text-[#111827] transition hover:bg-[#F4F4F5] disabled:opacity-60"
                                 aria-label={isFreePlan ? "Disponível apenas com um plano ativo" : "Criar página de vendas"}
@@ -1336,7 +1338,7 @@ const TrendingProductsPage = () => {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                onClick={() => (isFreePlan ? upgradeModal.open({ origin: "produtos_em_alta" }) : handlePublishToMl(product))}
                                 className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8]"
                                 aria-label="Publicar no Mercado Livre"
                                 title={isFreePlan ? "Disponível apenas com um plano ativo" : "Publicar no Mercado Livre"}
@@ -1425,7 +1427,7 @@ const TrendingProductsPage = () => {
                                     <div className="mt-5 grid gap-2 sm:grid-cols-2">
                                       <button
                                         type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handleCreateSalesPage(product))}
+                                        onClick={() => (isFreePlan ? upgradeModal.open({ origin: "produtos_em_alta" }) : handleCreateSalesPage(product))}
                                         className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F4F4F5]"
                                       >
                                         {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <FilePlus2 size={14} strokeWidth={1.8} />}
@@ -1433,7 +1435,7 @@ const TrendingProductsPage = () => {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => (isFreePlan ? navigate("/dashboard/planos") : handlePublishToMl(product))}
+                                        onClick={() => (isFreePlan ? upgradeModal.open({ origin: "produtos_em_alta" }) : handlePublishToMl(product))}
                                         className="inline-flex h-9 items-center justify-center gap-2 rounded-[9px] bg-[#2563EB] px-3 text-[12px] font-semibold text-white transition hover:bg-[#1D4ED8]"
                                       >
                                         {isFreePlan ? <Lock size={14} strokeWidth={1.9} /> : <UploadCloud size={14} strokeWidth={1.8} />}

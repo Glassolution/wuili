@@ -180,7 +180,7 @@ PLANOS E LIMITES OPERACIONAIS CONFIRMADOS
 - Go: plano legado, tratado como Base.
 - Base (R$ 39,90/mês): até 50 anúncios ativos e 50 publicações por mês no Mercado Livre (uma a uma, sem publicação em lote, sem variações e sem sincronização automática de preço/estoque), 1 marketplace, 1 página de venda, 0 lojas, 20 imagens com IA por mês, sem vídeos com IA, 3 influencers de IA, 40 mensagens do Atlas por dia, analytics básico, suporte por e-mail.
 - Pro (R$ 79,80/mês, plano mais escolhido): até 300 anúncios ativos e 300 publicações por mês no Mercado Livre, publicação em lote, anúncios com variações e sincronização automática de preço e estoque, 2 marketplaces, 10 páginas de venda, 3 lojas, 100 imagens e 10 vídeos com IA por mês, 10 influencers de IA, 150 mensagens do Atlas por dia, relatórios avançados e suporte prioritário.
-- Business (R$ 159,60/mês): anúncios e publicações no Mercado Livre ilimitados, marketplaces ilimitados, páginas de venda e lojas ilimitadas, 300 imagens e 30 vídeos com IA por mês, 30 influencers de IA, 400 mensagens do Atlas por dia, analytics premium, suporte dedicado e acesso API.
+- Business (R$ 189,90/mês, cobrança anual): anúncios e publicações no Mercado Livre ilimitados, marketplaces ilimitados, páginas de venda e lojas ilimitadas, 300 imagens e 30 vídeos com IA por mês, 30 influencers de IA, 400 mensagens do Atlas por dia, analytics premium, suporte dedicado e acesso API.
 - Mesmo no Business as features de IA (imagens, vídeos, influencers, Atlas) têm teto, porque cada geração custa processamento.
 - "Plus" é tratado como Pro no código. Para preços atuais, sempre mande o usuário ver Planos dentro do painel, pois valores podem mudar.
 

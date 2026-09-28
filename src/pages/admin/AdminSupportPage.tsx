@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import {
   Activity,
   AlertTriangle,
+  Pause,
+  Play,
   Archive,
   ArrowLeft,
   Bug,
@@ -61,7 +63,7 @@ import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
 type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
-type TicketView = "all" | "new" | "in_progress";
+type TicketView = "all" | "new" | "in_progress" | "human";
 type TicketStatusFilter = "all" | "open" | "closed";
 type TicketDateFilter = "all" | "today" | "7d" | "30d";
 type MobileSupportPanel = "inbox" | "conversation" | "customer";
@@ -82,6 +84,9 @@ type AdminTicket = {
   last_message_sender: "user" | "admin" | "ai" | null;
   message_count: number;
   has_admin_reply: boolean;
+  ai_paused: boolean;
+  needs_human: boolean;
+  needs_human_reason: string | null;
 };
 
 type SupportMessage = {
@@ -91,6 +96,7 @@ type SupportMessage = {
   message: string;
   sender: "user" | "admin" | "ai";
   created_at: string;
+  internal?: boolean;
 };
 
 type CustomerContextData = {
@@ -165,6 +171,7 @@ const VIEW_OPTIONS: Array<{ value: TicketView; label: string }> = [
   { value: "all", label: "Todos" },
   { value: "new", label: "Novos" },
   { value: "in_progress", label: "Em andamento" },
+  { value: "human", label: "Precisa de humano" },
 ];
 
 const STATUS_OPTIONS: Array<{ value: TicketStatusFilter; label: string }> = [
@@ -390,7 +397,7 @@ const AdminSupportPage = () => {
     queryFn: async () => {
       const { data: ticketsData, error: ticketsError } = await (supabase as any)
         .from("support_tickets")
-        .select("id,user_id,status,category,subject,created_at,updated_at")
+        .select("id,user_id,status,category,subject,created_at,updated_at,ai_paused,needs_human,needs_human_reason")
         .order("updated_at", { ascending: false });
 
       if (ticketsError) throw ticketsError;
@@ -406,12 +413,12 @@ const AdminSupportPage = () => {
 
       const { data: profilesData } = await (supabase as any)
         .from("profiles")
-        .select("user_id,display_name,email,full_name,avatar_url")
+        .select("user_id,display_name,email,avatar_url")
         .in("user_id", userIds);
 
       for (const item of (profilesData ?? []) as any[]) {
         profilesByUser.set(item.user_id, {
-          display_name: item.full_name ?? item.display_name ?? null,
+          display_name: item.display_name ?? null,
           email: item.email ?? null,
           avatar_url: item.avatar_url ?? null,
         });
@@ -468,7 +475,7 @@ const AdminSupportPage = () => {
       for (let page = 0; ; page += 1) {
         const { data: pageData, error: pageError } = await (supabase as any)
           .from("support_messages")
-          .select("id,ticket_id,user_id,message,sender,created_at")
+          .select("id,ticket_id,user_id,message,sender,created_at,internal")
           .in("ticket_id", ticketIds)
           .order("created_at", { ascending: false })
           .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
@@ -483,6 +490,7 @@ const AdminSupportPage = () => {
       const adminReplyByTicket = new Set<string>();
 
       for (const message of allMessages) {
+        if (message.internal) continue;
         messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
         const current = lastByTicket.get(message.ticket_id);
         // A saudação automática não deve esconder a dúvida real na fila.
@@ -515,6 +523,9 @@ const AdminSupportPage = () => {
           last_message_sender: lastMessage?.sender ?? null,
           message_count: messageCountByTicket.get(ticket.id) ?? 0,
           has_admin_reply: adminReplyByTicket.has(ticket.id),
+          ai_paused: ticket.ai_paused === true,
+          needs_human: ticket.needs_human === true,
+          needs_human_reason: ticket.needs_human_reason ?? null,
         } satisfies AdminTicket;
       }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
     },
@@ -527,7 +538,8 @@ const AdminSupportPage = () => {
       const matchesView =
         view === "all" ||
         (view === "new" && needsSupportReply(ticket)) ||
-        (view === "in_progress" && !needsSupportReply(ticket) && ticket.has_admin_reply);
+        (view === "in_progress" && !needsSupportReply(ticket) && ticket.has_admin_reply) ||
+        (view === "human" && ticket.needs_human);
       const matchesStatus = matchesTicketStatus(ticket, statusFilter);
       const matchesDate = matchesTicketDate(ticket, dateFilter);
       const matchesSearch =
@@ -722,6 +734,9 @@ const AdminSupportPage = () => {
           .single();
         if (error) throw error;
         await touchSupportTicket(openTicket.id);
+        if (openTicket.needs_human) {
+          await (supabase as any).from("support_tickets").update({ needs_human: false }).eq("id", openTicket.id);
+        }
         return data as SupportMessage;
       } catch (error) {
         if (uploadedPath) await removeSupportImage(uploadedPath);
@@ -866,6 +881,22 @@ const AdminSupportPage = () => {
     onError: () => toast.error("Não foi possível resolver o ticket."),
   });
 
+  const toggleAi = useMutation({
+    mutationFn: async () => {
+      if (!openTicket?.id) return;
+      const { error } = await (supabase as any)
+        .from("support_tickets")
+        .update({ ai_paused: !openTicket.ai_paused })
+        .eq("id", openTicket.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(openTicket?.ai_paused ? "IA retomada nesta conversa." : "IA pausada nesta conversa.");
+      void qc.invalidateQueries({ queryKey: ["admin-support-tickets-crm"] });
+    },
+    onError: () => toast.error("Não foi possível alterar a IA desta conversa."),
+  });
+
   const reopenTicket = useMutation({
     mutationFn: async () => {
       if (!openTicket?.id) return;
@@ -996,6 +1027,8 @@ const AdminSupportPage = () => {
             resolving={closeTicket.isPending}
             onReopen={() => reopenTicket.mutate()}
             reopening={reopenTicket.isPending}
+            onToggleAi={() => toggleAi.mutate()}
+            togglingAi={toggleAi.isPending}
             onEditMessage={(message, text) => editMessage.mutateAsync({ message, text })}
             onDeleteMessage={(message) => deleteMessage.mutateAsync(message)}
             onReplyMessage={(message) => {
@@ -1341,7 +1374,9 @@ const TicketInbox = ({
                   matchesTicketDate(ticket, dateFilter) &&
                   (option.value === "new"
                     ? needsSupportReply(ticket)
-                    : !needsSupportReply(ticket) && ticket.has_admin_reply),
+                    : option.value === "human"
+                      ? ticket.needs_human
+                      : !needsSupportReply(ticket) && ticket.has_admin_reply),
                 ).length;
           return (
             <button
@@ -1715,6 +1750,16 @@ const TicketListItem = ({
           <p className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#252522]">{ticket.user_name || "Usuário sem nome"}</p>
           {hasCustomerUpdate ? <span className="h-2 w-2 shrink-0 rounded-full bg-[#ff725c]" title="Nova mensagem do cliente" /> : null}
         </div>
+        {ticket.needs_human || ticket.ai_paused ? (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {ticket.needs_human ? (
+              <span className="rounded-[5px] border border-[#f5c77e] bg-[#fff6e6] px-1.5 py-0.5 text-[9px] font-semibold text-[#9a5b00]">Humano solicitado pela IA</span>
+            ) : null}
+            {ticket.ai_paused ? (
+              <span className="rounded-[5px] border border-[#e2e3e5] bg-[#f5f5f5] px-1.5 py-0.5 text-[9px] font-semibold text-[#686d76]">IA pausada</span>
+            ) : null}
+          </div>
+        ) : null}
         <p className="mt-1 line-clamp-1 text-[10.5px] font-medium leading-4 text-[#686863]">{ticket.subject || ticket.last_message || meta.label}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5 text-[9.5px] text-[#8e8e88]">
@@ -1745,6 +1790,8 @@ const ConversationPanel = ({
   onSend,
   sending,
   onResolve,
+  onToggleAi,
+  togglingAi,
   resolving,
   onReopen,
   reopening,
@@ -1773,6 +1820,8 @@ const ConversationPanel = ({
   resolving: boolean;
   onReopen: () => void;
   reopening: boolean;
+  onToggleAi: () => void;
+  togglingAi: boolean;
   onEditMessage: (message: SupportMessage, text: string) => Promise<SupportMessage>;
   onDeleteMessage: (message: SupportMessage) => Promise<SupportMessage>;
   onReplyMessage: (message: SupportMessage) => void;
@@ -1854,6 +1903,19 @@ const ConversationPanel = ({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              onClick={onToggleAi}
+              disabled={togglingAi}
+              title={ticket.ai_paused ? "A IA não responde esta conversa" : "A IA responde esta conversa até alguém da equipe responder"}
+              className={`inline-flex h-7 flex-1 items-center justify-center gap-1.5 rounded-full border px-3 text-[10px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition disabled:opacity-50 sm:h-8 sm:flex-none sm:rounded-lg sm:text-[10.5px] ${
+                ticket.ai_paused
+                  ? "border-[#dce6ff] bg-[#eef3ff] text-[#2563EB] hover:bg-[#e2ebff]"
+                  : "border-[#dcdcd7] bg-white text-[#555550] hover:bg-[#f4f4f1]"
+              }`}
+            >
+              {togglingAi ? <Loader2 size={12} className="animate-spin" /> : ticket.ai_paused ? <Play size={12} /> : <Pause size={12} />}
+              {ticket.ai_paused ? "Retomar IA" : "Pausar IA"}
+            </button>
             {closed ? (
               <button
                 onClick={onReopen}
@@ -1892,7 +1954,16 @@ const ConversationPanel = ({
           </div>
         ) : (
           <div className="mx-auto max-w-[820px] space-y-4">
-            {messages.map((message, index) => (
+            {messages.map((message, index) => message.internal ? (
+              <div key={message.id} className="mx-auto flex max-w-[640px] items-start gap-2 rounded-lg border border-[#f5c77e] bg-[#fff6e6] px-3 py-2 text-[11px] leading-5 text-[#7a4a00]">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Aviso interno · visível só para a equipe</p>
+                  <p>{message.message}</p>
+                  <p className="mt-0.5 text-[9.5px] text-[#a0772f]">{formatDateTime(message.created_at)}</p>
+                </div>
+              </div>
+            ) : (
               <ThreadMessage
                 key={message.id}
                 message={message}
@@ -1944,6 +2015,15 @@ const ConversationPanel = ({
             aria-label="Responder ticket"
             value={reply}
             onChange={(event) => setReply(event.target.value)}
+            onPaste={(event) => {
+              if (closed || sending) return;
+              const item = Array.from(event.clipboardData?.items ?? []).find((i) => i.kind === "file" && i.type.startsWith("image/"));
+              const file = item?.getAsFile();
+              if (file) {
+                event.preventDefault();
+                onReplyImage(file);
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -2133,9 +2213,9 @@ const ThreadMessage = ({
           }}
           className={`px-3.5 py-2.5 shadow-[0_3px_12px_rgba(25,35,55,0.055)] sm:px-4 sm:py-3 ${
             admin
-              ? "select-none rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
+              ? "select-text rounded-[18px_18px_5px_18px] bg-[#2f66eb] pr-8 text-white sm:pr-9"
               : automatic
-                ? "select-none rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
+                ? "select-text rounded-[18px_18px_5px_18px] bg-[#eaf1ff] text-[#1f3c76]"
               : "rounded-[18px_18px_18px_5px] border border-[#e3e6eb] bg-white text-[#34363b]"
           }`}
         >

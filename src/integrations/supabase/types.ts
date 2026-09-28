@@ -969,6 +969,24 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_tokens: {
+        Row: {
+          created_at: string
+          name: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          token?: string
+        }
+        Relationships: []
+      }
       dropship_order_events: {
         Row: {
           actor: string
@@ -1424,6 +1442,107 @@ export type Database = {
           },
         ]
       }
+      help_articles: {
+        Row: {
+          category_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          keywords: string[]
+          position: number
+          published_at: string | null
+          search_vector: unknown
+          slug: string
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category_id: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          keywords?: string[]
+          position?: number
+          published_at?: string | null
+          search_vector?: unknown
+          slug: string
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          keywords?: string[]
+          position?: number
+          published_at?: string | null
+          search_vector?: unknown
+          slug?: string
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "help_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          featured: boolean
+          icon: string | null
+          id: string
+          position: number
+          section: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          featured?: boolean
+          icon?: string | null
+          id?: string
+          position?: number
+          section?: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          featured?: boolean
+          icon?: string | null
+          id?: string
+          position?: number
+          section?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       help_feed_comments: {
         Row: {
           author_id: string
@@ -1560,6 +1679,48 @@ export type Database = {
           last_run_at?: string | null
           locked_until?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      landing_events: {
+        Row: {
+          browser_kind: string | null
+          created_at: string
+          detail: string | null
+          device: string | null
+          event: string
+          id: string
+          origem: string | null
+          referrer: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          browser_kind?: string | null
+          created_at?: string
+          detail?: string | null
+          device?: string | null
+          event: string
+          id?: string
+          origem?: string | null
+          referrer?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          browser_kind?: string | null
+          created_at?: string
+          detail?: string | null
+          device?: string | null
+          event?: string
+          id?: string
+          origem?: string | null
+          referrer?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          visitor_id?: string | null
         }
         Relationships: []
       }
@@ -1763,6 +1924,60 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_dimension_fixes: {
+        Row: {
+          after_dimensions: string | null
+          attempts: number
+          before_dimensions: string | null
+          created_at: string
+          error: string | null
+          id: string
+          ml_item_id: string
+          next_attempt_at: string
+          paused_by_velo: boolean
+          processed_at: string | null
+          publication_id: string | null
+          reactivated_at: string | null
+          status: string
+          user_id: string
+          weight_g: number | null
+        }
+        Insert: {
+          after_dimensions?: string | null
+          attempts?: number
+          before_dimensions?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ml_item_id: string
+          next_attempt_at?: string
+          paused_by_velo?: boolean
+          processed_at?: string | null
+          publication_id?: string | null
+          reactivated_at?: string | null
+          status?: string
+          user_id: string
+          weight_g?: number | null
+        }
+        Update: {
+          after_dimensions?: string | null
+          attempts?: number
+          before_dimensions?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          ml_item_id?: string
+          next_attempt_at?: string
+          paused_by_velo?: boolean
+          processed_at?: string | null
+          publication_id?: string | null
+          reactivated_at?: string | null
+          status?: string
+          user_id?: string
+          weight_g?: number | null
+        }
+        Relationships: []
+      }
       ml_image_vision_cache: {
         Row: {
           checked_at: string
@@ -1898,6 +2113,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_seller_readiness: {
+        Row: {
+          can_list: boolean | null
+          checked_at: string
+          codes: string[]
+          created_at: string
+          last_error: string | null
+          ml_user_id: number | null
+          source: string
+          user_id: string
+        }
+        Insert: {
+          can_list?: boolean | null
+          checked_at?: string
+          codes?: string[]
+          created_at?: string
+          last_error?: string | null
+          ml_user_id?: number | null
+          source?: string
+          user_id: string
+        }
+        Update: {
+          can_list?: boolean | null
+          checked_at?: string
+          codes?: string[]
+          created_at?: string
+          last_error?: string | null
+          ml_user_id?: number | null
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ml_webhook_queue: {
         Row: {
           application_id: string | null
@@ -1940,6 +2188,45 @@ export type Database = {
           source?: string
           status?: string
           topic?: string
+        }
+        Relationships: []
+      }
+      mobile_home_events: {
+        Row: {
+          browser_kind: string | null
+          created_at: string
+          detail: string | null
+          device: string | null
+          elapsed_ms: number | null
+          event_name: string
+          id: string
+          product_id: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          browser_kind?: string | null
+          created_at?: string
+          detail?: string | null
+          device?: string | null
+          elapsed_ms?: number | null
+          event_name: string
+          id?: string
+          product_id?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          browser_kind?: string | null
+          created_at?: string
+          detail?: string | null
+          device?: string | null
+          elapsed_ms?: number | null
+          event_name?: string
+          id?: string
+          product_id?: string | null
+          session_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2176,6 +2463,66 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_publications: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          ml_item_id: string | null
+          payload: Json
+          permalink: string | null
+          product_id: string | null
+          published_at: string | null
+          reason: string | null
+          reminder_1d_at: string | null
+          reminder_3d_at: string | null
+          seller_ready_at: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          ml_item_id?: string | null
+          payload: Json
+          permalink?: string | null
+          product_id?: string | null
+          published_at?: string | null
+          reason?: string | null
+          reminder_1d_at?: string | null
+          reminder_3d_at?: string | null
+          seller_ready_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          ml_item_id?: string | null
+          payload?: Json
+          permalink?: string | null
+          product_id?: string | null
+          published_at?: string | null
+          reason?: string | null
+          reminder_1d_at?: string | null
+          reminder_3d_at?: string | null
+          seller_ready_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           aliexpress_access_token: string | null
@@ -2201,10 +2548,16 @@ export type Database = {
           pix_key_type: string | null
           plano: string | null
           refund_cooldown_until: string | null
+          signup_source: string | null
           store_name: string | null
+          terms_accepted_at: string | null
           tutorial_completed: boolean
           updated_at: string
           user_id: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visitor_id: string | null
           whatsapp: string | null
         }
         Insert: {
@@ -2231,10 +2584,16 @@ export type Database = {
           pix_key_type?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
+          signup_source?: string | null
           store_name?: string | null
+          terms_accepted_at?: string | null
           tutorial_completed?: boolean
           updated_at?: string
           user_id: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_id?: string | null
           whatsapp?: string | null
         }
         Update: {
@@ -2261,10 +2620,16 @@ export type Database = {
           pix_key_type?: string | null
           plano?: string | null
           refund_cooldown_until?: string | null
+          signup_source?: string | null
           store_name?: string | null
+          terms_accepted_at?: string | null
           tutorial_completed?: boolean
           updated_at?: string
           user_id?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_id?: string | null
           whatsapp?: string | null
         }
         Relationships: []
@@ -3061,6 +3426,75 @@ export type Database = {
         }
         Relationships: []
       }
+      support_ai_messages: {
+        Row: {
+          archived: boolean
+          content: string
+          created_at: string
+          id: string
+          role: string
+          tool_calls: Json | null
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          tool_calls?: Json | null
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          tool_calls?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      support_escalations: {
+        Row: {
+          assigned_admin: string | null
+          created_at: string
+          id: string
+          ml_diagnostic: Json | null
+          reason: string
+          resolved_at: string | null
+          status: string
+          summary: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_admin?: string | null
+          created_at?: string
+          id?: string
+          ml_diagnostic?: Json | null
+          reason: string
+          resolved_at?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_admin?: string | null
+          created_at?: string
+          id?: string
+          ml_diagnostic?: Json | null
+          reason?: string
+          resolved_at?: string | null
+          status?: string
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       support_messages: {
         Row: {
           attachment_type: string | null
@@ -3068,6 +3502,7 @@ export type Database = {
           created_at: string | null
           edited_at: string | null
           id: string
+          internal: boolean
           message: string
           sender: string
           ticket_id: string
@@ -3079,6 +3514,7 @@ export type Database = {
           created_at?: string | null
           edited_at?: string | null
           id?: string
+          internal?: boolean
           message: string
           sender: string
           ticket_id: string
@@ -3090,6 +3526,7 @@ export type Database = {
           created_at?: string | null
           edited_at?: string | null
           id?: string
+          internal?: boolean
           message?: string
           sender?: string
           ticket_id?: string
@@ -3109,9 +3546,13 @@ export type Database = {
         Row: {
           admin_last_seen_at: string | null
           ai_active: boolean | null
+          ai_paused: boolean
           category: string
           created_at: string | null
           id: string
+          needs_human: boolean
+          needs_human_at: string | null
+          needs_human_reason: string | null
           status: string | null
           subject: string | null
           updated_at: string | null
@@ -3120,9 +3561,13 @@ export type Database = {
         Insert: {
           admin_last_seen_at?: string | null
           ai_active?: boolean | null
+          ai_paused?: boolean
           category?: string
           created_at?: string | null
           id?: string
+          needs_human?: boolean
+          needs_human_at?: string | null
+          needs_human_reason?: string | null
           status?: string | null
           subject?: string | null
           updated_at?: string | null
@@ -3131,9 +3576,13 @@ export type Database = {
         Update: {
           admin_last_seen_at?: string | null
           ai_active?: boolean | null
+          ai_paused?: boolean
           category?: string
           created_at?: string | null
           id?: string
+          needs_human?: boolean
+          needs_human_at?: string | null
+          needs_human_reason?: string | null
           status?: string | null
           subject?: string | null
           updated_at?: string | null
@@ -3657,10 +4106,14 @@ export type Database = {
           cj_variant_id: string | null
           cost_price: number | null
           created_at: string | null
+          dimensions_checked_at: string | null
+          dimensions_ok: boolean | null
           family_name: string | null
           id: string
           ml_closed_at: string | null
           ml_item_id: string
+          package_dimensions: string | null
+          package_weight_g: number | null
           paused_reason: string | null
           permalink: string | null
           price: number | null
@@ -3682,10 +4135,14 @@ export type Database = {
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
+          dimensions_checked_at?: string | null
+          dimensions_ok?: boolean | null
           family_name?: string | null
           id?: string
           ml_closed_at?: string | null
           ml_item_id: string
+          package_dimensions?: string | null
+          package_weight_g?: number | null
           paused_reason?: string | null
           permalink?: string | null
           price?: number | null
@@ -3707,10 +4164,14 @@ export type Database = {
           cj_variant_id?: string | null
           cost_price?: number | null
           created_at?: string | null
+          dimensions_checked_at?: string | null
+          dimensions_ok?: boolean | null
           family_name?: string | null
           id?: string
           ml_closed_at?: string | null
           ml_item_id?: string
+          package_dimensions?: string | null
+          package_weight_g?: number | null
           paused_reason?: string | null
           permalink?: string | null
           price?: number | null
@@ -3834,6 +4295,22 @@ export type Database = {
       }
     }
     Views: {
+      help_center_documents: {
+        Row: {
+          category_slug: string | null
+          category_title: string | null
+          content: string | null
+          id: string | null
+          keywords: string[] | null
+          path: string | null
+          published_at: string | null
+          slug: string | null
+          summary: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       ml_orders_view: {
         Row: {
           buyer_address: string | null
@@ -4108,6 +4585,14 @@ export type Database = {
           variants: Json
         }[]
       }
+      mobile_catalog_popularity: {
+        Args: never
+        Returns: {
+          product_id: string
+          publication_count: number
+        }[]
+      }
+      rpc_active_subscribers_count: { Args: never; Returns: number }
       rpc_admin_accept_affiliate_application: {
         Args: { p_user_id: string }
         Returns: Json
@@ -4124,12 +4609,112 @@ export type Database = {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
       }
+      rpc_admin_cohort_entry: {
+        Args: { p_days?: number; p_offset_days?: number }
+        Returns: {
+          direto: number
+          total: number
+          via_landing: number
+        }[]
+      }
+      rpc_admin_cohort_funnel: {
+        Args: {
+          p_browser?: string
+          p_days?: number
+          p_device?: string
+          p_offset_days?: number
+          p_origem?: string
+        }
+        Returns: {
+          definicao: string
+          etapa: string
+          medicao_desde: string
+          nao_precisava: number
+          ordem: number
+          pessoas: number
+        }[]
+      }
+      rpc_admin_error_breakdown: {
+        Args: { p_days?: number }
+        Returns: {
+          motivo: string
+          ocorrencias: number
+          pessoas: number
+          tipo: string
+        }[]
+      }
       rpc_admin_exit_pages: {
         Args: { p_days?: number; p_limit?: number }
         Returns: {
           path: string
           percentual: number
           saidas: number
+        }[]
+      }
+      rpc_admin_full_funnel: {
+        Args: {
+          p_browser?: string
+          p_days?: number
+          p_device?: string
+          p_offset_days?: number
+          p_origem?: string
+        }
+        Returns: {
+          definicao: string
+          etapa: string
+          ordem: number
+          pessoas: number
+        }[]
+      }
+      rpc_admin_landing_funnel: {
+        Args: { p_days?: number }
+        Returns: {
+          evento: string
+          total: number
+          visitantes: number
+        }[]
+      }
+      rpc_admin_paid_not_published: {
+        Args: { p_days?: number }
+        Returns: {
+          apto: boolean
+          categoria: string
+          conectado_em: string
+          detalhe: string
+          dias_parado: number
+          email: string
+          nome: string
+          pago_em: string
+          plano: string
+          ultima_verificacao: string
+          user_id: string
+          whatsapp: string
+        }[]
+      }
+      rpc_admin_paid_not_published_summary: {
+        Args: { p_days?: number }
+        Returns: {
+          categoria: string
+          mediana_dias: number
+          pessoas: number
+        }[]
+      }
+      rpc_admin_paid_without_seller: {
+        Args: { p_days?: number }
+        Returns: {
+          ativaram: number
+          horas_medias: number
+          pagaram: number
+          reembolsos: number
+        }[]
+      }
+      rpc_admin_paid_without_seller_cohort: {
+        Args: { p_days?: number }
+        Returns: {
+          ativaram: number
+          horas_medias: number
+          pagaram: number
+          reembolsos: number
         }[]
       }
       rpc_admin_paying_daily: {
@@ -4158,6 +4743,15 @@ export type Database = {
       rpc_admin_remove_affiliate: {
         Args: { p_code?: string; p_user_id?: string }
         Returns: Json
+      }
+      rpc_admin_signup_funnel: {
+        Args: { p_days?: number }
+        Returns: {
+          detalhe: string
+          evento: string
+          total: number
+          visitantes: number
+        }[]
       }
       rpc_admin_store_sales: {
         Args: { p_limit?: number; p_status?: string }
@@ -4251,6 +4845,20 @@ export type Database = {
           usuarios: number
         }[]
       }
+      rpc_landing_stats: { Args: never; Returns: Json }
+      rpc_landing_track: {
+        Args: {
+          p_browser?: string
+          p_device?: string
+          p_event: string
+          p_origem?: string
+          p_referrer?: string
+          p_utm_campaign?: string
+          p_utm_medium?: string
+          p_visitor_id?: string
+        }
+        Returns: boolean
+      }
       rpc_ml_reconnect_required: { Args: never; Returns: boolean }
       rpc_record_affiliate_visit: {
         Args: {
@@ -4260,6 +4868,32 @@ export type Database = {
           p_visitor_id?: string
         }
         Returns: boolean
+      }
+      rpc_signup_track: {
+        Args: {
+          p_browser?: string
+          p_detail?: string
+          p_device?: string
+          p_event: string
+          p_origem?: string
+          p_referrer?: string
+          p_visitor_id?: string
+        }
+        Returns: boolean
+      }
+      search_help_articles: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          category_slug: string
+          category_title: string
+          content: string
+          id: string
+          path: string
+          rank: number
+          slug: string
+          summary: string
+          title: string
+        }[]
       }
       set_aliexpress_cron_active: {
         Args: { p_active: boolean }

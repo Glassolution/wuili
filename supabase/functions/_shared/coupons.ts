@@ -1,6 +1,6 @@
 // Cupons promocionais da Velo.
 // Regra atual: VELONACIONAL = 20% de desconto na PRIMEIRA cobrança,
-// válido só no ciclo mensal e apenas nos planos Pro (R$ 79,80) e Business (R$ 159,60).
+// válido só no ciclo mensal e apenas nos planos Pro (R$ 79,80) e Business (R$ 189,90).
 // A validação definitiva acontece na edge function `validapay-checkout`.
 
 export type CouponRule = {

@@ -37,7 +37,44 @@
     <meta name="theme-color" content="#2563EB" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@100..900&family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Inter:wght@200..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,400;1,500;1,600;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!--
+      As fontes do Google deixaram de bloquear o primeiro desenho da tela.
+      media="print" faz o navegador baixar sem esperar; o onload devolve para
+      "all" assim que o arquivo chega. Num 4G de celular simples isso é a
+      diferença entre ver o título em 1s ou esperar o CSS de 7 famílias.
+      O texto aparece antes na fonte do sistema e troca quando a fonte chega.
+    -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@100..900&family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Inter:wght@200..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,400;1,500;1,600;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@100..900&family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Inter:wght@200..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,400;1,500;1,600;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    </noscript>
+    <script>
+      /*
+        Só na landing: manda buscar a foto do topo antes mesmo de o JavaScript
+        do app baixar e montar a página. É o maior elemento da primeira tela —
+        quem chega do Instagram no 4G espera por ela.
+        Fica dentro do if porque o index.html é o mesmo de todas as rotas: no
+        painel essa foto não aparece e o download seria desperdício.
+      */
+      if (window.location.pathname === "/") {
+        var fotoTopo = document.createElement("link");
+        fotoTopo.rel = "preload";
+        fotoTopo.as = "image";
+        fotoTopo.type = "image/webp";
+        fotoTopo.href = "/landing/pessoa-01-640.webp";
+        fotoTopo.setAttribute(
+          "imagesrcset",
+          "/landing/pessoa-01-640.webp 640w, /landing/pessoa-01-960.webp 960w, /landing/pessoa-01-1280.webp 1280w, /landing/pessoa-01-1672.webp 1672w"
+        );
+        fotoTopo.setAttribute("imagesizes", "100vw");
+        document.head.appendChild(fotoTopo);
+      }
+    </script>
     
     
     
@@ -52,7 +89,6 @@
 </head>
   <body>
     <div id="root"></div>
-    <script src="https://sdk.mercadopago.com/js/v2"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
