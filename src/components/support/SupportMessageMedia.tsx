@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Download, ExternalLink, Image as ImageIcon, X } from "lucide-react";
 import { parseSupportMessage } from "@/lib/support";
+import { renderSupportTextWithLinks } from "@/lib/supportLinks";
 
 type SupportMessageMediaProps = {
   value: string;
