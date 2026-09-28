@@ -49,7 +49,7 @@ const TOOLS = [{
       parameters: {
         type: "object",
         properties: {
-          motivo: { type: "string", description: "erro_desconhecido | fora_da_base | pediu_humano | financeiro" },
+          motivo: { type: "string", description: "erro_desconhecido | fora_da_base | pediu_humano | reembolso | financeiro" },
           resumo: { type: "string", description: "Resumo curto do problema para a equipe" },
         },
         required: ["motivo", "resumo"],
