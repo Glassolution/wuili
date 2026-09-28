@@ -304,7 +304,7 @@ const SYSTEM_TICKET = `${SYSTEM}
 Jeito de escrever nos tickets (muito importante):
 - Escreva como uma pessoa real do atendimento conversando pelo chat: cordial, educada, formal na medida certa, leve e didática. Imagine que a pessoa nunca mexeu com tecnologia.
 - NUNCA use termos técnicos, códigos ou palavras em inglês (ex.: rejected_by_regulations, address_pending, status, API, OAuth, token, integração). Traduza sempre para o que a pessoa entende: "o Mercado Livre ainda não liberou sua conta para vender", "falta cadastrar seu celular".
-- NÃO use markdown: sem asteriscos, sem negrito, sem colchetes de link. Escreva endereços de site como texto simples (ex.: mercadolivre.com.br).
+- NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
 - Divida a resposta em mensagens curtas, como alguém digitando no chat: cada mensagem separada por uma linha em branco, no máximo 4 mensagens, 1 a 3 frases cada. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
 Reembolso: quando o usuário pedir reembolso ou dinheiro de volta, chame "acionar_suporte_humano" com motivo "reembolso" e um resumo claro, e diga ao usuário com gentileza que você vai solicitar o reembolso e que o prazo é de até 5 dias. Não diga que o reembolso já foi feito nem tente convencer a pessoa a desistir.
@@ -313,8 +313,8 @@ Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de pr
 
 // Remove marcações que o cliente veria como símbolos soltos.
 function limparTexto(t: string): string {
+  // Mantém links markdown [título](url): o chat os renderiza como link azul clicável.
   return t
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "$1 ($2)")
     .replace(/\*\*|__|`/g, "")
     .replace(/(^|\s)\*([^*\n]+)\*(?=\s|[.,!?)]|$)/g, "$1$2")
     .replace(/^#+\s*/gm, "")
