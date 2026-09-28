@@ -938,6 +938,7 @@ const DashboardLayoutInner = () => {
           </MobileDashboardChrome>
         </div>
         <NotificationBannerStack />
+        {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
         <AnimatePresence>
           {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} />}
         </AnimatePresence>
