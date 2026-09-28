@@ -436,8 +436,10 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     escalou = true;
     reply = AVISO_ESPERA;
   }
-  if (reembolso && !/5 dias/.test(reply)) reply = `${reply}\n\n${AVISO_REEMBOLSO}`;
-  if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
+  if (reembolso) {
+    // Resposta única e fixa para reembolso: evita a IA repetir o mesmo aviso várias vezes.
+    reply = `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`;
+  } else if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   const mensagens = dividirMensagens(reply);
   for (let i = 0; i < mensagens.length; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, Math.min(3500, 900 + mensagens[i].length * 18)));
