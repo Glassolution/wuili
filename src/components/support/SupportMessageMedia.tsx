@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Download, ExternalLink, Image as ImageIcon, X } from "lucide-react";
 import { parseSupportMessage } from "@/lib/support";
+import { renderSupportTextWithLinks } from "@/lib/supportLinks";
 
 type SupportMessageMediaProps = {
   value: string;
@@ -106,7 +107,16 @@ export const SupportMessageMedia = ({
               </button>
             )
           ) : null}
-          {text ? <p className={textClassName}>{text}</p> : null}
+          {text ? (
+            <p className={textClassName}>
+              {renderSupportTextWithLinks(
+                text,
+                adminTone
+                  ? "font-semibold text-white underline decoration-white/70 underline-offset-2 hover:decoration-white"
+                  : "font-semibold text-[#2563EB] underline decoration-[#2563EB]/50 underline-offset-2 transition hover:text-[#1D4ED8] hover:decoration-[#1D4ED8]",
+              )}
+            </p>
+          ) : null}
         </div>
       )}
 
