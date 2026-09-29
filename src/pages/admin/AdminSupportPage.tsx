@@ -779,7 +779,7 @@ const AdminSupportPage = () => {
         .from("support_messages")
         .update({ message: nextMessage })
         .eq("id", message.id)
-        .eq("sender", "admin")
+        .in("sender", ["admin", "ai"])
         .select("*")
         .single();
       if (error) throw error;
