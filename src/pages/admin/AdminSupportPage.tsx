@@ -780,10 +780,11 @@ const AdminSupportPage = () => {
         .update({ message: nextMessage })
         .eq("id", message.id)
         .in("sender", ["admin", "ai"])
-        .select("*")
-        .single();
+        .select("*");
       if (error) throw error;
-      return data as SupportMessage;
+      // Update que não casa nenhuma linha (filtro ou RLS) não gera erro, só volta vazio.
+      if (!data?.length) throw new Error("mensagem não encontrada ou sem permissão para editá-la.");
+      return data[0] as SupportMessage;
     },
     onSuccess: (updated) => {
       qc.setQueryData<SupportMessage[]>(
@@ -794,7 +795,9 @@ const AdminSupportPage = () => {
       toast.success("Mensagem atualizada.");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Não foi possível editar a mensagem.");
+      console.error(error);
+      const detail = (error as { message?: string } | null)?.message;
+      toast.error(detail ? `Não foi possível editar a mensagem: ${detail}` : "Não foi possível editar a mensagem.");
     },
   });
 

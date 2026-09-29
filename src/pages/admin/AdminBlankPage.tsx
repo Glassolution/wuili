@@ -28,6 +28,7 @@ import {
   AdminTableHeader,
 } from "@/components/admin/AdminPrimitives";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages, fetchUserIdentities, type AdminUserIdentity } from "@/lib/adminWalletFetch";
 import type { Database } from "@/integrations/supabase/types";
 
 type SubscriptionRow = Pick<
@@ -77,21 +78,8 @@ type FinanceActivity = {
   source: "validapay" | "database";
 };
 
-type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
-  "user_id" | "display_name" | "email"
->;
-
-type AdminUserIdentity = {
-  user_id: string;
-  name: string | null;
-  email: string | null;
-};
-
 type WalletData = {
   subscriptions: SubscriptionRow[];
-  profiles: ProfileRow[];
-  users: AdminUserIdentity[];
   refunds: RefundRow[];
   validapayEvents: ValidaPayEventRow[];
   validapayAvailable: boolean;
@@ -126,8 +114,6 @@ type FinanceData = {
 
 const EMPTY_DATA: WalletData = {
   subscriptions: [],
-  profiles: [],
-  users: [],
   refunds: [],
   validapayEvents: [],
   validapayAvailable: false,
@@ -505,61 +491,30 @@ const buildBuckets = (range: PeriodRange, grouping: Grouping) => {
   return buckets;
 };
 
-const fetchAllSubscriptions = async () => {
-  const rows: SubscriptionRow[] = [];
-  const pageSize = 1000;
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
+const fetchAllSubscriptions = () =>
+  fetchAllPages<SubscriptionRow>((from, to) =>
+    supabase
       .from("subscriptions")
       .select("id,user_id,plan,amount,status,payment_method,mp_payment_id,provider,validapay_charge_id,validapay_subscription_id,charge_attempts,last_charge_attempt_at,current_period_start,current_period_end,next_charge_at,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    const page = (data ?? []) as SubscriptionRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  return rows;
-};
-
-const fetchAllProfiles = async () => {
-  const rows: ProfileRow[] = [];
-  const pageSize = 1000;
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("user_id,display_name,email")
-      .order("created_at", { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    const page = (data ?? []) as ProfileRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  return rows;
-};
+      .order("id")
+      .range(from, to),
+  );
 
 const fetchAllValidaPayEvents = async () => {
-  const rows: ValidaPayEventRow[] = [];
-  const pageSize = 1000;
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("validapay_webhook_events")
-      .select("id,event,charge_id,subscription_id,payment_id,status,amount,payload,created_at")
-      .order("created_at", { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) return { rows: [], available: false };
-    const page = (data ?? []) as ValidaPayEventRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
+  try {
+    const rows = await fetchAllPages<ValidaPayEventRow>((from, to) =>
+      supabase
+        .from("validapay_webhook_events")
+        .select("id,event,charge_id,subscription_id,payment_id,status,amount,payload,created_at")
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    );
+    return { rows, available: true };
+  } catch {
+    return { rows: [] as ValidaPayEventRow[], available: false };
   }
-
-  return { rows, available: true };
 };
 
 const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
@@ -577,9 +532,9 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Pr
 };
 
 const fetchWalletData = async (): Promise<WalletData> => {
-  const [subscriptions, profiles, refunds, adminUsers, validapay] = await Promise.all([
+  // Nomes e e-mails vêm à parte (fetchUserIdentities), só para quem aparece na tela.
+  const [subscriptions, refunds, validapay] = await Promise.all([
     withTimeout(fetchAllSubscriptions(), 20_000, [] as SubscriptionRow[]),
-    withTimeout(fetchAllProfiles(), 20_000, [] as ProfileRow[]),
     withTimeout(
       supabase
         .from("refund_requests")
@@ -589,22 +544,11 @@ const fetchWalletData = async (): Promise<WalletData> => {
       20_000,
       { data: [] as RefundRow[], error: null } as { data: RefundRow[] | null; error: unknown },
     ),
-    // admin-users é pesado (lista todos os usuários do auth); nunca deve travar a carteira
-    withTimeout(
-      supabase.functions.invoke("admin-users") as Promise<{
-        data: AdminUserIdentity[] | null;
-        error: unknown;
-      }>,
-      8_000,
-      { data: null, error: null },
-    ),
     withTimeout(fetchAllValidaPayEvents(), 20_000, { rows: [] as ValidaPayEventRow[], available: false }),
   ]);
 
   return {
     subscriptions,
-    profiles,
-    users: Array.isArray(adminUsers.data) ? adminUsers.data : [],
     refunds: Array.isArray(refunds.data) ? refunds.data : [],
     validapayEvents: validapay.rows,
     validapayAvailable: validapay.available,
@@ -790,7 +734,8 @@ const AdminPainelPage = () => {
   const { data = EMPTY_DATA, isLoading, isError, isFetching } = useQuery({
     queryKey: ["admin-wallet-v8-validapay-only"],
     queryFn: fetchWalletData,
-    refetchInterval: 30_000,
+    // Recarregar tudo a cada 30s sobrecarregava o banco; o foco na aba também atualiza.
+    refetchInterval: 5 * 60_000,
     retry: 1,
   });
   const {
@@ -801,26 +746,13 @@ const AdminPainelPage = () => {
   } = useQuery({
     queryKey: ["admin-wallet-finance-v2-validapay-only", period],
     queryFn: () => fetchFinanceData(period),
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
   });
 
   useEffect(() => {
     window.localStorage.setItem(PERIOD_STORAGE_KEY, period);
   }, [period]);
-
-  const identitiesByUser = useMemo(() => {
-    const identities = new Map<string, AdminUserIdentity>();
-    data.profiles.forEach((profile) => {
-      identities.set(profile.user_id, {
-        user_id: profile.user_id,
-        name: profile.display_name,
-        email: profile.email,
-      });
-    });
-    data.users.forEach((user) => identities.set(user.user_id, user));
-    return identities;
-  }, [data.profiles, data.users]);
 
   const uniqueSubscriptions = useMemo(
     () => deduplicateSubscriptions(data.subscriptions),
@@ -1063,6 +995,29 @@ const AdminPainelPage = () => {
       (left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
     ),
     [databaseActivities, validapayActivities],
+  );
+
+  // Nomes só de quem aparece na tela; os números não esperam por eles para aparecer.
+  const identityUserIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          [...paymentActivities.map((activity) => activity.user_id), ...visibleSubscriptions.map((subscription) => subscription.user_id)]
+            .filter((id): id is string => !!id),
+        ),
+      ].sort(),
+    [paymentActivities, visibleSubscriptions],
+  );
+  const { data: identities } = useQuery({
+    queryKey: ["admin-wallet-identities", identityUserIds],
+    queryFn: () => fetchUserIdentities(identityUserIds),
+    enabled: identityUserIds.length > 0,
+    staleTime: 10 * 60_000,
+    placeholderData: (previous) => previous,
+  });
+  const identitiesByUser = useMemo(
+    () => new Map<string, AdminUserIdentity>((identities ?? []).map((identity) => [identity.user_id, identity])),
+    [identities],
   );
   const normalizedActivitySearch = activitySearch.trim().toLocaleLowerCase("pt-BR");
   const filteredPaymentActivities = useMemo(

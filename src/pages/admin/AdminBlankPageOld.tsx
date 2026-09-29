@@ -17,7 +17,6 @@ import {
   ChevronRight,
   CircleDollarSign,
   Download,
-  MoreHorizontal,
   ShoppingBag,
   X,
   UserMinus,
@@ -25,6 +24,7 @@ import {
 } from "lucide-react";
 import { OldAdminShell } from "@/components/admin/OldAdminShell";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPages, fetchUserIdentities, type AdminUserIdentity } from "@/lib/adminWalletFetch";
 import type { Database } from "@/integrations/supabase/types";
 
 type SubscriptionRow = Pick<
@@ -74,21 +74,8 @@ type FinanceActivity = {
   source: "validapay" | "database";
 };
 
-type ProfileRow = Pick<
-  Database["public"]["Tables"]["profiles"]["Row"],
-  "user_id" | "display_name" | "email"
->;
-
-type AdminUserIdentity = {
-  user_id: string;
-  name: string | null;
-  email: string | null;
-};
-
 type WalletData = {
   subscriptions: SubscriptionRow[];
-  profiles: ProfileRow[];
-  users: AdminUserIdentity[];
   refunds: RefundRow[];
   validapayEvents: ValidaPayEventRow[];
   validapayAvailable: boolean;
@@ -123,8 +110,6 @@ type FinanceData = {
 
 const EMPTY_DATA: WalletData = {
   subscriptions: [],
-  profiles: [],
-  users: [],
   refunds: [],
   validapayEvents: [],
   validapayAvailable: false,
@@ -298,6 +283,14 @@ const getBelemDateKey = (value: string | Date) => {
   return `${part("year")}-${part("month")}-${part("day")}`;
 };
 
+/** Hora (0–23) no fuso de Belém, usada no gráfico hora a hora do período "Hoje". */
+const getBelemHour = (value: string | Date) =>
+  Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "America/Belem", hour: "2-digit", hourCycle: "h23" }).format(
+      typeof value === "string" ? new Date(value) : value,
+    ),
+  );
+
 const isInPeriod = (value: string | null, period: Period) => {
   if (!value) return false;
   const valueKey = getBelemDateKey(value);
@@ -312,61 +305,30 @@ const isInPeriod = (value: string | null, period: Period) => {
   return false;
 };
 
-const fetchAllSubscriptions = async () => {
-  const rows: SubscriptionRow[] = [];
-  const pageSize = 1000;
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
+const fetchAllSubscriptions = () =>
+  fetchAllPages<SubscriptionRow>((from, to) =>
+    supabase
       .from("subscriptions")
       .select("id,user_id,plan,amount,status,payment_method,mp_payment_id,provider,validapay_charge_id,validapay_subscription_id,charge_attempts,last_charge_attempt_at,current_period_start,current_period_end,next_charge_at,created_at,updated_at")
       .order("updated_at", { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    const page = (data ?? []) as SubscriptionRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  return rows;
-};
-
-const fetchAllProfiles = async () => {
-  const rows: ProfileRow[] = [];
-  const pageSize = 1000;
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("user_id,display_name,email")
-      .order("created_at", { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    const page = (data ?? []) as ProfileRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
-  }
-
-  return rows;
-};
+      .order("id")
+      .range(from, to),
+  );
 
 const fetchAllValidaPayEvents = async () => {
-  const rows: ValidaPayEventRow[] = [];
-  const pageSize = 1000;
-
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from("validapay_webhook_events")
-      .select("id,event,charge_id,subscription_id,payment_id,status,amount,payload,created_at")
-      .order("created_at", { ascending: false })
-      .range(from, from + pageSize - 1);
-    if (error) return { rows: [], available: false };
-    const page = (data ?? []) as ValidaPayEventRow[];
-    rows.push(...page);
-    if (page.length < pageSize) break;
+  try {
+    const rows = await fetchAllPages<ValidaPayEventRow>((from, to) =>
+      supabase
+        .from("validapay_webhook_events")
+        .select("id,event,charge_id,subscription_id,payment_id,status,amount,payload,created_at")
+        .order("created_at", { ascending: false })
+        .order("id")
+        .range(from, to),
+    );
+    return { rows, available: true };
+  } catch {
+    return { rows: [] as ValidaPayEventRow[], available: false };
   }
-
-  return { rows, available: true };
 };
 
 const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
@@ -384,9 +346,9 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Pr
 };
 
 const fetchWalletData = async (): Promise<WalletData> => {
-  const [subscriptions, profiles, refunds, adminUsers, validapay] = await Promise.all([
+  // Nomes e e-mails vêm à parte (fetchUserIdentities), só para quem aparece na tela.
+  const [subscriptions, refunds, validapay] = await Promise.all([
     withTimeout(fetchAllSubscriptions(), 20_000, [] as SubscriptionRow[]),
-    withTimeout(fetchAllProfiles(), 20_000, [] as ProfileRow[]),
     withTimeout(
       supabase
         .from("refund_requests")
@@ -396,22 +358,11 @@ const fetchWalletData = async (): Promise<WalletData> => {
       20_000,
       { data: [] as RefundRow[], error: null } as { data: RefundRow[] | null; error: unknown },
     ),
-    // admin-users é pesado (lista todos os usuários do auth); nunca deve travar a carteira
-    withTimeout(
-      supabase.functions.invoke("admin-users") as Promise<{
-        data: AdminUserIdentity[] | null;
-        error: unknown;
-      }>,
-      8_000,
-      { data: null, error: null },
-    ),
     withTimeout(fetchAllValidaPayEvents(), 20_000, { rows: [] as ValidaPayEventRow[], available: false }),
   ]);
 
   return {
     subscriptions,
-    profiles,
-    users: Array.isArray(adminUsers.data) ? adminUsers.data : [],
     refunds: (refunds.data as RefundRow[] | null) ?? [],
     validapayEvents: validapay.rows,
     validapayAvailable: validapay.available,
@@ -572,13 +523,15 @@ const getValidaPayEventKey = (row: ValidaPayEventRow) =>
 const AdminPainelPage = () => {
   const [period, setPeriod] = useState<Period>(getStoredPeriod);
   const [activityPage, setActivityPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<ActivityStatusFilter>("all");
   const [salesChartOpen, setSalesChartOpen] = useState(false);
   const activitySectionRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
   const { data = EMPTY_DATA, isLoading, isError, isFetching } = useQuery({
     queryKey: ["admin-wallet-v8-validapay-only"],
     queryFn: fetchWalletData,
-    refetchInterval: 30_000,
+    // Recarregar tudo a cada 30s sobrecarregava o banco; o foco na aba também atualiza.
+    refetchInterval: 5 * 60_000,
     retry: 1,
   });
   const {
@@ -589,26 +542,13 @@ const AdminPainelPage = () => {
   } = useQuery({
     queryKey: ["admin-wallet-finance-v2-validapay-only", period],
     queryFn: () => fetchFinanceData(period),
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
     retry: 1,
   });
 
   useEffect(() => {
     window.localStorage.setItem(PERIOD_STORAGE_KEY, period);
   }, [period]);
-
-  const identitiesByUser = useMemo(() => {
-    const identities = new Map<string, AdminUserIdentity>();
-    data.profiles.forEach((profile) => {
-      identities.set(profile.user_id, {
-        user_id: profile.user_id,
-        name: profile.display_name,
-        email: profile.email,
-      });
-    });
-    data.users.forEach((user) => identities.set(user.user_id, user));
-    return identities;
-  }, [data.profiles, data.users]);
 
   const uniqueSubscriptions = useMemo(
     () => deduplicateSubscriptions(data.subscriptions),
@@ -844,22 +784,53 @@ const AdminPainelPage = () => {
     ),
     [databaseActivities, validapayActivities],
   );
+
+  // Nomes só de quem aparece na tela; os números não esperam por eles para aparecer.
+  const identityUserIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          [...paymentActivities.map((activity) => activity.user_id), ...visibleSubscriptions.map((subscription) => subscription.user_id)]
+            .filter((id): id is string => !!id),
+        ),
+      ].sort(),
+    [paymentActivities, visibleSubscriptions],
+  );
+  const { data: identities } = useQuery({
+    queryKey: ["admin-wallet-identities", identityUserIds],
+    queryFn: () => fetchUserIdentities(identityUserIds),
+    enabled: identityUserIds.length > 0,
+    staleTime: 10 * 60_000,
+    placeholderData: (previous) => previous,
+  });
+  const identitiesByUser = useMemo(
+    () => new Map<string, AdminUserIdentity>((identities ?? []).map((identity) => [identity.user_id, identity])),
+    [identities],
+  );
   const usePaymentActivities = data.validapayAvailable;
-  const activityCount = usePaymentActivities ? paymentActivities.length : visibleSubscriptions.length;
+  const filteredPaymentActivities = useMemo(
+    () => paymentActivities.filter((activity) => matchesActivityStatus(activity.status, statusFilter)),
+    [paymentActivities, statusFilter],
+  );
+  const filteredSubscriptions = useMemo(
+    () => visibleSubscriptions.filter((subscription) => matchesActivityStatus(subscription.status, statusFilter)),
+    [statusFilter, visibleSubscriptions],
+  );
+  const activityCount = usePaymentActivities ? filteredPaymentActivities.length : filteredSubscriptions.length;
   const activityTotalPages = Math.max(1, Math.ceil(activityCount / ACTIVITY_PAGE_SIZE));
   const activityPageStart = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
-  const paginatedPaymentActivities = paymentActivities.slice(
+  const paginatedPaymentActivities = filteredPaymentActivities.slice(
     activityPageStart,
     activityPageStart + ACTIVITY_PAGE_SIZE,
   );
-  const paginatedSubscriptions = visibleSubscriptions.slice(
+  const paginatedSubscriptions = filteredSubscriptions.slice(
     activityPageStart,
     activityPageStart + ACTIVITY_PAGE_SIZE,
   );
 
   useEffect(() => {
     setActivityPage(1);
-  }, [period]);
+  }, [period, statusFilter]);
 
   useEffect(() => {
     setActivityPage((current) => Math.min(current, activityTotalPages));
@@ -899,11 +870,14 @@ const AdminPainelPage = () => {
     : (churnBase > 0 ? churnedSubscriptionsInPeriod.length / churnBase : 0);
   const periodContext = getPeriodContext(period);
 
+  // Um ponto por dia, só dentro do período: semana = últimos 7 dias, mês = do dia 1 até hoje.
   const chartBuckets = useMemo(() => {
     const now = new Date();
-    return Array.from({ length: 14 }, (_, index) => {
+    const todayKey = getBelemDateKey(now);
+    const length = period === "month" ? Number(todayKey.slice(8, 10)) : period === "week" ? 7 : 1;
+    return Array.from({ length }, (_, index) => {
       const date = new Date(now);
-      date.setDate(now.getDate() - (13 - index));
+      date.setDate(now.getDate() - (length - 1 - index));
       return {
         key: getBelemDateKey(date),
         label: new Intl.DateTimeFormat("pt-BR", {
@@ -913,7 +887,7 @@ const AdminPainelPage = () => {
         }).format(date),
       };
     });
-  }, []);
+  }, [period]);
 
   const localRevenueSeries = useMemo(() => {
     return chartBuckets.map(({ key }) =>
@@ -941,6 +915,32 @@ const AdminPainelPage = () => {
   }, [chartBuckets, validapayActivities]);
 
   const salesChartData = useMemo(() => {
+    if (period === "day") {
+      // "Hoje" mostra só o dia atual, hora a hora, em vez dos últimos 14 dias.
+      const todayKey = getBelemDateKey(new Date());
+      const isTodayAt = (value: string | null | undefined, hour: number) =>
+        Boolean(value) && getBelemDateKey(value as string) === todayKey && getBelemHour(value as string) === hour;
+      return Array.from({ length: 24 }, (_, hour) => {
+        const receita = approvedValidaPayActivities.reduce(
+          (sum, item) => (isTodayAt(item.created_at, hour) ? sum + item.amount : sum),
+          0,
+        );
+        const saidas = validapayActivities.reduce(
+          (sum, item) => (item.status === "refunded" && isTodayAt(item.created_at, hour) ? sum + item.amount : sum),
+          0,
+        );
+        const vendas =
+          approvedValidaPayActivities.filter((item) => isTodayAt(item.created_at, hour)).length +
+          paidSubscriptionsInPeriod.filter((subscription) => isTodayAt(subscriptionEventAt(subscription), hour)).length;
+        return {
+          label: `${String(hour).padStart(2, "0")}h`,
+          vendas,
+          receita,
+          liquido: Math.max(receita - saidas, 0),
+        };
+      });
+    }
+
     return chartBuckets.map((bucket, index) => {
       const receita = localRevenueSeries[index] ?? 0;
       const saidas = localCostSeries[index] ?? 0;
@@ -951,7 +951,16 @@ const AdminPainelPage = () => {
         liquido: Math.max(receita - saidas, 0),
       };
     });
-  }, [chartBuckets, localCostSeries, localRevenueSeries, localSalesCountSeries]);
+  }, [
+    approvedValidaPayActivities,
+    chartBuckets,
+    localCostSeries,
+    localRevenueSeries,
+    localSalesCountSeries,
+    paidSubscriptionsInPeriod,
+    period,
+    validapayActivities,
+  ]);
 
   const salesChartTotals = useMemo(() => {
     const sales = salesChartData.reduce((sum, item) => sum + item.vendas, 0);
@@ -1077,6 +1086,7 @@ const AdminPainelPage = () => {
               data={salesChartData}
               loading={financialDataLoading}
               periodLabel={periodContext}
+              hourly={period === "day"}
               totals={salesChartTotals}
               onClose={() => setSalesChartOpen(false)}
             />
@@ -1160,10 +1170,13 @@ const AdminPainelPage = () => {
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-[18px] font-semibold tracking-[-0.03em]">Atividade recente</h2>
             <div className="flex items-center gap-3">
+              <DropdownFilter<ActivityStatusFilter>
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={ACTIVITY_STATUS_OPTIONS}
+                ariaLabel="Filtrar por status"
+              />
               <PeriodFilter value={period} onChange={setPeriod} />
-              <button type="button" aria-label="Mais opções" className="grid h-8 w-8 place-items-center rounded-full text-[#73736f] hover:bg-[#f4f4f2]">
-                <MoreHorizontal size={17} />
-              </button>
             </div>
           </div>
 
@@ -1359,12 +1372,14 @@ const SalesChartModal = ({
   data,
   loading,
   periodLabel,
+  hourly,
   totals,
   onClose,
 }: {
   data: SalesChartDatum[];
   loading: boolean;
   periodLabel: string;
+  hourly: boolean;
   totals: { sales: number; revenue: number; averageTicket: number };
   onClose: () => void;
 }) => {
@@ -1399,7 +1414,11 @@ const SalesChartModal = ({
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#8d8d87]">Vendas</p>
             <h2 className="mt-1 text-[18px] font-semibold tracking-[-0.035em] text-[#171717]">Gráfico de vendas</h2>
-            <p className="mt-1 text-[11px] text-[#8f8f89]">Receita confirmada {periodLabel} nos últimos 14 dias.</p>
+            <p className="mt-1 text-[11px] text-[#8f8f89]">
+              {hourly
+                ? `Receita confirmada ${periodLabel}, hora a hora.`
+                : `Receita confirmada ${periodLabel}, dia a dia.`}
+            </p>
           </div>
           <button
             type="button"
@@ -1449,7 +1468,7 @@ const SalesChartModal = ({
                       formatBRL(Number(value ?? 0)),
                       name === "receita" ? "Receita" : "Líquido",
                     ]}
-                    labelFormatter={(label: string) => `Dia ${label}`}
+                    labelFormatter={(label: string) => (hourly ? `Às ${label}` : `Dia ${label}`)}
                     contentStyle={{
                       border: "1px solid #e6e6e1",
                       borderRadius: 12,
@@ -1841,20 +1860,53 @@ const ActivityPagination = ({
   );
 };
 
+const PERIOD_FILTER_OPTIONS: Array<{ value: Period; label: string }> = [
+  { value: "day", label: "Hoje" },
+  { value: "week", label: "Semanal" },
+  { value: "month", label: "Mensal" },
+];
+
 const PeriodFilter = ({
   value,
   onChange,
 }: {
   value: Period;
   onChange: (value: Period) => void;
+}) => (
+  <DropdownFilter value={value} onChange={onChange} options={PERIOD_FILTER_OPTIONS} ariaLabel="Selecionar período" />
+);
+
+type ActivityStatusFilter = "all" | "paid" | "pending" | "refunded";
+
+const ACTIVITY_STATUS_OPTIONS: Array<{ value: ActivityStatusFilter; label: string }> = [
+  { value: "all", label: "Todos" },
+  { value: "paid", label: "Pago" },
+  { value: "pending", label: "Pendente" },
+  { value: "refunded", label: "Reembolsada" },
+];
+
+/** Usa o mesmo rótulo exibido no badge de status, para o filtro bater com o que se vê na tabela. */
+const matchesActivityStatus = (status: string, filter: ActivityStatusFilter) => {
+  if (filter === "all") return true;
+  const { label } = getSubscriptionStatus(status);
+  if (filter === "paid") return label === "Paga" || label === "Ativa";
+  if (filter === "pending") return label === "Pendente";
+  return label === "Reembolsada";
+};
+
+const DropdownFilter = <T extends string,>({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: Array<{ value: T; label: string }>;
+  ariaLabel: string;
 }) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const options: Array<{ value: Period; label: string }> = [
-    { value: "day", label: "Hoje" },
-    { value: "week", label: "Semanal" },
-    { value: "month", label: "Mensal" },
-  ];
   const current = options.find((option) => option.value === value) ?? options[0];
 
   useEffect(() => {
@@ -1886,7 +1938,7 @@ const PeriodFilter = ({
         whileTap={{ scale: 0.97 }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Selecionar período"
+        aria-label={ariaLabel}
       >
         <span className="truncate">{current.label}</span>
         <ChevronDown size={12} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />

@@ -152,6 +152,9 @@ const ProductDetailPage = () => {
   // Livre. O custo do fornecedor é somente leitura e vem do catálogo.
   const [title, setTitle] = useState("");
   const [retailPrice, setRetailPrice] = useState(0);
+  const [category, setCategory] = useState("Laptop");
+  const [productType, setProductType] = useState("Eletrônico");
+  const [vendor, setVendor] = useState("");
 
   useEffect(() => {
     if (product) {
@@ -405,6 +408,56 @@ const ProductDetailPage = () => {
                 />
               </div>
 
+
+              <div>
+                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
+                  Categoria
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
+                  style={{ letterSpacing: "-0.01em" }}
+                >
+                  <option>Laptop</option>
+                  <option>Smartphone</option>
+                  <option>Tablet</option>
+                  <option>Acessórios</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
+                  Tipo
+                </label>
+                <select
+                  value={productType}
+                  onChange={(e) => setProductType(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
+                  style={{ letterSpacing: "-0.01em" }}
+                >
+                  <option>Eletrônico</option>
+                  <option>Vestuário</option>
+                  <option>Alimentos</option>
+                  <option>Livros</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
+                  Fornecedor
+                </label>
+                <select
+                  value={vendor}
+                  onChange={(e) => setVendor(e.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-muted-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
+                  style={{ letterSpacing: "-0.01em" }}
+                >
+                  <option value="">Selecionar fornecedor</option>
+                  <option>Fornecedor A</option>
+                  <option>Fornecedor B</option>
+                </select>
+              </div>
 
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>

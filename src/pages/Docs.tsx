@@ -387,7 +387,7 @@ function Post({
         <div className="min-w-0 flex-1">
           <header className="relative flex flex-wrap items-center gap-[8px]">
             <strong className="text-[18px] font-semibold leading-none text-[#0A0A0A]">{post.author_name}</strong>
-            <BadgeCheck className="h-[20px] w-[20px] fill-white text-[#FBFBFA]" strokeWidth={2.2} aria-label="Conta verificada" />
+            <BadgeCheck className="h-[20px] w-[20px] fill-[#2563EB] text-white" strokeWidth={2.2} aria-label="Conta verificada" />
             <span className="text-[16.5px] font-medium text-[#8A8A8A]">{timeAgo(post.created_at)}</span>
             {isAdmin && (
               <div className="relative ml-auto">
@@ -477,7 +477,7 @@ function Post({
               className="flex items-center gap-[8px] text-[#8A8A8A] transition hover:text-[#0A0A0A] disabled:opacity-60"
             >
               <Heart
-                className={`h-[21px] w-[21px] ${post.liked_by_me ? "fill-white text-[#0A0A0A]" : ""}`}
+                className={`h-[21px] w-[21px] ${post.liked_by_me ? "fill-[#EF4444] text-[#EF4444]" : ""}`}
                 strokeWidth={1.7}
               />
               <span className="text-[15px] font-medium">{post.likes_count}</span>

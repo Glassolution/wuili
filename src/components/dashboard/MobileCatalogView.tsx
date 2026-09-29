@@ -241,6 +241,21 @@ export const MobileCatalogView = ({
 
   const filtersActive = selectedPriceRange !== "Todos os preços" || selectedRating !== "Todas";
 
+  // Mantém a aba selecionada centralizada na faixa de categorias.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const tabsCentered = useRef(false);
+  useEffect(() => {
+    const container = tabsRef.current;
+    const tab = Array.from(container?.querySelectorAll<HTMLElement>("[data-category-tab]") ?? []).find(
+      (element) => element.dataset.categoryTab === activeCategory,
+    );
+    if (!container || !tab) return;
+    const left = tab.offsetLeft - (container.clientWidth - tab.offsetWidth) / 2;
+    // Na primeira renderização pula direto; depois desliza.
+    container.scrollTo({ left, behavior: tabsCentered.current ? "smooth" : "auto" });
+    tabsCentered.current = true;
+  }, [activeCategory, categories]);
+
   return (
     <div className="velo-fonte-inter min-h-full bg-white pb-4 text-[#111111]">
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md">
@@ -275,12 +290,16 @@ export const MobileCatalogView = ({
           </button>
         </div>
 
-        <div className="mobile-hide-scrollbar relative flex gap-5 overflow-x-auto border-b border-black/[0.06] px-5">
+        <div
+          ref={tabsRef}
+          className="mobile-hide-scrollbar relative flex gap-5 overflow-x-auto border-b border-black/[0.06] px-5"
+        >
           {categories.map((category) => {
             const active = activeCategory === category.valor;
             return (
               <button
                 key={category.valor}
+                data-category-tab={category.valor}
                 type="button"
                 onClick={() => onCategoryChange(category.valor)}
                 className={`relative shrink-0 pb-2 pt-1.5 text-[13px] tracking-[-0.01em] transition-colors ${
