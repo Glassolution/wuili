@@ -299,6 +299,8 @@ const AVISO_ESPERA = "Já solicitei o atendimento humano. Aguarde, que em breve 
 
 const AVISO_REEMBOLSO = "Pode ficar tranquilo(a): vou solicitar o seu reembolso à nossa equipe agora mesmo. O prazo para ele ser feito é de até 5 dias.";
 
+const AVISO_REEMBOLSO_FORA_DO_PRAZO = "Sinto muito pelo transtorno. O reembolso da assinatura só é possível dentro de 7 dias após o pagamento, e esse prazo já passou na sua conta.\n\nO que posso fazer por você agora é cancelar a renovação automática, para você não ser cobrado de novo. Tudo continua funcionando normalmente até o fim do período já pago.\n\nVou passar o seu pedido para a nossa equipe, que te responde aqui mesmo nesta conversa.";
+
 const SYSTEM_TICKET = `${SYSTEM}
 
 Jeito de escrever nos tickets (muito importante):
@@ -307,7 +309,7 @@ Jeito de escrever nos tickets (muito importante):
 - NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
 - Divida a resposta em mensagens curtas, como alguém digitando no chat: cada mensagem separada por uma linha em branco, no máximo 4 mensagens, 1 a 3 frases cada. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
-Reembolso: quando o usuário pedir reembolso ou dinheiro de volta, chame "acionar_suporte_humano" com motivo "reembolso" e um resumo claro, e diga ao usuário com gentileza que você vai solicitar o reembolso e que o prazo é de até 5 dias. Não diga que o reembolso já foi feito nem tente convencer a pessoa a desistir.
+Reembolso: reembolso da assinatura SÓ é possível dentro de 7 dias após o pagamento. Antes de prometer qualquer reembolso, considere a informação de prazo da assinatura informada no contexto. Se estiver dentro do prazo, chame "acionar_suporte_humano" com motivo "reembolso" e um resumo claro, e diga com gentileza que você vai solicitar o reembolso e que o prazo é de até 5 dias. Se o prazo de 7 dias já passou, NÃO prometa reembolso: explique com empatia que o prazo já passou, ofereça o cancelamento da renovação automática (o acesso continua até o fim do período pago) e chame "acionar_suporte_humano" com motivo "reembolso" mesmo assim, para a equipe avaliar. Não diga que o reembolso já foi feito nem tente convencer a pessoa a desistir.
 
 Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
 
@@ -392,11 +394,23 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   }
   if (contents[0]?.role === "model") contents.unshift({ role: "user", parts: [{ text: "Olá" }] });
 
+  // Verifica se a assinatura mais recente do usuário ainda está no prazo de
+  // reembolso (7 dias após o pagamento), para a IA não prometer o que não pode.
+  const { data: assinatura } = await admin.from("subscriptions")
+    .select("created_at,status")
+    .eq("user_id", ticket.user_id)
+    .in("status", ["active", "trialing", "paid", "approved"])
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const dentroDoPrazoReembolso = !!assinatura?.created_at &&
+    (Date.now() - new Date(assinatura.created_at).getTime()) <= 7 * 86400_000;
+
   let escalou = false;
   let reembolso = false;
   let reply = "";
+  const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
+
   for (let i = 0; i < 6; i++) {
-    const r = await chamarGemini(GEMINI_API_KEY, contents, SYSTEM_TICKET);
+    const r = await chamarGemini(GEMINI_API_KEY, contents, systemTicket);
     if (!r.ok) {
       console.error("gemini ticket", r.status, (await r.text()).slice(0, 300));
       break;
@@ -418,7 +432,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
           if (motivo === "reembolso") reembolso = true;
           if (!escalou) {
             const resumo = String(args.resumo ?? "");
-            await marcarHumano(motivo, motivo === "reembolso" ? `SOLICITAÇÃO DE REEMBOLSO — prazo prometido ao cliente: até 5 dias. ${resumo}` : resumo);
+            await marcarHumano(motivo, motivo === "reembolso"
+              ? (dentroDoPrazoReembolso
+                ? `SOLICITAÇÃO DE REEMBOLSO — dentro do prazo de 7 dias. Prazo prometido ao cliente: até 5 dias. ${resumo}`
+                : `PEDIDO DE REEMBOLSO FORA DO PRAZO (assinatura com mais de 7 dias) — cliente foi orientado sobre cancelamento da renovação; avaliar se cabe exceção. ${resumo}`)
+              : resumo);
           }
           escalou = true; result = { ok: true };
         } else result = { erro: "ferramenta desconhecida" };
@@ -437,8 +455,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     reply = AVISO_ESPERA;
   }
   if (reembolso) {
-    // Resposta única e fixa para reembolso: evita a IA repetir o mesmo aviso várias vezes.
-    reply = `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`;
+    // Resposta única e fixa para reembolso: evita a IA repetir o mesmo aviso
+    // várias vezes — e nunca promete reembolso fora do prazo de 7 dias.
+    reply = dentroDoPrazoReembolso
+      ? `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`
+      : AVISO_REEMBOLSO_FORA_DO_PRAZO;
   } else if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   const mensagens = dividirMensagens(reply);
   for (let i = 0; i < mensagens.length; i++) {
