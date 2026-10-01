@@ -407,8 +407,10 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   let escalou = false;
   let reembolso = false;
   let reply = "";
+  const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
+
   for (let i = 0; i < 6; i++) {
-    const r = await chamarGemini(GEMINI_API_KEY, contents, SYSTEM_TICKET);
+    const r = await chamarGemini(GEMINI_API_KEY, contents, systemTicket);
     if (!r.ok) {
       console.error("gemini ticket", r.status, (await r.text()).slice(0, 300));
       break;
@@ -430,7 +432,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
           if (motivo === "reembolso") reembolso = true;
           if (!escalou) {
             const resumo = String(args.resumo ?? "");
-            await marcarHumano(motivo, motivo === "reembolso" ? `SOLICITAÇÃO DE REEMBOLSO — prazo prometido ao cliente: até 5 dias. ${resumo}` : resumo);
+            await marcarHumano(motivo, motivo === "reembolso"
+              ? (dentroDoPrazoReembolso
+                ? `SOLICITAÇÃO DE REEMBOLSO — dentro do prazo de 7 dias. Prazo prometido ao cliente: até 5 dias. ${resumo}`
+                : `PEDIDO DE REEMBOLSO FORA DO PRAZO (assinatura com mais de 7 dias) — cliente foi orientado sobre cancelamento da renovação; avaliar se cabe exceção. ${resumo}`)
+              : resumo);
           }
           escalou = true; result = { ok: true };
         } else result = { erro: "ferramenta desconhecida" };
@@ -449,8 +455,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     reply = AVISO_ESPERA;
   }
   if (reembolso) {
-    // Resposta única e fixa para reembolso: evita a IA repetir o mesmo aviso várias vezes.
-    reply = `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`;
+    // Resposta única e fixa para reembolso: evita a IA repetir o mesmo aviso
+    // várias vezes — e nunca promete reembolso fora do prazo de 7 dias.
+    reply = dentroDoPrazoReembolso
+      ? `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`
+      : AVISO_REEMBOLSO_FORA_DO_PRAZO;
   } else if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   const mensagens = dividirMensagens(reply);
   for (let i = 0; i < mensagens.length; i++) {
