@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
   ArrowUp,
@@ -749,16 +750,18 @@ const TicketChatModal = ({
   const hasAdminReply = messages.some((m) => m.sender === "admin");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  return (
+  // Portal no body: dentro do layout do dashboard o modal ficava abaixo da barra
+  // superior e do menu inferior do celular, escondendo o campo de resposta.
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 md:items-center md:p-6"
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 p-0 md:items-center md:p-6"
       onClick={onClose}
     >
       <div
-        className="flex h-[min(720px,calc(100svh-32px))] w-full max-w-[680px] flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.34)] dark:bg-[#0B1220]"
+        className="flex h-[100dvh] w-full max-w-[680px] flex-col overflow-hidden bg-white shadow-[0_28px_90px_rgba(15,23,42,0.34)] dark:bg-[#0B1220] md:h-[min(720px,calc(100svh-48px))] md:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative overflow-hidden bg-[#2563EB] px-5 py-5 text-white">
+        <div className="relative shrink-0 overflow-hidden bg-[#2563EB] px-5 pb-5 pt-[calc(20px+env(safe-area-inset-top))] text-white md:pt-5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(147,197,253,0.50),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0)_42%)]" />
           <div className="relative flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-3">
@@ -785,7 +788,7 @@ const TicketChatModal = ({
           </div>
         </div>
 
-        <div className="min-h-[360px] flex-1 space-y-4 overflow-y-auto bg-[#F4F7FF] px-5 py-5 dark:bg-[#0F172A]">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#F4F7FF] px-5 py-5 dark:bg-[#0F172A]">
           {loading && (
             <div className="flex items-center gap-2 text-[12.5px] text-[#64748B] dark:text-slate-300">
               <Loader2 size={14} className="animate-spin" />
@@ -813,7 +816,7 @@ const TicketChatModal = ({
           <div ref={endRef} />
         </div>
 
-        <div className="border-t border-[#E5EFFF] bg-white px-4 py-4 dark:border-white/10 dark:bg-[#0B1220]">
+        <div className="shrink-0 border-t border-[#E5EFFF] bg-white px-4 pt-4 pb-[calc(16px+env(safe-area-inset-bottom))] dark:border-white/10 dark:bg-[#0B1220] md:pb-4">
           {image ? <SupportImagePreview file={image} onRemove={onImageRemove} /> : null}
           <div className="flex items-center gap-2.5">
           <input
@@ -861,7 +864,8 @@ const TicketChatModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
