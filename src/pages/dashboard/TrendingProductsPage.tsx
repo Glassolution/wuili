@@ -38,6 +38,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { veloToast } from "@/components/ui/velo-toast";
 import type { ExampleProduct } from "@/types/onboarding";
 import { isAdminEmail } from "@/lib/adminAccess";
+import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
+import { formatReviewCount } from "@/components/dashboard/ProductCard";
 
 type Period = "today" | "week" | "month";
 type SortBy = "score" | "demand" | "margin" | "rating" | "recent" | "price_asc" | "price_desc";
@@ -1217,6 +1219,9 @@ const TrendingProductsPage = () => {
                     const marketSales = Number(product.external_sales ?? 0);
                     const demand = veloSales > 0 ? veloSales : Number(product.orders_count ?? marketSales ?? 0);
                     const rating = Number(product.rating ?? 0);
+                    // Mesma nota e contagem exibidas no card do catálogo (ver catalogFilters).
+                    const displayRating = displayRatingFor(product.id);
+                    const displayReviews = displayOrdersCountFor(product.id);
                     const price = Number(product.suggested_price ?? product.original_price ?? product.cost_price ?? 0);
                     const cost = Number(product.cost_price ?? 0);
                     const profit = price - cost;
@@ -1313,9 +1318,9 @@ const TrendingProductsPage = () => {
                           </td>
                           <td className="px-3 py-4 text-center align-middle">
                             <span className="inline-flex max-w-full items-center justify-center gap-1.5 whitespace-nowrap text-[13px] font-semibold text-[#2B2F3A]">
-                              {rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"}
+                              {displayRating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                               <Star size={14} fill="#111827" stroke="none" />
-                              <span className="truncate font-medium text-[#7E8798]">({formatNumber(Number(product.score ?? 0))})</span>
+                              <span className="truncate font-medium text-[#7E8798]">({formatReviewCount(displayReviews)})</span>
                             </span>
                           </td>
                           <td className="px-3 py-4 align-middle">
@@ -1390,7 +1395,7 @@ const TrendingProductsPage = () => {
                                       { label: "Margem", value: formatPercent(marginPercent), hint: "saúde da oferta" },
                                       { label: "Receita mensal", value: formatBRL(monthlyRevenue), hint: "preço x vendas" },
                                       { label: "Estoque", value: stock === null ? "Sem dado" : formatNumber(stock), hint: "risco de ruptura" },
-                                      { label: "Avaliação", value: rating ? rating.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "Sem nota", hint: "prova de satisfação" },
+                                      { label: "Avaliação", value: displayRating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }), hint: "prova de satisfação" },
                                        { label: "Vendas na Velo", value: formatNumber(veloSales), hint: `${formatNumber(veloOrders)} pedidos reais` },
                                        { label: "Lojas vendendo", value: formatNumber(veloStores), hint: "usuários que publicaram" },
                                        { label: "Coletado em", value: formatDateTime(product.scraped_at), hint: "recência do dado" },

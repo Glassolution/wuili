@@ -4,12 +4,16 @@
 // e a referência não.
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, MoreHorizontal, Package, Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowUpDown, CircleHelp, MoreHorizontal, Package, Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
+
+/** Artigo da Central de Ajuda sobre o fluxo de pós-venda (velods.com.br/ajuda/pos-venda/pos-venda-fluxo). */
+export const POS_VENDA_FAQ_PATH = "/dashboard/ajuda/pos-venda/pos-venda-fluxo";
 
 type StatusAba = "todos" | "pago" | "enviado" | "entregue" | "pendente" | "cancelado";
 type Canal = "ml" | "loja";
@@ -373,6 +377,15 @@ export const MobileOrdersView = ({
           <p className="text-[28px] font-semibold tracking-[-0.04em]" role="heading" aria-level={1}>
             Pedidos
           </p>
+          <div className="flex items-center gap-2">
+          <Link
+            to={POS_VENDA_FAQ_PATH}
+            aria-label="Como funciona o pós-venda"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[12px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold active:scale-95"
+          >
+            <CircleHelp size={15} strokeWidth={1.9} className="text-[#2563EB]" />
+            Pós-venda
+          </Link>
           <button
             type="button"
             onClick={() => setFiltrosAbertos((aberto) => !aberto)}
@@ -385,6 +398,7 @@ export const MobileOrdersView = ({
             <SlidersHorizontal size={16} strokeWidth={1.9} />
             {canal === "loja" && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#111111]" />}
           </button>
+          </div>
         </div>
 
         <div className="mobile-hide-scrollbar relative flex gap-5 overflow-x-auto border-b border-black/[0.06] px-5">

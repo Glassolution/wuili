@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { CornerDownLeft, FileText, Headset, ShieldCheck, type LucideIcon } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { fetchHelpCenter, helpArticlePath, helpCenterKeys, type HelpArticle, type HelpCategory } from "@/lib/helpCenter";
@@ -105,8 +104,10 @@ export default function HelpCenterView({ basePath }: { basePath: string }) {
   }, [categorySlug, articleSlug]);
 
   const quickCards = useMemo<QuickCard[]>(() => {
+    // Todas as categorias viram card: no celular a lista lateral fica escondida
+    // atrás de "Todos os artigos", então os cards são o caminho principal.
     const featured = tree
-      .filter((category) => category.featured)
+      .filter((category) => category.articles.length > 0)
       .map((category) => ({
         key: category.id,
         label: category.title,
@@ -114,12 +115,14 @@ export default function HelpCenterView({ basePath }: { basePath: string }) {
         icon: helpCategoryIcon(category.icon),
         to: helpArticlePath(basePath, category, category.articles[0]),
       }));
-    return [
-      ...featured,
-      { key: "termos", label: "Termos de serviço", hint: "Regras de uso da plataforma Velo", icon: FileText, to: "/termos-de-servico" },
-      { key: "privacidade", label: "Privacidade", hint: "Como tratamos seus dados (LGPD)", icon: ShieldCheck, to: "/politica-de-privacidade" },
-    ];
+    return featured;
   }, [tree, basePath]);
+
+  // Termos e privacidade não são categorias de ajuda: ficam como links discretos.
+  const legalLinks = [
+    { key: "termos", label: "Termos de serviço", icon: FileText, to: "/termos-de-servico" },
+    { key: "privacidade", label: "Privacidade", icon: ShieldCheck, to: "/politica-de-privacidade" },
+  ];
 
   const supportPath = user ? SUPPORT_PATH_LOGGED_IN : "/login";
 
@@ -297,38 +300,44 @@ export default function HelpCenterView({ basePath }: { basePath: string }) {
           <span className="font-medium text-[#09090B]">aprender & tirar dúvidas</span>.
         </motion.p>
 
-        <motion.div variants={stagger(0.05)} className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {/* Grade fixa (2 colunas no celular, 3 no desktop) para as 6 categorias fecharem sem buraco.
+            A descrição fica no próprio card: no celular não existe tooltip de hover. */}
+        <motion.div variants={stagger(0.05)} className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
           {quickCards.map((card) => (
-            <Tooltip key={card.key} delayDuration={150}>
-              <TooltipTrigger asChild>
-                <motion.div
-                  variants={fadeUp}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ duration: 0.2, ease: EASE_OUT }}
-                  className="sm:w-[160px]"
-                >
-                <Link
-                  to={card.to}
-                  className="group flex h-full min-h-[86px] flex-col justify-between gap-3 rounded-[6px] border border-[#E4E4E7] bg-[#F4F4F5] px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-[#D4D4D8] hover:bg-[#EFEFF1] hover:shadow-[0_6px_16px_-8px_rgba(15,23,42,0.18)]"
-                >
-                  <card.icon
-                    size={19}
-                    strokeWidth={1.9}
-                    aria-hidden="true"
-                    className="text-[#2563EB] transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-110"
-                  />
-                  <span className="text-[14.5px] font-medium leading-[1.25] tracking-[-0.01em] text-[#18181B]">{card.label}</span>
-                </Link>
-                </motion.div>
-              </TooltipTrigger>
-              <TooltipContent
-                side="bottom"
-                className="rounded-[6px] border border-[#E4E4E7] bg-white px-2.5 py-1 text-[12.5px] text-[#18181B] shadow-[0_2px_6px_rgba(0,0,0,0.06)]"
+            <motion.div
+              key={card.key}
+              variants={fadeUp}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2, ease: EASE_OUT }}
+            >
+              <Link
+                to={card.to}
+                className="group flex h-full flex-col gap-2.5 rounded-[8px] border border-[#E4E4E7] bg-[#F4F4F5] px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-200 hover:border-[#D4D4D8] hover:bg-[#EFEFF1] hover:shadow-[0_6px_16px_-8px_rgba(15,23,42,0.18)] sm:px-4 sm:py-3.5"
               >
-                {card.hint}
-              </TooltipContent>
-            </Tooltip>
+                <card.icon
+                  size={19}
+                  strokeWidth={1.9}
+                  aria-hidden="true"
+                  className="text-[#2563EB] transition-transform duration-300 ease-out group-hover:-translate-y-0.5 group-hover:scale-110"
+                />
+                <span>
+                  <span className="block text-[14px] font-medium leading-[1.25] tracking-[-0.01em] text-[#18181B] sm:text-[14.5px]">
+                    {card.label}
+                  </span>
+                  <span className="mt-1 line-clamp-2 text-[12px] leading-[1.4] text-[#71717A]">{card.hint}</span>
+                </span>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div variants={fadeUp} className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-[#71717A]">
+          {legalLinks.map((link) => (
+            <Link key={link.key} to={link.to} className="inline-flex items-center gap-1.5 transition-colors hover:text-[#18181B]">
+              <link.icon size={13} strokeWidth={1.9} aria-hidden="true" />
+              {link.label}
+            </Link>
           ))}
         </motion.div>
 
@@ -394,9 +403,9 @@ function HelpCenterSkeleton() {
         <div className={cn(bar, "h-8 w-20")} />
         <div className={cn(bar, "mt-5 h-8 w-64")} />
         <div className={cn(bar, "mt-3 h-4 w-96 max-w-full")} />
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className={cn(bar, "h-[86px] sm:w-[160px]")} style={{ animationDelay: `${i * 90}ms` }} />
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className={cn(bar, "h-[112px]")} style={{ animationDelay: `${i * 90}ms` }} />
           ))}
         </div>
         <div className="my-7 h-px bg-[#E4E4E7]" />

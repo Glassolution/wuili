@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Calendar,
   CheckCircle2,
+  CircleHelp,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -28,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { veloToast } from "@/components/ui/velo-toast";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
-import { MobileOrdersView } from "@/components/dashboard/MobileOrdersView";
+import { MobileOrdersView, POS_VENDA_FAQ_PATH } from "@/components/dashboard/MobileOrdersView";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { usePlan, type PlanName } from "@/hooks/usePlan";
 
@@ -2016,6 +2017,15 @@ const OrdersPage = () => {
       <div className="hidden md:block">
       <DashboardPageShell
         title="Pedidos"
+        actions={
+          <Link
+            to={POS_VENDA_FAQ_PATH}
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-[12px] font-semibold text-[#111111] shadow-[0_8px_18px_rgba(17,17,17,0.035)] transition hover:border-black/15 hover:bg-[#F7F7F8]"
+          >
+            <CircleHelp size={14} strokeWidth={1.9} className="text-[#2563EB]" />
+            Como funciona o pós-venda
+          </Link>
+        }
         className="overflow-visible"
         panelClassName="overflow-visible"
         style={pageFont}
