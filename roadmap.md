@@ -29,5 +29,5 @@
 - [ ] Decidir se os lembretes também vão por e-mail
 
 ## Central de Ajuda
-- [ ] Aplicar o conteúdo revisado do FAQ enviado pelo usuário
-- [ ] Conferir todos os artigos publicados após a atualização
+- [x] Aplicar o conteúdo revisado do FAQ enviado pelo usuário
+- [x] Conferir todos os artigos publicados após a atualização
