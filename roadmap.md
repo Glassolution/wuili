@@ -27,3 +27,7 @@
 - [x] Lembretes no app (24h/72h) e verificação automática por hora
 - [x] Eventos: paid_without_seller, seller_ready_after_paid, pending_publication_*
 - [ ] Decidir se os lembretes também vão por e-mail
+
+## Central de Ajuda
+- [ ] Aplicar o conteúdo revisado do FAQ enviado pelo usuário
+- [ ] Conferir todos os artigos publicados após a atualização
