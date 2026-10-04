@@ -947,7 +947,16 @@ Deno.serve(async (req) => {
         : (bestSubPlan ?? profilePlan)
     const productLimit = PRODUCT_LIMITS[userPlan]
 
-    if (productLimit === 0) {
+    // Modo teste (só validação, nada é publicado) liberado para admins.
+    let isAdminValidate = false
+    if (body?.validate_only === true) {
+      const { data: adm } = await supabase.from('user_roles').select('role')
+        .eq('user_id', user_id).eq('role', 'admin').maybeSingle()
+      isAdminValidate = Boolean(adm)
+      if (!isAdminValidate) return json({ error: 'Modo teste restrito a administradores.' }, 403)
+    }
+
+    if (productLimit === 0 && !isAdminValidate) {
       return json({
         error: 'O plano grátis é apenas para teste. Desbloqueie a operação completa para publicar produtos.',
       }, 403)
