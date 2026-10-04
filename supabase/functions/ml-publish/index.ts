@@ -1701,6 +1701,20 @@ Deno.serve(async (req) => {
     console.log('Payload:', JSON.stringify(mlPayload))
     let effectivePayload = mlPayload
 
+    // Modo teste: só valida no ML (/items/validate), sem criar anúncio.
+    if (body?.validate_only === true) {
+      const vRes = await fetch('https://api.mercadolibre.com/items/validate', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(mlPayload),
+      })
+      const vText = await vRes.text()
+      return new Response(JSON.stringify({
+        validate_only: true, ok: vRes.status === 204 || vRes.ok, status: vRes.status,
+        variations: mlVariations.length, response: vText ? JSON.parse(vText) : null,
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     // === PUBLICAÇÃO VIA CATÁLOGO DO ML ===
     // Categorias como Celulares (MLB1055 / domínio MLB-CELLPHONES) são
     // "catalog-only": o ML exige atributos que não temos como preencher
