@@ -1638,17 +1638,24 @@ Deno.serve(async (req) => {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
         JSON.stringify(mlVariations.map((v) => (v.attribute_combinations as Array<{ value_name: string }>).map((c) => c.value_name).join('/'))))
 
-      // O ML rejeita (cause 146) quando o MESMO atributo aparece no item e na
-      // variação. Tudo que define a variação (COLOR, SIZE...) sai do item.
+      // O ML rejeita (cause 146) quando o MESMO atributo aparece em mais de um
+      // lugar entre item.attributes, variation.attribute_combinations e
+      // variation.attributes. Regra: combinação > atributos da variação > item.
       const variationAttrIds = new Set<string>()
       for (const v of mlVariations) {
+        const comboIds = new Set<string>()
         for (const c of (v.attribute_combinations as Array<{ id?: string }>) ?? []) {
-          if (c?.id) variationAttrIds.add(String(c.id))
+          if (c?.id) { comboIds.add(String(c.id).toUpperCase()); variationAttrIds.add(String(c.id).toUpperCase()) }
         }
+        const vAttrs = ((v.attributes as MLAttribute[] | undefined) ?? [])
+          .filter((a) => !comboIds.has(String(a.id).toUpperCase()))
+        if (vAttrs.length > 0) v.attributes = vAttrs
+        else delete v.attributes
+        for (const a of vAttrs) variationAttrIds.add(String(a.id).toUpperCase())
       }
       if (variationAttrIds.size > 0) {
         for (let i = allAttrs.length - 1; i >= 0; i--) {
-          if (variationAttrIds.has(String(allAttrs[i].id))) allAttrs.splice(i, 1)
+          if (variationAttrIds.has(String(allAttrs[i].id).toUpperCase())) allAttrs.splice(i, 1)
         }
         console.log('[ml-publish] Atributos removidos do item (definidos na variação):', [...variationAttrIds])
       }
