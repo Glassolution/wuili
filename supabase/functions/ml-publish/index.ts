@@ -1712,16 +1712,30 @@ Deno.serve(async (req) => {
 
     // Modo teste: só valida no ML (/items/validate), sem criar anúncio.
     if (body?.validate_only === true) {
-      const vRes = await fetch('https://api.mercadolibre.com/items/validate', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(mlPayload),
-      })
-      const vText = await vRes.text()
-      return new Response(JSON.stringify({
-        validate_only: true, ok: vRes.status === 204 || vRes.ok, status: vRes.status,
-        variations: mlVariations.length, response: vText ? JSON.parse(vText) : null,
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      const base = mlPayload as Record<string, unknown>
+      const { title: _t, variations: _v, ...semTitleNemVar } = base
+      const { title: _t2, ...semTitle } = base
+      const v0 = mlVariations[0]
+      const combo0 = ((v0?.attribute_combinations as MLAttribute[] | undefined) ?? [])
+      const tentativas: Array<[string, Record<string, unknown>]> = [
+        ['completo', base],
+        ['sem title (User Products)', semTitle],
+        ...(v0 ? [['uma variação por anúncio', { ...semTitleNemVar, attributes: [...(base.attributes as MLAttribute[]), ...combo0] }] as [string, Record<string, unknown>]] : []),
+      ]
+      const resultados = []
+      for (const [label, pl] of tentativas) {
+        const vRes = await fetch('https://api.mercadolibre.com/items/validate', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(pl),
+        })
+        const vText = await vRes.text()
+        const ok = vRes.status === 204 || vRes.ok
+        resultados.push({ label, ok, status: vRes.status, response: vText ? JSON.parse(vText) : null })
+        if (ok) break
+      }
+      return new Response(JSON.stringify({ validate_only: true, variations: mlVariations.length, resultados }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
     // === PUBLICAÇÃO VIA CATÁLOGO DO ML ===
