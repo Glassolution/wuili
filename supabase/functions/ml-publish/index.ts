@@ -962,7 +962,7 @@ Deno.serve(async (req) => {
       }, 403)
     }
 
-    if (typeof productLimit === 'number') {
+    if (typeof productLimit === 'number' && !isAdminValidate) {
       const activePublicationsQuery = await supabase
         .from('user_publications')
         .select('id', { count: 'exact', head: true })
