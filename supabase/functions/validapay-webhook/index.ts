@@ -15,6 +15,7 @@ import {
   consumeInviterReferralDiscount,
   grantInviterDiscountForPaidInvitee,
 } from "../_shared/referral-rewards.ts";
+import { loadTikTokUser, trackTikTokEvent } from "../_shared/tiktokEvents.ts";
 
 
 const corsHeaders = {
@@ -418,7 +419,32 @@ Deno.serve(async (req) => {
         if (payload.chargeId && verifiedStatus !== "PAID") {
           return await fail(`charge_not_paid:${verifiedStatus}`);
         }
+        // Primeira cobrança paga desta assinatura? (antes de ativar, que
+        // sobrescreve current_period_start). event_id estável por assinatura:
+        // renovações e avisos repetidos nunca geram outro Purchase.
+        const wasActiveBefore = subscription.status === "active";
         await activate();
+
+        if (!wasActiveBefore && !subscription.cancel_at_period_end) {
+          const purchaseValue = Number(verifiedAmount ?? payload.amount ?? 0);
+          const task = (async () => {
+            const u = await loadTikTokUser(admin, subscription.user_id);
+            await trackTikTokEvent(admin, {
+              eventName: "Purchase",
+              eventId: `purchase_${subscription.id}`,
+              subscriptionId: subscription.id,
+              value: purchaseValue,
+              currency: "BRL",
+              contentId: `plano_${subscription.plan}`,
+              contentName: `Plano ${subscription.plan}`,
+              user: u,
+            });
+          })().catch((e) => console.error("tiktok purchase falhou", String(e)));
+          // Não atrasa a resposta do webhook.
+          // deno-lint-ignore no-explicit-any
+          const rt = (globalThis as any).EdgeRuntime; // EdgeRuntime não tem tipagem no Deno
+          if (rt?.waitUntil) rt.waitUntil(task);
+        }
 
         // Rede de segurança: se o cliente já pagou esse mesmo plano há pouco
         // (webhook atrasado que o levou a pagar de novo), devolvemos a cobrança
