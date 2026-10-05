@@ -249,6 +249,8 @@ Deno.serve(async (req) => {
       }),
     );
 
+    for (const excluded of EXCLUDED_NOTIFY_EMAILS) recipients.delete(excluded);
+
     if (recipients.size === 0) return json({ sent: false, reason: "Nenhum admin com email encontrado" });
 
     const supportUrl = `${siteUrl}/admin/suporte`;
