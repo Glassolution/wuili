@@ -11,6 +11,8 @@ import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProfileProvider } from "@/lib/profileContext";
+import { captureOrigin } from "@/lib/signupFunnel";
+import { rotaTemPixelTikTok, tiktokVisualizacao } from "@/lib/tiktokPixel";
 import AdminRoute from "@/components/AdminRoute";
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -154,6 +156,23 @@ const FlatButtonsOnCatalog = () => {
   return null;
 };
 
+/*
+  Anúncios da Velo no TikTok: guarda a origem do clique (UTMs e ttclid) e conta
+  a visita só na landing e no cadastro. Lojas e páginas de venda dos sellers
+  nunca carregam o pixel da Velo. "/auth" entra só na captura porque redireciona
+  para /login e perderia os parâmetros do link.
+*/
+const MedicaoAnunciosTikTok = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname === "/auth" || rotaTemPixelTikTok(pathname)) captureOrigin();
+    if (rotaTemPixelTikTok(pathname)) tiktokVisualizacao();
+  }, [pathname]);
+
+  return null;
+};
+
 // A tela cheia de "Carregando..." só faz sentido no primeiro carregamento do app.
 // Nas trocas de página seguintes usamos um fallback invisível: o conteúdo antigo
 // some e o novo entra com uma animação suave, sem loader piscando.
@@ -246,6 +265,7 @@ const App = () => (
           <UpgradeModalProvider>
           <ActivityTracker />
           <FlatButtonsOnCatalog />
+          <MedicaoAnunciosTikTok />
           <MarcarAppCarregado />
           <MLReconnectModal />
           <MLPostConnectCheck />

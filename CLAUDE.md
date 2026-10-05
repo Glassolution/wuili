@@ -161,6 +161,16 @@ Rode o script de novo. Use `<ImagemResponsiva>` em vez de `<img>` — e não use
 `window.dataLayer` (GTM), `gtag` e `fbq`, e ficam em `window.__veloFunil` para
 conferência no console. Para ligar o GA4, basta preencher `VITE_GA_MEASUREMENT_ID`.
 
+**TikTok Pixel (anúncios da Velo):** `src/lib/tiktokPixel.ts`, ID `DB1U9MRC77U5HCCK5HA0`.
+Roda só em `/`, `/login` e `/cadastro` (componente `MedicaoAnunciosTikTok` no
+`App.tsx`) e no momento em que a conta é criada; nunca nas lojas dos sellers.
+Eventos: PageView, `ClickButton` nos botões de cadastro da landing e
+`CompleteRegistration` (com `event_id` = `cadastro_<user_id>`, o mesmo que a
+Events API deve usar). O `ttclid` e as UTMs são guardados na chegada
+(`captureOrigin`) e gravados no perfil (`ttclid`, `utm_content`, `utm_term`,
+`tiktok_ttp`) por `salvarOrigemTikTokNoPerfil`. O script do TikTok é carregado
+com `historyObserver: false`; sem isso ele conta visita sozinho em toda troca de rota.
+
 **Números reais:** a edge function `landing-stats` devolve produtos ativos e
 assinantes ativos. Precisa de `supabase functions deploy landing-stats
 --no-verify-jwt`. Sem ela, a landing cai no endpoint `catalog` e mostra só o

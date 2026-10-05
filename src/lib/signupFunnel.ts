@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { lerCookieTtp, tiktokCadastroConcluido } from "@/lib/tiktokPixel";
 
 /*
   Medição da etapa de login/cadastro. Reaproveita a mesma tabela de eventos da landing
@@ -70,31 +71,67 @@ export function trackSignup(event: string, detail?: string) {
   }
 }
 
-/* ─── Origem do visitante (UTM) ───────────────────────────────────────────── */
+/* ─── Origem do visitante (UTM e clique no anúncio) ───────────────────────── */
 
 const ORIGEM_KEY = "velo_signup_origin";
+
+/** Janela máxima de atribuição por clique do TikTok. Clique mais antigo não vale. */
+const TTCLID_VALIDADE_MS = 28 * 24 * 60 * 60 * 1000;
 
 export type OrigemCadastro = {
   signup_source: string | null;
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  /** Identificador do clique no anúncio do TikTok, que chega no link como ?ttclid=. */
+  ttclid: string | null;
+  ttclid_captured_at: string | null;
 };
 
+const ORIGEM_VAZIA: OrigemCadastro = {
+  signup_source: "direto",
+  utm_source: null,
+  utm_medium: null,
+  utm_campaign: null,
+  utm_content: null,
+  utm_term: null,
+  ttclid: null,
+  ttclid_captured_at: null,
+};
+
+/*
+  Guarda a origem no navegador assim que a pessoa chega, porque o botão
+  "Criar minha conta" leva para /login sem os parâmetros do link.
+  Navegação interna (sem parâmetros) não apaga nada. Uma visita nova com
+  utm_source troca o conjunto de UTMs; o ttclid só é trocado por outro ttclid,
+  porque é ele que o TikTok usa para achar o anúncio.
+*/
 export function captureOrigin(): void {
   try {
     const params = new URLSearchParams(window.location.search);
-    const utm_source = params.get("utm_source");
-    const utm_medium = params.get("utm_medium");
-    const utm_campaign = params.get("utm_campaign");
+    const ler = (chave: string) => params.get(chave)?.trim().slice(0, 300) || null;
+    const utm_source = ler("utm_source");
+    const ttclid = ler("ttclid");
     const jaTem = localStorage.getItem(ORIGEM_KEY);
-    // A primeira origem vista é a que conta; não sobrescrevemos com navegação interna.
-    if (jaTem && !utm_source) return;
+    if (jaTem && !utm_source && !ttclid) return;
+
+    const anterior = readOrigin();
+    const utms: Partial<OrigemCadastro> = utm_source || !jaTem
+      ? {
+          signup_source: utm_source || (document.referrer ? new URL(document.referrer).hostname : "direto"),
+          utm_source,
+          utm_medium: ler("utm_medium"),
+          utm_campaign: ler("utm_campaign"),
+          utm_content: ler("utm_content"),
+          utm_term: ler("utm_term"),
+        }
+      : {};
     const origem: OrigemCadastro = {
-      signup_source: utm_source || (document.referrer ? new URL(document.referrer).hostname : "direto"),
-      utm_source,
-      utm_medium,
-      utm_campaign,
+      ...anterior,
+      ...utms,
+      ...(ttclid ? { ttclid, ttclid_captured_at: new Date().toISOString() } : {}),
     };
     localStorage.setItem(ORIGEM_KEY, JSON.stringify(origem));
   } catch {
@@ -105,11 +142,41 @@ export function captureOrigin(): void {
 export function readOrigin(): OrigemCadastro {
   try {
     const raw = localStorage.getItem(ORIGEM_KEY);
-    if (raw) return JSON.parse(raw) as OrigemCadastro;
+    // Registros antigos não têm os campos novos: completamos com null.
+    if (raw) return { ...ORIGEM_VAZIA, ...(JSON.parse(raw) as Partial<OrigemCadastro>) };
   } catch {
     /* ignore */
   }
-  return { signup_source: "direto", utm_source: null, utm_medium: null, utm_campaign: null };
+  return { ...ORIGEM_VAZIA };
+}
+
+/**
+ * Grava no perfil os campos de origem que vieram com o TikTok (UTMs extras,
+ * ttclid e cookie _ttp). Fica num update separado do cadastro: se a coluna
+ * ainda não existir no banco, só esta gravação falha e o aceite dos termos
+ * continua sendo salvo. Só envia o que tem valor, para nunca apagar uma
+ * atribuição já feita em outro navegador.
+ */
+export async function salvarOrigemTikTokNoPerfil(userId: string): Promise<void> {
+  const origem = readOrigin();
+  const capturadoEm = origem.ttclid_captured_at ? new Date(origem.ttclid_captured_at).getTime() : NaN;
+  const ttclidValido = Boolean(origem.ttclid) && Date.now() - capturadoEm <= TTCLID_VALIDADE_MS;
+  const campos = Object.fromEntries(
+    Object.entries({
+      utm_content: origem.utm_content,
+      utm_term: origem.utm_term,
+      ttclid: ttclidValido ? origem.ttclid : null,
+      ttclid_captured_at: ttclidValido ? origem.ttclid_captured_at : null,
+      tiktok_ttp: lerCookieTtp(),
+    }).filter(([, valor]) => valor),
+  );
+  if (!userId || Object.keys(campos).length === 0) return;
+  try {
+    const { error } = await supabase.from("profiles").update(campos).eq("user_id", userId);
+    if (error) console.warn("[medição] origem do TikTok não gravada:", error.message);
+  } catch {
+    /* medição nunca pode atrapalhar o cadastro */
+  }
 }
 
 /* ─── Correção de erros comuns de digitação no e-mail ─────────────────────── */
@@ -191,6 +258,7 @@ export function tipoDeErro(bruta: string): string {
 */
 export function atribuirCadastroOAuth(user: {
   id: string;
+  email?: string | null;
   created_at?: string;
   app_metadata?: { provider?: string } | null;
 } | null) {
@@ -209,6 +277,8 @@ export function atribuirCadastroOAuth(user: {
   }
 
   trackSignup("signup_success", provedor);
+  void tiktokCadastroConcluido({ id: user.id, email: user.email });
+  void salvarOrigemTikTokNoPerfil(user.id);
   const origem = readOrigin();
   // O filtro em visitor_id nulo impede sobrescrever uma atribuição feita em outro navegador.
   void supabase

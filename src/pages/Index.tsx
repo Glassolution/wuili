@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
+import { tiktokCliqueCadastro } from "@/lib/tiktokPixel";
 
 
 /*
@@ -538,7 +539,9 @@ export default function Index() {
 
   // Logado, o botão só leva ao dashboard: contar como clique de cadastro inflaria o funil.
   const registrarCliqueCadastro = (evento: string) => {
-    if (!user) void registrarEvento(evento);
+    if (user) return;
+    void registrarEvento(evento);
+    tiktokCliqueCadastro(evento);
   };
 
   const authTarget = !authLoading && user ? "/dashboard" : "/login";

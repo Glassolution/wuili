@@ -169,6 +169,13 @@
       "when": 1790718114311,
       "tag": "0023_support_messages_admin_edit_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791223712777,
+      "tag": "0024_origem_tiktok_no_perfil",
+      "breakpoints": true
     }
   ]
 }
