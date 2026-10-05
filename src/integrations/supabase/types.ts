@@ -2551,12 +2551,17 @@ export type Database = {
           signup_source: string | null
           store_name: string | null
           terms_accepted_at: string | null
+          tiktok_ttp: string | null
+          ttclid: string | null
+          ttclid_captured_at: string | null
           tutorial_completed: boolean
           updated_at: string
           user_id: string
           utm_campaign: string | null
+          utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          utm_term: string | null
           visitor_id: string | null
           whatsapp: string | null
         }
@@ -2587,12 +2592,17 @@ export type Database = {
           signup_source?: string | null
           store_name?: string | null
           terms_accepted_at?: string | null
+          tiktok_ttp?: string | null
+          ttclid?: string | null
+          ttclid_captured_at?: string | null
           tutorial_completed?: boolean
           updated_at?: string
           user_id: string
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          utm_term?: string | null
           visitor_id?: string | null
           whatsapp?: string | null
         }
@@ -2623,12 +2633,17 @@ export type Database = {
           signup_source?: string | null
           store_name?: string | null
           terms_accepted_at?: string | null
+          tiktok_ttp?: string | null
+          ttclid?: string | null
+          ttclid_captured_at?: string | null
           tutorial_completed?: boolean
           updated_at?: string
           user_id?: string
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          utm_term?: string | null
           visitor_id?: string | null
           whatsapp?: string | null
         }
