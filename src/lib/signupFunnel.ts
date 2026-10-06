@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { lerCookieTtp, tiktokCadastroConcluido } from "@/lib/tiktokPixel";
+import { lerCookieTtp, tiktokCadastroConcluido, tiktokCadastroServidor } from "@/lib/tiktokPixel";
 
 /*
   Medição da etapa de login/cadastro. Reaproveita a mesma tabela de eventos da landing
@@ -157,10 +157,14 @@ export function readOrigin(): OrigemCadastro {
  * continua sendo salvo. Só envia o que tem valor, para nunca apagar uma
  * atribuição já feita em outro navegador.
  */
+function ttclidVigente(origem: OrigemCadastro): boolean {
+  const capturadoEm = origem.ttclid_captured_at ? new Date(origem.ttclid_captured_at).getTime() : NaN;
+  return Boolean(origem.ttclid) && Date.now() - capturadoEm <= TTCLID_VALIDADE_MS;
+}
+
 export async function salvarOrigemTikTokNoPerfil(userId: string): Promise<void> {
   const origem = readOrigin();
-  const capturadoEm = origem.ttclid_captured_at ? new Date(origem.ttclid_captured_at).getTime() : NaN;
-  const ttclidValido = Boolean(origem.ttclid) && Date.now() - capturadoEm <= TTCLID_VALIDADE_MS;
+  const ttclidValido = ttclidVigente(origem);
   const campos = Object.fromEntries(
     Object.entries({
       utm_content: origem.utm_content,
@@ -250,6 +254,22 @@ export function tipoDeErro(bruta: string): string {
   return "outro";
 }
 
+/**
+ * Conta criada: avisa o TikTok pelo pixel e pelo servidor, com o mesmo
+ * event_id, e grava a origem do clique no perfil. Nada aqui é aguardado nem
+ * lança erro, então o cadastro segue igual mesmo se o TikTok estiver fora.
+ */
+export function concluirCadastroNoTikTok(usuario: { id: string; email?: string | null }): void {
+  const origem = readOrigin();
+  void salvarOrigemTikTokNoPerfil(usuario.id);
+  void tiktokCadastroConcluido(usuario);
+  void tiktokCadastroServidor({
+    userId: usuario.id,
+    ttclid: ttclidVigente(origem) ? origem.ttclid : null,
+    ttp: lerCookieTtp(),
+  });
+}
+
 /*
   Cadastro pelo Google volta do OAuth direto para /dashboard, sem passar pelo trecho
   do LoginPage que liga o visitante da landing à conta e registra signup_success.
@@ -277,8 +297,7 @@ export function atribuirCadastroOAuth(user: {
   }
 
   trackSignup("signup_success", provedor);
-  void tiktokCadastroConcluido({ id: user.id, email: user.email });
-  void salvarOrigemTikTokNoPerfil(user.id);
+  concluirCadastroNoTikTok({ id: user.id, email: user.email });
   const origem = readOrigin();
   // O filtro em visitor_id nulo impede sobrescrever uma atribuição feita em outro navegador.
   void supabase

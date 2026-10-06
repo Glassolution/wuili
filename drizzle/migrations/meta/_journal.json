@@ -173,8 +173,15 @@
     {
       "idx": 24,
       "version": "7",
-      "when": 1791223712777,
+      "when": 1791226309534,
       "tag": "0024_origem_tiktok_no_perfil",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791226568406,
+      "tag": "0025_tiktok_events_log",
       "breakpoints": true
     }
   ]

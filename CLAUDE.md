@@ -165,8 +165,11 @@ conferência no console. Para ligar o GA4, basta preencher `VITE_GA_MEASUREMENT_
 Roda só em `/`, `/login` e `/cadastro` (componente `MedicaoAnunciosTikTok` no
 `App.tsx`) e no momento em que a conta é criada; nunca nas lojas dos sellers.
 Eventos: PageView, `ClickButton` nos botões de cadastro da landing e
-`CompleteRegistration` (com `event_id` = `cadastro_<user_id>`, o mesmo que a
-Events API deve usar). O `ttclid` e as UTMs são guardados na chegada
+`CompleteRegistration` (com `event_id` = `cadastro_<user_id>`, ver `eventIdCadastro`).
+O mesmo cadastro também vai pelo servidor (`tiktokCadastroServidor` → função
+`tiktok-events`, ação `complete_registration`), com o mesmo `event_id`; o
+Purchase sai do `validapay-webhook` com `event_id` = `purchase_<subscription_id>`.
+`concluirCadastroNoTikTok` dispara os dois. O `ttclid` e as UTMs são guardados na chegada
 (`captureOrigin`) e gravados no perfil (`ttclid`, `utm_content`, `utm_term`,
 `tiktok_ttp`) por `salvarOrigemTikTokNoPerfil`. O script do TikTok é carregado
 com `historyObserver: false`; sem isso ele conta visita sozinho em toda troca de rota.

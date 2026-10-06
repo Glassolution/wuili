@@ -3605,6 +3605,60 @@ export type Database = {
         }
         Relationships: []
       }
+      tiktok_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          currency: string | null
+          event_id: string
+          event_name: string
+          id: string
+          last_error: string | null
+          payload: Json | null
+          sent_at: string | null
+          status: string
+          subscription_id: string | null
+          test_mode: boolean
+          updated_at: string
+          user_id: string | null
+          value: number | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          currency?: string | null
+          event_id: string
+          event_name: string
+          id?: string
+          last_error?: string | null
+          payload?: Json | null
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          test_mode?: boolean
+          updated_at?: string
+          user_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          currency?: string | null
+          event_id?: string
+          event_name?: string
+          id?: string
+          last_error?: string | null
+          payload?: Json | null
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          test_mode?: boolean
+          updated_at?: string
+          user_id?: string | null
+          value?: number | null
+        }
+        Relationships: []
+      }
       tiktok_shop_accounts: {
         Row: {
           access_token: string
