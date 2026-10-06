@@ -3,7 +3,7 @@
 // Nunca expomos a service role key: ela fica só aqui dentro.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { z } from "npm:zod@3.23.8";
+import { z } from "npm:zod@3";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
