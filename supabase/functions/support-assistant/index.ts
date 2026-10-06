@@ -154,25 +154,26 @@ async function escalar(admin: SupabaseClient, userId: string, motivo: string, re
 type Part = { text?: string; functionCall?: { name: string; args?: Record<string, unknown> }; functionResponse?: unknown; thoughtSignature?: string };
 type Content = { role: "user" | "model"; parts: Part[] };
 
-async function chamarGemini(key: string, contents: Content[]) {
-  // Até 3 tentativas com espera crescente, só para 429/5xx (sobrecarga passageira).
+async function chamarGemini(key: string, contents: Content[], system = SYSTEM) {
+  // Até 2 tentativas, só para 429/5xx (sobrecarga passageira).
   let r: Response | null = null;
-  for (let t = 0; t < 3; t++) {
-    if (t) await new Promise((ok) => setTimeout(ok, 1500 * t + Math.random() * 500));
-    r = await chamarGeminiUmaVez(key, contents);
+  for (let t = 0; t < 2; t++) {
+    if (t) await new Promise((ok) => setTimeout(ok, 2000 + Math.random() * 500));
+    r = await chamarGeminiUmaVez(key, contents, system);
     if (r.ok || (r.status !== 429 && r.status < 500)) return r;
   }
   return r!;
 }
 
-async function chamarGeminiUmaVez(key: string, contents: Content[]) {
+async function chamarGeminiUmaVez(key: string, contents: Content[], system = SYSTEM) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
+      systemInstruction: { parts: [{ text: system }] },
       contents, tools: TOOLS,
-      generationConfig: { temperature: 0.4 },
+      // Teto de saída: as respostas são curtas; evita textos longos que só gastam.
+      generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
     }),
   });
   return r;
@@ -224,7 +225,7 @@ Deno.serve(async (req) => {
     await admin.from("support_ai_messages").insert({ user_id: userId, role: "user", content: message });
 
     const { data: hist } = await admin.from("support_ai_messages").select("role,content")
-      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: false }).limit(30);
+      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: false }).limit(20);
     const contents: Content[] = [];
     for (const m of (hist ?? []).reverse()) {
       const role = m.role === "user" ? "user" : "model";
@@ -240,7 +241,7 @@ Deno.serve(async (req) => {
     let escalou = false;
     let reply = "";
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       const r = await chamarGemini(GEMINI_API_KEY, contents);
       if (!r.ok) {
         const t = await r.text();
@@ -307,7 +308,7 @@ Jeito de escrever nos tickets (muito importante):
 - Escreva como uma pessoa real do atendimento conversando pelo chat: cordial, educada, formal na medida certa, leve e didática. Imagine que a pessoa nunca mexeu com tecnologia.
 - NUNCA use termos técnicos, códigos ou palavras em inglês (ex.: rejected_by_regulations, address_pending, status, API, OAuth, token, integração). Traduza sempre para o que a pessoa entende: "o Mercado Livre ainda não liberou sua conta para vender", "falta cadastrar seu celular".
 - NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
-- Divida a resposta em mensagens curtas, como alguém digitando no chat: cada mensagem separada por uma linha em branco, no máximo 4 mensagens, 1 a 3 frases cada. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
+- Responda em UMA mensagem curta (até 3 parágrafos curtos, separados por linha em branco). Não repita o que já foi dito antes na conversa nem cumprimente de novo. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
 Reembolso: reembolso da assinatura SÓ é possível dentro de 7 dias após o pagamento. Antes de prometer qualquer reembolso, considere a informação de prazo da assinatura informada no contexto. Se estiver dentro do prazo, chame "acionar_suporte_humano" com motivo "reembolso" e um resumo claro, e diga com gentileza que você vai solicitar o reembolso e que o prazo é de até 5 dias. Se o prazo de 7 dias já passou, NÃO prometa reembolso: explique com empatia que o prazo já passou, ofereça o cancelamento da renovação automática (o acesso continua até o fim do período pago) e chame "acionar_suporte_humano" com motivo "reembolso" mesmo assim, para a equipe avaliar. Não diga que o reembolso já foi feito nem tente convencer a pessoa a desistir.
 
@@ -325,8 +326,8 @@ function limparTexto(t: string): string {
 
 function dividirMensagens(t: string): string[] {
   const partes = limparTexto(t).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-  if (partes.length <= 5) return partes;
-  return [...partes.slice(0, 4), partes.slice(4).join("\n\n")];
+  if (partes.length <= 3) return partes;
+  return [...partes.slice(0, 2), partes.slice(2).join("\n\n")];
 }
 
 async function responderTicket(admin: SupabaseClient, req: Request, token: string) {
@@ -338,12 +339,15 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
   if (!ticketId || !messageId || !GEMINI_API_KEY) return json({ skip: "dados" });
 
-  // Pequeno debounce para agrupar mensagens seguidas sem deixar o cliente esperando.
-  await new Promise((ok) => setTimeout(ok, 1000));
+  // Espera o cliente terminar de digitar: quem manda 3 mensagens seguidas recebe
+  // UMA resposta (as chamadas das mensagens anteriores param em "nao_e_a_ultima").
+  await new Promise((ok) => setTimeout(ok, 8000));
 
   const { data: ticket } = await admin.from("support_tickets")
     .select("id,user_id,status,ai_paused,needs_human").eq("id", ticketId).maybeSingle();
   if (!ticket || ticket.ai_paused || ticket.status === "closed") return json({ skip: "pausado_ou_fechado" });
+  // Já foi para a equipe: a IA não responde mais (evita repetir "aguarde" e gastar à toa).
+  if (ticket.needs_human) return json({ skip: "aguardando_humano" });
 
   const { data: msgs } = await admin.from("support_messages")
     .select("id,message,sender,internal,attachment_url,created_at")
@@ -372,7 +376,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", ticketId);
   };
 
-  if (respostasIA >= 15) {
+  if (respostasIA >= 10) {
     if (!ticket.needs_human) {
       await marcarHumano("limite_ia", "A conversa ficou longa demais para a IA.");
       await enviar(AVISO_ESPERA);
@@ -383,7 +387,8 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const contents: Content[] = [];
   // Mensagens automáticas (ex.: horário de atendimento) podem chegar depois da
   // pergunta; o Gemini exige que a conversa termine com a vez do usuário.
-  const ateUltimaUser = publicas.slice(0, publicas.findIndex((m) => m.id === ultimaUser.id) + 1);
+  // Só as últimas 20 mensagens vão para a IA: conversa inteira a cada resposta encarece.
+  const ateUltimaUser = publicas.slice(0, publicas.findIndex((m) => m.id === ultimaUser.id) + 1).slice(-20);
   for (const m of ateUltimaUser) {
     const role = m.sender === "user" ? "user" : "model";
     let text = String(m.message ?? "");
@@ -409,7 +414,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   let reply = "";
   const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     const r = await chamarGemini(GEMINI_API_KEY, contents, systemTicket);
     if (!r.ok) {
       console.error("gemini ticket", r.status, (await r.text()).slice(0, 300));
@@ -461,6 +466,12 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       ? `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`
       : AVISO_REEMBOLSO_FORA_DO_PRAZO;
   } else if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
+  // Se o cliente mandou outra mensagem enquanto a IA pensava, a chamada dessa
+  // mensagem nova responde tudo junto; esta desiste para não duplicar.
+  const { data: maisNova } = await admin.from("support_messages").select("id")
+    .eq("ticket_id", ticketId).eq("sender", "user").eq("internal", false)
+    .gt("created_at", ultimaUser.created_at).limit(1);
+  if (maisNova?.length) return json({ skip: "chegou_mensagem_nova" });
   const mensagens = dividirMensagens(reply);
   for (let i = 0; i < mensagens.length; i++) {
     if (i > 0) await new Promise((r) => setTimeout(r, Math.min(3500, 900 + mensagens[i].length * 18)));
