@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
     await admin.from("support_ai_messages").insert({ user_id: userId, role: "user", content: message });
 
     const { data: hist } = await admin.from("support_ai_messages").select("role,content")
-      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: false }).limit(30);
+      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: false }).limit(20);
     const contents: Content[] = [];
     for (const m of (hist ?? []).reverse()) {
       const role = m.role === "user" ? "user" : "model";
@@ -241,7 +241,7 @@ Deno.serve(async (req) => {
     let escalou = false;
     let reply = "";
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       const r = await chamarGemini(GEMINI_API_KEY, contents);
       if (!r.ok) {
         const t = await r.text();
