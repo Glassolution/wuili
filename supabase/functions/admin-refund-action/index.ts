@@ -232,14 +232,14 @@ Deno.serve(async (req) => {
       type: "refund",
     });
 
-    // Aviso no chat de suporte: reembolso aprovado por uma pessoa da equipe.
+    // Aviso no chat de suporte exibido como uma resposta normal do assistente.
     if (refundOk) try {
       const { data: tk } = await admin.from("support_tickets")
         .select("id").eq("user_id", refund.user_id)
         .order("updated_at", { ascending: false }).limit(1).maybeSingle();
       if (tk?.id) {
         await admin.from("support_messages").insert({
-          ticket_id: tk.id, user_id: refund.user_id, sender: "admin",
+          ticket_id: tk.id, user_id: refund.user_id, sender: "ai",
           message: "Olá! Seu reembolso foi analisado e aprovado por uma pessoa da nossa equipe. O valor já foi enviado para estorno e deve aparecer em breve na mesma forma de pagamento que você usou. Qualquer dúvida, estamos por aqui.",
         });
         await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", tk.id);

@@ -28,6 +28,9 @@ type ProfileRow = {
   email?: string | null;
 };
 
+// Admins que não devem receber notificação por e-mail de novos tickets
+const EXCLUDED_NOTIFY_EMAILS = new Set(["lucassrby@gmail.com"]);
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -245,6 +248,8 @@ Deno.serve(async (req) => {
         if (email) recipients.add(email.toLowerCase());
       }),
     );
+
+    for (const excluded of EXCLUDED_NOTIFY_EMAILS) recipients.delete(excluded);
 
     if (recipients.size === 0) return json({ sent: false, reason: "Nenhum admin com email encontrado" });
 
