@@ -217,6 +217,18 @@ export function looksLikeMLDom(input: string): boolean {
     /\b(ui-vpp|ui-pdp|andes-|ui-search)/i.test(String(input ?? ''))
 }
 
+/**
+ * Texto que o próprio vendedor escreveu/revisou na Velo. Mantém as palavras dele;
+ * só limpa o que o ML recusa (HTML, links, contatos, menções a marketplaces).
+ * Devolve '' quando não sobra texto suficiente, para cair na geração automática.
+ */
+export function sanitizeSellerDescription(input: string): string {
+  const text = stripMLHtml(input ?? '')
+  if (text.length < 40) return ''
+  if (/produto de alta qualidade com envio r[aá]pido\.?$/i.test(text) && text.length < 200) return ''
+  return text.slice(0, 5000)
+}
+
 export type DescriptionInput = {
   title: string
   categoryName?: string

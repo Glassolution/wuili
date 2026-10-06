@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
 import {
   buildSafeDescription,
+  sanitizeSellerDescription,
   sanitizeTitle,
 } from '../_shared/ml-content-sanitizer.ts'
 import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
@@ -2423,7 +2424,9 @@ Deno.serve(async (req) => {
     // Nunca envia HTML ou texto copiado diretamente do fornecedor. A descrição
     // é reescrita a partir dos fatos e atributos já validados para a categoria.
     const rawDescription = typeof product.description === 'string' ? product.description : ''
-    const descriptionText = await buildSafeDescription({
+    // A descrição que o vendedor revisou na Velo vai como ele escreveu (só limpa
+    // o que o ML recusa). A IA só reescreve quando ele não mandou texto.
+    const descriptionText = sanitizeSellerDescription(rawDescription) || await buildSafeDescription({
       title,
       attributes: allAttrs,
       rawDescription,
