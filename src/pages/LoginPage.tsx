@@ -8,18 +8,17 @@ import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
 import { Eye, EyeOff, X } from "lucide-react";
 import {
   captureOrigin,
+  concluirCadastroNoTikTok,
   detectInAppBrowser,
   getVisitorId,
   mensagemDeErro,
   readOrigin,
-  salvarOrigemTikTokNoPerfil,
   sugerirEmail,
   tipoDeErro,
   trackSignup,
 } from "@/lib/signupFunnel";
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 import { EVENTOS_LANDING, medirLanding } from "@/lib/landingFunnel";
-import { tiktokCadastroConcluido } from "@/lib/tiktokPixel";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
@@ -374,9 +373,8 @@ const LoginPage = () => {
           visitor_id: getVisitorId(),
         })
         .eq("user_id", data.user.id);
-      // ttclid, UTMs extras e cookie do TikTok: gravação à parte, que não segura a navegação.
-      void salvarOrigemTikTokNoPerfil(data.user.id);
-      void tiktokCadastroConcluido({ id: data.user.id, email: data.user.email });
+      // TikTok (pixel e servidor) e ttclid no perfil: nada disso segura a navegação.
+      concluirCadastroNoTikTok({ id: data.user.id, email: data.user.email });
       // Marca o onboarding como pendente para este usuário: garante que o modal
       // de cadastro apareça no primeiro acesso ao dashboard (frontend-only).
       markOnboardingPending(data.user.id);

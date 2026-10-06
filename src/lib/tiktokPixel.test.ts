@@ -1,23 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const update = vi.fn();
-const eq = vi.fn();
+const { update, eq, invoke } = vi.hoisted(() => ({ update: vi.fn(), eq: vi.fn(), invoke: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({ update: (campos: unknown) => { update(campos); return { eq: (...a: unknown[]) => { eq(...a); return Promise.resolve({ error: null }); } }; } }),
     rpc: () => Promise.resolve({ error: null }),
+    functions: { invoke },
   },
 }));
 
 import {
   TIKTOK_PIXEL_ID,
+  eventIdCadastro,
   iniciarTikTokPixel,
   rotaTemPixelTikTok,
   tiktokCadastroConcluido,
+  tiktokCadastroServidor,
   tiktokCliqueCadastro,
   tiktokVisualizacao,
 } from "./tiktokPixel";
-import { captureOrigin, readOrigin, salvarOrigemTikTokNoPerfil } from "./signupFunnel";
+import { captureOrigin, concluirCadastroNoTikTok, readOrigin, salvarOrigemTikTokNoPerfil } from "./signupFunnel";
 
 type Fila = unknown[] & { _i?: Record<string, unknown> };
 const w = window as unknown as Record<string, unknown> & { ttq?: Fila };
@@ -37,6 +39,8 @@ function resetar() {
   delete (navigator as unknown as Record<string, unknown>).globalPrivacyControl;
   update.mockClear();
   eq.mockClear();
+  invoke.mockReset();
+  invoke.mockResolvedValue({ data: { status: "sent" }, error: null });
   irPara("/");
 }
 
@@ -142,5 +146,71 @@ describe("origem do clique (ttclid e UTMs)", () => {
     localStorage.setItem("velo_signup_origin", JSON.stringify({ ttclid: "velho", ttclid_captured_at: "2020-01-01T00:00:00.000Z" }));
     await salvarOrigemTikTokNoPerfil("user-1");
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("cadastro pelo servidor (Events API)", () => {
+  beforeEach(resetar);
+
+  const corpoEnviado = () => invoke.mock.calls[0][1].body as Record<string, unknown>;
+
+  it("chama a função tiktok-events com o mesmo event_id do pixel, sem a query string do link", async () => {
+    irPara("/cadastro?utm_source=tiktok&ttclid=abc");
+    await tiktokCadastroServidor({ userId: "user-1", ttclid: "abc", ttp: "cookie-ttp" });
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0][0]).toBe("tiktok-events");
+    expect(corpoEnviado()).toEqual({
+      action: "complete_registration",
+      event_id: "cadastro_user-1",
+      page_url: `${window.location.origin}/cadastro`,
+      ttclid: "abc",
+      ttp: "cookie-ttp",
+    });
+    expect(eventIdCadastro("user-1")).toBe("cadastro_user-1");
+  });
+
+  it("não manda ttclid nem ttp quando não existem", async () => {
+    await tiktokCadastroServidor({ userId: "user-1" });
+    expect(corpoEnviado()).not.toHaveProperty("ttclid");
+    expect(corpoEnviado()).not.toHaveProperty("ttp");
+  });
+
+  it("não chama o servidor quando o navegador pede para não rastrear (GPC)", async () => {
+    (navigator as unknown as Record<string, unknown>).globalPrivacyControl = true;
+    await tiktokCadastroServidor({ userId: "user-1", ttclid: "abc" });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("falha do servidor nunca vira erro para o cadastro", async () => {
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    invoke.mockResolvedValueOnce({ data: null, error: new Error("500") });
+    await expect(tiktokCadastroServidor({ userId: "user-1" })).resolves.toBeUndefined();
+    invoke.mockRejectedValueOnce(new Error("sem internet"));
+    await expect(tiktokCadastroServidor({ userId: "user-1" })).resolves.toBeUndefined();
+    aviso.mockRestore();
+  });
+
+  it("concluir o cadastro manda pixel e servidor com o mesmo event_id e o ttclid guardado", async () => {
+    irPara("/?utm_source=tiktok&ttclid=clique-7");
+    captureOrigin();
+    irPara("/cadastro");
+    document.cookie = "_ttp=cookie-do-tiktok";
+    expect(() => concluirCadastroNoTikTok({ id: "user-9", email: "ana@exemplo.com" })).not.toThrow();
+    await vi.waitFor(() => {
+      const fila = Array.from(w.ttq ?? []) as unknown[][];
+      expect(fila.some((c) => c[1] === "CompleteRegistration")).toBe(true);
+    });
+    const fila = Array.from(w.ttq ?? []) as unknown[][];
+    const pixel = fila.find((c) => c[1] === "CompleteRegistration") as unknown[];
+    expect(pixel[3]).toEqual({ event_id: "cadastro_user-9" });
+    expect(corpoEnviado()).toMatchObject({ event_id: "cadastro_user-9", ttclid: "clique-7", ttp: "cookie-do-tiktok" });
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("ttclid com mais de 28 dias não vai para o servidor", async () => {
+    localStorage.setItem("velo_signup_origin", JSON.stringify({ ttclid: "velho", ttclid_captured_at: "2020-01-01T00:00:00.000Z" }));
+    concluirCadastroNoTikTok({ id: "user-9" });
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalled());
+    expect(corpoEnviado()).not.toHaveProperty("ttclid");
   });
 });

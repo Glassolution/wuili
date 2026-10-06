@@ -14,6 +14,8 @@
   enviados quando ele chega.
 */
 
+import { supabase } from "@/integrations/supabase/client";
+
 export const TIKTOK_PIXEL_ID = "DB1U9MRC77U5HCCK5HA0";
 
 const SCRIPT_SRC = "https://analytics.tiktok.com/i18n/pixel/events.js";
@@ -101,6 +103,20 @@ function criarFila(w: Janela): Ttq {
   return ttq;
 }
 
+/** Se o rastreamento de anúncios pode rodar neste navegador. Vale para o pixel e para o envio pelo servidor. */
+export function rastreamentoPermitido(): boolean {
+  const w = janela();
+  return Boolean(w) && !rastreamentoRecusado(w as Janela);
+}
+
+/**
+ * Código do evento de cadastro. O pixel e a Events API (função tiktok-events)
+ * mandam o mesmo valor, e é por ele que o TikTok junta os dois envios num só.
+ */
+export function eventIdCadastro(userId: string): string {
+  return `cadastro_${userId}`;
+}
+
 /**
  * Prepara o pixel uma única vez por carregamento de página. O script é
  * assíncrono e não segura o primeiro desenho da tela. Devolve false quando o
@@ -164,8 +180,8 @@ async function sha256(valor: string): Promise<string | null> {
 /**
  * Conta criada (CompleteRegistration). E-mail e ID vão como hash SHA-256: o
  * TikTok só compara com os dados dele, sem receber o e-mail em texto.
- * O event_id fixo por conta é o mesmo que a Events API deve usar no servidor,
- * para o TikTok não contar o cadastro duas vezes.
+ * O event_id fixo por conta é o mesmo do envio pelo servidor
+ * (tiktokCadastroServidor), para o TikTok não contar o cadastro duas vezes.
  */
 export async function tiktokCadastroConcluido(usuario: { id: string; email?: string | null }): Promise<void> {
   if (!usuario.id || !iniciarTikTokPixel()) return;
@@ -176,8 +192,39 @@ export async function tiktokCadastroConcluido(usuario: { id: string; email?: str
   enviar((ttq) => {
     const identidade = { ...(email ? { email } : {}), ...(externalId ? { external_id: externalId } : {}) };
     if (Object.keys(identidade).length > 0) ttq.identify(identidade);
-    ttq.track("CompleteRegistration", { content_name: "cadastro_velo" }, { event_id: `cadastro_${usuario.id}` });
+    ttq.track("CompleteRegistration", { content_name: "cadastro_velo" }, { event_id: eventIdCadastro(usuario.id) });
   });
+}
+
+/**
+ * O mesmo cadastro, enviado pelo servidor (Events API). Chega ao TikTok mesmo
+ * com bloqueador de anúncio e leva IP e navegador, que o servidor lê da
+ * própria requisição. ttclid e cookie _ttp vão junto porque, neste instante,
+ * a gravação deles no perfil pode ainda não ter terminado.
+ * Nunca lança erro: uma falha aqui não pode atrapalhar o cadastro.
+ */
+export async function tiktokCadastroServidor(dados: {
+  userId: string;
+  ttclid?: string | null;
+  ttp?: string | null;
+}): Promise<void> {
+  const w = janela();
+  if (!w || !dados.userId || !rastreamentoPermitido()) return;
+  try {
+    const { error } = await supabase.functions.invoke("tiktok-events", {
+      body: {
+        action: "complete_registration",
+        event_id: eventIdCadastro(dados.userId),
+        // Sem a query string: o link do anúncio pode passar do limite da função.
+        page_url: `${w.location.origin}${w.location.pathname}`,
+        ...(dados.ttclid ? { ttclid: dados.ttclid.slice(0, 500) } : {}),
+        ...(dados.ttp ? { ttp: dados.ttp.slice(0, 500) } : {}),
+      },
+    });
+    if (error) console.warn("[medição] cadastro não enviado ao TikTok pelo servidor:", error.message);
+  } catch {
+    /* medição nunca pode atrapalhar o cadastro */
+  }
 }
 
 /** Cookie _ttp que o pixel grava no domínio da Velo. Vai para o perfil, para a Events API. */
