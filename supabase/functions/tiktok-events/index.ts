@@ -1,11 +1,14 @@
 // Eventos TikTok pelo servidor.
-// - action "complete_registration": chamado pelo app logo após o cadastro,
-//   com o MESMO event_id usado pelo pixel do navegador (dedupe no TikTok).
+// - action "complete_registration": chamado pelo app logo após o cadastro.
+//   O event_id é montado aqui a partir da conta logada (cadastro_<user_id>),
+//   o mesmo do pixel do navegador (dedupe no TikTok). O valor que vier no
+//   corpo é ignorado: aceitá-lo deixaria uma conta mandar cadastros falsos
+//   ou ocupar o id do próprio Purchase (purchase_<subscription_id>).
 // - action "retry_failed": só admins; reenvia eventos que falharam.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
-import { deliverTikTokEvent, loadTikTokUser, trackTikTokEvent } from "../_shared/tiktokEvents.ts";
+import { deliverTikTokEvent, loadTikTokUser, registrationEventId, trackTikTokEvent } from "../_shared/tiktokEvents.ts";
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
@@ -16,7 +19,8 @@ const json = (b: unknown, status = 200) =>
 const Body = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("complete_registration"),
-    event_id: z.string().min(4).max(128),
+    // Aceito só para compatibilidade com versões do app que ainda o enviam; não é usado.
+    event_id: z.string().max(128).optional(),
     page_url: z.string().url().max(500).optional(),
     ttclid: z.string().max(500).optional(),
     ttp: z.string().max(500).optional(),
@@ -41,7 +45,7 @@ Deno.serve(async (req) => {
     const u = await loadTikTokUser(admin, user.id);
     const result = await trackTikTokEvent(admin, {
       eventName: "CompleteRegistration",
-      eventId: body.event_id,
+      eventId: registrationEventId(user.id),
       pageUrl: body.page_url,
       user: {
         ...u,

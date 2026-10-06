@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 
 const { update, eq, invoke } = vi.hoisted(() => ({ update: vi.fn(), eq: vi.fn(), invoke: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({
@@ -212,5 +214,19 @@ describe("cadastro pelo servidor (Events API)", () => {
     concluirCadastroNoTikTok({ id: "user-9" });
     await vi.waitFor(() => expect(invoke).toHaveBeenCalled());
     expect(corpoEnviado()).not.toHaveProperty("ttclid");
+  });
+});
+
+describe("event_id do cadastro igual no navegador e no servidor", () => {
+  it("a função tiktok-events monta o código no mesmo formato do pixel", () => {
+    // O código do servidor roda em Deno e não importa aqui; conferimos o texto.
+    const servidor = readFileSync(path.resolve(__dirname, "../../supabase/functions/_shared/tiktokEvents.ts"), "utf8");
+    const formato = servidor.match(/export function registrationEventId\(userId: string\): string \{\s*return `([^`]*)`;/);
+    expect(formato?.[1]).toBe("cadastro_${userId}");
+    expect(eventIdCadastro("user-1")).toBe("cadastro_user-1");
+
+    const funcao = readFileSync(path.resolve(__dirname, "../../supabase/functions/tiktok-events/index.ts"), "utf8");
+    expect(funcao).toContain("eventId: registrationEventId(user.id)");
+    expect(funcao).not.toContain("eventId: body.event_id");
   });
 });

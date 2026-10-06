@@ -110,8 +110,9 @@ export function rastreamentoPermitido(): boolean {
 }
 
 /**
- * Código do evento de cadastro. O pixel e a Events API (função tiktok-events)
- * mandam o mesmo valor, e é por ele que o TikTok junta os dois envios num só.
+ * Código do evento de cadastro. A função tiktok-events monta o mesmo valor no
+ * servidor (registrationEventId, em supabase/functions/_shared/tiktokEvents.ts),
+ * e é por ele que o TikTok junta os dois envios num só. Mudou aqui, mude lá.
  */
 export function eventIdCadastro(userId: string): string {
   return `cadastro_${userId}`;
@@ -214,6 +215,9 @@ export async function tiktokCadastroServidor(dados: {
     const { error } = await supabase.functions.invoke("tiktok-events", {
       body: {
         action: "complete_registration",
+        // O servidor monta o event_id sozinho e ignora este campo; ele só vai
+        // porque a versão anterior da função o exige. Pode sair quando a
+        // função nova estiver publicada.
         event_id: eventIdCadastro(dados.userId),
         // Sem a query string: o link do anúncio pode passar do limite da função.
         page_url: `${w.location.origin}${w.location.pathname}`,

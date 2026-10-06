@@ -8,6 +8,15 @@
 export const TIKTOK_PIXEL_ID = Deno.env.get("TIKTOK_PIXEL_ID") ?? "DB1U9MRC77U5HCCK5HA0";
 const ENDPOINT = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
 
+/**
+ * Código do evento de cadastro. Montado só aqui, a partir do id da conta: o
+ * pixel do navegador usa o mesmo formato (src/lib/tiktokPixel.ts,
+ * eventIdCadastro), e é por ele que o TikTok junta os dois envios.
+ */
+export function registrationEventId(userId: string): string {
+  return `cadastro_${userId}`;
+}
+
 async function sha256(value: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
