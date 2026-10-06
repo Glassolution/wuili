@@ -355,6 +355,9 @@ const AdminSupportPage = () => {
   const qc = useQueryClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  // Só marca como lido o ticket que o admin abriu de propósito; o que é aberto
+  // sozinho ao carregar a lista não pode apagar a bolinha de "nova resposta".
+  const [chosenTicketId, setChosenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [replyTarget, setReplyTarget] = useState<SupportReplyReference | null>(null);
   const [replyImage, setReplyImage] = useState<File | null>(null);
@@ -529,6 +532,8 @@ const AdminSupportPage = () => {
         } satisfies AdminTicket;
       }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
     },
+    // Reserva caso o tempo real caia: a fila se atualiza sozinha.
+    refetchInterval: 20_000,
     retry: false,
   });
 
@@ -589,7 +594,7 @@ const AdminSupportPage = () => {
   }, [readTickets]);
 
   useEffect(() => {
-    if (!openTicket?.last_message_at) return;
+    if (!openTicket?.last_message_at || openTicket.id !== chosenTicketId) return;
     setReadTickets((current) => {
       const previous = current[openTicket.id];
       if (previous && new Date(previous).getTime() >= new Date(openTicket.last_message_at as string).getTime()) {
@@ -597,7 +602,7 @@ const AdminSupportPage = () => {
       }
       return { ...current, [openTicket.id]: openTicket.last_message_at as string };
     });
-  }, [openTicket?.id, openTicket?.last_message_at]);
+  }, [openTicket?.id, openTicket?.last_message_at, chosenTicketId]);
 
   const { data: customerContext, isLoading: loadingCustomerContext } = useQuery({
     queryKey: ["admin-support-customer-context", openTicket?.user_id],
@@ -992,6 +997,7 @@ const AdminSupportPage = () => {
             selectedId={openTicketId}
             onSelect={(id) => {
               setOpenTicketId(id);
+              setChosenTicketId(id);
               setMobilePanel("conversation");
             }}
             search={search}
