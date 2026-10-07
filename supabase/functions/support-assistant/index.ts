@@ -290,6 +290,8 @@ Deno.serve(async (req) => {
       reply = "Não consegui resolver isso sozinho. Pedi para alguém da equipe olhar com você — a resposta aparece aqui.";
       if (!escalou) await escalar(admin, userId, "erro_desconhecido", message.slice(0, 300), diag);
     }
+    // Garantia de que o horário humano nunca depende só da boa vontade do modelo.
+    if (escalou && !reply.includes("13h")) reply = `${reply}\n\n${HORARIOS_ATENDIMENTO}`;
 
     await admin.from("support_ai_messages").insert({
       user_id: userId, role: "assistant", content: reply, tool_calls: usadas.length ? usadas : null,
@@ -471,7 +473,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     reply = dentroDoPrazoReembolso
       ? `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`
       : AVISO_REEMBOLSO_FORA_DO_PRAZO;
-  } else if (escalou && !reply.includes("atendimento humano")) reply = `${reply}\n\n${AVISO_ESPERA}`;
+  } else if (escalou && !reply.includes("13h")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   // Se o cliente mandou outra mensagem enquanto a IA pensava, a chamada dessa
   // mensagem nova responde tudo junto; esta desiste para não duplicar.
   const { data: maisNova } = await admin.from("support_messages").select("id")
