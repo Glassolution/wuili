@@ -17,6 +17,11 @@ const MODEL = "gemini-3.8-flash";
 const LIMITE_DIARIO = 40;
 const APP_URL = Deno.env.get("APP_URL") ?? "https://velods.com.br";
 
+// Mesmo texto do FAQ e da saudação automática da Caixa de entrada (src/lib/support.ts).
+// Vale para qualquer aviso de que uma pessoa da equipe vai responder.
+const HORARIOS_ATENDIMENTO =
+  "Nosso horário de atendimento é de segunda a sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h.";
+
 const SYSTEM = `Você é o assistente de suporte da Velo, plataforma brasileira que ajuda iniciantes a vender no Mercado Livre com produtos de fornecedores nacionais. Fale SEMPRE em português brasileiro simples, frases curtas, tom acolhedor. Sem jargão técnico.
 
 Como a Velo funciona (fatos confirmados, pode responder direto):
@@ -29,6 +34,7 @@ Regras:
 - Nunca invente preços, prazos, regras ou funcionalidades. Planos: Base R$39,90/mês, Pro R$79,80/mês, Business R$189,90/mês. Não existe plano gratuito.
 - Chame "acionar_suporte_humano" quando: (a) aparecer um erro/situação que você não reconhece, (b) a dúvida não for coberta pela central nem pela verificação de conta, (c) o usuário pedir para falar com uma pessoa, ou (d) envolver reembolso, cobrança, cancelamento ou dinheiro.
 - Ao acionar o suporte humano, NUNCA mencione "escalar", "ticket", "fila" ou ferramentas. Apenas diga de forma natural algo como: "Vou pedir para alguém da equipe olhar isso com você. A resposta vai aparecer aqui mesmo." e continue ajudando no que puder.
+- SEMPRE que avisar que uma pessoa da equipe vai responder, informe logo depois os horários reais: "${HORARIOS_ATENDIMENTO}". Nunca invente outro horário nem diga que o atendimento é 24 horas.
 - Nunca peça senha, código de verificação ou dados de cartão.`;
 
 const TOOLS = [{
@@ -219,7 +225,7 @@ Deno.serve(async (req) => {
       .eq("user_id", userId).eq("role", "user").gte("created_at", desde);
     if ((count ?? 0) >= LIMITE_DIARIO) {
       await escalar(admin, userId, "limite_diario", "Usuário atingiu o limite diário de mensagens do assistente.", null);
-      return json({ reply: "Você já conversou bastante comigo hoje. Pedi para alguém da equipe continuar com você por aqui." });
+      return json({ reply: `Você já conversou bastante comigo hoje. Pedi para alguém da equipe continuar com você por aqui. ${HORARIOS_ATENDIMENTO}` });
     }
 
     await admin.from("support_ai_messages").insert({ user_id: userId, role: "user", content: message });
@@ -296,11 +302,11 @@ Deno.serve(async (req) => {
 });
 
 // ───────── Respostas automáticas nos tickets da Caixa de entrada ─────────
-const AVISO_ESPERA = "Já solicitei o atendimento humano. Aguarde, que em breve alguém da equipe Velo vai te responder por aqui.";
+const AVISO_ESPERA = `Já solicitei o atendimento humano. ${HORARIOS_ATENDIMENTO} Aguarde, que em breve alguém da equipe Velo vai te responder por aqui.`;
 
-const AVISO_REEMBOLSO = "Pode ficar tranquilo(a): vou solicitar o seu reembolso à nossa equipe agora mesmo. O prazo para ele ser feito é de até 5 dias.";
+const AVISO_REEMBOLSO = `Pode ficar tranquilo(a): vou solicitar o seu reembolso à nossa equipe agora mesmo. O prazo para ele ser feito é de até 5 dias. ${HORARIOS_ATENDIMENTO}`;
 
-const AVISO_REEMBOLSO_FORA_DO_PRAZO = "Sinto muito pelo transtorno. O reembolso da assinatura só é possível dentro de 7 dias após o pagamento, e esse prazo já passou na sua conta.\n\nO que posso fazer por você agora é cancelar a renovação automática, para você não ser cobrado de novo. Tudo continua funcionando normalmente até o fim do período já pago.\n\nVou passar o seu pedido para a nossa equipe, que te responde aqui mesmo nesta conversa.";
+const AVISO_REEMBOLSO_FORA_DO_PRAZO = `Sinto muito pelo transtorno. O reembolso da assinatura só é possível dentro de 7 dias após o pagamento, e esse prazo já passou na sua conta.\n\nO que posso fazer por você agora é cancelar a renovação automática, para você não ser cobrado de novo. Tudo continua funcionando normalmente até o fim do período já pago.\n\nVou passar o seu pedido para a nossa equipe, que te responde aqui mesmo nesta conversa. ${HORARIOS_ATENDIMENTO}`;
 
 const SYSTEM_TICKET = `${SYSTEM}
 
