@@ -270,6 +270,24 @@ const AdminRefundsPage = () => {
     },
   });
 
+  // Confere na ValidaPay os estornos "Em processo" e tira os já devolvidos.
+  useQuery({
+    queryKey: ["admin-refunds-reconcile"],
+    enabled: isAdmin,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("validapay-refund-status", { body: {} });
+      if (error) {
+        console.error("[admin-refunds] falha ao conferir estornos", error);
+        return null;
+      }
+      if ((data as { confirmados?: number; falhos?: number })?.confirmados || (data as { falhos?: number })?.falhos) {
+        qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
+      }
+      return data;
+    },
+  });
+
   const [busyId, setBusyId] = useState<string | null>(null);
   const action = useMutation({
     mutationFn: async ({ id, kind }: { id: string; kind: "approve" | "reject" }) => {

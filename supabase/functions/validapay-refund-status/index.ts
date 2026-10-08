@@ -72,12 +72,11 @@ Deno.serve(async (req) => {
     for (const r of pendentes) {
       const pr = (r.provider_response ?? {}) as Record<string, unknown>;
       const refundId = String(pr.refundId ?? pr.id ?? pr.reference ?? "").trim();
-      if (!refundId) {
-        results.push({ id: r.id, skip: "sem_refund_id" });
-        continue;
-      }
       try {
-        const info = await getRefundStatus(refundId) as Record<string, unknown>;
+        let info: Record<string, unknown> = {};
+        if (refundId) {
+          try { info = await getRefundStatus(refundId) as Record<string, unknown>; } catch (_e) { info = {}; }
+        }
         const node = (info?.data ?? info) as Record<string, unknown>;
         const item = Array.isArray((node as { items?: unknown[] }).items)
           ? ((node as { items: Record<string, unknown>[] }).items[0] ?? {})
@@ -87,7 +86,12 @@ Deno.serve(async (req) => {
         const failed = FAILED.includes(status);
         let chargeStatus: string | null = null;
         let confirmadoPelaCobranca = false;
-        const chargeId = String(r.charge_id ?? pr.chargeId ?? pr.charge_id ?? "").trim();
+        let chargeId = String(r.charge_id ?? pr.chargeId ?? pr.charge_id ?? "").trim();
+        if (!chargeId && r.subscription_id) {
+          const { data: s } = await admin.from("subscriptions")
+            .select("validapay_charge_id").eq("id", r.subscription_id).maybeSingle();
+          chargeId = String(s?.validapay_charge_id ?? "").trim();
+        }
 
         // O endpoint de estornos costuma travar em PROCESSING. A cobrança é a
         // fonte que realmente comprova a devolução do dinheiro.
