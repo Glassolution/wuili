@@ -87,7 +87,12 @@ Deno.serve(async (req) => {
         const failed = FAILED.includes(status);
         let chargeStatus: string | null = null;
         let confirmadoPelaCobranca = false;
-        const chargeId = String(r.charge_id ?? pr.chargeId ?? pr.charge_id ?? "").trim();
+        let chargeId = String(r.charge_id ?? pr.chargeId ?? pr.charge_id ?? "").trim();
+        if (!chargeId && r.subscription_id) {
+          const { data: s } = await admin.from("subscriptions")
+            .select("validapay_charge_id").eq("id", r.subscription_id).maybeSingle();
+          chargeId = String(s?.validapay_charge_id ?? "").trim();
+        }
 
         // O endpoint de estornos costuma travar em PROCESSING. A cobrança é a
         // fonte que realmente comprova a devolução do dinheiro.
