@@ -72,12 +72,11 @@ Deno.serve(async (req) => {
     for (const r of pendentes) {
       const pr = (r.provider_response ?? {}) as Record<string, unknown>;
       const refundId = String(pr.refundId ?? pr.id ?? pr.reference ?? "").trim();
-      if (!refundId) {
-        results.push({ id: r.id, skip: "sem_refund_id" });
-        continue;
-      }
       try {
-        const info = await getRefundStatus(refundId) as Record<string, unknown>;
+        let info: Record<string, unknown> = {};
+        if (refundId) {
+          try { info = await getRefundStatus(refundId) as Record<string, unknown>; } catch (_e) { info = {}; }
+        }
         const node = (info?.data ?? info) as Record<string, unknown>;
         const item = Array.isArray((node as { items?: unknown[] }).items)
           ? ((node as { items: Record<string, unknown>[] }).items[0] ?? {})
