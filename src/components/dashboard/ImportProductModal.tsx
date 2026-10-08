@@ -9,6 +9,7 @@ import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import MLAccountVerificationModal from "@/components/dashboard/MLAccountVerificationModal";
 import MlMissingInfoModal from "@/components/dashboard/MlMissingInfoModal";
+import { PublishButton, PublishSuccessMark } from "@/components/dashboard/PublishButton";
 // import { ManualCategoryDialog } from "@/components/dashboard/ManualCategoryDialog"; // removido a pedido
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useStartMode } from "@/hooks/useStartMode";
@@ -993,9 +994,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
             {/* STEP 4 — Success */}
             {step === 5 && publishResult && (
               <div key="s4" className="step-fade flex flex-col items-center justify-center py-14 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full mb-5" style={{ background: ACCENT }}>
-                  <Check size={26} strokeWidth={3} className="text-white" />
-                </div>
+                <PublishSuccessMark color={ACCENT} />
                 <h3 className="text-[16px] font-semibold text-[#0A0A0A]">Anúncio publicado</h3>
                 <p className="text-[12.5px] text-gray-500 mt-1.5 max-w-[320px]">Seu produto já está no Mercado Livre. ID: <span className="font-medium text-[#0A0A0A]">{publishResult.item_id}</span></p>
                 <a
@@ -1020,7 +1019,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               {step < 5 && (
                 <button
                   onClick={handleClose}
-                  className="rounded-[100px] px-4 py-2 text-[12.5px] font-[400] text-[#737373] transition-all duration-[120ms] hover:text-[#0A0A0A]"
+                  disabled={publishing}
+                  className="rounded-[100px] px-4 py-2 text-[12.5px] font-[400] text-[#737373] transition-all duration-[120ms] hover:text-[#0A0A0A] disabled:pointer-events-none disabled:opacity-40"
                 >
                   Cancelar
                 </button>
@@ -1028,7 +1028,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               {step > 1 && step < 5 && (
                 <button
                   onClick={() => setStep(step - 1)}
-                  className="rounded-[100px] border-[1.5px] border-[#E5E5E5] px-4 py-2 text-[12.5px] font-[400] text-[#0A0A0A] transition-all duration-[120ms] hover:border-[#0A0A0A] hover:bg-[#F5F5F5]"
+                  disabled={publishing}
+                  className="rounded-[100px] border-[1.5px] border-[#E5E5E5] px-4 py-2 text-[12.5px] font-[400] text-[#0A0A0A] transition-all duration-[120ms] hover:border-[#0A0A0A] hover:bg-[#F5F5F5] disabled:pointer-events-none disabled:opacity-40"
                 >
                   Voltar
                 </button>
@@ -1066,20 +1067,18 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                 </button>
               )}
               {step === 3 && (
-                <button
+                <PublishButton
                   onClick={() => void handleContinueFromReview()}
-                  disabled={checkingSeller || publishing || generatingDesc}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white shadow-[0_10px_24px_rgba(37,99,235,0.24)] transition hover:bg-[#1D4ED8]"
-                >
-                  {generatingDesc
-                    ? "Preparando descrição…"
-                    : checkingSeller
-                      ? "Verificando conta…"
-                      : planLimits.canPublishProducts
-                        ? "Publicar produto"
-                        : "Continuar para o plano"}
-                  <ArrowRight size={13} />
-                </button>
+                  loading={publishing || checkingSeller || generatingDesc}
+                  loadingLabels={
+                    publishing
+                      ? ["Publicando…", "Criando anúncio…", "Finalizando…"]
+                      : generatingDesc
+                        ? ["Preparando descrição…"]
+                        : ["Verificando conta…"]
+                  }
+                  label={planLimits.canPublishProducts ? "Publicar produto" : "Continuar para o plano"}
+                />
               )}
               {step === 5 && (
                 <button onClick={handleClose} className="inline-flex h-11 items-center justify-center rounded-full bg-[#2563EB] px-6 text-[13px] font-semibold text-white">
