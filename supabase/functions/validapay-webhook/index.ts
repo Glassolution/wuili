@@ -308,6 +308,38 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Estorno confirmado pela ValidaPay: tira o pedido de "Em processo".
+    // Só atualiza o registro; nenhum dinheiro é movimentado aqui.
+    if (event === "refund.confirmed" || event === "refund.requested") {
+      const chargeId = String(payload.chargeId ?? "").trim();
+      if (event === "refund.confirmed" && chargeId) {
+        const { data: subs } = await admin
+          .from("subscriptions").select("id").eq("validapay_charge_id", chargeId);
+        const subIds = (subs ?? []).map((s: { id: string }) => s.id);
+        let q = admin.from("refund_requests").select("id,provider_response,subscription_id");
+        q = subIds.length
+          ? q.or(`charge_id.eq.${chargeId},subscription_id.in.(${subIds.join(",")})`)
+          : q.eq("charge_id", chargeId);
+        const { data: reqs } = await q;
+        for (const r of reqs ?? []) {
+          const pr = (r.provider_response ?? {}) as Record<string, unknown>;
+          await admin.from("refund_requests").update({
+            status: "processed",
+            processed_at: nowIsoRefund(),
+            provider_response: { ...pr, status: "CONFIRMED", confirmed_by_webhook: true },
+            updated_at: nowIsoRefund(),
+          }).eq("id", r.id);
+          if (r.subscription_id) {
+            await admin.from("subscriptions")
+              .update({ status: "refunded", updated_at: nowIsoRefund() }).eq("id", r.subscription_id);
+          }
+        }
+      }
+      await admin.from("validapay_webhook_events")
+        .update({ processed: true, status: event }).eq("id", eventRow.id);
+      return json({ received: true, kind: "refund" });
+    }
+
     const dropshipPayment = await syncDropshipOrderPayment(payload, {
       event,
       eventRowId: eventRow.id,
