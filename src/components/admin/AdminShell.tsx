@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { useCallback, useContext, useLayoutEffect, useState, type ReactNode } from "react";
 import {
   BadgeDollarSign,
   BarChart3,
@@ -16,11 +16,17 @@ import {
 } from "lucide-react";
 import { AdminNewSidebar } from "@/components/admin/AdminNewSidebar";
 import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
+import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { OldAdminShell } from "@/components/admin/OldAdminShell";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 import { getAdminPanelStyle } from "@/lib/adminPanelStyle";
+import { AdminSaleToast } from "@/components/admin/AdminSaleNotifications";
+import { useAdminSaleWatcher } from "@/hooks/useAdminSaleWatcher";
+import { ADMIN_PAGE_SCROLL_CLASS, AdminLayoutContext } from "@/components/admin/adminLayoutContext";
 import { Activity } from "lucide-react";
 import "@/styles/admin-theme.css";
+import "@/styles/admin-dark.css";
+import "@/styles/admin-dark-classes.css";
 
 type AdminSection =
   | "dashboard"
@@ -46,6 +52,19 @@ type AdminShellProps = {
   title?: string;
   subtitle?: string;
   actions?: ReactNode;
+};
+
+export type AdminTheme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "velo:admin-theme";
+
+/** Versão noturna é o padrão; "light" é a versão padrão (clara). */
+const getStoredTheme = (): AdminTheme => {
+  try {
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
 };
 
 const SECTION_LABEL: Record<AdminSection, string> = {
@@ -108,14 +127,67 @@ const PageHeader = ({
   );
 };
 
-export const AdminShell = ({ children, active, fullBleed = false, title, subtitle, actions }: AdminShellProps) => {
+/**
+ * Moldura do admin: barra de cima, sidebar, tema, busca e navegação do
+ * celular. `children` é a área de conteúdo à direita da sidebar.
+ */
+export const AdminFrame = ({ children }: { children: ReactNode }) => {
   const [searchOpen, setSearchOpen] = useState(false);
-  const [panelStyle] = useState(() => getAdminPanelStyle());
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const [theme, setTheme] = useState<AdminTheme>(getStoredTheme);
+  const toggleTheme = useCallback(() => {
+    setTheme((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      try {
+        window.localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {
+        // armazenamento bloqueado: o tema vale só nesta visita
+      }
+      return next;
+    });
+  }, []);
+
+  // vendas (assinaturas pagas) em tempo real: som, aviso e valor no painel
+  useAdminSaleWatcher(true);
 
   useLayoutEffect(() => {
     document.documentElement.classList.add("velo-admin-surface");
     return () => document.documentElement.classList.remove("velo-admin-surface");
   }, []);
+
+  return (
+    <div
+      className="velo-admin-root admin-frame flex h-screen flex-col overflow-hidden max-md:h-[100dvh]"
+      data-admin-theme={theme}
+    >
+      <AdminTopBar onOpenSearch={openSearch} theme={theme} onToggleTheme={toggleTheme} />
+      <div className="admin-frame-body flex min-h-0 flex-1 overflow-hidden">
+        <AdminNewSidebar />
+        <div className="admin-shell-main relative min-w-0 flex-1">{children}</div>
+      </div>
+
+      <AdminSaleToast />
+      <AdminMobileNav />
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
+    </div>
+  );
+};
+
+export const AdminShell = ({ children, active, fullBleed = false, title, subtitle, actions }: AdminShellProps) => {
+  const insideLayout = useContext(AdminLayoutContext);
+  const [panelStyle] = useState(() => getAdminPanelStyle());
+
+  const content = fullBleed ? (
+    children
+  ) : (
+    <div className="min-h-full">
+      <PageHeader active={active} title={title} subtitle={subtitle} actions={actions} />
+      <div className="px-5 py-5 lg:px-7">{children}</div>
+    </div>
+  );
+
+  // Dentro do AdminLayout a moldura já existe: a página entrega só o conteúdo.
+  if (insideLayout) return <>{content}</>;
 
   if (panelStyle === "old") {
     return (
@@ -126,26 +198,8 @@ export const AdminShell = ({ children, active, fullBleed = false, title, subtitl
   }
 
   return (
-    <div className="velo-admin-root h-screen overflow-hidden max-md:h-[100dvh]">
-      <div className="flex h-full overflow-hidden">
-        <AdminNewSidebar onOpenSearch={() => setSearchOpen(true)} />
-
-        <div className="admin-shell-main min-w-0 flex-1">
-          <main className="admin-page-surface h-full min-w-0 overflow-y-auto overflow-x-hidden max-md:pb-[calc(76px+env(safe-area-inset-bottom))]">
-            {fullBleed ? (
-              children
-            ) : (
-              <div className="min-h-full">
-                <PageHeader active={active} title={title} subtitle={subtitle} actions={actions} />
-                <div className="px-5 py-5 lg:px-7">{children}</div>
-              </div>
-            )}
-          </main>
-        </div>
-      </div>
-
-      <AdminMobileNav />
-      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin />
-    </div>
+    <AdminFrame>
+      <main className={`h-full ${ADMIN_PAGE_SCROLL_CLASS}`}>{content}</main>
+    </AdminFrame>
   );
 };

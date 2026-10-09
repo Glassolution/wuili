@@ -413,6 +413,491 @@
 }
 
 /* --------------------------------------------------------------------------
+   Temas: "padrão" (claro) e "noturno" (escuro)
+   O AdminShell grava data-admin-theme na raiz; a sidebar e o painel
+   "Visão geral" leem só estas variáveis.
+   -------------------------------------------------------------------------- */
+
+.velo-admin-root {
+  /* sidebar e moldura */
+  --nav-bg: #ebebeb;
+  --nav-border: transparent;
+  --nav-text: #303030;
+  --nav-icon: #4a4a4a;
+  --nav-hover: rgba(255, 255, 255, 0.55);
+  --nav-active-bg: #ffffff;
+  --nav-active-text: #1a1a1a;
+  --nav-active-shadow: 0 1px 0 0 rgba(26, 26, 26, 0.07), 0 0 0 1px rgba(26, 26, 26, 0.02);
+  --nav-weight: 550;
+  --nav-sub: #616161;
+  --nav-section: #616161;
+  --nav-section-icon: #303030;
+  --nav-badge-bg: rgba(0, 0, 0, 0.07);
+  --nav-badge-text: #303030;
+  --nav-badge-active-bg: #f1f1f1;
+  --frame-body: #ebebeb;
+
+  /* painel */
+  --ov-scheme: light;
+  --ov-page: #f1f1f1;
+  --ov-panel: #ffffff;
+  --ov-panel-border: #e6e9ef;
+  --ov-panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.08);
+  --ov-card: #fafafa;
+  --ov-card-border: #ececef;
+  --ov-card-hover: #f7f7f8;
+  --ov-card-hover-border: #e0e0e4;
+  --ov-text: #0a0a0a;
+  --ov-text-2: #3f3f46;
+  --ov-text-3: #71717a;
+  --ov-text-4: #8a8a93;
+  --ov-text-5: #c4c4cc;
+  --ov-surface: #f4f4f5;
+  --ov-surface-hover: #e9e9ec;
+  --ov-input: #fafafa;
+  --ov-input-border: #e4e4e7;
+  --ov-menu: #ffffff;
+  --ov-menu-border: #e6e9ef;
+  --ov-menu-hover: #f4f4f5;
+  --ov-menu-text: #3f3f46;
+  --ov-menu-shadow: 0 16px 40px -12px rgba(15, 23, 42, 0.2);
+  --ov-divider: #eef1f5;
+  --ov-footer: #fcfcfd;
+  --ov-row-hover: #fafafa;
+  --ov-shimmer: #eef0f3;
+  --ov-shimmer-glint: rgba(255, 255, 255, 0.9);
+  --ov-accent: #2563eb;
+  --ov-accent-hover: #1d4ed8;
+  --ov-accent-text: #2563eb;
+  --ov-accent-soft: rgba(37, 99, 235, 0.1);
+  --ov-negative: #dc2626;
+  --ov-grid-dot: #d4d4d8;
+  --ov-area-opacity: 0.16;
+  --ov-dot-fill: #ffffff;
+  --ov-dot-glow: rgba(37, 99, 235, 0.4);
+  --ov-tooltip: #18181b;
+  --ov-tooltip-border: transparent;
+  --ov-avatar: #eef1f6;
+  --ov-avatar-text: #4b5563;
+  --ov-badge: #f1f1f1;
+  --ov-badge-text: #414141;
+  --ov-success-bg: #ecfdf3;
+  --ov-success: #16a34a;
+  --ov-danger-bg: #fdeeeb;
+  --ov-danger: #d72c0d;
+  --ov-warning-bg: #fdf4e3;
+  --ov-warning: #a16207;
+  --ov-day-disabled: #d4d4d8;
+}
+
+.velo-admin-root[data-admin-theme="dark"] {
+  --nav-bg: #0f0f0f;
+  --nav-border: #1c1c1c;
+  --nav-text: #d4d4d8;
+  --nav-icon: #a1a1aa;
+  --nav-hover: rgba(255, 255, 255, 0.05);
+  --nav-active-bg: #1f1f1f;
+  --nav-active-text: #fafafa;
+  --nav-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --nav-weight: 500;
+  --nav-sub: #a1a1aa;
+  --nav-section: #71717a;
+  --nav-section-icon: #a1a1aa;
+  --nav-badge-bg: rgba(255, 255, 255, 0.08);
+  --nav-badge-text: #d4d4d8;
+  --nav-badge-active-bg: rgba(255, 255, 255, 0.1);
+  --frame-body: #0a0a0a;
+
+  --ov-scheme: dark;
+  --ov-page: #0a0a0a;
+  --ov-panel: #121212;
+  --ov-panel-border: #1f1f1f;
+  --ov-panel-shadow: none;
+  --ov-card: #171717;
+  --ov-card-border: #232323;
+  --ov-card-hover: #1a1a1a;
+  --ov-card-hover-border: #2c2c2c;
+  --ov-text: #fafafa;
+  --ov-text-2: #d4d4d8;
+  --ov-text-3: #a1a1aa;
+  --ov-text-4: #71717a;
+  --ov-text-5: #52525b;
+  --ov-surface: #1f1f1f;
+  --ov-surface-hover: #262626;
+  --ov-input: #1a1a1a;
+  --ov-input-border: #262626;
+  --ov-menu: #1a1a1a;
+  --ov-menu-border: #2a2a2a;
+  --ov-menu-hover: #262626;
+  --ov-menu-text: #e4e4e7;
+  --ov-menu-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.7);
+  --ov-divider: #1f1f1f;
+  --ov-footer: #141414;
+  --ov-row-hover: #1b1b1b;
+  --ov-shimmer: #1f1f1f;
+  --ov-shimmer-glint: rgba(255, 255, 255, 0.06);
+  --ov-accent: #3b82f6;
+  --ov-accent-hover: #2563eb;
+  --ov-accent-text: #60a5fa;
+  --ov-accent-soft: rgba(59, 130, 246, 0.15);
+  --ov-negative: #f87171;
+  --ov-grid-dot: #2b2b2b;
+  --ov-area-opacity: 0.32;
+  --ov-dot-fill: #dbeafe;
+  --ov-dot-glow: rgba(59, 130, 246, 0.55);
+  --ov-tooltip: #222222;
+  --ov-tooltip-border: #2e2e2e;
+  --ov-avatar: #262626;
+  --ov-avatar-text: #d4d4d8;
+  --ov-badge: #262626;
+  --ov-badge-text: #d4d4d8;
+  --ov-success-bg: rgba(34, 197, 94, 0.14);
+  --ov-success: #4ade80;
+  --ov-danger-bg: rgba(248, 113, 113, 0.14);
+  --ov-danger: #f87171;
+  --ov-warning-bg: rgba(250, 204, 21, 0.12);
+  --ov-warning: #facc15;
+  --ov-day-disabled: #3f3f46;
+}
+
+/* troca de tema suave */
+.velo-admin-root .admin-nav,
+.velo-admin-root .admin-nav-item,
+.velo-admin-root .admin-frame-body,
+.velo-admin-root .ov-page,
+.velo-admin-root .ov-panel,
+.velo-admin-root .ov-card,
+.velo-admin-root .ov-stat {
+  transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease;
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar (desenho do admin da Shopify: ícones sólidos, item ativo em
+   pílula). Medidas: itens de 34px, texto Inter 14px. Cores vêm do tema.
+   -------------------------------------------------------------------------- */
+
+.velo-admin-root .admin-nav {
+  background: var(--nav-bg);
+  border-right: 1px solid var(--nav-border);
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.velo-admin-root .admin-nav-item {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: var(--nav-text);
+  font-size: 14px;
+  font-weight: var(--nav-weight);
+  line-height: 20px;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+}
+
+.velo-admin-root .admin-nav-item > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--nav-icon);
+}
+
+.velo-admin-root .admin-nav-item:hover {
+  background: var(--nav-hover);
+  color: var(--nav-active-text);
+}
+
+/* o fundo do item ativo é a pílula (.admin-nav-pill), que desliza entre os itens */
+.velo-admin-root .admin-nav-item {
+  position: relative;
+  isolation: isolate;
+}
+
+.velo-admin-root .admin-nav-item[data-active] {
+  color: var(--nav-active-text);
+  font-weight: 650;
+}
+
+.velo-admin-root .admin-nav-item[data-active]:hover {
+  background: transparent;
+}
+
+.velo-admin-root .admin-nav-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 9px;
+  background: var(--nav-active-bg);
+  box-shadow: var(--nav-active-shadow);
+}
+
+.velo-admin-root .admin-nav-item[data-active] > svg {
+  color: var(--nav-active-text);
+}
+
+.velo-admin-root .admin-nav-subitem {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  padding: 0 12px 0 38px;
+  border-radius: 9px;
+  color: var(--nav-sub);
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 20px;
+  text-decoration: none;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.velo-admin-root .admin-nav-subitem:hover {
+  background: var(--nav-hover);
+  color: var(--nav-active-text);
+}
+
+.velo-admin-root .admin-nav-subitem[aria-current="page"] {
+  color: var(--nav-active-text);
+  font-weight: 650;
+}
+
+.velo-admin-root .admin-nav-section {
+  display: flex;
+  height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 0 12px;
+  color: var(--nav-section);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.velo-admin-root .admin-nav-section svg {
+  width: 15px;
+  height: 15px;
+  color: var(--nav-section-icon);
+}
+
+.velo-admin-root .admin-nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--nav-badge-bg);
+  color: var(--nav-badge-text);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.velo-admin-root .admin-nav-item[data-active] .admin-nav-badge {
+  background: var(--nav-badge-active-bg);
+}
+
+/* --------------------------------------------------------------------------
+   Barra superior (desenho da Shopify): faixa escura e o app numa moldura
+   com cantos arredondados logo abaixo.
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 768px) {
+  .velo-admin-root.admin-frame {
+    background: #1a1a1a;
+  }
+
+  .velo-admin-root .admin-frame-body {
+    border-radius: 12px 12px 0 0;
+    background: var(--frame-body);
+  }
+}
+
+.velo-admin-root .admin-topbar {
+  background: #1a1a1a;
+  color: #e3e3e3;
+  font-family: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* marca: cesta branca com o "G" vazado + "Velo Admin" */
+.velo-admin-root .admin-topbar-brand {
+  display: flex;
+  width: 236px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding-left: 14px;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.velo-admin-root .admin-topbar-brand img {
+  height: 27px;
+  width: 27px;
+  object-fit: contain;
+}
+
+.velo-admin-root .admin-topbar-brand span {
+  font-family: "Plus Jakarta Sans", "Inter Variable", sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  color: #f3f3f3;
+}
+
+.velo-admin-root .admin-topbar-search {
+  display: flex;
+  height: 36px;
+  width: 100%;
+  max-width: 600px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #424242;
+  border-radius: 12px;
+  background: #303030;
+  color: #b5b5b5;
+  font-size: 13.5px;
+  font-weight: 450;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.velo-admin-root .admin-topbar-search:hover {
+  border-color: #555555;
+  background: #383838;
+}
+
+.velo-admin-root .admin-topbar-search:focus-visible {
+  outline: none;
+  border-color: #8a8a8a;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.velo-admin-root .admin-topbar-search svg {
+  width: 18px;
+  height: 18px;
+  color: #b5b5b5;
+}
+
+.velo-admin-root .admin-topbar-search kbd {
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  color: #b5b5b5;
+}
+
+.velo-admin-root .admin-topbar-icon {
+  position: relative;
+  display: grid;
+  height: 36px;
+  width: 36px;
+  place-items: center;
+  border-radius: 10px;
+  background: #303030;
+  color: #e3e3e3;
+  transition: background-color 150ms ease;
+}
+
+.velo-admin-root .admin-topbar-icon:hover {
+  background: #3d3d3d;
+}
+
+.velo-admin-root .admin-topbar-icon:active,
+.velo-admin-root .admin-topbar-account:active {
+  background: #454545;
+}
+
+.velo-admin-root .admin-topbar-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* botão de tema: o ícone gira e aparece ao trocar */
+.velo-admin-root .admin-topbar-theme-icon {
+  display: grid;
+  place-items: center;
+  animation: admin-theme-swap 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes admin-theme-swap {
+  from {
+    opacity: 0;
+    transform: rotate(-60deg) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velo-admin-root .admin-topbar-theme-icon {
+    animation: none;
+  }
+}
+
+.velo-admin-root .admin-topbar-dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  height: 7px;
+  width: 7px;
+  border-radius: 999px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 2px #303030;
+}
+
+.velo-admin-root .admin-topbar-account {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 0 12px;
+  border-radius: 10px;
+  background: #303030;
+  color: #e3e3e3;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background-color 150ms ease;
+}
+
+.velo-admin-root .admin-topbar-account:hover,
+.velo-admin-root .admin-topbar-account[aria-expanded="true"] {
+  background: #3d3d3d;
+}
+
+.velo-admin-root .admin-topbar-avatar {
+  display: grid;
+  height: 28px;
+  width: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.velo-admin-root .admin-topbar-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 240px;
+  padding: 6px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-pop);
+}
+
+/* --------------------------------------------------------------------------
    Cards
    -------------------------------------------------------------------------- */
 
@@ -1062,4 +1547,772 @@
   .velo-admin-root .admin-spark-bars span {
     width: 6px;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Painel "Visão geral" (relatório). Cores vêm do tema.
+   As telas que usam estas classes ficam dentro de [data-admin-native], então
+   as normalizações das páginas legadas não se aplicam a elas.
+   -------------------------------------------------------------------------- */
+
+@media (min-width: 768px) {
+  .velo-admin-root .ov-page {
+    background: var(--ov-page);
+  }
+}
+
+.velo-admin-root .ov-panel {
+  font-family: "Geist", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: var(--ov-scheme);
+  border: 1px solid var(--ov-panel-border);
+  border-radius: 20px;
+  background: var(--ov-panel);
+  color: var(--ov-text);
+  box-shadow: var(--ov-panel-shadow);
+}
+
+.velo-admin-root .ov-card {
+  border: 1px solid var(--ov-card-border);
+  border-radius: 16px;
+  background: var(--ov-panel);
+}
+
+.velo-admin-root[data-admin-theme="dark"] .ov-card {
+  background: var(--ov-card);
+}
+
+.velo-admin-root .ov-card:hover {
+  border-color: var(--ov-card-hover-border);
+}
+
+/* cards de resumo: fundo levemente destacado e borda fina, como na referência */
+.velo-admin-root .ov-stat {
+  padding: 20px 20px 18px;
+  border: 1px solid var(--ov-card-border);
+  border-radius: 14px;
+  background: var(--ov-card);
+}
+
+.velo-admin-root .ov-stat:hover {
+  border-color: var(--ov-card-hover-border);
+  background: var(--ov-card-hover);
+}
+
+.velo-admin-root .ov-icon-button {
+  display: grid;
+  height: 32px;
+  width: 32px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--ov-text-3);
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.velo-admin-root .ov-icon-button:hover,
+.velo-admin-root .ov-icon-button[aria-expanded="true"] {
+  background: var(--ov-surface);
+  color: var(--ov-text);
+}
+
+.velo-admin-root .ov-icon-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.velo-admin-root .ov-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 40;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--ov-menu-border);
+  border-radius: 12px;
+  background: var(--ov-menu);
+  box-shadow: var(--ov-menu-shadow);
+}
+
+.velo-admin-root .ov-menu-label {
+  padding: 6px 9px 4px;
+  color: var(--ov-text-4);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.velo-admin-root .ov-menu-item {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border-radius: 8px;
+  color: var(--ov-menu-text);
+  font-size: 13px;
+  transition: background-color 120ms ease;
+}
+
+.velo-admin-root .ov-menu-item:hover {
+  background: var(--ov-menu-hover);
+}
+
+.velo-admin-root .ov-menu-item[aria-selected="true"],
+.velo-admin-root .ov-menu-item[aria-checked="true"],
+.velo-admin-root .ov-range-presets .ov-menu-item[aria-pressed="true"] {
+  color: var(--ov-accent-text);
+  font-weight: 600;
+}
+
+.velo-admin-root .ov-menu-item svg {
+  width: 14px;
+  height: 14px;
+  color: var(--ov-accent-text);
+}
+
+.velo-admin-root .ov-menu-divider {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--ov-divider);
+}
+
+.velo-admin-root .ov-chip-filled {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 14px;
+  border-radius: 10px;
+  background: var(--ov-surface);
+  color: var(--ov-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background-color 140ms ease;
+}
+
+.velo-admin-root .ov-chip-filled:hover,
+.velo-admin-root .ov-chip-filled[aria-expanded="true"] {
+  background: var(--ov-surface-hover);
+}
+
+.velo-admin-root .ov-chip-filled svg {
+  width: 15px;
+  height: 15px;
+  color: var(--ov-text-3);
+  transition: transform 160ms ease;
+}
+
+/* área do gráfico: pontos a cada 25px, as linhas de 75px do eixo Y caem sobre uma fileira */
+.velo-admin-root .ov-plot {
+  background-image: radial-gradient(circle, var(--ov-grid-dot) 1px, transparent 1.3px);
+  background-size: 25px 25px;
+  background-position: -12.5px -12.5px;
+}
+
+.velo-admin-root .ov-guide {
+  position: absolute;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: linear-gradient(to bottom, var(--ov-accent) 0%, var(--ov-accent) 55%, transparent 100%);
+}
+
+.velo-admin-root .ov-dot {
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  border: 4px solid var(--ov-accent);
+  border-radius: 999px;
+  background: var(--ov-dot-fill);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 5px var(--ov-accent-soft), 0 0 20px 4px var(--ov-dot-glow);
+}
+
+.velo-admin-root .ov-tooltip {
+  position: absolute;
+  white-space: nowrap;
+  padding: 10px 16px 11px;
+  border: 1px solid var(--ov-tooltip-border);
+  border-radius: 10px;
+  background: var(--ov-tooltip);
+  box-shadow: 0 16px 34px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* barra de filtros da tabela */
+.velo-admin-root .ov-search {
+  display: flex;
+  height: 38px;
+  min-width: 240px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--ov-input-border);
+  border-radius: 10px;
+  background: var(--ov-input);
+  color: var(--ov-text-3);
+  transition: border-color 140ms ease;
+}
+
+.velo-admin-root .ov-search:focus-within {
+  border-color: var(--ov-accent);
+}
+
+.velo-admin-root .ov-search svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.velo-admin-root .ov-search input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  color: var(--ov-text);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.velo-admin-root .ov-search input::placeholder {
+  color: var(--ov-text-4);
+}
+
+.velo-admin-root .ov-filter-chip {
+  position: relative;
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--ov-surface);
+  color: var(--ov-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background-color 140ms ease;
+}
+
+.velo-admin-root .ov-filter-chip:hover {
+  background: var(--ov-surface-hover);
+}
+
+.velo-admin-root .ov-filter-chip svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--ov-text-3);
+}
+
+.velo-admin-root .ov-filter-chip select {
+  appearance: none;
+  background: transparent;
+  padding-right: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+.velo-admin-root .ov-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ov-text-3);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.velo-admin-root .ov-th svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ov-text-4);
+}
+
+/* tabela: as regras globais de tabela do admin usam !important */
+.velo-admin-root .ov-panel table thead tr {
+  border-bottom-color: var(--ov-divider) !important;
+}
+
+.velo-admin-root .ov-panel table th {
+  color: var(--ov-text-3) !important;
+}
+
+.velo-admin-root .ov-panel table td {
+  color: var(--ov-text-2);
+}
+
+.velo-admin-root .ov-panel table tbody tr {
+  border-color: var(--ov-divider) !important;
+}
+
+.velo-admin-root .ov-panel table tbody tr:hover {
+  background: var(--ov-row-hover) !important;
+}
+
+.velo-admin-root .ov-panel .admin-avatar {
+  background: var(--ov-avatar) !important;
+  color: var(--ov-avatar-text) !important;
+}
+
+.velo-admin-root .ov-panel .admin-badge {
+  background: var(--ov-badge);
+  color: var(--ov-badge-text);
+}
+
+.velo-admin-root .ov-panel .admin-badge[data-tone="success"] {
+  background: var(--ov-success-bg);
+  color: var(--ov-success);
+}
+
+.velo-admin-root .ov-panel .admin-badge[data-tone="danger"] {
+  background: var(--ov-danger-bg);
+  color: var(--ov-danger);
+}
+
+.velo-admin-root .ov-panel .admin-badge[data-tone="warning"] {
+  background: var(--ov-warning-bg);
+  color: var(--ov-warning);
+}
+
+/* seletor de período com calendário */
+.velo-admin-root .ov-range {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  /* sem isso a caixa encolhe para a largura do botão que a abre */
+  width: max-content;
+  overflow: hidden;
+  border: 1px solid var(--ov-menu-border);
+  border-radius: 14px;
+  background: var(--ov-menu);
+  box-shadow: var(--ov-menu-shadow);
+}
+
+.velo-admin-root .ov-range-presets {
+  display: flex;
+  width: 172px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 6px;
+  border-right: 1px solid var(--ov-divider);
+}
+
+.velo-admin-root .ov-range-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 36px);
+}
+
+.velo-admin-root .ov-range-nav {
+  display: grid;
+  height: 28px;
+  width: 28px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--ov-text-3);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.velo-admin-root .ov-range-nav:hover:not(:disabled) {
+  background: var(--ov-menu-hover);
+  color: var(--ov-text);
+}
+
+.velo-admin-root .ov-range-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.velo-admin-root .ov-range-nav svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* célula do dia: a faixa do intervalo fica na célula, o destaque no botão */
+.velo-admin-root .ov-range-cell {
+  display: grid;
+  place-items: center;
+}
+
+.velo-admin-root .ov-range-cell[data-in-range] {
+  background: var(--ov-accent-soft);
+}
+
+.velo-admin-root .ov-range-cell[data-start] {
+  background: linear-gradient(to right, transparent 50%, var(--ov-accent-soft) 50%);
+}
+
+.velo-admin-root .ov-range-cell[data-end] {
+  background: linear-gradient(to left, transparent 50%, var(--ov-accent-soft) 50%);
+}
+
+.velo-admin-root .ov-range-day {
+  display: grid;
+  height: 34px;
+  width: 34px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--ov-text-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 100ms ease, color 100ms ease;
+}
+
+.velo-admin-root .ov-range-day:hover:not(:disabled):not([data-selected]) {
+  background: var(--ov-surface-hover);
+  color: var(--ov-text);
+}
+
+.velo-admin-root .ov-range-day[data-today]:not([data-selected]) {
+  box-shadow: inset 0 0 0 1px var(--ov-text-5);
+}
+
+.velo-admin-root .ov-range-day[data-selected] {
+  background: var(--ov-accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.velo-admin-root .ov-range-day:disabled {
+  color: var(--ov-day-disabled);
+  cursor: not-allowed;
+}
+
+.velo-admin-root .ov-range-month {
+  margin-top: 8px;
+  width: 100%;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--ov-text-3);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.velo-admin-root .ov-range-month:hover:not(:disabled) {
+  background: var(--ov-menu-hover);
+  color: var(--ov-text);
+}
+
+.velo-admin-root .ov-range-month:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.velo-admin-root .ov-range-cancel {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 9px;
+  color: var(--ov-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 120ms ease;
+}
+
+.velo-admin-root .ov-range-cancel:hover {
+  background: var(--ov-menu-hover);
+}
+
+.velo-admin-root .ov-range-apply {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background: var(--ov-accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 120ms ease;
+}
+
+.velo-admin-root .ov-range-apply:hover:not(:disabled) {
+  background: var(--ov-accent-hover);
+}
+
+.velo-admin-root .ov-range-apply:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --------------------------------------------------------------------------
+   Navegação entre abas do admin
+   -------------------------------------------------------------------------- */
+
+/* a aba que aparece entra com um fade curto (também ao voltar para ela) */
+.velo-admin-root .admin-tab[data-active] {
+  animation: admin-tab-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes admin-tab-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* linha fina no topo enquanto o código de uma aba ainda chega */
+.velo-admin-root .admin-tab-loading {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  overflow: hidden;
+}
+
+.velo-admin-root .admin-tab-loading span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--ov-accent), transparent);
+  animation: admin-tab-loading 1s ease-in-out infinite;
+}
+
+@keyframes admin-tab-loading {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .velo-admin-root .admin-tab[data-active],
+  .velo-admin-root .admin-tab-loading span {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Notificações de venda: sino, painel e aviso flutuante
+   -------------------------------------------------------------------------- */
+
+.velo-admin-root .admin-bell-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  padding: 0 5px;
+  border: 2px solid #1a1a1a;
+  border-radius: 999px;
+  background: #22c55e;
+  color: #052e16;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.velo-admin-root .admin-bell-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 70;
+  width: 360px;
+  overflow: hidden;
+  border: 1px solid var(--ov-menu-border);
+  border-radius: 14px;
+  background: var(--ov-menu);
+  color: var(--ov-text);
+  box-shadow: var(--ov-menu-shadow);
+  font-family: "Geist", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+.velo-admin-root .admin-bell-link {
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: var(--ov-text-3);
+  font-size: 12.5px;
+}
+
+.velo-admin-root .admin-bell-link:hover {
+  background: var(--ov-menu-hover);
+  color: var(--ov-text);
+}
+
+.velo-admin-root .admin-bell-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 8px 8px;
+  padding: 6px;
+  border: 1px solid var(--ov-divider);
+  border-radius: 12px;
+  background: var(--ov-card);
+}
+
+.velo-admin-root .admin-bell-setting {
+  display: flex;
+  height: 36px;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--ov-text-2);
+  font-size: 13px;
+}
+
+.velo-admin-root button.admin-bell-setting:hover {
+  background: var(--ov-menu-hover);
+}
+
+.velo-admin-root .admin-bell-setting svg {
+  width: 17px;
+  height: 17px;
+  color: var(--ov-text-3);
+}
+
+.velo-admin-root .admin-bell-switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--ov-text-5);
+  transition: background-color 160ms ease;
+}
+
+.velo-admin-root .admin-bell-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.velo-admin-root .admin-bell-switch[data-on] {
+  background: #22c55e;
+}
+
+.velo-admin-root .admin-bell-switch[data-on]::after {
+  transform: translateX(14px);
+}
+
+.velo-admin-root .admin-bell-status {
+  color: var(--ov-text-4);
+  font-size: 12.5px;
+}
+
+.velo-admin-root .admin-bell-enable {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: var(--ov-accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.velo-admin-root .admin-bell-enable:hover {
+  background: var(--ov-accent-hover);
+}
+
+.velo-admin-root .admin-bell-test {
+  height: 32px;
+  margin-top: 2px;
+  border-radius: 8px;
+  color: var(--ov-accent-text);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.velo-admin-root .admin-bell-test:hover {
+  background: var(--ov-menu-hover);
+}
+
+.velo-admin-root .admin-bell-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.velo-admin-root .admin-bell-item:hover {
+  background: var(--ov-menu-hover);
+}
+
+.velo-admin-root .admin-bell-item-icon,
+.velo-admin-root .admin-sale-toast-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.14);
+  color: #22c55e;
+}
+
+.velo-admin-root .admin-bell-item-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.velo-admin-root .admin-bell-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* aviso flutuante: canto superior direito, abaixo da barra */
+.velo-admin-root .admin-sale-toast-area {
+  pointer-events: none;
+  position: fixed;
+  top: 68px;
+  right: 16px;
+  z-index: 80;
+}
+
+.velo-admin-root .admin-sale-toast {
+  pointer-events: auto;
+  position: relative;
+  width: 320px;
+  padding: 14px 40px 14px 14px;
+  border: 1px solid var(--ov-menu-border);
+  border-radius: 16px;
+  background: var(--ov-menu);
+  color: var(--ov-text);
+  box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(34, 197, 94, 0.12);
+  font-family: "Geist", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+.velo-admin-root .admin-sale-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.velo-admin-root .admin-sale-toast-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.velo-admin-root .admin-sale-toast-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--ov-text-4);
+}
+
+.velo-admin-root .admin-sale-toast-close:hover {
+  background: var(--ov-menu-hover);
+  color: var(--ov-text);
+}
+
+.velo-admin-root .admin-sale-toast-close svg {
+  width: 16px;
+  height: 16px;
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, Loader2, Trash2, UsersRound, X } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 
 
 type AffiliateRow = {
@@ -168,6 +168,110 @@ const canonicalizeAffiliateDetails = (data: AffiliateDetails | null | undefined)
   };
 };
 
+const fetchAffiliateCommissions = async () => {
+  try {
+    const { data, error } = await supabase.rpc("rpc_admin_affiliates_summary");
+    if (error) throw error;
+    return asAffiliateRows(data).map(canonicalizeAffiliateRow);
+  } catch (e) {
+    if (!isMissingRpcError(e)) throw e;
+
+    const [affRes, clicksRes, convRes, profRes] = await Promise.all([
+      supabase.from("affiliates").select("code, user_id, link, created_at").order("created_at", { ascending: false }),
+      supabase.from("affiliate_clicks").select("affiliate_code"),
+      supabase.from("affiliate_conversions").select("*"),
+      supabase.from("profiles").select("id,user_id,display_name,created_at"),
+    ]);
+    if (affRes.error) throw affRes.error;
+    if (clicksRes.error) throw clicksRes.error;
+    if (convRes.error) throw convRes.error;
+    if (profRes.error) throw profRes.error;
+
+    const profiles = (profRes.data ?? []) as RawRecord[];
+    const profileByUser = new Map<string, RawRecord>();
+    for (const p of profiles) profileByUser.set(readText(p.user_id ?? p.id), p);
+
+    const clicksByCode = new Map<string, number>();
+    for (const click of (clicksRes.data ?? []) as Array<{ affiliate_code: string }>) {
+      const code = String(click.affiliate_code ?? "").toUpperCase();
+      if (!code) continue;
+      clicksByCode.set(code, (clicksByCode.get(code) ?? 0) + 1);
+    }
+
+    const signupsByCode = new Map<string, Set<string>>();
+    const reachedByCode = new Map<string, Set<string>>();
+    const payersByCode = new Map<string, Set<string>>();
+    const pendingByCode = new Map<string, number>();
+    const paidByCode = new Map<string, number>();
+
+    for (const conv of (convRes.data ?? []) as RawRecord[]) {
+      const code = readText(conv.affiliate_code).toUpperCase();
+      const subscriber = readText(conv.subscriber_user_id);
+      if (!code || !subscriber) continue;
+
+      const status = readText(conv.status).toLowerCase();
+      const payoutStatus = readText(conv.payout_status, "pending").toLowerCase();
+      const commissionValue = Number(conv.commission_value ?? 0);
+
+      const signups = signupsByCode.get(code) ?? new Set<string>();
+      signups.add(subscriber);
+      signupsByCode.set(code, signups);
+
+      if (["reached_payment", "paid", "active", "approved", "authorized"].includes(status)) {
+        const reached = reachedByCode.get(code) ?? new Set<string>();
+        reached.add(subscriber);
+        reachedByCode.set(code, reached);
+      }
+
+      if (["paid", "active", "approved", "authorized"].includes(status)) {
+        const payers = payersByCode.get(code) ?? new Set<string>();
+        payers.add(subscriber);
+        payersByCode.set(code, payers);
+
+        if (payoutStatus === "paid") {
+          paidByCode.set(code, (paidByCode.get(code) ?? 0) + commissionValue);
+        } else {
+          pendingByCode.set(code, (pendingByCode.get(code) ?? 0) + commissionValue);
+        }
+      }
+    }
+
+    return ((affRes.data ?? []) as RawRecord[]).map((a) => {
+      const code = normalizeAffiliateCode(readText(a.code));
+      const p = profileByUser.get(readText(a.user_id));
+      return {
+        affiliate_user_id: readText(a.user_id),
+        affiliate_name:
+          readTextOrNull(p?.full_name) ??
+          readTextOrNull(p?.display_name) ??
+          readTextOrNull(p?.name) ??
+          readTextOrNull(p?.email) ??
+          (code || "Afiliado sem nome"),
+        affiliate_email: readTextOrNull(p?.email),
+        code,
+        link: buildAffiliateUrl(code),
+        created_at: readText(a.created_at, new Date().toISOString()),
+        clicks: clicksByCode.get(code) ?? 0,
+        signups: signupsByCode.get(code)?.size ?? 0,
+        reached_payment: reachedByCode.get(code)?.size ?? 0,
+        payers: payersByCode.get(code)?.size ?? 0,
+        commission_pending: pendingByCode.get(code) ?? 0,
+        commission_paid: paidByCode.get(code) ?? 0,
+        is_active: true,
+        application_status: null,
+
+      } satisfies AffiliateRow;
+    });
+  }
+};
+
+/** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
+const PREFETCH_STALE_MS = 30_000;
+
+/** Pré-busca usada pelo AdminLayout para a aba abrir já com os afiliados. */
+export const prefetchAdminData = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({ queryKey: ["admin-affiliate-commissions"], queryFn: fetchAffiliateCommissions , staleTime: PREFETCH_STALE_MS });
+
 const AdminCommissionsPage = () => {
   const { user, loading: loadingAuth, role } = useAuth();
   const ADMIN_EMAILS = useMemo(() => new Set(["xavierluisfelipe12@gmail.com"]), []);
@@ -207,102 +311,7 @@ const AdminCommissionsPage = () => {
   const { data: affiliates = [], isLoading, error } = useQuery({
     queryKey: ["admin-affiliate-commissions"],
     enabled: !!user?.id,
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase.rpc("rpc_admin_affiliates_summary");
-        if (error) throw error;
-        return asAffiliateRows(data).map(canonicalizeAffiliateRow);
-      } catch (e) {
-        if (!isMissingRpcError(e)) throw e;
-
-        const [affRes, clicksRes, convRes, profRes] = await Promise.all([
-          supabase.from("affiliates").select("code, user_id, link, created_at").order("created_at", { ascending: false }),
-          supabase.from("affiliate_clicks").select("affiliate_code"),
-          supabase.from("affiliate_conversions").select("*"),
-          supabase.from("profiles").select("id,user_id,display_name,created_at"),
-        ]);
-        if (affRes.error) throw affRes.error;
-        if (clicksRes.error) throw clicksRes.error;
-        if (convRes.error) throw convRes.error;
-        if (profRes.error) throw profRes.error;
-
-        const profiles = (profRes.data ?? []) as RawRecord[];
-        const profileByUser = new Map<string, RawRecord>();
-        for (const p of profiles) profileByUser.set(readText(p.user_id ?? p.id), p);
-
-        const clicksByCode = new Map<string, number>();
-        for (const click of (clicksRes.data ?? []) as Array<{ affiliate_code: string }>) {
-          const code = String(click.affiliate_code ?? "").toUpperCase();
-          if (!code) continue;
-          clicksByCode.set(code, (clicksByCode.get(code) ?? 0) + 1);
-        }
-
-        const signupsByCode = new Map<string, Set<string>>();
-        const reachedByCode = new Map<string, Set<string>>();
-        const payersByCode = new Map<string, Set<string>>();
-        const pendingByCode = new Map<string, number>();
-        const paidByCode = new Map<string, number>();
-
-        for (const conv of (convRes.data ?? []) as RawRecord[]) {
-          const code = readText(conv.affiliate_code).toUpperCase();
-          const subscriber = readText(conv.subscriber_user_id);
-          if (!code || !subscriber) continue;
-
-          const status = readText(conv.status).toLowerCase();
-          const payoutStatus = readText(conv.payout_status, "pending").toLowerCase();
-          const commissionValue = Number(conv.commission_value ?? 0);
-
-          const signups = signupsByCode.get(code) ?? new Set<string>();
-          signups.add(subscriber);
-          signupsByCode.set(code, signups);
-
-          if (["reached_payment", "paid", "active", "approved", "authorized"].includes(status)) {
-            const reached = reachedByCode.get(code) ?? new Set<string>();
-            reached.add(subscriber);
-            reachedByCode.set(code, reached);
-          }
-
-          if (["paid", "active", "approved", "authorized"].includes(status)) {
-            const payers = payersByCode.get(code) ?? new Set<string>();
-            payers.add(subscriber);
-            payersByCode.set(code, payers);
-
-            if (payoutStatus === "paid") {
-              paidByCode.set(code, (paidByCode.get(code) ?? 0) + commissionValue);
-            } else {
-              pendingByCode.set(code, (pendingByCode.get(code) ?? 0) + commissionValue);
-            }
-          }
-        }
-
-        return ((affRes.data ?? []) as RawRecord[]).map((a) => {
-          const code = normalizeAffiliateCode(readText(a.code));
-          const p = profileByUser.get(readText(a.user_id));
-          return {
-            affiliate_user_id: readText(a.user_id),
-            affiliate_name:
-              readTextOrNull(p?.full_name) ??
-              readTextOrNull(p?.display_name) ??
-              readTextOrNull(p?.name) ??
-              readTextOrNull(p?.email) ??
-              (code || "Afiliado sem nome"),
-            affiliate_email: readTextOrNull(p?.email),
-            code,
-            link: buildAffiliateUrl(code),
-            created_at: readText(a.created_at, new Date().toISOString()),
-            clicks: clicksByCode.get(code) ?? 0,
-            signups: signupsByCode.get(code)?.size ?? 0,
-            reached_payment: reachedByCode.get(code)?.size ?? 0,
-            payers: payersByCode.get(code)?.size ?? 0,
-            commission_pending: pendingByCode.get(code) ?? 0,
-            commission_paid: paidByCode.get(code) ?? 0,
-            is_active: true,
-            application_status: null,
-
-          } satisfies AffiliateRow;
-        });
-      }
-    },
+    queryFn: fetchAffiliateCommissions,
   });
 
   const { data: details, isLoading: loadingDetails } = useQuery({
@@ -412,7 +421,7 @@ const AdminCommissionsPage = () => {
 
 
   if (loadingAuth) {
-    return <VeloLoadingScreen message="Carregando afiliados..." />;
+    return <AdminPageLoading message="Carregando afiliados..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

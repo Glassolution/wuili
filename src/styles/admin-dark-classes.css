@@ -1,0 +1,1923 @@
+/* Gerado por scripts/gerar-tema-noturno-admin.mjs — não edite à mão.
+   Versão noturna das cores fixas das páginas antigas do admin
+   (535 classes encontradas, 480 regras). */
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#0A0A0A\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#0F1218\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#15181F\]\/98:not([data-admin-native] *) {
+  background-color: rgb(38 38 38 / 0.98) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#161617\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#171714\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#171715\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#171717\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#171717\]\/28:not([data-admin-native] *) {
+  background-color: rgb(38 38 38 / 0.28) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#171A21\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#191918\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#1C2028\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#20201e\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#222731\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#2B2B29\]:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#CCD8FA\]:not([data-admin-native] *) {
+  background-color: hsl(224 80% 60% / 0.22) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#D8E1FA\]:not([data-admin-native] *) {
+  background-color: hsl(224 77% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#E2E8F0\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#EAF0FF\]:not([data-admin-native] *) {
+  background-color: hsl(223 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#ECFDF3\]:not([data-admin-native] *) {
+  background-color: hsl(145 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#EEF4FF\]:not([data-admin-native] *) {
+  background-color: hsl(219 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#EEF6FF\]:not([data-admin-native] *) {
+  background-color: hsl(212 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#EFF6FF\]:not([data-admin-native] *) {
+  background-color: hsl(214 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F1F3F6\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F1F5F9\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F2F6FF\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F4F5F8\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F6F7F9\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F7F8FC\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F7FAFF\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F7FEFA\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F8F9FB\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F8FAFC\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#F8FAFF\]:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FBFCFF\]:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FEF3C7\]:not([data-admin-native] *) {
+  background-color: hsl(48 80% 60% / 0.22) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FFF1F2\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FFF7E6\]:not([data-admin-native] *) {
+  background-color: hsl(41 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FFF7ED\]:not([data-admin-native] *) {
+  background-color: hsl(33 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FFF7F7\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#FFFDF7\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#c2c2bd\]:not([data-admin-native] *) {
+  background-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#c9c9c4\]:not([data-admin-native] *) {
+  background-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#d5d5d1\]:not([data-admin-native] *) {
+  background-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#e5e5e1\]:not([data-admin-native] *) {
+  background-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#e5e7eb\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#e9e9e5\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#e9edf4\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#e9eefc\]:not([data-admin-native] *) {
+  background-color: hsl(224 76% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eaf0ff\]:not([data-admin-native] *) {
+  background-color: hsl(223 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eaf1ff\]:not([data-admin-native] *) {
+  background-color: hsl(220 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eaf5ff\]:not([data-admin-native] *) {
+  background-color: hsl(209 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eaf8f0\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#ececE6\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#ecece8\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#ededeb\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#edf2ff\]:not([data-admin-native] *) {
+  background-color: hsl(223 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eeeeeb\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eef0f4\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eef1f6\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eef3ff\]:not([data-admin-native] *) {
+  background-color: hsl(222 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eef4ff\]:not([data-admin-native] *) {
+  background-color: hsl(219 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#eef5ff\]:not([data-admin-native] *) {
+  background-color: hsl(215 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f0faeb\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f1f5ff\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f1f8ee\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f2f2ef\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f2f2f0\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f2f5fd\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f3eee8\]:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f3f4f6\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f3f7ff\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f4f5f9\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f4f6f8\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f5f5f3\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f5f5f5\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f6f6f5\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f6f8fc\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f7f4ff\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f7f7f5\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f8f9fb\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#f8fafc\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fafaf7\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fafaf8\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fafaf9\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fafafa\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fbfbf9\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fbfbfa\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fbfcfe\]:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fcecee\]:not([data-admin-native] *) {
+  background-color: hsl(353 73% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fcfcfb\]:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fdecec\]:not([data-admin-native] *) {
+  background-color: hsl(0 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fdf1f1\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fdf8ee\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff0f1\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff1e6\]:not([data-admin-native] *) {
+  background-color: hsl(26 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff2f3\]:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff4df\]:not([data-admin-native] *) {
+  background-color: hsl(39 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff6e6\]:not([data-admin-native] *) {
+  background-color: hsl(38 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff7df\]:not([data-admin-native] *) {
+  background-color: hsl(45 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff8e1\]:not([data-admin-native] *) {
+  background-color: hsl(46 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fff8e9\]:not([data-admin-native] *) {
+  background-color: hsl(41 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fffdf9\]:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-\[\#fffdf9\]\/95:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.95) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-amber-100:not([data-admin-native] *) {
+  background-color: hsl(48 80% 60% / 0.22) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-amber-50:not([data-admin-native] *) {
+  background-color: hsl(48 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-black:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-black\/35:not([data-admin-native] *) {
+  background-color: rgb(38 38 38 / 0.35) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-black\/5:not([data-admin-native] *) {
+  background-color: rgb(38 38 38 / 0.05) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-black\/60:not([data-admin-native] *) {
+  background-color: rgb(38 38 38 / 0.6) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-blue-100:not([data-admin-native] *) {
+  background-color: hsl(214 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-blue-50:not([data-admin-native] *) {
+  background-color: hsl(214 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-emerald-100:not([data-admin-native] *) {
+  background-color: hsl(149 80% 60% / 0.22) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-emerald-50:not([data-admin-native] *) {
+  background-color: hsl(152 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-red-100:not([data-admin-native] *) {
+  background-color: hsl(0 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-red-50:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-rose-50:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-slate-100:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-slate-50:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/10:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.1) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/15:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.15) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/18:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.18) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/5:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.05) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/95:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.95) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/98:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.98) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/\[0\.06\]:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.06) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .bg-white\/\[0\.08\]:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.08) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#171715\]:not([data-admin-native] *) {
+  border-color: #3f3f46 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#282D37\]:not([data-admin-native] *) {
+  border-color: #3f3f46 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#2A2926\]:not([data-admin-native] *) {
+  border-color: #3f3f46 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#93B4FF\]:not([data-admin-native] *) {
+  border-color: hsl(222 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#B9C8EA\]:not([data-admin-native] *) {
+  border-color: hsl(222 54% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#BBD0FF\]:not([data-admin-native] *) {
+  border-color: hsl(221 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#BBF7D0\]:not([data-admin-native] *) {
+  border-color: hsl(141 79% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#BFDBFE\]:not([data-admin-native] *) {
+  border-color: hsl(213 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#C7D7FE\]:not([data-admin-native] *) {
+  border-color: hsl(223 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#C9D8FF\]:not([data-admin-native] *) {
+  border-color: hsl(223 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#CBD5E1\]:not([data-admin-native] *) {
+  border-color: hsl(213 27% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#CFE0FF\]:not([data-admin-native] *) {
+  border-color: hsl(219 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#D8E1F2\]:not([data-admin-native] *) {
+  border-color: hsl(219 50% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#D8E3F8\]:not([data-admin-native] *) {
+  border-color: hsl(219 70% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#D9DDE7\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#D9E4FF\]:not([data-admin-native] *) {
+  border-color: hsl(223 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#DDE3EE\]:not([data-admin-native] *) {
+  border-color: hsl(219 33% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#DDE4EF\]:not([data-admin-native] *) {
+  border-color: hsl(217 36% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#DDE6F6\]:not([data-admin-native] *) {
+  border-color: hsl(218 58% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#DDE7FF\]:not([data-admin-native] *) {
+  border-color: hsl(222 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E1E6EF\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E2E8F0\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E3E6EB\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E3E8F4\]:not([data-admin-native] *) {
+  border-color: hsl(222 44% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E4E8F0\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E5E7EB\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E5EAF3\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E6EAF2\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#E8ECF5\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#EDF0F4\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#EEF0F3\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#EEF1F6\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#EEF2F7\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#EFEFEB\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#F0F1F4\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#F0F2F6\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#F1C9C9\]:not([data-admin-native] *) {
+  border-color: hsl(0 59% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#F7C8C8\]:not([data-admin-native] *) {
+  border-color: hsl(0 75% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#FAD4D4\]:not([data-admin-native] *) {
+  border-color: hsl(0 79% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#FBD5D5\]:not([data-admin-native] *) {
+  border-color: hsl(0 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#FDE7B2\]:not([data-admin-native] *) {
+  border-color: hsl(42 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#aeb9d6\]:not([data-admin-native] *) {
+  border-color: hsl(224 33% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#d8e5ff\]:not([data-admin-native] *) {
+  border-color: hsl(220 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#d9dce6\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#d9e2ff\]:not([data-admin-native] *) {
+  border-color: hsl(226 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#d9ead4\]:not([data-admin-native] *) {
+  border-color: hsl(106 34% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dbe6ff\]:not([data-admin-native] *) {
+  border-color: hsl(222 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dcdcd7\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dce3f5\]:not([data-admin-native] *) {
+  border-color: hsl(223 56% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dce6f7\]:not([data-admin-native] *) {
+  border-color: hsl(218 63% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dce6ff\]:not([data-admin-native] *) {
+  border-color: hsl(223 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dce7fa\]:not([data-admin-native] *) {
+  border-color: hsl(218 75% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#deded9\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dfe3ec\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dfe4ea\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#dfe5f2\]:not([data-admin-native] *) {
+  border-color: hsl(221 42% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e1e1dc\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e1e1dd\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e1e5ef\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e2e2de\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e2e3e5\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e3e3df\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e3e6eb\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e4def7\]:not([data-admin-native] *) {
+  border-color: hsl(254 61% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e4e4df\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e4e4e0\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e4e6eb\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e5e5e1\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e6e6e2\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e7e7e3\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#e8e8e4\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#ececE6\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#ecece8\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#ededeb\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#edf0f5\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#eeeeeb\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#eeeeec\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#eef0f4\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#efefec\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#efefed\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f0f0ee\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f1dfbf\]:not([data-admin-native] *) {
+  border-color: hsl(38 64% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f1f1ec\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f1f1ee\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f2cbd2\]:not([data-admin-native] *) {
+  border-color: hsl(349 60% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f2e3c2\]:not([data-admin-native] *) {
+  border-color: hsl(41 65% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f2f2f0\]:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f3d5d5\]:not([data-admin-native] *) {
+  border-color: hsl(0 56% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-\[\#f5d6d9\]:not([data-admin-native] *) {
+  border-color: hsl(354 61% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-amber-100:not([data-admin-native] *) {
+  border-color: hsl(48 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-amber-200:not([data-admin-native] *) {
+  border-color: hsl(48 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-black\/10:not([data-admin-native] *) {
+  border-color: #3f3f46 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-blue-100:not([data-admin-native] *) {
+  border-color: hsl(214 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-blue-200:not([data-admin-native] *) {
+  border-color: hsl(213 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-emerald-100:not([data-admin-native] *) {
+  border-color: hsl(149 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-emerald-200:not([data-admin-native] *) {
+  border-color: hsl(152 76% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-red-200:not([data-admin-native] *) {
+  border-color: hsl(0 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-rose-100:not([data-admin-native] *) {
+  border-color: hsl(356 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-rose-200:not([data-admin-native] *) {
+  border-color: hsl(353 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-slate-200:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-white:not([data-admin-native] *) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-white\/10:not([data-admin-native] *) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-white\/20:not([data-admin-native] *) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-white\/25:not([data-admin-native] *) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-white\/35:not([data-admin-native] *) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .border-white\/\[0\.06\]:not([data-admin-native] *) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#EEF1F6\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#EEF2F7\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#ecece8\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#eceef3\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#efefec\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#f1f1ee\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-\[\#f2f2ef\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .divide-white\/\[0\.05\]:not([data-admin-native] *) > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#24231F\]:hover:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#EFF6FF\]:hover:not([data-admin-native] *) {
+  background-color: hsl(214 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#F1F5F9\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#F8FAFC\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#F8FAFF\]:hover:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#F9FBFF\]:hover:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#FEF2F2\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#FEF3F2\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#FFF7F7\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#dbeafe\]:hover:not([data-admin-native] *) {
+  background-color: hsl(214 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#dcf3e6\]:hover:not([data-admin-native] *) {
+  background-color: hsl(146 49% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#e2ebff\]:hover:not([data-admin-native] *) {
+  background-color: hsl(221 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#eef4ff\]:hover:not([data-admin-native] *) {
+  background-color: hsl(219 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f0f0ed\]:hover:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f1f1ee\]:hover:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f2f2ef\]:hover:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f3f3f0\]:hover:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f4f4f1\]:hover:not([data-admin-native] *) {
+  background-color: #222222 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f4f7ff\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f5f5f3\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f5f8f3\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f6f6f3\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f6f6f4\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f7f7f5\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f7f8fb\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#f8dce1\]:hover:not([data-admin-native] *) {
+  background-color: hsl(349 67% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#fafaf9\]:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-\[\#fcecee\]:hover:not([data-admin-native] *) {
+  background-color: hsl(353 73% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-black:hover:not([data-admin-native] *) {
+  background-color: #262626 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-red-100:hover:not([data-admin-native] *) {
+  background-color: hsl(0 80% 60% / 0.13) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-red-50:hover:not([data-admin-native] *) {
+  background-color: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-white:hover:not([data-admin-native] *) {
+  background-color: #171717 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:bg-white\/25:hover:not([data-admin-native] *) {
+  background-color: rgb(23 23 23 / 0.25) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#B8C7E8\]:hover:not([data-admin-native] *) {
+  border-color: hsl(221 51% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#BFD0F6\]:hover:not([data-admin-native] *) {
+  border-color: hsl(221 75% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#C7D7FE\]:hover:not([data-admin-native] *) {
+  border-color: hsl(223 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#CBD5E1\]:hover:not([data-admin-native] *) {
+  border-color: hsl(213 27% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#E6EAF2\]:hover:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#bfc7bb\]:hover:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#c9c9c3\]:hover:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#c9d5f5\]:hover:not([data-admin-native] *) {
+  border-color: hsl(224 69% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-\[\#e4e4df\]:hover:not([data-admin-native] *) {
+  border-color: #2a2a2a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:border-red-200:hover:not([data-admin-native] *) {
+  border-color: hsl(0 80% 60% / 0.3) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#0F172A\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#111827\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#171715\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#171717\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#1D4ED8\]:hover:not([data-admin-native] *) {
+  color: hsl(224 76% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#1a1a1a\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#1f2937\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#20201e\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#252522\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#2563EB\]:hover:not([data-admin-native] *) {
+  color: hsl(221 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#2563eb\]:hover:not([data-admin-native] *) {
+  color: hsl(221 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#315cc4\]:hover:not([data-admin-native] *) {
+  color: hsl(222 60% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#343431\]:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#3b6f39\]:hover:not([data-admin-native] *) {
+  color: hsl(118 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#64748B\]:hover:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-\[\#c85c6d\]:hover:not([data-admin-native] *) {
+  color: hsl(351 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-black:hover:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .hover\:text-red-700:hover:not([data-admin-native] *) {
+  color: hsl(0 74% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#020817\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#087443\]:not([data-admin-native] *) {
+  color: hsl(153 87% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#0F1117\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#0F172A\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#111827\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#11507f\]:not([data-admin-native] *) {
+  color: hsl(206 76% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#171715\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#171717\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#172033\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#17223C\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#181817\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1D4ED8\]:not([data-admin-native] *) {
+  color: hsl(224 76% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1E3A8A\]:not([data-admin-native] *) {
+  color: hsl(224 64% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1F2937\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1a1a1a\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1c1918\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1c9a61\]:not([data-admin-native] *) {
+  color: hsl(153 69% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1d1d1b\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1e3a8a\]:not([data-admin-native] *) {
+  color: hsl(224 64% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#1f3c76\]:not([data-admin-native] *) {
+  color: hsl(220 58% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#20201e\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#222220\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#23272F\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#252522\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#2563EB\]:not([data-admin-native] *) {
+  color: hsl(221 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#2563eb\]:not([data-admin-native] *) {
+  color: hsl(221 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#273449\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#2b2b28\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#2f66eb\]:not([data-admin-native] *) {
+  color: hsl(222 82% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#315FD3\]:not([data-admin-native] *) {
+  color: hsl(223 65% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#315cc4\]:not([data-admin-native] *) {
+  color: hsl(222 60% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#333330\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#334155\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#343431\]:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#34363b\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#394867\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#3F4350\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#3a3a37\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#3d3d37\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#3d3d39\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#41454C\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4164c7\]:not([data-admin-native] *) {
+  color: hsl(224 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#44443f\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#454B57\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#475569\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#494340\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4B5563\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4F5969\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4a4a46\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4b4b47\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4d5f7b\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4f5664\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#4f8247\]:not([data-admin-native] *) {
+  color: hsl(112 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#50504b\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#52699f\]:not([data-admin-native] *) {
+  color: hsl(222 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#53534f\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#555550\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#555D69\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#565650\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#596171\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#596273\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#5c5c55\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#5d5d57\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#5f5f59\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#5f5f5b\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#5f6368\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#5f6978\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#60605b\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#62625d\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#626977\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#64748B\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#65a64b\]:not([data-admin-native] *) {
+  color: hsl(103 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#666661\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#667085\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#6681b6\]:not([data-admin-native] *) {
+  color: hsl(220 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#686862\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#686863\]:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#686d76\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#6B7280\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#6f6f69\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#7158bd\]:not([data-admin-native] *) {
+  color: hsl(255 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#73736d\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#747C8C\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#767670\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#77776f\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#777772\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#778092\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#797973\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#7C8493\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#7F8795\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#7a4a00\]:not([data-admin-native] *) {
+  color: hsl(36 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#827a75\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#85857f\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#878781\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#888883\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8A8A8E\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8A8F9B\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8A8F9C\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8A93A3\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8a6100\]:not([data-admin-native] *) {
+  color: hsl(42 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8a6a25\]:not([data-admin-native] *) {
+  color: hsl(41 58% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8a94a5\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8b8b85\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8c8c86\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8c8c87\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8c8f93\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8d8d87\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8e8e88\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8f8f89\]:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#8f96a3\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#92400E\]:not([data-admin-native] *) {
+  color: hsl(23 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#92928c\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#92928d\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#94A3B8\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#969690\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#999993\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#999994\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9AA0AA\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9AA2AF\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9CA3AF\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9F1D1D\]:not([data-admin-native] *) {
+  color: hsl(0 69% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9a1b1b\]:not([data-admin-native] *) {
+  color: hsl(0 70% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9a4b00\]:not([data-admin-native] *) {
+  color: hsl(29 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9a5b00\]:not([data-admin-native] *) {
+  color: hsl(35 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9a9a92\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9a9a94\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9aa3b2\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9b3d3d\]:not([data-admin-native] *) {
+  color: hsl(0 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9b9b95\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#9ca3af\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#A0A7B4\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#A16207\]:not([data-admin-native] *) {
+  color: hsl(35 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#A1A8B5\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#A7B0BE\]:not([data-admin-native] *) {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#AAB1BC\]:not([data-admin-native] *) {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#B42318\]:not([data-admin-native] *) {
+  color: hsl(4 76% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#B7791F\]:not([data-admin-native] *) {
+  color: hsl(36 71% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#B91C1C\]:not([data-admin-native] *) {
+  color: hsl(0 74% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#C0C6D1\]:not([data-admin-native] *) {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#C2410C\]:not([data-admin-native] *) {
+  color: hsl(17 88% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#D72C0D\]:not([data-admin-native] *) {
+  color: hsl(9 89% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#DDE3EC\]:not([data-admin-native] *) {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#E8EDF5\]:not([data-admin-native] *) {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#F2F1EC\]:not([data-admin-native] *) {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a0772f\]:not([data-admin-native] *) {
+  color: hsl(38 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a0a09a\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a0a5af\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a1a19c\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a34141\]:not([data-admin-native] *) {
+  color: hsl(0 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a3a39d\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a3a7b0\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a46a17\]:not([data-admin-native] *) {
+  color: hsl(35 75% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#a6aab3\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#aaa19b\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#afafa9\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#b0b0aa\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#b1b1ab\]:not([data-admin-native] *) {
+  color: #8b8b93 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#b47a18\]:not([data-admin-native] *) {
+  color: hsl(38 76% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#b8434d\]:not([data-admin-native] *) {
+  color: hsl(355 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#b87725\]:not([data-admin-native] *) {
+  color: hsl(33 67% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#c85c6d\]:not([data-admin-native] *) {
+  color: hsl(351 55% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#d72c0d\]:not([data-admin-native] *) {
+  color: hsl(9 89% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-\[\#f5b301\]:not([data-admin-native] *) {
+  color: hsl(44 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-amber-600:not([data-admin-native] *) {
+  color: hsl(32 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-amber-700:not([data-admin-native] *) {
+  color: hsl(26 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-amber-800:not([data-admin-native] *) {
+  color: hsl(23 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-amber-900:not([data-admin-native] *) {
+  color: hsl(22 78% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-black:not([data-admin-native] *) {
+  color: #fafafa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-blue-700:not([data-admin-native] *) {
+  color: hsl(224 76% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-blue-800:not([data-admin-native] *) {
+  color: hsl(226 71% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-emerald-600:not([data-admin-native] *) {
+  color: hsl(161 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-emerald-700:not([data-admin-native] *) {
+  color: hsl(163 90% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-neutral-500:not([data-admin-native] *) {
+  color: #a1a1aa !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-red-600:not([data-admin-native] *) {
+  color: hsl(0 72% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-red-700:not([data-admin-native] *) {
+  color: hsl(0 74% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-rose-600:not([data-admin-native] *) {
+  color: hsl(347 77% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-rose-700:not([data-admin-native] *) {
+  color: hsl(345 83% 70%) !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface .text-slate-700:not([data-admin-native] *) {
+  color: #e4e4e7 !important;
+}

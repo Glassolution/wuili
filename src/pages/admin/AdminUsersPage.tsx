@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import {
   Bell,
   ChevronDown,
@@ -17,11 +17,12 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
 import { AdminUserDetailModal } from "@/components/admin/AdminUserDetailModal";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 
 type AdminUserRow = {
   user_id: string;
@@ -231,7 +232,15 @@ const tempStyle: Record<LeadTemp, string> = {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
+/** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
+const PREFETCH_STALE_MS = 30_000;
+
+/** Pré-busca usada pelo AdminLayout para a aba abrir já com a lista. */
+export const prefetchAdminData = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({ queryKey: ["admin-users-clean"], queryFn: fetchAdminUsers , staleTime: PREFETCH_STALE_MS });
+
 const AdminUsersPage = () => {
+  const polling15s = useAdminPolling(15_000);
   const { user, loading } = useAuth();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<UserStatusFilter>("todos");
@@ -245,7 +254,7 @@ const AdminUsersPage = () => {
     queryKey: ["admin-users-clean"],
     queryFn: fetchAdminUsers,
     enabled: !!user?.id,
-    refetchInterval: 15000,
+    refetchInterval: polling15s,
   });
 
   const filteredUsers = useMemo(() => {
@@ -286,7 +295,7 @@ const AdminUsersPage = () => {
   );
 
   if (loading) {
-    return <VeloLoadingScreen message="Carregando usuários..." />;
+    return <AdminPageLoading message="Carregando usuários..." />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

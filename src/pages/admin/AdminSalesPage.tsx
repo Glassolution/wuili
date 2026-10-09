@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { Banknote, CheckCircle2, Copy, Loader2, ShoppingBag } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,20 +37,29 @@ const dateFmt = (v: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
     .format(new Date(v));
 
+const fetchStoreSales = async () => {
+  const { data, error } = await supabase.rpc("rpc_admin_store_sales" as never, {
+    p_status: "all",
+    p_limit: 300,
+  } as never);
+  if (error) throw error;
+  return ((data as { sales?: SaleRow[] } | null)?.sales ?? []) as SaleRow[];
+};
+
+/** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
+const PREFETCH_STALE_MS = 30_000;
+
+/** Pré-busca usada pelo AdminLayout para a aba abrir já com as vendas. */
+export const prefetchAdminData = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({ queryKey: ["admin-store-sales", "paid"], queryFn: fetchStoreSales , staleTime: PREFETCH_STALE_MS });
+
 export default function AdminSalesPage() {
   const { user, loading: authLoading } = useAuth();
   const [settled, setSettled] = useState<Record<string, boolean>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-store-sales", "paid"],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("rpc_admin_store_sales" as never, {
-        p_status: "all",
-        p_limit: 300,
-      } as never);
-      if (error) throw error;
-      return ((data as { sales?: SaleRow[] } | null)?.sales ?? []) as SaleRow[];
-    },
+    queryFn: fetchStoreSales,
   });
 
   const sales = useMemo(

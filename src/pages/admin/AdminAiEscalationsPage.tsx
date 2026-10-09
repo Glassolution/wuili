@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 type Escalation = {
   id: string; user_id: string; status: string; reason: string; summary: string | null;
@@ -64,7 +65,8 @@ export default function AdminAiEscalationsPage() {
   const nome = (id: string) => perfis[id]?.display_name || perfis[id]?.email || id.slice(0, 8);
 
   return (
-    <div className="flex h-screen flex-col bg-[#F8FAFC] p-6">
+    <AdminShell active="support" userId="admin" fullBleed>
+    <div className="flex h-full flex-col p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-[#0F172A]">Assistente IA — pedidos de atendimento</h1>
@@ -142,5 +144,6 @@ export default function AdminAiEscalationsPage() {
         </div>
       </div>
     </div>
+    </AdminShell>
   );
 }
