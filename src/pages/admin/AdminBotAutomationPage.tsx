@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import {
@@ -639,6 +640,7 @@ const setWorkerAccess = async (accessLevels: WorkerAccessLevel[]) => {
 };
 
 export default function AdminBotAutomationPage() {
+  const pollingInterval = useAdminPolling(REFRESH_INTERVAL_MS);
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -653,7 +655,7 @@ export default function AdminBotAutomationPage() {
     queryKey: ["admin-bot-automation-slim"],
     queryFn: fetchWorkerPanelData,
     enabled: !!user?.id,
-    refetchInterval: REFRESH_INTERVAL_MS,
+    refetchInterval: pollingInterval,
   });
 
   const invalidatePanel = () => queryClient.invalidateQueries({ queryKey: ["admin-bot-automation-slim"] });

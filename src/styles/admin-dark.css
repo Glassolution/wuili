@@ -1,0 +1,188 @@
+/* ==========================================================================
+   Velo Admin — versão noturna das páginas
+   As variáveis base do admin ganham valores escuros e as poucas regras do
+   tema com cor fixa são refeitas aqui. As cores fixas das próprias páginas
+   ficam em admin-dark-classes.css (gerado por script).
+   ========================================================================== */
+
+.velo-admin-root[data-admin-theme="dark"] {
+  /* superfícies */
+  --admin-canvas: #0a0a0a;
+  --admin-sidebar: #0f0f0f;
+  --admin-surface: #171717;
+  --admin-hover: #222222;
+  --admin-hover-soft: #1b1b1b;
+
+  /* traços */
+  --admin-border: #262626;
+  --admin-border-soft: #1f1f1f;
+  --admin-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --admin-shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --admin-shadow-pop: 0 18px 40px -14px rgba(0, 0, 0, 0.75);
+
+  /* texto */
+  --admin-text: #fafafa;
+  --admin-text-2: #a1a1aa;
+  --admin-text-3: #71717a;
+
+  /* cor */
+  --admin-accent: #3b82f6;
+  --admin-accent-strong: #2563eb;
+  --admin-accent-soft: rgba(59, 130, 246, 0.15);
+  --admin-success: #4ade80;
+  --admin-success-soft: rgba(34, 197, 94, 0.14);
+  --admin-positive: #4ade80;
+  --admin-danger: #f87171;
+  --admin-danger-soft: rgba(248, 113, 113, 0.14);
+  --admin-warning: #facc15;
+  --admin-warning-soft: rgba(250, 204, 21, 0.12);
+
+  color-scheme: dark;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface {
+  color: var(--admin-text);
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-page-surface ::placeholder {
+  color: #71717a;
+}
+
+/* ---------- botões e controles ---------- */
+
+.velo-admin-root[data-admin-theme="dark"] .admin-pill,
+.velo-admin-root[data-admin-theme="dark"] .admin-control,
+.velo-admin-root[data-admin-theme="dark"] .admin-header-actions > :is(button, input, select) {
+  color: #e4e4e7 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-pill:hover,
+.velo-admin-root[data-admin-theme="dark"] .admin-header-actions > :is(button, input, select):hover {
+  border-color: #3f3f46 !important;
+}
+
+/* no claro o botão principal é preto; no escuro ele inverte */
+.velo-admin-root[data-admin-theme="dark"] .admin-btn-primary,
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#2563EB]"],
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#31536f]"],
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#111827]"],
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#2f66eb]"] {
+  border-color: #fafafa !important;
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-btn-primary:hover,
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#2563EB]"]:hover,
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#31536f]"]:hover,
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#111827]"]:hover,
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#2f66eb]"]:hover {
+  border-color: #e4e4e7 !important;
+  background: #e4e4e7 !important;
+  color: #0a0a0a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-btn-primary svg,
+.velo-admin-root[data-admin-theme="dark"] button[class~="bg-[#2563EB]"] svg {
+  color: #0a0a0a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-select-pill {
+  color: #fafafa;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-select-pill:hover {
+  border-color: #3f3f46;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-select-pill[data-open="true"] {
+  border-color: #52525b;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-select-option {
+  color: #e4e4e7;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-select-pill > svg:first-of-type {
+  color: #fafafa;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-select-pill .admin-select-pill-caret {
+  color: #71717a;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-segmented {
+  background: #1f1f1f;
+}
+
+/* ---------- métricas ---------- */
+
+.velo-admin-root[data-admin-theme="dark"] .admin-metric-card[data-active="true"] {
+  border-color: #3f3f46 !important;
+  background: #1f1f1f !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-metric-card[data-active="false"]:hover {
+  border-color: #3f3f46 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-metric-icon {
+  color: #71717a !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-kpi-label {
+  color: #a1a1aa;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-kpi-label-text {
+  text-decoration-color: #3f3f46;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-spark-bars span {
+  background: #2a2a2a;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-spark-bars span[data-active="true"] {
+  background: #52525b;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-rank-mark {
+  background: #1f1f1f;
+  color: #a1a1aa;
+}
+
+/* ---------- selos e tabelas ---------- */
+
+.velo-admin-root[data-admin-theme="dark"] .admin-badge {
+  background: #262626;
+  color: #d4d4d8;
+}
+
+.velo-admin-root[data-admin-theme="dark"] table td {
+  color: #d4d4d8;
+}
+
+.velo-admin-root[data-admin-theme="dark"] table tbody tr:hover {
+  background: #1b1b1b !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] .admin-avatar {
+  background: #262626 !important;
+  color: #d4d4d8 !important;
+}
+
+.velo-admin-root[data-admin-theme="dark"] table tbody tr[class*="bg-red-50"] {
+  background: rgba(248, 113, 113, 0.08) !important;
+}
+
+/* ---------- barras de rolagem ---------- */
+
+.velo-admin-root[data-admin-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  background-clip: content-box;
+}
+
+.velo-admin-root[data-admin-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+  background-clip: content-box;
+}

@@ -1,85 +1,61 @@
-import { Activity } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion, useReducedMotion } from "framer-motion";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft,
-  BadgeDollarSign,
-  BarChart3,
-  Bell,
-  Bot,
-  ChevronDown,
-  FileSearch,
-  LifeBuoy,
-  LogOut,
-  type LucideIcon,
-  MessagesSquare,
-  PackageSearch,
-  PanelLeftClose,
-  PanelLeftOpen,
-  RefreshCcw,
-  ShoppingBag,
-  Sparkles,
+  ArrowCircleLeft,
+  Bank,
+  CaretRight,
+  ChartLine,
+  FileMagnifyingGlass,
+  House,
+  type Icon as PhosphorIcon,
+  Lifebuoy,
+  Receipt,
+  Robot,
+  Sparkle,
   Stethoscope,
-  UsersRound,
-} from "lucide-react";
+  Storefront,
+  Tray,
+  User,
+} from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { AdminSidebarItem, type AdminTone } from "@/components/admin/AdminPrimitives";
+import { useOpenSupportTickets } from "@/hooks/useOpenSupportTickets";
+import { preloadAdminPage } from "@/pages/admin/adminPages";
+
+type NavChild = { label: string; to: string };
 
 type NavItem = {
   label: string;
-  icon: LucideIcon;
+  icon: PhosphorIcon;
   to: string;
-  tone?: AdminTone;
   badge?: number;
+  /** Subpáginas: aparecem recuadas logo abaixo quando o item está ativo. */
+  children?: NavChild[];
 };
 
-type NavGroup = {
+type NavSection = {
+  id: string;
   label?: string;
   items: NavItem[];
 };
 
-type AdminNewSidebarProps = {
-  onOpenSearch?: () => void;
+const matchesPath = (pathname: string, to: string) => {
+  const target = to.replace(/\/$/, "");
+  return pathname === target || pathname.startsWith(`${target}/`);
 };
 
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "velo:admin-sidebar-collapsed";
-
-const getStoredCollapsed = () => {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
-};
-
-export const AdminNewSidebar = ({ onOpenSearch }: AdminNewSidebarProps) => {
+/**
+ * Sidebar do admin no desenho do admin da Shopify: fundo cinza, ícones
+ * sólidos, item ativo numa pílula branca e subpáginas recuadas abaixo dele.
+ * Marca, busca e conta ficam na barra superior (AdminTopBar).
+ */
+export const AdminNewSidebar = () => {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [collapsed, setCollapsed] = useState(getStoredCollapsed);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const accountRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
-
-  const profileName =
-    (user?.user_metadata?.full_name as string | undefined) ||
-    (user?.user_metadata?.name as string | undefined) ||
-    (user?.email ? user.email.split("@")[0] : "Administrador");
-
-  const { data: openTickets = 0 } = useQuery({
-    queryKey: ["admin-sidebar-open-support-tickets"],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("support_tickets")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "open");
-      if (error) throw error;
-      return count ?? 0;
-    },
-    refetchInterval: 30_000,
-  });
+  const { data: openTickets = 0 } = useOpenSupportTickets();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -95,244 +71,132 @@ export const AdminNewSidebar = ({ onOpenSearch }: AdminNewSidebarProps) => {
     };
   }, [queryClient, user?.id]);
 
-  useEffect(() => {
-    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed));
-  }, [collapsed]);
-
-  // fecha o menu da conta ao clicar fora ou apertar Esc
-  useEffect(() => {
-    if (!accountOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAccountOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [accountOpen]);
-
-  const navGroups: NavGroup[] = [
+  const sections: NavSection[] = [
     {
+      id: "principal",
       items: [
-        { label: "Painel", icon: BarChart3, to: "/admin/painel" },
-        { label: "Usuários & times", icon: UsersRound, to: "/admin/usuarios" },
-        { label: "Vendas", icon: ShoppingBag, to: "/admin/vendas" },
+        { label: "Início", icon: House, to: "/admin/painel" },
+        { label: "Vendas", icon: Receipt, to: "/admin/vendas" },
+        { label: "Usuários", icon: User, to: "/admin/usuarios" },
+        {
+          label: "Financeiro",
+          icon: Bank,
+          to: "/admin/comissoes",
+          children: [
+            { label: "Afiliados", to: "/admin/comissoes" },
+            { label: "Reembolsos", to: "/admin/reembolsos" },
+          ],
+        },
+        { label: "Suporte", icon: Tray, to: "/admin/suporte", badge: openTickets },
+        { label: "Assistente IA", icon: Sparkle, to: "/admin/assistente-ia" },
+        { label: "Rastreio", icon: ChartLine, to: "/admin/rastreio" },
       ],
     },
     {
-      label: "Ferramentas",
+      id: "operacao",
+      label: "Operação",
       items: [
-        { label: "Suporte", icon: MessagesSquare, to: "/admin/suporte", tone: "rose", badge: openTickets },
-        { label: "Assistente IA", icon: Bot, to: "/admin/assistente-ia", tone: "blue" },
-        { label: "Evidências", icon: FileSearch, to: "/admin/evidencias", tone: "teal" },
-        { label: "Consulta", icon: Stethoscope, to: "/admin/consulta", tone: "blue" },
-        { label: "Rastreio", icon: Activity, to: "/admin/rastreio", tone: "teal" },
-        { label: "Automação BOT", icon: Bot, to: "/admin/automacao-bot", tone: "amber" },
-        { label: "Central de ajuda", icon: LifeBuoy, to: "/admin/central-de-ajuda", tone: "blue" },
-        { label: "AliExpress", icon: PackageSearch, to: "/admin/aliexpress", tone: "violet" },
+        { label: "Evidências", icon: FileMagnifyingGlass, to: "/admin/evidencias" },
+        { label: "Consulta", icon: Stethoscope, to: "/admin/consulta" },
+        { label: "Automação BOT", icon: Robot, to: "/admin/automacao-bot" },
+        { label: "AliExpress", icon: Storefront, to: "/admin/aliexpress" },
       ],
     },
     {
-      label: "Financeiro",
-      items: [
-        { label: "Afiliados", icon: BadgeDollarSign, to: "/admin/comissoes", tone: "emerald" },
-        { label: "Reembolsos", icon: RefreshCcw, to: "/admin/reembolsos", tone: "blue" },
-      ],
+      id: "conteudo",
+      label: "Conteúdo",
+      items: [{ label: "Central de ajuda", icon: Lifebuoy, to: "/admin/central-de-ajuda" }],
     },
   ];
 
-  const isActive = (item: NavItem) => {
-    const target = item.to.replace(/\/$/, "");
-    return pathname === target || pathname.startsWith(`${target}/`);
-  };
+  const isItemActive = (item: NavItem) =>
+    item.children ? item.children.some((child) => matchesPath(pathname, child.to)) : matchesPath(pathname, item.to);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/login", { replace: true });
+  const renderItem = (item: NavItem) => {
+    const active = isItemActive(item);
+    const Icon = item.icon;
+    return (
+      <li key={item.to + item.label}>
+        <Link
+          to={item.to}
+          aria-current={active && !item.children ? "page" : undefined}
+          data-active={active || undefined}
+          className="admin-nav-item"
+          onMouseEnter={() => preloadAdminPage(item.to, queryClient)}
+          onFocus={() => preloadAdminPage(item.to, queryClient)}
+        >
+          {/* a pílula do item ativo desliza de um item para o outro */}
+          {active ? (
+            <motion.span
+              layoutId="admin-nav-pill"
+              aria-hidden="true"
+              className="admin-nav-pill"
+              transition={{ type: "spring", stiffness: 520, damping: 42, mass: 0.9 }}
+            />
+          ) : null}
+          <Icon aria-hidden="true" weight="fill" />
+          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          {item.badge && item.badge > 0 ? (
+            <span className="admin-nav-badge" aria-label={`${item.badge} em aberto`}>
+              {item.badge > 99 ? "99+" : item.badge}
+            </span>
+          ) : null}
+        </Link>
+        <AnimatePresence initial={false}>
+          {active && item.children ? (
+            <motion.ul
+              key="subitens"
+              className="overflow-hidden"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {item.children.map((child) => (
+                <li key={child.to}>
+                  <Link
+                    to={child.to}
+                    aria-current={matchesPath(pathname, child.to) ? "page" : undefined}
+                    className="admin-nav-subitem"
+                    onMouseEnter={() => preloadAdminPage(child.to, queryClient)}
+                    onFocus={() => preloadAdminPage(child.to, queryClient)}
+                  >
+                    {child.label}
+                  </Link>
+                </li>
+              ))}
+            </motion.ul>
+          ) : null}
+        </AnimatePresence>
+      </li>
+    );
   };
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: collapsed ? 56 : "clamp(216px, 15.5vw, 240px)" }}
-      transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
-      className={`admin-sidebar relative hidden h-full shrink-0 flex-col pb-2.5 pt-2.5 md:flex ${collapsed ? "px-2" : "px-2.5"}`}
-    >
-      {/* conta / workspace */}
-      <div ref={accountRef} className={`relative flex h-[34px] items-center ${collapsed ? "justify-center" : "justify-between gap-1"}`}>
-        {!collapsed ? (
-          <button
-            type="button"
-            onClick={() => setAccountOpen((open) => !open)}
-            aria-expanded={accountOpen}
-            aria-haspopup="menu"
-            className="admin-workspace min-w-0 flex-1"
-          >
-            <span className="admin-workspace-mark">
-              <img src="/logo.png" alt="" />
-            </span>
-            <span className="truncate">Velo Admin</span>
-            <ChevronDown size={13} className="shrink-0 text-[#8c8f93]" />
-          </button>
-        ) : (
-          <Link to="/admin/painel" aria-label="Velo Admin" className="admin-workspace px-0">
-            <span className="admin-workspace-mark">
-              <img src="/logo.png" alt="" />
-            </span>
-          </Link>
-        )}
-        {!collapsed ? (
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            aria-label="Recolher menu lateral"
-            className="admin-icon-button shrink-0"
-          >
-            <PanelLeftClose size={15} strokeWidth={1.7} />
-          </button>
-        ) : null}
-
-        {accountOpen && !collapsed ? (
-          <div role="menu" className="admin-account-menu">
-            <div className="admin-account-menu-head">
-              <p className="truncate text-[13px] font-medium text-[#1a1a1a]">{profileName}</p>
-              <p className="truncate text-[12px] text-[#8c8f93]">{user?.email ?? "Administrador"}</p>
-            </div>
-            <button type="button" role="menuitem" className="admin-account-menu-item" onClick={() => setAccountOpen(false)}>
-              <Bell aria-hidden="true" />
-              Notificações
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#d72c0d]" />
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="admin-account-menu-item"
-              onClick={() => {
-                setAccountOpen(false);
-                navigate("/dashboard");
-              }}
-            >
-              <ArrowLeft aria-hidden="true" />
-              Voltar à Velo
-            </button>
-            <button type="button" role="menuitem" className="admin-account-menu-item" onClick={() => void handleSignOut()}>
-              <LogOut aria-hidden="true" />
-              Sair
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {collapsed ? (
-        <button
-          type="button"
-          onClick={() => setCollapsed(false)}
-          aria-label="Expandir menu lateral"
-          className="admin-icon-button mx-auto mt-2"
-        >
-          <PanelLeftOpen size={15} strokeWidth={1.7} />
-        </button>
-      ) : null}
-
-      {/* ações rápidas */}
-      <button
-        type="button"
-        onClick={onOpenSearch}
-        title={collapsed ? "Ações rápidas" : undefined}
-        className={collapsed ? "admin-icon-button mx-auto mt-2" : "admin-quick-action mt-2"}
-      >
-        <span aria-hidden="true" className="admin-quick-action-glyph">⌘</span>
-        {!collapsed ? (
-          <>
-            <span className="min-w-0 flex-1 truncate text-left">Ações rápidas</span>
-            <kbd>K</kbd>
-          </>
-        ) : null}
-      </button>
-
-      <nav aria-label="Navegação principal do admin" className="mt-3.5 min-h-0 flex-1 space-y-3.5 overflow-y-auto overflow-x-hidden">
-        {navGroups.map((group, groupIndex) => (
-          <section key={group.label ?? `grupo-${groupIndex}`} aria-label={group.label ?? "Menu principal"}>
-            {group.label && !collapsed ? (
-              <p className="admin-sidebar-section-label mb-1">{group.label}</p>
+    <aside className="admin-nav relative hidden h-full w-[252px] shrink-0 flex-col md:flex" data-admin-native>
+      <nav aria-label="Navegação principal do admin" className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pl-[18px] pr-[23px] pt-5">
+        {sections.map((section) => (
+          <section key={section.id} aria-label={section.label ?? "Menu principal"} className={section.label ? "mt-6" : ""}>
+            {section.label ? (
+              <p className="admin-nav-section">
+                <span>{section.label}</span>
+                <CaretRight aria-hidden="true" weight="bold" />
+              </p>
             ) : null}
-            <div className="space-y-0.5">
-              {group.items.map((item) => (
-                <AdminSidebarItem
-                  key={item.to}
-                  to={item.to}
-                  label={item.label}
-                  icon={item.icon}
-                  tone={item.tone}
-                  active={isActive(item)}
-                  collapsed={collapsed}
-                  count={item.badge}
-                />
-              ))}
-            </div>
+            <ul>{section.items.map(renderItem)}</ul>
           </section>
         ))}
 
-        <section aria-label="Fixados">
-          {!collapsed ? <p className="admin-sidebar-section-label mb-1">Fixados</p> : null}
-          <button
-            type="button"
-            onClick={onOpenSearch}
-            title={collapsed ? "Assistente IA" : undefined}
-            className={`admin-sidebar-item admin-sidebar-ai flex w-full items-center ${collapsed ? "justify-center px-0" : "px-2"}`}
-          >
-            <Sparkles aria-hidden="true" />
-            {!collapsed ? <span className="min-w-0 flex-1 truncate text-left">Assistente IA</span> : null}
-          </button>
-        </section>
-
+        <ul className="mt-6">
+          <li>
+            <Link to="/dashboard" className="admin-nav-item">
+              <ArrowCircleLeft aria-hidden="true" weight="fill" />
+              <span className="min-w-0 flex-1 truncate">Voltar à Velo</span>
+            </Link>
+          </li>
+        </ul>
       </nav>
-
-      {/* fila de suporte */}
-      {!collapsed ? (
-        <button
-          type="button"
-          onClick={() => navigate("/admin/suporte")}
-          className="admin-sidebar-card mt-2.5 shrink-0"
-        >
-          <span className="admin-tool-tile" data-tone="rose" aria-hidden="true">
-            <LifeBuoy />
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-[#1a1a1a]">Fila de suporte</span>
-          <span className="shrink-0 text-[12px] text-[#8c8f93]" aria-label={`${openTickets} em aberto`}>{openTickets}</span>
-        </button>
-      ) : null}
-
-      {/* rodapé */}
-      <div className={`admin-sidebar-footer shrink-0 ${collapsed ? "flex-col gap-1" : ""}`}>
-        <span className="admin-footer-mark" aria-hidden="true">
-          <ArrowLeft />
-        </span>
-        {!collapsed ? (
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard")}
-            className="min-w-0 flex-1 truncate text-left text-[12.5px] text-[#303030] transition-colors hover:text-[#1a1a1a]"
-          >
-            Voltar à Velo
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => void handleSignOut()}
-          title="Sair"
-          className={collapsed ? "admin-icon-button" : "admin-btn-primary shrink-0"}
-        >
-          <LogOut aria-hidden="true" />
-          {!collapsed ? "Sair" : null}
-        </button>
-      </div>
-    </motion.aside>
+    </aside>
   );
 };
 

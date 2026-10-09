@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- As tabelas de suporte ainda não constam nos tipos gerados do Supabase; os resultados são normalizados nos tipos locais abaixo. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -40,8 +40,10 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
-import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
+import { AdminLayoutContext } from "@/components/admin/adminLayoutContext";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -350,7 +352,152 @@ const getInitials = (name?: string | null, email?: string | null) =>
     .join("")
     .toUpperCase();
 
+/** Tickets do suporte com nome, e-mail e avatar de quem abriu. */
+const fetchSupportTickets = async () => {
+  const { data: ticketsData, error: ticketsError } = await (supabase as any)
+    .from("support_tickets")
+    .select("id,user_id,status,category,subject,created_at,updated_at,ai_paused,needs_human,needs_human_reason")
+    .order("updated_at", { ascending: false });
+
+  if (ticketsError) throw ticketsError;
+  const ticketsList = (ticketsData ?? []) as any[];
+  if (ticketsList.length === 0) return [] as AdminTicket[];
+
+  const ticketIds = ticketsList.map((ticket) => ticket.id);
+  const userIds = Array.from(new Set(ticketsList.map((ticket) => ticket.user_id)));
+  const profilesByUser = new Map<
+    string,
+    { display_name: string | null; email: string | null; avatar_url: string | null }
+  >();
+
+  const { data: profilesData } = await (supabase as any)
+    .from("profiles")
+    .select("user_id,display_name,email,avatar_url")
+    .in("user_id", userIds);
+
+  for (const item of (profilesData ?? []) as any[]) {
+    profilesByUser.set(item.user_id, {
+      display_name: item.display_name ?? null,
+      email: item.email ?? null,
+      avatar_url: item.avatar_url ?? null,
+    });
+  }
+
+  const needsFallback = userIds.filter((userId) => {
+    const item = profilesByUser.get(userId);
+    return !item?.email || !item.display_name || !item.avatar_url;
+  });
+
+  if (needsFallback.length > 0) {
+    try {
+      // Nunca deixa a lista de tickets travar caso a função demore.
+      const adminData = await Promise.race([
+        supabase.functions
+          .invoke("admin-users", { body: { user_ids: needsFallback } })
+          .then((res) => res.data),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+      ]);
+
+      const responseUsers =
+        adminData && typeof adminData === "object" && "users" in adminData
+          ? (adminData as { users?: unknown }).users
+          : null;
+      const list = Array.isArray(adminData) ? adminData : Array.isArray(responseUsers) ? responseUsers : [];
+      for (const item of list as Array<{
+        user_id?: string;
+        id?: string;
+        display_name?: string | null;
+        full_name?: string | null;
+        name?: string | null;
+        email?: string | null;
+        avatar_url?: string | null;
+      }>) {
+        const userId = item.user_id ?? item.id;
+        if (!userId) continue;
+        const existing = profilesByUser.get(userId);
+        profilesByUser.set(userId, {
+          display_name: existing?.display_name ?? item.display_name ?? item.full_name ?? item.name ?? null,
+          email: existing?.email ?? item.email ?? null,
+          avatar_url: existing?.avatar_url ?? item.avatar_url ?? null,
+        });
+      }
+    } catch (error) {
+      console.warn("admin-users fallback failed", error);
+    }
+  }
+
+  // Busca TODAS as mensagens em lotes: o PostgREST corta em 1000 linhas por
+  // requisição e, sem paginar, tickets antigos ficavam sem `last_message_at`
+  // e caíam para `updated_at`, bagunçando a ordenação por última mensagem.
+  const PAGE_SIZE = 1000;
+  const allMessages: SupportMessage[] = [];
+  for (let page = 0; ; page += 1) {
+    const { data: pageData, error: pageError } = await (supabase as any)
+      .from("support_messages")
+      .select("id,ticket_id,user_id,message,sender,created_at,internal")
+      .in("ticket_id", ticketIds)
+      .order("created_at", { ascending: false })
+      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    if (pageError) break;
+    const rows = (pageData ?? []) as SupportMessage[];
+    allMessages.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+
+  const lastByTicket = new Map<string, SupportMessage>();
+  const messageCountByTicket = new Map<string, number>();
+  const adminReplyByTicket = new Set<string>();
+
+  for (const message of allMessages) {
+    if (message.internal) continue;
+    messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
+    const current = lastByTicket.get(message.ticket_id);
+    // A saudação automática não deve esconder a dúvida real na fila.
+    if (
+      message.sender !== "ai" &&
+      (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime())
+    ) {
+      lastByTicket.set(message.ticket_id, message);
+    }
+    if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
+  }
+
+
+  return ticketsList.map((ticket) => {
+    const customer = profilesByUser.get(ticket.user_id);
+    const lastMessage = lastByTicket.get(ticket.id);
+    return {
+      id: ticket.id,
+      user_id: ticket.user_id,
+      status: ticket.status,
+      category: (ticket.category ?? "outros") as TicketCategory,
+      subject: ticket.subject ?? null,
+      created_at: ticket.created_at,
+      updated_at: ticket.updated_at,
+      user_name: customer?.display_name ?? null,
+      user_email: customer?.email ?? null,
+      user_avatar_url: customer?.avatar_url ?? null,
+      last_message: lastMessage ? supportMessagePreview(lastMessage.message) : null,
+      last_message_at: lastMessage?.created_at ?? null,
+      last_message_sender: lastMessage?.sender ?? null,
+      message_count: messageCountByTicket.get(ticket.id) ?? 0,
+      has_admin_reply: adminReplyByTicket.has(ticket.id),
+      ai_paused: ticket.ai_paused === true,
+      needs_human: ticket.needs_human === true,
+      needs_human_reason: ticket.needs_human_reason ?? null,
+    } satisfies AdminTicket;
+  }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
+};
+
+/** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
+const PREFETCH_STALE_MS = 30_000;
+
+/** Pré-busca usada pelo AdminLayout para a aba abrir já com os tickets. */
+export const prefetchAdminData = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({ queryKey: ["admin-support-tickets-crm"], queryFn: fetchSupportTickets , staleTime: PREFETCH_STALE_MS });
+
 const AdminSupportPage = () => {
+  const polling20s = useAdminPolling(20_000);
   const { user, loading } = useAuth();
   const qc = useQueryClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -371,6 +518,8 @@ const AdminSupportPage = () => {
   const [readTickets, setReadTickets] = useState<TicketReadState>(getStoredReadTickets);
 
   const fallbackAdmin = isAdminEmail(user?.email);
+  // dentro da moldura do admin a permissão já foi conferida pelo AdminRoute
+  const verifiedAdmin = useContext(AdminLayoutContext);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ["admin-profile", user?.id],
@@ -386,7 +535,7 @@ const AdminSupportPage = () => {
     },
   });
 
-  const isAdmin = profile?.role === "admin" || fallbackAdmin;
+  const isAdmin = verifiedAdmin || profile?.role === "admin" || fallbackAdmin;
 
   useEffect(() => {
     setReply("");
@@ -397,143 +546,9 @@ const AdminSupportPage = () => {
   const { data: tickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ["admin-support-tickets-crm"],
     enabled: !!user?.id && isAdmin,
-    queryFn: async () => {
-      const { data: ticketsData, error: ticketsError } = await (supabase as any)
-        .from("support_tickets")
-        .select("id,user_id,status,category,subject,created_at,updated_at,ai_paused,needs_human,needs_human_reason")
-        .order("updated_at", { ascending: false });
-
-      if (ticketsError) throw ticketsError;
-      const ticketsList = (ticketsData ?? []) as any[];
-      if (ticketsList.length === 0) return [] as AdminTicket[];
-
-      const ticketIds = ticketsList.map((ticket) => ticket.id);
-      const userIds = Array.from(new Set(ticketsList.map((ticket) => ticket.user_id)));
-      const profilesByUser = new Map<
-        string,
-        { display_name: string | null; email: string | null; avatar_url: string | null }
-      >();
-
-      const { data: profilesData } = await (supabase as any)
-        .from("profiles")
-        .select("user_id,display_name,email,avatar_url")
-        .in("user_id", userIds);
-
-      for (const item of (profilesData ?? []) as any[]) {
-        profilesByUser.set(item.user_id, {
-          display_name: item.display_name ?? null,
-          email: item.email ?? null,
-          avatar_url: item.avatar_url ?? null,
-        });
-      }
-
-      const needsFallback = userIds.filter((userId) => {
-        const item = profilesByUser.get(userId);
-        return !item?.email || !item.display_name || !item.avatar_url;
-      });
-
-      if (needsFallback.length > 0) {
-        try {
-          // Nunca deixa a lista de tickets travar caso a função demore.
-          const adminData = await Promise.race([
-            supabase.functions
-              .invoke("admin-users", { body: { user_ids: needsFallback } })
-              .then((res) => res.data),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-          ]);
-
-          const responseUsers =
-            adminData && typeof adminData === "object" && "users" in adminData
-              ? (adminData as { users?: unknown }).users
-              : null;
-          const list = Array.isArray(adminData) ? adminData : Array.isArray(responseUsers) ? responseUsers : [];
-          for (const item of list as Array<{
-            user_id?: string;
-            id?: string;
-            display_name?: string | null;
-            full_name?: string | null;
-            name?: string | null;
-            email?: string | null;
-            avatar_url?: string | null;
-          }>) {
-            const userId = item.user_id ?? item.id;
-            if (!userId) continue;
-            const existing = profilesByUser.get(userId);
-            profilesByUser.set(userId, {
-              display_name: existing?.display_name ?? item.display_name ?? item.full_name ?? item.name ?? null,
-              email: existing?.email ?? item.email ?? null,
-              avatar_url: existing?.avatar_url ?? item.avatar_url ?? null,
-            });
-          }
-        } catch (error) {
-          console.warn("admin-users fallback failed", error);
-        }
-      }
-
-      // Busca TODAS as mensagens em lotes: o PostgREST corta em 1000 linhas por
-      // requisição e, sem paginar, tickets antigos ficavam sem `last_message_at`
-      // e caíam para `updated_at`, bagunçando a ordenação por última mensagem.
-      const PAGE_SIZE = 1000;
-      const allMessages: SupportMessage[] = [];
-      for (let page = 0; ; page += 1) {
-        const { data: pageData, error: pageError } = await (supabase as any)
-          .from("support_messages")
-          .select("id,ticket_id,user_id,message,sender,created_at,internal")
-          .in("ticket_id", ticketIds)
-          .order("created_at", { ascending: false })
-          .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
-        if (pageError) break;
-        const rows = (pageData ?? []) as SupportMessage[];
-        allMessages.push(...rows);
-        if (rows.length < PAGE_SIZE) break;
-      }
-
-      const lastByTicket = new Map<string, SupportMessage>();
-      const messageCountByTicket = new Map<string, number>();
-      const adminReplyByTicket = new Set<string>();
-
-      for (const message of allMessages) {
-        if (message.internal) continue;
-        messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
-        const current = lastByTicket.get(message.ticket_id);
-        // A saudação automática não deve esconder a dúvida real na fila.
-        if (
-          message.sender !== "ai" &&
-          (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime())
-        ) {
-          lastByTicket.set(message.ticket_id, message);
-        }
-        if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
-      }
-
-
-      return ticketsList.map((ticket) => {
-        const customer = profilesByUser.get(ticket.user_id);
-        const lastMessage = lastByTicket.get(ticket.id);
-        return {
-          id: ticket.id,
-          user_id: ticket.user_id,
-          status: ticket.status,
-          category: (ticket.category ?? "outros") as TicketCategory,
-          subject: ticket.subject ?? null,
-          created_at: ticket.created_at,
-          updated_at: ticket.updated_at,
-          user_name: customer?.display_name ?? null,
-          user_email: customer?.email ?? null,
-          user_avatar_url: customer?.avatar_url ?? null,
-          last_message: lastMessage ? supportMessagePreview(lastMessage.message) : null,
-          last_message_at: lastMessage?.created_at ?? null,
-          last_message_sender: lastMessage?.sender ?? null,
-          message_count: messageCountByTicket.get(ticket.id) ?? 0,
-          has_admin_reply: adminReplyByTicket.has(ticket.id),
-          ai_paused: ticket.ai_paused === true,
-          needs_human: ticket.needs_human === true,
-          needs_human_reason: ticket.needs_human_reason ?? null,
-        } satisfies AdminTicket;
-      }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
-    },
+    queryFn: fetchSupportTickets,
     // Reserva caso o tempo real caia: a fila se atualiza sozinha.
-    refetchInterval: 20_000,
+    refetchInterval: polling20s,
     retry: false,
   });
 
@@ -962,9 +977,9 @@ const AdminSupportPage = () => {
     onSettled: () => setDirectRefundTarget(null),
   });
 
-  if (loading) return <VeloLoadingScreen message="Carregando suporte..." />;
+  if (loading) return <AdminPageLoading message="Carregando suporte..." />;
   if (!user) return <Navigate to="/login" replace />;
-  if (loadingProfile) return <VeloLoadingScreen message="Carregando suporte..." />;
+  if (loadingProfile && !verifiedAdmin) return <AdminPageLoading message="Carregando suporte..." />;
 
   if (!isAdmin) {
     return (

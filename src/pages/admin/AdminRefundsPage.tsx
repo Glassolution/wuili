@@ -1,12 +1,14 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Info, Loader2, Lock, XCircle, UserRound, RotateCcw } from "lucide-react";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { VeloLoadingScreen } from "@/components/ui/velo-loading-screen";
+import { useAdminPolling } from "@/components/admin/adminLayoutContext";
+import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
+import { AdminLayoutContext } from "@/components/admin/adminLayoutContext";
 
 /** Recorte da assinatura que a tabela de reembolsos consulta. */
 type RefundSubscription = {
@@ -123,7 +125,40 @@ const isRefundCompleted = (refund: RefundRow) => {
   return ["approved", "processed", "refunded", "completed", "success", "confirmed"].includes(normalizeStatus(refund.status));
 };
 
+const fetchAllRefunds = async () => {
+  const { data, error } = await supabase
+    .from("refund_requests")
+    .select("*")
+    .order("requested_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data || []) as RefundRow[];
+};
+
+const fetchEligibleSubscriptions = async () => {
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("id,user_id,validapay_charge_id,payment_method,plan,status,amount,created_at,current_period_end")
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data || []) as SubRow[];
+};
+
+/** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
+const PREFETCH_STALE_MS = 30_000;
+
+/** Pré-busca usada pelo AdminLayout para a aba abrir já com os pedidos. */
+export const prefetchAdminData = (queryClient: QueryClient) =>
+  Promise.all([
+    queryClient.prefetchQuery({ queryKey: ["admin-refunds-all"], queryFn: fetchAllRefunds , staleTime: PREFETCH_STALE_MS }),
+    queryClient.prefetchQuery({ queryKey: ["admin-subs-eligible"], queryFn: fetchEligibleSubscriptions , staleTime: PREFETCH_STALE_MS }),
+  ]);
+
 const AdminRefundsPage = () => {
+  const polling15s = useAdminPolling(15_000);
+  const polling30s = useAdminPolling(30_000);
   const { user, loading } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabKey>("pending");
@@ -136,37 +171,22 @@ const AdminRefundsPage = () => {
       return data;
     },
   });
-  const isAdmin = !!profile;
+  // dentro da moldura do admin a permissão já foi conferida pelo AdminRoute
+  const verifiedAdmin = useContext(AdminLayoutContext);
+  const isAdmin = verifiedAdmin || !!profile;
 
   const { data: allRefunds = [], isLoading: loadingRefunds } = useQuery({
     queryKey: ["admin-refunds-all"],
     enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("refund_requests")
-        .select("*")
-        .order("requested_at", { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      return (data || []) as RefundRow[];
-    },
-    refetchInterval: 15000,
+    queryFn: fetchAllRefunds,
+    refetchInterval: polling15s,
   });
 
   const { data: activeSubs = [], isLoading: loadingSubs } = useQuery({
     queryKey: ["admin-subs-eligible"],
     enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("id,user_id,validapay_charge_id,payment_method,plan,status,amount,created_at,current_period_end")
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      return (data || []) as SubRow[];
-    },
-    refetchInterval: 30000,
+    queryFn: fetchEligibleSubscriptions,
+    refetchInterval: polling30s,
   });
 
   const pending = useMemo(
@@ -331,8 +351,8 @@ const AdminRefundsPage = () => {
   });
 
 
-  if (loading || loadingProfile) {
-    return <VeloLoadingScreen message="Carregando reembolsos..." />;
+  if (loading || (loadingProfile && !verifiedAdmin)) {
+    return <AdminPageLoading message="Carregando reembolsos..." />;
   }
   if (!user) return <Navigate to="/login" replace />;
   if (!isAdmin) {

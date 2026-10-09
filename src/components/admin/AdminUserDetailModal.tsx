@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -84,6 +85,7 @@ const relative = (iso: string | null) => {
 };
 
 export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
+  const polling15s = useAdminPolling(15_000);
   const open = !!userId;
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +103,7 @@ export const AdminUserDetailModal = ({ userId, onClose }: Props) => {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["admin-user-profile", userId],
     enabled: !!userId,
-    refetchInterval: 15_000,
+    refetchInterval: polling15s,
     queryFn: async (): Promise<Profile> => {
       const { data, error } = await supabase.functions.invoke("admin-user-profile", {
         body: { user_id: userId },

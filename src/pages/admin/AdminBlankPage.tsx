@@ -1,31 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, animate, motion, useReducedMotion } from "framer-motion";
+import { animate, motion, useReducedMotion } from "framer-motion";
 import {
-  BarChart3,
-  CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CalendarRange,
-  GitCompare,
-  Download,
-  Globe,
   Search,
-  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAdminPolling } from "@/components/admin/adminLayoutContext";
+import { AdminDateRangePicker } from "@/components/admin/AdminDateRangePicker";
+import {
+  OverviewMenu,
+  OverviewRevenueCard,
+  OverviewStatCard,
+  type OverviewDelta,
+} from "@/components/admin/AdminOverview";
+import {
+  ArrowDownTrayIcon,
+  ArrowPathIcon,
+  BanknotesIcon,
+  CalendarIcon,
+  ChartBarIcon,
+  CheckCircleIcon,
+  CreditCardIcon,
+  CubeIcon,
+  CurrencyDollarIcon,
+  EllipsisVerticalIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  ReceiptRefundIcon,
+  ShoppingBagIcon,
+  UserIcon,
+  UserMinusIcon,
+  UsersIcon,
+} from "@heroicons/react/20/solid";
 import { AdminMobileHome } from "@/components/admin/AdminMobileHome";
 import {
   AdminBadge,
-  AdminCard,
-  AdminChartCard,
-  AdminKPIStat,
-  AdminPill,
-  AdminProgressBar,
-  AdminSelectPill,
-  AdminTableHeader,
 } from "@/components/admin/AdminPrimitives";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPages, fetchUserIdentities, type AdminUserIdentity } from "@/lib/adminWalletFetch";
@@ -129,12 +143,15 @@ type Period =
   | "this_month"
   | "last_month"
   | "last3m"
-  | "year";
+  | "year"
+  /** Intervalo escolhido no calendário (de um dia até outro). */
+  | "custom";
 
 /** Agrupamento dos pontos do gráfico. */
 type Grouping = "hour" | "day" | "week" | "month";
 
 const PERIOD_STORAGE_KEY = "velo:admin-wallet-period";
+const RANGE_STORAGE_KEY = "velo:admin-wallet-range";
 const ACTIVITY_PAGE_SIZE = 10;
 const PAID_STATUSES = new Set(["active", "paid", "approved", "trialing"]);
 const CHURN_STATUSES = new Set([
@@ -286,7 +303,7 @@ const isValidaPaySubscription = (subscription: SubscriptionRow) => {
     (!!legacyPaymentId && !/^\d+$/.test(legacyPaymentId));
 };
 
-const PERIOD_OPTIONS: Array<{ value: Period; label: string }> = [
+const PERIOD_OPTIONS: Array<{ value: Exclude<Period, "custom">; label: string }> = [
   { value: "today", label: "Hoje" },
   { value: "yesterday", label: "Ontem" },
   { value: "last7", label: "Últimos 7 dias" },
@@ -297,11 +314,6 @@ const PERIOD_OPTIONS: Array<{ value: Period; label: string }> = [
   { value: "last_month", label: "Mês passado" },
   { value: "last3m", label: "Últimos 3 meses" },
   { value: "year", label: "Este ano" },
-];
-
-const COMPARE_OPTIONS: Array<{ value: "previous" | "none"; label: string }> = [
-  { value: "previous", label: "Comparar período anterior" },
-  { value: "none", label: "Sem comparação" },
 ];
 
 const GROUPING_OPTIONS: Array<{ value: Grouping | "auto"; label: string }> = [
@@ -320,12 +332,45 @@ const MOBILE_GROUPING_OPTIONS: Array<{ value: Grouping | "auto"; label: string }
   { value: "month", label: "Mensal" },
 ];
 
-const getPeriodLabel = (period: Period) =>
-  PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? "Período";
+const MONTH_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-const getPeriodContext = (period: Period) => {
-  const now = new Date();
-  const monthName = (date: Date) => new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(date);
+/** Rótulo do tooltip do gráfico ("14h · 09/10", "12 out, 2026", "Semana de 06 out", "Out, 2026"). */
+const formatBucketLabel = (key: string, grouping: Grouping) => {
+  if (grouping === "hour") return `${key.slice(11, 13)}h · ${key.slice(8, 10)}/${key.slice(5, 7)}`;
+  const month = MONTH_SHORT[Number(key.slice(5, 7)) - 1] ?? "";
+  if (grouping === "month") return `${capitalize(month)}, ${key.slice(0, 4)}`;
+  if (grouping === "week") return `Semana de ${key.slice(8, 10)} ${month}`;
+  return `${key.slice(8, 10)} ${month}, ${key.slice(0, 4)}`;
+};
+
+/** Rótulo curto do eixo X ("14h", "12 out", "Out"). */
+const formatAxisLabel = (key: string, grouping: Grouping) => {
+  if (grouping === "hour") return `${key.slice(11, 13)}h`;
+  const month = MONTH_SHORT[Number(key.slice(5, 7)) - 1] ?? "";
+  if (grouping === "month") return capitalize(month);
+  return `${key.slice(8, 10)} ${month}`;
+};
+
+/** Com o que cada período é comparado, para a frase "… a menos que ontem". */
+const getComparisonLabel = (period: Period, range: PeriodRange) => {
+  if (period === "today") return "ontem";
+  if (period === "yesterday") return "anteontem";
+  if (period === "last_week") return "na semana anterior";
+  const days = daysBetween(range.startKey, range.endKey);
+  return days === 1 ? "no dia anterior" : `nos ${days} dias anteriores`;
+};
+
+const shortDayLabel = (key: string) =>
+  `${key.slice(8, 10)} ${MONTH_SHORT[Number(key.slice(5, 7)) - 1] ?? ""}`;
+
+/** Período escrito para frases ("hoje", "nos últimos 7 dias", "de 03 out a 09 out"). */
+const getPeriodPhrase = (period: Period, range: PeriodRange) => {
+  if (period === "custom") {
+    return range.startKey === range.endKey
+      ? `em ${shortDayLabel(range.startKey)}`
+      : `de ${shortDayLabel(range.startKey)} a ${shortDayLabel(range.endKey)}`;
+  }
   switch (period) {
     case "today":
       return "hoje";
@@ -340,13 +385,13 @@ const getPeriodContext = (period: Period) => {
     case "last_week":
       return "na semana passada";
     case "this_month":
-      return `em ${monthName(now)}`;
+      return "neste mês";
     case "last_month":
-      return `em ${monthName(new Date(now.getFullYear(), now.getMonth() - 1, 1))}`;
+      return "no mês passado";
     case "last3m":
       return "nos últimos 3 meses";
     default:
-      return `em ${now.getFullYear()}`;
+      return "neste ano";
   }
 };
 
@@ -361,9 +406,39 @@ const getBelemDateKey = (value: string | Date) => {
   return `${part("year")}-${part("month")}-${part("day")}`;
 };
 
+const readStorage = (key: string) => {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeStorage = (key: string, value: string) => {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // armazenamento bloqueado: só não lembra a escolha
+  }
+};
+
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+const getStoredRange = (): PeriodRange | null => {
+  try {
+    const parsed = JSON.parse(readStorage(RANGE_STORAGE_KEY) ?? "null") as Partial<PeriodRange> | null;
+    if (!parsed || !DATE_KEY.test(String(parsed.startKey)) || !DATE_KEY.test(String(parsed.endKey))) return null;
+    if (String(parsed.startKey) > String(parsed.endKey)) return null;
+    return { startKey: String(parsed.startKey), endKey: String(parsed.endKey) };
+  } catch {
+    return null;
+  }
+};
+
 const getStoredPeriod = (): Period => {
   if (typeof window === "undefined") return "last30";
-  const stored = window.localStorage.getItem(PERIOD_STORAGE_KEY);
+  const stored = readStorage(PERIOD_STORAGE_KEY);
+  if (stored === "custom") return getStoredRange() ? "custom" : "last30";
   return PERIOD_OPTIONS.some((option) => option.value === stored) ? (stored as Period) : "last30";
 };
 
@@ -441,7 +516,6 @@ const isInRange = (value: string | null, range: PeriodRange) => {
   return key >= range.startKey && key <= range.endKey;
 };
 
-const isInPeriod = (value: string | null, period: Period) => isInRange(value, getPeriodRange(period));
 
 /** Agrupamento padrão: dia até um mês, semana até quatro meses, mês acima disso. */
 const getAutoGrouping = (range: PeriodRange): Grouping => {
@@ -462,6 +536,14 @@ const getBucketKey = (value: string, grouping: Grouping) => {
   return dateToKey(shiftDays(date, -((date.getUTCDay() + 6) % 7)));
 };
 
+/** Balde de um dia já no formato "YYYY-MM-DD" (sem conversão de fuso). */
+const bucketKeyFromDayKey = (dayKey: string, grouping: Exclude<Grouping, "hour">) => {
+  if (grouping === "day") return dayKey;
+  if (grouping === "month") return `${dayKey.slice(0, 7)}-01`;
+  const date = keyToDate(dayKey);
+  return dateToKey(shiftDays(date, -((date.getUTCDay() + 6) % 7)));
+};
+
 /** Lista ordenada de baldes que cobre o intervalo inteiro, inclusive os vazios. */
 const buildBuckets = (range: PeriodRange, grouping: Grouping) => {
   if (grouping === "hour") {
@@ -479,7 +561,9 @@ const buildBuckets = (range: PeriodRange, grouping: Grouping) => {
   }
 
   const buckets: string[] = [];
-  let cursor = getBucketKey(range.startKey, grouping);
+  // range.startKey já é um dia de Belém ("YYYY-MM-DD"); passar por getBucketKey
+  // o leria como meia-noite UTC e voltaria um dia no fuso de Belém.
+  let cursor = bucketKeyFromDayKey(range.startKey, grouping);
   const guard = 400;
   while (cursor <= range.endKey && buckets.length < guard) {
     buckets.push(cursor);
@@ -512,8 +596,12 @@ const fetchAllValidaPayEvents = async () => {
         .range(from, to),
     );
     return { rows, available: true };
-  } catch {
-    return { rows: [] as ValidaPayEventRow[], available: false };
+  } catch (error) {
+    // Só "tabela inexistente" significa que a ValidaPay não está ligada; queda de
+    // rede ou de sessão precisa aparecer como erro, não como carteira vazia.
+    const code = String((error as { code?: unknown } | null)?.code ?? "");
+    if (code === "42P01" || code === "PGRST205") return { rows: [] as ValidaPayEventRow[], available: false };
+    throw error;
   }
 };
 
@@ -531,10 +619,25 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Pr
   }
 };
 
+/** Como withTimeout, mas sem fingir sucesso: estourou o prazo, vira erro (e a consulta tenta de novo). */
+const withDeadline = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Tempo esgotado ao carregar ${label}`)), ms);
+  });
+  try {
+    return await Promise.race([promise, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
 const fetchWalletData = async (): Promise<WalletData> => {
   // Nomes e e-mails vêm à parte (fetchUserIdentities), só para quem aparece na tela.
+  // Assinaturas e eventos da ValidaPay são o painel inteiro: se falharem, é erro
+  // (antes viravam lista vazia em silêncio e o painel mostrava R$ 0,00).
   const [subscriptions, refunds, validapay] = await Promise.all([
-    withTimeout(fetchAllSubscriptions(), 20_000, [] as SubscriptionRow[]),
+    withDeadline(fetchAllSubscriptions(), 30_000, "assinaturas"),
     withTimeout(
       supabase
         .from("refund_requests")
@@ -544,7 +647,7 @@ const fetchWalletData = async (): Promise<WalletData> => {
       20_000,
       { data: [] as RefundRow[], error: null } as { data: RefundRow[] | null; error: unknown },
     ),
-    withTimeout(fetchAllValidaPayEvents(), 20_000, { rows: [] as ValidaPayEventRow[], available: false }),
+    withDeadline(fetchAllValidaPayEvents(), 30_000, "pagamentos"),
   ]);
 
   return {
@@ -718,25 +821,31 @@ const getValidaPayEventKey = (row: ValidaPayEventRow) =>
   row.charge_id || row.payment_id || row.subscription_id || row.id;
 
 const AdminPainelPage = () => {
+  // atualização automática pausa quando o painel está numa aba escondida
+  const polling5min = useAdminPolling(5 * 60_000);
   const [period, setPeriod] = useState<Period>(getStoredPeriod);
+  const [customRange, setCustomRange] = useState<PeriodRange | null>(getStoredRange);
   const [groupingChoice, setGroupingChoice] = useState<Grouping | "auto">(() =>
     typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "week" : "auto",
   );
-  const [compareEnabled, setCompareEnabled] = useState(true);
-  const periodRange = useMemo(() => getPeriodRange(period), [period]);
+  const periodRange = useMemo(
+    () => (period === "custom" && customRange ? customRange : getPeriodRange(period === "custom" ? "last30" : period)),
+    [period, customRange],
+  );
+  const todayKey = getBelemDateKey(new Date());
   const grouping: Grouping = groupingChoice === "auto" ? getAutoGrouping(periodRange) : groupingChoice;
   const [activityPage, setActivityPage] = useState(1);
   const [activitySearch, setActivitySearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ActivityStatusFilter>("all");
-  const [compactPanel, setCompactPanel] = useState(false);
   const activitySectionRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
-  const { data = EMPTY_DATA, isLoading, isError, isFetching } = useQuery({
+  const { data = EMPTY_DATA, isLoading, isError, isFetching, refetch: refetchWallet } = useQuery({
     queryKey: ["admin-wallet-v8-validapay-only"],
     queryFn: fetchWalletData,
     // Recarregar tudo a cada 30s sobrecarregava o banco; o foco na aba também atualiza.
-    refetchInterval: 5 * 60_000,
-    retry: 1,
+    refetchInterval: polling5min,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1500 * 2 ** attempt, 6000),
   });
   const {
     data: providerFinance,
@@ -746,13 +855,16 @@ const AdminPainelPage = () => {
   } = useQuery({
     queryKey: ["admin-wallet-finance-v2-validapay-only", period],
     queryFn: () => fetchFinanceData(period),
-    refetchInterval: 5 * 60_000,
+    // intervalo livre é calculado só com os dados locais
+    enabled: period !== "custom",
+    refetchInterval: polling5min,
     retry: 1,
   });
 
   useEffect(() => {
-    window.localStorage.setItem(PERIOD_STORAGE_KEY, period);
-  }, [period]);
+    writeStorage(PERIOD_STORAGE_KEY, period);
+    if (period === "custom" && customRange) writeStorage(RANGE_STORAGE_KEY, JSON.stringify(customRange));
+  }, [period, customRange]);
 
   const uniqueSubscriptions = useMemo(
     () => deduplicateSubscriptions(data.subscriptions),
@@ -767,14 +879,14 @@ const AdminPainelPage = () => {
           hasPaymentReference(subscription) &&
           isValidaPaySubscription(subscription) &&
           BILLING_ACTIVITY_STATUSES.has(String(subscription.status ?? "").toLowerCase()) &&
-          isInPeriod(subscriptionEventAt(subscription), period),
+          isInRange(subscriptionEventAt(subscription), periodRange),
       );
       return [...subscriptions].sort(
         (left, right) =>
           new Date(subscriptionEventAt(right)).getTime() - new Date(subscriptionEventAt(left)).getTime(),
       );
     },
-    [data.validapayAvailable, uniqueSubscriptions, period],
+    [data.validapayAvailable, uniqueSubscriptions, periodRange],
   );
 
   const allValidapayActivities = useMemo<FinanceActivity[]>(() => {
@@ -882,9 +994,9 @@ const AdminPainelPage = () => {
           hasPaymentReference(subscription) &&
           isValidaPaySubscription(subscription) &&
           PAID_STATUSES.has(subscription.status.toLowerCase()) &&
-          isInPeriod(subscriptionEventAt(subscription), period),
+          isInRange(subscriptionEventAt(subscription), periodRange),
       ),
-    [data.validapayAvailable, uniqueSubscriptions, period],
+    [data.validapayAvailable, uniqueSubscriptions, periodRange],
   );
   const approvedValidaPayActivities = useMemo(
     () => validapayActivities.filter((activity) => activity.status === "approved"),
@@ -912,7 +1024,7 @@ const AdminPainelPage = () => {
             REFUND_STATUSES.has(String(item.status ?? "").toLowerCase()) &&
             !!item.payment_id &&
             validapayReferences.has(item.payment_id) &&
-            isInPeriod(item.processed_at, period),
+            isInRange(item.processed_at, periodRange),
         )
         .reduce((sum, item) => sum + Number(item.refund_amount ?? 0), 0);
       const validapayRefunds = validapayActivities
@@ -920,7 +1032,7 @@ const AdminPainelPage = () => {
         .reduce((sum, activity) => sum + activity.amount, 0);
       return databaseRefunds + validapayRefunds;
     },
-    [data.refunds, data.validapayAvailable, period, uniqueSubscriptions, validapayActivities],
+    [data.refunds, data.validapayAvailable, periodRange, uniqueSubscriptions, validapayActivities],
   );
 
   const localFinance = useMemo<FinanceData>(() => ({
@@ -1061,7 +1173,7 @@ const AdminPainelPage = () => {
 
   useEffect(() => {
     setActivityPage(1);
-  }, [activitySearch, period, statusFilter]);
+  }, [activitySearch, periodRange, statusFilter]);
 
   useEffect(() => {
     setActivityPage((current) => Math.min(current, activityTotalPages));
@@ -1082,9 +1194,9 @@ const AdminPainelPage = () => {
           isValidaPaySubscription(subscription) &&
           hasPaymentReference(subscription) &&
           CHURN_STATUSES.has(String(subscription.status ?? "").toLowerCase()) &&
-          isInPeriod(subscriptionEventAt(subscription), period),
+          isInRange(subscriptionEventAt(subscription), periodRange),
       ),
-    [uniqueSubscriptions, period],
+    [uniqueSubscriptions, periodRange],
   );
   const churnBase = paidSubscriptionsInPeriod.length + churnedSubscriptionsInPeriod.length;
   const transactionalChurnCount = paymentActivities.filter(
@@ -1099,7 +1211,6 @@ const AdminPainelPage = () => {
   const churnRate = usePaymentActivities
     ? (transactionalChurnBase > 0 ? transactionalChurnCount / transactionalChurnBase : 0)
     : (churnBase > 0 ? churnedSubscriptionsInPeriod.length / churnBase : 0);
-  const periodContext = getPeriodContext(period);
 
   // ---- séries do gráfico: baldes reais dentro do intervalo escolhido ----
   const previousRange = useMemo(() => getPreviousRange(periodRange), [periodRange]);
@@ -1199,46 +1310,50 @@ const AdminPainelPage = () => {
    * daquela janela também.
    */
   const previousNetSeries = useMemo(() => {
-    if (!compareEnabled) return [];
     const previousBuckets = buildBuckets(previousRange, grouping);
     const receita = seriesFor(revenueEvents, previousRange, previousBuckets);
     const saidas = seriesFor(refundEvents, previousRange, previousBuckets);
     const liquido = receita.map((value, index) => Math.max(value - (saidas[index] ?? 0), 0));
     if (liquido.length === buckets.length) return liquido;
     return buckets.map((_, index) => liquido[liquido.length - buckets.length + index] ?? 0);
-  }, [compareEnabled, previousRange, grouping, revenueEvents, refundEvents, buckets, seriesFor]);
+  }, [previousRange, grouping, revenueEvents, refundEvents, buckets, seriesFor]);
 
-  const seriesVariation = (values: number[]) => {
-    if (values.length < 2) return null;
-    const previous = values[values.length - 2] ?? 0;
-    const current = values[values.length - 1] ?? 0;
-    if (previous <= 0) return current > 0 ? 1 : null;
-    return (current - previous) / previous;
+  /**
+   * Variação de cada card contra a janela imediatamente anterior, do mesmo
+   * tamanho. As duas pontas usam a mesma soma de eventos, para comparar igual
+   * com igual mesmo quando o card mostra o número vindo da ValidaPay.
+   */
+  const previousTotals = useMemo(() => {
+    const previousBuckets = buildBuckets(previousRange, grouping);
+    const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+    return {
+      revenue: sum(seriesFor(revenueEvents, previousRange, previousBuckets)),
+      sales: sum(seriesFor(revenueEvents, previousRange, previousBuckets, "count")),
+      refunds: sum(seriesFor(refundEvents, previousRange, previousBuckets)),
+    };
+  }, [previousRange, grouping, revenueEvents, refundEvents, seriesFor]);
+  const sumOf = (values: number[]) => values.reduce((total, value) => total + value, 0);
+  /** Diferença absoluta e relativa; sem nada nos dois períodos, não há o que comparar. */
+  const deltaAgainst = (current: number, previous: number): OverviewDelta | null => {
+    if (current <= 0 && previous <= 0) return null;
+    return { diff: current - previous, pct: previous > 0 ? (current - previous) / previous : null, previous };
   };
-  const revenueVariation = seriesVariation(revenueSparklineValues);
+  const currentRevenue = sumOf(revenueSparklineValues);
+  const currentRefunds = sumOf(costSparklineValues);
+  const revenueDelta = deltaAgainst(currentRevenue, previousTotals.revenue);
+  const salesDelta = deltaAgainst(sumOf(approvedCountSeries), previousTotals.sales);
+  const refundsDelta = deltaAgainst(currentRefunds, previousTotals.refunds);
+  const netDelta = deltaAgainst(currentRevenue - currentRefunds, previousTotals.revenue - previousTotals.refunds);
+  const churnCount = sumOf(churnCountSeries);
+  const comparedTo = getComparisonLabel(period, periodRange);
+  const periodPhrase = getPeriodPhrase(period, periodRange);
+  const churnNote =
+    churnCount === 0
+      ? `Nenhum cancelamento ${periodPhrase}`
+      : `${churnCount} cancelamento${churnCount === 1 ? "" : "s"} ${periodPhrase}`;
 
-  const costVariation = seriesVariation(costSparklineValues);
-
-  /** Agrupamentos reais do período, usados nos cards ranqueados. */
-  const rankedActivities = useMemo(
-    () => paymentActivities.filter((activity) => PAID_STATUSES.has(activity.status.toLowerCase())),
-    [paymentActivities],
-  );
-
-  const buildRanking = (getKey: (activity: (typeof rankedActivities)[number]) => string) => {
-    const groups = new Map<string, { label: string; total: number; count: number }>();
-    rankedActivities.forEach((activity) => {
-      const label = getKey(activity);
-      const current = groups.get(label) ?? { label, total: 0, count: 0 };
-      current.total += activity.amount;
-      current.count += 1;
-      groups.set(label, current);
-    });
-    return [...groups.values()].sort((left, right) => right.total - left.total).slice(0, 4);
-  };
-
-  const rankingByPlan = buildRanking((activity) => getPlanLabel(activity.plan ?? ""));
-  const rankingByPayment = buildRanking((activity) => getPaymentMethodLabel(activity.payment_method));
+  const tooltipLabels = buckets.map((key) => formatBucketLabel(key, grouping));
+  const axisLabels = buckets.map((key) => formatAxisLabel(key, grouping));
 
   const downloadReport = () => {
     const activityRows = usePaymentActivities
@@ -1288,7 +1403,7 @@ const AdminPainelPage = () => {
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `assinaturas-velo-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `assinaturas-velo-${periodRange.startKey}_a_${periodRange.endKey}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1296,7 +1411,7 @@ const AdminPainelPage = () => {
   return (
     <AdminShell active="dashboard" userId="admin" fullBleed>
       <motion.div
-        className="relative min-h-full px-5 pb-8 pt-1 max-md:p-0 lg:px-7"
+        className="ov-page relative min-h-full px-5 pb-8 pt-1 max-md:p-0 md:pt-4 lg:px-7"
         initial={reduceMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
@@ -1321,198 +1436,187 @@ const AdminPainelPage = () => {
           />
         </div>
 
-        <div className="max-md:hidden">
-        <AnimatePresence>
-          {panelRefreshing ? <PanelRefreshIndicator /> : null}
-        </AnimatePresence>
+        <div className="max-md:hidden" data-admin-native>
+          <motion.div
+            className="ov-panel overflow-hidden"
+            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="px-6 pb-8 pt-6 lg:px-7">
+              <header className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <ChartBarIcon aria-hidden="true" className="h-5 w-5 text-[color:var(--ov-text)]" />
+                  <h1 className="text-[19px] font-medium tracking-[-0.02em] text-[color:var(--ov-text)]">Painel</h1>
+                  {panelRefreshing ? <span className="text-[12.5px] text-[color:var(--ov-text-4)]">Atualizando…</span> : null}
+                  {isError && !isFetching ? (
+                    <span className="ml-1 inline-flex items-center gap-2 text-[12.5px] text-[color:var(--ov-negative)]">
+                      Não foi possível carregar os dados.
+                      <button
+                        type="button"
+                        onClick={() => void refetchWallet()}
+                        className="rounded-md px-2 py-0.5 font-medium text-[color:var(--ov-text)] underline-offset-2 hover:underline"
+                      >
+                        Tentar de novo
+                      </button>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={downloadReport} className="ov-icon-button" aria-label="Exportar CSV" title="Exportar CSV">
+                    <ArrowDownTrayIcon aria-hidden="true" />
+                  </button>
+                  <OverviewMenu label="Opções do painel" trigger={<EllipsisVerticalIcon aria-hidden="true" />}>
+                    {(close) => (
+                      <>
+                        <p className="ov-menu-label">Agrupar gráfico por</p>
+                        {GROUPING_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={groupingChoice === option.value}
+                            className="ov-menu-item"
+                            onClick={() => {
+                              setGroupingChoice(option.value);
+                              close();
+                            }}
+                          >
+                            <span className="flex-1 text-left">{option.label}</span>
+                            {groupingChoice === option.value ? <Check aria-hidden="true" /> : null}
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </OverviewMenu>
+                </div>
+              </header>
 
-        <motion.header
-          className="flex flex-col gap-3"
-          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : 0.04 }}
-        >
-          <div className="admin-page-title">
-            <BarChart3 aria-hidden="true" />
-            <h1>Visão geral da carteira</h1>
-          </div>
+              <section className="mt-6 grid gap-4 md:grid-cols-2 min-[1400px]:grid-cols-4">
+                <OverviewStatCard
+                  icon={BanknotesIcon}
+                  label="Receita bruta"
+                  value={hideFinancialValues ? null : finance.metrics.gross_revenue}
+                  format="currency"
+                  delta={revenueDelta}
+                  comparedTo={comparedTo}
+                  loading={financialDataLoading}
+                />
+                <OverviewStatCard
+                  icon={ShoppingBagIcon}
+                  label="Vendas aprovadas"
+                  value={hideFinancialValues ? null : finance.metrics.approved_sales}
+                  format="integer"
+                  delta={salesDelta}
+                  unit={{ singular: "venda", plural: "vendas" }}
+                  comparedTo={comparedTo}
+                  loading={financialDataLoading}
+                />
+                <OverviewStatCard
+                  icon={UserMinusIcon}
+                  label="Churn"
+                  value={hideFinancialValues ? null : churnRate}
+                  format="percent"
+                  note={churnNote}
+                  comparedTo={comparedTo}
+                  loading={financialDataLoading}
+                />
+                <OverviewStatCard
+                  icon={ReceiptRefundIcon}
+                  label="Saídas"
+                  value={hideFinancialValues ? null : finance.metrics.costs}
+                  format="currency"
+                  delta={refundsDelta}
+                  invertDelta
+                  comparedTo={comparedTo}
+                  loading={financialDataLoading}
+                />
+              </section>
 
-          <div className="admin-header-actions flex flex-wrap items-center">
-            <AdminSelectPill
-              icon={CalendarDays}
-              label="Período"
-              value={period}
-              options={PERIOD_OPTIONS}
-              onChange={(value) => setPeriod(value as Period)}
-            />
-            <AdminSelectPill
-              icon={GitCompare}
-              label="Comparação"
-              value={compareEnabled ? "previous" : "none"}
-              options={COMPARE_OPTIONS}
-              onChange={(value) => setCompareEnabled(value === "previous")}
-            />
-            <AdminSelectPill
-              icon={CalendarRange}
-              label="Agrupar por"
-              value={groupingChoice}
-              options={GROUPING_OPTIONS}
-              onChange={(value) => setGroupingChoice(value as Grouping | "auto")}
-            />
-            <AdminPill onClick={downloadReport}>
-              <Download aria-hidden="true" />
-              Exportar
-            </AdminPill>
-            <AdminPill
-              aria-pressed={compactPanel}
-              onClick={() => setCompactPanel((value) => !value)}
-            >
-              <SlidersHorizontal aria-hidden="true" />
-              {compactPanel ? "Expandir painel" : "Personalizar painel"}
-            </AdminPill>
-          </div>
-        </motion.header>
-
-        <motion.section
-          className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <>
-            <DashboardMetricCard
-              title="Vendas aprovadas"
-              value={hideFinancialValues ? null : finance.metrics.approved_sales}
-              format="integer"
-              description="Pagamentos confirmados"
-              loading={financialDataLoading}
-              compact={compactPanel}
-              trend={null}
-              series={approvedCountSeries}
-            />
-            <DashboardMetricCard
-              title="Total de entradas"
-              value={hideFinancialValues ? null : finance.metrics.gross_revenue}
-              format="currency"
-              description={"Receita bruta " + periodContext}
-              loading={financialDataLoading}
-              compact={compactPanel}
-              trend={revenueVariation}
-              series={revenueSparklineValues}
-            />
-            <DashboardMetricCard
-              title="Churn"
-              value={hideFinancialValues ? null : churnRate}
-              format="percent"
-              description="Cancelamentos e reembolsos sobre a base paga do período; as barras contam os cancelamentos."
-              loading={financialDataLoading}
-              compact={compactPanel}
-              trend={null}
-              series={churnCountSeries}
-            />
-            <DashboardMetricCard
-              title="Total de saídas"
-              value={hideFinancialValues ? null : finance.metrics.costs}
-              format="currency"
-              description={"Reembolsos: " + formatBRL(finance.metrics.refunds)}
-              loading={financialDataLoading}
-              compact={compactPanel}
-              trend={costVariation}
-              series={costSparklineValues}
-              invertTrend
-            />
-          </>
-        </motion.section>
-
-        <motion.section
-          className="mt-3"
-          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.46, delay: reduceMotion ? 0 : 0.14, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <FinanceHistoryCard
-            total={hideFinancialValues ? null : finance.metrics.net_revenue}
-            values={netSparklineValues}
-            labels={revenueSparklineLabels}
-            comparisonValues={previousNetSeries}
-            comparisonLabel="Período anterior"
-            grouping={grouping}
-            loading={financialDataLoading}
-            compact={compactPanel}
-            periodLabel={periodContext}
-          />
-        </motion.section>
-
-        <motion.section
-          className="mt-3 grid gap-3 lg:grid-cols-2"
-          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.48, delay: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <RankedCard title="Produtos mais vendidos" rows={rankingByPlan} loading={isLoading} />
-          <RankedCard title="Formas de pagamento" rows={rankingByPayment} loading={isLoading} />
-        </motion.section>
+              <section className="mt-4">
+                <OverviewRevenueCard
+                  label="Receita líquida"
+                  value={hideFinancialValues ? null : finance.metrics.net_revenue}
+                  delta={netDelta}
+                  comparedTo={comparedTo}
+                  values={netSparklineValues}
+                  tooltipLabels={tooltipLabels}
+                  axisLabels={axisLabels}
+                  seriesName="Receita líquida"
+                  loading={financialDataLoading}
+                  periodSelect={
+                    <AdminDateRangePicker
+                      presets={PERIOD_OPTIONS}
+                      value={period}
+                      range={periodRange}
+                      todayKey={todayKey}
+                      onPreset={(value) => setPeriod(value as Period)}
+                      onCustom={(range) => {
+                        setCustomRange(range);
+                        setPeriod("custom");
+                      }}
+                    />
+                  }
+                />
+              </section>
 
         <motion.section
           ref={activitySectionRef}
-          className="admin-card mt-3 overflow-hidden"
+          className="ov-card mt-4 overflow-hidden"
           initial={reduceMotion ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.5, delay: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="admin-page-title">Atividade financeira</h2>
-            </div>
-            <div className="flex flex-1 flex-wrap items-center gap-2 lg:max-w-[560px] lg:justify-end">
-              <label className="admin-control flex h-8 min-w-[190px] flex-1 items-center gap-2 px-2.5 text-[#827a75] lg:max-w-[250px]">
-                <Search size={13} strokeWidth={1.6} className="shrink-0 text-[#171717]" />
-                <span className="sr-only">Buscar atividade</span>
+          <div className="px-6 pb-4 pt-5">
+            <h3 className="flex items-center gap-2 text-[15px] font-medium text-[color:var(--ov-text)]">
+              <UsersIcon aria-hidden="true" className="h-5 w-5 text-[color:var(--ov-text)]" />
+              Transações recentes
+              <span aria-hidden="true" className="text-[color:var(--ov-text-5)]">•</span>
+              <span className="tabular-nums">{activityCount.toLocaleString("pt-BR")} no período</span>
+            </h3>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <label className="ov-search">
+                <MagnifyingGlassIcon aria-hidden="true" />
+                <span className="sr-only">Buscar assinante</span>
                 <input
                   value={activitySearch}
                   onChange={(event) => setActivitySearch(event.target.value)}
-                  placeholder="Buscar assinante..."
-                  className="min-w-0 flex-1 bg-transparent text-[13px] text-[#303030] outline-none placeholder:text-[#8c8f93]"
+                  placeholder="Buscar um nome…"
                 />
               </label>
-              <label className="admin-control relative inline-flex h-8 items-center text-[#595959]">
-                <SlidersHorizontal size={13} className="pointer-events-none absolute left-2.5" />
+              <label className="ov-filter-chip">
+                <FunnelIcon aria-hidden="true" />
                 <span className="sr-only">Filtrar por status</span>
                 <select
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-                  className="h-full cursor-pointer appearance-none bg-transparent py-0 pl-8 pr-7 text-[13px] font-normal outline-none"
                 >
-                  <option value="all">Todos</option>
+                  <option value="all">Status: todos</option>
                   <option value="approved">Aprovados</option>
                   <option value="pending">Pendentes</option>
                   <option value="issue">Com problema</option>
                 </select>
-                <ChevronDown size={11} className="pointer-events-none absolute right-2.5" />
               </label>
-              <AdminPill
-                variant="primary"
-                onClick={downloadReport}
-              >
-                <Download aria-hidden="true" />
+              <button type="button" onClick={downloadReport} className="ov-filter-chip">
+                <ArrowDownTrayIcon aria-hidden="true" />
                 Baixar relatório
-              </AdminPill>
+              </button>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[940px] border-collapse text-left">
-              <AdminTableHeader>
-                <tr className="border-y text-[10px] font-medium text-[#827a75]">
-                  <th className="px-4 py-2.5">Assinante</th>
-                  <th className="px-3 py-2.5">Cobrança</th>
-                  <th className="px-3 py-2.5">Intervalo</th>
-                  <th className="px-3 py-2.5">Valor</th>
-                  <th className="px-3 py-2.5">Produto</th>
-                  <th className="px-3 py-2.5">Pagamento</th>
-                  <th className="px-4 py-2.5">Status</th>
+              <thead>
+                <tr className="border-y border-[color:var(--ov-divider)]">
+                  <th className="px-4 py-3"><span className="ov-th"><UserIcon aria-hidden="true" />Assinante</span></th>
+                  <th className="px-3 py-3"><span className="ov-th"><CalendarIcon aria-hidden="true" />Cobrança</span></th>
+                  <th className="px-3 py-3"><span className="ov-th"><ArrowPathIcon aria-hidden="true" />Intervalo</span></th>
+                  <th className="px-3 py-3"><span className="ov-th"><CurrencyDollarIcon aria-hidden="true" />Valor</span></th>
+                  <th className="px-3 py-3"><span className="ov-th"><CubeIcon aria-hidden="true" />Produto</span></th>
+                  <th className="px-3 py-3"><span className="ov-th"><CreditCardIcon aria-hidden="true" />Pagamento</span></th>
+                  <th className="px-4 py-3"><span className="ov-th"><CheckCircleIcon aria-hidden="true" />Status</span></th>
                 </tr>
-              </AdminTableHeader>
+              </thead>
               <tbody>
                 {isLoading ? <ActivityTableSkeleton /> : usePaymentActivities ? paginatedPaymentActivities.map((activity, index) => {
                   const status = getSubscriptionStatus(activity.status);
@@ -1522,7 +1626,7 @@ const AdminPainelPage = () => {
                   return (
                     <motion.tr
                       key={"payment:" + activity.id}
-                      className="border-t text-[13px] text-[#303030] transition-colors hover:bg-[#fafafa]"
+                      className="border-t text-[13px] transition-colors"
                       initial={reduceMotion ? false : { opacity: 0, y: 7 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 10) * 0.035 }}
@@ -1533,17 +1637,17 @@ const AdminPainelPage = () => {
                             {name.slice(0, 2).toUpperCase()}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-[#1a1a1a]">{name}</p>
-                            {email && email !== name ? <p className="mt-0.5 truncate text-[12px] text-[#8c8f93]">{email}</p> : null}
+                            <p className="truncate font-medium text-[color:var(--ov-text)]">{name}</p>
+                            {email && email !== name ? <p className="mt-0.5 truncate text-[12px] text-[color:var(--ov-text-4)]">{email}</p> : null}
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <p className="font-medium text-[#303030]">{formatChargeDay(activity.created_at)}</p>
-                        <p className="mt-0.5 text-[12px] text-[#8c8f93]">{formatDate(activity.created_at)} · {formatTime(activity.created_at)}</p>
+                        <p className="font-medium text-[color:var(--ov-text-2)]">{formatChargeDay(activity.created_at)}</p>
+                        <p className="mt-0.5 text-[12px] text-[color:var(--ov-text-4)]">{formatDate(activity.created_at)} · {formatTime(activity.created_at)}</p>
                       </td>
                       <td className="px-3 py-2.5"><AdminBadge>{activity.interval}</AdminBadge></td>
-                      <td className="admin-number px-3 py-2.5 font-semibold text-[#1c1918]">{activity.amount > 0 ? formatBRL(activity.amount) : "—"}</td>
+                      <td className="admin-number px-3 py-2.5 font-medium text-[color:var(--ov-text)]">{activity.amount > 0 ? formatBRL(activity.amount) : "—"}</td>
                       <td className="px-3 py-2.5 font-medium">{getPlanLabel(activity.plan ?? "")}</td>
                       <td className="px-3 py-2.5 font-medium">{getPaymentMethodLabel(activity.payment_method)}</td>
                       <td className="px-4 py-2.5" title={"Status registrado: " + activity.status}><StatusBadge label={status.label} tone={status.tone} /></td>
@@ -1558,7 +1662,7 @@ const AdminPainelPage = () => {
                   return (
                     <motion.tr
                       key={subscription.id}
-                      className="border-t text-[13px] text-[#303030] transition-colors hover:bg-[#fafafa]"
+                      className="border-t text-[13px] transition-colors"
                       initial={reduceMotion ? false : { opacity: 0, y: 7 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: reduceMotion ? 0 : 0.32, delay: reduceMotion ? 0 : Math.min(index, 10) * 0.035 }}
@@ -1569,21 +1673,21 @@ const AdminPainelPage = () => {
                             {name.slice(0, 2).toUpperCase()}
                           </span>
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-[#1a1a1a]">{name}</p>
-                            {identity?.name && identity.email ? <p className="mt-0.5 truncate text-[12px] text-[#8c8f93]">{identity.email}</p> : null}
+                            <p className="truncate font-medium text-[color:var(--ov-text)]">{name}</p>
+                            {identity?.name && identity.email ? <p className="mt-0.5 truncate text-[12px] text-[color:var(--ov-text-4)]">{identity.email}</p> : null}
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <p className="font-medium text-[#303030]">{formatChargeDay(chargeAt)}</p>
-                        <p className="mt-0.5 text-[12px] text-[#8c8f93]">{formatDate(eventAt)} · {formatTime(eventAt)}</p>
+                        <p className="font-medium text-[color:var(--ov-text-2)]">{formatChargeDay(chargeAt)}</p>
+                        <p className="mt-0.5 text-[12px] text-[color:var(--ov-text-4)]">{formatDate(eventAt)} · {formatTime(eventAt)}</p>
                       </td>
                       <td className="px-3 py-2.5"><AdminBadge>{getBillingInterval(subscription)}</AdminBadge></td>
-                      <td className="admin-number px-3 py-2.5 font-semibold text-[#1c1918]">{formatBRL(Number(subscription.amount ?? 0))}</td>
+                      <td className="admin-number px-3 py-2.5 font-medium text-[color:var(--ov-text)]">{formatBRL(Number(subscription.amount ?? 0))}</td>
                       <td className="px-3 py-2.5 font-medium">{getPlanLabel(subscription.plan)}</td>
                       <td className="px-3 py-2.5">
                         <p className="font-medium">{getPaymentMethodLabel(subscription.payment_method)}</p>
-                        {subscription.charge_attempts > 0 ? <p className="mt-0.5 text-[12px] text-[#8c8f93]">{subscription.charge_attempts} tentativa{subscription.charge_attempts === 1 ? "" : "s"}</p> : null}
+                        {subscription.charge_attempts > 0 ? <p className="mt-0.5 text-[12px] text-[color:var(--ov-text-4)]">{subscription.charge_attempts} tentativa{subscription.charge_attempts === 1 ? "" : "s"}</p> : null}
                       </td>
                       <td className="px-4 py-2.5" title={"Status registrado: " + subscription.status}>
                         <StatusBadge label={status.label} tone={status.tone} />
@@ -1596,15 +1700,15 @@ const AdminPainelPage = () => {
           </div>
 
           {!isLoading && isError ? (
-            <div className="grid min-h-44 place-items-center border-t border-[#edf0f5] px-6 text-center text-[13px] text-[#d72c0d]">
+            <div className="grid min-h-44 place-items-center border-t border-[color:var(--ov-divider)] px-6 text-center text-[13px] text-[color:var(--ov-negative)]">
               Não foi possível carregar os dados do painel.
             </div>
           ) : null}
           {!isLoading && !isError && activityCount === 0 ? (
-            <div className="grid min-h-44 place-items-center border-t border-[#edf0f5] px-6 text-center">
+            <div className="grid min-h-44 place-items-center border-t border-[color:var(--ov-divider)] px-6 text-center">
               <div>
-                <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-[#eaf0ff] text-[#2563eb]"><Search size={18} /></span>
-                <p className="mt-3 text-[13px] font-medium text-[#5f6368]">Nenhuma atividade encontrada neste período.</p>
+                <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-[color:var(--ov-accent-soft)] text-[color:var(--ov-accent-text)]"><Search size={18} /></span>
+                <p className="mt-3 text-[13px] font-medium text-[color:var(--ov-text-3)]">Nenhuma atividade encontrada neste período.</p>
               </div>
             </div>
           ) : null}
@@ -1618,367 +1722,11 @@ const AdminPainelPage = () => {
             />
           ) : null}
         </motion.section>
+            </div>
+          </motion.div>
         </div>
       </motion.div>
     </AdminShell>
-  );
-};
-
-const DashboardMetricCard = ({
-  title,
-  value,
-  format,
-  description,
-  loading,
-  compact,
-  trend,
-  series,
-  invertTrend = false,
-}: {
-  title: string;
-  value: number | null;
-  format: MetricFormat;
-  description: string;
-  loading: boolean;
-  compact: boolean;
-  trend: number | null;
-  series?: number[];
-  /** Métricas de saída: subir é ruim, e o verde de marca fica reservado à receita. */
-  invertTrend?: boolean;
-}) => (
-  <AdminKPIStat
-    label={title}
-    subtitle={description}
-    compact={compact}
-    series={loading ? undefined : series}
-    value={loading ? (
-      <LoadingShimmer className="h-6 w-32" />
-    ) : (
-      <AnimatedMetricNumber value={value} format={format} className="admin-kpi-value block whitespace-nowrap" />
-    )}
-    delta={!loading && trend !== null ? `${trend >= 0 ? "+" : ""}${formatPercent(trend)}` : null}
-    deltaTone={
-      invertTrend
-        ? trend !== null && trend > 0
-          ? "danger"
-          : "neutral"
-        : trend !== null && trend < 0
-          ? "danger"
-          : "success"
-    }
-  />
-);
-
-/** Lista ranqueada com barra proporcional, no padrão do card de destaques. */
-const RankedCard = ({
-  title,
-  rows,
-  loading,
-}: {
-  title: string;
-  rows: Array<{ label: string; total: number; count: number }>;
-  loading: boolean;
-}) => {
-  const max = Math.max(...rows.map((row) => row.total), 1);
-  return (
-    <AdminCard className="p-4">
-      <p className="admin-kpi-label">
-        <span className="admin-metric-icon"><Globe aria-hidden="true" /></span>
-        <span className="admin-kpi-label-text">{title}</span>
-      </p>
-      {loading ? (
-        <div className="mt-5 space-y-5">
-          {[0, 1, 2].map((index) => (
-            <LoadingShimmer key={index} className="h-9 w-full" delay={index * 0.06} />
-          ))}
-        </div>
-      ) : rows.length === 0 ? (
-        <p className="mt-5 text-[13px] text-[#8c8f93]">Nenhum registro no período.</p>
-      ) : (
-        <div className="mt-4 space-y-3.5">
-          {rows.map((row) => (
-            <div key={row.label}>
-              <div className="flex items-center gap-3">
-                <span className="admin-rank-mark" aria-hidden="true">{row.label.slice(0, 2).toUpperCase()}</span>
-                <span className="min-w-0 flex-1 truncate text-[14px] text-[#1a1a1a]">{row.label}</span>
-                <span className="admin-number shrink-0 text-[14px] font-medium text-[#1a1a1a]">{formatBRL(row.total)}</span>
-                <span className="admin-number w-9 shrink-0 text-right text-[13px] text-[#8c8f93]">{row.count}</span>
-              </div>
-              <div className="mt-2">
-                <AdminProgressBar ratio={row.total / max} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </AdminCard>
-  );
-};
-
-const FinanceHistoryCard = ({
-  total,
-  values,
-  labels = [],
-  comparisonValues = [],
-  comparisonLabel,
-  grouping,
-  loading,
-  compact,
-  periodLabel,
-}: {
-  total: number | null;
-  values: number[];
-  labels: string[];
-  comparisonValues?: number[];
-  comparisonLabel?: string;
-  grouping: Grouping;
-  loading: boolean;
-  compact: boolean;
-  periodLabel: string;
-}) => {
-  const reduceMotion = useReducedMotion();
-  const [activePointIndex, setActivePointIndex] = useState<number | null>(null);
-  const plotRef = useRef<HTMLDivElement>(null);
-  // o SVG é desenhado em pixels reais: 1 unidade = 1px, senão o viewBox
-  // estica texto e traço junto com a largura do card.
-  const [plotWidth, setPlotWidth] = useState(720);
-
-  useEffect(() => {
-    const node = plotRef.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver((entries) => {
-      const width = Math.round(entries[0]?.contentRect.width ?? 0);
-      if (width > 0) setPlotWidth(width);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  const chartValues =
-    values.length > 1 ? values : values.length === 1 ? [values[0], values[0]] : [0, 0, 0, 0, 0, 0, 0];
-  const hasComparison = comparisonValues.length === chartValues.length && comparisonValues.some((value) => value > 0);
-  const rawMax = Math.max(...chartValues, ...(hasComparison ? comparisonValues : []), 1);
-  // eixo com marcações "redondas" (1, 2 ou 5 × potência de dez)
-  const niceStep = (raw: number) => {
-    const exponent = Math.floor(Math.log10(raw));
-    const base = 10 ** exponent;
-    const normalized = raw / base;
-    const multiple = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-    return multiple * base;
-  };
-  const axisStep = niceStep(rawMax / 4);
-  const max = axisStep * 4;
-  const width = plotWidth;
-  const height = compact ? 150 : 196;
-  const plotTop = 10;
-  const plotBottom = height - 10;
-  const plotLeft = 46;
-  const plotRight = width - 4;
-  const pointAt = (value: number, index: number, length: number) => ({
-    x: plotLeft + index * ((plotRight - plotLeft) / Math.max(length - 1, 1)),
-    y: plotBottom - (value / max) * (plotBottom - plotTop),
-    value,
-  });
-  const points = chartValues.map((value, index) => pointAt(value, index, chartValues.length));
-  const linePath = "M " + points.map((point) => `${point.x} ${point.y}`).join(" L ");
-  const comparisonPath = hasComparison
-    ? "M " + comparisonValues
-        .map((value, index) => {
-          const point = pointAt(value, index, comparisonValues.length);
-          return `${point.x} ${point.y}`;
-        })
-        .join(" L ")
-    : "";
-  // o último balde pode estar vazio (hora sem venda); mostramos o último com movimento
-  const latest = [...chartValues].reverse().find((value) => value > 0) ?? 0;
-  const activePoint = activePointIndex === null ? null : points[activePointIndex];
-  const activePrevious = activePointIndex && activePointIndex > 0 ? chartValues[activePointIndex - 1] : 0;
-  const activeVariation = activePoint && activePrevious > 0 ? (activePoint.value - activePrevious) / activePrevious : null;
-  const yTicks = [1, 0.75, 0.5, 0.25, 0];
-  const formatAxisValue = (value: number) => {
-    if (value === 0) return "0";
-    if (value >= 1_000_000) return `${Number((value / 1_000_000).toFixed(1))}M`;
-    if (value >= 1_000) return `${Number((value / 1_000).toFixed(1))}k`;
-    // passos pequenos precisam de decimal, senão o eixo repete o mesmo rótulo
-    const decimals = axisStep >= 10 ? 0 : axisStep >= 1 ? 1 : 2;
-    return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: decimals }).format(value);
-  };
-  /** 0 → 12 AM (meia-noite), 12 → 12 PM, cobrindo as 24 horas do dia. */
-  const formatHourLabel = (hour: number) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? "AM" : "PM"}`;
-
-  const formatAxisLabel = (raw: string) => {
-    if (grouping === "hour") {
-      const hour = Number(raw.slice(-2));
-      return Number.isNaN(hour) ? raw : formatHourLabel(hour);
-    }
-    const parsed = raw ? new Date(`${raw}T12:00:00Z`) : new Date(Number.NaN);
-    if (Number.isNaN(parsed.getTime())) return raw.slice(0, 3);
-    if (grouping === "month") {
-      return new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" }).format(parsed).replace(".", "");
-    }
-    return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })
-      .format(parsed)
-      .replace(" de ", " ")
-      .replace(".", "");
-  };
-  /** O SVG é 1:1, então o x do mouse já é a coordenada do desenho. */
-  const handlePointerMove = (event: ReactMouseEvent<SVGSVGElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - bounds.left;
-    const step = (plotRight - plotLeft) / Math.max(points.length - 1, 1);
-    const index = Math.round((x - plotLeft) / step);
-    setActivePointIndex(Math.min(Math.max(index, 0), points.length - 1));
-  };
-
-  const handleKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
-    if (event.key === "Escape") {
-      setActivePointIndex(null);
-      return;
-    }
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    event.preventDefault();
-    setActivePointIndex((current) => {
-      const base = current ?? points.length - 1;
-      const next = event.key === "ArrowRight" ? base + 1 : base - 1;
-      return Math.min(Math.max(next, 0), points.length - 1);
-    });
-  };
-
-  const axisCount = Math.min(labels.length || chartValues.length, 6);
-  const axisIndexes = Array.from({ length: axisCount }, (_, index) =>
-    Math.round(index * (Math.max((labels.length || chartValues.length) - 1, 0) / Math.max(axisCount - 1, 1))),
-  );
-
-  return (
-    <AdminChartCard className="relative p-4">
-      <p className="admin-kpi-label">
-        <span className="admin-metric-icon"><Globe aria-hidden="true" /></span>
-        <span className="admin-kpi-label-text" title={`Entradas menos saídas ${periodLabel}`}>Resultado líquido</span>
-      </p>
-      {loading ? (
-        <LoadingShimmer className="mt-2 h-7 w-36" />
-      ) : (
-        <AnimatedMetricNumber value={total} format="currency" className="admin-kpi-value mt-2 block" />
-      )}
-
-      <div ref={plotRef} className="relative mt-2">
-        {activePoint ? (
-          <motion.div
-            className="admin-chart-tooltip"
-            style={{
-              left: Math.min(Math.max(activePoint.x, 78), Math.max(width - 78, 78)),
-              top: activePoint.y < 92 ? activePoint.y + 14 : activePoint.y - 12,
-              transform: `translate(-50%, ${activePoint.y < 92 ? "0" : "-100%"})`,
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <p className="admin-chart-tooltip-label">{formatAxisLabel(labels[activePointIndex ?? 0] ?? "")}</p>
-            <p className="admin-number mt-1 text-[14px] font-semibold text-[#1a1a1a]">{formatBRL(activePoint.value)}</p>
-            {activeVariation !== null ? (
-              <p className={`mt-0.5 text-[12px] font-medium ${activeVariation >= 0 ? "text-[#22c55e]" : "text-[#d72c0d]"}`}>
-                {activeVariation >= 0 ? "↗" : "↘"} {activeVariation >= 0 ? "+" : ""}{formatPercent(activeVariation)}
-              </p>
-            ) : null}
-          </motion.div>
-        ) : null}
-        {loading ? (
-          <LoadingShimmer className={compact ? "h-[150px] w-full" : "h-[196px] w-full"} />
-        ) : (
-          <svg
-            width={width}
-            height={height}
-            viewBox={`0 0 ${width} ${height}`}
-            className="admin-chart-svg block w-full"
-            role="img"
-            tabIndex={0}
-            aria-label={`Resultado líquido ao longo do período. ${
-              activePoint ? `${formatAxisLabel(labels[activePointIndex ?? 0] ?? "")}: ${formatBRL(activePoint.value)}` : "Use as setas para percorrer os pontos."
-            }`}
-            onMouseMove={handlePointerMove}
-            onMouseLeave={() => setActivePointIndex(null)}
-            onBlur={() => setActivePointIndex(null)}
-            onKeyDown={handleKeyDown}
-          >
-            {yTicks.map((ratio) => {
-              const y = plotTop + (plotBottom - plotTop) * ratio;
-              return (
-                <g key={ratio}>
-                  <line x1={plotLeft} x2={plotRight} y1={y} y2={y} stroke="#ececec" strokeWidth="1" shapeRendering="crispEdges" />
-                  <text x={plotLeft - 12} y={y + 4} textAnchor="end" fill="#8c8f93" fontSize="13">
-                    {formatAxisValue(max * (1 - ratio))}
-                  </text>
-                </g>
-              );
-            })}
-            {activePoint ? (
-              <line
-                x1={activePoint.x}
-                x2={activePoint.x}
-                y1={plotTop}
-                y2={plotBottom}
-                stroke="#c9ced6"
-                strokeWidth="1"
-                strokeDasharray="3 3"
-                shapeRendering="crispEdges"
-              />
-            ) : null}
-            {comparisonPath ? (
-              <motion.path
-                d={comparisonPath}
-                fill="none"
-                stroke="#9db8f2"
-                strokeWidth="1.5"
-                strokeDasharray="2 3"
-                strokeLinecap="round"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: reduceMotion ? 0 : 0.6, delay: reduceMotion ? 0 : 0.2 }}
-              />
-            ) : null}
-            <motion.path
-              d={linePath}
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              initial={reduceMotion ? false : { pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ duration: reduceMotion ? 0 : 0.9, ease: [0.22, 1, 0.36, 1] }}
-            />
-            {activePoint ? (
-              <circle cx={activePoint.x} cy={activePoint.y} r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
-            ) : null}
-          </svg>
-        )}
-        <div
-          className="mt-2 flex items-center justify-between text-[13px] text-[#8c8f93]"
-          style={{ paddingLeft: plotLeft }}
-        >
-          {axisIndexes.map((axisIndex, index) => (
-            <span key={`${axisIndex}-${index}`}>{formatAxisLabel(labels[axisIndex] ?? "")}</span>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-end gap-x-5 gap-y-1 text-[13px] text-[#5f6368]">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#2563eb]" aria-hidden="true" />
-          Resultado líquido
-        </span>
-        {hasComparison && comparisonLabel ? (
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[#9db8f2]" aria-hidden="true" />
-            {comparisonLabel}
-          </span>
-        ) : null}
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#c9c9c9]" aria-hidden="true" />
-          Último registro · <span className="admin-number font-medium text-[#1a1a1a]">{formatBRL(latest)}</span>
-        </span>
-      </div>
-    </AdminChartCard>
   );
 };
 
@@ -2191,9 +1939,9 @@ const SummaryItem = ({
 const LoadingShimmer = ({ className, delay = 0 }: { className: string; delay?: number }) => {
   const reduceMotion = useReducedMotion();
   return (
-    <span className={`relative block overflow-hidden rounded-sm bg-[#eeeeeb] ${className}`} aria-hidden="true">
+    <span className={`relative block overflow-hidden rounded-sm bg-[color:var(--ov-shimmer)] ${className}`} aria-hidden="true">
       <motion.span
-        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-white/90 to-transparent"
+        className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-[color:var(--ov-shimmer-glint)] to-transparent"
         initial={{ x: "-120%" }}
         animate={reduceMotion ? { opacity: [0.35, 0.8, 0.35] } : { x: ["-120%", "240%"] }}
         transition={{
@@ -2208,28 +1956,12 @@ const LoadingShimmer = ({ className, delay = 0 }: { className: string; delay?: n
   );
 };
 
-const PanelRefreshIndicator = () => (
-  <motion.div
-    className="pointer-events-none absolute inset-x-0 top-0 z-30 h-px overflow-hidden bg-[#f7dce7]"
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-  >
-    <motion.span
-      className="block h-full w-[28%] bg-gradient-to-r from-transparent via-[#2563eb] to-transparent"
-      initial={{ x: "-120%" }}
-      animate={{ x: "460%" }}
-      transition={{ duration: 1.05, repeat: Infinity, ease: [0.4, 0, 0.2, 1] }}
-    />
-  </motion.div>
-);
-
 const ActivityTableSkeleton = () => (
   <>
     {Array.from({ length: 6 }, (_, rowIndex) => (
       <motion.tr
         key={rowIndex}
-        className="border-t border-[#f2f2f0]"
+        className="border-t border-[color:var(--ov-divider)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.28, delay: rowIndex * 0.045 }}
@@ -2273,13 +2005,13 @@ const ActivityPagination = ({
 
   return (
     <motion.footer
-      className="flex flex-col gap-3 border-t border-[#ececec] bg-[#fdfdfd] px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 border-t border-[color:var(--ov-divider)] bg-[color:var(--ov-footer)] px-6 py-3 sm:flex-row sm:items-center sm:justify-between"
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28 }}
     >
-      <p className="text-[12px] font-normal text-[#8c8f93]">
-        Exibindo <span className="font-medium text-[#303030]">{rangeStart}–{rangeEnd}</span> de {totalItems} atividades
+      <p className="text-[12.5px] font-normal text-[color:var(--ov-text-4)]">
+        Exibindo <span className="font-medium text-[color:var(--ov-text-2)]">{rangeStart}–{rangeEnd}</span> de {totalItems} atividades
       </p>
       <div className="flex items-center gap-1" aria-label="Paginação das atividades">
         <button
@@ -2287,11 +2019,11 @@ const ActivityPagination = ({
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
           aria-label="Página anterior"
-          className="grid h-7 w-7 place-items-center rounded-md border border-transparent text-[#6f6f69] transition hover:border-[#e4e4df] hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
+          className="grid h-7 w-7 place-items-center rounded-md text-[color:var(--ov-text-3)] transition hover:bg-[color:var(--ov-surface)] hover:text-[color:var(--ov-text)] disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronLeft size={13} strokeWidth={1.8} />
         </button>
-        {firstVisiblePage > 1 ? <span className="px-1 text-[10px] text-[#9b9b95]">…</span> : null}
+        {firstVisiblePage > 1 ? <span className="px-1 text-[11px] text-[color:var(--ov-text-5)]">…</span> : null}
         {pages.map((pageNumber) => (
           <button
             key={pageNumber}
@@ -2299,24 +2031,24 @@ const ActivityPagination = ({
             onClick={() => onPageChange(pageNumber)}
             aria-current={pageNumber === page ? "page" : undefined}
             aria-label={`Página ${pageNumber}`}
-            className={`grid h-7 min-w-7 place-items-center rounded-md px-1.5 text-[10px] font-medium transition ${
+            className={`grid h-7 min-w-7 place-items-center rounded-md px-1.5 text-[11.5px] font-medium transition ${
               pageNumber === page
-                ? "bg-[#1a1a1a] text-white"
-                : "text-[#5f6368] hover:bg-white hover:text-[#1a1a1a]"
+                ? "bg-[color:var(--ov-text)] text-[color:var(--ov-panel)]"
+                : "text-[color:var(--ov-text-3)] hover:bg-[color:var(--ov-surface)] hover:text-[color:var(--ov-text)]"
             }`}
           >
             {pageNumber}
           </button>
         ))}
         {firstVisiblePage + visiblePageCount - 1 < totalPages ? (
-          <span className="px-1 text-[10px] text-[#9b9b95]">…</span>
+          <span className="px-1 text-[11px] text-[color:var(--ov-text-5)]">…</span>
         ) : null}
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
           aria-label="Próxima página"
-          className="grid h-7 w-7 place-items-center rounded-md border border-transparent text-[#6f6f69] transition hover:border-[#e4e4df] hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
+          className="grid h-7 w-7 place-items-center rounded-md text-[color:var(--ov-text-3)] transition hover:bg-[color:var(--ov-surface)] hover:text-[color:var(--ov-text)] disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronRight size={13} strokeWidth={1.8} />
         </button>

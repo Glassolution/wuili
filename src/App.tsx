@@ -14,6 +14,22 @@ import { ProfileProvider } from "@/lib/profileContext";
 import { captureOrigin } from "@/lib/signupFunnel";
 import { rotaTemPixelTikTok, tiktokVisualizacao } from "@/lib/tiktokPixel";
 import AdminRoute from "@/components/AdminRoute";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import {
+  AdminAiEscalationsPage,
+  AdminAliExpressPage,
+  AdminBotAutomationPage,
+  AdminCommissionsPage,
+  AdminDiagnosticsPage,
+  AdminEvidencePage,
+  AdminHelpCenterPage,
+  AdminPanelPage,
+  AdminRefundsPage,
+  AdminSalesPage,
+  AdminSupportPage,
+  AdminTrackingPage,
+  AdminUsersPage,
+} from "@/pages/admin/adminPages";
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
@@ -104,19 +120,6 @@ const PersonagemVideoPage = lazy(() => import("./pages/dashboard/PersonagemVideo
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
-const AdminSupportPage = lazy(() => import("./pages/admin/AdminSupportPage"));
-const AdminAiEscalationsPage = lazy(() => import("./pages/admin/AdminAiEscalationsPage"));
-const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersRoutePage"));
-const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsRoutePage"));
-const AdminAliExpressPage = lazy(() => import("./pages/admin/AdminAliExpressPage"));
-const AdminCommissionsPage = lazy(() => import("./pages/admin/AdminCommissionsRoutePage"));
-const AdminPanelPage = lazy(() => import("./pages/admin/AdminPanelPage"));
-const AdminSalesPage = lazy(() => import("./pages/admin/AdminSalesRoutePage"));
-const AdminEvidencePage = lazy(() => import("./pages/admin/AdminEvidencePage"));
-const AdminDiagnosticsPage = lazy(() => import("./pages/admin/AdminDiagnosticsPage"));
-const AdminTrackingPage = lazy(() => import("./pages/admin/AdminTrackingPage"));
-const AdminBotAutomationPage = lazy(() => import("./pages/admin/AdminBotAutomationPage"));
-const AdminHelpCenterPage = lazy(() => import("./pages/admin/AdminHelpCenterPage"));
 const HelpCenterPage = lazy(() => import("./pages/HelpCenterPage"));
 const HelpCenterDashboardPage = lazy(() => import("./pages/dashboard/HelpCenterDashboardPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
@@ -340,23 +343,26 @@ const App = () => (
               <Route path="/minha-loja/fluxo" element={<Navigate to="/dashboard/paginas-com-ia" replace />} />
               <Route path="/bem-vindo" element={<ProtectedRoute><BemVindoPage /></ProtectedRoute>} />
               <Route path="/admin" element={<Navigate to="/admin/painel" replace />} />
-              <Route path="/admin/painel" element={<AdminRoute><AdminPanelPage /></AdminRoute>} />
               <Route path="/admin/dashboard" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/product-analytics" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/reporting" element={<Navigate to="/admin/painel" replace />} />
               <Route path="/admin/order-summary" element={<Navigate to="/admin/painel" replace />} />
-              <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
-              <Route path="/admin/comissoes" element={<AdminRoute><AdminCommissionsPage /></AdminRoute>} />
-              <Route path="/admin/suporte" element={<AdminRoute><AdminSupportPage /></AdminRoute>} />
-              <Route path="/admin/assistente-ia" element={<AdminRoute><AdminAiEscalationsPage /></AdminRoute>} />
-              <Route path="/admin/reembolsos" element={<AdminRoute><AdminRefundsPage /></AdminRoute>} />
-              <Route path="/admin/vendas" element={<AdminRoute><AdminSalesPage /></AdminRoute>} />
-              <Route path="/admin/evidencias" element={<AdminRoute><AdminEvidencePage /></AdminRoute>} />
-              <Route path="/admin/consulta" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
-              <Route path="/admin/rastreio" element={<AdminRoute><AdminTrackingPage /></AdminRoute>} />
-              <Route path="/admin/automacao-bot" element={<AdminRoute><AdminBotAutomationPage /></AdminRoute>} />
-              <Route path="/admin/central-de-ajuda" element={<AdminRoute><AdminHelpCenterPage /></AdminRoute>} />
-              <Route path="/admin/aliexpress" element={<AdminRoute><AdminAliExpressPage /></AdminRoute>} />
+              {/* Moldura do admin montada uma vez só; as abas trocam dentro dela. */}
+              <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                <Route path="/admin/painel" element={<AdminPanelPage />} />
+                <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+                <Route path="/admin/comissoes" element={<AdminCommissionsPage />} />
+                <Route path="/admin/suporte" element={<AdminSupportPage />} />
+                <Route path="/admin/assistente-ia" element={<AdminAiEscalationsPage />} />
+                <Route path="/admin/reembolsos" element={<AdminRefundsPage />} />
+                <Route path="/admin/vendas" element={<AdminSalesPage />} />
+                <Route path="/admin/evidencias" element={<AdminEvidencePage />} />
+                <Route path="/admin/consulta" element={<AdminDiagnosticsPage />} />
+                <Route path="/admin/rastreio" element={<AdminTrackingPage />} />
+                <Route path="/admin/automacao-bot" element={<AdminBotAutomationPage />} />
+                <Route path="/admin/central-de-ajuda" element={<AdminHelpCenterPage />} />
+                <Route path="/admin/aliexpress" element={<AdminAliExpressPage />} />
+              </Route>
               <Route path="/aliexpress/callback" element={<AliExpressCallbackPage />} />
               <Route path="/mercadopago/callback" element={<MercadoPagoCallbackPage />} />
               <Route path="/dashboard" element={<DashboardShell />}>
