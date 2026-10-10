@@ -140,7 +140,14 @@ export default defineConfig(({ mode }) => {
             if (id.includes("date-fns") || id.includes("react-day-picker")) return "vendor-date";
             if (id.includes("zod") || id.includes("react-hook-form") || id.includes("@hookform")) return "vendor-forms";
             if (id.includes("recharts") || id.includes("victory") || id.includes("d3-")) return "vendor-charts";
-            if (/node_modules[/\\](react|react-dom|scheduler)[/\\]/.test(id)) return "vendor-react";
+            /*
+              react/react-dom NÃO podem ficar num chunk separado: o chunk do React
+              e o chunk "vendor" genérico acabam dependendo um do outro (helpers de
+              interop commonjs) e, nesse ciclo, o React chega undefined no navegador
+              ("Cannot read properties of undefined (reading 'createContext')").
+              Deixamos o React junto do vendor mesmo.
+            */
+
             return "vendor";
           },
         },
