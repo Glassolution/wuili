@@ -183,6 +183,13 @@
       "when": 1791226568406,
       "tag": "0025_tiktok_events_log",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791651460346,
+      "tag": "0026_restrict_worker_settings",
+      "breakpoints": true
     }
   ]
 }
