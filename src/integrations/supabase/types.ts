@@ -4455,6 +4455,14 @@ export type Database = {
           schedule: string
         }[]
       }
+      get_bot_purchase_settings: {
+        Args: never
+        Returns: {
+          access_levels: string[]
+          audience: string
+          enabled: boolean
+        }[]
+      }
       get_catalog_product_popularity: {
         Args: { p_id: string }
         Returns: {
