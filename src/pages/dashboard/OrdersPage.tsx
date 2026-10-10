@@ -221,14 +221,11 @@ const planToBotAccess = (plan: PlanName): BotPurchaseAccessLevel => {
 };
 
 const fetchBotPurchaseSettings = async (): Promise<BotPurchaseSettings> => {
-  const { data, error } = await supabase
-    .from("dropship_worker_settings" as never)
-    .select("enabled,audience,access_levels")
-    .eq("id" as never, true as never)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("get_bot_purchase_settings");
 
   if (error) throw error;
-  return normalizeBotPurchaseSettings(data as unknown as Record<string, unknown> | null);
+  const row = Array.isArray(data) ? data[0] : data;
+  return normalizeBotPurchaseSettings((row ?? null) as unknown as Record<string, unknown> | null);
 };
 
 const fetchC7DropAccountStatus = async (): Promise<C7DropAccountStatus> => {
