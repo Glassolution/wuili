@@ -33,3 +33,5 @@ Catálogo → importar produto → IA gera título/descrição → usuário revi
 
 ## Identidade visual
 Azul escuro `#1E3A8A`, azul elétrico `#2563EB`, branco/preto; logo nuvem preta com caixa; fundo da landing gradiente azul/lilás escuro.
+
+- Servidor MCP (Claude etc.): definir ferramentas em `src/lib/mcp/` (o `supabase/functions/mcp` é gerado); só admins, via OAuth e RLS, somente leitura e sem tabelas de tokens — evita exposição de credenciais e ações com dinheiro.

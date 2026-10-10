@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { pathToFileURL } from "url";
 import { componentTagger } from "lovable-tagger";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 function affiliateApiDevMiddleware() {
   return {
@@ -110,7 +111,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [react(), affiliateApiDevMiddleware(), mode === "development" && componentTagger()].filter(Boolean),
+    plugins: [react(), mcpPlugin(), affiliateApiDevMiddleware(), mode === "development" && componentTagger()].filter(Boolean),
     build: {
       rollupOptions: {
         output: {

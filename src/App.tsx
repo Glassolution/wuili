@@ -49,6 +49,7 @@ const AtlasChatProvider = lazy(() =>
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 // Fluxo de cadastro/onboarding (StartChoicePage + telas /onboarding/*) removido.
 const StoreProjectsPage = lazy(() => import("./pages/StoreProjectsPage"));
 const GeneratedStoreEditorPage = lazy(() => import("./pages/GeneratedStoreEditorPage"));
@@ -279,6 +280,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/__tour-lab" element={<TourLab />} />
               {/* Fluxo de cadastro/onboarding removido — rotas antigas redirecionam ao dashboard. */}
               <Route path="/comecar" element={<Navigate to="/dashboard" replace />} />
