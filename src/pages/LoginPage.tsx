@@ -95,10 +95,15 @@ const AVISO_ESTILO = {
 } as const;
 
 // No celular, quem entra cai direto no catálogo; no computador, no dashboard.
-const destinoPosLogin = () =>
-  typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
-    ? "/dashboard/catalogo"
-    : "/dashboard";
+const destinoPosLogin = () => {
+  if (typeof window === "undefined") return "/dashboard";
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (next) {
+    const seguro = oauthReturnPath(next);
+    if (seguro !== "/") return seguro;
+  }
+  return window.matchMedia("(max-width: 767px)").matches ? "/dashboard/catalogo" : "/dashboard";
+};
 
 const AvisoIcone = ({ tipo }: { tipo: "erro" | "info" | "ok" }) => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mt-[1px] shrink-0">
