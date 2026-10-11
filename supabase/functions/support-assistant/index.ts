@@ -86,7 +86,7 @@ const TRADUCAO: Record<string, string> = {
   user_documentation_pending: "o Mercado Livre está pedindo documentos para validar a identidade",
   kyc_pending: "o Mercado Livre está pedindo validação de identidade (envio de documento/selfie)",
   email_not_validated: "o e-mail da conta do Mercado Livre ainda não foi confirmado",
-  restrictions_coliving: "a conta tem restrição por outra conta vinculada",
+  restrictions_coliving: "o Mercado Livre bloqueou a conta porque encontrou outra conta vinculada a ela (mesmo CPF, endereço, telefone ou aparelho). A Velo não consegue liberar isso: a pessoa precisa abrir o Mercado Livre em Ajuda → Minha conta → Restrições e pedir a revisão, informando se tem ou teve outra conta no ML. Só depois que o ML liberar a publicação volta a funcionar",
   seller_restricted: "a conta está com restrição de vendas pelo próprio Mercado Livre",
   rejected_by_regulations: "o Mercado Livre ainda não liberou a conta para vender: costuma faltar confirmar dados pessoais (endereço completo, CPF/CNPJ, celular), validar a identidade ou aceitar os termos de vendedor. Depois de corrigir, a liberação pode levar algumas horas",
   user_unable_to_list: "o Mercado Livre ainda não liberou a conta para publicar anúncios (normalmente dados pessoais ou validação de identidade pendentes)",
