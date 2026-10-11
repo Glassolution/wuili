@@ -256,6 +256,40 @@
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "outputSchema": null
+      },
+      {
+        "name": "list_integrations",
+        "title": "Listar integrações de marketplace",
+        "description": "Lista as contas conectadas (Mercado Livre, Shopee etc.) dos usuários, sem tokens. Filtre por user_id, platform ou ml_user_id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "user_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "platform": {
+              "type": "string"
+            },
+            "ml_user_id": {
+              "type": "integer"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
       }
     ]
   }
