@@ -220,18 +220,45 @@ var run_report_default = defineTool3({
   }
 });
 
+// src/lib/mcp/tools/list-integrations.ts
+import { defineTool as defineTool4, ToolError as ToolError4 } from "npm:@lovable.dev/mcp-js@3.0.5";
+import { z as z3 } from "npm:zod@^3.25.76";
+var SAFE_COLUMNS = "id,user_id,platform,ml_user_id,expires_at,created_at,updated_at";
+var list_integrations_default = defineTool4({
+  name: "list_integrations",
+  title: "Listar integra\xE7\xF5es de marketplace",
+  description: "Lista as contas conectadas (Mercado Livre, Shopee etc.) dos usu\xE1rios, sem tokens. Filtre por user_id, platform ou ml_user_id.",
+  inputSchema: {
+    user_id: z3.string().uuid().optional(),
+    platform: z3.string().optional(),
+    ml_user_id: z3.number().int().optional(),
+    limit: z3.number().int().min(1).max(500).default(100)
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (input, ctx) => {
+    const supabase = await adminClient(ctx);
+    let q = supabase.from("user_integrations").select(SAFE_COLUMNS).order("updated_at", { ascending: false }).limit(input.limit);
+    if (input.user_id) q = q.eq("user_id", input.user_id);
+    if (input.platform) q = q.eq("platform", input.platform);
+    if (input.ml_user_id) q = q.eq("ml_user_id", input.ml_user_id);
+    const { data, error } = await q;
+    if (error) throw new ToolError4(error.message);
+    return { content: [{ type: "text", text: JSON.stringify({ rows: data ?? [] }) }] };
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "nqzpoioxvbqavrtphtoa";
 var mcp_default = defineMcp({
   name: "velo",
   title: "Velo",
   version: "0.1.0",
-  instructions: "Ferramentas administrativas somente leitura da Velo. Use list_tables para ver o que existe, query_table para ler e contar linhas com filtros, e run_report para relat\xF3rios de funil, coortes e pagantes. Exige conta admin.",
+  instructions: "Ferramentas administrativas somente leitura da Velo. Use list_tables para ver o que existe, query_table para ler e contar linhas com filtros (respostas do ML ficam em ml_publish_errors, ml_seller_readiness, ml_republication_log, ml_compliance_fixes), list_integrations para contas conectadas (sem tokens) e run_report para relat\xF3rios. Exige conta admin.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [list_tables_default, query_table_default, run_report_default]
+  tools: [list_tables_default, query_table_default, run_report_default, list_integrations_default]
 });
 
 // lovable-mcp-supabase-entry.ts
