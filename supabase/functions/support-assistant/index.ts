@@ -32,7 +32,7 @@ Regras:
 - Dúvida sobre publicar, conta de vendedor, anúncio que não sobe, conexão com o Mercado Livre: chame "verificar_conta_mercado_livre" ANTES de responder e explique exatamente o que falta, com passo a passo curto (ex.: entrar em mercadolivre.com.br > Meu perfil > Dados pessoais/Endereços e cadastrar CEP e endereço; ou cadastrar/confirmar celular).
 - Outras dúvidas: chame "buscar_central_de_ajuda" e responda com base nos artigos, incluindo o link do artigo em markdown.
 - Nunca invente preços, prazos, regras ou funcionalidades. Planos: Base R$39,90/mês, Pro R$79,80/mês, Business R$189,90/mês. Não existe plano gratuito.
-- Chame "acionar_suporte_humano" quando: (a) aparecer um erro/situação que você não reconhece, (b) a dúvida não for coberta pela central nem pela verificação de conta, (c) o usuário pedir para falar com uma pessoa, ou (d) envolver reembolso, cobrança, cancelamento ou dinheiro.
+- Chame "acionar_suporte_humano" quando: (a) aparecer um erro/situação que você não reconhece (bloqueios do Mercado Livre já traduzidos pela verificação de conta NÃO contam como desconhecidos: oriente primeiro o passo a passo), (b) a dúvida não for coberta pela central nem pela verificação de conta, (c) o usuário pedir para falar com uma pessoa, ou (d) envolver reembolso, cobrança, cancelamento ou dinheiro.
 - Ao acionar o suporte humano, NUNCA mencione "escalar", "ticket", "fila" ou ferramentas. Apenas diga de forma natural algo como: "Vou pedir para alguém da equipe olhar isso com você. A resposta vai aparecer aqui mesmo." e continue ajudando no que puder.
 - SEMPRE que avisar que uma pessoa da equipe vai responder, informe logo depois os horários reais: "${HORARIOS_ATENDIMENTO}". Nunca invente outro horário nem diga que o atendimento é 24 horas.
 - Nunca peça senha, código de verificação ou dados de cartão.`;
@@ -77,6 +77,9 @@ const TRADUCAO: Record<string, string> = {
   email_not_validated: "o e-mail da conta do Mercado Livre ainda não foi confirmado",
   restrictions_coliving: "a conta tem restrição por outra conta vinculada",
   seller_restricted: "a conta está com restrição de vendas pelo próprio Mercado Livre",
+  rejected_by_regulations: "o Mercado Livre ainda não liberou a conta para vender: costuma faltar confirmar dados pessoais (endereço completo, CPF/CNPJ, celular), validar a identidade ou aceitar os termos de vendedor. Depois de corrigir, a liberação pode levar algumas horas",
+  user_unable_to_list: "o Mercado Livre ainda não liberou a conta para publicar anúncios (normalmente dados pessoais ou validação de identidade pendentes)",
+  unable_to_list: "o Mercado Livre ainda não liberou a conta para publicar anúncios (normalmente dados pessoais ou validação de identidade pendentes)",
 };
 
 async function verificarContaML(admin: SupabaseClient, userId: string) {
@@ -127,7 +130,7 @@ async function verificarContaML(admin: SupabaseClient, userId: string) {
     bloqueios: codes.map((c) => TRADUCAO[c] ?? `código do Mercado Livre não reconhecido: ${c}`),
     dados_faltando_no_cadastro: faltando,
     onde_corrigir: "mercadolivre.com.br > Meu perfil > Meus dados (endereço, telefone e documento)",
-    observacao: "Se houver código não reconhecido, acione o suporte humano.",
+    observacao: "Explique os bloqueios e o passo a passo para resolver. Peça para a pessoa conferir no Mercado Livre e testar publicando um anúncio manual lá. Só acione o suporte humano se o código não for reconhecido ou se ela já fez tudo isso, esperou algumas horas e continua bloqueada.",
   };
 }
 
