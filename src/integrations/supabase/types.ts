@@ -4645,7 +4645,9 @@ export type Database = {
         Args: { p_project: string; p_user: string }
         Returns: boolean
       }
-      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_admin:
+        | { Args: never; Returns: boolean }
+        | { Args: { _user_id: string }; Returns: boolean }
       is_project_owner: {
         Args: { p_project: string; p_user: string }
         Returns: boolean
