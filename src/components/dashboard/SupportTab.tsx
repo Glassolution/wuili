@@ -871,6 +871,9 @@ const TicketChatModal = ({
 
 const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
   const isUser = msg.sender === "user";
+  // Mesma distinção do widget flutuante e do painel admin:
+  // IA = "Suporte automático" em azul claro; humano = "Suporte Velo" em branco.
+  const automatic = msg.sender === "ai";
 
   if (isUser) {
     return (
@@ -887,9 +890,19 @@ const HumanMessageBubble = ({ msg }: { msg: SupportMessage }) => {
       <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#DBEAFE] dark:bg-white">
         <AtlasAvatarIcon size={24} animated={false} />
       </div>
-      <div className="max-w-[78%] rounded-[6px_18px_18px_18px] bg-white px-4 py-3 text-[14px] leading-[1.55] text-[#0F172A] shadow-sm ring-1 ring-[#E8F0FF] whitespace-pre-wrap dark:bg-white/8 dark:text-white dark:ring-white/10">
-        <p className="mb-1 text-[11px] font-semibold uppercase text-[#2563EB] dark:text-blue-200">
-          Suporte Velo
+      <div
+        className={`max-w-[78%] rounded-[6px_18px_18px_18px] px-4 py-3 text-[14px] leading-[1.55] shadow-sm ring-1 ${
+          automatic
+            ? "bg-[#eaf1ff] text-[#1f3c76] ring-transparent dark:bg-[#1e3a8a]/40 dark:text-blue-100 dark:ring-white/10"
+            : "bg-white text-[#0F172A] ring-[#E8F0FF] dark:bg-white/8 dark:text-white dark:ring-white/10"
+        }`}
+      >
+        <p
+          className={`mb-1 text-[11px] font-semibold uppercase ${
+            automatic ? "text-[#6681b6] dark:text-blue-200" : "text-[#2563EB] dark:text-blue-200"
+          }`}
+        >
+          {automatic ? "Suporte automático" : "Suporte Velo"}
         </p>
         <SupportMessageMedia value={msg.message} textClassName="whitespace-pre-wrap" imageClassName="max-h-[300px] max-w-[420px] w-full" />
       </div>
