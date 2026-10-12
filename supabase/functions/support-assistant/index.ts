@@ -182,24 +182,27 @@ async function escalar(admin: SupabaseClient, userId: string, motivo: string, re
 type Part = { text?: string; functionCall?: { name: string; args?: Record<string, unknown> }; functionResponse?: unknown; thoughtSignature?: string };
 type Content = { role: "user" | "model"; parts: Part[] };
 
-async function chamarGemini(key: string, contents: Content[], system = SYSTEM) {
+async function chamarGemini(key: string, contents: Content[], system = SYSTEM, soTexto = false) {
   // Até 2 tentativas, só para 429/5xx (sobrecarga passageira).
   let r: Response | null = null;
   for (let t = 0; t < 2; t++) {
     if (t) await new Promise((ok) => setTimeout(ok, 2000 + Math.random() * 500));
-    r = await chamarGeminiUmaVez(key, contents, system);
+    r = await chamarGeminiUmaVez(key, contents, system, soTexto);
     if (r.ok || (r.status !== 429 && r.status < 500)) return r;
   }
   return r!;
 }
 
-async function chamarGeminiUmaVez(key: string, contents: Content[], system = SYSTEM) {
+async function chamarGeminiUmaVez(key: string, contents: Content[], system = SYSTEM, soTexto = false) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": key },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents, tools: TOOLS,
+      // Na última rodada o modelo é obrigado a escrever a resposta; antes ele podia
+      // gastar todas as rodadas consultando ferramentas e terminar sem texto.
+      ...(soTexto ? { toolConfig: { functionCallingConfig: { mode: "NONE" } } } : {}),
       // O "pensamento" do modelo conta no mesmo teto de saída; sem limitar o
       // raciocínio, perguntas longas gastavam tudo pensando e voltavam sem texto.
       generationConfig: { temperature: 0.4, maxOutputTokens: 1500, thinkingConfig: { thinkingLevel: "low" } },
@@ -271,7 +274,7 @@ Deno.serve(async (req) => {
     let reply = "";
 
     for (let i = 0; i < 4; i++) {
-      const r = await chamarGemini(GEMINI_API_KEY, contents);
+      const r = await chamarGemini(GEMINI_API_KEY, contents, SYSTEM, i === 3);
       if (!r.ok) {
         const t = await r.text();
         console.error("gemini", r.status, t.slice(0, 500));
@@ -446,7 +449,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
 
   for (let i = 0; i < 4; i++) {
-    const r = await chamarGemini(GEMINI_API_KEY, contents, systemTicket);
+    const r = await chamarGemini(GEMINI_API_KEY, contents, systemTicket, i === 3);
     if (!r.ok) {
       console.error("gemini ticket", r.status, (await r.text()).slice(0, 300));
       break;
