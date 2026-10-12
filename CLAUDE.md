@@ -161,7 +161,7 @@ Rode o script de novo. Use `<ImagemResponsiva>` em vez de `<img>` — e não use
 `window.dataLayer` (GTM), `gtag` e `fbq`, e ficam em `window.__veloFunil` para
 conferência no console. Para ligar o GA4, basta preencher `VITE_GA_MEASUREMENT_ID`.
 
-**TikTok Pixel (anúncios da Velo):** `src/lib/tiktokPixel.ts`, ID `DB1U9MRC77U5HCCK5HA0`.
+**TikTok Pixel (anúncios da Velo):** `src/lib/tiktokPixel.ts`, ID `DB63UB3C77UEG70QI8NG`.
 Roda só em `/`, `/login` e `/cadastro` (componente `MedicaoAnunciosTikTok` no
 `App.tsx`) e no momento em que a conta é criada; nunca nas lojas dos sellers.
 Eventos: PageView, `ClickButton` nos botões de cadastro da landing e

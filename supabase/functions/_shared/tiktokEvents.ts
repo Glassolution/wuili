@@ -5,7 +5,7 @@
 // deno-lint-ignore-file no-explicit-any
 // `any` aceito só para o client do Supabase (tipagem gerada não existe no Deno).
 
-export const TIKTOK_PIXEL_ID = Deno.env.get("TIKTOK_PIXEL_ID") ?? "DB1U9MRC77U5HCCK5HA0";
+export const TIKTOK_PIXEL_ID = Deno.env.get("TIKTOK_PIXEL_ID") ?? "DB63UB3C77UEG70QI8NG";
 const ENDPOINT = "https://business-api.tiktok.com/open_api/v1.3/event/track/";
 
 /**

@@ -16,7 +16,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const TIKTOK_PIXEL_ID = "DB1U9MRC77U5HCCK5HA0";
+export const TIKTOK_PIXEL_ID = "DB63UB3C77UEG70QI8NG";
 
 const SCRIPT_SRC = "https://analytics.tiktok.com/i18n/pixel/events.js";
 const SCRIPT_ID = "tiktok-pixel-base";
