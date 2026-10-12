@@ -1459,6 +1459,10 @@ const StatusBadge = ({ status, compact = false }: { status: SupportTicket["statu
 
 const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; onRefundClick?: () => void }) => {
   const isUser = message.sender === "user";
+  // IA e humano passam a ter rótulos e cores distintos no chat do cliente,
+  // iguais aos do painel admin (IA: azul claro; humano: branco).
+  const automatic = message.sender === "ai";
+  const senderLabel = automatic ? "Suporte automático" : "Suporte Velo";
 
   if (!isUser && parseSupportMessage(message.message).refundPrompt) {
     return (
@@ -1466,9 +1470,9 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
           <AtlasAvatarIcon size={24} animated={false} />
         </span>
-        <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
-          <p className="text-[13px] leading-5 text-[#111827]">
+        <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-[#eaf1ff] px-3.5 py-3 shadow-sm">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6681b6]">{senderLabel}</p>
+          <p className="text-[13px] leading-5 text-[#1f3c76]">
             Entendemos a sua solicitação de reembolso ou cancelamento. Nossa equipe pode te ajudar por aqui antes
             de qualquer decisão.
           </p>
@@ -1479,7 +1483,7 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
           >
             Pedir reembolso
           </button>
-          <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
+          <p className="mt-1.5 text-[10px] font-medium text-[#6681b6]">{formatTicketTime(message.created_at)}</p>
         </div>
       </div>
     );
@@ -1501,10 +1505,18 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
       <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
         <AtlasAvatarIcon size={24} animated={false} />
       </span>
-      <div className="max-w-[82%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-2.5 text-[13px] leading-5 text-[#111827] shadow-sm">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6B7280]">Suporte Velo</p>
+      <div
+        className={`max-w-[82%] rounded-[6px_18px_18px_18px] px-3.5 py-2.5 text-[13px] leading-5 shadow-sm ${
+          automatic ? "bg-[#eaf1ff] text-[#1f3c76]" : "bg-white text-[#111827]"
+        }`}
+      >
+        <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.08em] ${automatic ? "text-[#6681b6]" : "text-[#6B7280]"}`}>
+          {senderLabel}
+        </p>
         <SupportMessageMedia value={message.message} textClassName="whitespace-pre-wrap" imageClassName="max-h-[260px] max-w-[300px] w-full" />
-        <p className="mt-1 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
+        <p className={`mt-1 text-[10px] font-medium ${automatic ? "text-[#6681b6]" : "text-[#9CA3AF]"}`}>
+          {formatTicketTime(message.created_at)}
+        </p>
       </div>
     </div>
   );
