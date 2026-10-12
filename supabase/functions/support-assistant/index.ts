@@ -200,8 +200,9 @@ async function chamarGeminiUmaVez(key: string, contents: Content[], system = SYS
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents, tools: TOOLS,
-      // Teto de saída: as respostas são curtas; evita textos longos que só gastam.
-      generationConfig: { temperature: 0.4, maxOutputTokens: 1200 },
+      // O "pensamento" do modelo conta no mesmo teto de saída; sem limitar o
+      // raciocínio, perguntas longas gastavam tudo pensando e voltavam sem texto.
+      generationConfig: { temperature: 0.4, maxOutputTokens: 1500, thinkingConfig: { thinkingLevel: "low" } },
     }),
   });
   return r;
