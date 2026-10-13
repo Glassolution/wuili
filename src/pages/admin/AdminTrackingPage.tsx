@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import AdminAccessPanel from "@/components/admin/AdminAccessPanel";
 import AdminFunnelPanel from "@/components/admin/AdminFunnelPanel";
 import AdminPaidNotPublishedPanel from "@/components/admin/AdminPaidNotPublishedPanel";
 import { useQuery } from "@tanstack/react-query";
@@ -42,6 +43,14 @@ type ExitRow = { path: string; saidas: number; percentual: number };
 type ReasonRow = { motivo: string; total: number; ultima_pagina: string | null };
 
 const PERIODS = [7, 14, 30, 90];
+
+type Aba = "acessos" | "funil" | "pagou" | "geral";
+const ABAS: Array<{ id: Aba; label: string }> = [
+  { id: "acessos", label: "Acessos e cadastros" },
+  { id: "funil", label: "Funil completo" },
+  { id: "pagou", label: "Pagou e não publicou" },
+  { id: "geral", label: "Visão geral" },
+];
 
 const fmtDay = (iso: string) => {
   const d = new Date(`${iso}T12:00:00`);
@@ -95,7 +104,7 @@ const ROTULO_FUNIL: Record<string, string> = {
 
 const AdminTrackingPage = () => {
   const [days, setDays] = useState(30);
-  const [aba, setAba] = useState<"funil" | "pagou" | "geral">("funil");
+  const [aba, setAba] = useState<Aba>("acessos");
 
   const traffic = useQuery({
     queryKey: ["admin-traffic", days],
@@ -172,9 +181,32 @@ const AdminTrackingPage = () => {
       active="tracking"
       userId="admin"
       title="Rastreio"
-      subtitle="Acessos por dia, celular x computador, assinantes pagantes e por onde os usuários abandonam a Velo."
-      actions={
-        <div className="flex items-center gap-1 rounded-full border border-[#ececE6] bg-white p-1">
+      subtitle="Quem visitou o site, quem entrou, quem criou conta e onde as pessoas param no caminho até publicar."
+    >
+      <div className="space-y-4">
+        <div role="tablist" aria-label="Seções do rastreio" className="flex flex-wrap items-center gap-1 rounded-2xl border border-[#ececE6] bg-white p-1">
+          {ABAS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={aba === t.id}
+              onClick={() => setAba(t.id)}
+              className={`flex-1 whitespace-nowrap rounded-xl px-3 py-2 text-[13px] font-medium transition ${
+                aba === t.id ? "bg-[#171715] text-white" : "text-[#77776f] hover:bg-[#f6f6f3]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {aba === "acessos" ? <AdminAccessPanel /> : null}
+        {aba === "funil" ? <AdminFunnelPanel /> : null}
+        {aba === "pagou" ? <AdminPaidNotPublishedPanel /> : null}
+
+        <div className={aba === "geral" ? "space-y-4" : "hidden"}>
+        <div className="flex w-fit items-center gap-1 rounded-full border border-[#ececE6] bg-white p-1">
           {PERIODS.map((p) => (
             <button
               key={p}
@@ -188,28 +220,6 @@ const AdminTrackingPage = () => {
             </button>
           ))}
         </div>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex items-center gap-1 rounded-2xl border border-[#ececE6] bg-white p-1">
-          {(["funil", "pagou", "geral"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setAba(t)}
-              className={`flex-1 rounded-xl px-3 py-2 text-[13px] font-medium transition ${
-                aba === t ? "bg-[#171715] text-white" : "text-[#77776f] hover:bg-[#f6f6f3]"
-              }`}
-            >
-              {t === "funil" ? "Funil completo" : t === "pagou" ? "Pagou e não publicou" : "Visão geral"}
-            </button>
-          ))}
-        </div>
-
-        {aba === "funil" ? <AdminFunnelPanel /> : null}
-        {aba === "pagou" ? <AdminPaidNotPublishedPanel /> : null}
-
-        <div className={aba === "geral" ? "space-y-4" : "hidden"}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi icon={Users} label="Acessos hoje" value={String(last?.usuarios ?? 0)} sub={`${last?.sessoes ?? 0} sessões`} />
           <Kpi

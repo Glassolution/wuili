@@ -488,6 +488,10 @@
   --ov-warning-bg: #fdf4e3;
   --ov-warning: #a16207;
   --ov-day-disabled: #d4d4d8;
+  /* séries do Rastreio (paleta categórica validada: azul, laranja, verde-água) */
+  --trk-visit: #2a78d6;
+  --trk-login: #eb6834;
+  --trk-signup: #1baf7a;
 }
 
 .velo-admin-root[data-admin-theme="dark"] {
@@ -558,6 +562,9 @@
   --ov-warning-bg: rgba(250, 204, 21, 0.12);
   --ov-warning: #facc15;
   --ov-day-disabled: #3f3f46;
+  --trk-visit: #3987e5;
+  --trk-login: #d95926;
+  --trk-signup: #199e70;
 }
 
 /* troca de tema suave */
@@ -1828,23 +1835,28 @@
 }
 
 /* tabela: as regras globais de tabela do admin usam !important */
-.velo-admin-root .ov-panel table thead tr {
+.velo-admin-root .ov-panel table thead tr,
+.velo-admin-root .ov-card table thead tr {
   border-bottom-color: var(--ov-divider) !important;
 }
 
-.velo-admin-root .ov-panel table th {
+.velo-admin-root .ov-panel table th,
+.velo-admin-root .ov-card table th {
   color: var(--ov-text-3) !important;
 }
 
-.velo-admin-root .ov-panel table td {
+.velo-admin-root .ov-panel table td,
+.velo-admin-root .ov-card table td {
   color: var(--ov-text-2);
 }
 
-.velo-admin-root .ov-panel table tbody tr {
+.velo-admin-root .ov-panel table tbody tr,
+.velo-admin-root .ov-card table tbody tr {
   border-color: var(--ov-divider) !important;
 }
 
-.velo-admin-root .ov-panel table tbody tr:hover {
+.velo-admin-root .ov-panel table tbody tr:hover,
+.velo-admin-root .ov-card table tbody tr:hover {
   background: var(--ov-row-hover) !important;
 }
 
