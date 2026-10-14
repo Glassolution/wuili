@@ -366,12 +366,15 @@ Deno.serve(async (req) => {
     }
 
     if (catalogProductId) {
+      // catalog_product_id em user_publications pode ser UUID ou o slug (external_id)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(catalogProductId);
       const { data: cp } = await adminClient
         .from("catalog_products")
-        .select("product_url")
-        .eq("id", catalogProductId)
+        .select("id, product_url")
+        .eq(isUuid ? "id" : "external_id", catalogProductId)
         .maybeSingle();
       supplierUrl = cp?.product_url ?? legacyProductUrl;
+      catalogProductId = cp?.id ?? (isUuid ? catalogProductId : null);
     } else {
       supplierUrl = legacyProductUrl;
     }
