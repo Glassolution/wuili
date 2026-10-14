@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowUp,
   ChevronLeft,
   ChevronRight,
+  Headset,
   HelpCircle,
   Home,
   Inbox,
@@ -23,7 +24,8 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { notifyNewSupportTicketEmail } from "@/lib/supportEmail";
-import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import AtlasSupportIcon from "@/components/dashboard/AtlasSupportIcon";
+import { ChatBubbleOvalLeftEllipsisIcon } from "@heroicons/react/24/solid";
 import {
   CATEGORY_LABEL,
   ACTIVE_SUPPORT_TICKET_EVENT,
@@ -545,12 +547,17 @@ const SupportFloatingWidget = () => {
                   </button>
                 </div>
 
-                <div className="relative mt-16 pb-1">
+                <div className="relative mt-12 pb-1">
                   <p className="text-[31px] font-bold leading-[1.06] tracking-normal">
                     Oi, {firstNameFrom(nome)}.
                     <br />
                     Como podemos ajudar?
                   </p>
+                  <p className="mt-3 flex items-center gap-2 text-[13px] font-medium leading-5 text-white/80">
+                    <Headset size={15} strokeWidth={2.2} className="shrink-0" />
+                    Canal oficial de suporte da Velo.
+                  </p>
+                  <p className="mt-1 pl-[23px] text-[12px] leading-4 text-white/55">{SUPPORT_HOURS_SHORT}</p>
                 </div>
               </div>
             )}
@@ -821,10 +828,16 @@ const SupportFloatingWidget = () => {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="ml-auto grid h-14 w-14 place-items-center rounded-full bg-[#2563EB] text-white shadow-[0_16px_36px_rgba(37,99,235,0.34)] transition hover:-translate-y-0.5 hover:bg-[#1D4ED8] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#93C5FD]"
-        aria-label={open ? "Minimizar suporte" : "Abrir suporte"}
+        className="ml-auto grid h-14 w-14 place-items-center rounded-full bg-[#2563EB] text-white shadow-[0_8px_20px_rgba(37,99,235,0.35)] transition-colors hover:bg-[#1D4ED8] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#93C5FD]"
+        aria-label={open ? "Minimizar suporte" : "Falar com a equipe de suporte"}
+        title={open ? undefined : "Falar com a equipe de suporte"}
       >
-        {open ? <ChevronRight size={27} strokeWidth={2.4} className="rotate-90" /> : <MessageSquareText size={25} strokeWidth={2.1} />}
+        {open ? (
+          <ChevronRight size={27} strokeWidth={2.4} className="rotate-90" />
+        ) : (
+          // ícone sólido: traço fino ficava serrilhado nesse tamanho
+          <ChatBubbleOvalLeftEllipsisIcon aria-hidden="true" className="h-7 w-7" />
+        )}
       </button>
     </div>
   );
@@ -888,18 +901,22 @@ const SupportMessagesTopBar = ({
   );
 };
 
-const SupportAvatarGroup = () => (
-  <div className="grid h-10 w-10 shrink-0 place-items-center">
-    <span className="grid h-10 w-10 place-items-center rounded-full bg-white ring-1 ring-[#E0E7FF]">
-      <AtlasAvatarIcon size={25} animated={false} />
-    </span>
-  </div>
-);
+/*
+  Identidade do canal de suporte: o Atlas de headset (atendente), nunca o Atlas
+  puro, que é o assistente de produtos. Vale para todas as respostas do canal,
+  da equipe ou do assistente de suporte (support-assistant).
+*/
+const SUPPORT_HOURS = ["Seg a sex, 13h às 21h", "Sáb e dom, 13h às 19h"];
+const SUPPORT_HOURS_SHORT = SUPPORT_HOURS.join(" · ");
+
+const SupportTeamIcon = ({ size = 32 }: { size?: number }) => <AtlasSupportIcon size={size} />;
+
+const SupportAvatarGroup = () => <SupportTeamIcon size={40} />;
 
 const SupportHomeBrand = () => (
   <div className="flex min-w-0 items-center gap-2.5">
     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] ring-1 ring-white/70">
-      <AtlasAvatarIcon size={25} animated={false} />
+      <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
     </span>
     <span className="flex items-baseline gap-1 text-[13px] font-bold tracking-normal text-white">
       <span>VELO</span>
@@ -962,8 +979,8 @@ const SupportHome = ({
       className="flex min-h-[72px] w-full items-center justify-between gap-4 rounded-[18px] border border-black/[0.08] bg-white px-5 text-left shadow-[0_12px_26px_rgba(15,23,42,0.13)] transition hover:-translate-y-0.5 hover:border-[#2563EB]/30"
     >
       <span>
-        <span className="block text-[16px] font-bold tracking-normal text-[#111827]">Enviar uma mensagem</span>
-        <span className="mt-1 block text-[12px] font-medium text-[#6B7280]">Abra uma conversa com o time.</span>
+        <span className="block text-[16px] font-bold tracking-normal text-[#111827]">Falar com a equipe</span>
+        <span className="mt-1 block text-[12px] font-medium text-[#6B7280]">A resposta chega aqui mesmo, nesta conversa.</span>
       </span>
       <Send size={24} className="shrink-0 text-[#2563EB]" strokeWidth={2.5} />
     </button>
@@ -1140,18 +1157,12 @@ const SupportMessages = ({
             >
               <Paperclip size={16} />
             </button>
-            <textarea
+            <AutoGrowTextarea
               value={reply}
-              onChange={(event) => onReplyChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  onSendReply();
-                }
-              }}
+              onChange={onReplyChange}
+              onEnter={onSendReply}
               disabled={closed || sendingReply}
               placeholder={closed ? "Ticket resolvido" : "Responder ao suporte..."}
-              className="max-h-24 min-h-8 min-w-0 flex-1 resize-none border-0 bg-transparent text-[13px] leading-5 text-[#111827] outline-none placeholder:text-[#9CA3AF] disabled:opacity-60"
             />
             <button
               type="button"
@@ -1260,70 +1271,109 @@ const NewConversationComposer = ({
 
   return (
   <div className="flex h-full min-h-[390px] flex-col bg-white">
-    <div className="flex min-h-0 flex-1 items-start justify-center px-6 pt-10 text-center">
-      <p className="text-[14.5px] leading-6 text-[#6B7280]">
-        Conte sua dúvida ou deixe seu feedback.
+    <div className="flex min-h-0 flex-1 flex-col items-center px-6 pt-10 text-center">
+      <SupportTeamIcon size={44} />
+      <p className="mt-3 text-[14.5px] font-semibold leading-6 text-[#111827]">Conte sua dúvida ou deixe seu feedback.</p>
+      <p className="mt-1 max-w-[300px] text-[12.5px] leading-5 text-[#6B7280]">
+        A resposta do suporte Velo chega aqui mesmo, nesta conversa.
+      </p>
+      <p className="mt-2 text-[12px] leading-5 text-[#9CA3AF]">
+        {SUPPORT_HOURS[0]}
+        <br />
+        {SUPPORT_HOURS[1]}
       </p>
     </div>
 
     <div className="mt-auto shrink-0 bg-white px-4 pb-4">
       {image ? <SupportImagePreview file={image} onRemove={onImageRemove} /> : null}
-      <div className="rounded-[22px] border-2 border-[#2563EB] bg-white px-3.5 pb-3 pt-3 shadow-none">
-        <textarea
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              onSend();
-            }
+      {/* Mesma caixa de uma linha da resposta: cresce enquanto a pessoa digita.
+          Para desistir, a seta de voltar no topo faz o mesmo que "Cancelar". */}
+      <div className="flex min-h-[54px] items-end gap-2 rounded-[20px] border-2 border-[#2563EB] bg-white px-3 py-2 transition focus-within:ring-2 focus-within:ring-[#2563EB]/12">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onImageChange(file);
+            event.currentTarget.value = "";
           }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={creating}
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition ${image ? "bg-[#e9efff] text-[#2563EB]" : "text-[#7b8798] hover:bg-[#f1f4f8] hover:text-[#2563EB]"}`}
+          aria-label="Anexar imagem"
+          title="Anexar imagem (até 8 MB)"
+        >
+          <Paperclip size={16} />
+        </button>
+        <AutoGrowTextarea
+          value={value}
+          onChange={onChange}
+          onEnter={onSend}
           placeholder="Digite sua mensagem..."
           disabled={creating}
-          className="max-h-32 min-h-[82px] w-full resize-none border-0 bg-transparent text-[14px] leading-5 text-[#111827] outline-none placeholder:text-[#6B7280]"
+          autoFocus
         />
-        <div className="flex items-center justify-end gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) onImageChange(file);
-              event.currentTarget.value = "";
-            }}
-          />
-          <button
-            type="button"
-            onClick={onCancel}
-            className="mr-auto rounded-full px-2 py-1 text-[11px] font-semibold text-[#9CA3AF] transition hover:bg-[#F3F4F6] hover:text-[#111827]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={creating}
-            className={`grid h-8 w-8 place-items-center rounded-full transition ${image ? "bg-[#e9efff] text-[#2563EB]" : "text-[#8B949E] hover:bg-[#F3F4F6] hover:text-[#111827]"}`}
-            aria-label="Anexar imagem"
-            title="Anexar imagem (até 8 MB)"
-          >
-            <Paperclip size={17} />
-          </button>
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={creating || (!value.trim() && !image)}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8] disabled:bg-[#E5E7EB] disabled:text-[#C4C9D0]"
-            aria-label="Iniciar conversa"
-          >
-            {creating ? <Loader2 size={15} className="animate-spin" /> : <ArrowUp size={16} />}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={creating || (!value.trim() && !image)}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2563EB] text-white transition hover:bg-[#1D4ED8] disabled:bg-[#E5E7EB] disabled:text-[#9CA3AF]"
+          aria-label="Iniciar conversa"
+        >
+          {creating ? <Loader2 size={15} className="animate-spin" /> : <ArrowUp size={16} />}
+        </button>
       </div>
     </div>
   </div>
+  );
+};
+
+/** Caixa de texto de uma linha que cresce com o conteúdo, até ~5 linhas. */
+const AutoGrowTextarea = ({
+  value,
+  onChange,
+  onEnter,
+  placeholder,
+  disabled,
+  autoFocus,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onEnter: () => void;
+  placeholder: string;
+  disabled?: boolean;
+  autoFocus?: boolean;
+}) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      autoFocus={autoFocus}
+      onChange={(event) => onChange(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          onEnter();
+        }
+      }}
+      disabled={disabled}
+      placeholder={placeholder}
+      className="min-w-0 flex-1 resize-none self-center border-0 bg-transparent py-1.5 text-[14px] leading-5 text-[#111827] outline-none placeholder:text-[#9CA3AF] disabled:opacity-60"
+    />
   );
 };
 
@@ -1423,9 +1473,7 @@ const ConversationRow = ({
       active ? "bg-[#F2F5FF]" : "bg-white hover:bg-[#F8FAFF]"
     }`}
   >
-    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white shadow-[0_8px_22px_rgba(37,99,235,0.16)] ring-1 ring-[#E3E9FF]">
-      <AtlasAvatarIcon size={32} animated={false} />
-    </span>
+    <SupportTeamIcon size={44} />
     <span className="min-w-0 flex-1">
       <span className="flex items-center justify-between gap-3">
         <span className="truncate text-[13.5px] font-bold tracking-[-0.015em] text-[#111827]">
@@ -1459,20 +1507,19 @@ const StatusBadge = ({ status, compact = false }: { status: SupportTicket["statu
 
 const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; onRefundClick?: () => void }) => {
   const isUser = message.sender === "user";
-  // IA e humano passam a ter rótulos e cores distintos no chat do cliente,
-  // iguais aos do painel admin (IA: azul claro; humano: branco).
-  const automatic = message.sender === "ai";
-  const senderLabel = automatic ? "Suporte automático" : "Suporte Velo";
+  // Toda resposta do canal aparece como "Suporte Velo". A distinção entre
+  // assistente e equipe continua no painel admin.
+  const senderLabel = "Suporte Velo";
 
   if (!isUser && parseSupportMessage(message.message).refundPrompt) {
     return (
       <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
-          <AtlasAvatarIcon size={24} animated={false} />
+        <span className="mt-0.5">
+          <SupportTeamIcon />
         </span>
-        <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-[#eaf1ff] px-3.5 py-3 shadow-sm">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#6681b6]">{senderLabel}</p>
-          <p className="text-[13px] leading-5 text-[#1f3c76]">
+        <div className="max-w-[86%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm ring-1 ring-black/[0.04]">
+          <p className="mb-1 text-[11px] font-semibold text-[#6B7280]">{senderLabel}</p>
+          <p className="text-[13px] leading-5 text-[#111827]">
             Entendemos a sua solicitação de reembolso ou cancelamento. Nossa equipe pode te ajudar por aqui antes
             de qualquer decisão.
           </p>
@@ -1483,7 +1530,7 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
           >
             Pedir reembolso
           </button>
-          <p className="mt-1.5 text-[10px] font-medium text-[#6681b6]">{formatTicketTime(message.created_at)}</p>
+          <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
         </div>
       </div>
     );
@@ -1502,19 +1549,13 @@ const SupportBubble = ({ message, onRefundClick }: { message: SupportMessage; on
 
   return (
     <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
-        <AtlasAvatarIcon size={24} animated={false} />
+      <span className="mt-0.5">
+        <SupportTeamIcon />
       </span>
-      <div
-        className={`max-w-[82%] rounded-[6px_18px_18px_18px] px-3.5 py-2.5 text-[13px] leading-5 shadow-sm ${
-          automatic ? "bg-[#eaf1ff] text-[#1f3c76]" : "bg-white text-[#111827]"
-        }`}
-      >
-        <p className={`mb-1 text-[10px] font-bold uppercase tracking-[0.08em] ${automatic ? "text-[#6681b6]" : "text-[#6B7280]"}`}>
-          {senderLabel}
-        </p>
+      <div className="max-w-[82%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-2.5 text-[13px] leading-5 text-[#111827] shadow-sm ring-1 ring-black/[0.04]">
+        <p className="mb-1 text-[11px] font-semibold text-[#6B7280]">{senderLabel}</p>
         <SupportMessageMedia value={message.message} textClassName="whitespace-pre-wrap" imageClassName="max-h-[260px] max-w-[300px] w-full" />
-        <p className={`mt-1 text-[10px] font-medium ${automatic ? "text-[#6681b6]" : "text-[#9CA3AF]"}`}>
+        <p className="mt-1 text-[10px] font-medium text-[#9CA3AF]">
           {formatTicketTime(message.created_at)}
         </p>
       </div>
@@ -1538,8 +1579,8 @@ const EmptyLine = ({ label }: { label: string }) => (
 
 const TypingBubble = () => (
   <div className="flex items-start gap-2.5">
-    <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#E3E9FF]">
-      <AtlasAvatarIcon size={24} animated={false} />
+    <span className="mt-0.5">
+      <SupportTeamIcon />
     </span>
     <div className="flex items-center gap-1.5 rounded-[6px_18px_18px_18px] bg-white px-4 py-3 shadow-sm">
       {[0, 130, 260].map((delay) => (
