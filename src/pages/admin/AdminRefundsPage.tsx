@@ -6,6 +6,7 @@ import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminSandboxGrant } from "@/components/admin/AdminSandboxGrant";
 import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 import { AdminLayoutContext } from "@/components/admin/adminLayoutContext";
@@ -411,6 +412,7 @@ const AdminRefundsPage = () => {
     >
       <div className="min-h-full bg-transparent text-[#171715]">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
+          <AdminSandboxGrant />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {tabs.map((t) => {

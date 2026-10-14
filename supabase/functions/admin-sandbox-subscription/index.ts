@@ -75,6 +75,26 @@ Deno.serve(async (req) => {
 
     if (!isAdmin) return json({ error: "Sandbox disponível apenas para administradores." }, 403);
 
+    // Sem e-mail: a assinatura de teste é do próprio admin (fluxo do checkout).
+    // Com e-mail: o admin dá a assinatura de teste para outra conta, para ver o
+    // fluxo como cliente (ex.: pedir reembolso). Nunca há cobrança.
+    let targetUserId = userId;
+    const targetEmail = String(body?.target_email ?? "").trim().toLowerCase();
+    if (targetEmail) {
+      const { data: target } = await admin
+        .from("profiles")
+        .select("user_id")
+        // ilike sem curingas: "_" e "%" do e-mail valem como letra comum
+        .ilike("email", targetEmail.replace(/[\\%_]/g, (c) => `\\${c}`))
+        .not("user_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+      if (!target?.user_id) {
+        return json({ error: `Nenhuma conta encontrada com o e-mail ${targetEmail}.` }, 404);
+      }
+      targetUserId = target.user_id;
+    }
+
     const now = new Date().toISOString();
     const periodEnd = addBillingPeriod(cycle);
     const sandboxId = `sandbox_${crypto.randomUUID()}`;
@@ -89,14 +109,14 @@ Deno.serve(async (req) => {
         cancellation_reason: "Sandbox renovado",
         updated_at: now,
       })
-      .eq("user_id", userId)
+      .eq("user_id", targetUserId)
       .eq("provider", "sandbox")
       .in("status", ["active", "paid", "approved", "trialing"]);
 
     const { data: subscription, error: insertError } = await admin
       .from("subscriptions")
       .insert({
-        user_id: userId,
+        user_id: targetUserId,
         plan,
         status: "active",
         amount,
@@ -126,7 +146,9 @@ Deno.serve(async (req) => {
     return json({
       success: true,
       subscription,
-      message: "Assinatura sandbox ativada sem cobrança.",
+      message: targetEmail
+        ? `Assinatura de teste ativada para ${targetEmail}, sem cobrança.`
+        : "Assinatura sandbox ativada sem cobrança.",
     });
   } catch (err) {
     console.error("admin-sandbox-subscription error:", err);
