@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
     return json({
       success: true,
       refund,
-      message: "Sua solicitação foi recebida. O reembolso será analisado em até 48 horas.",
+      message: `Recebemos o seu pedido de reembolso. ${PRAZO_REEMBOLSO}`,
     });
   } catch (err) {
     console.error("request-refund error:", err);

@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
       user_id: refund.user_id,
       title: refundOk ? "Reembolso aprovado" : "Falha ao processar reembolso",
       message: refundOk
-        ? "Seu reembolso foi aprovado. O estorno foi enviado ao banco emissor do cartão e pode levar até 30 dias para aparecer na sua fatura (normalmente entra na próxima fatura)."
+        ? `Seu reembolso foi aprovado. ${PRAZO_REEMBOLSO}`
         : "Não foi possível processar o reembolso. Entre em contato com o suporte.",
       type: "refund",
     });
@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
       if (tk?.id) {
         await admin.from("support_messages").insert({
           ticket_id: tk.id, user_id: refund.user_id, sender: "ai",
-          message: "Olá! Seu reembolso foi analisado e aprovado por uma pessoa da nossa equipe. O valor já foi enviado para estorno e deve aparecer em breve na mesma forma de pagamento que você usou. Qualquer dúvida, estamos por aqui.",
+          message: `Olá! Seu reembolso foi analisado e aprovado por uma pessoa da nossa equipe. ${PRAZO_REEMBOLSO} Qualquer dúvida, estamos por aqui.`,
         });
         await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", tk.id);
       }
