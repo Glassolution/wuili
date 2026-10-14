@@ -333,9 +333,24 @@ Deno.serve(async (req) => {
 // ───────── Respostas automáticas nos tickets da Caixa de entrada ─────────
 const AVISO_ESPERA = `Já solicitei o atendimento humano. ${HORARIOS_ATENDIMENTO} Aguarde, que em breve alguém da equipe Velo vai te responder por aqui.`;
 
-const AVISO_REEMBOLSO = `Pode ficar tranquilo(a): vou solicitar o seu reembolso à nossa equipe agora mesmo. O prazo para ele ser feito é de até 5 dias. ${HORARIOS_ATENDIMENTO}`;
+const MARCADOR_CARTAO_REEMBOLSO = "__VELO_REFUND_PROMPT__";
 
-const AVISO_REEMBOLSO_FORA_DO_PRAZO = `Sinto muito pelo transtorno. O reembolso da assinatura só é possível dentro de 7 dias após o pagamento, e esse prazo já passou na sua conta.\n\nO que posso fazer por você agora é cancelar a renovação automática, para você não ser cobrado de novo. Tudo continua funcionando normalmente até o fim do período já pago.\n\nVou passar o seu pedido para a nossa equipe, que te responde aqui mesmo nesta conversa. ${HORARIOS_ATENDIMENTO}`;
+const PRAZO_REEMBOLSO = "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
+
+const PESAR_REEMBOLSO_DENTRO_DO_PRAZO =
+  `Sentimos muito que a sua experiência com a Velo não tenha sido boa. Para pedir o reembolso, toque no botão abaixo e responda algumas perguntas rápidas. ${PRAZO_REEMBOLSO}`;
+
+const PESAR_REEMBOLSO_FORA_DO_PRAZO =
+  "Sentimos muito que a sua experiência com a Velo não tenha sido boa. O reembolso só é possível em até 7 dias após o pagamento, e esse prazo já passou na sua conta. Você pode cancelar o plano tocando no botão abaixo: não haverá novas cobranças e tudo continua funcionando até o fim do período já pago.";
+
+const REEMBOLSO_EM_ANALISE =
+  `Seu pedido de reembolso já foi recebido e está em análise pela nossa equipe. ${PRAZO_REEMBOLSO}`;
+
+const REEMBOLSO_JA_APROVADO =
+  `Seu reembolso já foi aprovado pela nossa equipe. ${PRAZO_REEMBOLSO}`;
+
+const SEM_ASSINATURA_PARA_REEMBOLSO =
+  `Não encontramos uma assinatura ativa na sua conta. Nossa equipe vai verificar e te responde aqui mesmo nesta conversa. ${HORARIOS_ATENDIMENTO}`;
 
 const SYSTEM_TICKET = `${SYSTEM}
 
@@ -345,7 +360,7 @@ Jeito de escrever nos tickets (muito importante):
 - NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
 - Responda em UMA mensagem curta (até 3 parágrafos curtos, separados por linha em branco). Não repita o que já foi dito antes na conversa nem cumprimente de novo. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
-Reembolso: reembolso da assinatura SÓ é possível dentro de 7 dias após o pagamento. Antes de prometer qualquer reembolso, considere a informação de prazo da assinatura informada no contexto. Se estiver dentro do prazo, chame "acionar_suporte_humano" com motivo "reembolso" e um resumo claro, e diga com gentileza que você vai solicitar o reembolso e que o prazo é de até 5 dias. Se o prazo de 7 dias já passou, NÃO prometa reembolso: explique com empatia que o prazo já passou, ofereça o cancelamento da renovação automática (o acesso continua até o fim do período pago) e chame "acionar_suporte_humano" com motivo "reembolso" mesmo assim, para a equipe avaliar. Não diga que o reembolso já foi feito nem tente convencer a pessoa a desistir.
+Reembolso e cancelamento: sempre que a pessoa PEDIR reembolso, cancelamento, estorno, dinheiro de volta ou algo do tipo (mesmo com erro de digitação, como "reemolso" ou "rembolso"), chame "acionar_suporte_humano" com motivo "reembolso" e um resumo curto do que ela disse. Não escreva você mesmo a resposta sobre reembolso: o sistema envia uma mensagem padrão com o botão para a pessoa fazer o pedido. Nunca prometa reembolso, nunca diga que o reembolso já foi feito e nunca cite outro prazo. Se a pessoa só fizer uma PERGUNTA sobre como funciona (sem pedir), responda normalmente: o reembolso é possível em até 7 dias após o pagamento; depois disso só é possível cancelar o plano, mantendo o acesso até o fim do período pago; e "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco." Não tente convencer a pessoa a desistir.
 
 Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
 
@@ -425,6 +440,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   // Só as últimas 20 mensagens vão para a IA: conversa inteira a cada resposta encarece.
   const ateUltimaUser = publicas.slice(0, publicas.findIndex((m) => m.id === ultimaUser.id) + 1).slice(-20);
   for (const m of ateUltimaUser) {
+    if (String(m.message ?? "") === MARCADOR_CARTAO_REEMBOLSO) continue;
     const role = m.sender === "user" ? "user" : "model";
     let text = String(m.message ?? "");
     if (m.attachment_url) text += "\n[o usuário enviou uma imagem]";
@@ -474,8 +490,8 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
             const resumo = String(args.resumo ?? "");
             await marcarHumano(motivo, motivo === "reembolso"
               ? (dentroDoPrazoReembolso
-                ? `SOLICITAÇÃO DE REEMBOLSO — dentro do prazo de 7 dias. Prazo prometido ao cliente: até 5 dias. ${resumo}`
-                : `PEDIDO DE REEMBOLSO FORA DO PRAZO (assinatura com mais de 7 dias) — cliente foi orientado sobre cancelamento da renovação; avaliar se cabe exceção. ${resumo}`)
+                ? `SOLICITAÇÃO DE REEMBOLSO — dentro do prazo de 7 dias. O cliente recebeu o botão para fazer o pedido pelo formulário (o pedido aparece em /admin/reembolsos). Prazo informado ao cliente: até 5 dias. ${resumo}`
+                : `PEDIDO DE REEMBOLSO/CANCELAMENTO FORA DO PRAZO (assinatura com mais de 7 dias) — reembolso não se aplica; o cliente recebeu a opção de cancelar o plano. ${resumo}`)
               : resumo);
           }
           escalou = true; result = { ok: true };
@@ -495,11 +511,35 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     reply = AVISO_ESPERA;
   }
   if (reembolso) {
-    // Resposta única e fixa para reembolso: evita a IA repetir o mesmo aviso
-    // várias vezes — e nunca promete reembolso fora do prazo de 7 dias.
-    reply = dentroDoPrazoReembolso
-      ? `Entendi a sua situação e sinto muito pelo transtorno.\n\n${AVISO_REEMBOLSO}\n\nAssim que alguém da equipe Velo analisar, você recebe a resposta aqui mesmo nesta conversa.`
-      : AVISO_REEMBOLSO_FORA_DO_PRAZO;
+    // Reembolso: mensagem curta de pesar + cartão com o botão do formulário.
+    // O marcador nunca passa por limparTexto/dividirMensagens.
+    const { data: pedido } = await admin.from("refund_requests")
+      .select("status").eq("user_id", ticket.user_id)
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const statusPedido = String(pedido?.status ?? "").toLowerCase();
+    let texto = "";
+    let comCartao = false;
+    if (statusPedido === "pending") texto = REEMBOLSO_EM_ANALISE;
+    else if (statusPedido === "processed" || statusPedido === "approved") texto = REEMBOLSO_JA_APROVADO;
+    else if (!assinatura) texto = SEM_ASSINATURA_PARA_REEMBOLSO;
+    else {
+      const { data: cartao } = await admin.from("support_messages").select("id")
+        .eq("ticket_id", ticketId).eq("message", MARCADOR_CARTAO_REEMBOLSO)
+        .gt("created_at", ultimaUser.created_at).limit(1);
+      if (cartao?.length) return json({ ok: true, escalou: true, skip: "cartao_ja_exibido" });
+      texto = dentroDoPrazoReembolso ? PESAR_REEMBOLSO_DENTRO_DO_PRAZO : PESAR_REEMBOLSO_FORA_DO_PRAZO;
+      comCartao = true;
+    }
+    const { data: novaMsg } = await admin.from("support_messages").select("id")
+      .eq("ticket_id", ticketId).eq("sender", "user").eq("internal", false)
+      .gt("created_at", ultimaUser.created_at).limit(1);
+    if (novaMsg?.length) return json({ skip: "chegou_mensagem_nova" });
+    await enviar(texto);
+    if (comCartao) {
+      await new Promise((r) => setTimeout(r, 900));
+      await enviar(MARCADOR_CARTAO_REEMBOLSO);
+    }
+    return json({ ok: true, escalou: true });
   } else if (escalou && !reply.includes("13h")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   // Se o cliente mandou outra mensagem enquanto a IA pensava, a chamada dessa
   // mensagem nova responde tudo junto; esta desiste para não duplicar.
