@@ -32,10 +32,31 @@ export const SupportMessageMedia = ({
   }, [open]);
 
   if (refundPrompt) {
+    if (adminTone) {
+      return (
+        <p className="text-[12px] font-semibold text-white">
+          Cartão de retenção de reembolso exibido ao usuário
+        </p>
+      );
+    }
+    const abrirReembolso = () => {
+      const alvo = document.getElementById("velo-reembolso");
+      if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+      else window.location.href = "/dashboard/configuracoes?tab=Suporte#velo-reembolso";
+    };
     return (
-      <p className={`text-[12px] font-semibold ${adminTone ? "text-white" : "text-[#B91C1C]"}`}>
-        Cartão de retenção de reembolso exibido ao usuário
-      </p>
+      <div className="min-w-[220px]">
+        <p className="text-[13px] leading-5">
+          Para pedir o reembolso, toque no botão abaixo e responda algumas perguntas rápidas.
+        </p>
+        <button
+          type="button"
+          onClick={abrirReembolso}
+          className="mt-2.5 flex h-9 w-full items-center justify-center rounded-[10px] bg-[#DC2626] px-3 text-[12.5px] font-bold text-white transition hover:bg-[#B91C1C]"
+        >
+          Pedir reembolso
+        </button>
+      </div>
     );
   }
 
