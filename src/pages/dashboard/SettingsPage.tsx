@@ -126,7 +126,7 @@ const SettingsPage = () => {
           {tab === "Suporte"       && (
             <div className="space-y-6">
               <SupportTab />
-              <RefundSection />
+              <div id="velo-reembolso" className="scroll-mt-6"><RefundSection /></div>
             </div>
           )}
         </div>
