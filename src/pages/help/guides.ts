@@ -193,12 +193,12 @@ export const guideSections: GuideSection[] = [
         icon: RefreshCcw,
         title: "Pedir reembolso de uma cobrança",
         summary:
-          "Reembolsos são analisados caso a caso e processados via Mercado Pago.",
+          "O reembolso pode ser pedido em até 7 dias após o pagamento e é analisado pela equipe.",
         steps: [
-          "Vá em Pagamentos → Solicitar reembolso.",
-          "Informe qual cobrança e o motivo.",
-          "Nossa equipe responde em até 48h úteis.",
-          "Reembolsos aprovados caem no mesmo meio de pagamento original em 5 a 10 dias úteis (prazo do Mercado Pago).",
+          "Abra o chat de suporte e escreva que quer o reembolso.",
+          "Toque em Pedir reembolso e responda as perguntas.",
+          "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.",
+          "Passou de 7 dias do pagamento? É possível cancelar o plano, mantendo o acesso até o fim do período pago.",
         ],
       },
       {

@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { touchSupportTicket } from "@/lib/support";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
+import { PRAZO_REEMBOLSO } from "@/lib/support";
 import {
   createLocalSandboxRefund,
   getLocalSandboxRefunds,
@@ -198,7 +199,7 @@ const RefundSection = () => {
     <div className="mt-8 pt-8 border-t border-[#F0F0F0] dark:border-white/10">
       <h3 className="text-[18px] font-semibold text-[#0A0A0A] dark:text-white mb-1">Cancelar assinatura / reembolso</h3>
       <p className="text-[13px] text-[#737373] dark:text-zinc-400 mb-5">
-        Nos primeiros 7 dias após o pagamento você pode pedir reembolso — a assinatura é cancelada junto (análise em até 48h).
+        Nos primeiros 7 dias após o pagamento você pode pedir reembolso — a assinatura é cancelada junto. {PRAZO_REEMBOLSO}
         Depois desse prazo é possível cancelar a renovação, mantendo o acesso até o fim do período já pago, sem devolução do valor.
       </p>
 
@@ -369,7 +370,7 @@ const RefundSection = () => {
                       </>
                     ) : (
                       <>
-                        Ao confirmar, sua assinatura é <strong>cancelada</strong> e o pedido de reembolso será analisado em até <strong>48 horas</strong>. Se aprovado, o valor de <strong>{fmtMoney(active.amount)}</strong> será estornado no cartão e pode levar até <strong>30 dias</strong> para aparecer na fatura (prazo do banco emissor). Suas publicações no Mercado Livre serão removidas.
+                        Ao confirmar, sua assinatura é <strong>cancelada</strong> e o pedido de reembolso de <strong>{fmtMoney(active.amount)}</strong> vai para a análise da equipe. {PRAZO_REEMBOLSO} Se aprovado, suas publicações no Mercado Livre serão removidas.
                       </>
                     )}
                   </div>
