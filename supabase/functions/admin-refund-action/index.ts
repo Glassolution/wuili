@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { recordRefundedIdentity } from "../_shared/refundIdentity.ts";
 import { refundCharge, ValidaPayError } from "../_shared/validapay.ts";
 
 const PRAZO_REEMBOLSO = "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
@@ -195,6 +196,7 @@ Deno.serve(async (req) => {
       if (!isSandboxRefund) {
         const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+        try { await recordRefundedIdentity(admin, refund.user_id); } catch (e) { console.error("recordRefundedIdentity", e); }
       }
 
       // Derrubar publicações ativas no ML
