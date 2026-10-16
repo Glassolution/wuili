@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { identityAlreadyRefunded } from "../_shared/refundIdentity.ts";
 
 const PRAZO_REEMBOLSO = "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
 
@@ -102,6 +103,17 @@ Deno.serve(async (req) => {
         },
         409,
       );
+    }
+
+    // Mesma pessoa (e-mail ou Pix) já reembolsada em outra conta, ex.: excluiu e recriou.
+    if (!sandboxAllowed) {
+      const authEmail = (claimsData.claims as { email?: string }).email ?? null;
+      if (await identityAlreadyRefunded(admin, userId, authEmail)) {
+        return json(
+          { error: "Já existe um reembolso concluído para estes dados em outra conta. Não é possível solicitar novamente." },
+          409,
+        );
+      }
     }
 
     // Bloqueia solicitação após a janela de 7 dias

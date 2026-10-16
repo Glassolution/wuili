@@ -2797,6 +2797,30 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_identity_blocks: {
+        Row: {
+          created_at: string
+          id: string
+          identity_hash: string
+          kind: string
+          source_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          identity_hash: string
+          kind: string
+          source_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          identity_hash?: string
+          kind?: string
+          source_user_id?: string | null
+        }
+        Relationships: []
+      }
       refund_requests: {
         Row: {
           automated: boolean
@@ -4671,6 +4695,7 @@ export type Database = {
           publication_count: number
         }[]
       }
+      refund_normalize_email: { Args: { p: string }; Returns: string }
       rpc_active_subscribers_count: { Args: never; Returns: number }
       rpc_admin_accept_affiliate_application: {
         Args: { p_user_id: string }
