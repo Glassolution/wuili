@@ -204,6 +204,13 @@
       "when": 1791929842996,
       "tag": "0028_bloquear_produtos_anatel",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792174574907,
+      "tag": "0029_migration",
+      "breakpoints": true
     }
   ]
 }
