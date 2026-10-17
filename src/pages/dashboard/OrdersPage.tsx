@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  ExternalLink,
   Eye,
   EyeOff,
   KeyRound,
@@ -236,10 +237,14 @@ const fetchC7DropAccountStatus = async (): Promise<C7DropAccountStatus> => {
   return (data as { account?: C7DropAccountStatus } | null)?.account ?? { status: "not_connected" };
 };
 
-const saveC7DropAccount = async (mode: "connect" | "signup", form: C7DropAccountForm) => {
+const C7DROP_SIGNUP_URL = "https://www.c7drop.com.br/entrar";
+
+const saveC7DropAccount = async (_mode: "connect" | "signup", form: C7DropAccountForm) => {
+  // A C7 protege o cadastro com reCAPTCHA, então o próprio vendedor cria a
+  // conta lá; nos dois modos o bot só confirma o login da conta existente.
   const { data, error } = await supabase.functions.invoke("c7drop-account", {
     body: {
-      action: mode === "connect" ? "save_credentials" : "request_signup",
+      action: "save_credentials",
       ...form,
     },
   });
@@ -1049,11 +1054,13 @@ const C7DropAccountModal = ({
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [createdOnSupplier, setCreatedOnSupplier] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setMode("connect");
     setStep(1);
+    setCreatedOnSupplier(false);
     setForm({
       email: account.email ?? "",
       password: "",
@@ -1075,7 +1082,7 @@ const C7DropAccountModal = ({
     form.email &&
     form.password &&
     passwordStrength.isGood &&
-    (!isSignup || (form.confirm_password && passwordMatches));
+    (!isSignup || (form.confirm_password && passwordMatches && createdOnSupplier));
   const purchaseReady =
     form.first_name &&
     form.last_name &&
@@ -1114,9 +1121,25 @@ const C7DropAccountModal = ({
                 </p>
                 <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
                   {isSignup
-                    ? "Escolha o e-mail e a senha para a nova conta."
+                    ? "Crie a conta no site do fornecedor e informe aqui o mesmo e-mail e senha."
                     : "Use o e-mail e a senha da conta já criada."}
                 </p>
+                {isSignup ? (
+                  <div className="mt-4 rounded-[14px] border border-[#BFDBFE] bg-[#EFF6FF] p-3">
+                    <p className="text-[12.5px] font-medium text-[#1E3A8A]">
+                      O fornecedor pede uma verificação de segurança no cadastro, então essa etapa é feita por você. Na página que vai abrir, clique em "Criar conta grátis".
+                    </p>
+                    <a
+                      href={C7DROP_SIGNUP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-[10px] bg-[#2563EB] px-3 text-[12px] font-bold text-white transition hover:bg-[#1D4ED8]"
+                    >
+                      Criar conta no fornecedor
+                      <ExternalLink size={13} />
+                    </a>
+                  </div>
+                ) : null}
                 <div className="mt-4 grid gap-3">
                   <PurchaseField label="E-mail da conta" value={form.email} onChange={(value) => update("email", value)} type="email" icon={Mail} />
                   <PasswordPurchaseField
@@ -1144,6 +1167,17 @@ const C7DropAccountModal = ({
                 ) : null}
                 {form.confirm_password && !passwordMatches ? (
                   <p className="mt-2 text-[12px] font-bold text-[#DC2626]">As senhas precisam ser iguais.</p>
+                ) : null}
+                {isSignup ? (
+                  <label className="mt-4 flex cursor-pointer items-start gap-2 text-[12.5px] font-medium text-[#475569]">
+                    <input
+                      type="checkbox"
+                      checked={createdOnSupplier}
+                      onChange={(event) => setCreatedOnSupplier(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[#2563EB]"
+                    />
+                    Já criei a conta no fornecedor com esse e-mail e senha.
+                  </label>
                 ) : null}
                 <div className="mt-6 text-center text-[13px] font-medium text-[#64748B]">
                   {isSignup ? "Já tem uma conta?" : "Não tem uma conta?"}{" "}
@@ -1215,7 +1249,7 @@ const C7DropAccountModal = ({
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#2563EB] px-4 text-[12px] font-bold text-white shadow-[0_10px_22px_rgba(37,99,235,0.2)] transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <KeyRound size={14} />
-                {mode === "connect" ? "Salvar conexão" : "Salvar para criar"}
+                Salvar conexão
               </button>
             </>
           )}
@@ -1795,7 +1829,7 @@ const OrdersPage = () => {
       queryClient.setQueryData(["c7drop-account", user?.id], account);
       setC7DropAccountModalOpen(false);
       setC7DropAccountManageOpen(false);
-      veloToast.success(account.status === "connected" ? "Conta do fornecedor conectada." : "Solicitação de conta no fornecedor salva.");
+      veloToast.success(account.status === "connected" ? "Conta do fornecedor conectada." : "Conta salva. O bot vai confirmar o login no fornecedor.");
     },
     onError: (error: unknown) => {
       veloToast.error(error instanceof Error ? error.message : "Não foi possível salvar a conta do fornecedor.");
