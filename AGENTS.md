@@ -10,6 +10,7 @@ Stack: React + TypeScript + Tailwind (frontend); Supabase/Lovable Cloud (Postgre
 - Secrets só via `Deno.env.get`; nunca no código-fonte.
 - `any` só com comentário justificando.
 - Regras de Edge Functions: ver `supabase/functions/AGENTS.md`.
+- Support cancellation routing uses the shared supportCancellation policy before human escalation; completed cancellation receipts must not reopen requests, preventing unnecessary human handoffs.
 
 ## Tabelas principais
 - `profiles`: dados do usuário (nome, plano, preferências, origem do anúncio).

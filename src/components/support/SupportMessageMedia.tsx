@@ -3,6 +3,9 @@ import { createPortal } from "react-dom";
 import { Download, ExternalLink, Image as ImageIcon, X } from "lucide-react";
 import { parseSupportMessage } from "@/lib/support";
 import { renderSupportTextWithLinks } from "@/lib/supportLinks";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRefundStatus, refundCardAction } from "@/lib/refundStatus";
+import { Button } from "@/components/ui/button";
 
 type SupportMessageMediaProps = {
   value: string;
@@ -21,6 +24,8 @@ export const SupportMessageMedia = ({
   const [open, setOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const adminTone = tone === "admin";
+  const { user } = useAuth();
+  const { status } = useRefundStatus(user?.id, refundPrompt && !adminTone);
 
   useEffect(() => {
     if (!open) return;
@@ -35,7 +40,7 @@ export const SupportMessageMedia = ({
     if (adminTone) {
       return (
         <p className="text-[12px] font-semibold text-white">
-          Cartão de retenção de reembolso exibido ao usuário
+          Cartão de cancelamento / reembolso exibido ao usuário
         </p>
       );
     }
@@ -44,18 +49,22 @@ export const SupportMessageMedia = ({
       if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
       else window.location.href = "/dashboard/configuracoes?tab=Suporte#velo-reembolso";
     };
+    const acao = refundCardAction(status?.mode);
+    const cancelar = status?.mode === "cancelamento";
     return (
       <div className="min-w-[220px]">
         <p className="text-[13px] leading-5">
-          Para pedir o reembolso, toque no botão abaixo e responda algumas perguntas rápidas.
+          {cancelar ? "Cancele a renovação sem precisar do suporte. Você mantém o acesso até o fim do período pago, sem reembolso." : "Acompanhe ou envie seu pedido pelo botão abaixo."}
         </p>
-        <button
+        <Button
           type="button"
+          variant="destructive"
+          disabled={!status || !acao.enabled}
           onClick={abrirReembolso}
-          className="mt-2.5 flex h-9 w-full items-center justify-center rounded-[10px] bg-[#DC2626] px-3 text-[12.5px] font-bold text-white transition hover:bg-[#B91C1C]"
+          className="mt-2.5 h-9 w-full rounded-lg px-3 text-[12.5px] font-bold"
         >
-          Pedir reembolso
-        </button>
+          {status ? acao.label : "Verificando assinatura…"}
+        </Button>
       </div>
     );
   }
