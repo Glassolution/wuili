@@ -4,6 +4,7 @@
 //   - { action: "admin_reply", escalationId, message, status? } → admin assume
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getSellerAccessToken } from "../_shared/mlSellerToken.ts";
+import { isSelfServiceCancellation, isCancellationConfirmation } from "../_shared/supportCancellation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,7 +53,7 @@ Regras:
 - "Localização/endereço do produto" para o Mercado Livre: responda direto, sem ferramentas. O vendedor usa o PRÓPRIO endereço cadastrado na conta do ML (não precisa do endereço da fornecedora). A etiqueta é gerada pelo ML na venda e anexada no pedido à fornecedora, que despacha direto ao comprador.
 - Outras dúvidas: chame "buscar_central_de_ajuda" e responda com base nos artigos, incluindo o link do artigo em markdown.
 - Nunca invente preços, prazos, regras ou funcionalidades. Planos: Base R$39,90/mês, Pro R$79,80/mês, Business R$189,90/mês. Não existe plano gratuito.
-- Chame "acionar_suporte_humano" quando: (a) aparecer um erro/situação que você não reconhece (bloqueios do Mercado Livre já traduzidos pela verificação de conta NÃO contam como desconhecidos: oriente primeiro o passo a passo), (b) a dúvida não for coberta pela central nem pela verificação de conta, (c) o usuário pedir para falar com uma pessoa, ou (d) envolver reembolso, cobrança, cancelamento ou dinheiro.
+- Chame "acionar_suporte_humano" quando: (a) aparecer um erro/situação que você não reconhece (bloqueios do Mercado Livre já traduzidos pela verificação de conta NÃO contam como desconhecidos: oriente primeiro o passo a passo), (b) a dúvida não for coberta pela central nem pela verificação de conta, (c) o usuário pedir para falar com uma pessoa, ou (d) envolver reembolso, cobrança ou dinheiro. Cancelar a renovação após 7 dias é feito pelo próprio usuário, sem atendimento humano e sem reembolso; o acesso continua até o fim do período pago.
 - Ao acionar o suporte humano, NUNCA mencione "escalar", "ticket", "fila" ou ferramentas. Apenas diga de forma natural algo como: "Vou pedir para alguém da equipe olhar isso com você. A resposta vai aparecer aqui mesmo." e continue ajudando no que puder.
 - SEMPRE que avisar que uma pessoa da equipe vai responder, informe logo depois os horários reais: "${HORARIOS_ATENDIMENTO}". Nunca invente outro horário nem diga que o atendimento é 24 horas.
 - Nunca peça senha, código de verificação ou dados de cartão.`;
@@ -360,7 +361,7 @@ Jeito de escrever nos tickets (muito importante):
 - NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
 - Responda em UMA mensagem curta (até 3 parágrafos curtos, separados por linha em branco). Não repita o que já foi dito antes na conversa nem cumprimente de novo. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
-Reembolso e cancelamento: sempre que a pessoa PEDIR reembolso, cancelamento, estorno, dinheiro de volta ou algo do tipo (mesmo com erro de digitação, como "reemolso" ou "rembolso"), chame "acionar_suporte_humano" com motivo "reembolso" e um resumo curto do que ela disse. Não escreva você mesmo a resposta sobre reembolso: o sistema envia uma mensagem padrão com o botão para a pessoa fazer o pedido. Nunca prometa reembolso, nunca diga que o reembolso já foi feito e nunca cite outro prazo. Se a pessoa só fizer uma PERGUNTA sobre como funciona (sem pedir), responda normalmente: o reembolso é possível em até 7 dias após o pagamento; depois disso só é possível cancelar o plano, mantendo o acesso até o fim do período pago; e "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco." Não tente convencer a pessoa a desistir.
+Reembolso e cancelamento: sempre que a pessoa PEDIR reembolso, cancelamento, estorno ou dinheiro de volta, chame "acionar_suporte_humano" com motivo "reembolso" para o sistema selecionar o formulário conforme a assinatura. FORA dos 7 dias, essa chamada somente exibe o cartão de cancelar a renovação: NÃO encaminha para a equipe. Não diga que solicitou atendimento humano nesse caso. Dentro dos 7 dias, o pedido de reembolso vai para análise humana. Nunca confirme cancelamento antes de a pessoa confirmar no formulário. Se ela só PERGUNTAR como funciona, explique: reembolso em até 7 dias; depois disso pode cancelar a renovação sozinha, sem reembolso e com acesso até o fim do período pago. Não tente convencer a pessoa a desistir.
 
 Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
 
@@ -407,6 +408,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   if (publicas.some((m) => m.sender === "admin")) return json({ skip: "humano_assumiu" });
   const ultimaUser = [...publicas].reverse().find((m) => m.sender === "user");
   if (!ultimaUser || ultimaUser.id !== messageId) return json({ skip: "nao_e_a_ultima" });
+  if (isCancellationConfirmation(String(ultimaUser.message ?? ""))) return json({ skip: "cancelamento_ja_confirmado" });
 
   const desde = Date.now() - 86400_000;
   const respostasIA = publicas.filter((m) => m.sender === "ai" && new Date(m.created_at).getTime() > desde).length;
@@ -453,7 +455,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   // Verifica se a assinatura mais recente do usuário ainda está no prazo de
   // reembolso (7 dias após o pagamento), para a IA não prometer o que não pode.
   const { data: assinatura } = await admin.from("subscriptions")
-    .select("created_at,status")
+    .select("created_at,status,cancel_at_period_end")
     .eq("user_id", ticket.user_id)
     .in("status", ["active", "trialing", "paid", "approved"])
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -462,6 +464,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
 
   let escalou = false;
   let reembolso = false;
+  let cancelamentoAutonomo = false;
   let reply = "";
   const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
 
@@ -478,13 +481,21 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     contents.push({ role: "model", parts });
     const respostas: Part[] = [];
     for (const c of calls) {
-      const { name, args = {} } = c.functionCall!;
+      if (!c.functionCall) continue;
+      const { name, args = {} } = c.functionCall;
       let result: unknown;
       try {
         if (name === "verificar_conta_mercado_livre") result = await verificarContaML(admin, ticket.user_id);
         else if (name === "buscar_central_de_ajuda") result = await buscarAjuda(admin, String(args.consulta ?? ultimaUser.message));
         else if (name === "acionar_suporte_humano") {
           const motivo = String(args.motivo ?? "outro");
+          if (isSelfServiceCancellation(motivo, assinatura?.created_at ?? null)) {
+            reembolso = true;
+            cancelamentoAutonomo = true;
+            result = { ok: true, atendimento_humano: false, acao: "cancelar_renovacao_pelo_formulario" };
+            respostas.push({ functionResponse: { name, response: { result } } });
+            continue;
+          }
           if (motivo === "reembolso") reembolso = true;
           if (!escalou) {
             const resumo = String(args.resumo ?? "");
@@ -503,9 +514,10 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       respostas.push({ functionResponse: { name, response: { result } } });
     }
     contents.push({ role: "user", parts: respostas });
+    if (cancelamentoAutonomo) break;
   }
 
-  if (!reply) {
+  if (!reply && !cancelamentoAutonomo) {
     if (!escalou && !ticket.needs_human) await marcarHumano("erro_desconhecido", "A IA não conseguiu responder esta mensagem.");
     escalou = true;
     reply = AVISO_ESPERA;
@@ -519,7 +531,12 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     const statusPedido = String(pedido?.status ?? "").toLowerCase();
     let texto = "";
     let comCartao = false;
-    if (statusPedido === "pending") texto = REEMBOLSO_EM_ANALISE;
+    if (cancelamentoAutonomo && assinatura?.cancel_at_period_end) texto = "Sua renovação já está cancelada. Você mantém o acesso até o fim do período pago.";
+    else if (cancelamentoAutonomo) {
+      texto = PESAR_REEMBOLSO_FORA_DO_PRAZO;
+      comCartao = true;
+    }
+    else if (statusPedido === "pending") texto = REEMBOLSO_EM_ANALISE;
     else if (statusPedido === "processed" || statusPedido === "approved") texto = REEMBOLSO_JA_APROVADO;
     else if (!assinatura) texto = SEM_ASSINATURA_PARA_REEMBOLSO;
     else {
@@ -534,12 +551,18 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       .eq("ticket_id", ticketId).eq("sender", "user").eq("internal", false)
       .gt("created_at", ultimaUser.created_at).limit(1);
     if (novaMsg?.length) return json({ skip: "chegou_mensagem_nova" });
+    if (comCartao) {
+      const { data: existente } = await admin.from("support_messages").select("id")
+        .eq("ticket_id", ticketId).eq("message", MARCADOR_CARTAO_REEMBOLSO)
+        .gt("created_at", ultimaUser.created_at).limit(1);
+      if (existente?.length) return json({ ok: true, escalou, skip: "cartao_ja_exibido" });
+    }
     await enviar(texto);
     if (comCartao) {
       await new Promise((r) => setTimeout(r, 900));
       await enviar(MARCADOR_CARTAO_REEMBOLSO);
     }
-    return json({ ok: true, escalou: true });
+    return json({ ok: true, escalou });
   } else if (escalou && !reply.includes("13h")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   // Se o cliente mandou outra mensagem enquanto a IA pensava, a chamada dessa
   // mensagem nova responde tudo junto; esta desiste para não duplicar.

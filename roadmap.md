@@ -31,3 +31,8 @@
 ## Central de Ajuda
 - [x] Aplicar o conteúdo revisado do FAQ enviado pelo usuário
 - [x] Conferir todos os artigos publicados após a atualização
+
+## Cancelamento da renovação no suporte
+- [x] Separar cancelamento autônomo de reembolso encaminhado à equipe
+- [x] Adaptar o botão do cartão à situação da assinatura
+- [ ] Validar regras e publicar somente o assistente de suporte
