@@ -35,4 +35,4 @@
 ## Cancelamento da renovação no suporte
 - [x] Separar cancelamento autônomo de reembolso encaminhado à equipe
 - [x] Adaptar o botão do cartão à situação da assinatura
-- [ ] Validar regras e publicar somente o assistente de suporte
+- [x] Validar regras e publicar somente o assistente de suporte
