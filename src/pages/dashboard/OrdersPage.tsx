@@ -1162,7 +1162,7 @@ const C7DropAccountModal = ({
                 <p className="mt-1 text-[12.5px] font-medium text-[#64748B]">
                   O bot usa esses dados quando o checkout do fornecedor pedir identificação.
                 </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3">
                   <PurchaseField label="Nome" value={form.first_name} onChange={(value) => update("first_name", value)} icon={UserRound} />
                   <PurchaseField label="Sobrenome" value={form.last_name} onChange={(value) => update("last_name", value)} icon={UserRound} />
                   <PurchaseField label="Telefone" value={form.phone} onChange={(value) => update("phone", value)} icon={Phone} />
