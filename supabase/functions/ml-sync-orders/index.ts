@@ -350,7 +350,7 @@ async function syncUserOrders(
               ? "cancelamento_pendente"
               : "cancelado";
 
-            await adminClient
+            const { error: cancelError } = await adminClient
               .from("dropship_orders")
               .update({
                 status: nextDropshipStatus,
@@ -361,26 +361,32 @@ async function syncUserOrders(
               })
               .eq("id", dropship.id);
 
-            await adminClient.from("dropship_order_events").insert({
-              order_id: dropship.id,
-              event_type: "ml_order_cancelled",
-              previous_status: dropship.status,
-              new_status: nextDropshipStatus,
-              actor: "ml-sync-orders",
-              message: normalizedStatus === "refunded" ? "Pedido reembolsado no Mercado Livre." : "Pedido cancelado no Mercado Livre.",
-              metadata: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
-            });
+            // Só registra evento/alerta se o pedido realmente foi fechado;
+            // antes um update falho repetia o alerta a cada sincronização.
+            if (cancelError) {
+              console.error(`[ml-sync-orders] falha ao cancelar dropship ${mlOrderId}:`, cancelError.message);
+            } else {
+              await adminClient.from("dropship_order_events").insert({
+                order_id: dropship.id,
+                event_type: "ml_order_cancelled",
+                previous_status: dropship.status,
+                new_status: nextDropshipStatus,
+                actor: "ml-sync-orders",
+                message: normalizedStatus === "refunded" ? "Pedido reembolsado no Mercado Livre." : "Pedido cancelado no Mercado Livre.",
+                metadata: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
+              });
 
-            await adminClient.from("dropship_worker_alerts").insert({
-              order_id: dropship.id,
-              order_number: dropship.order_number ?? dropship.ml_order_id ?? mlOrderId,
-              severity: refundRequired ? "critical" : "warning",
-              code: refundRequired ? "ml_cancelled_refund_required" : "ml_cancelled_cleanup_required",
-              message: refundRequired
-                ? `Pedido ${mlOrderId} foi cancelado no ML depois do pagamento; estorno foi marcado como pendente.`
-                : `Pedido ${mlOrderId} foi cancelado no ML; worker deve limpar carrinho/reserva se houver.`,
-              details: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
-            });
+              await adminClient.from("dropship_worker_alerts").insert({
+                order_id: dropship.id,
+                order_number: dropship.order_number ?? dropship.ml_order_id ?? mlOrderId,
+                severity: refundRequired ? "critical" : "warning",
+                code: refundRequired ? "ml_cancelled_refund_required" : "ml_cancelled_cleanup_required",
+                message: refundRequired
+                  ? `Pedido ${mlOrderId} foi cancelado no ML depois do pagamento; estorno foi marcado como pendente.`
+                  : `Pedido ${mlOrderId} foi cancelado no ML; worker deve limpar carrinho/reserva se houver.`,
+                details: { ml_order_id: mlOrderId, ml_status: normalizedStatus, refund_required: refundRequired },
+              });
+            }
           }
         }
 

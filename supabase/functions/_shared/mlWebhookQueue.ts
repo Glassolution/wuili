@@ -588,11 +588,16 @@ async function markDropshipMlCancellation(
     source: string;
   },
 ) {
-  const { data: dropship } = await supabase
+  const { data: dropship, error: selectError } = await supabase
     .from("dropship_orders")
     .select("id,status,payment_status,refund_required,refund_status,order_number,ml_order_id")
     .eq("ml_order_id", params.mlOrderId)
     .maybeSingle();
+
+  if (selectError) {
+    console.error(`[ml-queue] falha ao ler dropship ${params.mlOrderId}:`, selectError.message);
+    return;
+  }
 
   if (!dropship || ["cancelado", "expirado"].includes(String(dropship.status))) return;
 
@@ -618,7 +623,7 @@ async function markDropshipMlCancellation(
     ? "Pedido reembolsado no Mercado Livre"
     : "Pedido cancelado no Mercado Livre";
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("dropship_orders")
     .update({
       status: nextStatus,
@@ -628,6 +633,13 @@ async function markDropshipMlCancellation(
       updated_at: new Date().toISOString(),
     })
     .eq("id", dropship.id);
+
+  // Sem isso o evento/alerta era gravado mesmo com o pedido ainda aberto,
+  // e cada sincronização repetia o alerta.
+  if (updateError) {
+    console.error(`[ml-queue] falha ao cancelar dropship ${params.mlOrderId}:`, updateError.message);
+    return;
+  }
 
   await supabase.from("dropship_order_events").insert({
     order_id: dropship.id,

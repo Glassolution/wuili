@@ -260,6 +260,18 @@ export async function dispatchOrderToBot(
     accessToken,
   });
 
+  // A sincronização periódica chama esta função de novo para pedidos já
+  // gravados. Status além de dados_completos (Pix, compra, cancelado...) é do
+  // fluxo de pagamento/worker e não pode ser reaberto aqui.
+  const { data: current } = await supabase
+    .from("dropship_orders")
+    .select("status")
+    .eq("ml_order_id", mlOrderIdStr)
+    .maybeSingle();
+  const currentStatus = current?.status ? String(current.status) : null;
+  const keepStatus = currentStatus !== null &&
+    !["aguardando_dados_cliente", "dados_completos"].includes(currentStatus);
+
   const row = {
     ml_order_id: mlOrderIdStr,
     order_number: `ML-${mlOrderIdStr}`,
@@ -271,7 +283,7 @@ export async function dispatchOrderToBot(
     preco_ml: payload.preco_ml,
     total_amount: payload.preco_ml,
     items: payload.itens,
-    status: needsManual ? "aguardando_dados_cliente" : "dados_completos",
+    ...(keepStatus ? {} : { status: needsManual ? "aguardando_dados_cliente" : "dados_completos" }),
     needs_manual_sku: needsManual,
     etiqueta_ml_url: label.url,
     etiqueta_ml_path: label.path,
