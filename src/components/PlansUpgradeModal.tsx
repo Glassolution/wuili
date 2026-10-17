@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
-import { VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { effectiveBillingCycle, VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 
@@ -419,9 +419,10 @@ const MobilePlansSheet = ({
 }) => {
   const plan = PLANS.find((item) => item.id === selectedPlanId) ?? PLANS[0];
   const highlights = MOBILE_HIGHLIGHTS[plan.id];
-  const price = cycle === "annual" ? plan.annual / 12 : plan.monthly;
+  const planCycle = effectiveBillingCycle(plan.id, cycle);
+  const price = planCycle === "annual" ? plan.annual / 12 : plan.monthly;
   const priceParts = splitBRL(price);
-  const temDescontoAnual = cycle === "annual" && plan.annual / 12 < plan.monthly - 0.01;
+  const temDescontoAnual = planCycle === "annual" && plan.annual / 12 < plan.monthly - 0.01;
   const originalPrice = temDescontoAnual ? formatBRL(plan.monthly) : null;
   const nomeDoPlano = plan.name.replace("Plano ", "");
   const escolherPlano = (id: PlanId) => {
@@ -570,7 +571,7 @@ const MobilePlansSheet = ({
                 </div>
 
                 <p className="mt-2 text-[13px] font-medium text-[#2B6DE8]">
-                  {cycle === "annual"
+                  {planCycle === "annual"
                     ? `Cobrança anual de ${formatBRL(plan.annual)}`
                     : "Cobrança mensal"}
                 </p>
@@ -614,7 +615,7 @@ const MobilePlansSheet = ({
                 <p className="mt-6 text-[12px] leading-relaxed text-[#9AA0A8]">
                   {sandboxPurchaseEnabled
                     ? "Sandbox ligado: este plano é ativado sem cobrança real."
-                    : cycle === "annual"
+                    : planCycle === "annual"
                       ? "Cobrança anual. Cancele quando quiser."
                       : "Cobrança mensal. Cancele quando quiser."}
                 </p>
@@ -663,7 +664,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   // Fluxo Velo v1: cria a sessão e segue direto para o checkout hospedado da ValidaPay.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
-    const checkoutCycle = cycle;
+    // O Business vai sempre no anual, mesmo com "Mensal" marcado no seletor.
+    const checkoutCycle = effectiveBillingCycle(planId, cycle);
     setCheckingOutPlanId(planId);
     trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${checkoutCycle}` });
     try {
@@ -804,7 +806,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
           {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((plan) => {
-            const price = cycle === "annual" ? plan.annual / 12 : plan.monthly;
+            const planCycle = effectiveBillingCycle(plan.id, cycle);
+            const price = planCycle === "annual" ? plan.annual / 12 : plan.monthly;
             const priceParts = splitBRL(price);
             const isHighlighted = plan.id === defaultPlan || (!defaultPlan && plan.highlighted);
 
@@ -848,7 +851,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                     <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">/mês</span>
                   </div>
                   <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">
-                    {cycle === "annual" ? `Cobrança anual de ${formatBRL(plan.annual)}` : "Cobrança mensal"}
+                    {planCycle === "annual" ? `Cobrança anual de ${formatBRL(plan.annual)}` : "Cobrança mensal"}
                   </p>
                 </div>
 
