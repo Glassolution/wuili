@@ -108,6 +108,8 @@ type CustomerContextData = {
   plan: string | null;
   subscription_status: string | null;
   subscription_started_at: string | null;
+  cancel_at_period_end: boolean;
+  current_period_end: string | null;
   customer_since: string | null;
   last_seen_at: string | null;
   payment_method: string | null;
@@ -623,7 +625,8 @@ const AdminSupportPage = () => {
     queryKey: ["admin-support-customer-context", openTicket?.user_id],
     enabled: !!openTicket?.user_id && isAdmin,
     queryFn: async (): Promise<CustomerContextData> => {
-      const userId = openTicket!.user_id;
+      const userId = openTicket?.user_id;
+      if (!userId) throw new Error("Selecione um atendimento.");
       const [profileResult, subscriptionsResult, sessionResult] = await Promise.all([
         (supabase as any)
           .from("profiles")
@@ -632,7 +635,7 @@ const AdminSupportPage = () => {
           .maybeSingle(),
         (supabase as any)
           .from("subscriptions")
-          .select("plan,status,created_at,updated_at,payment_method")
+          .select("plan,status,created_at,updated_at,payment_method,cancel_at_period_end,current_period_end")
           .eq("user_id", userId)
           .order("updated_at", { ascending: false })
           .limit(20),
@@ -656,6 +659,8 @@ const AdminSupportPage = () => {
         created_at: string | null;
         updated_at: string | null;
         payment_method: string | null;
+        cancel_at_period_end: boolean | null;
+        current_period_end: string | null;
       }>;
       const activeStatuses = new Set(["active", "paid", "approved", "authorized"]);
       const subscription =
@@ -670,12 +675,15 @@ const AdminSupportPage = () => {
         plan: subscription?.plan ?? profileRow?.plano ?? null,
         subscription_status: subscription?.status ?? null,
         subscription_started_at: subscription?.created_at ?? null,
+        cancel_at_period_end: subscription?.cancel_at_period_end === true,
+        current_period_end: subscription?.current_period_end ?? null,
         customer_since: profileRow?.created_at ?? null,
         last_seen_at: sessionResult.data?.last_seen_at ?? openTicket?.last_message_at ?? openTicket?.updated_at ?? null,
         payment_method: subscription?.payment_method ?? null,
         user_agent: sessionResult.data?.user_agent ?? null,
       };
     },
+    refetchInterval: 20_000,
     retry: false,
   });
 
@@ -1502,6 +1510,8 @@ const CustomerContextPanel = ({
     plan: null,
     subscription_status: null,
     subscription_started_at: null,
+    cancel_at_period_end: false,
+    current_period_end: null,
     customer_since: null,
     last_seen_at: ticket.last_message_at ?? ticket.updated_at,
     payment_method: null,
@@ -1541,14 +1551,25 @@ const CustomerContextPanel = ({
             Dar reembolso
           </button>
         </div>
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="inline-flex rounded-[6px] border border-[#dce3f5] bg-[#f2f5fd] px-2 py-1 text-[9px] font-semibold text-[#52699f]">
             Plano {formatPlan(data.plan)}
           </span>
           <span className={`inline-flex rounded-[6px] border px-2 py-1 text-[9px] font-semibold ${subscriptionActive ? "border-[#d9ead4] bg-[#f1f8ee] text-[#4f8247]" : "border-[#e4e4df] bg-[#f5f5f3] text-[#767670]"}`}>
             {formatSubscriptionStatus(data.subscription_status)}
           </span>
+          {data.cancel_at_period_end && (
+            <span className="inline-flex items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-2 py-1 text-[9px] font-semibold text-foreground">
+              <CheckCircle2 size={11} className="shrink-0 text-warning" />
+              Renovação cancelada
+            </span>
+          )}
         </div>
+        {data.cancel_at_period_end && subscriptionActive && data.current_period_end && (
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Acesso até {new Date(data.current_period_end).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+          </p>
+        )}
       </div>
 
       <div className="space-y-3 p-3 sm:p-4">
