@@ -132,22 +132,10 @@ const GoogleIcon = () => (
 /* ─── Painel da direita ───────────────────────────────────────────────────── */
 // Print do dashboard salvo em public/. O nome tem espaço, por isso o %20.
 // Carrossel do painel da direita. Os nomes dos arquivos têm espaço, daí o %20.
+// "login 01/02/03.png" saíram: mostravam o ícone do TikTok no menu (o TikTok Ads
+// recusa anúncio cuja página usa a marca deles), a logo antiga e a faixa "Plano
+// Gratuito", que não existe. Só volte com prints novos, sem nada disso.
 const SHOWCASE = [
-  {
-    image: "/login%2001.png",
-    title: "Um catálogo pronto para vender",
-    description: "Produtos validados de fornecedores brasileiros, com custo e avaliação na mesma tela.",
-  },
-  {
-    image: "/login%2002.png",
-    title: "Páginas de venda criadas por IA",
-    description: "Título, descrição e layout prontos em minutos — você só revisa e publica.",
-  },
-  {
-    image: "/login%2003.png",
-    title: "Saiba quanto vai lucrar antes de publicar",
-    description: "Custo do fornecedor, preço sugerido e lucro por venda, calculados para você.",
-  },
   {
     image: "/login%203.png",
     title: "Veja o que cada produto está vendendo",
@@ -476,6 +464,7 @@ const LoginPage = () => {
 
   // Troca de slide sozinha; clicar num ponto reinicia a contagem.
   useEffect(() => {
+    if (SHOWCASE.length < 2) return;
     const timer = window.setInterval(
       () => setSlide((current) => (current + 1) % SHOWCASE.length),
       SLIDE_INTERVAL,
@@ -1011,7 +1000,7 @@ const LoginPage = () => {
             </p>
           </motion.div>
 
-          <div className="mt-7 flex items-center justify-center gap-2">
+          {SHOWCASE.length > 1 && <div className="mt-7 flex items-center justify-center gap-2">
             {SHOWCASE.map((item, index) => (
               <button
                 key={item.image}
@@ -1023,7 +1012,7 @@ const LoginPage = () => {
                 }`}
               />
             ))}
-          </div>
+          </div>}
         </div>
       </motion.aside>
     </main>
