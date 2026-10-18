@@ -183,9 +183,10 @@ const getTrialEndsAt = (subscription: SidebarSubscription | null) => {
   return null;
 };
 
-// Logo oficial da Velo (public/logo.png): o quadrado azul arredondado com o "C",
-// quase sem margem em volta — por isso ela preenche a caixa inteira (object-contain)
-// em vez de flutuar numa margem vazia.
+// Logo oficial da Velo (public/logo.png): a cesta azul com o "C", gerada a partir
+// de "public/logo original.png" com o fundo branco removido e recortada na borda da
+// arte — por isso ela preenche a caixa inteira (object-contain) em vez de flutuar
+// numa margem vazia.
 const VeloIconOnly = () => (
   <img
     aria-hidden="true"
