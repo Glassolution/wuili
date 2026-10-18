@@ -79,7 +79,7 @@ export default function PersonagemVideoPage() {
           Gere um personagem de IA e clique em "Criar vídeo" para receber o prompt de movimento.
         </p>
         <button
-          onClick={() => navigate("/dashboard/tiktok")}
+          onClick={() => navigate("/dashboard/avatares")}
           className="rounded-xl bg-foreground px-4 py-2 text-sm font-semibold text-background hover:opacity-90"
         >
           Ir para personagens
@@ -164,7 +164,7 @@ export default function PersonagemVideoPage() {
               </a>
             )}
             <button
-              onClick={() => navigate("/dashboard/tiktok")}
+              onClick={() => navigate("/dashboard/avatares")}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-[13px] font-semibold text-foreground hover:bg-muted"
             >
               <Bookmark size={14} /> Ver na biblioteca

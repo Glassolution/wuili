@@ -29,7 +29,7 @@ export type PlanLimits = {
   aiImagesPerMonth: number | null;
   /** Vídeos com IA por mês. */
   aiVideosPerMonth: number | null;
-  /** Personagens/influencers de IA (TikTok) na biblioteca. */
+  /** Avatares de IA (página Avatares) na biblioteca. */
   aiCharacters: number | null;
   /** Mensagens do Atlas que chamam modelo, por dia. */
   atlasMessagesPerDay: number | null;

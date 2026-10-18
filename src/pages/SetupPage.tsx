@@ -10,8 +10,8 @@ import { getLeadOrigin, trackOnboardingEvent, upsertOnboardingProfile } from "@/
 import { attachReferralToCurrentUser } from "@/lib/affiliateFunnel";
 
 const categories = ["Moda", "Eletrônicos", "Casa", "Beleza", "Fitness", "Geral"];
-const marketplaces = ["Mercado Livre", "Shopee", "TikTok Shop", "Loja própria", "Ainda não sei"];
-const referralSources = ["Instagram", "TikTok", "YouTube", "Google", "Indicação", "Outro"];
+const marketplaces = ["Mercado Livre", "Shopee", "Loja própria", "Ainda não sei"];
+const referralSources = ["Instagram", "YouTube", "Google", "Indicação", "Outro"];
 
 const loadingMessages = [
   "Analisando oportunidades",

@@ -93,7 +93,7 @@ const MLConnectPrepareModal = ({ open, onClose, onConfirm, confirmLabel = "Ir pa
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
             <div>
               <p className="text-[12.5px] font-semibold text-amber-900">
-                Você está dentro do app do Instagram ou do TikTok
+                Você está dentro do navegador de um aplicativo
               </p>
               <p className="mt-1 text-[12.5px] leading-[1.55] text-amber-800">
                 Aqui a conexão costuma falhar. Abra a Velo no Chrome ou no Safari e conecte por lá.

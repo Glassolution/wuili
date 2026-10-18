@@ -16,7 +16,7 @@ export const ATLAS_ROUTE_TAG_SLUGS: { slug: string; descricao: string }[] = [
   { slug: "produtos-ml", descricao: "produtos sincronizados do Mercado Livre" },
   { slug: "pedidos", descricao: "pedidos e vendas" },
   { slug: "imagens-ia", descricao: "geração de imagens de produto com IA" },
-  { slug: "tiktok", descricao: "influencers de IA para TikTok e Instagram" },
+  { slug: "avatares", descricao: "avatares de IA para vídeos curtos e imagens de produto" },
   { slug: "integracoes", descricao: "conectar Mercado Livre e outras contas" },
   { slug: "pagamentos", descricao: "meios de pagamento e checkout" },
   { slug: "planos", descricao: "planos e assinatura" },

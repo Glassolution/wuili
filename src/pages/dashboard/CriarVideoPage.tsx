@@ -107,7 +107,7 @@ export default function CriarVideoPage() {
     setTimeout(() => setButtonPressed(false), 180);
     setLoading(true);
 
-    const prompt = `Crie um vídeo de anúncio para TikTok e Reels do produto: ${state.product_title}.
+    const prompt = `Crie um vídeo curto de anúncio, no formato de Reels e Shorts, do produto: ${state.product_title}.
 
 Descrição: ${state.product_description || "Produto de alta qualidade com ótimo custo-benefício."}
 

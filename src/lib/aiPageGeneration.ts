@@ -66,7 +66,7 @@ export const aiPageErrorMessage = (error: AiPageError): string => {
     case "plan_required":
       return "A conta PagePilot conectada precisa do plano Starter ou superior. Verifique o plano dessa conta e tente de novo.";
     case "invalid_url":
-      return "Não conseguimos ler esse link. Use a URL da página do produto no AliExpress, Amazon, TikTok Shop ou Etsy.";
+      return "Não conseguimos ler esse link. Use a URL da página do produto no AliExpress, Amazon ou Etsy.";
     case "product_without_url":
       return "Esse produto salvo não tem link de origem. Cole a URL do produto para gerar a página.";
     case "product_not_found":

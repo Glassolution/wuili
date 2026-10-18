@@ -25,7 +25,7 @@ import { toast } from "@/hooks/use-toast";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const affiliateDb = supabase as any;
 
-type SocialPlatform = "Instagram" | "TikTok" | "Facebook" | "YouTube" | "Twitter/X" | "Outro";
+type SocialPlatform = "Instagram" | "Facebook" | "YouTube" | "Twitter/X" | "Outro";
 type AudienceRange = "menos de 1k" | "1k-10k" | "10k-50k" | "50k+";
 type ContentNiche = "dropshipping" | "e-commerce" | "empreendedorismo" | "financas" | "geral/outro";
 type PixKeyType = "CPF" | "E-mail" | "Telefone" | "Chave aleatória";
@@ -59,7 +59,7 @@ type AffiliateApplicationRow = {
 // Avisa a sidebar (e quem mais precisar) que a solicitação acabou de ser enviada.
 export const AFFILIATE_APPLICATION_EVENT = "velo:affiliate-application-sent";
 
-const SOCIAL_PLATFORMS: SocialPlatform[] = ["Instagram", "TikTok", "Facebook", "YouTube", "Twitter/X", "Outro"];
+const SOCIAL_PLATFORMS: SocialPlatform[] = ["Instagram", "Facebook", "YouTube", "Twitter/X", "Outro"];
 const AUDIENCE_RANGES: AudienceRange[] = ["menos de 1k", "1k-10k", "10k-50k", "50k+"];
 const PIX_KEY_TYPES: PixKeyType[] = ["CPF", "E-mail", "Telefone", "Chave aleatória"];
 const CONTENT_NICHES: { value: ContentNiche; label: string }[] = [
@@ -79,7 +79,6 @@ const inputClass =
 
 const SOCIAL_PLATFORM_LOGOS: Partial<Record<SocialPlatform, string>> = {
   Instagram: "https://cdn.simpleicons.org/instagram/E4405F",
-  TikTok: "https://cdn.simpleicons.org/tiktok/000000",
   Facebook: "https://cdn.simpleicons.org/facebook/1877F2",
   YouTube: "https://cdn.simpleicons.org/youtube/FF0000",
   "Twitter/X": "https://cdn.simpleicons.org/x/000000",

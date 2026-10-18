@@ -29,7 +29,7 @@ export const ATLAS_ROUTE_TAGS: Record<string, AtlasRouteTag> = {
   "produtos-ml": { route: "/dashboard/produtos-ml", label: "produtos no Mercado Livre" },
   pedidos: { route: "/dashboard/pedidos", label: "pedidos" },
   "imagens-ia": { route: "/dashboard/imagens-ia", label: "imagens com IA" },
-  tiktok: { route: "/dashboard/tiktok", label: "TikTok" },
+  avatares: { route: "/dashboard/avatares", label: "avatares" },
   integracoes: { route: "/dashboard/integracoes", label: "integrações" },
   pagamentos: { route: "/dashboard/pagamentos", label: "pagamentos" },
   planos: { route: "/dashboard/planos", label: "planos" },
@@ -57,6 +57,9 @@ const TAG_ALIASES: Record<string, keyof typeof ATLAS_ROUTE_TAGS> = {
   pedido: "pedidos",
   imagens: "imagens-ia",
   configuracao: "configuracoes",
+  avatar: "avatares",
+  // Slug antigo da página de Avatares; respostas já salvas do Atlas ainda o usam.
+  tiktok: "avatares",
 };
 
 /** Resolve um slug (canônico ou apelido) para a rota; null se não existir. */

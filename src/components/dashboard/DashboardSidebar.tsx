@@ -2,9 +2,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LifeBuoy, LogOut, MoreVertical, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LifeBuoy, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
-import TikTokIcon from "@/components/dashboard/TikTokIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -55,7 +54,7 @@ const baseNavItems: NavItem[] = [
   { id: "publicacoes", label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
   { id: "pedidos", label: "Pedidos", icon: Copy, to: "/dashboard/pedidos" },
   { id: "imagens-ia", label: "Imagens com IA", icon: ImageIcon, to: "/dashboard/imagens-ia" },
-  { id: "tiktok", label: "TikTok", icon: TikTokIcon, to: "/dashboard/tiktok" },
+  { id: "avatares", label: "Avatares", icon: ScanFace, to: "/dashboard/avatares" },
   // { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
 
@@ -135,7 +134,7 @@ const tourTargetByLabel: Record<string, string> = {
   Configurações: "configuracoes",
   "Minha loja": "minha-loja",
   "Páginas com IA": "paginas-com-ia",
-  TikTok: "tiktok",
+  Avatares: "avatares",
   Templates: "modelos",
 };
 

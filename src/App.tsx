@@ -115,7 +115,7 @@ const Docs = lazy(() => import("./pages/Docs"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const AssinaturaConfirmadaPage = lazy(() => import("./pages/AssinaturaConfirmadaPage"));
 const TemplatePreviewPage = lazy(() => import("./pages/TemplatePreviewPage"));
-const TikTokPage = lazy(() => import("./pages/dashboard/TikTokPage"));
+const AvataresPage = lazy(() => import("./pages/dashboard/AvataresPage"));
 const AiImagesPage = lazy(() => import("./pages/dashboard/AiImagesPage"));
 const PersonagemVideoPage = lazy(() => import("./pages/dashboard/PersonagemVideoPage"));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
@@ -371,7 +371,9 @@ const App = () => (
                 <Route index element={<DashboardIndexPosLogin />} />
                 <Route path="atlas" element={<AtlasChatPage />} />
                 <Route path="atlas/:threadId" element={<AtlasChatPage />} />
-                <Route path="tiktok" element={<TikTokPage />} />
+                <Route path="avatares" element={<AvataresPage />} />
+                {/* Endereço antigo da página de Avatares (era "TikTok"): links salvos continuam funcionando. */}
+                <Route path="tiktok" element={<Navigate to="/dashboard/avatares" replace />} />
                 <Route path="personagem-video" element={<PersonagemVideoPage />} />
                 <Route path="catalogo" element={<CatalogoPage />} />
                 <Route path="catalogo/:id" element={<CatalogoProductDetailPage />} />

@@ -130,11 +130,11 @@ export const ATLAS_NAV_ITEMS: AtlasNavItem[] = [
     aliases: ["fornecedor", "fornecedores", "chat fornecedor", "chat fornecedores"],
   },
   {
-    id: "tiktok",
-    label: "TikTok",
-    route: "/dashboard/tiktok",
-    description: "Ferramentas relacionadas a TikTok.",
-    aliases: ["tiktok", "tik tok"],
+    id: "avatares",
+    label: "Avatares",
+    route: "/dashboard/avatares",
+    description: "Criação de avatares de IA para vídeos curtos e imagens de produto.",
+    aliases: ["avatar", "avatares", "influencer", "influencers", "personagem", "tiktok", "tik tok"],
   },
   {
     id: "resultados",

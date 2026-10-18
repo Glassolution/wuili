@@ -36,7 +36,7 @@ import { useUpgradeModal } from "@/components/PlansUpgradeModal";
  *
  * Substituiu a tela de Relatórios. Serve para o lojista gerar UMA foto — de um
  * produto dele (upload) ou de um produto do catálogo Velo —, opcionalmente com
- * um dos influencers criados na tela do TikTok segurando/usando o item.
+ * um dos avatares criados na tela de Avatares segurando/usando o item.
  *
  * O prompt aceita duas fichas: `@produto` e `@avatar`. Elas aparecem coloridas
  * na caixa e são trocadas pelo produto e pelo personagem escolhidos na hora de
@@ -903,7 +903,7 @@ const AiImagesPage = () => {
         }}
         onCreate={() => {
           setMenu(null);
-          navigate("/dashboard/tiktok");
+          navigate("/dashboard/avatares");
         }}
       />
     </div>
@@ -1062,7 +1062,7 @@ const AvatarLibraryModal = ({
           <div className="flex shrink-0 items-center justify-between gap-4 border-b border-black/[0.07] px-5 py-4">
             <div>
               <h3 className="text-[18px] font-bold text-[#101114]">Escolha um avatar da biblioteca</h3>
-              <p className="mt-0.5 text-[12.5px] text-black/45">Mostrando os avatares criados na página do TikTok.</p>
+              <p className="mt-0.5 text-[12.5px] text-black/45">Mostrando os avatares criados na página de Avatares.</p>
             </div>
             <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full text-black/55 transition hover:bg-black/[0.05] hover:text-black" aria-label="Fechar">
               <X size={20} />
@@ -1085,10 +1085,10 @@ const AvatarLibraryModal = ({
                 <UserRound size={34} className="text-black/30" />
                 <p className="mt-3 text-[15px] font-semibold text-[#101114]">Nenhum avatar criado ainda.</p>
                 <p className="mt-1 max-w-[360px] text-[13px] leading-5 text-black/45">
-                  Crie um avatar na página do TikTok para usar em imagens segurando ou usando seus produtos.
+                  Crie um avatar na página de Avatares para usar em imagens segurando ou usando seus produtos.
                 </p>
                 <button type="button" onClick={onCreate} className="mt-5 rounded-full bg-[#2563EB] px-5 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#1D4ED8]">
-                  Criar avatar no TikTok
+                  Criar avatar
                 </button>
               </div>
             ) : (

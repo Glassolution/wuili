@@ -94,8 +94,6 @@ const PLATAFORMAS: Record<string, { rotulo: string; cor: string; logo?: string }
   mercadolivre: { rotulo: "Mercado Livre", cor: "#FFD100", logo: "/brand/mercado-livre.png" },
   mercado_livre: { rotulo: "Mercado Livre", cor: "#FFD100", logo: "/brand/mercado-livre.png" },
   shopee: { rotulo: "Shopee", cor: "#EE4D2D" },
-  tiktok: { rotulo: "TikTok Shop", cor: "#111111" },
-  tiktok_shop: { rotulo: "TikTok Shop", cor: "#111111" },
   shopify: { rotulo: "Shopify", cor: "#5E8E3E" },
 };
 

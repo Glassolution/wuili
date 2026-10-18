@@ -2,12 +2,11 @@ import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import TikTokIcon from "@/components/dashboard/TikTokIcon";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
 import AICharacterCreator, { useCharacterLibrary, type AICharacter } from "@/components/dashboard/AICharacterCreator";
-import { Loader2, Library, Wand2, Video, X } from "lucide-react";
+import { Loader2, Library, ScanFace, Wand2, Video, X } from "lucide-react";
 
-const TikTokPage = () => {
+const AvataresPage = () => {
   const navigate = useNavigate();
   const { characters, urls, loading, addCharacter } = useCharacterLibrary();
   const [tab, setTab] = useState<"criar" | "biblioteca">("criar");
@@ -20,12 +19,12 @@ const TikTokPage = () => {
       style={{ fontFamily: '"Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif' }}
     >
       <div className="space-y-5">
-        <DashboardPageHeader title="TikTok" className="mb-0 md:mb-0" />
+        <DashboardPageHeader title="Avatares" className="mb-0 md:mb-0" />
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8E8E87]">
               <span className="grid h-7 w-7 place-items-center rounded-full border border-black/[0.08] bg-white shadow-[0_8px_18px_rgba(17,17,17,0.035)]">
-                <TikTokIcon size={12} />
+                <ScanFace size={12} />
               </span>
               Influencers
             </div>
@@ -55,7 +54,7 @@ const TikTokPage = () => {
                 >
                   {ativa ? (
                     <motion.span
-                      layoutId="tiktok-tab-pill"
+                      layoutId="avatares-tab-pill"
                       className="absolute inset-0 rounded-full bg-[#2563EB]"
                       transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34 }}
                     />
@@ -262,4 +261,4 @@ const TikTokPage = () => {
   );
 };
 
-export default TikTokPage;
+export default AvataresPage;

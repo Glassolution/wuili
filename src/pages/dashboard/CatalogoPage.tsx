@@ -695,7 +695,7 @@ const SidebarAtlasSuggestions = () => {
   const recommendations = [
     { name: "Fone Bluetooth Pro", badge: "Margem 65%", time: "Recém adicionado" },
     { name: "Mini Projetor HD", badge: "Alta Demanda", time: "Em alta na C7Drop" },
-    { name: "Suporte MagSafe", badge: "Viral TikTok", time: "Mais importado" },
+    { name: "Suporte MagSafe", badge: "Viral", time: "Mais importado" },
   ];
   
   return (

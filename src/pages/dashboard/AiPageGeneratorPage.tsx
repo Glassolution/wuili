@@ -268,7 +268,7 @@ const AiPageGeneratorPage = () => {
       {step === 1 && (
         <div className="rounded-[16px] border border-[#EDEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <label htmlFor="ai-url" className="mb-2 block text-[13px] font-semibold text-[#0A0A0A]">
-            URL do produto (AliExpress, Amazon, TikTok Shop, Etsy)
+            URL do produto (AliExpress, Amazon, Etsy)
           </label>
           <div className="flex h-[42px] items-center gap-2.5 rounded-[10px] border border-[#E6E6E6] bg-white px-3.5 focus-within:border-[#0A0A0A]">
             <Link2 size={17} className="shrink-0 text-[#8A8A8A]" />

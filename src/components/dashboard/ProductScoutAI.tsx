@@ -273,7 +273,7 @@ const buildLocalProductChatResponse = (text: string, product: SuggestedProduct, 
     ? `O estoque informado é de ${product.stockQuantity} unidades, o que ajuda para um primeiro teste.`
     : `O estoque precisa ser conferido antes de colocar verba maior.`;
 
-  return `${greetingName}sobre o ${product.nome}: ele está na categoria ${product.categoria} e aparece por ${formatPrice(product.preco)}. ${marginText} ${stockText} Se quiser, eu posso analisar público ideal, criativo para TikTok/Reels ou objeções de compra.`;
+  return `${greetingName}sobre o ${product.nome}: ele está na categoria ${product.categoria} e aparece por ${formatPrice(product.preco)}. ${marginText} ${stockText} Se quiser, eu posso analisar público ideal, criativo para Reels e vídeos curtos ou objeções de compra.`;
 };
 
 const buildAssistantTextMessages = (content: string, baseId: number): ChatMessage[] =>
@@ -310,7 +310,7 @@ const buildSearchAssistantMessages = ({
   const marginText = cleanAssistantCopy(analysis.margem ?? "A margem parece testável, mas eu ainda trataria como validação inicial até ter dados de conversão.");
   const demandText = cleanAssistantCopy(analysis.demanda ?? "A demanda ainda precisa ser provada com criativos e teste de tráfego controlado.");
   const saleText = cleanAssistantCopy(analysis.facilidade_venda ?? "É um produto entendível, com proposta fácil de explicar quando o anúncio mostra claramente o problema que ele resolve.");
-  const viralText = cleanAssistantCopy(analysis.potencial_viral ?? "Para TikTok, Reels e Shorts, o potencial depende de demonstração visual: antes/depois, uso rápido e benefício aparecendo nos primeiros segundos.");
+  const viralText = cleanAssistantCopy(analysis.potencial_viral ?? "Para Reels, Shorts e vídeos curtos, o potencial depende de demonstração visual: antes/depois, uso rápido e benefício aparecendo nos primeiros segundos.");
   const verdictText = analysis.recomendacao === "bom"
     ? "Meu veredito: é um bom candidato para testar. Eu começaria com orçamento pequeno, criativo demonstrativo e acompanhamento de cliques, salvamentos e custo por intenção."
     : analysis.recomendacao === "ruim"
@@ -343,7 +343,7 @@ const buildSearchAssistantMessages = ({
     {
       id: `${baseId}-viral`,
       role: "assistant",
-      content: `TikTok, Reels e anúncios curtos: ${viralText} Eu testaria vídeos com demonstração direta, comparação visual e uma promessa simples de economia de tempo, praticidade ou transformação.`,
+      content: `Reels, Shorts e anúncios curtos: ${viralText} Eu testaria vídeos com demonstração direta, comparação visual e uma promessa simples de economia de tempo, praticidade ou transformação.`,
     },
     {
       id: `${baseId}-verdict`,

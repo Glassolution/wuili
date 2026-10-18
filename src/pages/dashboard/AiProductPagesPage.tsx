@@ -722,7 +722,7 @@ export const AiProductPageCreatePendingPage = () => {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] lg:items-start">
           <div>
             <label htmlFor="ai-product-url" className="mb-2 block text-[13px] font-semibold text-[#242933]">
-              URL do produto (AliExpress, Amazon, TikTok, Etsy)
+              URL do produto (AliExpress, Amazon, Etsy)
             </label>
             <div className="group flex h-11 items-center gap-3 rounded-[12px] border border-black/[0.08] bg-white px-4 shadow-[0_2px_8px_rgba(31,36,48,0.03)] transition focus-within:border-[#2563EB]/45 focus-within:ring-4 focus-within:ring-[#2563EB]/[0.08]">
               <Link2 size={17} strokeWidth={1.9} className="shrink-0 text-[#7A8495] transition group-focus-within:text-[#2563EB]" aria-hidden="true" />
@@ -832,7 +832,6 @@ export const AiProductPageCreatePendingPage = () => {
         <div className="mt-5 flex flex-wrap items-center gap-x-7 gap-y-3 border-b border-black/[0.06] pb-5 text-[18px] font-semibold text-[#B9BEC7] sm:text-[20px]">
           <span className="text-[#F05A28]">AliExpress</span>
           <span className="text-[#232F3E]/55">amazon</span>
-          <span className="text-[#111827]/35">TikTok Shop</span>
           <span className="text-[#F56400]/45">Etsy</span>
           <span className="tracking-[0.18em] text-[#111827]/30">SHEIN</span>
         </div>
