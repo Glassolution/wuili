@@ -1,10 +1,10 @@
 import type { ElementType } from "react";
 import { useLocation } from "react-router-dom";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
-import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
 import {
   ArrowLeftRight,
   ScanFace,
+  Store,
   BarChart2,
   CreditCard,
   FileText,
@@ -37,7 +37,7 @@ const routes: RouteMeta[] = [
   { test: (p) => p.startsWith("/dashboard/produtos"), title: "Produtos", icon: Package },
   { test: (p) => p.startsWith("/dashboard/publicacoes"), title: "Publicações", icon: FileText },
   { test: (p) => p.startsWith("/dashboard/pedidos") || p.startsWith("/dashboard/orders"), title: "Pedidos", icon: ShoppingCart },
-  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Lojas", icon: ShopifyBagIcon },
+  { test: (p) => p.startsWith("/dashboard/integracoes"), title: "Lojas", icon: Store },
   { test: (p) => p.startsWith("/dashboard/avatares"), title: "Avatares", icon: ScanFace },
   { test: (p) => p.startsWith("/dashboard/criar-video"), title: "Criar Vídeos", icon: Video },
   { test: (p) => p.startsWith("/dashboard/chat-fornecedores"), title: "Chat", icon: MessageSquare },

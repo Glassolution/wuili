@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LifeBuoy, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
-import ShopifyBagIcon from "@/components/icons/ShopifyBagIcon";
+import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LifeBuoy, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Store, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -63,7 +62,7 @@ const baseNavItems: NavItem[] = [
 // A ROTA continua aberta de propósito — o callback do Mercado Pago devolve o
 // usuário em /dashboard/integracoes, e bloqueá-la quebraria a conexão de
 // pagamento de quem não é admin.
-const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: ShopifyBagIcon, to: "/dashboard/integracoes" };
+const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: Store, to: "/dashboard/integracoes" };
 
 const affiliatesNavItem: NavItem = { id: "afiliados", label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 
