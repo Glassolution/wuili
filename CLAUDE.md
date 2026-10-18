@@ -126,7 +126,7 @@ Usuário navega no catálogo Velo alimentado pelo scraping C7Drop
 | Azul escuro    | `#1E3A8A`                                  |
 | Azul elétrico  | `#2563EB`                                  |
 | Neutros        | Branco `#FFFFFF` e Preto `#000000`         |
-| Logo           | Nuvem preta com ícone de caixa/envio       |
+| Logo           | Quadrado azul arredondado com o "C" (`public/logo.svg`). Nada de cesta/sacola: o TikTok Ads recusou por lembrar o TikTok Shop |
 | Fontes         | `Inter`, `system-ui`, sans-serif           |
 | Fundo landing  | Gradiente azul/lilás escuro                |
 

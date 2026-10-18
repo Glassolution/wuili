@@ -123,10 +123,10 @@ export function VeloLogo({ size = "md", variant = "dark" }: VeloLogoProps) {
   };
 
   const s = sizes[size];
-  // Logo oficial (public/logo.png): a cesta azul com o "C", gerada a partir de
-  // "public/logo original.png" com o fundo branco removido e recortada na borda da
-  // arte — por isso a imagem entra inteira (object-contain) e preenche a caixa. O
-  // texto "Velo" muda de cor conforme a variante; a marca é a mesma em qualquer fundo.
+  // Logo oficial (public/logo.png, fonte vetorial em public/logo.svg): o quadrado
+  // azul arredondado com o "C". Era uma cesta, trocada porque o TikTok Ads a achou
+  // parecida com a sacola do TikTok Shop — não volte a usar cesta/sacola. O texto
+  // "Velo" muda de cor conforme a variante; a marca é a mesma em qualquer fundo.
   const isDark = variant === "dark";
   const textColor = isDark ? "#0A0A0A" : "#FFFFFF";
 
