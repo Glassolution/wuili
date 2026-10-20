@@ -40,4 +40,5 @@
 ## Contexto de reembolso no suporte
 - [x] Corrigir cartão conforme a assinatura do cliente, inclusive após cancelar renovação
 - [x] Distinguir reembolso da assinatura e da compra na fornecedora
-- [ ] Validar regras e publicar o assistente sem executar reembolso real
+- [x] Validar regras em 31 testes e publicar o assistente sem executar reembolso real
+- [ ] Conferir conversa real e cartão no suporte administrativo — sessão disponível sem acesso de administrador
