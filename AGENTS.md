@@ -11,6 +11,7 @@ Stack: React + TypeScript + Tailwind (frontend); Supabase/Lovable Cloud (Postgre
 - `any` só com comentário justificando.
 - Regras de Edge Functions: ver `supabase/functions/AGENTS.md`.
 - Support refund routing uses shared customer-message context before subscription actions; only the server inserts refund cards, and shared eligibility keeps renewal cancellation separate from refund eligibility. This avoids supplier requests becoming subscription cancellations and duplicate cards. Completed cancellation receipts must not reopen requests.
+- Support navigation uses a verified public-page map shared by both support conversation paths; navigation-only questions do not require seller diagnostics or human escalation. This avoids invented menus and unnecessary AI tool calls.
 
 ## Tabelas principais
 - `profiles`: dados do usuário (nome, plano, preferências, origem do anúncio).

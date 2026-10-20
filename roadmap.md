@@ -31,6 +31,8 @@
 ## Central de Ajuda
 - [x] Aplicar o conteúdo revisado do FAQ enviado pelo usuário
 - [x] Conferir todos os artigos publicados após a atualização
+- [ ] Publicar a revisão central-de-ajuda_3 com menus conferidos e sem inferências sobre bloqueios do ML
+- [ ] Ensinar ao suporte as páginas reais e validar links de navegação
 
 ## Cancelamento da renovação no suporte
 - [x] Separar cancelamento autônomo de reembolso encaminhado à equipe
