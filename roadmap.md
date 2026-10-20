@@ -36,3 +36,8 @@
 - [x] Separar cancelamento autônomo de reembolso encaminhado à equipe
 - [x] Adaptar o botão do cartão à situação da assinatura
 - [x] Validar regras e publicar somente o assistente de suporte
+
+## Contexto de reembolso no suporte
+- [ ] Corrigir cartão conforme a assinatura do cliente, inclusive após cancelar renovação
+- [ ] Distinguir reembolso da assinatura e da compra na fornecedora
+- [ ] Validar regras e publicar o assistente sem executar reembolso real

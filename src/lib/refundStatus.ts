@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getRefundMode, type RefundMode, type RefundSubscription } from "./refundEligibility";
+export type { RefundMode } from "./refundEligibility";
 
 /*
  * Situação do cliente para reembolso/cancelamento: o que ele pode fazer agora.
@@ -9,17 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tabelas de reembolso ainda fora dos tipos gerados
 const db = supabase as any;
 
-const JANELA_REEMBOLSO_DIAS = 7;
-
-export type RefundMode = "reembolso" | "cancelamento" | "em_analise" | "aprovado" | "cancelado" | "sem_assinatura";
-
-type Assinatura = {
-  id: string;
-  created_at: string;
-  amount: number | null;
-  current_period_end: string | null;
-  cancel_at_period_end: boolean | null;
-};
+type Assinatura = RefundSubscription;
 
 export type RefundStatus = { mode: RefundMode; assinatura: Assinatura | null };
 
@@ -30,7 +22,7 @@ export const fetchRefundStatus = async (userId: string): Promise<RefundStatus> =
     .select("id, created_at, amount, current_period_end, cancel_at_period_end")
     .eq("user_id", userId)
     .in("status", ["active", "paid", "approved", "authorized"])
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -42,17 +34,7 @@ export const fetchRefundStatus = async (userId: string): Promise<RefundStatus> =
     .limit(20);
   const lista = (pedidos ?? []) as Array<{ subscription_id: string | null; status: string | null }>;
 
-  if (lista.some((p) => p.status === "pending")) return { mode: "em_analise", assinatura };
-  if (!assinatura) return { mode: "sem_assinatura", assinatura: null };
-  if (lista.some((p) => p.status === "processed" && p.subscription_id === assinatura.id)) {
-    return { mode: "aprovado", assinatura };
-  }
-  if (assinatura.cancel_at_period_end) return { mode: "cancelado", assinatura };
-
-  const dias = (Date.now() - new Date(assinatura.created_at).getTime()) / 86_400_000;
-  // reembolso já usado em outra assinatura: o servidor recusa um segundo pedido
-  const jaReembolsou = lista.some((p) => p.status === "processed");
-  return { mode: dias <= JANELA_REEMBOLSO_DIAS && !jaReembolsou ? "reembolso" : "cancelamento", assinatura };
+  return { mode: getRefundMode(assinatura, lista), assinatura };
 };
 
 export const useRefundStatus = (userId: string | null | undefined, enabled: boolean) => {
