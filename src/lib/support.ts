@@ -135,7 +135,7 @@ export const messageHasRefundIntent = (text: string) => {
 
 /** Prazo oficial, igual em todos os lugares (site, IA e notificações). */
 export const PRAZO_REEMBOLSO =
-  "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
+  "Reembolsos aprovados são processados em até 48h e voltam pelo mesmo meio de pagamento. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
 
 /** Mensagem de pesar enviada antes do cartão — mesmo texto da função support-assistant. */
 export const pesarDoReembolso = (dentroDoPrazo: boolean) =>
