@@ -5,6 +5,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getSellerAccessToken } from "../_shared/mlSellerToken.ts";
 import { isSelfServiceCancellation, isCancellationConfirmation } from "../_shared/supportCancellation.ts";
+import { classifyRefundContext } from "../_shared/supportRefundContext.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,6 +59,12 @@ Regras:
 - SEMPRE que avisar que uma pessoa da equipe vai responder, informe logo depois os horários reais: "${HORARIOS_ATENDIMENTO}". Nunca invente outro horário nem diga que o atendimento é 24 horas.
 - Nunca peça senha, código de verificação ou dados de cartão.`;
 
+const REGRA_CONTEXTO_REEMBOLSO = `Antes de tratar reembolso ou cancelamento, identifique O QUE foi pago usando as mensagens do cliente (não trate uma resposta anterior da IA como prova):
+- ASSINATURA VELO: plano, mensalidade ou renovação da Velo. Só neste caso use motivo "reembolso" ou "cancelamento". Dentro de 7 dias do pagamento, ofereça pedir reembolso para análise humana, mesmo se a renovação já estiver cancelada; fora dos 7 dias ofereça apenas cancelar renovação, mantendo acesso até o fim do período pago.
+- PEDIDO/FORNECEDORA: pagamento na C7/C7Drop, compra de produto, comprador do Mercado Livre que cancelou, devolução ou frete. Use motivo "reembolso_fornecedora", nunca "reembolso". Peça o número do pedido e explique que a equipe verificará o pagamento à fornecedora e a situação do envio. Não prometa devolução, prazo ou aprovação antes da análise. Não ofereça cancelar a assinatura nem aplique a janela de 7 dias da Velo a essa compra.
+- Se não estiver claro, pergunte: "Você quer o reembolso da assinatura da Velo ou de uma compra feita na fornecedora?" Aguarde a resposta antes de mostrar cartão ou encaminhar como reembolso da assinatura.
+- Se o usuário mudar explicitamente de assunto, siga o novo assunto. Se corrigir "o problema é com a C7", reconheça a correção e não repita o formulário da assinatura.`;
+
 const TOOLS = [{
   functionDeclarations: [
     {
@@ -76,7 +83,7 @@ const TOOLS = [{
       parameters: {
         type: "object",
         properties: {
-          motivo: { type: "string", description: "erro_desconhecido | fora_da_base | pediu_humano | reembolso | financeiro" },
+          motivo: { type: "string", description: "erro_desconhecido | fora_da_base | pediu_humano | reembolso (somente assinatura Velo) | cancelamento (somente assinatura Velo) | reembolso_fornecedora (compra de produto/C7/ML) | financeiro" },
           resumo: { type: "string", description: "Resumo curto do problema para a equipe" },
         },
         required: ["motivo", "resumo"],
@@ -276,7 +283,7 @@ Deno.serve(async (req) => {
     let reply = "";
 
     for (let i = 0; i < 4; i++) {
-      const r = await chamarGemini(GEMINI_API_KEY, contents, SYSTEM, i === 3);
+      const r = await chamarGemini(GEMINI_API_KEY, contents, `${SYSTEM}\n\n${REGRA_CONTEXTO_REEMBOLSO}`, i === 3);
       if (!r.ok) {
         const t = await r.text();
         console.error("gemini", r.status, t.slice(0, 500));
@@ -354,6 +361,7 @@ const SEM_ASSINATURA_PARA_REEMBOLSO =
   `Não encontramos uma assinatura ativa na sua conta. Nossa equipe vai verificar e te responde aqui mesmo nesta conversa. ${HORARIOS_ATENDIMENTO}`;
 
 const SYSTEM_TICKET = `${SYSTEM}
+${REGRA_CONTEXTO_REEMBOLSO}
 
 Jeito de escrever nos tickets (muito importante):
 - Escreva como uma pessoa real do atendimento conversando pelo chat: cordial, educada, formal na medida certa, leve e didática. Imagine que a pessoa nunca mexeu com tecnologia.
@@ -361,9 +369,9 @@ Jeito de escrever nos tickets (muito importante):
 - NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
 - Responda em UMA mensagem curta (até 3 parágrafos curtos, separados por linha em branco). Não repita o que já foi dito antes na conversa nem cumprimente de novo. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
-Reembolso e cancelamento: sempre que a pessoa PEDIR reembolso, cancelamento, estorno ou dinheiro de volta, chame "acionar_suporte_humano" com motivo "reembolso" para o sistema selecionar o formulário conforme a assinatura. FORA dos 7 dias, essa chamada somente exibe o cartão de cancelar a renovação: NÃO encaminha para a equipe. Não diga que solicitou atendimento humano nesse caso. Dentro dos 7 dias, o pedido de reembolso vai para análise humana. Nunca confirme cancelamento antes de a pessoa confirmar no formulário. Se ela só PERGUNTAR como funciona, explique: reembolso em até 7 dias; depois disso pode cancelar a renovação sozinha, sem reembolso e com acesso até o fim do período pago. Não tente convencer a pessoa a desistir.
+Reembolso e cancelamento DA ASSINATURA VELO: quando a pessoa PEDIR, chame "acionar_suporte_humano" com motivo "reembolso" para o sistema selecionar o formulário conforme a assinatura. FORA dos 7 dias, essa chamada somente exibe o cartão de cancelar a renovação: NÃO encaminha para a equipe. Não diga que solicitou atendimento humano nesse caso. Dentro dos 7 dias, o pedido de reembolso vai para análise humana. Nunca confirme cancelamento antes de a pessoa confirmar no formulário. Se ela só PERGUNTAR como funciona, explique as regras sem mostrar cartão. Pedido de reembolso à fornecedora não segue este fluxo. Não tente convencer a pessoa a desistir.
 
-Regra extra para tickets: sempre que chamar "acionar_suporte_humano" (erro de produto/pedido, erro que você não tem permissão ou meios para resolver, reembolso/cobrança/cancelamento, algo que você não reconhece, ou pedido de falar com uma pessoa), explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
+Regra extra para tickets: quando o resultado confirmar atendimento_humano, explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Isso inclui reembolso da fornecedora. Não diga que encaminhou se o sistema pediu esclarecimento ou indicou cancelamento autônomo. Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
 
 // Remove marcações que o cliente veria como símbolos soltos.
 function limparTexto(t: string): string {
@@ -461,10 +469,14 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   const dentroDoPrazoReembolso = !!assinatura?.created_at &&
     (Date.now() - new Date(assinatura.created_at).getTime()) <= 7 * 86400_000;
+  const userTexts = ateUltimaUser.filter((m) => m.sender === "user").map((m) => String(m.message ?? ""));
+  const contextoReembolso = classifyRefundContext(String(ultimaUser.message ?? ""), userTexts.slice(0, -1));
 
   let escalou = false;
   let reembolso = false;
   let cancelamentoAutonomo = false;
+  let reembolsoFornecedora = false;
+  let esclarecerReembolso = false;
   let reply = "";
   const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
 
@@ -488,7 +500,17 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
         if (name === "verificar_conta_mercado_livre") result = await verificarContaML(admin, ticket.user_id);
         else if (name === "buscar_central_de_ajuda") result = await buscarAjuda(admin, String(args.consulta ?? ultimaUser.message));
         else if (name === "acionar_suporte_humano") {
-          const motivo = String(args.motivo ?? "outro");
+          let motivo = String(args.motivo ?? "outro");
+          const assuntoReembolso = ["reembolso", "cancelamento", "cancelar", "cancelamento_renovacao", "reembolso_fornecedora"].includes(motivo);
+          if (assuntoReembolso && contextoReembolso === "pedido") {
+            motivo = "reembolso_fornecedora";
+            reembolsoFornecedora = true;
+          } else if (assuntoReembolso && contextoReembolso === "ambiguo") {
+            esclarecerReembolso = true;
+            result = { ok: true, atendimento_humano: false, acao: "perguntar_se_e_assinatura_ou_compra_na_fornecedora" };
+            respostas.push({ functionResponse: { name, response: { result } } });
+            continue;
+          } else if (assuntoReembolso) motivo = "reembolso";
           if (isSelfServiceCancellation(motivo, assinatura?.created_at ?? null)) {
             reembolso = true;
             cancelamentoAutonomo = true;
@@ -505,7 +527,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
                 : `PEDIDO DE REEMBOLSO/CANCELAMENTO FORA DO PRAZO (assinatura com mais de 7 dias) — reembolso não se aplica; o cliente recebeu a opção de cancelar o plano. ${resumo}`)
               : resumo);
           }
-          escalou = true; result = { ok: true };
+          escalou = true; result = { ok: true, atendimento_humano: true };
         } else result = { erro: "ferramenta desconhecida" };
       } catch (e) {
         console.error("tool", name, e);
@@ -514,9 +536,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       respostas.push({ functionResponse: { name, response: { result } } });
     }
     contents.push({ role: "user", parts: respostas });
-    if (cancelamentoAutonomo) break;
+    if (cancelamentoAutonomo || reembolsoFornecedora || esclarecerReembolso) break;
   }
 
+  if (esclarecerReembolso) reply = "Você quer o reembolso da assinatura da Velo ou de uma compra feita na fornecedora?";
+  else if (reembolsoFornecedora) reply = `Entendi: você quer verificar o reembolso de uma compra na fornecedora, não da assinatura da Velo. Envie o número do pedido na fornecedora e informe se ele já foi enviado. A equipe vai conferir o pagamento e a situação do pedido, sem confirmar o reembolso antes dessa análise.\n\n${AVISO_ESPERA}`;
   if (!reply && !cancelamentoAutonomo) {
     if (!escalou && !ticket.needs_human) await marcarHumano("erro_desconhecido", "A IA não conseguiu responder esta mensagem.");
     escalou = true;
@@ -527,6 +551,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
     // O marcador nunca passa por limparTexto/dividirMensagens.
     const { data: pedido } = await admin.from("refund_requests")
       .select("status").eq("user_id", ticket.user_id)
+      .eq("subscription_id", assinatura?.id ?? "00000000-0000-0000-0000-000000000000")
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
     const statusPedido = String(pedido?.status ?? "").toLowerCase();
     let texto = "";
@@ -557,6 +582,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
         .gt("created_at", ultimaUser.created_at).limit(1);
       if (existente?.length) return json({ ok: true, escalou, skip: "cartao_ja_exibido" });
     }
+    if (escalou && !texto.includes("13h")) texto += `\n\n${HORARIOS_ATENDIMENTO}`;
     await enviar(texto);
     if (comCartao) {
       await new Promise((r) => setTimeout(r, 900));
