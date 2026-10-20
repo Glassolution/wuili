@@ -3,14 +3,14 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@3.1.1";
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@3.0.5";
 
 // src/lib/mcp/tools/list-tables.ts
-import { defineTool } from "npm:@lovable.dev/mcp-js@3.1.1";
+import { defineTool } from "npm:@lovable.dev/mcp-js@3.0.5";
 
 // src/lib/mcp/supabase.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.103.0";
-import { ToolError } from "npm:@lovable.dev/mcp-js@3.1.1";
+import { ToolError } from "npm:@lovable.dev/mcp-js@3.0.5";
 function runtimeEnv(name) {
   const runtime = globalThis;
   return runtime.Deno?.env?.get?.(name) ?? runtime.process?.env?.[name];
@@ -154,7 +154,7 @@ var list_tables_default = defineTool({
 });
 
 // src/lib/mcp/tools/query-table.ts
-import { defineTool as defineTool2, ToolError as ToolError2 } from "npm:@lovable.dev/mcp-js@3.1.1";
+import { defineTool as defineTool2, ToolError as ToolError2 } from "npm:@lovable.dev/mcp-js@3.0.5";
 import { z } from "npm:zod@^3.25.76";
 var filterSchema = z.object({
   column: z.string().regex(/^[a-z_][a-z0-9_]*$/),
@@ -201,7 +201,7 @@ var query_table_default = defineTool2({
 });
 
 // src/lib/mcp/tools/run-report.ts
-import { defineTool as defineTool3, ToolError as ToolError3 } from "npm:@lovable.dev/mcp-js@3.1.1";
+import { defineTool as defineTool3, ToolError as ToolError3 } from "npm:@lovable.dev/mcp-js@3.0.5";
 import { z as z2 } from "npm:zod@^3.25.76";
 var run_report_default = defineTool3({
   name: "run_report",
@@ -221,7 +221,7 @@ var run_report_default = defineTool3({
 });
 
 // src/lib/mcp/tools/list-integrations.ts
-import { defineTool as defineTool4, ToolError as ToolError4 } from "npm:@lovable.dev/mcp-js@3.1.1";
+import { defineTool as defineTool4, ToolError as ToolError4 } from "npm:@lovable.dev/mcp-js@3.0.5";
 import { z as z3 } from "npm:zod@^3.25.76";
 var SAFE_COLUMNS = "id,user_id,platform,ml_user_id,expires_at,created_at,updated_at";
 var list_integrations_default = defineTool4({
@@ -262,5 +262,5 @@ var mcp_default = defineMcp({
 });
 
 // lovable-mcp-supabase-entry.ts
-import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@3.1.1/stacks/supabase";
+import { createSupabaseHandler } from "npm:@lovable.dev/mcp-js@3.0.5/stacks/supabase";
 Deno.serve(createSupabaseHandler(mcp_default, { functionName: "mcp" }));
