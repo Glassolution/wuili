@@ -2301,7 +2301,7 @@ const ThreadMessage = ({
               value={message.message}
               textClassName={`whitespace-pre-wrap text-[12.5px] leading-[1.62] ${admin ? "text-white" : automatic ? "text-[#1f3c76]" : "text-[#34363b]"}`}
               imageClassName="max-h-[300px] max-w-full w-full sm:max-h-[340px] sm:max-w-[460px]"
-              tone={admin ? "admin" : "customer"}
+              tone="admin"
             />
           )}
         </div>

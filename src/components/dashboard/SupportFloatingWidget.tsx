@@ -28,11 +28,8 @@ import { ChatBubbleOvalLeftEllipsisIcon } from "@heroicons/react/24/solid";
 import {
   CATEGORY_LABEL,
   ACTIVE_SUPPORT_TICKET_EVENT,
-  buildRefundPromptMessage,
   createSupportTicket,
-  messageHasRefundIntent,
   parseSupportMessage,
-  pesarDoReembolso,
   FAQ_ITEMS,
   formatTicketDate,
   formatTicketTime,
@@ -52,7 +49,7 @@ import {
 } from "@/lib/support";
 import { supabase } from "@/integrations/supabase/client";
 import { SupportRefundFlow } from "@/components/dashboard/SupportRefundFlow";
-import { fetchRefundStatus, refundCardAction, useRefundStatus, type RefundMode } from "@/lib/refundStatus";
+import { refundCardAction, useRefundStatus, type RefundMode } from "@/lib/refundStatus";
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
@@ -297,8 +294,6 @@ const SupportFloatingWidget = () => {
         firstMessage: attachment ? buildSupportImageMessage(attachment, message) : message,
       });
 
-      if (messageHasRefundIntent(message)) await inserirCartaoDeReembolso(ticket.id);
-
       setTickets((current) => [ticket, ...current.filter((item) => item.id !== ticket.id)]);
       setSelectedTicketId(ticket.id);
       setMessages([]);
@@ -352,12 +347,6 @@ const SupportFloatingWidget = () => {
       setReplyImage(null);
       setActiveSupportTicketId(selectedTicket.id);
 
-      // Intenção de reembolso/cancelamento: exibe o cartão de retenção uma vez por conversa.
-      const alreadyPrompted = messages.some((item) => parseSupportMessage(item.message).refundPrompt);
-      if (messageHasRefundIntent(text) && !alreadyPrompted) {
-        const gravadas = await inserirCartaoDeReembolso(selectedTicket.id);
-        setMessages((current) => [...current, ...gravadas.filter((m) => !current.some((item) => item.id === m.id))]);
-      }
     } catch (error) {
       if (uploadedPath) await removeSupportImage(uploadedPath);
       console.error(error);
@@ -366,27 +355,6 @@ const SupportFloatingWidget = () => {
     } finally {
       setSendingReply(false);
     }
-  };
-
-  /**
-   * Pedido de reembolso/cancelamento detectado no site: grava a mensagem de pesar
-   * e o cartão com o botão (mesmos textos da IA, que não repete o cartão).
-   */
-  const inserirCartaoDeReembolso = async (ticketId: string) => {
-    if (!user?.id) return [] as SupportMessage[];
-    const situacao = (await refreshRefundStatus()) ?? (await fetchRefundStatus(user.id).catch(() => null));
-    const linhas: Array<{ ticket_id: string; user_id: string; message: string; sender: "ai" }> = [];
-    if (situacao?.mode === "reembolso" || situacao?.mode === "cancelamento") {
-      linhas.push({ ticket_id: ticketId, user_id: user.id, message: pesarDoReembolso(situacao.mode === "reembolso"), sender: "ai" });
-    }
-    linhas.push({ ticket_id: ticketId, user_id: user.id, message: buildRefundPromptMessage(), sender: "ai" });
-    const gravadas: SupportMessage[] = [];
-    // uma de cada vez, para a ordem (pesar → cartão) ficar certa
-    for (const linha of linhas) {
-      const { data } = await db.from("support_messages").insert(linha).select("*").single();
-      if (data) gravadas.push(data as SupportMessage);
-    }
-    return gravadas;
   };
 
   const openMessagesFor = (ticketId: string) => {
