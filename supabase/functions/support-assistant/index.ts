@@ -463,9 +463,9 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   // Verifica se a assinatura mais recente do usuário ainda está no prazo de
   // reembolso (7 dias após o pagamento), para a IA não prometer o que não pode.
   const { data: assinatura } = await admin.from("subscriptions")
-    .select("created_at,status,cancel_at_period_end")
+    .select("id,created_at,status,cancel_at_period_end")
     .eq("user_id", ticket.user_id)
-    .in("status", ["active", "trialing", "paid", "approved"])
+    .in("status", ["active", "paid", "approved", "authorized"])
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   const dentroDoPrazoReembolso = !!assinatura?.created_at &&
     (Date.now() - new Date(assinatura.created_at).getTime()) <= 7 * 86400_000;

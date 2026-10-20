@@ -38,6 +38,6 @@
 - [x] Validar regras e publicar somente o assistente de suporte
 
 ## Contexto de reembolso no suporte
-- [ ] Corrigir cartão conforme a assinatura do cliente, inclusive após cancelar renovação
-- [ ] Distinguir reembolso da assinatura e da compra na fornecedora
+- [x] Corrigir cartão conforme a assinatura do cliente, inclusive após cancelar renovação
+- [x] Distinguir reembolso da assinatura e da compra na fornecedora
 - [ ] Validar regras e publicar o assistente sem executar reembolso real

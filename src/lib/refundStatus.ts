@@ -60,6 +60,7 @@ export const useRefundStatus = (userId: string | null | undefined, enabled: bool
 
 /** Texto do botão do cartão no chat, conforme a situação. */
 export const refundCardAction = (mode: RefundMode | undefined) => {
+  if (!mode) return { label: "Verificando assinatura…", enabled: false };
   if (mode === "cancelamento") return { label: "Cancelar renovação", enabled: true };
   if (mode === "em_analise") return { label: "Pedido em análise", enabled: false };
   if (mode === "aprovado") return { label: "Reembolso aprovado", enabled: false };
