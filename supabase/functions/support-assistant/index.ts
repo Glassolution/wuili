@@ -6,6 +6,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { getSellerAccessToken } from "../_shared/mlSellerToken.ts";
 import { isSelfServiceCancellation, isCancellationConfirmation } from "../_shared/supportCancellation.ts";
 import { classifyRefundContext } from "../_shared/supportRefundContext.ts";
+import { SUPPORT_NAVIGATION_PROMPT, supportNavigationReply } from "../_shared/supportNavigation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,7 @@ const HORARIOS_ATENDIMENTO =
 const SYSTEM = `Você é o assistente de suporte da Velo, plataforma brasileira que ajuda iniciantes a vender no Mercado Livre com produtos de fornecedores nacionais. Fale SEMPRE em português brasileiro simples, frases curtas, tom acolhedor. Sem jargão técnico.
 
 Como a Velo funciona (fatos confirmados, pode responder direto):
+${SUPPORT_NAVIGATION_PROMPT}
 - Pós-venda (primeira venda e seguintes), explique SEMPRE este fluxo completo, em passos curtos e numerados:
   1) Quando alguém compra, a venda aparece na aba Pedidos da Velo.
   2) O usuário baixa a etiqueta de envio dessa venda no Mercado Livre (em Vendas, no pedido em aberto).
@@ -38,7 +40,7 @@ Como a Velo funciona (fatos confirmados, pode responder direto):
   8) O status no Mercado Livre muda sozinho para "enviado" quando a etiqueta é escaneada na postagem.
   9) Depois do prazo de liberação do Mercado Livre (que varia conforme a reputação da conta), o valor da venda cai no Mercado Pago do usuário.
   10) O lucro é o valor da venda menos o que foi pago à fornecedora e as taxas do Mercado Livre.
-- Se o cliente quiser trocar, devolver ou cancelar: a devolução/cancelamento é tratada pelo Mercado Livre (o cliente abre a reclamação/devolução no próprio Mercado Livre) e o reembolso do custo à fornecedora é alinhado com a Velo. Oriente a não prometer nada ao cliente antes de verificar o pedido.
+- Se o cliente quiser trocar, devolver ou cancelar: a devolução/cancelamento da venda é tratada pelo Mercado Livre. Para recuperar o pagamento feito à fornecedora, o vendedor solicita cancelamento/reembolso no pedido no site dela, conforme as regras dela. Não prometa devolução antes de analisar o pedido.
 - Os anúncios são publicados na conta do Mercado Livre que o usuário conectou em Integrações.
 
 Perguntas frequentes sobre envio e funcionamento (responda direto, sem acionar humano):
@@ -50,7 +52,7 @@ Perguntas frequentes sobre envio e funcionamento (responda direto, sem acionar h
 - "Como os pedidos do Mercado Livre chegam na Velo?" → Automaticamente: quando alguém compra no anúncio do usuário, a venda aparece na aba Pedidos da Velo, já com o botão "Comprar" para o produto na fornecedora.
 
 Regras:
-- Dúvida sobre publicar, conta de vendedor, anúncio que não sobe, conexão com o Mercado Livre: chame "verificar_conta_mercado_livre" ANTES de responder e explique exatamente o que falta, com passo a passo curto (ex.: entrar em mercadolivre.com.br > Meu perfil > Dados pessoais/Endereços e cadastrar CEP e endereço; ou cadastrar/confirmar celular).
+- Dúvida sobre erro ao publicar, conta de vendedor, anúncio que não sobe ou falha de conexão com o Mercado Livre: chame "verificar_conta_mercado_livre" ANTES de responder. Perguntar ONDE fica a página não é um erro: responda com o mapa acima sem consultar a conta. Explique só bloqueios confirmados pela consulta, com passo a passo curto. Check verde ausente ou CEPs diferentes não comprovam a causa de uma recusa.
 - "Localização/endereço do produto" para o Mercado Livre: responda direto, sem ferramentas. O vendedor usa o PRÓPRIO endereço cadastrado na conta do ML (não precisa do endereço da fornecedora). A etiqueta é gerada pelo ML na venda e anexada no pedido à fornecedora, que despacha direto ao comprador.
 - Outras dúvidas: chame "buscar_central_de_ajuda" e responda com base nos artigos, incluindo o link do artigo em markdown.
 - Nunca invente preços, prazos, regras ou funcionalidades. Planos: Base R$39,90/mês, Pro R$79,80/mês, Business R$189,90/mês. Não existe plano gratuito.
@@ -168,7 +170,7 @@ async function buscarAjuda(admin: SupabaseClient, consulta: string) {
   if (!itens.length) return { artigos: [], observacao: "Nada encontrado na central." };
   return {
     artigos: itens.map((a) => ({
-      titulo: a.title, resumo: a.summary, conteudo: (a.content ?? "").slice(0, 1500),
+      titulo: a.title, resumo: a.summary, conteudo: (a.content ?? "").slice(0, 6000),
       link: a.path?.startsWith("http") ? a.path : `${APP_URL}${a.path ?? "/ajuda"}`,
     })),
   };
@@ -253,7 +255,8 @@ Deno.serve(async (req) => {
 
     if (!message) return json({ error: "Escreva sua dúvida." }, 400);
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) return json({ error: "Assistente ainda não configurado." }, 503);
+    const navigationReply = supportNavigationReply(message);
+    if (!GEMINI_API_KEY && !navigationReply) return json({ error: "Assistente ainda não configurado." }, 503);
 
     const desde = new Date(Date.now() - 86400_000).toISOString();
     const { count } = await admin.from("support_ai_messages").select("id", { count: "exact", head: true })
@@ -264,6 +267,12 @@ Deno.serve(async (req) => {
     }
 
     await admin.from("support_ai_messages").insert({ user_id: userId, role: "user", content: message });
+
+    if (navigationReply) {
+      await admin.from("support_ai_messages").insert({ user_id: userId, role: "assistant", content: navigationReply });
+      return json({ reply: navigationReply });
+    }
+    if (!GEMINI_API_KEY) return json({ error: "Assistente ainda não configurado." }, 503);
 
     const { data: hist } = await admin.from("support_ai_messages").select("role,content")
       .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: false }).limit(20);
@@ -343,7 +352,7 @@ const AVISO_ESPERA = `Já solicitei o atendimento humano. ${HORARIOS_ATENDIMENTO
 
 const MARCADOR_CARTAO_REEMBOLSO = "__VELO_REFUND_PROMPT__";
 
-const PRAZO_REEMBOLSO = "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
+const PRAZO_REEMBOLSO = "Reembolsos aprovados são processados em até 48h e voltam pelo mesmo meio de pagamento. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
 
 const PESAR_REEMBOLSO_DENTRO_DO_PRAZO =
   `Sentimos muito que a sua experiência com a Velo não tenha sido boa. Para pedir o reembolso, toque no botão abaixo e responda algumas perguntas rápidas. ${PRAZO_REEMBOLSO}`;
@@ -366,7 +375,7 @@ ${REGRA_CONTEXTO_REEMBOLSO}
 Jeito de escrever nos tickets (muito importante):
 - Escreva como uma pessoa real do atendimento conversando pelo chat: cordial, educada, formal na medida certa, leve e didática. Imagine que a pessoa nunca mexeu com tecnologia.
 - NUNCA use termos técnicos, códigos ou palavras em inglês (ex.: rejected_by_regulations, address_pending, status, API, OAuth, token, integração). Traduza sempre para o que a pessoa entende: "o Mercado Livre ainda não liberou sua conta para vender", "falta cadastrar seu celular".
-- NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. A ÚNICA exceção é o link de artigo da Central de Ajuda: sempre que indicar um artigo, escreva-o como link markdown com o título do artigo, ex.: [Onde vejo o dinheiro das vendas](https://www.velods.com.br/ajuda/mercado-livre/dinheiro-das-vendas). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
+- NÃO use markdown para ênfase: sem asteriscos, sem negrito, sem títulos. Use links markdown para artigos da Central de Ajuda E páginas da Velo, ex.: [Pedidos](/dashboard/pedidos). Nunca cole o endereço solto nem entre parênteses. Outros endereços de site (ex.: mercadolivre.com.br) vão como texto simples.
 - Responda em UMA mensagem curta (até 3 parágrafos curtos, separados por linha em branco). Não repita o que já foi dito antes na conversa nem cumprimente de novo. Passo a passo pode ficar numa mensagem só, uma etapa por linha.
 
 Reembolso e cancelamento DA ASSINATURA VELO: quando a pessoa PEDIR, chame "acionar_suporte_humano" com motivo "reembolso" para o sistema selecionar o formulário conforme a assinatura. FORA dos 7 dias, essa chamada somente exibe o cartão de cancelar a renovação: NÃO encaminha para a equipe. Não diga que solicitou atendimento humano nesse caso. Dentro dos 7 dias, o pedido de reembolso vai para análise humana. Nunca confirme cancelamento antes de a pessoa confirmar no formulário. Se ela só PERGUNTAR como funciona, explique as regras sem mostrar cartão. Pedido de reembolso à fornecedora não segue este fluxo. Não tente convencer a pessoa a desistir.
@@ -442,6 +451,16 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       await enviar(AVISO_ESPERA);
     }
     return json({ skip: "limite" });
+  }
+
+  const navigationReply = supportNavigationReply(String(ultimaUser.message ?? ""));
+  if (navigationReply) {
+    const { data: newer } = await admin.from("support_messages").select("id")
+      .eq("ticket_id", ticketId).eq("sender", "user").eq("internal", false)
+      .gt("created_at", ultimaUser.created_at).limit(1);
+    if (newer?.length) return json({ skip: "chegou_mensagem_nova" });
+    await enviar(navigationReply);
+    return json({ ok: true, escalou: false });
   }
 
   const contents: Content[] = [];
@@ -523,7 +542,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
             const resumo = String(args.resumo ?? "");
             await marcarHumano(motivo, motivo === "reembolso"
               ? (dentroDoPrazoReembolso
-                ? `SOLICITAÇÃO DE REEMBOLSO — dentro do prazo de 7 dias. O cliente recebeu o botão para fazer o pedido pelo formulário (o pedido aparece em /admin/reembolsos). Prazo informado ao cliente: até 5 dias. ${resumo}`
+                ? `SOLICITAÇÃO DE REEMBOLSO — dentro do prazo de 7 dias. O cliente recebeu o botão para fazer o pedido pelo formulário (o pedido aparece em /admin/reembolsos). Prazo informado ao cliente: processamento em até 48h após aprovação. ${resumo}`
                 : `PEDIDO DE REEMBOLSO/CANCELAMENTO FORA DO PRAZO (assinatura com mais de 7 dias) — reembolso não se aplica; o cliente recebeu a opção de cancelar o plano. ${resumo}`)
               : resumo);
           }
