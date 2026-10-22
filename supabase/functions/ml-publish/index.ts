@@ -2227,6 +2227,50 @@ Deno.serve(async (req) => {
       }
     }
 
+    // O ML às vezes cria o anúncio mesmo devolvendo erro (ex.: recusa de
+    // peso/medidas processada de forma assíncrona). Antes de desistir,
+    // procura um anúncio com o mesmo título criado nos últimos minutos:
+    // se existir, adotamos ele em vez de reportar falha — assim o anúncio
+    // não vira um "fantasma" ativo fora do cadastro da Velo nem gera
+    // duplicado quando o usuário tentar de novo.
+    if (!itemResponse.ok || !itemData?.id) {
+      try {
+        const searchRes = await fetch(
+          `https://api.mercadolibre.com/users/${integration.ml_user_id}/items/search?status=active&limit=50`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } },
+        )
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          const ids: string[] = Array.isArray(searchData?.results) ? searchData.results : []
+          if (ids.length > 0) {
+            const multiRes = await fetch(`https://api.mercadolibre.com/items?ids=${ids.join(',')}`, {
+              headers: { 'Authorization': `Bearer ${accessToken}` },
+            })
+            if (multiRes.ok) {
+              const multiData = await multiRes.json()
+              const limite = Date.now() - 10 * 60_000
+              const tituloNorm = (s: string) => s.trim().toLowerCase()
+              // deno-lint-ignore no-explicit-any -- resposta multiget do ML: { code, body }
+              const encontrado = (multiData as Array<any>).find((r) => {
+                const b = r?.body
+                if (!b?.id || !b?.title) return false
+                if (tituloNorm(String(b.title)) !== tituloNorm(title)) return false
+                const criado = Date.parse(String(b.date_created ?? ''))
+                return Number.isFinite(criado) && criado >= limite
+              })
+              if (encontrado?.body) {
+                console.warn('[ml-publish] ML criou o anúncio apesar do erro; adotando', encontrado.body.id)
+                itemData = encontrado.body
+                itemResponse = new Response(null, { status: 200 })
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[ml-publish] verificação de anúncio criado apesar do erro falhou:', (e as Error).message)
+      }
+    }
+
     if (!itemResponse.ok || !itemData?.id) {
 
       console.error('Erro ao criar produto:', JSON.stringify(itemData))
