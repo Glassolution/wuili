@@ -1074,11 +1074,36 @@ Deno.serve(async (req) => {
     // (user_id, catalog_product_id) WHERE status IN ('active','published'),
     // so a race between two simultaneous requests will still be caught at
     // insert time (see catch below).
-    const catalogProductId: string | null =
-      (product.catalog_product_id as string | undefined) ??
-      (product.cj_product_id as string | undefined) ??
-      (product.external_id as string | undefined) ??
+    let catalogProductId: string | null =
+      cleanText(product.catalog_product_id) ||
+      cleanText(product.cj_product_id) ||
+      cleanText(product.external_id) ||
       null
+
+    // Sem vínculo no pedido de publicação: descobre o produto do catálogo antes
+    // de publicar. Sem isso a venda chega sem link da fornecedora
+    // ("Fornecedor indisponível").
+    if (!catalogProductId) {
+      const rawId = cleanText(product.id)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
+      if (isUuid) {
+        const { data: cpById } = await supabase
+          .from('catalog_products').select('external_id').eq('id', rawId).maybeSingle()
+        if (cpById?.external_id) catalogProductId = cpById.external_id
+      }
+      const supplierLink = cleanText(product.product_url) || cleanText(product.cj_product_url)
+      if (!catalogProductId && supplierLink) {
+        const { data: cpByUrl } = await supabase
+          .from('catalog_products').select('external_id').eq('product_url', supplierLink).limit(2)
+        if (cpByUrl?.length === 1 && cpByUrl[0].external_id) catalogProductId = cpByUrl[0].external_id
+      }
+      if (!catalogProductId) {
+        const firstImage = Array.isArray(product.images) ? cleanText(product.images[0]) : ''
+        const found = await resolveCatalogLink(supabase, cleanText(product.title), firstImage)
+        if (found?.external_id) catalogProductId = found.external_id
+      }
+      if (catalogProductId) console.log('[ml-publish] vínculo com o catálogo recuperado:', catalogProductId)
+    }
 
     if (catalogProductId) {
       const dup = await supabase
