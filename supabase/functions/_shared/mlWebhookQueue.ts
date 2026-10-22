@@ -14,6 +14,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { mlFetch } from "./mlClient.ts";
 import { dispatchOrderToBot, retryShippingLabel } from "./c7dropBotDispatch.ts";
+import { healPublicationLink, resolveCatalogLink } from "./catalogLink.ts";
 
 
 export const corsHeaders = {

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { dispatchOrderToBot, retryShippingLabel } from "../_shared/c7dropBotDispatch.ts";
+import { healPublicationLink, resolveCatalogLink } from "../_shared/catalogLink.ts";
 
 
 const corsHeaders = {
