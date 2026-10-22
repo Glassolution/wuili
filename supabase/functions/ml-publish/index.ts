@@ -1346,10 +1346,11 @@ Deno.serve(async (req) => {
       mergeAttribute(allAttrs, { id, ...resolved })
     }
 
-    // 3) SELLER_SKU (nosso, não é atributo do catálogo).
+    // 3) SELLER_SKU = código do produto no catálogo. É a "etiqueta" fixa que
+    // liga o anúncio à Velo mesmo se o vendedor trocar título ou fotos.
     mergeAttribute(allAttrs, {
       id: 'SELLER_SKU',
-      value_name: cleanText(productRecord.external_id) || 'SKU-001',
+      value_name: catalogProductId || cleanText(productRecord.external_id) || 'SKU-001',
     })
 
     // 3.1) EMPTY_GTIN_REASON — sem isso o ML aceita a publicação mas deixa o

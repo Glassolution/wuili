@@ -2,7 +2,8 @@
 // (catalog_product_id) não veio na publicação. Sem esse vínculo a venda chega
 // sem link da fornecedora e o botão mostra "Fornecedor indisponível".
 //
-// Ordem: título idêntico → primeira foto do anúncio → início do título.
+// Ordem: código SKU do anúncio (não muda se o vendedor trocar o título) →
+// título idêntico → primeira foto → início do título.
 // Só aceita resultado único; em caso de dúvida devolve null (nunca chuta).
 
 export type CatalogLinkRow = {
@@ -16,7 +17,18 @@ export type CatalogLinkRow = {
 };
 
 // deno-lint-ignore no-explicit-any -- cliente Supabase com service role, tipagem varia por função
-export async function resolveCatalogLink(supabase: any, title: string | null | undefined, thumbnail: string | null | undefined): Promise<CatalogLinkRow | null> {
+export async function resolveCatalogLink(supabase: any, title: string | null | undefined, thumbnail: string | null | undefined, sku?: string | null): Promise<CatalogLinkRow | null> {
+  const s = (sku ?? "").trim();
+  if (s && s !== "SKU-001") {
+    try {
+      const { data } = await supabase
+        .from("catalog_products")
+        .select("id, external_id, product_url, title, stock_quantity, is_active")
+        .eq("external_id", s)
+        .maybeSingle();
+      if (data?.id) return { ...data, match_kind: "sku" } as CatalogLinkRow;
+    } catch (_e) { /* segue para as outras formas */ }
+  }
   const t = (title ?? "").trim();
   const img = (thumbnail ?? "").trim();
   if (!t && !img) return null;

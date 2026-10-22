@@ -383,7 +383,7 @@ Deno.serve(async (req) => {
     // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e
     // corrige o anúncio para as próximas vendas.
     if (!supplierUrl) {
-      const found = await resolveCatalogLink(adminClient, item?.item?.title ?? null, item?.item?.thumbnail_url ?? null);
+      const found = await resolveCatalogLink(adminClient, item?.item?.title ?? null, item?.item?.thumbnail_url ?? null, item?.item?.seller_sku ?? null);
       if (found?.product_url) {
         supplierUrl = found.product_url;
         catalogProductId = found.id;

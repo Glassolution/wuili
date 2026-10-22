@@ -471,6 +471,7 @@ async function syncUserOrders(
           adminClient,
           item?.item?.title ?? null,
           item?.item?.thumbnail_url ?? null,
+          item?.item?.seller_sku ?? null,
         );
         if (found?.product_url) {
           supplierUrl = found.product_url;
