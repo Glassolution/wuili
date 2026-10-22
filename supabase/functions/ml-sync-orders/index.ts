@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { dispatchOrderToBot, retryShippingLabel } from "../_shared/c7dropBotDispatch.ts";
+import { healPublicationLink, resolveCatalogLink } from "../_shared/catalogLink.ts";
 
 
 const corsHeaders = {
@@ -460,6 +461,21 @@ async function syncUserOrders(
           }
 
           if (!supplierUrl && cjProductUrl) supplierUrl = cjProductUrl;
+        }
+      }
+
+      // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e
+      // corrige o anúncio para as próximas vendas.
+      if (!supplierUrl) {
+        const found = await resolveCatalogLink(
+          adminClient,
+          item?.item?.title ?? null,
+          item?.item?.thumbnail_url ?? null,
+        );
+        if (found?.product_url) {
+          supplierUrl = found.product_url;
+          catalogProductId = found.id;
+          if (mlItemId) await healPublicationLink(adminClient, userId, mlItemId, found.external_id);
         }
       }
 

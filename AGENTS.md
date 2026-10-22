@@ -37,3 +37,4 @@ Catálogo → importar produto → IA gera título/descrição → usuário revi
 Azul escuro `#1E3A8A`, azul elétrico `#2563EB`, branco/preto; logo nuvem preta com caixa; fundo da landing gradiente azul/lilás escuro.
 
 - Servidor MCP (Claude etc.): definir ferramentas em `src/lib/mcp/` (o `supabase/functions/mcp` é gerado); só admins, via OAuth e RLS, somente leitura e sem tabelas de tokens — evita exposição de credenciais e ações com dinheiro.
+- Vínculo anúncio → catálogo: quando a publicação ou a venda chega sem `catalog_product_id`, as funções usam `_shared/catalogLink.ts` (RPC `resolve_catalog_product_for_listing`: título idêntico, foto, início do título; só resultado único) e gravam o vínculo no anúncio — evita vendas com "Fornecedor indisponível".

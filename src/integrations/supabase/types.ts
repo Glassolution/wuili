@@ -4696,6 +4696,18 @@ export type Database = {
         }[]
       }
       refund_normalize_email: { Args: { p: string }; Returns: string }
+      resolve_catalog_product_for_listing: {
+        Args: { p_thumbnail: string; p_title: string }
+        Returns: {
+          external_id: string
+          id: string
+          is_active: boolean
+          match_kind: string
+          product_url: string
+          stock_quantity: number
+          title: string
+        }[]
+      }
       rpc_active_subscribers_count: { Args: never; Returns: number }
       rpc_admin_accept_affiliate_application: {
         Args: { p_user_id: string }

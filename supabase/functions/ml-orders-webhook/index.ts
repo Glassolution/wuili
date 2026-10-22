@@ -14,6 +14,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { healPublicationLink, resolveCatalogLink } from "../_shared/catalogLink.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -377,6 +378,17 @@ Deno.serve(async (req) => {
       catalogProductId = cp?.id ?? (isUuid ? catalogProductId : null);
     } else {
       supplierUrl = legacyProductUrl;
+    }
+
+    // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e
+    // corrige o anúncio para as próximas vendas.
+    if (!supplierUrl) {
+      const found = await resolveCatalogLink(adminClient, item?.item?.title ?? null, item?.item?.thumbnail_url ?? null);
+      if (found?.product_url) {
+        supplierUrl = found.product_url;
+        catalogProductId = found.id;
+        if (mlItemId) await healPublicationLink(adminClient, integration.user_id, mlItemId, found.external_id);
+      }
     }
 
     const parsedQuantity = Number(item?.quantity ?? 1);

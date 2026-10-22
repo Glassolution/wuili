@@ -14,6 +14,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { mlFetch } from "./mlClient.ts";
 import { dispatchOrderToBot, retryShippingLabel } from "./c7dropBotDispatch.ts";
+import { healPublicationLink, resolveCatalogLink } from "./catalogLink.ts";
 
 
 export const corsHeaders = {
@@ -367,6 +368,19 @@ async function handleOrdersTopic(
       }
     }
   }
+
+  // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e corrige o
+  // anúncio para as próximas vendas.
+  if (!supplierUrl) {
+    const found = await resolveCatalogLink(supabase, item?.item?.title ?? null, item?.item?.thumbnail_url ?? null);
+    if (found?.product_url) {
+      supplierUrl = found.product_url;
+      catalogProductId = found.id;
+      catalogRow = catalogRow ?? found;
+      if (mlItemId) await healPublicationLink(supabase, integration.user_id as string, mlItemId, found.external_id);
+    }
+  }
+
 
 
 
