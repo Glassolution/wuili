@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
+import { resolveCatalogLink } from '../_shared/catalogLink.ts'
 import {
   buildSafeDescription,
   sanitizeSellerDescription,
