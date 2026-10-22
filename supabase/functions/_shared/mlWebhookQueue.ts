@@ -365,8 +365,20 @@ async function handleOrdersTopic(
         catalogProductId = catalogProductId ?? cpSku.id;
         catalogRow = catalogRow ?? cpSku;
       }
+  }
+
+  // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e corrige o
+  // anúncio para as próximas vendas.
+  if (!supplierUrl) {
+    const found = await resolveCatalogLink(supabase, item?.item?.title ?? null, item?.item?.thumbnail_url ?? null);
+    if (found?.product_url) {
+      supplierUrl = found.product_url;
+      catalogProductId = found.id;
+      catalogRow = catalogRow ?? found;
+      if (mlItemId) await healPublicationLink(supabase, integration.user_id as string, mlItemId, found.external_id);
     }
   }
+
 
 
 

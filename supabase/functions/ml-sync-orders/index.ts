@@ -463,6 +463,21 @@ async function syncUserOrders(
         }
       }
 
+      // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e
+      // corrige o anúncio para as próximas vendas.
+      if (!supplierUrl) {
+        const found = await resolveCatalogLink(
+          adminClient,
+          item?.item?.title ?? null,
+          item?.item?.thumbnail_url ?? null,
+        );
+        if (found?.product_url) {
+          supplierUrl = found.product_url;
+          catalogProductId = found.id;
+          if (mlItemId) await healPublicationLink(adminClient, userId, mlItemId, found.external_id);
+        }
+      }
+
       const salePrice = calculateMlOrderTotal(fullOrder);
       const profit = costPrice ? salePrice - costPrice : null;
 

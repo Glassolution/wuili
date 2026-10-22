@@ -379,6 +379,17 @@ Deno.serve(async (req) => {
       supplierUrl = legacyProductUrl;
     }
 
+    // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e
+    // corrige o anúncio para as próximas vendas.
+    if (!supplierUrl) {
+      const found = await resolveCatalogLink(adminClient, item?.item?.title ?? null, item?.item?.thumbnail_url ?? null);
+      if (found?.product_url) {
+        supplierUrl = found.product_url;
+        catalogProductId = found.id;
+        if (mlItemId) await healPublicationLink(adminClient, integration.user_id, mlItemId, found.external_id);
+      }
+    }
+
     const parsedQuantity = Number(item?.quantity ?? 1);
     const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
     const itemUnitPrice = Number(item?.unit_price ?? 0);
