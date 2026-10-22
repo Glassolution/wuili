@@ -366,6 +366,7 @@ async function handleOrdersTopic(
         catalogProductId = catalogProductId ?? cpSku.id;
         catalogRow = catalogRow ?? cpSku;
       }
+    }
   }
 
   // Anúncio sem vínculo com o catálogo: descobre pelo título/foto e corrige o
