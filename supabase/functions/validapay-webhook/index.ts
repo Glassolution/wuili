@@ -8,7 +8,7 @@
 //     via GET /v1/charges/:chargeId com o token OAuth2 antes de alterar o banco.
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getCharge, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, isConfirmedPayment, lookupPaymentStatus, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
 import {
@@ -84,6 +84,10 @@ async function findSubscription(p: WebhookPayload) {
   }
   return null;
 }
+
+// Carimbo de data/hora usado no bloco de estornos (estava ausente e derrubava
+// o processamento de refund.confirmed com "nowIsoRefund is not defined").
+const nowIsoRefund = () => new Date().toISOString();
 
 const addMonths = (date: Date, months: number) => {
   const d = new Date(date);
@@ -205,15 +209,18 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  // 1) Token compartilhado (quando configurado)
+  // 1) Token compartilhado OBRIGATÓRIO: sem ele configurado ou sem o valor
+  // correto na requisição, o evento é recusado antes de qualquer processamento.
   const expectedToken = Deno.env.get("VALIDAPAY_WEBHOOK_TOKEN");
-  if (expectedToken) {
-    const url = new URL(req.url);
-    const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token") ?? "";
-    if (!safeEqual(provided, expectedToken)) {
-      console.warn("validapay-webhook: token inválido");
-      return json({ error: "unauthorized" }, 401);
-    }
+  if (!expectedToken) {
+    console.error("validapay-webhook: VALIDAPAY_WEBHOOK_TOKEN não configurado — evento recusado");
+    return json({ error: "webhook_token_not_configured" }, 500);
+  }
+  const url = new URL(req.url);
+  const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token") ?? "";
+  if (!safeEqual(provided, expectedToken)) {
+    console.warn("validapay-webhook: token inválido");
+    return json({ error: "unauthorized" }, 401);
   }
 
   let payload: WebhookPayload;
