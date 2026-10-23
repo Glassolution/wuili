@@ -458,6 +458,27 @@ Deno.serve(async (req) => {
         if (payload.chargeId && verifiedStatus !== "PAID") {
           return await fail(`charge_not_paid:${verifiedStatus}`);
         }
+        // Sem chargeId o evento, sozinho, NÃO prova pagamento. Antes de ativar,
+        // confirmamos na própria ValidaPay que existe uma cobrança paga para
+        // esta assinatura. Sem confirmação, o evento é recusado e reprocessado.
+        if (!payload.chargeId) {
+          let confirmed = false;
+          if (payload.subscriptionId) {
+            try {
+              const info = await lookupPaymentStatus(String(payload.subscriptionId));
+              confirmed = isConfirmedPayment(info);
+              if (confirmed && info) {
+                verifiedStatus = info.status ?? verifiedStatus;
+                verifiedAmount = verifiedAmount ?? info.amount ?? null;
+              }
+            } catch (err) {
+              console.warn("validapay-webhook: confirmação sem chargeId falhou", String(err));
+            }
+          }
+          if (!confirmed) {
+            return await fail("activation_unverified_no_charge");
+          }
+        }
         // Primeira cobrança paga desta assinatura? (antes de ativar, que
         // sobrescreve current_period_start). event_id estável por assinatura:
         // renovações e avisos repetidos nunca geram outro Purchase.
