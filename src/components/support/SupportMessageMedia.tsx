@@ -142,7 +142,7 @@ export const SupportMessageMedia = ({
               {renderSupportTextWithLinks(
                 text,
                 adminTone
-                  ? "font-semibold text-white underline decoration-white/70 underline-offset-2 hover:decoration-white"
+                  ? "break-all font-semibold text-current underline decoration-current/70 underline-offset-2 hover:decoration-current"
                   : "font-semibold text-[#2563EB] underline decoration-[#2563EB]/50 underline-offset-2 transition hover:text-[#1D4ED8] hover:decoration-[#1D4ED8]",
               )}
             </p>
