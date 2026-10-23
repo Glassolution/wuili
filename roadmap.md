@@ -44,3 +44,8 @@
 - [x] Distinguir reembolso da assinatura e da compra na fornecedora
 - [x] Validar regras em 31 testes e publicar o assistente sem executar reembolso real
 - [ ] Conferir conversa real e cartão no suporte administrativo — sessão disponível sem acesso de administrador
+
+## Auditoria de pagamentos (out/2026)
+- [ ] ETAPA 1: migrados sem assinatura ValidaPay; status real dos 776 no gateway; webhook token; estornos das duplicidades; eventos ativos no painel
+- [ ] ETAPA 2: webhook recusa ativação sem chargeId sem confirmação; token obrigatório; tratar eventos de reembolso; corrigir erro dos 22 avisos; testar em sandbox
+- [ ] ETAPA 3 (só proposta): expiração automática em modo simulação; plano para migrados sem cobrança com aviso de 7 dias
