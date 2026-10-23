@@ -51,10 +51,10 @@
 - [ ] ETAPA 3: aguardando aprovação da proposta (expiração em modo simulação + aviso de 7 dias para migrados)
 
 ## Pré-requisitos da ETAPA 3 (auditoria)
-- [ ] 1. Confirmar paginação do gateway e consultar as 638 assinaturas por ID
-- [ ] 2. Corrigir bug dos 80 que pagam sem período atualizado (causa + correção)
-- [ ] 3. Verificar os 18 renewed sem chargeId na ValidaPay; garantir fila de reprocessamento
-- [ ] 4. Monitorar 24h se algum evento real foi recusado com 401
-- [ ] 5. Checar cobrança recorrente ativa dos 135 MP + 2 Stripe
-- [ ] 6. Enviar lista das 94 duplicadas MP (id, data, valor, e-mail mascarado)
-- [ ] 7. Confirmar se anúncios ML são pausados ao voltar ao plano grátis
+- [x] 1. Paginação confirmada (100 reais); 638 consultadas por ID: 8 pagando, 211 canceladas, 20 inexistentes, 339 nunca ativadas
+- [x] 2. Bug dos 80 não existe: ativação atualiza o período; recorrência parou no gateway
+- [x] 3. Nenhum dos 18 era pago; falha de consulta já vai para fila de reprocessamento
+- [ ] 4. Monitorar 24h se algum evento real foi recusado com 401 (até agora: nenhum evento, nenhum 401)
+- [x] 5. MP: token morto (401), 2 preapprovals exigem cheque manual; Stripe: 2 ativas cobrando sem sincronizar período
+- [x] 6. Lista das 94 duplicadas MP entregue em CSV (R$ 4.839,40)
+- [x] 7. Anúncios ML NÃO são pausados ao voltar ao grátis (só no reembolso); aviso não promete pausa
