@@ -49,3 +49,12 @@
 - [x] ETAPA 1: migrados sem assinatura ValidaPay; status real dos 776 no gateway; webhook token; estornos das duplicidades; eventos ativos no painel
 - [x] ETAPA 2: webhook recusa ativação sem chargeId sem confirmação; token obrigatório; eventos de reembolso tratados; erro nowIsoRefund corrigido; publicado e testado (401 sem token)
 - [ ] ETAPA 3: aguardando aprovação da proposta (expiração em modo simulação + aviso de 7 dias para migrados)
+
+## Pré-requisitos da ETAPA 3 (auditoria)
+- [ ] 1. Confirmar paginação do gateway e consultar as 638 assinaturas por ID
+- [ ] 2. Corrigir bug dos 80 que pagam sem período atualizado (causa + correção)
+- [ ] 3. Verificar os 18 renewed sem chargeId na ValidaPay; garantir fila de reprocessamento
+- [ ] 4. Monitorar 24h se algum evento real foi recusado com 401
+- [ ] 5. Checar cobrança recorrente ativa dos 135 MP + 2 Stripe
+- [ ] 6. Enviar lista das 94 duplicadas MP (id, data, valor, e-mail mascarado)
+- [ ] 7. Confirmar se anúncios ML são pausados ao voltar ao plano grátis
