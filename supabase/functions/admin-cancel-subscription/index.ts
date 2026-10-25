@@ -39,13 +39,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: roleRow } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", callerId)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!roleRow) return json({ error: "Apenas administradores" }, 403);
+    const [{ data: roleRow }, { data: adminProfile }] = await Promise.all([
+      admin.from("user_roles").select("role").eq("user_id", callerId).eq("role", "admin").maybeSingle(),
+      admin.from("profiles").select("is_admin").eq("user_id", callerId).maybeSingle(),
+    ]);
+    if (!roleRow && !(adminProfile as { is_admin?: boolean } | null)?.is_admin) {
+      return json({ error: "Apenas administradores" }, 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     const { subscription_id, reason } = (body ?? {}) as {
