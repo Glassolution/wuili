@@ -97,6 +97,8 @@ Deno.serve(async (req) => {
       refresh_token: tokens.refresh_token ?? null,
       ml_user_id: tokens.user_id ?? null,
       expires_at: new Date(Date.now() + (tokens.expires_in ?? 21600) * 1000).toISOString(),
+      // Reconexão gera token novo do app atual: limpa a marca de token morto.
+      refresh_failed_at: null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id,platform" }

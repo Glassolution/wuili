@@ -13,6 +13,7 @@ import {
   garantirMedidasNoAnuncio,
   pausarAnuncio,
 } from '../_shared/mlPackage.ts'
+import { isDeadRefreshError, markRefreshTokenDead } from '../_shared/mlSellerToken.ts'
 
 /**
  * Grava no catálogo o veredito das diretrizes apurado na publicação (com
@@ -1033,6 +1034,9 @@ Deno.serve(async (req) => {
 
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error('Token refresh failed:', JSON.stringify(refreshData))
+        if (isDeadRefreshError(refreshRes.status, refreshData)) {
+          await markRefreshTokenDead(supabase, user_id, `ml-publish refresh ${refreshRes.status}`)
+        }
         return json({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }, 401)
       }
 
@@ -1041,6 +1045,7 @@ Deno.serve(async (req) => {
         access_token: refreshData.access_token,
         refresh_token: refreshData.refresh_token,
         expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
+        refresh_failed_at: null,
         updated_at: new Date().toISOString(),
       }).eq('user_id', user_id).eq('platform', 'mercadolivre')
     }
