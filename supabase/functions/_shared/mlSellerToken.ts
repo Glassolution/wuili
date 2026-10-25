@@ -64,7 +64,7 @@ export async function getSellerAccessToken(
 ): Promise<SellerTokenResult> {
   const { data: integration } = await supabase
     .from("user_integrations")
-    .select("access_token, refresh_token, expires_at, ml_user_id")
+    .select("access_token, refresh_token, expires_at, ml_user_id, refresh_failed_at")
     .eq("user_id", userId)
     .eq("platform", "mercadolivre")
     .maybeSingle();
@@ -78,6 +78,11 @@ export async function getSellerAccessToken(
     return { ok: true, accessToken: integration.access_token, mlUserId: integration.ml_user_id ?? null };
   }
 
+  // Token morto (refresh impossível) ou sem refresh_token: não insiste.
+  if (integration.refresh_failed_at || !integration.refresh_token) {
+    return { ok: false, error: "token do seller aguardando reconexão da conta ML" };
+  }
+
   const res = await mlFetch("https://api.mercadolibre.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -85,11 +90,14 @@ export async function getSellerAccessToken(
       grant_type: "refresh_token",
       client_id: Deno.env.get("ML_CLIENT_ID")!,
       client_secret: Deno.env.get("ML_CLIENT_SECRET")!,
-      refresh_token: integration.refresh_token ?? "",
+      refresh_token: integration.refresh_token,
     }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.access_token) {
+    if (isDeadRefreshError(res.status, data)) {
+      await markRefreshTokenDead(supabase, userId, `refresh ${res.status}`);
+    }
     return { ok: false, error: `falha ao renovar token do seller (${res.status})` };
   }
 
