@@ -4,6 +4,7 @@
 // depender de a pessoa voltar ao app.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { isDeadRefreshError, markRefreshTokenDead } from '../_shared/mlSellerToken.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

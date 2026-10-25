@@ -6,6 +6,7 @@
 // divergir. Roda a cada 6h via pg_cron.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { isDeadRefreshError, markRefreshTokenDead } from "../_shared/mlSellerToken.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
