@@ -7,6 +7,57 @@ export type SellerTokenResult =
   | { ok: true; accessToken: string; mlUserId: number | null }
   | { ok: false; error: string };
 
+/**
+ * Erro de refresh que NUNCA se resolve sozinho: o refresh_token foi emitido
+ * por outro app do Mercado Livre (client_id antigo) ou já foi usado/expirou.
+ * Insistir só gera chamadas inúteis (e cara de abuso) a cada rodada de cron.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- corpo de erro do ML, formato livre
+export function isDeadRefreshError(status: number, body: any): boolean {
+  if (status !== 400) return false;
+  const txt = JSON.stringify(body ?? {});
+  return txt.includes("invalid_grant") || txt.includes("client_id does not match");
+}
+
+/**
+ * Marca a integração como "token morto" (refresh_failed_at) para os jobs
+ * pararem de tentar renovar, e avisa o usuário uma vez por semana para
+ * reconectar a conta. A reconexão (ml-callback) limpa a marca.
+ */
+export async function markRefreshTokenDead(
+  supabase: SupabaseClient,
+  userId: string,
+  reason: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await supabase
+    .from("user_integrations")
+    .update({ refresh_failed_at: now, updated_at: now })
+    .eq("user_id", userId)
+    .eq("platform", "mercadolivre");
+
+  const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const { data: existing } = await supabase
+    .from("notifications")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("type", "ml_reconnect_required")
+    .gt("created_at", since)
+    .limit(1);
+  if (existing?.length) return;
+
+  await supabase.from("notifications").insert({
+    user_id: userId,
+    type: "ml_reconnect_required",
+    title: "Reconecte sua conta do Mercado Livre",
+    message:
+      "A autorização da sua conta do Mercado Livre expirou e não conseguimos renová-la automaticamente. " +
+      "Toque em reconectar para voltar a publicar e sincronizar seus anúncios.",
+    action_url: "/dashboard/integracoes",
+    metadata: { reason: reason.slice(0, 200) },
+  });
+}
+
 export async function getSellerAccessToken(
   supabase: SupabaseClient,
   userId: string,
