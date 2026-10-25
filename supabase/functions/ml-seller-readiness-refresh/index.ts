@@ -24,6 +24,7 @@ type Integracao = {
   refresh_token: string | null
   expires_at: string | null
   ml_user_id: number | null
+  refresh_failed_at: string | null
 }
 
 Deno.serve(async (req) => {
