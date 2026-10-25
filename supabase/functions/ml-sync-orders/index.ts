@@ -167,6 +167,13 @@ async function syncUserOrders(
     // Refresh token if expired
     const expiresAt = new Date(integration.expires_at);
     if (expiresAt <= new Date()) {
+      // Token morto (refresh impossível) ou sem refresh_token: não insiste.
+      if (integration.refresh_failed_at || !integration.refresh_token) {
+        return new Response(
+          JSON.stringify({ error: "Mercado Livre session expired, please reconnect your account" }),
+          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
       console.log("[ml-sync-orders] Token expired, refreshing...");
       const refreshRes = await fetch("https://api.mercadolibre.com/oauth/token", {
         method: "POST",
@@ -182,6 +189,9 @@ async function syncUserOrders(
       const refreshData = await refreshRes.json();
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error("[ml-sync-orders] Token refresh failed:", JSON.stringify(refreshData));
+        if (isDeadRefreshError(refreshRes.status, refreshData)) {
+          await markRefreshTokenDead(adminClient, userId, `sync-orders refresh ${refreshRes.status}`);
+        }
         return new Response(
           JSON.stringify({ error: "Mercado Livre session expired, please reconnect your account" }),
           { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -195,11 +205,12 @@ async function syncUserOrders(
           access_token: refreshData.access_token,
           refresh_token: refreshData.refresh_token ?? integration.refresh_token,
           expires_at: new Date(Date.now() + (refreshData.expires_in ?? 21600) * 1000).toISOString(),
+          refresh_failed_at: null,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", userId)
         .eq("platform", "mercadolivre");
-      
+
       console.log("[ml-sync-orders] Token refreshed successfully");
     }
 
