@@ -107,6 +107,7 @@ export async function getSellerAccessToken(
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       expires_at: new Date(Date.now() + Number(data.expires_in ?? 21600) * 1000).toISOString(),
+      refresh_failed_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
