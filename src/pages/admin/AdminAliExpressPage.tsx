@@ -181,16 +181,15 @@ export default function AdminAliExpressPage() {
       subtitle="Mapeamento de categorias e status da sincronização automática (a cada 6h)."
       actions={
         <>
-          {isConnected === false && (
-            <button
-              onClick={connectAliExpress}
-              disabled={connecting}
-              className="admin-pill inline-flex items-center disabled:opacity-60"
-            >
-              {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
-              {connecting ? "Conectando..." : "Conectar AliExpress"}
-            </button>
-          )}
+          <button
+            onClick={connectAliExpress}
+            disabled={connecting}
+            className="admin-pill inline-flex items-center disabled:opacity-60"
+            title={isConnected ? "Renovar a autorização do AliExpress (necessário quando o token vence)" : "Conectar sua conta do AliExpress"}
+          >
+            {connecting ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+            {connecting ? "Conectando..." : isConnected ? "Reconectar AliExpress" : "Conectar AliExpress"}
+          </button>
           <button
             onClick={toggleCron}
             disabled={togglingCron || cronActive === null}
