@@ -596,6 +596,7 @@ serve(async (req) => {
             supplier_name: "AliExpress",
             external_id: externalId,
             title,
+            description: null as string | null,
             images: image ? [image] : [],
             cost_price: cost,
             suggested_price: suggested,
@@ -607,14 +608,14 @@ serve(async (req) => {
               const n = parseInt(raw, 10);
               return Number.isFinite(n) ? n : 0;
             })(),
-            stock_quantity: 999,
+            stock_quantity: 999, // fallback; o enriquecimento grava o estoque real quando a API expõe
             product_url:
               p.itemUrl ??
               p.product_detail_url ??
               `https://www.aliexpress.com/item/${externalId}.html`,
             aliexpress_category_id: aliCategoryIdForKeyword,
             category: veloCategoryForKeyword,
-            brand: null,
+            brand: detectBrand(title),
             in_top_50: true,
             is_active: true,
             is_blocked: false,
