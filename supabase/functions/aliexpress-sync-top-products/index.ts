@@ -45,6 +45,7 @@ async function fetchProductDetail(
   orders_count: number | null;
   rating: number | null;
   reviews_count: number | null;
+  stock: number | null;
 } | null> {
   try {
     const json = await callAliExpress(
