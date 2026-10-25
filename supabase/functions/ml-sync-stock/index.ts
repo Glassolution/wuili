@@ -154,6 +154,7 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
       access_token: rd.access_token,
       refresh_token: rd.refresh_token ?? integ.refresh_token,
       expires_at: new Date(Date.now() + (rd.expires_in ?? 21600) * 1000).toISOString(),
+      refresh_failed_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
