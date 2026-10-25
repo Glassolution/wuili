@@ -1,6 +1,6 @@
 // Obtém (e renova quando necessário) o access_token do Mercado Livre de um seller.
 // Usado pelos jobs em segundo plano (correção em massa de anúncios).
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { mlFetch } from "./mlClient.ts";
 
 export type SellerTokenResult =
@@ -23,12 +23,17 @@ export function isDeadRefreshError(status: number, body: any): boolean {
  * Marca a integração como "token morto" (refresh_failed_at) para os jobs
  * pararem de tentar renovar, e avisa o usuário uma vez por semana para
  * reconectar a conta. A reconexão (ml-callback) limpa a marca.
+ *
+ * Cria o próprio client admin de propósito: as funções chamadoras usam
+ * versões diferentes do supabase-js e o tipo SupabaseClient não é
+ * intercambiável entre elas.
  */
-export async function markRefreshTokenDead(
-  supabase: SupabaseClient,
-  userId: string,
-  reason: string,
-): Promise<void> {
+export async function markRefreshTokenDead(userId: string, reason: string): Promise<void> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return;
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+
   const now = new Date().toISOString();
   await supabase
     .from("user_integrations")
