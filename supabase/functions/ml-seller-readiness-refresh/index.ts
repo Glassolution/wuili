@@ -4,6 +4,7 @@
 // depender de a pessoa voltar ao app.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { isDeadRefreshError, markRefreshTokenDead } from '../_shared/mlSellerToken.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,7 @@ type Integracao = {
   refresh_token: string | null
   expires_at: string | null
   ml_user_id: number | null
+  refresh_failed_at: string | null
 }
 
 Deno.serve(async (req) => {
@@ -88,7 +90,7 @@ Deno.serve(async (req) => {
 
   const { data: integracoes } = await admin
     .from('user_integrations')
-    .select('user_id, access_token, refresh_token, expires_at, ml_user_id')
+    .select('user_id, access_token, refresh_token, expires_at, ml_user_id, refresh_failed_at')
     .eq('platform', 'mercadolivre')
     .in('user_id', alvo)
 
@@ -102,7 +104,8 @@ Deno.serve(async (req) => {
     const expira = integ.expires_at ? new Date(integ.expires_at).getTime() : 0
 
     // Renova o token quando estiver vencido/perto de vencer.
-    if (token && expira < Date.now() + 60_000 && integ.refresh_token) {
+    // Token morto (refresh_failed_at) ou sem refresh_token: não insiste.
+    if (token && expira < Date.now() + 60_000 && integ.refresh_token && !integ.refresh_failed_at) {
       try {
         const r = await fetch('https://api.mercadolibre.com/oauth/token', {
           method: 'POST',
@@ -123,12 +126,16 @@ Deno.serve(async (req) => {
               access_token: d.access_token,
               refresh_token: d.refresh_token ?? integ.refresh_token,
               expires_at: new Date(Date.now() + Number(d.expires_in ?? 21600) * 1000).toISOString(),
+              refresh_failed_at: null,
               updated_at: new Date().toISOString(),
             })
             .eq('user_id', integ.user_id)
             .eq('platform', 'mercadolivre')
         } else {
           token = ''
+          if (isDeadRefreshError(r.status, d)) {
+            await markRefreshTokenDead(integ.user_id, `readiness refresh ${r.status}`)
+          }
         }
       } catch (_) {
         token = ''

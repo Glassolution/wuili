@@ -23,6 +23,7 @@
 //  • { dryRun: true }: só relata o que faria, sem tocar no ML.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { mlFetch } from "../_shared/mlClient.ts";
+import { isDeadRefreshError, markRefreshTokenDead } from "../_shared/mlSellerToken.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,7 +113,7 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
   // `maybeSingle()` devolvia erro e derrubava a sincronização. Pegamos a mais recente.
   const { data: integRows } = await supabase
     .from("user_integrations")
-    .select("access_token, refresh_token, expires_at")
+    .select("access_token, refresh_token, expires_at, refresh_failed_at")
     .eq("user_id", userId)
     .eq("platform", "mercadolivre")
     .order("expires_at", { ascending: false, nullsFirst: false })
@@ -123,6 +124,9 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
   const expiresAt = integ.expires_at ? new Date(integ.expires_at as string) : new Date(0);
   if (expiresAt > new Date(Date.now() + 60_000)) return integ.access_token as string;
 
+  // Token morto (refresh impossível) ou sem refresh_token: não insiste.
+  if (integ.refresh_failed_at || !integ.refresh_token) return null;
+
   const rr = await mlFetch("https://api.mercadolibre.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -130,7 +134,7 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
       grant_type: "refresh_token",
       client_id: Deno.env.get("ML_CLIENT_ID")!,
       client_secret: Deno.env.get("ML_CLIENT_SECRET")!,
-      refresh_token: (integ.refresh_token as string) ?? "",
+      refresh_token: integ.refresh_token as string,
     }),
   });
   const rd = await rr.json().catch(() => ({}));
@@ -138,6 +142,9 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
     console.warn(
       `[ml-sync-stock] refresh falhou user=${userId} status=${rr.status} body=${JSON.stringify(rd).slice(0, 300)}`,
     );
+    if (isDeadRefreshError(rr.status, rd)) {
+      await markRefreshTokenDead(userId, `sync-stock refresh ${rr.status}`);
+    }
     return null;
   }
 
@@ -147,6 +154,7 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
       access_token: rd.access_token,
       refresh_token: rd.refresh_token ?? integ.refresh_token,
       expires_at: new Date(Date.now() + (rd.expires_in ?? 21600) * 1000).toISOString(),
+      refresh_failed_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
