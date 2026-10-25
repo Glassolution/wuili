@@ -114,7 +114,17 @@ async function fetchProductDetail(
         })()
       : null;
 
-    return { images, description, orders_count, rating, reviews_count };
+    // Estoque real: soma dos SKUs quando a API expõe; null = desconhecido
+    // (o chamador mantém o fallback 999 nesse caso).
+    const skuList = stats?.ae_item_sku_info_d_t_o ?? stats?.sku_info ?? [];
+    const stock = Array.isArray(skuList) && skuList.length > 0
+      ? skuList.reduce((acc: number, s: any) => {
+          const n = Number(s?.sku_available_stock ?? s?.ipm_sku_stock ?? s?.stock ?? 0);
+          return acc + (Number.isFinite(n) ? n : 0);
+        }, 0)
+      : null;
+
+    return { images, description, orders_count, rating, reviews_count, stock };
   } catch (err) {
     console.warn(
       `[aliexpress-sync-top-products] product.get falhou para ${productId}:`,
