@@ -760,7 +760,12 @@ serve(async (req) => {
       const hasStock = Number(item.stock_quantity ?? 0) > 0;
       const goodTitle = String(item.title ?? "").length >= 20;
       const goodCat = PUBLISHABLE_CATEGORIES.has(normCat(item.category));
-      const publishable = hasImgs && hasStock && goodTitle && goodCat;
+      // Defesa em profundidade: mesmo que algo escape do filtro na coleta,
+      // produto bloqueado/Anatel nunca fica visível no catálogo.
+      const notBanned =
+        !isBlocked(String(item.title ?? "")) &&
+        !isCellphoneProduct(String(item.title ?? ""), item.category);
+      const publishable = hasImgs && hasStock && goodTitle && goodCat && notBanned;
       item.is_active = publishable;
       item.is_blocked = !publishable;
       if (!publishable) hiddenNotPublishable++;
