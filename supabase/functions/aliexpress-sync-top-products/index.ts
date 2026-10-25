@@ -687,6 +687,13 @@ serve(async (req) => {
           if (detail.orders_count != null) item.orders_count = detail.orders_count;
           if (detail.rating != null) item.rating = detail.rating;
           if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
+          if (detail.stock != null) item.stock_quantity = detail.stock;
+          // Descrição higienizada (sem HTML, links, contatos, menções a
+          // marketplaces) — igual ao tratamento que o ml-publish exige.
+          if (detail.description) {
+            const cleanDesc = stripMLHtml(detail.description).slice(0, 5000);
+            if (cleanDesc.length >= 40) item.description = cleanDesc;
+          }
           enrichedCount++;
           enrichedIds.add(item.external_id);
         }
