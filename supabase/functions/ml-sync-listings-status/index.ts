@@ -90,7 +90,7 @@ async function getFreshToken(
   const rd = await rr.json().catch(() => ({}));
   if (!rr.ok || !rd.access_token) {
     if (isDeadRefreshError(rr.status, rd)) {
-      await markRefreshTokenDead(supabase, userId, `listings-status refresh ${rr.status}`);
+      await markRefreshTokenDead(userId, `listings-status refresh ${rr.status}`);
     }
     return null;
   }

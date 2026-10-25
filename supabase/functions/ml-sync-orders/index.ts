@@ -191,7 +191,7 @@ async function syncUserOrders(
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error("[ml-sync-orders] Token refresh failed:", JSON.stringify(refreshData));
         if (isDeadRefreshError(refreshRes.status, refreshData)) {
-          await markRefreshTokenDead(adminClient, userId, `sync-orders refresh ${refreshRes.status}`);
+          await markRefreshTokenDead(userId, `sync-orders refresh ${refreshRes.status}`);
         }
         return new Response(
           JSON.stringify({ error: "Mercado Livre session expired, please reconnect your account" }),

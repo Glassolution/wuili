@@ -1035,7 +1035,7 @@ Deno.serve(async (req) => {
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error('Token refresh failed:', JSON.stringify(refreshData))
         if (isDeadRefreshError(refreshRes.status, refreshData)) {
-          await markRefreshTokenDead(supabase, user_id, `ml-publish refresh ${refreshRes.status}`)
+          await markRefreshTokenDead(user_id, `ml-publish refresh ${refreshRes.status}`)
         }
         return json({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }, 401)
       }

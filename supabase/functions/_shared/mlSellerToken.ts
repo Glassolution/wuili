@@ -101,7 +101,7 @@ export async function getSellerAccessToken(
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.access_token) {
     if (isDeadRefreshError(res.status, data)) {
-      await markRefreshTokenDead(supabase, userId, `refresh ${res.status}`);
+      await markRefreshTokenDead(userId, `refresh ${res.status}`);
     }
     return { ok: false, error: `falha ao renovar token do seller (${res.status})` };
   }

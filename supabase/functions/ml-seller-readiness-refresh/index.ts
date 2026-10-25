@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
         } else {
           token = ''
           if (isDeadRefreshError(r.status, d)) {
-            await markRefreshTokenDead(admin, integ.user_id, `readiness refresh ${r.status}`)
+            await markRefreshTokenDead(integ.user_id, `readiness refresh ${r.status}`)
           }
         }
       } catch (_) {

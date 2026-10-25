@@ -143,7 +143,7 @@ async function getFreshToken(supabase: Supa, userId: string): Promise<string | n
       `[ml-sync-stock] refresh falhou user=${userId} status=${rr.status} body=${JSON.stringify(rd).slice(0, 300)}`,
     );
     if (isDeadRefreshError(rr.status, rd)) {
-      await markRefreshTokenDead(supabase, userId, `sync-stock refresh ${rr.status}`);
+      await markRefreshTokenDead(userId, `sync-stock refresh ${rr.status}`);
     }
     return null;
   }
