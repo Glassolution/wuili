@@ -556,8 +556,18 @@ serve(async (req) => {
           const externalId = String(
             p.itemId ?? p.item_id ?? p.product_id ?? p.productId ?? "",
           );
-          const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
-          if (!externalId || !title) continue;
+          const rawTitle = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
+          if (!externalId || !rawTitle) continue;
+          // Mesmas regras do catálogo C7Drop: blocklist de conteúdo adulto,
+          // produtos falsos ("anúncios em massa") e aparelhos que exigem
+          // homologação Anatel (celulares/smartphones) nem entram no catálogo.
+          if (isBlocked(rawTitle)) continue;
+          if (isFakeAdProduct(rawTitle)) continue;
+          if (isCellphoneProduct(rawTitle, veloCategoryForKeyword)) continue;
+          // Título sanitizado como no ml-publish: sem termos proibidos
+          // ("frete grátis", "oferta", marcas de marketplace, emojis...).
+          const title = sanitizeTitle(rawTitle).title;
+          if (!title) continue;
           if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords/páginas
           const titleKey = title.toLowerCase();
           if (currentTitles.has(titleKey)) continue; // dedup por título (variantes com mesmo nome)
