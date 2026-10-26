@@ -4004,6 +4004,7 @@ export type Database = {
           id: string
           ml_user_id: number | null
           platform: string
+          refresh_failed_at: string | null
           refresh_token: string | null
           updated_at: string | null
           user_id: string | null
@@ -4015,6 +4016,7 @@ export type Database = {
           id?: string
           ml_user_id?: number | null
           platform: string
+          refresh_failed_at?: string | null
           refresh_token?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -4026,6 +4028,7 @@ export type Database = {
           id?: string
           ml_user_id?: number | null
           platform?: string
+          refresh_failed_at?: string | null
           refresh_token?: string | null
           updated_at?: string | null
           user_id?: string | null
