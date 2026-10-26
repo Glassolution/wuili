@@ -9,6 +9,14 @@ export const VELO_PLAN_PRICES: Record<VeloPaidPlanId, { monthly: number; annual:
 export const billingCycleForPlan = (plan: string): "monthly" | "annual" =>
   plan === "business" ? "annual" : "monthly";
 
+/**
+ * Ciclo que vale de verdade quando a tela tem o seletor Mensal/Anual.
+ * O Business só é vendido no anual (R$ 189,90/mês, cobrados R$ 2.278,80 de
+ * uma vez, como nos Termos); Base e Pro seguem o que a pessoa escolheu.
+ */
+export const effectiveBillingCycle = (plan: string, chosen: "monthly" | "annual"): "monthly" | "annual" =>
+  billingCycleForPlan(plan) === "annual" ? "annual" : chosen;
+
 export const VELO_STARTING_MONTHLY_PRICE = Math.min(
   ...Object.values(VELO_PLAN_PRICES).map((plan) => plan.monthly),
 );
