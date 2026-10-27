@@ -4,13 +4,17 @@ import { LIFETIME_PLANS, lifetimePaymentMatches, lifetimePeriod } from "../../su
 
 describe("oferta vitalícia", () => {
   it.each([
-    ["base", 39.9, 47.88], ["pro", 79.8, 95.76], ["business", 189.9, 227.88],
-  ] as const)("%s custa o mesmo que o mensal e a referência é 20% maior", (plan, amount, reference) => {
+    ["base", 89.9, 107.88], ["pro", 179.8, 215.76], ["business", 427.9, 513.48],
+  ] as const)("vitalício %s custa o valor definido e a referência é 20% maior", (plan, amount, reference) => {
     expect(VELO_PLAN_PRICES[plan].lifetime).toBe(amount);
-    expect(VELO_PLAN_PRICES[plan].monthly).toBe(amount);
     expect(VELO_PLAN_PRICES[plan].compareAt).toBe(reference);
     expect(LIFETIME_PLANS[plan].amount).toBe(amount);
     expect(LIFETIME_PLANS[plan].compareAt).toBe(reference);
+  });
+  it("mensal continua igual", () => {
+    expect(VELO_PLAN_PRICES.base.monthly).toBe(39.9);
+    expect(VELO_PLAN_PRICES.pro.monthly).toBe(79.8);
+    expect(VELO_PLAN_PRICES.business.monthly).toBe(189.9);
   });
   it("mantém os valores anuais anteriores sem transformar contratos existentes", () => {
     expect(VELO_PLAN_PRICES.base.annual).toBe(430.92);
