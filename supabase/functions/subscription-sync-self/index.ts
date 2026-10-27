@@ -8,6 +8,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { isConfirmedPayment, lookupPaymentStatus } from "../_shared/validapay.ts";
+import { recoverLifetimePurchases } from "../_shared/lifetimeCharge.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -100,6 +101,13 @@ Deno.serve(async (req) => {
 
       console.log("subscription-sync-self: plano liberado sem webhook", { userId, plan: sub.plan });
       return json({ active: true, plan: sub.plan, lifetime: sub.purchase_kind === "lifetime", source: "gateway" });
+    }
+
+    // Vitalício: a cobrança única não fica ligada à sessão; procura na lista de cobranças.
+    if (!requestedKind || requestedKind === "lifetime") {
+      const recovered = await recoverLifetimePurchases(admin, userId);
+      const hit = recovered.find((r) => !requestedPlan || r.plan === requestedPlan);
+      if (hit) return json({ active: true, plan: hit.plan, lifetime: true, source: "gateway_charges" });
     }
 
     return json({ active: false });

@@ -6,6 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { isConfirmedPayment, lookupPaymentStatus } from "../_shared/validapay.ts";
+import { recoverLifetimePurchases } from "../_shared/lifetimeCharge.ts";
 
 const EXPIRE_AFTER_MS = 30 * 60 * 1000;
 
@@ -73,6 +74,14 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq("id", sub.id).eq("status", "pending");
       result.expired++;
+    }
+
+    // Vitalício pago não chega por webhook nem fica na sessão: recupera pela lista de cobranças.
+    try {
+      const recovered = await recoverLifetimePurchases(admin);
+      (result as Record<string, number>).lifetime_recovered = recovered.length;
+    } catch (err) {
+      console.error("expire-pending-charges: recuperação vitalícia falhou", String(err));
     }
 
     console.log("expire-pending-charges:", JSON.stringify(result));
