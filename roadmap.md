@@ -1,5 +1,11 @@
 # Roadmap
 
+## Oferta vitalícia para novas compras
+- [ ] Substituir opção anual por vitalício sem mudar assinaturas existentes
+- [ ] Configurar pagamento único confirmado e acesso sem expiração
+- [ ] Exibir preço final igual ao mensal e referência 20% maior com clareza
+- [ ] Validar preços, cobrança e acesso; informar limitações de verificação
+
 - [x] Simplificar a home mobile para o primeiro anúncio
 - [x] Exibir preços e estimativas honestas nos cartões mobile, mantendo vendas e avaliações simuladas
 - [x] Personalizar e ordenar produtos com dados reais
