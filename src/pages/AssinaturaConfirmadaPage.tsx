@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VeloLogo } from "@/components/VeloLogo";
+import { useSearchParams } from "react-router-dom";
+import SubscriptionConfirmedPage from "./SubscriptionConfirmedPage";
 
 /**
  * Página de sucesso pós-pagamento (/assinatura/confirmada).
@@ -18,6 +20,8 @@ const SUCCESS = "#22C55E";
 
 const AssinaturaConfirmadaPage = () => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  if (params.get("cycle") === "lifetime") return <SubscriptionConfirmedPage />;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 py-16">
