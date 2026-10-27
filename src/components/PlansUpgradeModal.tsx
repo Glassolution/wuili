@@ -803,14 +803,22 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
         </div>
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
-          {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((plan) => {
-            const price = cycle === "lifetime" ? plan.lifetime : plan.monthly;
+          {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((originalPlan) => {
+            // No mensal, o lugar do Business mostra o Base vitalício, que leva para a aba Vitalício.
+            const isLifetimeTeaser = cycle === "monthly" && originalPlan.id === "business";
+            const basePlan = PLANS.find((item) => item.id === "base") ?? originalPlan;
+            const plan = isLifetimeTeaser
+              ? { ...basePlan, name: "Base Vitalício", ribbon: "Pague uma vez" }
+              : originalPlan;
+            const cardCycle: BillingCycle = isLifetimeTeaser ? "lifetime" : cycle;
+            const price = cardCycle === "lifetime" ? plan.lifetime : plan.monthly;
             const priceParts = splitBRL(price);
-            const isHighlighted = plan.id === defaultPlan || (!defaultPlan && plan.highlighted);
+            const isHighlighted = !isLifetimeTeaser && (plan.id === defaultPlan || (!defaultPlan && plan.highlighted));
+            const choose = () => (isLifetimeTeaser ? setCycle("lifetime") : void handleChoose(plan.id));
 
             return (
               <article
-                key={plan.id}
+                key={originalPlan.id}
                 className={`relative flex flex-col overflow-hidden rounded-[16px] border bg-white p-5 transition-all duration-300 ${
                   isHighlighted
                     ? "border-[#2563EB] shadow-[0_26px_70px_rgba(37,99,235,0.18),0_12px_32px_rgba(10,10,10,0.10)] md:-translate-y-2"
@@ -840,32 +848,32 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                 <p className="sr-only">{plan.tagline}</p>
 
                 <div className="mt-6">
-                  {cycle === "lifetime" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].compareAt)}</s> · Com desconto</p>}
+                  {cardCycle === "lifetime" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].compareAt)}</s> · Com desconto</p>}
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-['Manrope','Inter',ui-sans-serif,system-ui]">
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
                       {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
                       <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
                     </span>
-                    <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">{cycle === "lifetime" ? "uma vez" : "/mês"}</span>
+                    <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">{cardCycle === "lifetime" ? "uma vez" : "/mês"}</span>
                   </div>
                   <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">
-                    {cycle === "lifetime" ? `Pagamento único de ${formatBRL(plan.lifetime)} · acesso vitalício` : "Cobrança mensal"}
+                    {cardCycle === "lifetime" ? `Pagamento único de ${formatBRL(plan.lifetime)} · acesso vitalício` : "Cobrança mensal"}
                   </p>
                 </div>
 
                 <PremiumActionButton
                   type="button"
-                  onClick={() => void handleChoose(plan.id)}
+                  onClick={choose}
                   disabled={checkingOutPlanId !== null}
                   className="-mx-1 mt-5 h-9 w-[calc(100%+0.5rem)] rounded-[7px] px-5 text-[14px] disabled:opacity-80"
                 >
-                  {checkingOutPlanId === plan.id ? (
+                  {!isLifetimeTeaser && checkingOutPlanId === plan.id ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       {sandboxPurchaseEnabled ? "Ativando..." : "Redirecionando..."}
                     </span>
                   ) : (
-                    <>{sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {plan.name.replace("Plano ", "")}</>
+                    <>{isLifetimeTeaser ? "Ver planos vitalícios" : <>{sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {plan.name.replace("Plano ", "")}</>}</>
                   )}
                 </PremiumActionButton>
 
