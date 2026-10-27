@@ -6,6 +6,7 @@
 // plano em segundos em vez de minutos.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { isConfirmedPayment, lookupPaymentStatus } from "../_shared/validapay.ts";
 
 const json = (body: unknown, status = 200) =>
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
 
     const { data: pendings } = await admin
       .from("subscriptions")
-      .select("id,plan,amount,validapay_charge_id,validapay_subscription_id,created_at")
+      .select("id,plan,amount,purchase_kind,validapay_charge_id,validapay_subscription_id,created_at")
       .eq("user_id", userId)
       .eq("status", "pending")
       .gte("created_at", new Date(Date.now() - 3 * 24 * 3600_000).toISOString())
@@ -75,6 +76,7 @@ Deno.serve(async (req) => {
       const info = await lookupPaymentStatus(reference);
 
       if (!isConfirmedPayment(info) || !info) continue;
+      if (sub.purchase_kind === "lifetime" && !lifetimePaymentMatches(Number(sub.amount), info.amount)) continue;
 
       const now = new Date();
       await admin.from("subscriptions").update({
@@ -84,6 +86,7 @@ Deno.serve(async (req) => {
         validapay_charge_id: info.chargeId ?? sub.validapay_charge_id,
         current_period_start: now.toISOString(),
         current_period_end: addMonths(now, 1).toISOString(),
+        ...(sub.purchase_kind === "lifetime" ? { ...lifetimePeriod, origin_paid_at: now.toISOString() } : {}),
         updated_at: now.toISOString(),
       }).eq("id", sub.id);
       await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", userId);

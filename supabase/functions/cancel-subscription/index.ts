@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     if (!["active", "paid", "approved", "trialing"].includes(String(sub.status))) {
       return json({ error: "Esta assinatura não está ativa." }, 400);
     }
+    if (sub.purchase_kind === "lifetime") return json({ success: true, already: true, lifetime: true, message: "Seu plano é vitalício: não há renovação nem cobrança futura para cancelar." });
     if (sub.cancel_at_period_end) {
       return json({
         success: true,

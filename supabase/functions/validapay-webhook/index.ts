@@ -7,6 +7,7 @@
 //  2) Verificação server-side obrigatória: todo evento de pagamento é reconferido
 //     via GET /v1/charges/:chargeId com o token OAuth2 antes de alterar o banco.
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
+import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCharge, isConfirmedPayment, lookupPaymentStatus, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
@@ -53,12 +54,17 @@ type WebhookPayload = {
 
 /** Localiza a assinatura da Velo correspondente ao evento recebido. */
 async function findSubscription(p: WebhookPayload) {
+  const purchaseId = typeof p.metadata?.velo_purchase_id === "string" ? p.metadata.velo_purchase_id : null;
+  if (purchaseId) {
+    const { data } = await admin.from("subscriptions").select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount").eq("id", purchaseId).eq("provider", "validapay").maybeSingle();
+    if (data) return data;
+  }
   const metaUser = (p.metadata?.user_id ?? p.metadata?.userId) as string | undefined;
 
   if (p.chargeId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount")
       .eq("validapay_charge_id", p.chargeId)
       .maybeSingle();
     if (data) return data;
@@ -66,7 +72,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.subscriptionId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount")
       .eq("validapay_subscription_id", p.subscriptionId)
       .maybeSingle();
     if (data) return data;
@@ -74,7 +80,7 @@ async function findSubscription(p: WebhookPayload) {
   if (metaUser) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount")
       .eq("user_id", metaUser)
       .eq("provider", "validapay")
       .order("created_at", { ascending: false })
@@ -400,7 +406,7 @@ Deno.serve(async (req) => {
     const activate = async () => {
       // Assinatura marcada para cancelar ao fim do ciclo não volta a ser
       // renovada: encerramos e rebaixamos o perfil em vez de reativar.
-      if (subscription.cancel_at_period_end) {
+      if (subscription.cancel_at_period_end && subscription.purchase_kind !== "lifetime") {
         console.log("validapay-webhook: renovação ignorada (cancelamento agendado)", subscription.id);
         await admin
           .from("subscriptions")
@@ -432,6 +438,8 @@ Deno.serve(async (req) => {
           amount: verifiedAmount ?? payload.amount ?? undefined,
           current_period_start: nowIso,
           current_period_end: addMonths(now, 1).toISOString(),
+          ...(subscription.purchase_kind === "lifetime" ? lifetimePeriod : {}),
+          ...(subscription.purchase_kind === "lifetime" ? { origin_paid_at: subscription.status === "active" ? undefined : nowIso } : {}),
           updated_at: nowIso,
         })
         .eq("id", subscription.id);
@@ -451,7 +459,16 @@ Deno.serve(async (req) => {
       }
     };
 
+    if (subscription.purchase_kind === "lifetime" && (subscription.status === "refunded" || subscription.status === "refunded_duplicate")) {
+      return await fail("lifetime_already_refunded");
+    }
+    if (subscription.purchase_kind === "lifetime" && event.startsWith("subscription.")) {
+      await admin.from("validapay_webhook_events").update({ processed: true }).eq("id", eventRow.id);
+      return json({ received: true, ignored: "lifetime_has_no_subscription_cycle" });
+    }
+
     switch (event) {
+      case "oneoff.payment.success":
       case "payment.success":
       case "subscription.activated":
       case "subscription.renewed": {
@@ -478,6 +495,9 @@ Deno.serve(async (req) => {
           if (!confirmed) {
             return await fail("activation_unverified_no_charge");
           }
+        }
+        if (subscription.purchase_kind === "lifetime" && !lifetimePaymentMatches(Number(subscription.amount), verifiedAmount)) {
+          return await fail("lifetime_amount_mismatch");
         }
         // Primeira cobrança paga desta assinatura? (antes de ativar, que
         // sobrescreve current_period_start). event_id estável por assinatura:

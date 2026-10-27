@@ -31,6 +31,7 @@ export type SubscriptionRow = {
   updated_at: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
+  purchase_kind?: string;
   duplicate_status?: string | null;
   duplicate_of_subscription_id?: string | null;
 };
@@ -147,7 +148,7 @@ export async function detectAndRefundDuplicates(
   // Agrupa por plano + valor arredondado.
   const groups = new Map<string, SubscriptionRow[]>();
   for (const s of paid) {
-    const key = `${(s.plan ?? "").toLowerCase()}|${Math.round(Number(s.amount ?? 0) * 2) / 2}`;
+    const key = `${s.purchase_kind ?? "recurring"}|${(s.plan ?? "").toLowerCase()}|${Math.round(Number(s.amount ?? 0) * 2) / 2}`;
     groups.set(key, [...(groups.get(key) ?? []), s]);
   }
 
@@ -161,8 +162,8 @@ export async function detectAndRefundDuplicates(
 
     // Mantém a assinatura com o período de acesso mais longo (a que está valendo).
     const keep = cluster.reduce((best, s) => {
-      const bestEnd = best.current_period_end ? new Date(best.current_period_end).getTime() : 0;
-      const end = s.current_period_end ? new Date(s.current_period_end).getTime() : 0;
+      const bestEnd = best.purchase_kind === "lifetime" ? Infinity : best.current_period_end ? new Date(best.current_period_end).getTime() : 0;
+      const end = s.purchase_kind === "lifetime" ? Infinity : s.current_period_end ? new Date(s.current_period_end).getTime() : 0;
       return end > bestEnd ? s : best;
     }, cluster[0]);
 

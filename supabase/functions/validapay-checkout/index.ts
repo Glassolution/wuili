@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createCheckoutSession, isConfirmedPayment, lookupPaymentStatus, ValidaPayError } from "../_shared/validapay.ts";
+import { LIFETIME_PLANS, lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { validateCoupon } from "../_shared/coupons.ts";
 
 const PRICE_ENV: Record<string, Record<string, string>> = {
@@ -58,8 +59,12 @@ Deno.serve(async (req) => {
       /* corpo vazio */
     }
     const plan = String(body.plan ?? "").toLowerCase();
-    const cycle = String(body.cycle ?? "monthly").toLowerCase() === "annual" ? "annual" : "monthly";
-    const priceEnv = PRICE_ENV[cycle][plan];
+    const requestedCycle = String(body.cycle ?? "monthly").toLowerCase();
+    if (!["monthly", "annual", "lifetime"].includes(requestedCycle)) return json({ error: "Ciclo inválido." }, 400);
+    if (requestedCycle === "annual") return json({ error: "A opção anual foi substituída por Vitalício. Selecione novamente seu plano." }, 400);
+    const cycle = requestedCycle;
+    const lifetimePlan = plan === "base" || plan === "pro" || plan === "business" ? LIFETIME_PLANS[plan] : null;
+    const priceEnv = cycle === "lifetime" ? lifetimePlan?.priceId : PRICE_ENV[cycle]?.[plan];
     if (!priceEnv) return json({ error: "Plano inválido. Use base, pro ou business." }, 400);
 
     // Código de indicação é OPCIONAL: quem não veio de afiliado simplesmente
@@ -89,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
 
-    const priceId = Deno.env.get(priceEnv);
+    const priceId = cycle === "lifetime" ? lifetimePlan?.priceId : Deno.env.get(priceEnv);
     if (!priceId) {
       return json(
         { error: `Preço do plano ${plan} (${cycle}) não configurado (${priceEnv}).` },
@@ -99,7 +104,7 @@ Deno.serve(async (req) => {
 
     // Cupom promocional (validação definitiva no servidor). Um cupom inválido
     // para o plano/ciclo escolhido é simplesmente ignorado — nunca bloqueia a compra.
-    const baseAmount = PLAN_AMOUNT[cycle][plan] ?? 0;
+    const baseAmount = cycle === "lifetime" ? lifetimePlan?.amount ?? 0 : PLAN_AMOUNT[cycle][plan] ?? 0;
     const couponResult = body.coupon
       ? validateCoupon(String(body.coupon), plan, cycle, baseAmount)
       : null;
@@ -207,6 +212,7 @@ Deno.serve(async (req) => {
         user_id: userId,
         plan,
         cycle,
+        purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
         ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
         ...(discountSource === "referral" ? { referral_discount: "15", referral_id: referralId ?? "" } : {}),
@@ -247,7 +253,7 @@ Deno.serve(async (req) => {
 
     const { data: activeSubs } = await admin
       .from("subscriptions")
-      .select("plan")
+      .select("plan,purchase_kind")
       .eq("user_id", userId)
       .in("status", ["active", "trialing"]);
 
@@ -272,7 +278,7 @@ Deno.serve(async (req) => {
 
     const { data: recentPendings } = await admin
       .from("subscriptions")
-      .select("id,plan,validapay_charge_id,validapay_subscription_id")
+      .select("id,plan,amount,purchase_kind,validapay_charge_id,validapay_subscription_id")
       .eq("user_id", userId)
       .eq("status", "pending")
       .gte("created_at", new Date(Date.now() - 24 * 3600_000).toISOString())
@@ -285,6 +291,7 @@ Deno.serve(async (req) => {
       try {
         const info = await lookupPaymentStatus(reference);
         if (!isConfirmedPayment(info) || !info) continue;
+        if (p.purchase_kind === "lifetime" && !lifetimePaymentMatches(Number(p.amount), info.amount)) continue;
 
         const now = new Date();
         const periodEnd = new Date(now);
@@ -296,6 +303,7 @@ Deno.serve(async (req) => {
           validapay_charge_id: info.chargeId ?? p.validapay_charge_id,
           current_period_start: now.toISOString(),
           current_period_end: periodEnd.toISOString(),
+          ...(p.purchase_kind === "lifetime" ? lifetimePeriod : {}),
           updated_at: now.toISOString(),
         }).eq("id", p.id);
         await admin.from("profiles").update({ plano: p.plan }).eq("user_id", userId);
@@ -336,6 +344,7 @@ Deno.serve(async (req) => {
         : {}),
       ...(referralId && discountSource === "referral" ? { referral_id: referralId } : {}),
       validapay_subscription_id: session.id,
+      purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
 
     });
 
