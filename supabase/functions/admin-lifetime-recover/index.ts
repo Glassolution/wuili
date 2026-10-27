@@ -16,6 +16,10 @@ Deno.serve(async (req) => {
   const { data: isAdm } = await admin.from("user_roles").select("role").eq("user_id", u.user.id).eq("role", "admin").maybeSingle();
   if (!isAdm) return json({ error: "403" }, 403);
   const body = await req.json().catch(() => ({}));
+  if (body.probe) {
+    try { return json({ r: await validaPayFetch(body.probe, { method: "GET", scope: "checkouts/read pix.cob/read accounts/read" }) }); }
+    catch (e) { return json({ e: String(e) }); }
+  }
   const { data: subs } = await admin.from("subscriptions")
     .select("id,user_id,plan,amount,status,validapay_subscription_id,validapay_charge_id")
     .eq("purchase_kind", "lifetime").in("status", ["pending", "expired"]);
