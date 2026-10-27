@@ -803,10 +803,18 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
         </div>
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
-          {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((plan) => {
-            const price = cycle === "lifetime" ? plan.lifetime : plan.monthly;
+          {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((originalPlan) => {
+            // No mensal, o lugar do Business mostra o Base vitalício, que leva para a aba Vitalício.
+            const isLifetimeTeaser = cycle === "monthly" && originalPlan.id === "business";
+            const basePlan = PLANS.find((item) => item.id === "base") ?? originalPlan;
+            const plan = isLifetimeTeaser
+              ? { ...basePlan, name: "Base Vitalício", ribbon: "Pague uma vez" }
+              : originalPlan;
+            const cardCycle: BillingCycle = isLifetimeTeaser ? "lifetime" : cycle;
+            const price = cardCycle === "lifetime" ? plan.lifetime : plan.monthly;
             const priceParts = splitBRL(price);
-            const isHighlighted = plan.id === defaultPlan || (!defaultPlan && plan.highlighted);
+            const isHighlighted = !isLifetimeTeaser && (plan.id === defaultPlan || (!defaultPlan && plan.highlighted));
+            const choose = () => (isLifetimeTeaser ? setCycle("lifetime") : void handleChoose(plan.id));
 
             return (
               <article
