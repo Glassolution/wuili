@@ -1,7 +1,7 @@
 export const LIFETIME_PLANS = {
-  base: { amount: 39.9, compareAt: 47.88, priceId: "price_1793065896792_cxyb9wfkm" },
-  pro: { amount: 79.8, compareAt: 95.76, priceId: "price_1793065897559_eqn1ftdww" },
-  business: { amount: 189.9, compareAt: 227.88, priceId: "price_1793065897948_asqb0fd9h" },
+  base: { amount: 89.9, compareAt: 107.88, priceId: "price_1793125420003_5gt3zbea5" },
+  pro: { amount: 179.8, compareAt: 215.76, priceId: "price_1793125429007_fbi5w2tq6" },
+  business: { amount: 427.9, compareAt: 513.48, priceId: "price_1793125430695_yh8nh20by" },
 } as const;
 
 export const lifetimePaymentMatches = (expected: number, paid: number | null) =>
