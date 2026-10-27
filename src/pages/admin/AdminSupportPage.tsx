@@ -30,6 +30,7 @@ import {
   Plug,
   RefreshCcw,
   Reply,
+  Copy,
   Route,
   Search,
   Send,
@@ -63,6 +64,7 @@ import {
 } from "@/lib/support";
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
+import VoiceDictationButton from "@/components/support/VoiceDictationButton";
 
 type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 type TicketView = "all" | "new" | "in_progress" | "human";
@@ -2103,6 +2105,7 @@ const ConversationPanel = ({
               >
                 <Paperclip size={14} />
               </button>
+              <VoiceDictationButton value={reply} onChange={setReply} disabled={sending || closed} />
             </div>
             <button
               onClick={onSend}
@@ -2338,6 +2341,21 @@ const ThreadMessage = ({
             onClick={(event) => event.stopPropagation()}
             onContextMenu={(event) => event.preventDefault()}
           >
+            <button
+              type="button"
+              onClick={() => {
+                setContextMenuOpen(false);
+                const text = (parsed.text || message.message || "").trim();
+                navigator.clipboard
+                  .writeText(text)
+                  .then(() => toast.success("Mensagem copiada"))
+                  .catch(() => toast.error("Não foi possível copiar"));
+              }}
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-[12px] font-semibold text-[#334155] transition hover:bg-[#f4f7ff] hover:text-[#2563EB]"
+            >
+              <Copy size={13} />
+              Copiar
+            </button>
             <button
               type="button"
               onClick={() => {
