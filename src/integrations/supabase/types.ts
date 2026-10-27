@@ -3251,6 +3251,7 @@ export type Database = {
           post_trial_plan: string | null
           provider: string
           provider_cancelled_at: string | null
+          purchase_kind: string
           referral_id: string | null
           refundable_until: string | null
           status: string
@@ -3297,6 +3298,7 @@ export type Database = {
           post_trial_plan?: string | null
           provider?: string
           provider_cancelled_at?: string | null
+          purchase_kind?: string
           referral_id?: string | null
           refundable_until?: string | null
           status?: string
@@ -3343,6 +3345,7 @@ export type Database = {
           post_trial_plan?: string | null
           provider?: string
           provider_cancelled_at?: string | null
+          purchase_kind?: string
           referral_id?: string | null
           refundable_until?: string | null
           status?: string
