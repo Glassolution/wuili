@@ -26,12 +26,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
+import { Button } from "@/components/ui/button";
 import { VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 
 
 
-type BillingCycle = "monthly" | "annual";
+type BillingCycle = "monthly" | "lifetime";
 
 type PlanId = "base" | "pro" | "business";
 
@@ -43,7 +44,7 @@ type PlanEntry = {
   iconVariant: PlanId;
   tagline: string;
   monthly: number;
-  annual: number;
+  lifetime: number;
   originalMonthly?: number;
   ribbon?: string;
   highlighted?: boolean;
@@ -57,7 +58,7 @@ const PLANS: PlanEntry[] = [
     iconVariant: "base",
     tagline: "Pra quem quer começar a vender sem travar no operacional.",
     monthly: VELO_PLAN_PRICES.base.monthly,
-    annual: VELO_PLAN_PRICES.base.annual,
+    lifetime: VELO_PLAN_PRICES.base.lifetime,
     features: [
       "Até 50 anúncios ativos no Mercado Livre (50 publicações por mês)",
       "1 página de vendas gerada por IA por mês",
@@ -82,7 +83,7 @@ const PLANS: PlanEntry[] = [
     iconVariant: "pro",
     tagline: "Pra quem já vendeu e quer parar de fazer tudo na mão.",
     monthly: VELO_PLAN_PRICES.pro.monthly,
-    annual: VELO_PLAN_PRICES.pro.annual,
+    lifetime: VELO_PLAN_PRICES.pro.lifetime,
     ribbon: "Mais escolhido",
     highlighted: true,
     features: [
@@ -117,7 +118,7 @@ const PLANS: PlanEntry[] = [
     iconVariant: "business",
     tagline: "Pra quem já vive disso e quer parar de contar produto.",
     monthly: VELO_PLAN_PRICES.business.monthly,
-    annual: VELO_PLAN_PRICES.business.annual,
+    lifetime: VELO_PLAN_PRICES.business.lifetime,
     features: [
       "Anúncios ilimitados no Mercado Livre, sem teto mensal de publicação",
       "Marketplaces ilimitados, publicação em lote e variações",
@@ -419,10 +420,9 @@ const MobilePlansSheet = ({
 }) => {
   const plan = PLANS.find((item) => item.id === selectedPlanId) ?? PLANS[0];
   const highlights = MOBILE_HIGHLIGHTS[plan.id];
-  const price = cycle === "annual" ? plan.annual / 12 : plan.monthly;
+  const price = cycle === "lifetime" ? plan.lifetime : plan.monthly;
   const priceParts = splitBRL(price);
-  const temDescontoAnual = cycle === "annual" && plan.annual / 12 < plan.monthly - 0.01;
-  const originalPrice = temDescontoAnual ? formatBRL(plan.monthly) : null;
+  const originalPrice = cycle === "lifetime" ? formatBRL(VELO_PLAN_PRICES[plan.id].compareAt) : null;
   const nomeDoPlano = plan.name.replace("Plano ", "");
   const escolherPlano = (id: PlanId) => {
     setSelectedPlanId(id);
@@ -465,11 +465,11 @@ const MobilePlansSheet = ({
       <div className="mt-3 flex rounded-full bg-black/[0.06] p-[3px]">
         {([
           { id: "monthly" as BillingCycle, label: "Mensal" },
-          { id: "annual" as BillingCycle, label: "Anual" },
+          { id: "lifetime" as BillingCycle, label: "Vitalício" },
         ]).map((opcao) => {
           const ativo = cycle === opcao.id;
           return (
-            <button
+            <Button variant="ghost"
               key={opcao.id}
               type="button"
               onClick={() => setCycle(opcao.id)}
@@ -479,7 +479,7 @@ const MobilePlansSheet = ({
               }`}
             >
               {opcao.label}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -558,7 +558,7 @@ const MobilePlansSheet = ({
 
                 <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   {originalPrice ? (
-                    <span className="text-[20px] font-medium text-[#C5C7CC] line-through decoration-[1.5px]">{originalPrice}</span>
+                    <span className="text-sm text-muted-foreground"><s>{originalPrice}</s> · Com desconto</span>
                   ) : null}
                   <span className="text-[36px] font-semibold leading-none tracking-[-0.05em] text-[#111111]">
                     {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
@@ -566,12 +566,12 @@ const MobilePlansSheet = ({
                       {sandboxPurchaseEnabled ? ",00" : priceParts.cents}
                     </span>
                   </span>
-                  <span className="text-[15px] text-[#9AA0A8]">/mês</span>
+                  <span className="text-[15px] text-[#9AA0A8]">{cycle === "lifetime" ? "uma vez" : "/mês"}</span>
                 </div>
 
                 <p className="mt-2 text-[13px] font-medium text-[#2B6DE8]">
-                  {cycle === "annual"
-                    ? `Cobrança anual de ${formatBRL(plan.annual)}`
+                  {cycle === "lifetime"
+                    ? `Pagamento único de ${formatBRL(plan.lifetime)} · acesso vitalício`
                     : "Cobrança mensal"}
                 </p>
 
@@ -593,7 +593,7 @@ const MobilePlansSheet = ({
                   ) : (
                     <>
                       <Sparkle className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />
-                      {sandboxPurchaseEnabled ? "Testar" : "Assinar"} {nomeDoPlano}
+                      {sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {nomeDoPlano}
                     </>
                   )}
                 </button>
@@ -614,8 +614,8 @@ const MobilePlansSheet = ({
                 <p className="mt-6 text-[12px] leading-relaxed text-[#9AA0A8]">
                   {sandboxPurchaseEnabled
                     ? "Sandbox ligado: este plano é ativado sem cobrança real."
-                    : cycle === "annual"
-                      ? "Cobrança anual. Cancele quando quiser."
+                    : cycle === "lifetime"
+                      ? "Pagamento único. Acesso vitalício, sem renovação."
                       : "Cobrança mensal. Cancele quando quiser."}
                 </p>
               </>
@@ -775,18 +775,18 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
             <p className="mt-2 text-[14px] leading-5 text-[#8A8A86]">
               {sandboxPurchaseEnabled
                 ? "Sandbox ligado: escolha um plano de teste sem cobrança real."
-                : "O checkout continua seguro via Mercado Pago."}
+                : "Pagamento seguro via ValidaPay."}
             </p>
           </div>
 
           <div className="inline-flex rounded-full bg-black/[0.06] p-[3px]">
             {([
               { id: "monthly" as BillingCycle, label: "Mensal" },
-              { id: "annual" as BillingCycle, label: "Anual" },
+              { id: "lifetime" as BillingCycle, label: "Vitalício" },
             ]).map((opcao) => {
               const ativo = cycle === opcao.id;
               return (
-                <button
+                <Button variant="ghost"
                   key={opcao.id}
                   type="button"
                   onClick={() => setCycle(opcao.id)}
@@ -796,7 +796,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                   }`}
                 >
                   {opcao.label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -804,7 +804,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
           {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((plan) => {
-            const price = cycle === "annual" ? plan.annual / 12 : plan.monthly;
+            const price = cycle === "lifetime" ? plan.lifetime : plan.monthly;
             const priceParts = splitBRL(price);
             const isHighlighted = plan.id === defaultPlan || (!defaultPlan && plan.highlighted);
 
@@ -840,15 +840,16 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                 <p className="sr-only">{plan.tagline}</p>
 
                 <div className="mt-6">
+                  {cycle === "lifetime" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].compareAt)}</s> · Com desconto</p>}
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-['Manrope','Inter',ui-sans-serif,system-ui]">
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
                       {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
                       <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
                     </span>
-                    <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">/mês</span>
+                    <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">{cycle === "lifetime" ? "uma vez" : "/mês"}</span>
                   </div>
                   <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">
-                    {cycle === "annual" ? `Cobrança anual de ${formatBRL(plan.annual)}` : "Cobrança mensal"}
+                    {cycle === "lifetime" ? `Pagamento único de ${formatBRL(plan.lifetime)} · acesso vitalício` : "Cobrança mensal"}
                   </p>
                 </div>
 
@@ -864,7 +865,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                       {sandboxPurchaseEnabled ? "Ativando..." : "Redirecionando..."}
                     </span>
                   ) : (
-                    <>{sandboxPurchaseEnabled ? "Testar" : "Assinar"} {plan.name.replace("Plano ", "")}</>
+                    <>{sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {plan.name.replace("Plano ", "")}</>
                   )}
                 </PremiumActionButton>
 

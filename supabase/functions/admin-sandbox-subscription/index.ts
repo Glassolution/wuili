@@ -7,6 +7,7 @@ const corsHeaders = {
 
 const PLAN_AMOUNT: Record<string, Record<string, number>> = {
   monthly: { base: 39.9, pro: 79.8, business: 189.9 },
+  lifetime: { base: 39.9, pro: 79.8, business: 189.9 },
   annual: { base: 430.92, pro: 861.84, business: 2278.8 },
 };
 
@@ -44,7 +45,8 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const body = await req.json().catch(() => ({}));
     const plan = String(body?.plan ?? "").toLowerCase();
-    const cycle = String(body?.cycle ?? "monthly").toLowerCase() === "annual" ? "annual" : "monthly";
+    const rawCycle = String(body?.cycle ?? "monthly").toLowerCase();
+    const cycle = rawCycle === "lifetime" ? "lifetime" : rawCycle === "annual" ? "annual" : "monthly";
 
     if (!PLAN_AMOUNT[cycle][plan]) {
       return json({ error: "Plano inválido. Use base, pro ou business." }, 400);
@@ -96,7 +98,7 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date().toISOString();
-    const periodEnd = addBillingPeriod(cycle);
+    const periodEnd = cycle === "lifetime" ? null : addBillingPeriod(cycle);
     const sandboxId = `sandbox_${crypto.randomUUID()}`;
     const amount = PLAN_AMOUNT[cycle][plan];
 
@@ -117,6 +119,7 @@ Deno.serve(async (req) => {
       .from("subscriptions")
       .insert({
         user_id: targetUserId,
+        purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
         plan,
         status: "active",
         amount,
