@@ -2,6 +2,7 @@
 // e (com apply=true) libera as que estão pagas com o valor esperado.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { isConfirmedPayment, lookupPaymentStatus, validaPayFetch } from "../_shared/validapay.ts";
+import { recoverLifetimePurchases } from "../_shared/lifetimeCharge.ts";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
@@ -20,6 +21,7 @@ Deno.serve(async (req) => {
     try { return json({ r: await validaPayFetch(body.probe, { method: body.method ?? "GET", scope: body.scope ?? "checkouts/read pix.cob/read accounts/read", ...(body.payload ? { body: JSON.stringify(body.payload) } : {}) }) }); }
     catch (e) { return json({ e: String(e) }); }
   }
+  if (body.recover) return json({ activated: await recoverLifetimePurchases(admin) });
   const { data: subs } = await admin.from("subscriptions")
     .select("id,user_id,plan,amount,status,validapay_subscription_id,validapay_charge_id")
     .eq("purchase_kind", "lifetime").in("status", ["pending", "expired"]);
