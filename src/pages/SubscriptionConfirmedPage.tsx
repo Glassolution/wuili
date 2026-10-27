@@ -15,6 +15,7 @@ const SubscriptionConfirmedPage = () => {
   const [params] = useSearchParams();
   const { user } = useAuth();
   const plan = (params.get("plan") ?? "").toLowerCase();
+  const requestedLifetime = params.get("cycle") === "lifetime";
   const [status, setStatus] = useState<"aguardando" | "ativo">("aguardando");
   const [isLifetime, setIsLifetime] = useState(false);
 
@@ -33,7 +34,7 @@ const SubscriptionConfirmedPage = () => {
         .limit(1)
         .maybeSingle();
       if (!active) return;
-      if (data?.status === "active") {
+      if (data?.status === "active" && (!plan || data.plan === plan) && (!requestedLifetime || data.purchase_kind === "lifetime")) {
         setIsLifetime(data.purchase_kind === "lifetime");
         setStatus("ativo");
         return;
@@ -42,7 +43,7 @@ const SubscriptionConfirmedPage = () => {
       // Rede de segurança: se o webhook da ValidaPay atrasar, confirmamos o
       // pagamento direto no gateway em vez de esperar o cron de reconciliação.
       try {
-        const { data: verified } = await supabase.functions.invoke("subscription-sync-self");
+        const { data: verified } = await supabase.functions.invoke("subscription-sync-self", { body: { plan, purchase_kind: requestedLifetime ? "lifetime" : "recurring" } });
         if (!active) return;
         if (verified?.active) {
           setIsLifetime(verified.lifetime === true);
@@ -62,7 +63,7 @@ const SubscriptionConfirmedPage = () => {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, plan, requestedLifetime]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] px-6">

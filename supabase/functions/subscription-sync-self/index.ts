@@ -44,15 +44,20 @@ Deno.serve(async (req) => {
   );
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const requestedPlan = ["base", "pro", "business"].includes(body.plan) ? String(body.plan) : null;
+    const requestedKind = body.purchase_kind === "lifetime" ? "lifetime" : null;
     // Já ativo? Garante também que o perfil reflita o plano pago.
-    const { data: activeSub } = await admin
+    let activeQuery = admin
       .from("subscriptions")
       .select("plan,purchase_kind")
       .eq("user_id", userId)
       .in("status", ["active", "trialing"])
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    if (requestedPlan) activeQuery = activeQuery.eq("plan", requestedPlan);
+    if (requestedKind) activeQuery = activeQuery.eq("purchase_kind", requestedKind);
+    const { data: activeSub } = await activeQuery.maybeSingle();
 
     if (activeSub) {
       await admin.from("profiles").update({ plano: activeSub.plan }).eq("user_id", userId);
@@ -69,6 +74,8 @@ Deno.serve(async (req) => {
       .limit(5);
 
     for (const sub of pendings ?? []) {
+      if (requestedPlan && sub.plan !== requestedPlan) continue;
+      if (requestedKind && sub.purchase_kind !== requestedKind) continue;
       const reference = sub.validapay_charge_id ?? sub.validapay_subscription_id;
       if (!reference) continue;
 

@@ -1,10 +1,11 @@
 # Roadmap
 
 ## Oferta vitalícia para novas compras
-- [ ] Substituir opção anual por vitalício sem mudar assinaturas existentes
-- [ ] Configurar pagamento único confirmado e acesso sem expiração
-- [ ] Exibir preço final igual ao mensal e referência 20% maior com clareza
-- [ ] Validar preços, cobrança e acesso; informar limitações de verificação
+- [x] Substituir opção anual por vitalício sem mudar assinaturas existentes
+- [x] Configurar pagamento único confirmado e acesso sem expiração
+- [x] Exibir preço final igual ao mensal e referência 20% maior com clareza
+- [x] Validar preços e checkout autenticado na ValidaPay sem pagar; 13 testes passaram
+- [ ] Conferir ativação vitalícia após pagamento real — aguarda compra autorizada, sem executar cobrança de teste
 
 - [x] Simplificar a home mobile para o primeiro anúncio
 - [x] Exibir preços e estimativas honestas nos cartões mobile, mantendo vendas e avaliações simuladas
