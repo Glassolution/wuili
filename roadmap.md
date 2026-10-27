@@ -5,7 +5,7 @@
 - [x] Configurar pagamento único confirmado e acesso sem expiração
 - [x] Exibir preço final igual ao mensal e referência 20% maior com clareza
 - [x] Validar preços e checkout autenticado na ValidaPay sem pagar; 13 testes passaram
-- [ ] Conferir ativação vitalícia após pagamento real — aguarda compra autorizada, sem executar cobrança de teste
+- [x] Liberar vitalícios pagos sem webhook (busca da cobrança na ValidaPay) e novos preços 89,90/179,80/427,90
 
 - [x] Simplificar a home mobile para o primeiro anúncio
 - [x] Exibir preços e estimativas honestas nos cartões mobile, mantendo vendas e avaliações simuladas
