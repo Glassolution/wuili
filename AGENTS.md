@@ -5,6 +5,7 @@ Velo ("Apenas venda."): plataforma de dropshipping com IA para iniciantes brasil
 Stack: React + TypeScript + Tailwind (frontend); Supabase/Lovable Cloud (Postgres, Auth, Edge Functions Deno, Storage); Gemini via Edge Functions; deploy Lovable Cloud + Vercel.
 
 ## Padrões
+- Lifetime purchases use dedicated ONE_TIME ValidaPay prices and a server-owned purchase_kind marker; verified amounts grant non-expiring access, while legacy recurring contracts remain unchanged. Database period enforcement prevents reconciliation jobs from adding expiry or renewal dates.
 - UI sempre em português brasileiro; preços em BRL; USD → BRL multiplica por 5.0.
 - RLS ativo em todas as tabelas; revisar policies existentes antes de mudar schema.
 - Secrets só via `Deno.env.get`; nunca no código-fonte.
