@@ -187,6 +187,7 @@ Deno.serve(async (req) => {
     const logoUrl =
       "https://nqzpoioxvbqavrtphtoa.supabase.co/storage/v1/object/public/assets/branding%2Fvalidapay-logo.png";
 
+    const purchaseId = crypto.randomUUID();
     const basePayload: Record<string, unknown> = {
       priceId,
       // A ValidaPay coleta os dados pessoais e a forma de pagamento uma única vez.
@@ -213,6 +214,7 @@ Deno.serve(async (req) => {
         plan,
         cycle,
         purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
+        velo_purchase_id: purchaseId,
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
         ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
         ...(discountSource === "referral" ? { referral_discount: "15", referral_id: referralId ?? "" } : {}),
@@ -323,6 +325,19 @@ Deno.serve(async (req) => {
 
     // A API usa `creditcard` (sem underscore). O valor anterior `credit_card`
     // era ignorado pelo checkout hospedado, por isso apenas o Pix aparecia.
+    const { error: pendingError } = await admin.from("subscriptions").insert({
+      id: purchaseId,
+      user_id: userId,
+      plan,
+      status: "pending",
+      provider: "validapay",
+      payment_method: "pix",
+      amount: Math.round(baseAmount * (1 - discountPercent / 100) * 100) / 100,
+      ...(discountPercent > 0 ? { discount_percent: discountPercent, original_amount: baseAmount } : {}),
+      ...(referralId && discountSource === "referral" ? { referral_id: referralId } : {}),
+      purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
+    });
+    if (pendingError) throw new Error("Não foi possível registrar seu pagamento. Tente novamente.");
     const session = await createCheckoutSession({
       ...basePayload,
       allowedPaymentMethods: ["pix", "creditcard"],
@@ -331,22 +346,9 @@ Deno.serve(async (req) => {
       passFeesToCustomer: false,
     });
 
-    await admin.from("subscriptions").insert({
-      user_id: userId,
-      plan,
-      status: "pending",
-      provider: "validapay",
-      payment_method: "pix",
-      // `amount` guarda o valor efetivamente cobrado na 1ª cobrança.
-      amount: Math.round(baseAmount * (1 - discountPercent / 100) * 100) / 100,
-      ...(discountPercent > 0
-        ? { discount_percent: discountPercent, original_amount: baseAmount }
-        : {}),
-      ...(referralId && discountSource === "referral" ? { referral_id: referralId } : {}),
-      validapay_subscription_id: session.id,
-      purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
-
-    });
+    const { error: sessionError } = await admin.from("subscriptions")
+      .update({ validapay_subscription_id: session.id }).eq("id", purchaseId);
+    if (sessionError) throw new Error("Não foi possível registrar o checkout. Tente novamente.");
 
     console.log("validapay-checkout: sessão criada", { userId, plan, cycle, sessionId: session.id });
     return json({ url: session.url, sessionId: session.id });

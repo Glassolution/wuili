@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     // Já ativo? Garante também que o perfil reflita o plano pago.
     const { data: activeSub } = await admin
       .from("subscriptions")
-      .select("plan")
+      .select("plan,purchase_kind")
       .eq("user_id", userId)
       .in("status", ["active", "trialing"])
       .order("created_at", { ascending: false })
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     if (activeSub) {
       await admin.from("profiles").update({ plano: activeSub.plan }).eq("user_id", userId);
-      return json({ active: true, plan: activeSub.plan, source: "database" });
+      return json({ active: true, plan: activeSub.plan, lifetime: activeSub.purchase_kind === "lifetime", source: "database" });
     }
 
     const { data: pendings } = await admin
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", userId);
 
       console.log("subscription-sync-self: plano liberado sem webhook", { userId, plan: sub.plan });
-      return json({ active: true, plan: sub.plan, source: "gateway" });
+      return json({ active: true, plan: sub.plan, lifetime: sub.purchase_kind === "lifetime", source: "gateway" });
     }
 
     return json({ active: false });

@@ -16,6 +16,7 @@ const SubscriptionConfirmedPage = () => {
   const { user } = useAuth();
   const plan = (params.get("plan") ?? "").toLowerCase();
   const [status, setStatus] = useState<"aguardando" | "ativo">("aguardando");
+  const [isLifetime, setIsLifetime] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -25,7 +26,7 @@ const SubscriptionConfirmedPage = () => {
     const check = async () => {
       const { data } = await supabase
         .from("subscriptions")
-        .select("status, plan")
+        .select("status, plan, purchase_kind")
         .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at", { ascending: false })
@@ -33,6 +34,7 @@ const SubscriptionConfirmedPage = () => {
         .maybeSingle();
       if (!active) return;
       if (data?.status === "active") {
+        setIsLifetime(data.purchase_kind === "lifetime");
         setStatus("ativo");
         return;
       }
@@ -43,6 +45,7 @@ const SubscriptionConfirmedPage = () => {
         const { data: verified } = await supabase.functions.invoke("subscription-sync-self");
         if (!active) return;
         if (verified?.active) {
+          setIsLifetime(verified.lifetime === true);
           setStatus("ativo");
           return;
         }
@@ -74,7 +77,7 @@ const SubscriptionConfirmedPage = () => {
         </h1>
         <p className="mt-2 text-[14px] leading-6 text-[#6B6B66]">
           {status === "ativo"
-            ? `Seu plano ${PLAN_LABEL[plan] ?? ""} já está ativo. Bom trabalho e boas vendas!`
+            ? isLifetime ? `Seu plano ${PLAN_LABEL[plan] ?? ""} vitalício está ativo. Pagamento único, sem renovação.` : `Seu plano ${PLAN_LABEL[plan] ?? ""} já está ativo. Bom trabalho e boas vendas!`
             : "Assim que o pagamento for compensado, seu plano é liberado automaticamente. Isso costuma levar poucos segundos."}
         </p>
         <Link

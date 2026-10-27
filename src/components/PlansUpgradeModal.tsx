@@ -558,7 +558,7 @@ const MobilePlansSheet = ({
 
                 <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   {originalPrice ? (
-                    <span className="text-[20px] font-medium text-[#C5C7CC] line-through decoration-[1.5px]">{originalPrice} · Com desconto</span>
+                    <span className="text-sm text-muted-foreground"><s>{originalPrice}</s> · Com desconto</span>
                   ) : null}
                   <span className="text-[36px] font-semibold leading-none tracking-[-0.05em] text-[#111111]">
                     {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
