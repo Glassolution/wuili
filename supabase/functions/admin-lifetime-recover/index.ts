@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   if (!isAdm) return json({ error: "403" }, 403);
   const body = await req.json().catch(() => ({}));
   if (body.probe) {
-    try { return json({ r: await validaPayFetch(body.probe, { method: "GET", scope: "checkouts/read pix.cob/read accounts/read" }) }); }
+    try { return json({ r: await validaPayFetch(body.probe, { method: body.method ?? "GET", scope: body.scope ?? "checkouts/read pix.cob/read accounts/read", ...(body.payload ? { body: JSON.stringify(body.payload) } : {}) }) }); }
     catch (e) { return json({ e: String(e) }); }
   }
   const { data: subs } = await admin.from("subscriptions")
