@@ -7,6 +7,7 @@ function resetPixel() {
   delete w.fbq;
   delete w._fbq;
   delete w.__veloMetaPixels;
+  delete w.__veloSellerMetaPixels;
   document.head.innerHTML = "";
   document.body.innerHTML = "";
   // o script base é inserido antes do primeiro <script> existente
@@ -50,7 +51,7 @@ describe("metaPixel", () => {
     expect(script!.src).toContain("connect.facebook.net");
     const queue = (w.fbq as { queue: unknown[][] }).queue;
     expect(queue).toContainEqual(["init", "1234567890123456"]);
-    expect(queue).toContainEqual(["track", "PageView"]);
+    expect(queue).toContainEqual(["trackSingle", "1234567890123456", "PageView"]);
   });
 
   it("é idempotente entre re-renders (um script, um init)", () => {
@@ -60,7 +61,7 @@ describe("metaPixel", () => {
     expect(document.querySelectorAll("#meta-pixel-base").length).toBe(1);
     const queue = (w.fbq as { queue: unknown[][] }).queue;
     expect(queue.filter((a) => a[0] === "init").length).toBe(1);
-    expect(queue.filter((a) => a[0] === "track" && a[1] === "PageView").length).toBe(1);
+    expect(queue.filter((a) => a[0] === "trackSingle" && a[2] === "PageView").length).toBe(1);
   });
 
   it("dispara os eventos do funil com SKU, valor e BRL", () => {
@@ -69,10 +70,10 @@ describe("metaPixel", () => {
     trackPixel("InitiateCheckout", { value: 199.8, currency: "BRL", content_ids: ["sku-1"], num_items: 2 });
     trackPixel("Purchase", { value: 199.8, currency: "BRL", content_ids: ["sku-1"], content_type: "product" });
     const queue = (w.fbq as { queue: unknown[][] }).queue;
-    const events = queue.filter((a) => a[0] === "track").map((a) => a[1]);
+    const events = queue.filter((a) => a[0] === "trackSingle").map((a) => a[2]);
     expect(events).toEqual(["PageView", "ViewContent", "InitiateCheckout", "Purchase"]);
-    for (const a of queue.filter((a) => a[0] === "track" && a[1] !== "PageView")) {
-      const p = a[2] as Record<string, unknown>;
+    for (const a of queue.filter((a) => a[0] === "trackSingle" && a[2] !== "PageView")) {
+      const p = a[3] as Record<string, unknown>;
       expect(p.currency).toBe("BRL");
       expect(typeof p.value).toBe("number");
       expect(p.content_ids).toEqual(["sku-1"]);

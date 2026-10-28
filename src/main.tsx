@@ -5,6 +5,7 @@ import "@fontsource-variable/inter";
 import App from "./App.tsx";
 import "./index.css";
 import RootErrorBoundary from "./components/RootErrorBoundary";
+import { iniciarMetaVelo } from "./lib/veloMetaPixel";
 import { clearChunkReloadGuard, recoverFromChunkLoadError } from "./lib/chunkRecovery";
 
 window.addEventListener("vite:preloadError", (event) => {
@@ -20,6 +21,7 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 clearChunkReloadGuard();
+iniciarMetaVelo();
 
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

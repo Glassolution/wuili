@@ -17,6 +17,7 @@
 */
 
 import { getVisitorId } from "@/lib/affiliateFunnel";
+import { medirMetaVelo } from "./veloMetaPixel";
 
 /*
   Nomes fixos dos eventos. Ficam aqui, num lugar só, porque o relatório do GA4 é
@@ -106,7 +107,7 @@ export function medirLanding(evento: EventoLanding, params: Parametros = {}): vo
     w.dataLayer.push({ event: evento, ...completo });
 
     w.gtag?.("event", evento, completo);
-    w.fbq?.("trackCustom", evento, completo);
+    medirMetaVelo(evento, completo, true);
 
     if (import.meta.env.DEV) {
       console.debug("[funil-landing]", evento, completo);

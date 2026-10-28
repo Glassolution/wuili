@@ -23,12 +23,17 @@ function getFbq(): Fbq | null {
 }
 
 /** Injeta o script base da Meta (async) e dispara o PageView inicial. Idempotente. */
-export function initMetaPixel(pixelId: string | null | undefined): void {
+export function initMetaPixel(pixelId: string | null | undefined, options: { seller?: boolean } = {}): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (!isValidPixelId(pixelId)) return;
   const id = pixelId.trim();
 
   const w = window as unknown as Record<string, unknown> & { fbq?: Fbq; _fbq?: Fbq };
+  if (options.seller !== false) {
+    const sellers = (w.__veloSellerMetaPixels as Set<string> | undefined) ?? new Set<string>();
+    sellers.add(id);
+    w.__veloSellerMetaPixels = sellers;
+  }
   const initialized = (w.__veloMetaPixels as Set<string> | undefined) ?? new Set<string>();
   w.__veloMetaPixels = initialized;
   if (initialized.has(id)) return;
@@ -53,19 +58,26 @@ export function initMetaPixel(pixelId: string | null | undefined): void {
       script.async = true;
       script.src = "https://connect.facebook.net/en_US/fbevents.js";
       const first = document.getElementsByTagName("script")[0];
-      first?.parentNode?.insertBefore(script, first);
+      if (first?.parentNode) first.parentNode.insertBefore(script, first);
+      else document.head.appendChild(script);
     }
   }
 
   const fbq = getFbq();
   if (!fbq) return;
   fbq("init", id);
-  fbq("track", "PageView");
+  if (options.seller !== false) fbq("trackSingle", id, "PageView");
 }
 
 /** Dispara um evento padrão do Pixel, se algum pixel estiver ativo. */
 export function trackPixel(event: string, params?: Record<string, unknown>): void {
   const fbq = getFbq();
   if (!fbq) return;
-  fbq("track", event, params ?? {});
+  const sellers = (window as unknown as { __veloSellerMetaPixels?: Set<string> }).__veloSellerMetaPixels;
+  sellers?.forEach((id) => fbq("trackSingle", id, event, params ?? {}));
+}
+
+/** Envia somente ao pixel informado, sem misturar a Velo com as lojas. */
+export function trackSinglePixel(pixelId: string, event: string, params: Record<string, unknown> = {}, custom = false): void {
+  getFbq()?.(custom ? "trackSingleCustom" : "trackSingle", pixelId, event, params);
 }
