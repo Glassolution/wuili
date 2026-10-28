@@ -45,17 +45,50 @@ export function matchLifetimeCharge(
   return hits[0] ?? null;
 }
 
+/**
+ * Fallback quando o comprador digita outro email no checkout: aceita a cobrança só
+ * se for inequívoca dos dois lados — única cobrança paga de valor exato nos 30 min
+ * após este checkout, e nenhum outro checkout vitalício de mesmo valor (de qualquer
+ * conta) aberto nos 30 min antes dela.
+ */
+export function matchLifetimeChargeByTime(
+  sub: { id: string; amount: number | string; created_at: string },
+  allSubs: { id: string; amount: number | string; created_at: string }[],
+  charges: Charge[],
+  usedChargeIds: Set<string>,
+): Charge | null {
+  const WIN = 30 * 60_000;
+  const t0 = new Date(sub.created_at).getTime() - 60_000;
+  const cands = charges.filter((c) =>
+    c.status === "PAID" &&
+    (c.saleType === "ONE_TIME" || String(c.type ?? "").startsWith("ONE_TIME")) &&
+    lifetimePaymentMatches(Number(sub.amount), Number(c.amount)) &&
+    new Date(c.createdAt).getTime() >= t0 && new Date(c.createdAt).getTime() <= t0 + WIN &&
+    !usedChargeIds.has(c.chargeId)
+  );
+  if (cands.length !== 1) return null;
+  const ct = new Date(cands[0].createdAt).getTime();
+  const rivals = allSubs.filter((o) => o.id !== sub.id &&
+    lifetimePaymentMatches(Number(o.amount), Number(cands[0].amount)) &&
+    new Date(o.created_at).getTime() <= ct + 60_000 && new Date(o.created_at).getTime() >= ct - WIN);
+  return rivals.length === 0 ? cands[0] : null;
+}
+
 // deno-lint-ignore no-explicit-any -- cliente supabase admin
 export async function recoverLifetimePurchases(admin: any, userId?: string) {
+  const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
   let q = admin.from("subscriptions")
     .select("id,user_id,plan,amount,created_at,status")
     .eq("purchase_kind", "lifetime").in("status", ["pending", "expired"])
-    .gte("created_at", new Date(Date.now() - 7 * 24 * 3600_000).toISOString())
+    .gte("created_at", since)
     .order("created_at", { ascending: false });
   if (userId) q = q.eq("user_id", userId);
   const { data: subs } = await q;
   if (!subs?.length) return [];
-  const charges = await listRecentCharges(userId ? 2 : 5);
+  // Todos os checkouts vitalícios recentes (qualquer conta/status) para o fallback por horário.
+  const { data: allLifetime } = await admin.from("subscriptions")
+    .select("id,amount,created_at").eq("purchase_kind", "lifetime").gte("created_at", since);
+  const charges = await listRecentCharges(userId ? 3 : 5);
   const { data: used } = await admin.from("subscriptions").select("validapay_charge_id").not("validapay_charge_id", "is", null)
     .in("validapay_charge_id", charges.map((c) => c.chargeId).slice(0, 500));
   const usedIds = new Set<string>((used ?? []).map((r: { validapay_charge_id: string }) => r.validapay_charge_id));
@@ -69,6 +102,7 @@ export async function recoverLifetimePurchases(admin: any, userId?: string) {
     const emails = [prof?.email, authUser?.user?.email].filter(Boolean) as string[];
     let hit: Charge | null = null;
     for (const e of emails) { hit = matchLifetimeCharge(s, e, charges, usedIds); if (hit) break; }
+    if (!hit) hit = matchLifetimeChargeByTime(s, allLifetime ?? [], charges, usedIds);
     if (!hit) continue;
     const now = new Date().toISOString();
     const { error } = await admin.from("subscriptions").update({
