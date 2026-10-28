@@ -15,7 +15,9 @@ const SubscriptionConfirmedPage = () => {
   const [params] = useSearchParams();
   const { user } = useAuth();
   const plan = (params.get("plan") ?? "").toLowerCase();
+  const requestedLifetime = params.get("cycle") === "lifetime";
   const [status, setStatus] = useState<"aguardando" | "ativo">("aguardando");
+  const [isLifetime, setIsLifetime] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -25,14 +27,15 @@ const SubscriptionConfirmedPage = () => {
     const check = async () => {
       const { data } = await supabase
         .from("subscriptions")
-        .select("status, plan")
+        .select("status, plan, purchase_kind")
         .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (!active) return;
-      if (data?.status === "active") {
+      if (data?.status === "active" && (!plan || data.plan === plan) && (!requestedLifetime || data.purchase_kind === "lifetime")) {
+        setIsLifetime(data.purchase_kind === "lifetime");
         setStatus("ativo");
         return;
       }
@@ -40,9 +43,10 @@ const SubscriptionConfirmedPage = () => {
       // Rede de segurança: se o webhook da ValidaPay atrasar, confirmamos o
       // pagamento direto no gateway em vez de esperar o cron de reconciliação.
       try {
-        const { data: verified } = await supabase.functions.invoke("subscription-sync-self");
+        const { data: verified } = await supabase.functions.invoke("subscription-sync-self", { body: { plan, purchase_kind: requestedLifetime ? "lifetime" : "recurring" } });
         if (!active) return;
         if (verified?.active) {
+          setIsLifetime(verified.lifetime === true);
           setStatus("ativo");
           return;
         }
@@ -59,7 +63,7 @@ const SubscriptionConfirmedPage = () => {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, plan, requestedLifetime]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] px-6">
@@ -74,7 +78,7 @@ const SubscriptionConfirmedPage = () => {
         </h1>
         <p className="mt-2 text-[14px] leading-6 text-[#6B6B66]">
           {status === "ativo"
-            ? `Seu plano ${PLAN_LABEL[plan] ?? ""} já está ativo. Bom trabalho e boas vendas!`
+            ? isLifetime ? `Seu plano ${PLAN_LABEL[plan] ?? ""} vitalício está ativo. Pagamento único, sem renovação.` : `Seu plano ${PLAN_LABEL[plan] ?? ""} já está ativo. Bom trabalho e boas vendas!`
             : "Assim que o pagamento for compensado, seu plano é liberado automaticamente. Isso costuma levar poucos segundos."}
         </p>
         <Link

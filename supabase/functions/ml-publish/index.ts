@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
+import { resolveCatalogLink } from '../_shared/catalogLink.ts'
 import {
   buildSafeDescription,
   sanitizeSellerDescription,
@@ -12,6 +13,7 @@ import {
   garantirMedidasNoAnuncio,
   pausarAnuncio,
 } from '../_shared/mlPackage.ts'
+import { isDeadRefreshError, markRefreshTokenDead } from '../_shared/mlSellerToken.ts'
 
 /**
  * Grava no catálogo o veredito das diretrizes apurado na publicação (com
@@ -1032,6 +1034,9 @@ Deno.serve(async (req) => {
 
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error('Token refresh failed:', JSON.stringify(refreshData))
+        if (isDeadRefreshError(refreshRes.status, refreshData)) {
+          await markRefreshTokenDead(user_id, `ml-publish refresh ${refreshRes.status}`)
+        }
         return json({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }, 401)
       }
 
@@ -1040,6 +1045,7 @@ Deno.serve(async (req) => {
         access_token: refreshData.access_token,
         refresh_token: refreshData.refresh_token,
         expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
+        refresh_failed_at: null,
         updated_at: new Date().toISOString(),
       }).eq('user_id', user_id).eq('platform', 'mercadolivre')
     }
@@ -1074,11 +1080,36 @@ Deno.serve(async (req) => {
     // (user_id, catalog_product_id) WHERE status IN ('active','published'),
     // so a race between two simultaneous requests will still be caught at
     // insert time (see catch below).
-    const catalogProductId: string | null =
-      (product.catalog_product_id as string | undefined) ??
-      (product.cj_product_id as string | undefined) ??
-      (product.external_id as string | undefined) ??
+    let catalogProductId: string | null =
+      cleanText(product.catalog_product_id) ||
+      cleanText(product.cj_product_id) ||
+      cleanText(product.external_id) ||
       null
+
+    // Sem vínculo no pedido de publicação: descobre o produto do catálogo antes
+    // de publicar. Sem isso a venda chega sem link da fornecedora
+    // ("Fornecedor indisponível").
+    if (!catalogProductId) {
+      const rawId = cleanText(product.id)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId)
+      if (isUuid) {
+        const { data: cpById } = await supabase
+          .from('catalog_products').select('external_id').eq('id', rawId).maybeSingle()
+        if (cpById?.external_id) catalogProductId = cpById.external_id
+      }
+      const supplierLink = cleanText(product.product_url) || cleanText(product.cj_product_url)
+      if (!catalogProductId && supplierLink) {
+        const { data: cpByUrl } = await supabase
+          .from('catalog_products').select('external_id').eq('product_url', supplierLink).limit(2)
+        if (cpByUrl?.length === 1 && cpByUrl[0].external_id) catalogProductId = cpByUrl[0].external_id
+      }
+      if (!catalogProductId) {
+        const firstImage = Array.isArray(product.images) ? cleanText(product.images[0]) : ''
+        const found = await resolveCatalogLink(supabase, cleanText(product.title), firstImage)
+        if (found?.external_id) catalogProductId = found.external_id
+      }
+      if (catalogProductId) console.log('[ml-publish] vínculo com o catálogo recuperado:', catalogProductId)
+    }
 
     if (catalogProductId) {
       const dup = await supabase
@@ -1320,10 +1351,11 @@ Deno.serve(async (req) => {
       mergeAttribute(allAttrs, { id, ...resolved })
     }
 
-    // 3) SELLER_SKU (nosso, não é atributo do catálogo).
+    // 3) SELLER_SKU = código do produto no catálogo. É a "etiqueta" fixa que
+    // liga o anúncio à Velo mesmo se o vendedor trocar título ou fotos.
     mergeAttribute(allAttrs, {
       id: 'SELLER_SKU',
-      value_name: cleanText(productRecord.external_id) || 'SKU-001',
+      value_name: catalogProductId || cleanText(productRecord.external_id) || 'SKU-001',
     })
 
     // 3.1) EMPTY_GTIN_REASON — sem isso o ML aceita a publicação mas deixa o
@@ -2224,6 +2256,50 @@ Deno.serve(async (req) => {
           itemData = await itemResponse.json()
           console.log('Item criado (retry catálogo):', JSON.stringify(itemData).substring(0, 800))
         }
+      }
+    }
+
+    // O ML às vezes cria o anúncio mesmo devolvendo erro (ex.: recusa de
+    // peso/medidas processada de forma assíncrona). Antes de desistir,
+    // procura um anúncio com o mesmo título criado nos últimos minutos:
+    // se existir, adotamos ele em vez de reportar falha — assim o anúncio
+    // não vira um "fantasma" ativo fora do cadastro da Velo nem gera
+    // duplicado quando o usuário tentar de novo.
+    if (!itemResponse.ok || !itemData?.id) {
+      try {
+        const searchRes = await fetch(
+          `https://api.mercadolibre.com/users/${integration.ml_user_id}/items/search?status=active&limit=50`,
+          { headers: { 'Authorization': `Bearer ${accessToken}` } },
+        )
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          const ids: string[] = Array.isArray(searchData?.results) ? searchData.results : []
+          if (ids.length > 0) {
+            const multiRes = await fetch(`https://api.mercadolibre.com/items?ids=${ids.join(',')}`, {
+              headers: { 'Authorization': `Bearer ${accessToken}` },
+            })
+            if (multiRes.ok) {
+              const multiData = await multiRes.json()
+              const limite = Date.now() - 10 * 60_000
+              const tituloNorm = (s: string) => s.trim().toLowerCase()
+              // deno-lint-ignore no-explicit-any -- resposta multiget do ML: { code, body }
+              const encontrado = (multiData as Array<any>).find((r) => {
+                const b = r?.body
+                if (!b?.id || !b?.title) return false
+                if (tituloNorm(String(b.title)) !== tituloNorm(title)) return false
+                const criado = Date.parse(String(b.date_created ?? ''))
+                return Number.isFinite(criado) && criado >= limite
+              })
+              if (encontrado?.body) {
+                console.warn('[ml-publish] ML criou o anúncio apesar do erro; adotando', encontrado.body.id)
+                itemData = encontrado.body
+                itemResponse = new Response(null, { status: 200 })
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[ml-publish] verificação de anúncio criado apesar do erro falhou:', (e as Error).message)
       }
     }
 

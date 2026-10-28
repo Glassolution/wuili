@@ -3251,6 +3251,7 @@ export type Database = {
           post_trial_plan: string | null
           provider: string
           provider_cancelled_at: string | null
+          purchase_kind: string
           referral_id: string | null
           refundable_until: string | null
           status: string
@@ -3297,6 +3298,7 @@ export type Database = {
           post_trial_plan?: string | null
           provider?: string
           provider_cancelled_at?: string | null
+          purchase_kind?: string
           referral_id?: string | null
           refundable_until?: string | null
           status?: string
@@ -3343,6 +3345,7 @@ export type Database = {
           post_trial_plan?: string | null
           provider?: string
           provider_cancelled_at?: string | null
+          purchase_kind?: string
           referral_id?: string | null
           refundable_until?: string | null
           status?: string
@@ -4004,6 +4007,7 @@ export type Database = {
           id: string
           ml_user_id: number | null
           platform: string
+          refresh_failed_at: string | null
           refresh_token: string | null
           updated_at: string | null
           user_id: string | null
@@ -4015,6 +4019,7 @@ export type Database = {
           id?: string
           ml_user_id?: number | null
           platform: string
+          refresh_failed_at?: string | null
           refresh_token?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -4026,6 +4031,7 @@ export type Database = {
           id?: string
           ml_user_id?: number | null
           platform?: string
+          refresh_failed_at?: string | null
           refresh_token?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -4696,6 +4702,18 @@ export type Database = {
         }[]
       }
       refund_normalize_email: { Args: { p: string }; Returns: string }
+      resolve_catalog_product_for_listing: {
+        Args: { p_thumbnail: string; p_title: string }
+        Returns: {
+          external_id: string
+          id: string
+          is_active: boolean
+          match_kind: string
+          product_url: string
+          stock_quantity: number
+          title: string
+        }[]
+      }
       rpc_active_subscribers_count: { Args: never; Returns: number }
       rpc_admin_accept_affiliate_application: {
         Args: { p_user_id: string }

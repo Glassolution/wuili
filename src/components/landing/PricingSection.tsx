@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+import { VELO_PLAN_PRICES, formatPlanPriceBRL } from "@/lib/planPricing";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,7 +84,7 @@ const plans: Plan[] = [
     name: "Business",
     price: "189,90",
     currency: "R$",
-    period: "BRL / mês · cobrança anual",
+    period: "BRL / mês",
     desc: "Pra quem já vive disso e quer parar de contar produto.",
     cta: "Assinar Business",
     ctaStyle: "filled",
@@ -97,6 +99,7 @@ const plans: Plan[] = [
 ];
 
 const PricingSection = () => {
+  const [cycle, setCycle] = useState<"monthly" | "lifetime">("monthly");
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -111,7 +114,7 @@ const PricingSection = () => {
       if (planId === "gratis") {
         navigate(user ? "/checkout?plan=pro" : "/login");
       } else if (user) {
-        navigate(`/checkout?plan=${planId}`);
+        navigate(`/checkout?plan=${planId}&cycle=${cycle}`);
       } else {
         navigate("/login");
       }
@@ -128,12 +131,8 @@ const PricingSection = () => {
           </h2>
           {/* Toggle */}
           <div className="inline-flex rounded-full border border-white/[0.12] bg-[#111] p-[3px]">
-            <button className="rounded-full bg-white px-5 py-[7px] font-['Manrope'] text-[13px] font-semibold text-black">
-              Personal
-            </button>
-            <button className="rounded-full px-5 py-[7px] font-['Manrope'] text-[13px] font-medium text-white/50 transition hover:text-white/80">
-              Business
-            </button>
+            <Button variant={cycle === "monthly" ? "secondary" : "ghost"} onClick={() => setCycle("monthly")} aria-pressed={cycle === "monthly"}>Mensal</Button>
+            <Button variant={cycle === "lifetime" ? "secondary" : "ghost"} onClick={() => setCycle("lifetime")} aria-pressed={cycle === "lifetime"}>Vitalício</Button>
           </div>
         </div>
 
@@ -180,7 +179,7 @@ const PricingSection = () => {
                   {plan.price}
                 </span>
                 <span className={`font-['Manrope'] text-[0.8125rem] font-medium leading-tight ${mutedText}`}>
-                  {plan.period}
+                  {cycle === "lifetime" ? "pagamento único" : plan.period}
                 </span>
               </div>
 
@@ -226,7 +225,7 @@ const PricingSection = () => {
                     <span className="tracking-[-0.01em]">Abrindo checkout</span>
                   </span>
                 ) : (
-                  <span className="relative z-[1]">{plan.cta}</span>
+                  <span className="relative z-[1]">{cycle === "lifetime" ? `Comprar ${plan.name} vitalício` : plan.cta}</span>
                 )}
               </button>
 

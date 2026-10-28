@@ -8,6 +8,7 @@
 //  3) Roda a detecção/estorno automático de cobranças duplicadas.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCharge, isConfirmedPayment, isPaidStatus, lookupPaymentStatus } from "../_shared/validapay.ts";
+import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
 
 const corsHeaders = {
@@ -146,7 +147,7 @@ Deno.serve(async (req) => {
     // ---------------------------------------------------------------
     const { data: pendings } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,amount,validapay_charge_id,validapay_subscription_id,created_at")
+      .select("id,user_id,plan,amount,purchase_kind,validapay_charge_id,validapay_subscription_id,created_at")
       .eq("status", "pending")
       .lte("created_at", new Date(Date.now() - PENDING_MIN_AGE_MS).toISOString())
       .gte("created_at", new Date(Date.now() - PENDING_MAX_AGE_MS).toISOString())
@@ -162,6 +163,7 @@ Deno.serve(async (req) => {
         const info = await lookupPaymentStatus(reference);
 
         if (!isConfirmedPayment(info) || !info) continue;
+        if (sub.purchase_kind === "lifetime" && !lifetimePaymentMatches(Number(sub.amount), info.amount)) continue;
 
         const now = new Date();
         await admin.from("subscriptions").update({
@@ -171,6 +173,7 @@ Deno.serve(async (req) => {
           validapay_charge_id: info.chargeId ?? sub.validapay_charge_id,
           current_period_start: now.toISOString(),
           current_period_end: addMonths(now, 1).toISOString(),
+          ...(sub.purchase_kind === "lifetime" ? { ...lifetimePeriod, origin_paid_at: now.toISOString() } : {}),
           updated_at: now.toISOString(),
         }).eq("id", sub.id);
         await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", sub.user_id);
@@ -243,7 +246,7 @@ async function activateFromReference(
   // A cobrança pode não estar gravada na assinatura ainda (o checkout guarda
   // só a sessão cs_...). Por isso tentamos, em ordem: cobrança, assinatura do
   // gateway e, por fim, a última assinatura do usuário indicado no evento.
-  const cols = "id,user_id,plan,status";
+  const cols = "id,user_id,plan,status,amount,purchase_kind";
   const byField = async (field: string, value: string) => {
     const { data } = await admin
       .from("subscriptions").select(cols).eq(field, value)
@@ -261,6 +264,10 @@ async function activateFromReference(
     sub = data?.[0] ?? null;
   }
   if (!sub) return false;
+  if (sub.purchase_kind === "lifetime") {
+    const info = await lookupPaymentStatus(ref.chargeId ?? ref.subscriptionId ?? "");
+    if (!isConfirmedPayment(info) || !lifetimePaymentMatches(Number(sub.amount), info?.amount ?? null)) return false;
+  }
 
   if (sub.status !== "active") {
     const now = new Date();
@@ -271,6 +278,7 @@ async function activateFromReference(
       validapay_subscription_id: ref.subscriptionId ?? undefined,
       current_period_start: now.toISOString(),
       current_period_end: addMonths(now, 1).toISOString(),
+      ...(sub.purchase_kind === "lifetime" ? { ...lifetimePeriod, origin_paid_at: now.toISOString() } : {}),
       updated_at: now.toISOString(),
     }).eq("id", sub.id);
     await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", sub.user_id);

@@ -7,8 +7,9 @@
 //  2) Verificação server-side obrigatória: todo evento de pagamento é reconferido
 //     via GET /v1/charges/:chargeId com o token OAuth2 antes de alterar o banco.
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
+import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getCharge, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, isConfirmedPayment, lookupPaymentStatus, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
 import {
@@ -53,12 +54,17 @@ type WebhookPayload = {
 
 /** Localiza a assinatura da Velo correspondente ao evento recebido. */
 async function findSubscription(p: WebhookPayload) {
+  const purchaseId = typeof p.metadata?.velo_purchase_id === "string" ? p.metadata.velo_purchase_id : null;
+  if (purchaseId) {
+    const { data } = await admin.from("subscriptions").select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount").eq("id", purchaseId).eq("provider", "validapay").maybeSingle();
+    if (data) return data;
+  }
   const metaUser = (p.metadata?.user_id ?? p.metadata?.userId) as string | undefined;
 
   if (p.chargeId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount")
       .eq("validapay_charge_id", p.chargeId)
       .maybeSingle();
     if (data) return data;
@@ -66,7 +72,7 @@ async function findSubscription(p: WebhookPayload) {
   if (p.subscriptionId) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount")
       .eq("validapay_subscription_id", p.subscriptionId)
       .maybeSingle();
     if (data) return data;
@@ -74,7 +80,7 @@ async function findSubscription(p: WebhookPayload) {
   if (metaUser) {
     const { data } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id")
+      .select("id,user_id,plan,status,payment_method,cancel_at_period_end,referral_id,purchase_kind,amount")
       .eq("user_id", metaUser)
       .eq("provider", "validapay")
       .order("created_at", { ascending: false })
@@ -84,6 +90,10 @@ async function findSubscription(p: WebhookPayload) {
   }
   return null;
 }
+
+// Carimbo de data/hora usado no bloco de estornos (estava ausente e derrubava
+// o processamento de refund.confirmed com "nowIsoRefund is not defined").
+const nowIsoRefund = () => new Date().toISOString();
 
 const addMonths = (date: Date, months: number) => {
   const d = new Date(date);
@@ -205,15 +215,18 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  // 1) Token compartilhado (quando configurado)
+  // 1) Token compartilhado OBRIGATÓRIO: sem ele configurado ou sem o valor
+  // correto na requisição, o evento é recusado antes de qualquer processamento.
   const expectedToken = Deno.env.get("VALIDAPAY_WEBHOOK_TOKEN");
-  if (expectedToken) {
-    const url = new URL(req.url);
-    const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token") ?? "";
-    if (!safeEqual(provided, expectedToken)) {
-      console.warn("validapay-webhook: token inválido");
-      return json({ error: "unauthorized" }, 401);
-    }
+  if (!expectedToken) {
+    console.error("validapay-webhook: VALIDAPAY_WEBHOOK_TOKEN não configurado — evento recusado");
+    return json({ error: "webhook_token_not_configured" }, 500);
+  }
+  const url = new URL(req.url);
+  const provided = url.searchParams.get("token") ?? req.headers.get("x-webhook-token") ?? "";
+  if (!safeEqual(provided, expectedToken)) {
+    console.warn("validapay-webhook: token inválido");
+    return json({ error: "unauthorized" }, 401);
   }
 
   let payload: WebhookPayload;
@@ -393,7 +406,7 @@ Deno.serve(async (req) => {
     const activate = async () => {
       // Assinatura marcada para cancelar ao fim do ciclo não volta a ser
       // renovada: encerramos e rebaixamos o perfil em vez de reativar.
-      if (subscription.cancel_at_period_end) {
+      if (subscription.cancel_at_period_end && subscription.purchase_kind !== "lifetime") {
         console.log("validapay-webhook: renovação ignorada (cancelamento agendado)", subscription.id);
         await admin
           .from("subscriptions")
@@ -425,6 +438,8 @@ Deno.serve(async (req) => {
           amount: verifiedAmount ?? payload.amount ?? undefined,
           current_period_start: nowIso,
           current_period_end: addMonths(now, 1).toISOString(),
+          ...(subscription.purchase_kind === "lifetime" ? lifetimePeriod : {}),
+          ...(subscription.purchase_kind === "lifetime" ? { origin_paid_at: subscription.status === "active" ? undefined : nowIso } : {}),
           updated_at: nowIso,
         })
         .eq("id", subscription.id);
@@ -444,12 +459,45 @@ Deno.serve(async (req) => {
       }
     };
 
+    if (subscription.purchase_kind === "lifetime" && (subscription.status === "refunded" || subscription.status === "refunded_duplicate")) {
+      return await fail("lifetime_already_refunded");
+    }
+    if (subscription.purchase_kind === "lifetime" && event.startsWith("subscription.")) {
+      await admin.from("validapay_webhook_events").update({ processed: true }).eq("id", eventRow.id);
+      return json({ received: true, ignored: "lifetime_has_no_subscription_cycle" });
+    }
+
     switch (event) {
+      case "oneoff.payment.success":
       case "payment.success":
       case "subscription.activated":
       case "subscription.renewed": {
         if (payload.chargeId && verifiedStatus !== "PAID") {
           return await fail(`charge_not_paid:${verifiedStatus}`);
+        }
+        // Sem chargeId o evento, sozinho, NÃO prova pagamento. Antes de ativar,
+        // confirmamos na própria ValidaPay que existe uma cobrança paga para
+        // esta assinatura. Sem confirmação, o evento é recusado e reprocessado.
+        if (!payload.chargeId) {
+          let confirmed = false;
+          if (payload.subscriptionId) {
+            try {
+              const info = await lookupPaymentStatus(String(payload.subscriptionId));
+              confirmed = isConfirmedPayment(info);
+              if (confirmed && info) {
+                verifiedStatus = info.status ?? verifiedStatus;
+                verifiedAmount = verifiedAmount ?? info.amount ?? null;
+              }
+            } catch (err) {
+              console.warn("validapay-webhook: confirmação sem chargeId falhou", String(err));
+            }
+          }
+          if (!confirmed) {
+            return await fail("activation_unverified_no_charge");
+          }
+        }
+        if (subscription.purchase_kind === "lifetime" && !lifetimePaymentMatches(Number(subscription.amount), verifiedAmount)) {
+          return await fail("lifetime_amount_mismatch");
         }
         // Primeira cobrança paga desta assinatura? (antes de ativar, que
         // sobrescreve current_period_start). event_id estável por assinatura:

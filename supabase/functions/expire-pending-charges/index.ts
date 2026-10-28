@@ -6,6 +6,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { isConfirmedPayment, lookupPaymentStatus } from "../_shared/validapay.ts";
+import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
+import { recoverLifetimePurchases } from "../_shared/lifetimeCharge.ts";
 
 const EXPIRE_AFTER_MS = 30 * 60 * 1000;
 
@@ -35,7 +37,7 @@ Deno.serve(async (req) => {
   try {
     const { data: pendings } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,validapay_charge_id,validapay_subscription_id,created_at")
+      .select("id,user_id,plan,amount,purchase_kind,validapay_charge_id,validapay_subscription_id,created_at")
       .eq("status", "pending")
       .lte("created_at", new Date(Date.now() - EXPIRE_AFTER_MS).toISOString())
       .order("created_at", { ascending: true })
@@ -48,7 +50,7 @@ Deno.serve(async (req) => {
       if (reference) {
         try {
           const info = await lookupPaymentStatus(reference);
-          if (isConfirmedPayment(info) && info) {
+          if (isConfirmedPayment(info) && info && (sub.purchase_kind !== "lifetime" || lifetimePaymentMatches(Number(sub.amount), info.amount))) {
             const now = new Date();
             await admin.from("subscriptions").update({
               status: "active",
@@ -57,6 +59,7 @@ Deno.serve(async (req) => {
               validapay_charge_id: info.chargeId ?? sub.validapay_charge_id,
               current_period_start: now.toISOString(),
               current_period_end: addMonths(now, 1).toISOString(),
+              ...(sub.purchase_kind === "lifetime" ? { ...lifetimePeriod, origin_paid_at: now.toISOString() } : {}),
               updated_at: now.toISOString(),
             }).eq("id", sub.id);
             await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", sub.user_id);
@@ -73,6 +76,14 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq("id", sub.id).eq("status", "pending");
       result.expired++;
+    }
+
+    // Vitalício pago não chega por webhook nem fica na sessão: recupera pela lista de cobranças.
+    try {
+      const recovered = await recoverLifetimePurchases(admin);
+      (result as Record<string, number>).lifetime_recovered = recovered.length;
+    } catch (err) {
+      console.error("expire-pending-charges: recuperação vitalícia falhou", String(err));
     }
 
     console.log("expire-pending-charges:", JSON.stringify(result));

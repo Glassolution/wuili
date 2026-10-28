@@ -211,6 +211,27 @@
       "when": 1792174574907,
       "tag": "0029_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792711873672,
+      "tag": "0030_resolve_catalog_product_for_listing",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792904719310,
+      "tag": "0031_catalog_aliexpress_admin_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793065927495,
+      "tag": "0032_add_lifetime_purchase_kind",
+      "breakpoints": true
     }
   ]
 }

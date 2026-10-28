@@ -58,7 +58,7 @@ export const getLocalSandboxRefunds = (accountKey?: string | null) =>
 export const createLocalSandboxSubscription = (
   accountKey: string | null | undefined,
   plan: string,
-  cycle: "monthly" | "annual" = "monthly",
+  cycle: "monthly" | "annual" | "lifetime" = "monthly",
 ) => {
   const now = new Date();
   const periodEnd = new Date(now);
@@ -74,7 +74,7 @@ export const createLocalSandboxSubscription = (
     mp_payment_id: null,
     payment_method: "sandbox",
     created_at: now.toISOString(),
-    current_period_end: periodEnd.toISOString(),
+    current_period_end: cycle === "lifetime" ? null : periodEnd.toISOString(),
     cancel_at_period_end: false,
   };
 

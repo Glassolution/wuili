@@ -2,6 +2,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { createHmac } from "node:crypto";
+import {
+  isBlocked,
+  isFakeAdProduct,
+  isCellphoneProduct,
+  detectBrand,
+} from "../_shared/catalog-filters.ts";
+import { sanitizeTitle, stripMLHtml } from "../_shared/ml-content-sanitizer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +45,7 @@ async function fetchProductDetail(
   orders_count: number | null;
   rating: number | null;
   reviews_count: number | null;
+  stock: number | null;
 } | null> {
   try {
     const json = await callAliExpress(
@@ -106,7 +114,17 @@ async function fetchProductDetail(
         })()
       : null;
 
-    return { images, description, orders_count, rating, reviews_count };
+    // Estoque real: soma dos SKUs quando a API expõe; null = desconhecido
+    // (o chamador mantém o fallback 999 nesse caso).
+    const skuList = stats?.ae_item_sku_info_d_t_o ?? stats?.sku_info ?? [];
+    const stock = Array.isArray(skuList) && skuList.length > 0
+      ? skuList.reduce((acc: number, s: any) => {
+          const n = Number(s?.sku_available_stock ?? s?.ipm_sku_stock ?? s?.stock ?? 0);
+          return acc + (Number.isFinite(n) ? n : 0);
+        }, 0)
+      : null;
+
+    return { images, description, orders_count, rating, reviews_count, stock };
   } catch (err) {
     console.warn(
       `[aliexpress-sync-top-products] product.get falhou para ${productId}:`,
@@ -538,8 +556,18 @@ serve(async (req) => {
           const externalId = String(
             p.itemId ?? p.item_id ?? p.product_id ?? p.productId ?? "",
           );
-          const title = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
-          if (!externalId || !title) continue;
+          const rawTitle = String(p.title ?? p.product_title ?? p.subject ?? "").trim();
+          if (!externalId || !rawTitle) continue;
+          // Mesmas regras do catálogo C7Drop: blocklist de conteúdo adulto,
+          // produtos falsos ("anúncios em massa") e aparelhos que exigem
+          // homologação Anatel (celulares/smartphones) nem entram no catálogo.
+          if (isBlocked(rawTitle)) continue;
+          if (isFakeAdProduct(rawTitle)) continue;
+          if (isCellphoneProduct(rawTitle, veloCategoryForKeyword)) continue;
+          // Título sanitizado como no ml-publish: sem termos proibidos
+          // ("frete grátis", "oferta", marcas de marketplace, emojis...).
+          const title = sanitizeTitle(rawTitle).title;
+          if (!title) continue;
           if (currentTopIds.has(`aliexpress:${externalId}`)) continue; // dedup entre keywords/páginas
           const titleKey = title.toLowerCase();
           if (currentTitles.has(titleKey)) continue; // dedup por título (variantes com mesmo nome)
@@ -568,6 +596,7 @@ serve(async (req) => {
             supplier_name: "AliExpress",
             external_id: externalId,
             title,
+            description: null as string | null,
             images: image ? [image] : [],
             cost_price: cost,
             suggested_price: suggested,
@@ -579,14 +608,14 @@ serve(async (req) => {
               const n = parseInt(raw, 10);
               return Number.isFinite(n) ? n : 0;
             })(),
-            stock_quantity: 999,
+            stock_quantity: 999, // fallback; o enriquecimento grava o estoque real quando a API expõe
             product_url:
               p.itemUrl ??
               p.product_detail_url ??
               `https://www.aliexpress.com/item/${externalId}.html`,
             aliexpress_category_id: aliCategoryIdForKeyword,
             category: veloCategoryForKeyword,
-            brand: null,
+            brand: detectBrand(title),
             in_top_50: true,
             is_active: true,
             is_blocked: false,
@@ -658,6 +687,13 @@ serve(async (req) => {
           if (detail.orders_count != null) item.orders_count = detail.orders_count;
           if (detail.rating != null) item.rating = detail.rating;
           if (detail.reviews_count != null) item.reviews_count = detail.reviews_count;
+          if (detail.stock != null) item.stock_quantity = detail.stock;
+          // Descrição higienizada (sem HTML, links, contatos, menções a
+          // marketplaces) — igual ao tratamento que o ml-publish exige.
+          if (detail.description) {
+            const cleanDesc = stripMLHtml(detail.description).slice(0, 5000);
+            if (cleanDesc.length >= 40) item.description = cleanDesc;
+          }
           enrichedCount++;
           enrichedIds.add(item.external_id);
         }
@@ -724,7 +760,12 @@ serve(async (req) => {
       const hasStock = Number(item.stock_quantity ?? 0) > 0;
       const goodTitle = String(item.title ?? "").length >= 20;
       const goodCat = PUBLISHABLE_CATEGORIES.has(normCat(item.category));
-      const publishable = hasImgs && hasStock && goodTitle && goodCat;
+      // Defesa em profundidade: mesmo que algo escape do filtro na coleta,
+      // produto bloqueado/Anatel nunca fica visível no catálogo.
+      const notBanned =
+        !isBlocked(String(item.title ?? "")) &&
+        !isCellphoneProduct(String(item.title ?? ""), item.category);
+      const publishable = hasImgs && hasStock && goodTitle && goodCat && notBanned;
       item.is_active = publishable;
       item.is_blocked = !publishable;
       if (!publishable) hiddenNotPublishable++;

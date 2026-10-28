@@ -1,5 +1,12 @@
 # Roadmap
 
+## Oferta vitalícia para novas compras
+- [x] Substituir opção anual por vitalício sem mudar assinaturas existentes
+- [x] Configurar pagamento único confirmado e acesso sem expiração
+- [x] Exibir preço final igual ao mensal e referência 20% maior com clareza
+- [x] Validar preços e checkout autenticado na ValidaPay sem pagar; 13 testes passaram
+- [x] Liberar vitalícios pagos sem webhook (busca da cobrança na ValidaPay) e novos preços 89,90/179,80/427,90
+
 - [x] Simplificar a home mobile para o primeiro anúncio
 - [x] Exibir preços e estimativas honestas nos cartões mobile, mantendo vendas e avaliações simuladas
 - [x] Personalizar e ordenar produtos com dados reais
@@ -44,3 +51,17 @@
 - [x] Distinguir reembolso da assinatura e da compra na fornecedora
 - [x] Validar regras em 31 testes e publicar o assistente sem executar reembolso real
 - [ ] Conferir conversa real e cartão no suporte administrativo — sessão disponível sem acesso de administrador
+
+## Auditoria de pagamentos (out/2026)
+- [x] ETAPA 1: migrados sem assinatura ValidaPay; status real dos 776 no gateway; webhook token; estornos das duplicidades; eventos ativos no painel
+- [x] ETAPA 2: webhook recusa ativação sem chargeId sem confirmação; token obrigatório; eventos de reembolso tratados; erro nowIsoRefund corrigido; publicado e testado (401 sem token)
+- [ ] ETAPA 3: aguardando aprovação da proposta (expiração em modo simulação + aviso de 7 dias para migrados)
+
+## Pré-requisitos da ETAPA 3 (auditoria)
+- [x] 1. Paginação confirmada (100 reais); 638 consultadas por ID: 8 pagando, 211 canceladas, 20 inexistentes, 339 nunca ativadas
+- [x] 2. Bug dos 80 não existe: ativação atualiza o período; recorrência parou no gateway
+- [x] 3. Nenhum dos 18 era pago; falha de consulta já vai para fila de reprocessamento
+- [ ] 4. Monitorar 24h se algum evento real foi recusado com 401 (até agora: nenhum evento, nenhum 401)
+- [x] 5. MP: token morto (401), 2 preapprovals exigem cheque manual; Stripe: 2 ativas cobrando sem sincronizar período
+- [x] 6. Lista das 94 duplicadas MP entregue em CSV (R$ 4.839,40)
+- [x] 7. Anúncios ML NÃO são pausados ao voltar ao grátis (só no reembolso); aviso não promete pausa

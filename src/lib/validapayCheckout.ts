@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getReferralCode } from "@/lib/affiliateFunnel";
 
 export type VelloPlanId = "base" | "pro" | "business";
-export type VelloBillingCycle = "monthly" | "annual";
+export type VelloBillingCycle = "monthly" | "annual" | "lifetime";
 
 /**
  * Cria uma sessão de checkout na ValidaPay (Pix + cartão) para o usuário logado

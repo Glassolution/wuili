@@ -16,12 +16,13 @@ import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckou
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
+import { Button } from "@/components/ui/button";
 import { billingCycleForPlan, formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
 
 
 type PaymentMethod = "pix" | "credit_card";
 type CheckoutState = "idle" | "loading" | "pix_pending" | "success" | "error";
-type BillingCycle = "monthly" | "annual";
+type BillingCycle = "monthly" | "lifetime";
 
 type PlanData = {
   name: string;
@@ -81,9 +82,9 @@ const PLAN_AMOUNTS: Record<string, number> = {
 };
 
 const ANNUAL_PLAN_AMOUNTS: Record<string, number> = {
-  base: VELO_PLAN_PRICES.base.annual,
-  pro: VELO_PLAN_PRICES.pro.annual,
-  business: VELO_PLAN_PRICES.business.annual,
+  base: VELO_PLAN_PRICES.base.lifetime,
+  pro: VELO_PLAN_PRICES.pro.lifetime,
+  business: VELO_PLAN_PRICES.business.lifetime,
 };
 
 const splitPlanPrice = (price: string) => {
@@ -106,19 +107,14 @@ const parseBRL = (price: string) => Number(price.replace(/[^\d,]/g, "").replace(
 
 const getDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
   const monthlyAmount = PLAN_AMOUNTS[planId] ?? 0;
-  if (billingCycle === "annual") return formatBRL(ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9);
+  if (billingCycle === "lifetime") return formatBRL(ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9);
   return PLANS_DATA[planId]?.price ?? formatBRL(monthlyAmount);
 };
 
 const getOriginalDisplayPrice = (planId: string, billingCycle: BillingCycle) => {
-  // No anual, o preço "de" é o mensal x 12 — o que o usuário realmente pagaria
-  // sem o desconto. É um valor praticado de verdade, não um número inflado para
-  // simular promoção.
-  if (billingCycle === "annual") {
-    const monthlyAmount = PLAN_AMOUNTS[planId] ?? 0;
-    const annualAmount = ANNUAL_PLAN_AMOUNTS[planId] ?? monthlyAmount * 12 * 0.9;
-    const fullYear = monthlyAmount * 12;
-    return fullYear > annualAmount ? formatBRL(fullYear) : null;
+  if (billingCycle === "lifetime") {
+    const entry = planId === "base" || planId === "pro" || planId === "business" ? VELO_PLAN_PRICES[planId] : null;
+    return entry ? formatBRL(entry.compareAt) : null;
   }
   const originalPrice = PLANS_DATA[planId]?.originalPrice;
   return originalPrice ?? null;
@@ -148,13 +144,13 @@ const CheckoutPage = () => {
   const directPaymentStep = searchParams.get("step") === "payment";
   const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect || directPaymentStep);
   const planId = selectedPlanId;
-  const billingCycle = billingCycleForPlan(planId);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(searchParams.get("cycle") === "lifetime" || searchParams.get("cycle") === "annual" ? "lifetime" : "monthly");
   const plan = PLANS_DATA[planId];
   const recurringPrice = getDisplayPrice(planId, billingCycle);
-  const recurringCycleLabel = billingCycle === "annual" ? "anual" : "mensal";
-  const recurringPeriodLabel = billingCycle === "annual" ? "/ ano" : "/ mês";
+  const recurringCycleLabel = billingCycle === "lifetime" ? "vitalícia" : "mensal";
+  const recurringPeriodLabel = billingCycle === "lifetime" ? "uma vez" : "/ mês";
   const checkoutPrice = isTrial ? TRIAL_AMOUNT_BRL : recurringPrice;
-  const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : billingCycle === "annual" ? "por ano" : "por mês";
+  const checkoutPeriodLabel = isTrial ? `por ${TRIAL_DAYS} dias` : billingCycle === "lifetime" ? "uma vez" : "por mês";
   const checkoutDescription = isTrial
     ? `Trial de ${TRIAL_DAYS} dias do plano Pro. Depois, sua assinatura continua automaticamente no plano Pro (R$79,80/mês).`
     : `Assinatura ${recurringCycleLabel} do plano ${plan.name}`;
@@ -265,7 +261,7 @@ const CheckoutPage = () => {
       session.user.id,
       isTrial
         ? TRIAL_AMOUNT
-        : billingCycle === "annual"
+        : billingCycle === "lifetime"
           ? ANNUAL_PLAN_AMOUNTS[planId] ?? (PLAN_AMOUNTS[planId] ?? 0) * 12 * 0.9
           : PLAN_AMOUNTS[planId] ?? 0
     );
@@ -291,7 +287,7 @@ const CheckoutPage = () => {
     void (async () => {
       const res = await startValidaPayCheckout(
         planId as VelloPlanId,
-        billingCycle === "annual" ? "annual" : "monthly",
+        billingCycle === "lifetime" ? "lifetime" : "monthly",
       );
       if (res.ok) {
         return;
@@ -374,7 +370,7 @@ const CheckoutPage = () => {
           const { data, error } = await supabase.functions.invoke("admin-sandbox-subscription", {
             body: {
               plan: planId,
-              cycle: billingCycle === "annual" ? "annual" : "monthly",
+              cycle: billingCycle === "lifetime" ? "lifetime" : "monthly",
             },
           });
           if (error || !data?.success) {
@@ -385,7 +381,7 @@ const CheckoutPage = () => {
           createLocalSandboxSubscription(
             session?.user?.id ?? session?.user?.email ?? null,
             planId,
-            billingCycle === "annual" ? "annual" : "monthly",
+            billingCycle === "lifetime" ? "lifetime" : "monthly",
           );
         }
         setCheckoutState("success");
@@ -409,7 +405,7 @@ const CheckoutPage = () => {
     // pagamento antes mesmo de gerar a cobrança.
     const validapay = await startValidaPayCheckout(
       planId as VelloPlanId,
-      billingCycle === "annual" ? "annual" : "monthly",
+      billingCycle === "lifetime" ? "lifetime" : "monthly",
     );
     if (validapay.ok) {
       toast.success("Redirecionando para o pagamento...", { id: toastId });
@@ -430,7 +426,7 @@ const CheckoutPage = () => {
       const referralCode = getReferralCode();
       if (referralCode) {
         payload.affiliate_ref = referralCode;
-        payload.plan_price = billingCycle === "annual"
+        payload.plan_price = billingCycle === "lifetime"
           ? ANNUAL_PLAN_AMOUNTS[planId] ?? (PLAN_AMOUNTS[planId] ?? 0) * 12 * 0.9
           : isTrial ? TRIAL_AMOUNT : PLAN_AMOUNTS[planId] ?? undefined;
       }
@@ -524,7 +520,7 @@ const CheckoutPage = () => {
     setCheckingOutPlanId(nextPlanId);
     const res = await startValidaPayCheckout(
       nextPlanId as VelloPlanId,
-      billingCycle === "annual" ? "annual" : "monthly",
+      billingCycle === "lifetime" ? "lifetime" : "monthly",
     );
     if (res.ok) return;
     redirectedRef.current = false;
@@ -607,8 +603,12 @@ const CheckoutPage = () => {
                   Escolha o plano que combina com você
                 </h1>
                 <p className="mt-1.5 text-[13px] leading-5 text-[#8A8A86]">
-                  O checkout continua seguro via Mercado Pago.
+                  Pagamento seguro via ValidaPay.
                 </p>
+              </div>
+              <div className="flex gap-2" aria-label="Tipo de pagamento">
+                <Button variant={billingCycle === "monthly" ? "secondary" : "ghost"} aria-pressed={billingCycle === "monthly"} onClick={() => setBillingCycle("monthly")} disabled={checkingOutPlanId !== null}>Mensal</Button>
+                <Button variant={billingCycle === "lifetime" ? "secondary" : "ghost"} aria-pressed={billingCycle === "lifetime"} onClick={() => setBillingCycle("lifetime")} disabled={checkingOutPlanId !== null}>Vitalício</Button>
               </div>
             </div>
 
@@ -625,11 +625,11 @@ const CheckoutPage = () => {
             <div className="mx-auto mt-7 grid max-w-6xl items-stretch gap-5 md:grid-cols-3">
               {plans.map(([id, currentPlan]) => {
                 const isSelected = id === selectedPlanId;
-                const cardCycle = billingCycleForPlan(id);
-                const rawDisplayPrice = formatBRL(PLAN_AMOUNTS[id] ?? 0);
+                const cardCycle = billingCycle;
+                const rawDisplayPrice = getDisplayPrice(id, billingCycle);
                 const displayPrice = hasReferralDiscount ? applyReferral(rawDisplayPrice) : rawDisplayPrice;
                 const priceParts = splitPlanPrice(displayPrice);
-                const originalPrice = hasReferralDiscount ? rawDisplayPrice : null;
+                const originalPrice = hasReferralDiscount ? rawDisplayPrice : getOriginalDisplayPrice(id, billingCycle);
                 const savings = hasReferralDiscount ? null : getSavingsDisplay(originalPrice, displayPrice);
 
                 // O destaque (borda preta, ícone sólido, sombra, elevação) segue o
@@ -680,7 +680,7 @@ const CheckoutPage = () => {
                             </span>
                           ) : savings ? (
                             <span className="whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                              Economize {savings}
+                              Com desconto · Economize {savings}
                             </span>
                           ) : null}
                         </div>
@@ -690,10 +690,10 @@ const CheckoutPage = () => {
                           {priceParts.main}
                           <span className="text-[#A8A8A3]">{priceParts.cents}</span>
                         </span>
-                        <span className="pb-1.5 text-[14px] font-medium text-[#7A7A77]">/mês</span>
+                        <span className="pb-1.5 text-[14px] font-medium text-[#7A7A77]">{billingCycle === "lifetime" ? "uma vez" : "/mês"}</span>
                       </div>
-                      {cardCycle === "annual" ? (
-                        <p className="mt-1 text-[12px] font-medium text-[#2563EB]">Cobrança anual</p>
+                      {cardCycle === "lifetime" ? (
+                        <p className="mt-1 text-[12px] font-medium text-[#2563EB]">Pagamento único · acesso vitalício</p>
                       ) : null}
                     </div>
 
@@ -710,7 +710,7 @@ const CheckoutPage = () => {
                           {sandboxPurchaseEnabled ? "Abrindo..." : "Redirecionando..."}
                         </span>
                       ) : (
-                        sandboxPurchaseEnabled ? `Testar ${currentPlan.name}` : `Assinar ${currentPlan.name}`
+                        sandboxPurchaseEnabled ? `Testar ${currentPlan.name}` : billingCycle === "lifetime" ? `Comprar ${currentPlan.name} vitalício` : `Assinar ${currentPlan.name}`
                       )}
                     </button>
 
@@ -937,7 +937,7 @@ const CheckoutPage = () => {
 
             <div className="mt-9 space-y-4 border-t border-black/10 pt-7 text-[15px]">
               <div className="flex items-center justify-between text-[#6F6F6A]">
-                <span>{billingCycle === "annual" ? "Anual assinatura" : "Mensal assinatura"}</span>
+                <span>{billingCycle === "lifetime" ? "Acesso vitalício" : "Mensal assinatura"}</span>
                 <span>{originalCheckoutPrice}</span>
               </div>
               {hasReferralDiscount && (

@@ -5,6 +5,8 @@ Velo ("Apenas venda."): plataforma de dropshipping com IA para iniciantes brasil
 Stack: React + TypeScript + Tailwind (frontend); Supabase/Lovable Cloud (Postgres, Auth, Edge Functions Deno, Storage); Gemini via Edge Functions; deploy Lovable Cloud + Vercel.
 
 ## Padrões
+- Lifetime purchases use dedicated ONE_TIME ValidaPay prices and a server-owned purchase_kind marker; verified amounts grant non-expiring access, while legacy recurring contracts remain unchanged. Database period enforcement prevents reconciliation jobs from adding expiry or renewal dates.
+- ValidaPay ONE_TIME charges are not linked to checkout sessions and send no webhook; `_shared/lifetimeCharge.ts` matches paid charges by account email, exact amount and time window (used by `subscription-sync-self` and the `expire-pending-charges` cron) so paid lifetime buyers are never left without access.
 - UI sempre em português brasileiro; preços em BRL; USD → BRL multiplica por 5.0.
 - RLS ativo em todas as tabelas; revisar policies existentes antes de mudar schema.
 - Secrets só via `Deno.env.get`; nunca no código-fonte.
@@ -37,3 +39,5 @@ Catálogo → importar produto → IA gera título/descrição → usuário revi
 Azul escuro `#1E3A8A`, azul elétrico `#2563EB`, branco/preto; logo nuvem preta com caixa; fundo da landing gradiente azul/lilás escuro.
 
 - Servidor MCP (Claude etc.): definir ferramentas em `src/lib/mcp/` (o `supabase/functions/mcp` é gerado); só admins, via OAuth e RLS, somente leitura e sem tabelas de tokens — evita exposição de credenciais e ações com dinheiro.
+- Vínculo anúncio → catálogo: quando a publicação ou a venda chega sem `catalog_product_id`, as funções usam `_shared/catalogLink.ts` (SELLER_SKU do anúncio = código do catálogo, depois RPC `resolve_catalog_product_for_listing`: título idêntico, foto, início do título; só resultado único) e gravam o vínculo no anúncio — evita vendas com "Fornecedor indisponível".
+- Token ML morto: refresh que falha com `invalid_grant`/"client_id does not match" (token emitido pelo app antigo) marca `user_integrations.refresh_failed_at` via `_shared/mlSellerToken.ts` (`markRefreshTokenDead`, que também notifica o usuário 1x/semana); todos os jobs pulam o refresh enquanto a marca existir e a `ml-callback` a limpa na reconexão — evita centenas de chamadas inúteis ao ML a cada cron.
