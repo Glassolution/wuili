@@ -9,6 +9,25 @@ import {
   detectBrand,
 } from "../_shared/catalog-filters.ts";
 import { sanitizeTitle, stripMLHtml } from "../_shared/ml-content-sanitizer.ts";
+// Link limpo e clicável do produto (a API devolve "//www..." sem https e com
+// parâmetros quebrados como "...?appkey=").
+const aliexpressUrl = (id: string) => `https://www.aliexpress.com/item/${id}.html`;
+// Aparelhos de saúde exigem registro Anvisa no Mercado Livre.
+const MEDICAL_RE = /acupunt|eletroestimul|\btens\b|\bems\b|oxímetro|oximetro|termômetro|termometro|medidor de press|glicos|nebuliz|aparelho auditivo|lente de contato|seringa|cateter|ortopédic|ortoped|massageador el[eé]tric|caneta el[eé]tronica|terapia/i;
+const NAMED_ENTITIES: Record<string, string> = {
+  aacute: "á", agrave: "à", acirc: "â", atilde: "ã", eacute: "é", ecirc: "ê",
+  iacute: "í", oacute: "ó", ocirc: "ô", otilde: "õ", uacute: "ú", uuml: "ü",
+  ouml: "ö", ccedil: "ç", Aacute: "Á", Eacute: "É", Oacute: "Ó", Ccedil: "Ç",
+  Atilde: "Ã", times: "x", deg: "°", plusmn: "±", bull: "•", raquo: "»",
+  laquo: "«", ndash: "–", mdash: "—", hellip: "…", rsquo: "'", lsquo: "'",
+  rdquo: '"', ldquo: '"', middot: "·",
+};
+const decodeEntities = (t: string) => t
+  .replace(/&([A-Za-z]+);/g, (m, n) => NAMED_ENTITIES[n] ?? m)
+  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+  .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+  .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -275,7 +294,7 @@ function normalizeProducts(json: any, categoryId: string): any[] {
       rating: p.evaluate_rate ? Number(String(p.evaluate_rate).replace("%", "")) / 20 : Number(p.avg_rating ?? 0) || null,
       orders_count: Number(p.lastest_volume ?? p.sale_count ?? p.orders ?? 0) || 0,
       stock_quantity: Number(p.stock_quantity ?? 999) || 999,
-      product_url: p.product_detail_url ?? p.itemUrl ?? null,
+      product_url: aliexpressUrl(String(p.product_id ?? p.itemId ?? p.item_id ?? "")),
       aliexpress_category_id: categoryId,
       in_top_50: true,
       is_active: true,
@@ -563,6 +582,7 @@ serve(async (req) => {
           // homologação Anatel (celulares/smartphones) nem entram no catálogo.
           if (isBlocked(rawTitle)) continue;
           if (isFakeAdProduct(rawTitle)) continue;
+          if (MEDICAL_RE.test(rawTitle)) continue;
           if (isCellphoneProduct(rawTitle, veloCategoryForKeyword)) continue;
           // Título sanitizado como no ml-publish: sem termos proibidos
           // ("frete grátis", "oferta", marcas de marketplace, emojis...).
@@ -609,10 +629,7 @@ serve(async (req) => {
               return Number.isFinite(n) ? n : 0;
             })(),
             stock_quantity: 999, // fallback; o enriquecimento grava o estoque real quando a API expõe
-            product_url:
-              p.itemUrl ??
-              p.product_detail_url ??
-              `https://www.aliexpress.com/item/${externalId}.html`,
+            product_url: aliexpressUrl(externalId),
             aliexpress_category_id: aliCategoryIdForKeyword,
             category: veloCategoryForKeyword,
             brand: detectBrand(title),
@@ -691,7 +708,7 @@ serve(async (req) => {
           // Descrição higienizada (sem HTML, links, contatos, menções a
           // marketplaces) — igual ao tratamento que o ml-publish exige.
           if (detail.description) {
-            const cleanDesc = stripMLHtml(detail.description).slice(0, 5000);
+            const cleanDesc = decodeEntities(stripMLHtml(decodeEntities(detail.description))).slice(0, 5000);
             if (cleanDesc.length >= 40) item.description = cleanDesc;
           }
           enrichedCount++;
