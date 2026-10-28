@@ -14,7 +14,16 @@ import { sanitizeTitle, stripMLHtml } from "../_shared/ml-content-sanitizer.ts";
 const aliexpressUrl = (id: string) => `https://www.aliexpress.com/item/${id}.html`;
 // Aparelhos de saúde exigem registro Anvisa no Mercado Livre.
 const MEDICAL_RE = /acupunt|eletroestimul|\btens\b|\bems\b|oxímetro|oximetro|termômetro|termometro|medidor de press|glicos|nebuliz|aparelho auditivo|lente de contato|seringa|cateter|ortopédic|ortoped|massageador el[eé]tric|caneta el[eé]tronica|terapia/i;
+const NAMED_ENTITIES: Record<string, string> = {
+  aacute: "á", agrave: "à", acirc: "â", atilde: "ã", eacute: "é", ecirc: "ê",
+  iacute: "í", oacute: "ó", ocirc: "ô", otilde: "õ", uacute: "ú", uuml: "ü",
+  ouml: "ö", ccedil: "ç", Aacute: "Á", Eacute: "É", Oacute: "Ó", Ccedil: "Ç",
+  Atilde: "Ã", times: "x", deg: "°", plusmn: "±", bull: "•", raquo: "»",
+  laquo: "«", ndash: "–", mdash: "—", hellip: "…", rsquo: "'", lsquo: "'",
+  rdquo: '"', ldquo: '"', middot: "·",
+};
 const decodeEntities = (t: string) => t
+  .replace(/&([A-Za-z]+);/g, (m, n) => NAMED_ENTITIES[n] ?? m)
   .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
   .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
   .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
