@@ -13,7 +13,7 @@ import { sanitizeTitle, stripMLHtml } from "../_shared/ml-content-sanitizer.ts";
 // parâmetros quebrados como "...?appkey=").
 const aliexpressUrl = (id: string) => `https://www.aliexpress.com/item/${id}.html`;
 // Aparelhos de saúde exigem registro Anvisa no Mercado Livre.
-const MEDICAL_RE = /acupunt|eletroestimul|tens\b|ems\b|oxímetro|oximetro|termômetro|termometro|medidor de press|glicos|nebuliz|aparelho auditivo|lente de contato|seringa|agulha|cateter|ortopédic|ortoped|massageador el[eé]tric|caneta el[eé]tronica|terapia/i;
+const MEDICAL_RE = /acupunt|eletroestimul|\btens\b|\bems\b|oxímetro|oximetro|termômetro|termometro|medidor de press|glicos|nebuliz|aparelho auditivo|lente de contato|seringa|cateter|ortopédic|ortoped|massageador el[eé]tric|caneta el[eé]tronica|terapia/i;
 const decodeEntities = (t: string) => t
   .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
   .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
