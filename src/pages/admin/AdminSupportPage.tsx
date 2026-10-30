@@ -91,6 +91,9 @@ type AdminTicket = {
   ai_paused: boolean;
   needs_human: boolean;
   needs_human_reason: string | null;
+  admin_last_seen_at: string | null;
+  /** Última mensagem (não interna, não da IA) é do cliente e mais nova que a última visita do admin. */
+  unread: boolean;
 };
 
 type SupportMessage = {
@@ -211,32 +214,9 @@ const REDIRECT_OPTIONS = [
   { label: "Config. Suporte", url: "/dashboard/configuracoes?tab=Suporte" },
 ];
 
-const SUPPORT_READ_TICKETS_STORAGE_KEY = "velo:admin-support-read-tickets";
-
 type FilterOption<T extends string> = {
   value: T;
   label: string;
-};
-
-type TicketReadState = Record<string, string>;
-
-const getStoredReadTickets = (): TicketReadState => {
-  if (typeof window === "undefined") return {};
-  try {
-    const stored = JSON.parse(window.localStorage?.getItem(SUPPORT_READ_TICKETS_STORAGE_KEY) ?? "{}");
-    if (!stored || typeof stored !== "object" || Array.isArray(stored)) return {};
-    return Object.fromEntries(
-      Object.entries(stored).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
-    );
-  } catch {
-    return {};
-  }
-};
-
-const isUnreadCustomerMessage = (ticket: AdminTicket, readAt: string | null) => {
-  if (ticket.last_message_sender !== "user" || !ticket.last_message_at) return false;
-  if (!readAt) return true;
-  return new Date(ticket.last_message_at).getTime() > new Date(readAt).getTime();
 };
 
 const needsSupportReply = (ticket: Pick<AdminTicket, "last_message_sender">) => ticket.last_message_sender === "user";
@@ -360,7 +340,7 @@ const getInitials = (name?: string | null, email?: string | null) =>
 const fetchSupportTickets = async () => {
   const { data: ticketsData, error: ticketsError } = await (supabase as any)
     .from("support_tickets")
-    .select("id,user_id,status,category,subject,created_at,updated_at,ai_paused,needs_human,needs_human_reason")
+    .select("id,user_id,status,category,subject,created_at,updated_at,ai_paused,needs_human,needs_human_reason,admin_last_seen_at")
     .order("updated_at", { ascending: false });
 
   if (ticketsError) throw ticketsError;
@@ -489,6 +469,8 @@ const fetchSupportTickets = async () => {
       ai_paused: ticket.ai_paused === true,
       needs_human: ticket.needs_human === true,
       needs_human_reason: ticket.needs_human_reason ?? null,
+      admin_last_seen_at: ticket.admin_last_seen_at ?? null,
+      unread: isSupportTicketUnread(lastMessage ?? null, ticket.admin_last_seen_at ?? null),
     } satisfies AdminTicket;
   }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
 };
@@ -506,9 +488,6 @@ const AdminSupportPage = () => {
   const qc = useQueryClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
-  // Só marca como lido o ticket que o admin abriu de propósito; o que é aberto
-  // sozinho ao carregar a lista não pode apagar a bolinha de "nova resposta".
-  const [chosenTicketId, setChosenTicketId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [replyTarget, setReplyTarget] = useState<SupportReplyReference | null>(null);
   const [replyImage, setReplyImage] = useState<File | null>(null);
@@ -519,7 +498,6 @@ const AdminSupportPage = () => {
   const [mobilePanel, setMobilePanel] = useState<MobileSupportPanel>("inbox");
   const [directRefundTarget, setDirectRefundTarget] = useState<DirectRefundTarget | null>(null);
   const [redirectDraft, setRedirectDraft] = useState<RedirectDraft | null>(null);
-  const [readTickets, setReadTickets] = useState<TicketReadState>(getStoredReadTickets);
 
   const fallbackAdmin = isAdminEmail(user?.email);
   // dentro da moldura do admin a permissão já foi conferida pelo AdminRoute
@@ -604,24 +582,25 @@ const AdminSupportPage = () => {
     return tickets.filter((ticket) => ticket.user_id === openTicket.user_id && ticket.id !== openTicket.id).length;
   }, [openTicket, tickets]);
 
-  useEffect(() => {
-    try {
-      window.localStorage?.setItem(SUPPORT_READ_TICKETS_STORAGE_KEY, JSON.stringify(readTickets));
-    } catch {
-      // Mantém o suporte funcionando mesmo quando o navegador bloqueia storage.
-    }
-  }, [readTickets]);
-
-  useEffect(() => {
-    if (!openTicket?.last_message_at || openTicket.id !== chosenTicketId) return;
-    setReadTickets((current) => {
-      const previous = current[openTicket.id];
-      if (previous && new Date(previous).getTime() >= new Date(openTicket.last_message_at as string).getTime()) {
-        return current;
-      }
-      return { ...current, [openTicket.id]: openTicket.last_message_at as string };
-    });
-  }, [openTicket?.id, openTicket?.last_message_at, chosenTicketId]);
+  /**
+   * Marca o ticket como visto no banco (vale para todos os admins). Só é
+   * chamado quando o admin clica no ticket ou responde: uma mensagem nova do
+   * cliente com o ticket já aberto na tela continua acendendo a bolinha.
+   */
+  const markTicketSeen = useCallback(
+    async (ticketId: string) => {
+      const seenAt = new Date().toISOString();
+      qc.setQueryData<AdminTicket[]>(["admin-support-tickets-crm"], (previous) =>
+        previous?.map((ticket) =>
+          ticket.id === ticketId ? { ...ticket, admin_last_seen_at: seenAt, unread: false } : ticket,
+        ),
+      );
+      const { error } = await (supabase as any).rpc("admin_mark_support_ticket_seen", { p_ticket_id: ticketId });
+      if (error) console.warn("Não foi possível marcar o ticket como visto", error);
+      void qc.invalidateQueries({ queryKey: ["admin-support-unread-count"] });
+    },
+    [qc],
+  );
 
   const { data: customerContext, isLoading: loadingCustomerContext } = useQuery({
     queryKey: ["admin-support-customer-context", openTicket?.user_id],
@@ -775,6 +754,7 @@ const AdminSupportPage = () => {
     },
     onSuccess: (message) => {
       if (!message) return;
+      void markTicketSeen(message.ticket_id);
       setReply("");
       setReplyTarget(null);
       setReplyImage(null);
@@ -1022,8 +1002,8 @@ const AdminSupportPage = () => {
             selectedId={openTicketId}
             onSelect={(id) => {
               setOpenTicketId(id);
-              setChosenTicketId(id);
               setMobilePanel("conversation");
+              void markTicketSeen(id);
             }}
             search={search}
             onSearch={setSearch}
@@ -1033,7 +1013,6 @@ const AdminSupportPage = () => {
             onStatusFilter={setStatusFilter}
             dateFilter={dateFilter}
             onDateFilter={setDateFilter}
-            readTickets={readTickets}
             className={mobilePanel === "inbox" ? "flex" : "hidden lg:flex"}
           />
 
@@ -1353,7 +1332,6 @@ const TicketInbox = ({
   onStatusFilter,
   dateFilter,
   onDateFilter,
-  readTickets,
   className = "flex",
 }: {
   tickets: AdminTicket[];
@@ -1369,7 +1347,6 @@ const TicketInbox = ({
   onStatusFilter: (value: TicketStatusFilter) => void;
   dateFilter: TicketDateFilter;
   onDateFilter: (value: TicketDateFilter) => void;
-  readTickets: TicketReadState;
   className?: string;
 }) => (
   <aside className={`${className} min-h-0 flex-1 flex-col border-r border-[#e4e4e0] bg-[#fafaf9] lg:flex-none`}>
@@ -1466,7 +1443,6 @@ const TicketInbox = ({
             key={ticket.id}
             ticket={ticket}
             selected={ticket.id === selectedId}
-            readAt={readTickets[ticket.id] ?? null}
             onClick={() => onSelect(ticket.id)}
           />
         ))
@@ -1773,16 +1749,14 @@ const FilterDropdown = <T extends string,>({
 const TicketListItem = ({
   ticket,
   selected,
-  readAt,
   onClick,
 }: {
   ticket: AdminTicket;
   selected: boolean;
-  readAt: string | null;
   onClick: () => void;
 }) => {
   const meta = CATEGORY_META[ticket.category];
-  const hasCustomerUpdate = isUnreadCustomerMessage(ticket, readAt);
+  const hasCustomerUpdate = ticket.unread;
   return (
     <button
       onClick={onClick}
