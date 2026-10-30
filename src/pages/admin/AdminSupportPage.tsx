@@ -66,6 +66,7 @@ import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 import VoiceDictationButton from "@/components/support/VoiceDictationButton";
 import { isSupportTicketUnread } from "@/lib/supportUnread";
+import { MlConnectedAccount, useMlAccountInfo } from "@/components/dashboard/MlConnectedAccount";
 
 type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 type TicketView = "all" | "new" | "in_progress" | "human";
