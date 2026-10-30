@@ -89,6 +89,21 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Apelido da conta (GET /users/me): mostra ao cliente e ao suporte qual conta
+  // está ligada. Falha aqui nunca impede a conexão.
+  let nickname: string | null = null;
+  try {
+    const meRes = await fetch("https://api.mercadolibre.com/users/me", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+    if (meRes.ok) {
+      const me = await meRes.json();
+      nickname = typeof me?.nickname === "string" ? me.nickname : null;
+    }
+  } catch (err) {
+    console.warn("[ml-callback] users/me falhou", err);
+  }
+
   const { error } = await supabase.from("user_integrations").upsert(
     {
       user_id: oauthState.user_id,
@@ -96,6 +111,9 @@ Deno.serve(async (req) => {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token ?? null,
       ml_user_id: tokens.user_id ?? null,
+      // Sem apelido: limpa o antigo (pode ser de outra conta) e a tela busca de novo.
+      ml_nickname: nickname,
+      ml_nickname_updated_at: nickname ? new Date().toISOString() : null,
       expires_at: new Date(Date.now() + (tokens.expires_in ?? 21600) * 1000).toISOString(),
       // Reconexão gera token novo do app atual: limpa a marca de token morto.
       refresh_failed_at: null,

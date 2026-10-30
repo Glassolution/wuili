@@ -4005,6 +4005,8 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
+          ml_nickname: string | null
+          ml_nickname_updated_at: string | null
           ml_user_id: number | null
           platform: string
           refresh_failed_at: string | null
@@ -4017,6 +4019,8 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          ml_nickname?: string | null
+          ml_nickname_updated_at?: string | null
           ml_user_id?: number | null
           platform: string
           refresh_failed_at?: string | null
@@ -4029,6 +4033,8 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          ml_nickname?: string | null
+          ml_nickname_updated_at?: string | null
           ml_user_id?: number | null
           platform?: string
           refresh_failed_at?: string | null

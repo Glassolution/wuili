@@ -239,6 +239,13 @@
       "when": 1793320105985,
       "tag": "0033_support_unread_from_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793320355743,
+      "tag": "0034_ml_account_nickname",
+      "breakpoints": true
     }
   ]
 }

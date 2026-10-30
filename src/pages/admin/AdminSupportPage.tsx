@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- As tabelas de suporte ainda não constam nos tipos gerados do Supabase; os resultados são normalizados nos tipos locais abaixo. */
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -65,6 +65,7 @@ import {
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 import VoiceDictationButton from "@/components/support/VoiceDictationButton";
+import { isSupportTicketUnread } from "@/lib/supportUnread";
 
 type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 type TicketView = "all" | "new" | "in_progress" | "human";
@@ -1451,6 +1452,16 @@ const TicketInbox = ({
   </aside>
 );
 
+/** Qual conta do ML está ligada à Velo para este cliente (apelido + ID). */
+const SupportMlAccount = ({ userId }: { userId: string }) => {
+  const account = useMlAccountInfo(true, userId);
+  return (
+    <div className="px-1 py-1">
+      <MlConnectedAccount info={account.data} loading={account.isLoading} failed={account.isError} compact />
+    </div>
+  );
+};
+
 const CustomerContextPanel = ({
   ticket,
   customer,
@@ -1563,6 +1574,10 @@ const CustomerContextPanel = ({
           <ContextRow icon={CheckCircle2} label="Status" value={formatSubscriptionStatus(data.subscription_status)} />
           <ContextRow icon={Clock3} label="Assinante há" value={elapsedTime(data.subscription_started_at)} />
           <ContextRow icon={CreditCard} label="Método de pagamento" value={formatPaymentMethod(data.payment_method)} />
+        </ContextCard>
+
+        <ContextCard title="Conta do Mercado Livre">
+          <SupportMlAccount userId={ticket.user_id} />
         </ContextCard>
 
         <ContextCard title="Atendimento">
