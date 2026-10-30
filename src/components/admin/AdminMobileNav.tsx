@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useUnreadSupportTickets } from "@/hooks/useUnreadSupportTickets";
 
 /*
   Navegação do admin no celular. A barra lateral some abaixo de md, e sem isto não
@@ -74,7 +75,7 @@ export const AdminMobileNav = () => {
   const { user, signOut } = useAuth();
   const reduce = useReducedMotion();
   const [maisAberto, setMaisAberto] = useState(false);
-  const { data: ticketsAbertos = 0 } = useOpenSupportTickets(!!user?.id);
+  const { data: ticketsAbertos = 0 } = useUnreadSupportTickets();
   const maisAtivo = MAIS.some((item) => ativo(pathname, item.to));
 
   useEffect(() => setMaisAberto(false), [pathname]);

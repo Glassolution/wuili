@@ -21,7 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useOpenSupportTickets } from "@/hooks/useOpenSupportTickets";
+import { useUnreadSupportTickets } from "@/hooks/useUnreadSupportTickets";
 import { preloadAdminPage } from "@/pages/admin/adminPages";
 
 type NavChild = { label: string; to: string };
@@ -31,6 +31,7 @@ type NavItem = {
   icon: PhosphorIcon;
   to: string;
   badge?: number;
+  badgeLabel?: string;
   /** Subpáginas: aparecem recuadas logo abaixo quando o item está ativo. */
   children?: NavChild[];
 };
@@ -55,7 +56,7 @@ export const AdminNewSidebar = () => {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { data: openTickets = 0 } = useOpenSupportTickets();
+  const { data: unreadTickets = 0 } = useUnreadSupportTickets();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -87,7 +88,7 @@ export const AdminNewSidebar = () => {
             { label: "Reembolsos", to: "/admin/reembolsos" },
           ],
         },
-        { label: "Suporte", icon: Tray, to: "/admin/suporte", badge: openTickets },
+        { label: "Suporte", icon: Tray, to: "/admin/suporte", badge: unreadTickets, badgeLabel: "não lidos" },
         { label: "Assistente IA", icon: Sparkle, to: "/admin/assistente-ia" },
         { label: "Rastreio", icon: ChartLine, to: "/admin/rastreio" },
       ],
@@ -137,7 +138,7 @@ export const AdminNewSidebar = () => {
           <Icon aria-hidden="true" weight="fill" />
           <span className="min-w-0 flex-1 truncate">{item.label}</span>
           {item.badge && item.badge > 0 ? (
-            <span className="admin-nav-badge" aria-label={`${item.badge} em aberto`}>
+            <span className="admin-nav-badge" aria-label={`${item.badge} ${item.badgeLabel ?? "em aberto"}`}>
               {item.badge > 99 ? "99+" : item.badge}
             </span>
           ) : null}
