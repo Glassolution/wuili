@@ -1452,6 +1452,16 @@ const TicketInbox = ({
   </aside>
 );
 
+/** Qual conta do ML está ligada à Velo para este cliente (apelido + ID). */
+const SupportMlAccount = ({ userId }: { userId: string }) => {
+  const account = useMlAccountInfo(true, userId);
+  return (
+    <div className="px-1 py-1">
+      <MlConnectedAccount info={account.data} loading={account.isLoading} failed={account.isError} compact />
+    </div>
+  );
+};
+
 const CustomerContextPanel = ({
   ticket,
   customer,
@@ -1564,6 +1574,10 @@ const CustomerContextPanel = ({
           <ContextRow icon={CheckCircle2} label="Status" value={formatSubscriptionStatus(data.subscription_status)} />
           <ContextRow icon={Clock3} label="Assinante há" value={elapsedTime(data.subscription_started_at)} />
           <ContextRow icon={CreditCard} label="Método de pagamento" value={formatPaymentMethod(data.payment_method)} />
+        </ContextCard>
+
+        <ContextCard title="Conta do Mercado Livre">
+          <SupportMlAccount userId={ticket.user_id} />
         </ContextCard>
 
         <ContextCard title="Atendimento">
