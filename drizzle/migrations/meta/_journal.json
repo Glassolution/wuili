@@ -232,6 +232,13 @@
       "when": 1793065927495,
       "tag": "0032_add_lifetime_purchase_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793320105985,
+      "tag": "0033_support_unread_from_messages",
+      "breakpoints": true
     }
   ]
 }
