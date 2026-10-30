@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- As tabelas de suporte ainda não constam nos tipos gerados do Supabase; os resultados são normalizados nos tipos locais abaixo. */
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -65,6 +65,7 @@ import {
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 import VoiceDictationButton from "@/components/support/VoiceDictationButton";
+import { isSupportTicketUnread } from "@/lib/supportUnread";
 
 type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 type TicketView = "all" | "new" | "in_progress" | "human";
