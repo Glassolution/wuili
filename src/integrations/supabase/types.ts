@@ -4467,6 +4467,11 @@ export type Database = {
       }
     }
     Functions: {
+      admin_mark_support_ticket_seen: {
+        Args: { p_ticket_id: string }
+        Returns: string
+      }
+      admin_support_unread_count: { Args: never; Returns: number }
       affiliate_generate_code: { Args: { p_user_id: string }; Returns: string }
       apply_pending_referral_rewards: {
         Args: { p_user_id: string }
