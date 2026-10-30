@@ -704,6 +704,9 @@ const IntegrationsTab = () => {
     { platform: "shopify",      label: "Shopify",       connected: false, comingSoon: true },
   ]);
 
+  const mlConnected = integrations.some((item) => item.platform === "mercadolivre" && item.connected);
+  const mlAccount = useMlAccountInfo(!!user && mlConnected);
+
   useEffect(() => {
     if (!user) return;
     supabase
@@ -812,7 +815,12 @@ const IntegrationsTab = () => {
               <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E5E5E5] bg-white p-1 dark:border-white/10 dark:bg-white">
                 <PlatformLogo platform={i.label} size={38} />
               </span>
-              <span className="min-w-0 truncate text-[14px] font-normal text-[#0A0A0A] dark:text-white">{i.label}</span>
+              <div className="min-w-0">
+                <span className="block min-w-0 truncate text-[14px] font-normal text-[#0A0A0A] dark:text-white">{i.label}</span>
+                {i.platform === "mercadolivre" && i.connected && !i.loading ? (
+                  <MlConnectedAccount info={mlAccount.data} loading={mlAccount.isLoading} failed={mlAccount.isError} />
+                ) : null}
+              </div>
             </div>
             {i.loading ? (
               <Loader2 size={16} className="animate-spin text-[#A3A3A3] dark:text-zinc-400" />
