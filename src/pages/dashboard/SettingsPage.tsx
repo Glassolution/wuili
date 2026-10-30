@@ -21,6 +21,7 @@ import { getAdminPanelStyle, setAdminPanelStyle, type AdminPanelStyle } from "@/
 import { useSandboxMode } from "@/lib/sandboxMode";
 import MercadoPagoIntegrationCard from "@/components/dashboard/MercadoPagoIntegrationCard";
 import ShopifyIntegrationCard from "@/components/dashboard/ShopifyIntegrationCard";
+import { MlConnectedAccount, useMlAccountInfo } from "@/components/dashboard/MlConnectedAccount";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCE_OPTIONS,
