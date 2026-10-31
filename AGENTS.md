@@ -12,7 +12,7 @@ Stack: React + TypeScript + Tailwind (frontend); Supabase/Lovable Cloud (Postgre
 - Secrets só via `Deno.env.get`; nunca no código-fonte.
 - `any` só com comentário justificando.
 - Regras de Edge Functions: ver `supabase/functions/AGENTS.md`.
-- Support refund routing uses shared customer-message context before subscription actions; only the server inserts refund cards, and shared eligibility keeps renewal cancellation separate from refund eligibility. This avoids supplier requests becoming subscription cancellations and duplicate cards. Completed cancellation receipts must not reopen requests.
+- Support refund routing uses shared customer-message context before subscription actions; only the server inserts refund cards, and shared eligibility keeps renewal cancellation separate from refund eligibility. This avoids supplier requests becoming subscription cancellations and duplicate cards. Completed cancellation receipts must not reopen requests. Internal refund rules in the support-assistant prompt (never shown to customers): ask what happened first, try help-center articles, offer renewal cancellation as an alternative, reassure refund is fine within 7 days, attempt retention only once, and never promise refunds past 7 days.
 - Support navigation uses a verified public-page map shared by both support conversation paths; navigation-only questions do not require seller diagnostics or human escalation. This avoids invented menus and unnecessary AI tool calls.
 
 ## Tabelas principais
