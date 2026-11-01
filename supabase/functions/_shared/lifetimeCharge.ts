@@ -9,7 +9,13 @@ type Charge = {
   amount: number; paymentType?: string; customer?: { email?: string };
 };
 
+type LifetimeCheckout = {
+  id: string; user_id: string; amount: number | string; created_at: string;
+  validapay_charge_id?: string | null;
+};
+
 const norm = (e?: string | null) => (e ?? "").trim().toLowerCase();
+const EMAIL_MATCH_WINDOW_MS = 3 * 24 * 3600_000;
 
 export async function listRecentCharges(pages = 3): Promise<Charge[]> {
   const out: Charge[] = [];
@@ -33,7 +39,7 @@ export function matchLifetimeCharge(
   usedChargeIds: Set<string>,
 ): Charge | null {
   const start = new Date(sub.created_at).getTime() - 60_000;
-  const end = start + 3 * 24 * 3600_000;
+  const end = start + EMAIL_MATCH_WINDOW_MS;
   const hits = charges.filter((c) =>
     c.status === "PAID" &&
     (c.saleType === "ONE_TIME" || String(c.type ?? "").startsWith("ONE_TIME")) &&
@@ -48,12 +54,13 @@ export function matchLifetimeCharge(
 /**
  * Fallback quando o comprador digita outro email no checkout: aceita a cobrança só
  * se for inequívoca dos dois lados — única cobrança paga de valor exato nos 30 min
- * após este checkout, e nenhum outro checkout vitalício de mesmo valor (de qualquer
- * conta) aberto nos 30 min antes dela.
+ * após este checkout, e nenhum checkout de mesmo valor de outra conta, ainda sem
+ * cobrança, aberto nos 3 dias antes dela (o mesmo prazo do match por email). O
+ * chamador ainda precisa recusar a cobrança se o email dela for de alguma conta.
  */
 export function matchLifetimeChargeByTime(
-  sub: { id: string; amount: number | string; created_at: string },
-  allSubs: { id: string; amount: number | string; created_at: string }[],
+  sub: LifetimeCheckout,
+  allSubs: LifetimeCheckout[],
   charges: Charge[],
   usedChargeIds: Set<string>,
 ): Charge | null {
@@ -66,32 +73,50 @@ export function matchLifetimeChargeByTime(
     new Date(c.createdAt).getTime() >= t0 && new Date(c.createdAt).getTime() <= t0 + WIN &&
     !usedChargeIds.has(c.chargeId)
   );
-  if (cands.length !== 1) return null;
+  if (cands.length !== 1 || norm(cands[0].customer?.email) === "") return null;
   const ct = new Date(cands[0].createdAt).getTime();
-  const rivals = allSubs.filter((o) => o.id !== sub.id &&
+  const rivals = allSubs.filter((o) => o.user_id !== sub.user_id && !o.validapay_charge_id &&
     lifetimePaymentMatches(Number(o.amount), Number(cands[0].amount)) &&
-    new Date(o.created_at).getTime() <= ct + 60_000 && new Date(o.created_at).getTime() >= ct - WIN);
+    new Date(o.created_at).getTime() <= ct + 60_000 && new Date(o.created_at).getTime() >= ct - EMAIL_MATCH_WINDOW_MS);
   return rivals.length === 0 ? cands[0] : null;
 }
 
 // deno-lint-ignore no-explicit-any -- cliente supabase admin
-export async function recoverLifetimePurchases(admin: any, userId?: string) {
-  const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+async function listUsedChargeIds(admin: any, chargeIds: string[]) {
+  const usedIds = new Set<string>();
+  // Em lotes: 500 IDs de uma vez podem estourar o tamanho da URL da consulta.
+  for (let i = 0; i < chargeIds.length; i += 100) {
+    const { data, error } = await admin.from("subscriptions").select("validapay_charge_id")
+      .not("validapay_charge_id", "is", null).in("validapay_charge_id", chargeIds.slice(i, i + 100));
+    if (error) throw new Error(`lifetime recover: leitura de cobranças usadas falhou: ${error.message}`);
+    for (const r of data ?? []) usedIds.add(r.validapay_charge_id);
+  }
+  return usedIds;
+}
+
+// deno-lint-ignore no-explicit-any -- cliente supabase admin
+export async function recoverLifetimePurchases(admin: any, userId?: string, loadCharges = listRecentCharges) {
+  const sinceMs = Date.now() - 7 * 24 * 3600_000;
+  const since = new Date(sinceMs).toISOString();
   let q = admin.from("subscriptions")
     .select("id,user_id,plan,amount,created_at,status")
     .eq("purchase_kind", "lifetime").in("status", ["pending", "expired"])
     .gte("created_at", since)
     .order("created_at", { ascending: false });
   if (userId) q = q.eq("user_id", userId);
-  const { data: subs } = await q;
+  const { data: subs, error: subsError } = await q;
+  if (subsError) throw new Error(`lifetime recover: leitura de checkouts falhou: ${subsError.message}`);
   if (!subs?.length) return [];
-  // Todos os checkouts vitalícios recentes (qualquer conta/status) para o fallback por horário.
-  const { data: allLifetime } = await admin.from("subscriptions")
-    .select("id,amount,created_at").eq("purchase_kind", "lifetime").gte("created_at", since);
-  const charges = await listRecentCharges(userId ? 3 : 5);
-  const { data: used } = await admin.from("subscriptions").select("validapay_charge_id").not("validapay_charge_id", "is", null)
-    .in("validapay_charge_id", charges.map((c) => c.chargeId).slice(0, 500));
-  const usedIds = new Set<string>((used ?? []).map((r: { validapay_charge_id: string }) => r.validapay_charge_id));
+  // Todos os checkouts vitalícios recentes (qualquer conta/status) para o fallback por horário,
+  // recuando também o prazo de concorrentes do checkout mais antigo.
+  const { data: allLifetime, error: allLifetimeError } = await admin.from("subscriptions")
+    .select("id,user_id,amount,created_at,validapay_charge_id").eq("purchase_kind", "lifetime")
+    .gte("created_at", new Date(sinceMs - EMAIL_MATCH_WINDOW_MS).toISOString())
+    .order("created_at", { ascending: false });
+  // Sem essa lista o fallback não enxerga concorrentes: melhor não recuperar nada agora.
+  if (allLifetimeError) throw new Error(`lifetime recover: leitura de concorrentes falhou: ${allLifetimeError.message}`);
+  const charges = await loadCharges(userId ? 3 : 5);
+  const usedIds = await listUsedChargeIds(admin, charges.map((c) => c.chargeId).slice(0, 500));
   const activated: { id: string; user_id: string; plan: string; chargeId: string }[] = [];
   const doneUsers = new Set<string>();
   for (const s of subs) {
@@ -102,15 +127,33 @@ export async function recoverLifetimePurchases(admin: any, userId?: string) {
     const emails = [prof?.email, authUser?.user?.email].filter(Boolean) as string[];
     let hit: Charge | null = null;
     for (const e of emails) { hit = matchLifetimeCharge(s, e, charges, usedIds); if (hit) break; }
-    if (!hit) hit = matchLifetimeChargeByTime(s, allLifetime ?? [], charges, usedIds);
-    if (!hit) continue;
+    const matchSource = hit ? "email" : "time";
+    if (!hit) {
+      const byTime = matchLifetimeChargeByTime(s, allLifetime ?? [], charges, usedIds);
+      if (!byTime) continue;
+      // Email de outra conta: a cobrança é de quem tem essa conta, não deste checkout.
+      const { data: emailHasAccount, error: emailError } = await admin.rpc("auth_email_exists", { p_email: byTime.customer?.email });
+      if (emailError) { console.error("lifetime recover: checagem de email falhou", s.id, emailError.message); continue; }
+      if (emailHasAccount !== false) continue;
+      hit = byTime;
+    }
     const now = new Date().toISOString();
-    const { error } = await admin.from("subscriptions").update({
+    const { data: updated, error } = await admin.from("subscriptions").update({
       status: "active", provider: "validapay", validapay_charge_id: hit.chargeId,
       payment_method: hit.paymentType === "PIX" ? "pix" : "creditcard",
       current_period_start: now, ...lifetimePeriod, origin_paid_at: now, updated_at: now,
-    }).eq("id", s.id).in("status", ["pending", "expired"]);
-    if (error) { console.error("lifetime recover: update falhou", s.id, error.message); continue; }
+    }).eq("id", s.id).in("status", ["pending", "expired"]).select("id");
+    if (error) {
+      // 23505: outra execução já vinculou esta cobrança (índice único de vitalícios).
+      if (error.code === "23505") usedIds.add(hit.chargeId);
+      console.error("lifetime recover: update falhou", s.id, error.message);
+      continue;
+    }
+    if (!updated?.length) continue;
+    // Melhor esforço: a ativação não depende deste registro de auditoria.
+    const { error: sourceError } = await admin.from("subscriptions").update({ lifetime_match_source: matchSource }).eq("id", s.id);
+    if (sourceError) console.error("lifetime recover: registro da origem falhou", s.id, sourceError.message);
+    console.log("lifetime recover: ativado", { subscriptionId: s.id, chargeId: hit.chargeId, matchSource });
     await admin.from("profiles").update({ plano: s.plan }).eq("user_id", s.user_id);
     usedIds.add(hit.chargeId);
     doneUsers.add(key);

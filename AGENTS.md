@@ -6,7 +6,7 @@ Stack: React + TypeScript + Tailwind (frontend); Supabase/Lovable Cloud (Postgre
 
 ## Padrões
 - Lifetime purchases use dedicated ONE_TIME ValidaPay prices and a server-owned purchase_kind marker; verified amounts grant non-expiring access, while legacy recurring contracts remain unchanged. Database period enforcement prevents reconciliation jobs from adding expiry or renewal dates.
-- ValidaPay ONE_TIME charges are not linked to checkout sessions and send no webhook; `_shared/lifetimeCharge.ts` matches paid charges by account email, exact amount and time window (used by `subscription-sync-self` and the `expire-pending-charges` cron) so paid lifetime buyers are never left without access.
+- ValidaPay ONE_TIME charges are not linked to checkout sessions and send no webhook; `_shared/lifetimeCharge.ts` matches paid charges by account email, exact amount and time window (used by `subscription-sync-self` and the `expire-pending-charges` cron) so paid lifetime buyers are never left without access. The time-only fallback for buyers who typed another email refuses charges whose email has a Velo account, charges with no email, and any charge another account's unpaid checkout of the same amount could claim within 3 days; read failures stop recovery instead of skipping these checks, and a unique index on lifetime charge IDs stops one payment from activating two accounts. This avoids handing a paying customer's plan to someone who abandoned checkout, at the cost of some cases going to support.
 - UI sempre em português brasileiro; preços em BRL; USD → BRL multiplica por 5.0.
 - RLS ativo em todas as tabelas; revisar policies existentes antes de mudar schema.
 - Secrets só via `Deno.env.get`; nunca no código-fonte.
