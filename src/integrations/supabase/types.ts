@@ -3235,6 +3235,7 @@ export type Database = {
           is_trial: boolean
           last_charge_attempt_at: string | null
           last_dunning_email_at: string | null
+          lifetime_match_source: string | null
           migrated_to_validapay_at: string | null
           mp_card_id: string | null
           mp_customer_id: string | null
@@ -3282,6 +3283,7 @@ export type Database = {
           is_trial?: boolean
           last_charge_attempt_at?: string | null
           last_dunning_email_at?: string | null
+          lifetime_match_source?: string | null
           migrated_to_validapay_at?: string | null
           mp_card_id?: string | null
           mp_customer_id?: string | null
@@ -3329,6 +3331,7 @@ export type Database = {
           is_trial?: boolean
           last_charge_attempt_at?: string | null
           last_dunning_email_at?: string | null
+          lifetime_match_source?: string | null
           migrated_to_validapay_at?: string | null
           mp_card_id?: string | null
           mp_customer_id?: string | null
