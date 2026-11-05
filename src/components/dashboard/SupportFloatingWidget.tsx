@@ -888,7 +888,8 @@ const SupportMessages = ({
         </div>
 
         <div className="mt-auto shrink-0 bg-white px-4 pb-4 pt-2">
-          {replyImage ? <SupportImagePreview file={replyImage} onRemove={onReplyImageRemove} /> : null}
+           {freeDailyLimit && reply.trim() ? <FreePlanLimitHint limit={freeDailyLimit} /> : null}
+           {replyImage ? <SupportImagePreview file={replyImage} onRemove={onReplyImageRemove} /> : null}
           <div className="flex min-h-[54px] items-end gap-2 rounded-[20px] border-2 border-[#2563EB] bg-white px-3 py-2 transition focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/12">
             <input
               ref={replyFileInputRef}
@@ -947,6 +948,7 @@ const SupportMessages = ({
           value={newConversationText}
           image={newConversationImage}
           creating={creatingTicket}
+          freeDailyLimit={freeDailyLimit}
           onChange={onNewConversationChange}
           onImageChange={onNewConversationImageChange}
           onImageRemove={onNewConversationImageRemove}
