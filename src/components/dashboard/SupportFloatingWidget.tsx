@@ -22,6 +22,7 @@ import {
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
+import { usePlan } from "@/hooks/usePlan";
 import { notifyNewSupportTicketEmail } from "@/lib/supportEmail";
 import AtlasSupportIcon from "@/components/dashboard/AtlasSupportIcon";
 import { ChatBubbleOvalLeftEllipsisIcon } from "@heroicons/react/24/solid";
@@ -56,6 +57,10 @@ import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 type WidgetTab = "home" | "messages" | "help";
 
 const panelWidth = "min(400px, calc(100vw - 24px))";
+
+// Limite diário de respostas da IA por ticket — vale só para o plano gratuito.
+// Precisa bater com o limite da função support-assistant.
+const FREE_AI_DAILY_LIMIT = 10;
 
 const firstNameFrom = (name: string) => {
   const clean = name.trim();
