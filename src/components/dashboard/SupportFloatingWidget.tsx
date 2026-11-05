@@ -1092,6 +1092,13 @@ const NewConversationComposer = ({
   );
 };
 
+/** Aviso do limite diário da assistente para quem tem plano gratuito. */
+const FreePlanLimitHint = ({ limit }: { limit: number }) => (
+  <p className="mb-2 rounded-[12px] bg-[#FFF7E6] px-3 py-2 text-[11.5px] font-medium leading-4 text-[#92400E]">
+    Você pode fazer até {limit} perguntas por dia para a assistente virtual. Assinantes não têm esse limite.
+  </p>
+);
+
 /** Caixa de texto de uma linha que cresce com o conteúdo, até ~5 linhas. */
 const AutoGrowTextarea = ({
   value,
