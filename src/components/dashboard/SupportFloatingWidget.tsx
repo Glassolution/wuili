@@ -77,6 +77,8 @@ const announceSupportReply = (message: SupportMessage) => {
 const SupportFloatingWidget = () => {
   const { user } = useAuth();
   const { nome } = useProfile();
+  const { plan } = usePlan();
+  const isFreePlan = plan === "gratis";
   const prefersReducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<WidgetTab>("home");
@@ -480,6 +482,7 @@ const SupportFloatingWidget = () => {
                       creatingTicket={creatingTicket}
                       bottomRef={bottomRef}
                       prefersReducedMotion={Boolean(prefersReducedMotion)}
+                      freeDailyLimit={isFreePlan ? FREE_AI_DAILY_LIMIT : null}
                       onSelectTicket={(ticketId) => {
                         setSelectedTicketId(ticketId);
                         if (ticketId) {
