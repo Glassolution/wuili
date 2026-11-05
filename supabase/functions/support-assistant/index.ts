@@ -458,11 +458,24 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   };
 
   if (respostasIA >= 10) {
-    if (!ticket.needs_human) {
-      await marcarHumano("limite_ia", "A conversa ficou longa demais para a IA.");
-      await enviar(AVISO_ESPERA);
+    // O limite diário vale só para o plano gratuito; assinantes não têm teto.
+    const { data: subs } = await admin.from("subscriptions").select("plan,provider")
+      .eq("user_id", ticket.user_id).in("status", ["active", "paid", "approved", "trialing"]);
+    let planoPago = (subs ?? []).some((s) =>
+      String((s as { provider?: string | null }).provider ?? "").toLowerCase() !== "sandbox" &&
+      !["gratis", "free"].includes(String((s as { plan?: string | null }).plan ?? "").toLowerCase()));
+    if (!planoPago) {
+      const { data: prof } = await admin.from("profiles").select("plano")
+        .eq("user_id", ticket.user_id).maybeSingle();
+      planoPago = Boolean(prof?.plano && !["gratis", "free"].includes(String(prof.plano).toLowerCase()));
     }
-    return json({ skip: "limite" });
+    if (!planoPago) {
+      if (!ticket.needs_human) {
+        await marcarHumano("limite_ia", "A conversa ficou longa demais para a IA.");
+        await enviar(AVISO_ESPERA);
+      }
+      return json({ skip: "limite" });
+    }
   }
 
   const navigationReply = supportNavigationReply(String(ultimaUser.message ?? ""));

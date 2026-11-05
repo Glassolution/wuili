@@ -22,6 +22,7 @@ import {
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
+import { usePlan } from "@/hooks/usePlan";
 import { notifyNewSupportTicketEmail } from "@/lib/supportEmail";
 import AtlasSupportIcon from "@/components/dashboard/AtlasSupportIcon";
 import { ChatBubbleOvalLeftEllipsisIcon } from "@heroicons/react/24/solid";
@@ -57,6 +58,10 @@ type WidgetTab = "home" | "messages" | "help";
 
 const panelWidth = "min(400px, calc(100vw - 24px))";
 
+// Limite diário de respostas da IA por ticket — vale só para o plano gratuito.
+// Precisa bater com o limite da função support-assistant.
+const FREE_AI_DAILY_LIMIT = 10;
+
 const firstNameFrom = (name: string) => {
   const clean = name.trim();
   if (!clean || clean.toLowerCase() === "usuario") return "tudo bem";
@@ -72,6 +77,8 @@ const announceSupportReply = (message: SupportMessage) => {
 const SupportFloatingWidget = () => {
   const { user } = useAuth();
   const { nome } = useProfile();
+  const { plan } = usePlan();
+  const isFreePlan = plan === "gratis";
   const prefersReducedMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<WidgetTab>("home");
@@ -475,6 +482,7 @@ const SupportFloatingWidget = () => {
                       creatingTicket={creatingTicket}
                       bottomRef={bottomRef}
                       prefersReducedMotion={Boolean(prefersReducedMotion)}
+                      freeDailyLimit={isFreePlan ? FREE_AI_DAILY_LIMIT : null}
                       onSelectTicket={(ticketId) => {
                         setSelectedTicketId(ticketId);
                         if (ticketId) {
@@ -803,6 +811,7 @@ const SupportMessages = ({
   creatingTicket,
   bottomRef,
   prefersReducedMotion,
+  freeDailyLimit,
   onSelectTicket,
   onReplyChange,
   onReplyImageChange,
@@ -833,6 +842,8 @@ const SupportMessages = ({
   creatingTicket: boolean;
   bottomRef: RefObject<HTMLDivElement>;
   prefersReducedMotion: boolean;
+  /** Limite diário de perguntas à IA; null = sem limite (plano pago). */
+  freeDailyLimit: number | null;
   onSelectTicket: (ticketId: string | null) => void;
   onReplyChange: (value: string) => void;
   onReplyImageChange: (file: File) => void;
@@ -877,7 +888,8 @@ const SupportMessages = ({
         </div>
 
         <div className="mt-auto shrink-0 bg-white px-4 pb-4 pt-2">
-          {replyImage ? <SupportImagePreview file={replyImage} onRemove={onReplyImageRemove} /> : null}
+           {freeDailyLimit && reply.trim() ? <FreePlanLimitHint limit={freeDailyLimit} /> : null}
+           {replyImage ? <SupportImagePreview file={replyImage} onRemove={onReplyImageRemove} /> : null}
           <div className="flex min-h-[54px] items-end gap-2 rounded-[20px] border-2 border-[#2563EB] bg-white px-3 py-2 transition focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#2563EB]/12">
             <input
               ref={replyFileInputRef}
@@ -936,6 +948,7 @@ const SupportMessages = ({
           value={newConversationText}
           image={newConversationImage}
           creating={creatingTicket}
+          freeDailyLimit={freeDailyLimit}
           onChange={onNewConversationChange}
           onImageChange={onNewConversationImageChange}
           onImageRemove={onNewConversationImageRemove}
@@ -995,6 +1008,7 @@ const NewConversationComposer = ({
   value,
   image,
   creating,
+  freeDailyLimit,
   onChange,
   onImageChange,
   onImageRemove,
@@ -1004,6 +1018,7 @@ const NewConversationComposer = ({
   value: string;
   image: File | null;
   creating: boolean;
+  freeDailyLimit: number | null;
   onChange: (value: string) => void;
   onImageChange: (file: File) => void;
   onImageRemove: () => void;
@@ -1028,6 +1043,7 @@ const NewConversationComposer = ({
     </div>
 
     <div className="mt-auto shrink-0 bg-white px-4 pb-4">
+      {freeDailyLimit && value.trim() ? <FreePlanLimitHint limit={freeDailyLimit} /> : null}
       {image ? <SupportImagePreview file={image} onRemove={onImageRemove} /> : null}
       {/* Mesma caixa de uma linha da resposta: cresce enquanto a pessoa digita.
           Para desistir, a seta de voltar no topo faz o mesmo que "Cancelar". */}
@@ -1075,6 +1091,13 @@ const NewConversationComposer = ({
   </div>
   );
 };
+
+/** Aviso do limite diário da assistente para quem tem plano gratuito. */
+const FreePlanLimitHint = ({ limit }: { limit: number }) => (
+  <p className="mb-2 rounded-[12px] bg-[#FFF7E6] px-3 py-2 text-[11.5px] font-medium leading-4 text-[#92400E]">
+    Você pode fazer até {limit} perguntas por dia para a assistente virtual. Assinantes não têm esse limite.
+  </p>
+);
 
 /** Caixa de texto de uma linha que cresce com o conteúdo, até ~5 linhas. */
 const AutoGrowTextarea = ({
