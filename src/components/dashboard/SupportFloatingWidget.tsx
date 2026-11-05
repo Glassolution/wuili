@@ -1008,6 +1008,7 @@ const NewConversationComposer = ({
   value,
   image,
   creating,
+  freeDailyLimit,
   onChange,
   onImageChange,
   onImageRemove,
@@ -1017,6 +1018,7 @@ const NewConversationComposer = ({
   value: string;
   image: File | null;
   creating: boolean;
+  freeDailyLimit: number | null;
   onChange: (value: string) => void;
   onImageChange: (file: File) => void;
   onImageRemove: () => void;
@@ -1041,6 +1043,7 @@ const NewConversationComposer = ({
     </div>
 
     <div className="mt-auto shrink-0 bg-white px-4 pb-4">
+      {freeDailyLimit && value.trim() ? <FreePlanLimitHint limit={freeDailyLimit} /> : null}
       {image ? <SupportImagePreview file={image} onRemove={onImageRemove} /> : null}
       {/* Mesma caixa de uma linha da resposta: cresce enquanto a pessoa digita.
           Para desistir, a seta de voltar no topo faz o mesmo que "Cancelar". */}
