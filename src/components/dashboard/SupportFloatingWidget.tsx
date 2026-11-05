@@ -811,6 +811,7 @@ const SupportMessages = ({
   creatingTicket,
   bottomRef,
   prefersReducedMotion,
+  freeDailyLimit,
   onSelectTicket,
   onReplyChange,
   onReplyImageChange,
@@ -841,6 +842,8 @@ const SupportMessages = ({
   creatingTicket: boolean;
   bottomRef: RefObject<HTMLDivElement>;
   prefersReducedMotion: boolean;
+  /** Limite diário de perguntas à IA; null = sem limite (plano pago). */
+  freeDailyLimit: number | null;
   onSelectTicket: (ticketId: string | null) => void;
   onReplyChange: (value: string) => void;
   onReplyImageChange: (file: File) => void;
