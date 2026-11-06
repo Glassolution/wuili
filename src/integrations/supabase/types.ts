@@ -4609,6 +4609,17 @@ export type Database = {
           validapay_subscription_id: string
         }[]
       }
+      admin_support_tickets_page: {
+        Args: {
+          p_date?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+          p_view?: string
+        }
+        Returns: Json
+      }
       admin_support_unread_count: { Args: never; Returns: number }
       admin_user_segment: {
         Args: {

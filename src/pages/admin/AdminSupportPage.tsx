@@ -42,6 +42,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminPolling } from "@/components/admin/adminLayoutContext";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 import { AdminLayoutContext } from "@/components/admin/adminLayoutContext";
@@ -96,6 +97,7 @@ type AdminTicket = {
   admin_last_seen_at: string | null;
   /** Última mensagem (não interna, não da IA) é do cliente e mais nova que a última visita do admin. */
   unread: boolean;
+  previous_ticket_count?: number;
 };
 
 type SupportMessage = {
@@ -221,30 +223,6 @@ type FilterOption<T extends string> = {
   label: string;
 };
 
-const needsSupportReply = (ticket: Pick<AdminTicket, "last_message_sender">) => ticket.last_message_sender === "user";
-
-const getTicketActivityTime = (ticket: Pick<AdminTicket, "last_message_at" | "updated_at" | "created_at">) => {
-  const time = new Date(ticket.last_message_at ?? ticket.updated_at ?? ticket.created_at).getTime();
-  return Number.isNaN(time) ? 0 : time;
-};
-
-const matchesTicketStatus = (ticket: AdminTicket, status: TicketStatusFilter) =>
-  status === "all" || ticket.status === status;
-
-const matchesTicketDate = (ticket: AdminTicket, dateFilter: TicketDateFilter) => {
-  if (dateFilter === "all") return true;
-  const activity = getTicketActivityTime(ticket);
-  if (!activity) return false;
-  const now = Date.now();
-  if (dateFilter === "today") {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return activity >= today.getTime();
-  }
-  const days = dateFilter === "7d" ? 7 : 30;
-  return activity >= now - days * 24 * 60 * 60 * 1000;
-};
-
 const formatDateTime = (value: string | null) => {
   if (!value) return "Sem data";
   const date = new Date(value);
@@ -338,143 +316,65 @@ const getInitials = (name?: string | null, email?: string | null) =>
     .join("")
     .toUpperCase();
 
-/** Tickets do suporte com nome, e-mail e avatar de quem abriu. */
-const fetchSupportTickets = async () => {
-  const { data: ticketsData, error: ticketsError } = await (supabase as any)
-    .from("support_tickets")
-    .select("id,user_id,status,category,subject,created_at,updated_at,ai_paused,needs_human,needs_human_reason,admin_last_seen_at")
-    .order("updated_at", { ascending: false });
+type SupportTicketFilters = { search: string; status: TicketStatusFilter; view: TicketView; date: TicketDateFilter; limit: number };
+type SupportTicketPage = {
+  rows: AdminTicket[];
+  total: number;
+  openCount: number;
+  counts: Record<TicketView, number>;
+};
+const DEFAULT_TICKET_FILTERS: SupportTicketFilters = { search: "", status: "open", view: "all", date: "all", limit: 50 };
+const ticketsQueryKey = (filters: SupportTicketFilters) => ["admin-support-tickets-crm", filters] as const;
 
-  if (ticketsError) throw ticketsError;
-  const ticketsList = (ticketsData ?? []) as any[];
-  if (ticketsList.length === 0) return [] as AdminTicket[];
-
-  const ticketIds = ticketsList.map((ticket) => ticket.id);
-  const userIds = Array.from(new Set(ticketsList.map((ticket) => ticket.user_id)));
-  const profilesByUser = new Map<
-    string,
-    { display_name: string | null; email: string | null; avatar_url: string | null }
-  >();
-
-  const { data: profilesData } = await (supabase as any)
-    .from("profiles")
-    .select("user_id,display_name,email,avatar_url")
-    .in("user_id", userIds);
-
-  for (const item of (profilesData ?? []) as any[]) {
-    profilesByUser.set(item.user_id, {
-      display_name: item.display_name ?? null,
-      email: item.email ?? null,
-      avatar_url: item.avatar_url ?? null,
-    });
-  }
-
-  const needsFallback = userIds.filter((userId) => {
-    const item = profilesByUser.get(userId);
-    return !item?.email || !item.display_name || !item.avatar_url;
+/**
+ * Uma única chamada ao banco: abertos + 50 fechados mais recentes (ou todos, se
+ * houver busca), já com nome/e-mail do perfil, última mensagem e contadores.
+ * O histórico completo só é baixado ao abrir o ticket.
+ */
+const fetchSupportTickets = async (filters: SupportTicketFilters): Promise<SupportTicketPage> => {
+  const { data, error } = await (supabase as any).rpc("admin_support_tickets_page", {
+    p_search: filters.search || null,
+    p_status: filters.status,
+    p_view: filters.view,
+    p_date: filters.date,
+    p_limit: filters.limit,
+    p_offset: 0,
   });
-
-  if (needsFallback.length > 0) {
-    try {
-      // Nunca deixa a lista de tickets travar caso a função demore.
-      const adminData = await Promise.race([
-        supabase.functions
-          .invoke("admin-users", { body: { user_ids: needsFallback } })
-          .then((res) => res.data),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
-      ]);
-
-      const responseUsers =
-        adminData && typeof adminData === "object" && "users" in adminData
-          ? (adminData as { users?: unknown }).users
-          : null;
-      const list = Array.isArray(adminData) ? adminData : Array.isArray(responseUsers) ? responseUsers : [];
-      for (const item of list as Array<{
-        user_id?: string;
-        id?: string;
-        display_name?: string | null;
-        full_name?: string | null;
-        name?: string | null;
-        email?: string | null;
-        avatar_url?: string | null;
-      }>) {
-        const userId = item.user_id ?? item.id;
-        if (!userId) continue;
-        const existing = profilesByUser.get(userId);
-        profilesByUser.set(userId, {
-          display_name: existing?.display_name ?? item.display_name ?? item.full_name ?? item.name ?? null,
-          email: existing?.email ?? item.email ?? null,
-          avatar_url: existing?.avatar_url ?? item.avatar_url ?? null,
-        });
-      }
-    } catch (error) {
-      console.warn("admin-users fallback failed", error);
-    }
-  }
-
-  // Busca TODAS as mensagens em lotes: o PostgREST corta em 1000 linhas por
-  // requisição e, sem paginar, tickets antigos ficavam sem `last_message_at`
-  // e caíam para `updated_at`, bagunçando a ordenação por última mensagem.
-  const PAGE_SIZE = 1000;
-  const allMessages: SupportMessage[] = [];
-  for (let page = 0; ; page += 1) {
-    const { data: pageData, error: pageError } = await (supabase as any)
-      .from("support_messages")
-      .select("id,ticket_id,user_id,message,sender,created_at,internal")
-      .in("ticket_id", ticketIds)
-      .order("created_at", { ascending: false })
-      .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
-    if (pageError) break;
-    const rows = (pageData ?? []) as SupportMessage[];
-    allMessages.push(...rows);
-    if (rows.length < PAGE_SIZE) break;
-  }
-
-  const lastByTicket = new Map<string, SupportMessage>();
-  const messageCountByTicket = new Map<string, number>();
-  const adminReplyByTicket = new Set<string>();
-
-  for (const message of allMessages) {
-    if (message.internal) continue;
-    messageCountByTicket.set(message.ticket_id, (messageCountByTicket.get(message.ticket_id) ?? 0) + 1);
-    const current = lastByTicket.get(message.ticket_id);
-    // A saudação automática não deve esconder a dúvida real na fila.
-    if (
-      message.sender !== "ai" &&
-      (!current || new Date(message.created_at).getTime() > new Date(current.created_at).getTime())
-    ) {
-      lastByTicket.set(message.ticket_id, message);
-    }
-    if (message.sender === "admin") adminReplyByTicket.add(message.ticket_id);
-  }
-
-
-  return ticketsList.map((ticket) => {
-    const customer = profilesByUser.get(ticket.user_id);
-    const lastMessage = lastByTicket.get(ticket.id);
-    return {
-      id: ticket.id,
-      user_id: ticket.user_id,
-      status: ticket.status,
-      category: (ticket.category ?? "outros") as TicketCategory,
-      subject: ticket.subject ?? null,
-      created_at: ticket.created_at,
-      updated_at: ticket.updated_at,
-      user_name: customer?.display_name ?? null,
-      user_email: customer?.email ?? null,
-      user_avatar_url: customer?.avatar_url ?? null,
-      last_message: lastMessage ? supportMessagePreview(lastMessage.message) : null,
-      last_message_at: lastMessage?.created_at ?? null,
-      last_message_sender: lastMessage?.sender ?? null,
-      message_count: messageCountByTicket.get(ticket.id) ?? 0,
-      has_admin_reply: adminReplyByTicket.has(ticket.id),
-      ai_paused: ticket.ai_paused === true,
-      needs_human: ticket.needs_human === true,
-      needs_human_reason: ticket.needs_human_reason ?? null,
-      admin_last_seen_at: ticket.admin_last_seen_at ?? null,
-      unread: isSupportTicketUnread(lastMessage ?? null, ticket.admin_last_seen_at ?? null),
-    } satisfies AdminTicket;
-  }).sort((a, b) => getTicketActivityTime(b) - getTicketActivityTime(a));
+  if (error) throw error;
+  const result = (data ?? {}) as any;
+  const rows = ((result.rows ?? []) as any[]).map((ticket) => ({
+    id: ticket.id,
+    user_id: ticket.user_id,
+    status: ticket.status,
+    category: (ticket.category ?? "outros") as TicketCategory,
+    subject: ticket.subject ?? null,
+    created_at: ticket.created_at,
+    updated_at: ticket.updated_at,
+    user_name: ticket.display_name ?? null,
+    user_email: ticket.email ?? null,
+    user_avatar_url: ticket.avatar_url ?? null,
+    last_message: ticket.last_message ? supportMessagePreview(ticket.last_message) : null,
+    last_message_at: ticket.last_message_at ?? null,
+    last_message_sender: ticket.last_message_sender ?? null,
+    message_count: Number(ticket.message_count ?? 0),
+    has_admin_reply: ticket.has_admin_reply === true,
+    ai_paused: ticket.ai_paused === true,
+    needs_human: ticket.needs_human === true,
+    needs_human_reason: ticket.needs_human_reason ?? null,
+    admin_last_seen_at: ticket.admin_last_seen_at ?? null,
+    previous_ticket_count: Number(ticket.previous_ticket_count ?? 0),
+    unread: isSupportTicketUnread(
+      ticket.last_message_sender ? { sender: ticket.last_message_sender, created_at: ticket.last_message_at } : null,
+      ticket.admin_last_seen_at ?? null,
+    ),
+  })) as AdminTicket[];
+  const counts = result.counts ?? {};
+  return {
+    rows,
+    total: Number(result.total ?? rows.length),
+    openCount: Number(result.open_count ?? 0),
+    counts: { all: Number(counts.all ?? 0), new: Number(counts.new ?? 0), in_progress: Number(counts.in_progress ?? 0), human: Number(counts.human ?? 0) },
+  };
 };
 
 /** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
@@ -482,10 +382,12 @@ const PREFETCH_STALE_MS = 30_000;
 
 /** Pré-busca usada pelo AdminLayout para a aba abrir já com os tickets. */
 export const prefetchAdminData = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({ queryKey: ["admin-support-tickets-crm"], queryFn: fetchSupportTickets , staleTime: PREFETCH_STALE_MS });
+  queryClient.prefetchQuery({ queryKey: ticketsQueryKey(DEFAULT_TICKET_FILTERS), queryFn: () => fetchSupportTickets(DEFAULT_TICKET_FILTERS), staleTime: PREFETCH_STALE_MS });
 
 const AdminSupportPage = () => {
-  const polling20s = useAdminPolling(20_000);
+  const pageVisible = usePageVisible();
+  const polling = useAdminPolling(60_000);
+  const pollingWhenVisible = pageVisible ? polling : false;
   const { user, loading } = useAuth();
   const qc = useQueryClient();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -527,37 +429,26 @@ const AdminSupportPage = () => {
     setReplyImage(null);
   }, [openTicketId]);
 
-  const { data: tickets = [], isLoading: loadingTickets } = useQuery({
-    queryKey: ["admin-support-tickets-crm"],
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [ticketLimit, setTicketLimit] = useState(50);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  useEffect(() => setTicketLimit(50), [debouncedSearch, statusFilter, view, dateFilter]);
+  const ticketFilters: SupportTicketFilters = { search: debouncedSearch, status: statusFilter, view, date: dateFilter, limit: ticketLimit };
+
+  const { data: ticketPage, isLoading: loadingTickets } = useQuery({
+    queryKey: ticketsQueryKey(ticketFilters),
     enabled: !!user?.id && isAdmin,
-    queryFn: fetchSupportTickets,
-    // Reserva caso o tempo real caia: a fila se atualiza sozinha.
-    refetchInterval: polling20s,
+    queryFn: () => fetchSupportTickets(ticketFilters),
+    placeholderData: (previous) => previous,
+    // Reserva caso o tempo real caia; pausa com a aba escondida.
+    refetchInterval: pollingWhenVisible,
     retry: false,
   });
-
-  const visibleTickets = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return tickets.filter((ticket) => {
-      const matchesView =
-        view === "all" ||
-        (view === "new" && needsSupportReply(ticket)) ||
-        (view === "in_progress" && !needsSupportReply(ticket) && ticket.has_admin_reply) ||
-        (view === "human" && ticket.needs_human);
-      const matchesStatus = matchesTicketStatus(ticket, statusFilter);
-      const matchesDate = matchesTicketDate(ticket, dateFilter);
-      const matchesSearch =
-        !term ||
-        [
-          ticket.user_name,
-          ticket.user_email,
-          ticket.subject,
-          ticket.last_message,
-          CATEGORY_META[ticket.category].label,
-        ].some((value) => value?.toLowerCase().includes(term));
-      return matchesView && matchesStatus && matchesDate && matchesSearch;
-    });
-  }, [dateFilter, search, statusFilter, tickets, view]);
+  const tickets = useMemo(() => ticketPage?.rows ?? [], [ticketPage]);
+  const visibleTickets = tickets;
 
   useEffect(() => {
     if (visibleTickets.length === 0) {
@@ -579,10 +470,7 @@ const AdminSupportPage = () => {
     () => tickets.find((ticket) => ticket.id === openTicketId) ?? null,
     [openTicketId, tickets],
   );
-  const previousTicketCount = useMemo(() => {
-    if (!openTicket) return 0;
-    return tickets.filter((ticket) => ticket.user_id === openTicket.user_id && ticket.id !== openTicket.id).length;
-  }, [openTicket, tickets]);
+  const previousTicketCount = openTicket?.previous_ticket_count ?? 0;
 
   /**
    * Marca o ticket como visto no banco (vale para todos os admins). Só é
@@ -592,10 +480,15 @@ const AdminSupportPage = () => {
   const markTicketSeen = useCallback(
     async (ticketId: string) => {
       const seenAt = new Date().toISOString();
-      qc.setQueryData<AdminTicket[]>(["admin-support-tickets-crm"], (previous) =>
-        previous?.map((ticket) =>
-          ticket.id === ticketId ? { ...ticket, admin_last_seen_at: seenAt, unread: false } : ticket,
-        ),
+      qc.setQueriesData<SupportTicketPage>({ queryKey: ["admin-support-tickets-crm"] }, (previous) =>
+        previous
+          ? {
+              ...previous,
+              rows: previous.rows.map((ticket) =>
+                ticket.id === ticketId ? { ...ticket, admin_last_seen_at: seenAt, unread: false } : ticket,
+              ),
+            }
+          : previous,
       );
       const { error } = await (supabase as any).rpc("admin_mark_support_ticket_seen", { p_ticket_id: ticketId });
       if (error) console.warn("Não foi possível marcar o ticket como visto", error);
@@ -666,7 +559,7 @@ const AdminSupportPage = () => {
         user_agent: sessionResult.data?.user_agent ?? null,
       };
     },
-    refetchInterval: 20_000,
+    refetchInterval: pollingWhenVisible,
     retry: false,
   });
 
@@ -994,12 +887,15 @@ const AdminSupportPage = () => {
           <MobileSupportTabs
             active={mobilePanel}
             hasTicket={!!openTicket}
-            openTickets={tickets.filter((ticket) => ticket.status === "open").length}
+            openTickets={ticketPage?.openCount ?? 0}
             onChange={setMobilePanel}
           />
           <TicketInbox
             tickets={visibleTickets}
-            allTickets={tickets}
+            openCount={ticketPage?.openCount ?? 0}
+            counts={ticketPage?.counts}
+            hasMore={(ticketPage?.total ?? 0) > tickets.length}
+            onLoadMore={() => setTicketLimit((limit) => limit + 50)}
             loading={loadingTickets}
             selectedId={openTicketId}
             onSelect={(id) => {
@@ -1322,7 +1218,10 @@ const MobileSupportTabs = ({
 
 const TicketInbox = ({
   tickets,
-  allTickets,
+  openCount,
+  counts,
+  hasMore,
+  onLoadMore,
   loading,
   selectedId,
   onSelect,
@@ -1337,7 +1236,10 @@ const TicketInbox = ({
   className = "flex",
 }: {
   tickets: AdminTicket[];
-  allTickets: AdminTicket[];
+  openCount: number;
+  counts?: Record<TicketView, number>;
+  hasMore: boolean;
+  onLoadMore: () => void;
   loading: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -1361,7 +1263,7 @@ const TicketInbox = ({
           <div>
             <h1 className="text-[15px] font-semibold tracking-[-0.02em] text-[#1d1d1b]">Caixa de entrada</h1>
             <p className="text-[10.5px] text-[#969690]">
-              {allTickets.filter((ticket) => ticket.status === "open").length} tickets abertos
+              {openCount} tickets abertos
             </p>
           </div>
         </div>
@@ -1379,18 +1281,7 @@ const TicketInbox = ({
 
       <div className="mt-3 flex gap-1 overflow-x-auto">
         {VIEW_OPTIONS.map((option) => {
-          const count =
-            option.value === "all"
-              ? allTickets.filter((ticket) => matchesTicketStatus(ticket, statusFilter) && matchesTicketDate(ticket, dateFilter)).length
-              : allTickets.filter((ticket) =>
-                  matchesTicketStatus(ticket, statusFilter) &&
-                  matchesTicketDate(ticket, dateFilter) &&
-                  (option.value === "new"
-                    ? needsSupportReply(ticket)
-                    : option.value === "human"
-                      ? ticket.needs_human
-                      : !needsSupportReply(ticket) && ticket.has_admin_reply),
-                ).length;
+          const count = counts?.[option.value] ?? 0;
           return (
             <button
               key={option.value}
@@ -1440,14 +1331,24 @@ const TicketInbox = ({
           <p className="mt-1 text-[10.5px] leading-4 text-[#999993]">Ajuste a busca ou aguarde um novo chamado.</p>
         </div>
       ) : (
-        tickets.map((ticket) => (
-          <TicketListItem
-            key={ticket.id}
-            ticket={ticket}
-            selected={ticket.id === selectedId}
-            onClick={() => onSelect(ticket.id)}
-          />
-        ))
+        <>
+          {tickets.map((ticket) => (
+            <TicketListItem
+              key={ticket.id}
+              ticket={ticket}
+              selected={ticket.id === selectedId}
+              onClick={() => onSelect(ticket.id)}
+            />
+          ))}
+          {hasMore && (
+            <button
+              onClick={onLoadMore}
+              className="w-full py-3 text-[11px] font-medium text-[#315cc4] hover:bg-[#f0f0ed]"
+            >
+              Carregar mais conversas
+            </button>
+          )}
+        </>
       )}
     </div>
   </aside>
