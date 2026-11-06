@@ -289,6 +289,8 @@ export type ResultadoDaPublicacao = {
   variacoesPublicadas?: number;
   variacoesComFalha?: Array<{ valor: string | null; erro: string }>;
   mensagem?: string;
+  /** Aviso pós-publicação: o ML pode ter gravado o anúncio sem Mercado Envios. */
+  aviso_envio?: string;
 };
 
 
@@ -393,6 +395,7 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
   return {
     permalink: resposta?.permalink,
     item_id: resposta?.item_id,
+    aviso_envio: typeof resposta?.aviso_envio === "string" ? resposta.aviso_envio : undefined,
     ...(typeof resposta?.variations_total === "number"
       ? {
         parcial: Boolean(resposta?.partial),
