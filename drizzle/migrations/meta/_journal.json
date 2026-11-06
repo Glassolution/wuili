@@ -295,6 +295,13 @@
       "when": 1793995498273,
       "tag": "0041_harden_cancelled_payment_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793995663857,
+      "tag": "0042_fix_admin_renewal_report_service_role",
+      "breakpoints": true
     }
   ]
 }

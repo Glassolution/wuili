@@ -1,0 +1,1 @@
+DO $$ DECLARE definition text; BEGIN SELECT pg_get_functiondef('public.admin_post_cancel_renewals()'::regprocedure) INTO definition; definition := replace(definition, 'current_setting(''request.jwt.claim.role'',true)', 'auth.role()'); EXECUTE definition; END $$;
