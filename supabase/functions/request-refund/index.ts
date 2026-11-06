@@ -126,7 +126,13 @@ Deno.serve(async (req) => {
       refund_amount: sub.amount,
       requested_at: new Date().toISOString(),
     }).select().single();
-    if (insErr) return json({ error: insErr.message }, 500);
+    if (insErr) {
+      // Índice único: só um pedido pendente por cliente (clique duplo ou nova tentativa).
+      if (insErr.code === "23505") {
+        return json({ error: "Você já tem uma solicitação de reembolso em análise.", mode: "em_analise" }, 409);
+      }
+      return json({ error: "Não foi possível salvar o pedido agora. Tente de novo em instantes." }, 500);
+    }
 
     // Pedido de reembolso = cancelamento da assinatura. Marcamos para não
     // renovar já na solicitação; a aprovação encerra e estorna de fato.
