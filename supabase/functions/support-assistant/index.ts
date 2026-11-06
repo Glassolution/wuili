@@ -462,6 +462,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   };
 
   if (respostasIA >= 10) {
+    // Liberação pontual pedida pelo admin (Felipe) em 06/11/2026: este usuário
+    // fica sem teto só hoje; a exceção expira sozinha em 07/11/2026 (UTC).
+    const LIBERACAO_PONTUAL_USER = 'e8dab165-a48f-4996-b2bc-09d11f44c318'
+    const liberacaoPontualAtiva =
+      ticket.user_id === LIBERACAO_PONTUAL_USER && Date.now() < Date.UTC(2026, 10, 7)
     // O limite diário vale só para o plano gratuito; assinantes não têm teto.
     const { data: subs } = await admin.from("subscriptions").select("plan,provider")
       .eq("user_id", ticket.user_id).in("status", ["active", "paid", "approved", "trialing"]);
@@ -473,7 +478,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
         .eq("user_id", ticket.user_id).maybeSingle();
       planoPago = Boolean(prof?.plano && !["gratis", "free"].includes(String(prof.plano).toLowerCase()));
     }
-    if (!planoPago) {
+    if (!planoPago && !liberacaoPontualAtiva) {
       if (!ticket.needs_human) {
         await marcarHumano("limite_ia", "A conversa ficou longa demais para a IA.");
         await enviar(AVISO_ESPERA);
