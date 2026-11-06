@@ -314,6 +314,7 @@ export type ValidaPaySessionStatus = {
   status: string | null;
   chargeId: string | null;
   amount: number | null;
+  paidAt?: string | null;
   paymentMethod: string | null;
   /**
    * De onde veio o status. Só "charge" comprova pagamento — o status de uma
@@ -344,6 +345,7 @@ function normalizeSessionPayload(raw: unknown, source: "charge" | "session"): Va
     chargeId: chargeId ? String(chargeId) : null,
     amount,
     paymentMethod: node?.paymentType ?? node?.paymentMethod ?? null,
+    paidAt: typeof node?.paidAt === "string" ? node.paidAt : null,
     source,
     raw,
   };
