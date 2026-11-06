@@ -78,6 +78,8 @@ type MLAttribute = {
 type SellerStatusBlock = {
   message: string
   details: Record<string, unknown>
+  /** true = bloquear a publicação de fato; false/ausente = só logar (soft-block). */
+  hard?: boolean
 }
 
 // Limites de produtos publicados por plano, alinhados ao que é vendido no
@@ -231,6 +233,26 @@ async function validateSellerCanList(accessToken: string): Promise<SellerStatusB
     const listAllow = list.allow
     const sellAllow = sell.allow
     const shoppingCartSell = shoppingCart.sell
+
+    // Mercado Envios não aceito na conta: publicar em me2 gera anúncio
+    // "Entrega a combinar" sem etiqueta, inviável para o pós-venda da Velo.
+    // Bloqueio HARD — reconferido a cada tentativa de publicação, então
+    // libera sozinho assim que o ML marcar a conta como accepted.
+    if (status.mercadoenvios === 'not_accepted') {
+      return {
+        message: ML_SHIPPING_NOT_ACCEPTED_MESSAGE,
+        hard: true,
+        details: {
+          ml_user_id: data.id,
+          code: 'ML_SHIPPING_NOT_ACCEPTED',
+          seller_codes: ['mercadoenvios_not_accepted'],
+          status: {
+            mercadoenvios: status.mercadoenvios,
+            site_status: status.site_status,
+          },
+        },
+      }
+    }
 
     if (listAllow === false || sellAllow === false || shoppingCartSell === 'not_allowed') {
       const codes = collectSellerStatusCodes(
