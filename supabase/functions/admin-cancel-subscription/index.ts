@@ -4,7 +4,7 @@
 // fim do período já pago). Criado porque o validapay-cancel-sweep depende da
 // listagem do gateway, que nem sempre alcança a assinatura específica.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { validaPayFetch } from "../_shared/validapay.ts";
+import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       .eq("id", subscription_id)
       .maybeSingle();
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
-    if (!["active", "paid", "approved", "trialing"].includes(String(sub.status))) {
+    if (!["active", "paid", "approved", "trialing"].includes(String(sub.status)) && !sub.cancel_at_period_end) {
       return json({ error: "Esta assinatura não está ativa." }, 400);
     }
     if (sub.purchase_kind === "lifetime") return json({ success: true, already: true, lifetime: true, message: "Seu plano é vitalício: não há renovação nem cobrança futura para cancelar." });
@@ -82,25 +82,12 @@ Deno.serve(async (req) => {
       if (updErr) return json({ error: updErr.message }, 500);
     }
 
-    let providerCancelled = false;
-    if (sub.validapay_subscription_id) {
-      try {
-        await validaPayFetch(
-          `/v1/subscriptions/${encodeURIComponent(sub.validapay_subscription_id)}`,
-          {
-            method: "DELETE",
-            scope: "checkouts/write checkouts/read subscriptions/write subscriptions/read accounts/read",
-          },
-        );
-        providerCancelled = true;
-        await admin
-          .from("subscriptions")
-          .update({ provider_cancelled_at: new Date().toISOString() })
-          .eq("id", sub.id);
-      } catch (e) {
-        console.error("admin-cancel-subscription: falha no gateway", sub.id, String(e));
-      }
-    }
+    const providerCancelled = await requestProviderCancellation(admin, sub, reason || "Cancelamento solicitado");
+    if (!providerCancelled) return json({
+      success: false, pending: true, provider_cancelled: false,
+      error: "Recebemos seu pedido, mas ainda não conseguimos confirmar o cancelamento na operadora. Vamos tentar novamente e o suporte pode acompanhar.",
+      access_until: sub.current_period_end,
+    }, 202);
 
     const accessUntil = sub.current_period_end as string | null;
     await admin.from("notifications").insert({

@@ -1,4 +1,5 @@
 import { useContext, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Info, Loader2, Lock, XCircle, UserRound, RotateCcw } from "lucide-react";
@@ -163,12 +164,14 @@ const AdminRefundsPage = () => {
   const { user, loading } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabKey>("pending");
+  const [postCancelPreview, setPostCancelPreview] = useState<Array<Record<string, unknown>>>([]);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ["admin-profile-refunds", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user!.id).eq("role", "admin").maybeSingle();
+      if (!user) return null;
+      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
       return data;
     },
   });
@@ -336,29 +339,36 @@ const AdminRefundsPage = () => {
     onSettled: () => setBusyId(null),
   });
 
-  // Varredura das cobranças feitas depois do cancelamento (estorno em lote).
+  const { data: lifecycleIncidents = [] } = useQuery({
+    queryKey: ["admin-post-cancel-incidents"], enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payment_incidents")
+        .select("id,user_id,subscription_id,charge_id,amount,message,created_at,resolved,details")
+        .eq("kind", "post_cancel_renewal").order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: cancellationRequests = [] } = useQuery({
+    queryKey: ["admin-provider-cancellation-requests"], enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("provider_cancellation_requests")
+        .select("subscription_id,user_id,state,attempts,last_error,next_retry_at")
+        .neq("state", "confirmed").order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  // Explicit diagnosis only. Opening this screen never executes this scan.
   const postCancel = useMutation({
-    mutationFn: async (dryRun: boolean) => {
-      const { data, error } = await supabase.functions.invoke("admin-refund-post-cancel", {
-        body: { dry_run: dryRun },
-      });
-      if (error || (data && data.error)) throw new Error((data && data.error) || error?.message || "Falha");
-      return data as { count: number; dry_run: boolean; results: Array<Record<string, unknown>> };
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("admin-refund-post-cancel", { body: { dry_run: true } });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Falha");
+      return data as { results: Array<Record<string, unknown>> };
     },
-    onSuccess: (data) => {
-      if (data.dry_run) {
-        toast.success(`${data.count} cobrança(s) encontrada(s) para estorno.`);
-        console.log("[post-cancel] prévia", data.results);
-      } else {
-        const ok = data.results.filter((r) => r.ok === true).length;
-        toast.success(`${ok} de ${data.count} cobrança(s) estornada(s).`);
-        console.log("[post-cancel] resultado", data.results);
-        qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
-      }
-    },
+    onSuccess: (data) => { setPostCancelPreview(data.results); toast.success("Diagnóstico concluído. Nenhum estorno executado."); },
     onError: (e: unknown) => toast.error((e as Error)?.message || "Erro"),
   });
-
 
   if (loading || (loadingProfile && !verifiedAdmin)) {
     return <AdminPageLoading message="Carregando reembolsos..." />;
@@ -395,32 +405,40 @@ const AdminRefundsPage = () => {
             <RotateCcw size={14} strokeWidth={1.5} />
             Janela de elegibilidade: {REFUND_WINDOW_DAYS} dias
           </span>
-          <button
-            type="button"
-            disabled={postCancel.isPending}
-            onClick={() => postCancel.mutate(true)}
-            className="rounded-md border border-black/10 px-3 py-1.5 text-[12px] font-semibold text-[#171715] disabled:opacity-50"
-          >
-            {postCancel.isPending ? <Loader2 size={12} className="animate-spin" /> : "Verificar cobranças após cancelamento"}
-          </button>
-          <button
-            type="button"
-            disabled={postCancel.isPending}
-            onClick={() => {
-              if (window.confirm("Estornar todas as cobranças feitas depois do cancelamento? Essa ação envia o dinheiro de volta e não pode ser desfeita.")) {
-                postCancel.mutate(false);
-              }
-            }}
-            className="rounded-md bg-[#171715] px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
-          >
-            Devolver dinheiro agora
-          </button>
+          <Button variant="outline" size="sm" disabled={postCancel.isPending} onClick={() => postCancel.mutate()}>
+            {postCancel.isPending && <Loader2 className="animate-spin" />} Verificar cobranças após cancelamento
+          </Button>
         </div>
       }
     >
       <div className="min-h-full bg-transparent text-[#171715]">
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
           <AdminSandboxGrant />
+          {(lifecycleIncidents.length > 0 || cancellationRequests.length > 0 || postCancelPreview.length > 0) && (
+            <section className="border-b border-border pb-4 text-foreground">
+              <h2 className="mb-3 text-base font-semibold">Renovações e cancelamentos em revisão</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead><tr><th className="p-2">Cliente / contrato</th><th className="p-2">Cobrança</th><th className="p-2">Valor</th><th className="p-2">Situação</th></tr></thead>
+                  <tbody>
+                    {lifecycleIncidents.map((item) => <tr key={item.id} className="border-t border-border">
+                      <td className="p-2">{profiles[item.user_id ?? ""]?.email ?? item.user_id}<br />{item.subscription_id}</td>
+                      <td className="p-2 font-mono">{item.charge_id ?? "ID não confirmado"}</td><td className="p-2">{fmtMoney(item.amount)}</td>
+                      <td className="p-2">{item.resolved ? "Resolvido" : "Aguardando revisão — nenhum estorno automático"}</td>
+                    </tr>)}
+                    {cancellationRequests.map((item) => <tr key={item.subscription_id} className="border-t border-border">
+                      <td className="p-2">{profiles[item.user_id]?.email ?? item.user_id}<br />{item.subscription_id}</td>
+                      <td className="p-2">—</td><td className="p-2">—</td><td className="p-2">{item.state === "failed" ? "Falha — suporte necessário" : "Cancelamento aguardando confirmação"}<br />{item.last_error}</td>
+                    </tr>)}
+                    {postCancelPreview.map((item, i) => <tr key={i} className="border-t border-border">
+                      <td className="p-2">{String(item.email ?? item.subscription_id ?? "—")}</td><td className="p-2 font-mono">{String(item.target_charge ?? item.charge_id ?? "Não localizada")}</td>
+                      <td className="p-2">{fmtMoney(typeof item.target_amount === "number" ? item.target_amount : null)}</td><td className="p-2">{item.skipped ? "Estorno já registrado" : "Diagnóstico somente leitura"}</td>
+                    </tr>)}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {tabs.map((t) => {

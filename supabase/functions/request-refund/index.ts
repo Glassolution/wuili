@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 import { identityAlreadyRefunded } from "../_shared/refundIdentity.ts";
 import { getRefundMode, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES } from "../_shared/refundPolicy.ts";
 
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
 
     // Pedido de reembolso = cancelamento da assinatura. Marcamos para não
     // renovar já na solicitação; a aprovação encerra e estorna de fato.
-    await admin
+    const { error: cancellationError } = await admin
       .from("subscriptions")
       .update({
         cancel_at_period_end: true,
@@ -133,7 +134,8 @@ Deno.serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq("id", sub.id);
-
+    if (cancellationError) throw new Error(`refund_cancellation_save:${cancellationError.message}`);
+    const providerCancelled = await requestProviderCancellation(admin, sub, `Reembolso: ${reason}`);
 
     // Notificar todos os admins (in-app)
     try {
@@ -172,6 +174,7 @@ Deno.serve(async (req) => {
     return json({
       success: true,
       refund,
+      provider_cancelled: providerCancelled,
       message: `Recebemos o seu pedido de reembolso. ${PRAZO_REEMBOLSO}`,
     });
   } catch (err) {

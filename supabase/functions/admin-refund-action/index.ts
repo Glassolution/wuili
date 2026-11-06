@@ -2,6 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { recordRefundedIdentity } from "../_shared/refundIdentity.ts";
 import { refundCharge, ValidaPayError } from "../_shared/validapay.ts";
 
+import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
+import { syncPaidProfile } from "../_shared/subscriptionLifecycle.ts";
 import { PRAZO_DEVOLUCAO } from "../_shared/refundPolicy.ts";
 
 const corsHeaders = {
@@ -146,6 +148,15 @@ Deno.serve(async (req) => {
       String(sub?.provider ?? "").toLowerCase() === "sandbox" ||
       String(sub?.payment_method ?? "").toLowerCase() === "sandbox" ||
       String(sub?.validapay_charge_id ?? "").startsWith("sandbox_");
+    let providerCancelled = true;
+    if (sub && !isSandboxRefund) {
+      const { error: cancelError } = await admin.from("subscriptions").update({
+        cancel_at_period_end: true, cancelled_at: sub.cancelled_at ?? new Date().toISOString(),
+        cancellation_reason: sub.cancellation_reason ?? "Reembolso aprovado", updated_at: new Date().toISOString(),
+      }).eq("id", sub.id);
+      if (cancelError) throw new Error(`refund_cancel_save:${cancelError.message}`);
+      providerCancelled = await requestProviderCancellation(admin, sub, "Reembolso aprovado");
+    }
     let providerResponse: Record<string, unknown> | null = null;
     let refundOk = true;
     let refundProcessing = false;
@@ -195,7 +206,8 @@ Deno.serve(async (req) => {
       await admin.from("subscriptions").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", sub.id);
       if (!isSandboxRefund) {
         const cooldownUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        await admin.from("profiles").update({ plano: "gratis", refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+        await admin.from("profiles").update({ refund_cooldown_until: cooldownUntil }).eq("user_id", refund.user_id);
+        await syncPaidProfile(admin, refund.user_id);
         try { await recordRefundedIdentity(admin, refund.user_id); } catch (e) { console.error("recordRefundedIdentity", e); }
       }
 
@@ -250,7 +262,7 @@ Deno.serve(async (req) => {
       }
     } catch (e) { console.error("aviso suporte reembolso", e); }
 
-    return json({ success: refundOk, processing: refundProcessing, providerResponse });
+    return json({ success: refundOk, processing: refundProcessing, provider_cancelled: providerCancelled, providerResponse });
   } catch (err) {
     console.error("admin-refund-action:", err);
     return json({ error: "Erro interno", message: String(err) }, 500);
