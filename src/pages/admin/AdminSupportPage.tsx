@@ -223,30 +223,6 @@ type FilterOption<T extends string> = {
   label: string;
 };
 
-const needsSupportReply = (ticket: Pick<AdminTicket, "last_message_sender">) => ticket.last_message_sender === "user";
-
-const getTicketActivityTime = (ticket: Pick<AdminTicket, "last_message_at" | "updated_at" | "created_at">) => {
-  const time = new Date(ticket.last_message_at ?? ticket.updated_at ?? ticket.created_at).getTime();
-  return Number.isNaN(time) ? 0 : time;
-};
-
-const matchesTicketStatus = (ticket: AdminTicket, status: TicketStatusFilter) =>
-  status === "all" || ticket.status === status;
-
-const matchesTicketDate = (ticket: AdminTicket, dateFilter: TicketDateFilter) => {
-  if (dateFilter === "all") return true;
-  const activity = getTicketActivityTime(ticket);
-  if (!activity) return false;
-  const now = Date.now();
-  if (dateFilter === "today") {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return activity >= today.getTime();
-  }
-  const days = dateFilter === "7d" ? 7 : 30;
-  return activity >= now - days * 24 * 60 * 60 * 1000;
-};
-
 const formatDateTime = (value: string | null) => {
   if (!value) return "Sem data";
   const date = new Date(value);
