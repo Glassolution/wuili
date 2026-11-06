@@ -328,7 +328,7 @@ export const FAQ_ITEMS: Array<{ question: string; answer: string }> = [
   {
     question: "Como cancelo minha assinatura ou peço reembolso?",
     answer:
-      `Vá em ${REFUND_PAGE_LABEL}. Lá aparece um resumo do seu plano antes de qualquer confirmação. O reembolso vale para pagamentos feitos há até 7 dias; depois disso, você mesmo cancela a renovação em ${CANCEL_PAGE_LABEL}, mantendo o acesso até o fim do período pago. ${PRAZO_REEMBOLSO}`,
+      `Você pode consultar as opções em Configurações, na área de gerenciamento da assinatura. O reembolso vale para pagamentos feitos há até 7 dias; depois disso, você mesmo cancela a renovação, mantendo o acesso até o fim do período pago. ${PRAZO_REEMBOLSO}`,
   },
   {
     question: "Como conecto o Mercado Livre à minha conta?",

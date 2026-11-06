@@ -1725,6 +1725,10 @@ const parseAtlasModelResponse = (raw: string): AtlasResponse => {
     const actions = Array.isArray(parsed.actions)
       ? parsed.actions.map(sanitizeAction).filter((action): action is AtlasAction => Boolean(action))
       : [];
+    // Reembolso/cancelamento da assinatura: só texto, sem botão, atalho nem link.
+    if (/reembols|estorno|cancelar a renova|cancelamento da (assinatura|renova)/i.test(message)) {
+      return { message: message.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"), actions: [] };
+    }
     return { message, actions };
   } catch {
     return {
@@ -1781,6 +1785,14 @@ const fallbackReply = (message: string): AtlasResponse => {
       message:
         "A conexão com o Mercado Livre fica em Integrações. Você entra na sua conta pelo site oficial do Mercado Livre, autoriza a Velo e volta pra cá com a conta conectada. A sua senha não passa pela Velo em nenhum momento.",
       actions: [{ type: "navigation", label: "Abrir Integrações", route: "/dashboard/integracoes" }],
+    };
+  }
+
+  // Reembolso/cancelamento: só orientação geral em texto, sem botão nem atalho.
+  if (/reembols|cancelar (a )?(renovacao|assinatura)|estorno/.test(normalizedMessage)) {
+    return {
+      message: "Você pode consultar as opções de reembolso e de renovação em Configurações, na área de gerenciamento da assinatura.",
+      actions: [],
     };
   }
 

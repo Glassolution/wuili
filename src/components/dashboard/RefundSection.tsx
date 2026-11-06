@@ -112,6 +112,7 @@ const RefundSection = ({ local = "perfil" }: { local?: Local | "central" }) => {
   const [houveErro, setHouveErro] = useState("");
   const [autorizaContato, setAutorizaContato] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const enviandoRef = useRef(false);
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemFinal, setMensagemFinal] = useState("");
 
@@ -191,9 +192,10 @@ const RefundSection = ({ local = "perfil" }: { local?: Local | "central" }) => {
   };
 
   const confirmar = async () => {
-    if (!assinatura || enviando) return;
+    if (!assinatura || enviando || enviandoRef.current) return;
     if (acao === "cancelamento" && !motivo.trim()) return;
     if (acao === "reembolso" && (!dentroDaGarantia || !motivoOk || !respostas)) return;
+    enviandoRef.current = true;
     setEnviando(true);
     setErro(null);
     try {
@@ -230,6 +232,7 @@ const RefundSection = ({ local = "perfil" }: { local?: Local | "central" }) => {
       console.error(e);
       setErro("Não foi possível enviar agora. Tente de novo em instantes.");
     } finally {
+      enviandoRef.current = false;
       setEnviando(false);
     }
   };
