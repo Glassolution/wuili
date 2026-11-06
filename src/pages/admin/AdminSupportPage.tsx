@@ -42,6 +42,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAdminPolling } from "@/components/admin/adminLayoutContext";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 import { AdminLayoutContext } from "@/components/admin/adminLayoutContext";
@@ -96,6 +97,7 @@ type AdminTicket = {
   admin_last_seen_at: string | null;
   /** Última mensagem (não interna, não da IA) é do cliente e mais nova que a última visita do admin. */
   unread: boolean;
+  previous_ticket_count?: number;
 };
 
 type SupportMessage = {
@@ -1353,14 +1355,24 @@ const TicketInbox = ({
           <p className="mt-1 text-[10.5px] leading-4 text-[#999993]">Ajuste a busca ou aguarde um novo chamado.</p>
         </div>
       ) : (
-        tickets.map((ticket) => (
-          <TicketListItem
-            key={ticket.id}
-            ticket={ticket}
-            selected={ticket.id === selectedId}
-            onClick={() => onSelect(ticket.id)}
-          />
-        ))
+        <>
+          {tickets.map((ticket) => (
+            <TicketListItem
+              key={ticket.id}
+              ticket={ticket}
+              selected={ticket.id === selectedId}
+              onClick={() => onSelect(ticket.id)}
+            />
+          ))}
+          {hasMore && (
+            <button
+              onClick={onLoadMore}
+              className="w-full py-3 text-[11px] font-medium text-[#315cc4] hover:bg-[#f0f0ed]"
+            >
+              Carregar mais conversas
+            </button>
+          )}
+        </>
       )}
     </div>
   </aside>
