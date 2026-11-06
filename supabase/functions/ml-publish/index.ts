@@ -2658,18 +2658,15 @@ Deno.serve(async (req) => {
 
     console.log('=== ml-publish SUCCESS ===', itemId)
 
-    // Aviso pós-publicação (não bloqueia): se o ML gravou o anúncio sem
-    // Mercado Envios 2 real (logistic_type diferente de xd_drop_off) ou sem
-    // frete grátis, o comprador pode ver "Entrega a combinar" — sem etiqueta,
-    // o que quebra o pós-venda. Avisamos o vendedor e registramos o caso.
-    let avisoEnvio: string | null = null
+    // Registro pós-publicação (não bloqueia e NÃO avisa o vendedor): o censo
+    // mostrou que logistic_type=drop_off é comum e gera etiqueta normalmente,
+    // então não há sinal confiável para alertar. Só registramos o caso em
+    // ml_publish_errors para análise interna.
     try {
       const ship = (itemData?.shipping ?? {}) as Record<string, unknown>
       const logistic = String(ship.logistic_type ?? '')
       const semMe2Real = logistic !== 'xd_drop_off'
       if (semMe2Real) {
-        avisoEnvio =
-          'Atenção: seu anúncio pode estar sem Mercado Envios (o comprador pode ver "Entrega a combinar", sem etiqueta). Confira o anúncio no Mercado Livre; se estiver assim, crie um anúncio de teste direto no site do Mercado Livre escolhendo Mercado Envios para ativar o envio na sua conta.'
         console.warn('[ml-publish] Anúncio sem ME2 real:', JSON.stringify({
           user_id, item_id: itemId, logistic_type: logistic,
           free_shipping: ship.free_shipping ?? null,
