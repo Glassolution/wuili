@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { REFUNDABLE_SUBSCRIPTION_STATUSES } from "../_shared/refundPolicy.ts";
 import { validaPayFetch } from "../_shared/validapay.ts";
 
 const corsHeaders = {
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
-    if (!["active", "paid", "approved", "trialing"].includes(String(sub.status))) {
+    if (![...REFUNDABLE_SUBSCRIPTION_STATUSES, "trialing"].includes(String(sub.status))) {
       return json({ error: "Esta assinatura não está ativa." }, 400);
     }
     if (sub.purchase_kind === "lifetime") return json({ success: true, already: true, lifetime: true, message: "Seu plano é vitalício: não há renovação nem cobrança futura para cancelar." });

@@ -3,8 +3,7 @@ import { createPortal } from "react-dom";
 import { Download, ExternalLink, Image as ImageIcon, X } from "lucide-react";
 import { parseSupportMessage } from "@/lib/support";
 import { renderSupportTextWithLinks } from "@/lib/supportLinks";
-import { useAuth } from "@/contexts/AuthContext";
-import { useRefundStatus, refundCardAction } from "@/lib/refundStatus";
+import { REFUND_PAGE_PATH } from "@/lib/refundEligibility";
 import { Button } from "@/components/ui/button";
 
 type SupportMessageMediaProps = {
@@ -24,8 +23,6 @@ export const SupportMessageMedia = ({
   const [open, setOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const adminTone = tone === "admin";
-  const { user } = useAuth();
-  const { status } = useRefundStatus(user?.id, refundPrompt && !adminTone);
 
   useEffect(() => {
     if (!open) return;
@@ -40,30 +37,27 @@ export const SupportMessageMedia = ({
     if (adminTone) {
       return (
         <p className="text-[12px] font-semibold text-white">
-          Cartão de cancelamento / reembolso exibido ao usuário
+          Cartão antigo de cancelamento / reembolso (hoje vira atalho para Configurações)
         </p>
       );
     }
+    // Cartão antigo do chat: hoje o pedido é feito só em Configurações → Perfil.
     const abrirReembolso = () => {
       const alvo = document.getElementById("velo-reembolso");
       if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
-      else window.location.href = "/dashboard/configuracoes?tab=Suporte#velo-reembolso";
+      else window.location.href = REFUND_PAGE_PATH;
     };
-    const acao = refundCardAction(status?.mode);
-    const cancelar = status?.mode === "cancelamento";
     return (
       <div className="min-w-[220px]">
         <p className="text-[13px] leading-5">
-          {cancelar ? "Cancele a renovação sem precisar do suporte. Você mantém o acesso até o fim do período pago, sem reembolso." : "Acompanhe ou envie seu pedido pelo botão abaixo."}
+          O reembolso e o cancelamento da assinatura são feitos em Configurações → Perfil.
         </p>
         <Button
           type="button"
-          variant="destructive"
-          disabled={!status || !acao.enabled}
           onClick={abrirReembolso}
           className="mt-2.5 h-9 w-full rounded-lg px-3 text-[12.5px] font-bold"
         >
-          {status ? acao.label : "Verificando assinatura…"}
+          Abrir em Configurações
         </Button>
       </div>
     );

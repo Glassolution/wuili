@@ -1,7 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { identityAlreadyRefunded } from "../_shared/refundIdentity.ts";
-
-const PRAZO_REEMBOLSO = "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
+import { getRefundMode, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES } from "../_shared/refundPolicy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,9 +34,8 @@ Deno.serve(async (req) => {
     const { subscription_id, reason, reason_details } = body ?? {};
     const sandboxRequested = body?.sandbox === true || body?.sandbox === "true";
     if (!subscription_id || !reason) return json({ error: "subscription_id e reason são obrigatórios" }, 400);
-    if (!reason_details || String(reason_details).trim().length < 30) {
-      return json({ error: "Conte-nos mais sobre o motivo (mínimo 30 caracteres)." }, 400);
-    }
+    // Os detalhes são opcionais: o pedido nunca pode travar por falta de texto.
+    const detalhes = String(reason_details ?? "").trim() || "Não informado.";
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -75,7 +73,9 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
     if (!sub) return json({ error: "Assinatura não encontrada" }, 404);
-    if (sub.status !== "active") return json({ error: "Apenas assinaturas ativas podem ser reembolsadas" }, 400);
+    if (!REFUNDABLE_SUBSCRIPTION_STATUSES.includes(String(sub.status))) {
+      return json({ error: "Esta assinatura não está ativa." }, 400);
+    }
     const isSandboxSubscription =
       String(sub.provider ?? "").toLowerCase() === "sandbox" ||
       String(sub.payment_method ?? "").toLowerCase() === "sandbox";
@@ -83,26 +83,20 @@ Deno.serve(async (req) => {
       return json({ error: "Sandbox só pode reembolsar assinaturas de teste." }, 400);
     }
 
-    // Bloqueia apenas se já existir uma solicitação em aberto ou já reembolsada.
-    // Pedidos recusados (rejected/denied) permitem nova solicitação.
+    // Mesma regra que a página de Configurações mostra (_shared/refundPolicy.ts).
     const { data: prevRequests } = await admin
       .from("refund_requests")
-      .select("id, status")
+      .select("subscription_id, status")
       .eq("user_id", userId);
-    const REJECTED = ["rejected", "denied", "cancelled", "canceled"];
-    const blocking = (prevRequests ?? []).filter(
-      (r: { status: string | null }) => !REJECTED.includes(String(r.status ?? "").toLowerCase()),
-    );
-    if (blocking.length > 0 && !sandboxAllowed) {
-      const hasPending = blocking.some((r: { status: string | null }) => String(r.status).toLowerCase() === "pending");
-      return json(
-        {
-          error: hasPending
-            ? "Você já tem uma solicitação de reembolso em análise."
-            : "Você já teve um reembolso processado anteriormente. Não é possível solicitar novamente.",
-        },
-        409,
-      );
+    const mode = getRefundMode(sub, prevRequests ?? []);
+    if (mode !== "reembolso" && !sandboxAllowed) {
+      const erro =
+        mode === "em_analise" ? "Você já tem uma solicitação de reembolso em análise."
+        : mode === "aprovado" ? "O reembolso desta assinatura já foi aprovado."
+        : (prevRequests ?? []).some((r: { status: string | null }) => ["processed", "approved"].includes(String(r.status ?? "").toLowerCase()))
+          ? "Você já teve um reembolso processado anteriormente. Não é possível solicitar novamente. Você ainda pode cancelar a renovação."
+          : "O prazo de 7 dias para solicitar reembolso já expirou. Você ainda pode cancelar a renovação.";
+      return json({ error: erro, mode }, mode === "em_analise" || mode === "aprovado" ? 409 : 400);
     }
 
     // Mesma pessoa (e-mail ou Pix) já reembolsada em outra conta, ex.: excluiu e recriou.
@@ -116,21 +110,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Bloqueia solicitação após a janela de 7 dias
-    const daysSinceCreated = (Date.now() - new Date(sub.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceCreated > 7 && !sandboxAllowed) {
-      return json(
-        { error: "O prazo de 7 dias para solicitar reembolso já expirou." },
-        400,
-      );
-    }
-
     const { data: refund, error: insErr } = await admin.from("refund_requests").insert({
       user_id: userId,
       subscription_id: sub.id,
       payment_id: sub.mp_payment_id,
       reason,
-      reason_details: `${sandboxAllowed ? "[Sandbox] " : ""}${String(reason_details).trim()}`,
+      reason_details: `${sandboxAllowed ? "[Sandbox] " : ""}${detalhes}`,
       status: "pending",
       refund_amount: sub.amount,
       requested_at: new Date().toISOString(),
@@ -178,7 +163,7 @@ Deno.serve(async (req) => {
             from: "Velo <noreply@velods.com.br>",
             to: [ADMIN_EMAIL],
             subject: "Novo pedido de reembolso",
-            html: `<p>Motivo: <b>${reason}</b></p><p>${String(reason_details).replace(/</g, "&lt;")}</p>`,
+            html: `<p>Motivo: <b>${String(reason).replace(/</g, "&lt;")}</b></p><p>${detalhes.replace(/</g, "&lt;")}</p>`,
           }),
         });
       }

@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { recordRefundedIdentity } from "../_shared/refundIdentity.ts";
 import { refundCharge, ValidaPayError } from "../_shared/validapay.ts";
 
-const PRAZO_REEMBOLSO = "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
+import { PRAZO_DEVOLUCAO } from "../_shared/refundPolicy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
       user_id: refund.user_id,
       title: refundOk ? "Reembolso aprovado" : "Falha ao processar reembolso",
       message: refundOk
-        ? `Seu reembolso foi aprovado. ${PRAZO_REEMBOLSO}`
+        ? `Seu reembolso foi aprovado. ${PRAZO_DEVOLUCAO}`
         : "Não foi possível processar o reembolso. Entre em contato com o suporte.",
       type: "refund",
     });
@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
       if (tk?.id) {
         await admin.from("support_messages").insert({
           ticket_id: tk.id, user_id: refund.user_id, sender: "ai",
-          message: `Olá! Seu reembolso foi analisado e aprovado por uma pessoa da nossa equipe. ${PRAZO_REEMBOLSO} Qualquer dúvida, estamos por aqui.`,
+          message: `Olá! Seu reembolso foi analisado e aprovado por uma pessoa da nossa equipe. ${PRAZO_DEVOLUCAO} Qualquer dúvida, estamos por aqui.`,
         });
         await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", tk.id);
       }

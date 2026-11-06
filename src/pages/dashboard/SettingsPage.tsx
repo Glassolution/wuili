@@ -125,10 +125,7 @@ const SettingsPage = () => {
           {tab === "Notificações"  && <NotificationsTab />}
           {tab === "Segurança"     && <SecurityTab />}
           {tab === "Suporte"       && (
-            <div className="space-y-6">
-              <SupportTab />
-              <div id="velo-reembolso" className="scroll-mt-6"><RefundSection /></div>
-            </div>
+<SupportTab />
           )}
         </div>
       </div>
@@ -537,6 +534,9 @@ const ProfileTab = () => {
         <button onClick={handleCancelar} className={cancelBtn}>Cancelar</button>
         <button onClick={handleSalvar} className={saveBtn}>Salvar alterações</button>
       </div>
+
+      {/* Encerrar assinatura / garantia de 7 dias (link do chat: ?tab=Perfil#velo-reembolso) */}
+      <div id="velo-reembolso" className="scroll-mt-6"><RefundSection /></div>
     </div>
   );
 };
@@ -1026,6 +1026,9 @@ const PlanTab = () => {
           );
         })}
       </div>
+
+      {/* Depois da garantia de 7 dias, cancelar a renovação fica aqui (link: ?tab=Plano#velo-cancelar-renovacao) */}
+      <div id="velo-cancelar-renovacao" className="scroll-mt-6"><RefundSection local="plano" /></div>
     </div>
   );
 };

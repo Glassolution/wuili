@@ -9,7 +9,8 @@ export const SUPPORT_PAGES = [
   { id: "suporte", label: "Configurações → Suporte", route: "/dashboard/configuracoes?tab=Suporte", description: "Chamados e atendimento da Velo.", aliases: ["suporte", "chamado", "chamados", "atendimento"] },
   { id: "perfil", label: "Configurações → Perfil", route: "/dashboard/configuracoes?tab=Perfil", description: "Dados pessoais e alteração de e-mail.", aliases: ["perfil", "email", "e-mail"] },
   { id: "seguranca", label: "Configurações → Segurança", route: "/dashboard/configuracoes?tab=Seguran%C3%A7a", description: "Segurança da conta e senha.", aliases: ["seguranca", "segurança", "senha"] },
-  { id: "assinatura", label: "Configurações → Suporte → Cancelar assinatura / reembolso", route: "/dashboard/configuracoes?tab=Suporte#velo-reembolso", description: "Formulário de cancelamento da renovação ou solicitação de reembolso, conforme a assinatura. Abrir esta página não cancela nada.", aliases: ["cancelar renovacao", "cancelar renovação", "cancelar assinatura", "reembolso"] },
+  { id: "assinatura", label: "Configurações → Perfil", route: "/dashboard/configuracoes?tab=Perfil#velo-reembolso", description: "Garantia de 7 dias: solicitação de reembolso (some do Perfil depois dos 7 dias). Abrir esta página não cancela nada.", aliases: ["reembolso", "garantia"] },
+  { id: "renovacao", label: "Configurações → Plano", route: "/dashboard/configuracoes?tab=Plano#velo-cancelar-renovacao", description: "Cancelar a renovação depois dos 7 dias da garantia. Abrir esta página não cancela nada.", aliases: ["cancelar renovacao", "cancelar renovação", "cancelar assinatura"] },
   { id: "ajuda", label: "Central de Ajuda", route: "/ajuda", description: "Artigos do FAQ.", aliases: ["faq", "central de ajuda"] },
 ];
 

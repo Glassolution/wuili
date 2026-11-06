@@ -1,4 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PRAZO_REEMBOLSO, REFUND_PAGE_LABEL, CANCEL_PAGE_LABEL } from "./refundEligibility";
+
+/** Prazo oficial, igual em todos os lugares (site, IA e notificações). */
+export { PRAZO_REEMBOLSO };
 
 export type TicketCategory = "financeiro" | "bug" | "integracao" | "conta" | "reembolso" | "outros";
 
@@ -62,89 +66,6 @@ const SUPPORT_IMAGE_TYPES = new Set(SUPPORT_IMAGE_ACCEPT.split(","));
 export const SUPPORT_AUTO_GREETING_MESSAGE =
   "Oi! Que bom te ver por aqui. Nosso horário de atendimento é de segunda a sexta das 13h às 21h, e aos sábados e domingos das 13h às 19h. Pode deixar sua dúvida por aqui, que em breve alguém vai te responder!";
 
-const distancia = (a: string, b: string) => {
-  const linha = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    let anterior = linha[0];
-    linha[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const atual = linha[j];
-      linha[j] = Math.min(linha[j] + 1, linha[j - 1] + 1, anterior + (a[i - 1] === b[j - 1] ? 0 : 1));
-      anterior = atual;
-    }
-  }
-  return linha[b.length];
-};
-
-/**
- * Corrige erros de digitação nas palavras do tema ("reemolso", "rembolso",
- * "cancelamenro") para a forma certa, antes das regras abaixo.
- */
-const corrigirPalavrasDeReembolso = (texto: string) =>
-  texto.replace(/[a-z]+/g, (palavra) => {
-    if (palavra.length < 6) return palavra;
-    if (distancia(palavra, "reembolso") <= 2) return "reembolso";
-    if (distancia(palavra, "cancelamento") <= 2) return "cancelamento";
-    if (distancia(palavra, "cancelar") <= 1) return "cancelar";
-    if (distancia(palavra, "estorno") <= 1) return "estorno";
-    return palavra;
-  });
-
-/**
- * Detecta PEDIDO de reembolso/cancelamento em mensagens do usuário.
- * Perguntas informativas ("como funciona o reembolso?") NÃO contam.
- */
-export const messageHasRefundIntent = (text: string) => {
-  const normalized = corrigirPalavrasDeReembolso(
-    text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, " ")
-      .trim(),
-  );
-
-  const temTema = /(reembols|estorn|devolv(er|a|e|ucao)|cancel|dinheiro de volta|meu dinheiro)/.test(normalized);
-  if (!temTema) return false;
-
-  // Perguntas / dúvidas sobre o funcionamento — nunca abrem o cartão.
-  const ehDuvida =
-    /(como funciona|como e feito|como faco|como sera|queria saber|gostaria de saber|gostaria de confirmar|quero saber|quero entender|voces (tem|fazem|aceitam)|tem reembolso|existe reembolso|qual (o|e o) prazo|posso pedir|da pra pedir|e possivel|antes de assinar|duvida|funciona o cancelamento|funciona o reembolso|politica de)/.test(
-      normalized,
-    );
-  if (ehDuvida) return false;
-
-  // Pedido explícito, em primeira pessoa.
-  const ehPedido =
-    /((quero|queria|gostaria de|preciso|vou|desejo|solicito|solicitar|peco|pedir|favor) [^.?!]{0,40}(reembols|estorn|cancel|devolv))/.test(
-      normalized,
-    ) ||
-    /(me (reembolse|devolva|cancele|estorne))/.test(normalized) ||
-    /(cancel(ar|e|a) (minha |a )?(assinatura|conta|plano|renovacao))/.test(normalized) ||
-    /((quero|queria|preciso|devolve|devolvam) [^.?!]{0,20}(meu |o )?dinheiro( de volta)?)/.test(normalized) ||
-    /^(reembolso|cancelamento|cancelar|quero cancelar|quero reembolso)$/.test(normalized);
-
-  if (!ehPedido) return false;
-
-  // Se a frase termina em pergunta e não é um pedido direto, trata como dúvida.
-  if (normalized.endsWith("?") && !/(quero|preciso|solicito|favor)/.test(normalized)) return false;
-
-  return true;
-};
-
-
-/** Prazo oficial, igual em todos os lugares (site, IA e notificações). */
-export const PRAZO_REEMBOLSO =
-  "Reembolsos aprovados são processados em até 48h e voltam pelo mesmo meio de pagamento. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.";
-
-/** Mensagem de pesar enviada antes do cartão — mesmo texto da função support-assistant. */
-export const pesarDoReembolso = (dentroDoPrazo: boolean) =>
-  dentroDoPrazo
-    ? `Sentimos muito que a sua experiência com a Velo não tenha sido boa. Para pedir o reembolso, toque no botão abaixo e responda algumas perguntas rápidas. ${PRAZO_REEMBOLSO}`
-    : "Sentimos muito que a sua experiência com a Velo não tenha sido boa. O reembolso só é possível em até 7 dias após o pagamento, e esse prazo já passou na sua conta. Você pode cancelar o plano tocando no botão abaixo: não haverá novas cobranças e tudo continua funcionando até o fim do período já pago.";
-
-/** Cartão automático exibido quando o usuário pede reembolso/cancelamento no chat. */
-export const buildRefundPromptMessage = () => SUPPORT_REFUND_PROMPT_MARKER;
 
 export const validateSupportImage = (file: File) => {
   if (!SUPPORT_IMAGE_TYPES.has(file.type)) {
@@ -407,7 +328,7 @@ export const FAQ_ITEMS: Array<{ question: string; answer: string }> = [
   {
     question: "Como cancelo minha assinatura ou peço reembolso?",
     answer:
-      `Escreva no chat de suporte que quer o reembolso ou o cancelamento e toque no botão que aparece. O reembolso vale para pagamentos feitos há até 7 dias; depois disso é possível cancelar o plano, mantendo o acesso até o fim do período pago. ${PRAZO_REEMBOLSO}`,
+      `Vá em ${REFUND_PAGE_LABEL}. Lá aparece um resumo do seu plano antes de qualquer confirmação. O reembolso vale para pagamentos feitos há até 7 dias; depois disso, você mesmo cancela a renovação em ${CANCEL_PAGE_LABEL}, mantendo o acesso até o fim do período pago. ${PRAZO_REEMBOLSO}`,
   },
   {
     question: "Como conecto o Mercado Livre à minha conta?",
@@ -448,6 +369,9 @@ export const formatTicketTime = (iso: string) =>
 const ACTIVE_SUPPORT_TICKET_KEY = "velo_active_support_ticket_id";
 
 export const ACTIVE_SUPPORT_TICKET_EVENT = "velo-active-support-ticket";
+/** Abre o chat de suporte do canto da tela (ex.: atalho na tela de assinatura). */
+export const OPEN_SUPPORT_CHAT_EVENT = "velo-open-support-chat";
+export const openSupportChat = () => window.dispatchEvent(new CustomEvent(OPEN_SUPPORT_CHAT_EVENT));
 
 export const readActiveSupportTicketId = () => {
   if (typeof window === "undefined") return null;

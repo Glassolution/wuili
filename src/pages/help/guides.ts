@@ -1,3 +1,4 @@
+import { CANCEL_PAGE_LABEL, PRAZO_REEMBOLSO, REFUND_PAGE_LABEL } from "@/lib/refundEligibility";
 import {
   AlertTriangle,
   CreditCard,
@@ -195,10 +196,11 @@ export const guideSections: GuideSection[] = [
         summary:
           "O reembolso pode ser pedido em até 7 dias após o pagamento e é analisado pela equipe.",
         steps: [
-          "Abra o chat de suporte e escreva que quer o reembolso.",
-          "Toque em Pedir reembolso e responda as perguntas.",
-          "O reembolso é feito em até 5 dias. No cartão, o valor pode aparecer só na próxima fatura, conforme o seu banco.",
-          "Passou de 7 dias do pagamento? É possível cancelar o plano, mantendo o acesso até o fim do período pago.",
+          `Vá em ${REFUND_PAGE_LABEL}.`,
+          "Em Garantia de 7 dias, toque em Ver minha conta e depois em Solicitar reembolso.",
+          "Escolha o motivo e toque em Solicitar reembolso para enviar.",
+          PRAZO_REEMBOLSO,
+          `Passou de 7 dias do pagamento? Você mesmo cancela a renovação em ${CANCEL_PAGE_LABEL}, mantendo o acesso até o fim do período pago.`,
         ],
       },
       {
@@ -268,7 +270,8 @@ export const guideSections: GuideSection[] = [
         summary:
           "Você pode cancelar a assinatura a qualquer momento.",
         steps: [
-          "Vá em Pagamentos → Minha assinatura → Cancelar.",
+          `Até 7 dias após o pagamento: vá em ${REFUND_PAGE_LABEL}, toque em Ver minha conta e depois em Cancelar renovação.`,
+          `Depois dos 7 dias: vá em ${CANCEL_PAGE_LABEL}, toque em Ver minha conta e depois em Cancelar renovação.`,
           "O acesso continua até o fim do ciclo já pago.",
           "Anúncios já publicados no seu Mercado Livre continuam lá — cancelar a Velo não apaga anúncios.",
           "Para excluir os dados da conta em definitivo, abra chamado no Suporte pedindo exclusão (LGPD).",

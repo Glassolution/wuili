@@ -29,6 +29,7 @@ import { ChatBubbleOvalLeftEllipsisIcon } from "@heroicons/react/24/solid";
 import {
   CATEGORY_LABEL,
   ACTIVE_SUPPORT_TICKET_EVENT,
+  OPEN_SUPPORT_CHAT_EVENT,
   createSupportTicket,
   parseSupportMessage,
   FAQ_ITEMS,
@@ -49,8 +50,7 @@ import {
   type SupportTicket,
 } from "@/lib/support";
 import { supabase } from "@/integrations/supabase/client";
-import { SupportRefundFlow } from "@/components/dashboard/SupportRefundFlow";
-import { refundCardAction, useRefundStatus, type RefundMode } from "@/lib/refundStatus";
+import { REFUND_PAGE_PATH } from "@/lib/refundEligibility";
 import SupportImagePreview from "@/components/support/SupportImagePreview";
 import SupportMessageMedia from "@/components/support/SupportMessageMedia";
 
@@ -95,8 +95,6 @@ const SupportFloatingWidget = () => {
   const [composingNewConversation, setComposingNewConversation] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [helpQuery, setHelpQuery] = useState("");
-  const [refundFlowOpen, setRefundFlowOpen] = useState(false);
-  const { status: refundStatus, refresh: refreshRefundStatus } = useRefundStatus(user?.id, open);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const openTickets = useMemo(() => tickets.filter((ticket) => ticket.status === "open"), [tickets]);
@@ -172,6 +170,12 @@ const SupportFloatingWidget = () => {
       void supabase.removeChannel(channel);
     };
   }, [open, user?.id]);
+
+  useEffect(() => {
+    const abrir = () => setOpen(true);
+    window.addEventListener(OPEN_SUPPORT_CHAT_EVENT, abrir);
+    return () => window.removeEventListener(OPEN_SUPPORT_CHAT_EVENT, abrir);
+  }, []);
 
   useEffect(() => {
     const syncActiveTicket = (event: Event) => {
@@ -518,11 +522,6 @@ const SupportFloatingWidget = () => {
                         setComposingNewConversation(false);
                       }}
                       onCreateTicket={handleCreateTicketFromChat}
-                      refundMode={refundStatus?.mode}
-                      onOpenRefundFlow={() => {
-                        void refreshRefundStatus();
-                        setRefundFlowOpen(true);
-                      }}
                     />
                   )}
 
@@ -551,25 +550,6 @@ const SupportFloatingWidget = () => {
               <WidgetNavButton tab="help" label="Ajuda" icon={HelpCircle} active={tab === "help"} onClick={setTab} />
             </nav>
 
-            {user?.id && selectedTicket ? (
-              <SupportRefundFlow
-                open={refundFlowOpen}
-                userId={user.id}
-                ticketId={selectedTicket.id}
-                status={refundStatus}
-                supportHours={SUPPORT_HOURS}
-                onClose={() => setRefundFlowOpen(false)}
-                onMessage={(message) =>
-                  setMessages((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]))
-                }
-                onSubmitted={() => {
-                  void refreshRefundStatus();
-                  setTickets((current) =>
-                    current.map((ticket) => (ticket.id === selectedTicket.id ? { ...ticket, category: "reembolso" } : ticket)),
-                  );
-                }}
-              />
-            ) : null}
           </motion.section>
         )}
       </AnimatePresence>
@@ -823,8 +803,6 @@ const SupportMessages = ({
   onStartNewConversation,
   onCancelNewConversation,
   onCreateTicket,
-  onOpenRefundFlow,
-  refundMode,
 }: {
   tickets: SupportTicket[];
   ticketsLoading: boolean;
@@ -855,8 +833,6 @@ const SupportMessages = ({
   onStartNewConversation: () => void;
   onCancelNewConversation: () => void;
   onCreateTicket: () => void;
-  onOpenRefundFlow: () => void;
-  refundMode?: RefundMode;
 }) => {
   const replyFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -876,7 +852,7 @@ const SupportMessages = ({
           {messagesLoading && <LoadingLine label="Carregando conversa..." />}
           {!messagesLoading && messages.length === 0 && <EmptyLine label="A conversa deste ticket ainda está vazia." />}
           {messages.map((message) => (
-            <SupportBubble key={message.id} message={message} onRefundClick={onOpenRefundFlow} refundMode={refundMode} />
+            <SupportBubble key={message.id} message={message} />
           ))}
           {(sendingReply || assistantIsReplying) && <TypingBubble />}
           {closed && (
@@ -1271,23 +1247,15 @@ const StatusBadge = ({ status, compact = false }: { status: SupportTicket["statu
   </span>
 );
 
-const SupportBubble = ({
-  message,
-  onRefundClick,
-  refundMode,
-}: {
-  message: SupportMessage;
-  onRefundClick?: () => void;
-  refundMode?: RefundMode;
-}) => {
+const SupportBubble = ({ message }: { message: SupportMessage }) => {
   const isUser = message.sender === "user";
   // Toda resposta do canal aparece como "Suporte Velo". A distinção entre
   // assistente e equipe continua no painel admin.
   const senderLabel = "Suporte Velo";
 
+  // Conversas antigas guardam o cartão de reembolso que existia no chat. Hoje o
+  // pedido é feito só em Configurações → Perfil, então o cartão vira um atalho.
   if (!isUser && parseSupportMessage(message.message).refundPrompt) {
-    const acao = refundCardAction(refundMode);
-    const cancelar = refundMode === "cancelamento";
     return (
       <div className="flex items-start gap-2.5">
         <span className="mt-0.5">
@@ -1296,24 +1264,14 @@ const SupportBubble = ({
         <div className="w-full max-w-[82%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm ring-1 ring-black/[0.04]">
           <p className="mb-1 text-[11px] font-semibold text-[#6B7280]">{senderLabel}</p>
           <p className="text-[13px] leading-5 text-[#111827]">
-            {cancelar
-              ? "Para cancelar o plano, responda algumas perguntas rápidas."
-              : acao.enabled
-                ? "Para pedir o reembolso, responda algumas perguntas rápidas."
-                : "Acompanhe por aqui a situação do seu pedido."}
+            O reembolso e o cancelamento da assinatura são feitos em Configurações → Perfil.
           </p>
-          <button
-            type="button"
-            onClick={onRefundClick}
-            disabled={!acao.enabled}
-            className={`mt-2.5 flex h-10 w-full items-center justify-center rounded-[12px] text-[13px] font-bold transition ${
-              acao.enabled
-                ? "bg-[#DC2626] text-white hover:bg-[#B91C1C]"
-                : "cursor-default bg-[#F3F4F6] text-[#6B7280]"
-            }`}
+          <a
+            href={REFUND_PAGE_PATH}
+            className="mt-2.5 flex h-10 w-full items-center justify-center rounded-[12px] bg-[#2563EB] text-[13px] font-bold text-white transition hover:bg-[#1D4ED8]"
           >
-            {acao.label}
-          </button>
+            Abrir em Configurações
+          </a>
           <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
         </div>
       </div>

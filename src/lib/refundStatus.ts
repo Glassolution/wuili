@@ -1,70 +1,57 @@
-import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getRefundMode, type RefundMode, type RefundSubscription } from "./refundEligibility";
+import { getRefundMode, REFUNDABLE_SUBSCRIPTION_STATUSES, type RefundMode } from "./refundEligibility";
 export type { RefundMode } from "./refundEligibility";
 
 /*
  * Situação do cliente para reembolso/cancelamento: o que ele pode fazer agora.
- * Usado pelo cartão do chat de suporte e pela área de reembolso.
+ * Usado pela seção Garantia de 7 dias / Encerrar assinatura (Configurações → Perfil).
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tabelas de reembolso ainda fora dos tipos gerados
 const db = supabase as any;
 
-type Assinatura = RefundSubscription;
+export type RefundAssinatura = {
+  id: string;
+  plan: string | null;
+  status: string | null;
+  amount: number | null;
+  provider: string | null;
+  payment_method: string | null;
+  purchase_kind: string | null;
+  created_at: string;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean | null;
+};
 
-export type RefundStatus = { mode: RefundMode; assinatura: Assinatura | null };
+export type RefundStatus = { mode: RefundMode; assinatura: RefundAssinatura | null };
 
-/** O que a pessoa pode fazer agora: pedir reembolso, só cancelar, ou nada. */
-export const fetchRefundStatus = async (userId: string): Promise<RefundStatus> => {
-  const { data: assinatura } = await db
+const ehSandbox = (s: Pick<RefundAssinatura, "provider" | "payment_method">) =>
+  String(s.provider ?? s.payment_method ?? "").toLowerCase() === "sandbox";
+
+/**
+ * Assinatura mais recente em vigor e o que dá para fazer com ela.
+ * `sandbox` separa as assinaturas de teste dos admins das reais.
+ */
+export const fetchRefundStatus = async (userId: string, sandbox = false): Promise<RefundStatus> => {
+  const { data: assinaturas, error } = await db
     .from("subscriptions")
-    .select("id, created_at, amount, current_period_end, cancel_at_period_end")
+    .select("id, plan, status, amount, provider, payment_method, purchase_kind, created_at, current_period_end, cancel_at_period_end")
     .eq("user_id", userId)
-    .in("status", ["active", "paid", "approved", "authorized"])
+    .in("status", REFUNDABLE_SUBSCRIPTION_STATUSES)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
+  if (error) throw error;
+  const assinatura =
+    ((assinaturas ?? []) as RefundAssinatura[]).find((s) => ehSandbox(s) === sandbox) ?? null;
 
-  const { data: pedidos } = await db
+  const { data: pedidos, error: erroPedidos } = await db
     .from("refund_requests")
     .select("subscription_id, status")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
+  if (erroPedidos) throw erroPedidos;
   const lista = (pedidos ?? []) as Array<{ subscription_id: string | null; status: string | null }>;
 
   return { mode: getRefundMode(assinatura, lista), assinatura };
-};
-
-export const useRefundStatus = (userId: string | null | undefined, enabled: boolean) => {
-  const [status, setStatus] = useState<RefundStatus | null>(null);
-  const refresh = useCallback(async () => {
-    if (!userId) return null;
-    try {
-      const next = await fetchRefundStatus(userId);
-      setStatus(next);
-      return next;
-    } catch (error) {
-      console.error("refund status", error);
-      return null;
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (enabled) void refresh();
-  }, [enabled, refresh]);
-
-  return { status, refresh };
-};
-
-/** Texto do botão do cartão no chat, conforme a situação. */
-export const refundCardAction = (mode: RefundMode | undefined) => {
-  if (!mode) return { label: "Verificando assinatura…", enabled: false };
-  if (mode === "cancelamento") return { label: "Cancelar renovação", enabled: true };
-  if (mode === "em_analise") return { label: "Pedido em análise", enabled: false };
-  if (mode === "aprovado") return { label: "Reembolso aprovado", enabled: false };
-  if (mode === "cancelado") return { label: "Plano já cancelado", enabled: false };
-  if (mode === "sem_assinatura") return { label: "Nenhuma assinatura ativa", enabled: false };
-  return { label: "Pedir reembolso", enabled: true };
 };
