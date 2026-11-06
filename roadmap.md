@@ -1,5 +1,11 @@
 # Roadmap
 
+## Recorrências após cancelamento/reembolso
+- [ ] Unificar cancelamento confirmado na ValidaPay com fila de retentativas para novos pedidos
+- [ ] Bloquear reativação e efeitos financeiros no webhook e reconciliação; preservar outras assinaturas válidas
+- [ ] Exibir incidentes e diagnóstico histórico somente leitura; exigir confirmação pontual para estorno
+- [ ] Testar com provedor simulado, publicar funções afetadas e verificar logs sem movimentação histórica
+
 ## Admin — Fase 1
 - [x] Paginar Usuários no servidor com abas, busca e contadores globais
 - [x] Corrigir leituras inválidas de role e validar quatro índices com EXPLAIN
