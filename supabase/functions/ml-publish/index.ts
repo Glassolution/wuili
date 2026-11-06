@@ -205,6 +205,13 @@ function buildSellerBlockedMessage(codes: string[]): string {
   return `O Mercado Livre bloqueou a criação do anúncio para esta conta: ${reason}.${codeText} Faça uma publicação manual de teste dentro do Mercado Livre com esta mesma conta para ver o aviso oficial e, depois de resolver, reconecte a integração na Velo.`
 }
 
+// Conta sem Mercado Envios aceito (status.mercadoenvios = 'not_accepted'):
+// publicar em me2 deixa o anúncio como "Entrega a combinar" para o comprador,
+// sem etiqueta — o que quebra todo o fluxo de pós-venda da Velo. Por isso
+// este bloqueio é HARD (diferente dos soft-blocks de list.allow).
+const ML_SHIPPING_NOT_ACCEPTED_MESSAGE =
+  'Seu Mercado Envios ainda não está ativo. Crie um anúncio de teste direto no Mercado Livre escolhendo Mercado Envios e volte aqui.'
+
 async function validateSellerCanList(accessToken: string): Promise<SellerStatusBlock | null> {
   try {
     const res = await fetch('https://api.mercadolibre.com/users/me', {
