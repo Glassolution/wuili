@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, ExternalLink, MapPin } from "lucide-react";
+import { X, ExternalLink, MapPin, RefreshCw } from "lucide-react";
 import { infoFaltanteDoVendedor } from "@/lib/mlSellerBlocked";
+import { supabase } from "@/integrations/supabase/client";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type Props = {
   open: boolean;
@@ -18,7 +20,33 @@ type Props = {
 */
 const MlMissingInfoModal = ({ open, onClose, sellerCodes }: Props) => {
   const [visible, setVisible] = useState(false);
+  const [verificando, setVerificando] = useState(false);
   const info = infoFaltanteDoVendedor(sellerCodes);
+
+  // "Já fiz, verificar de novo": pergunta de novo ao Mercado Livre se a conta
+  // já está apta (e se o Mercado Envios já foi ativado). Liberou → fecha o
+  // modal e a pessoa publica na hora; ainda não → aviso para tentar depois.
+  const verificarDeNovo = async () => {
+    if (verificando) return;
+    setVerificando(true);
+    try {
+      const { data } = await supabase.functions.invoke("ml-seller-status");
+      const liberado =
+        data?.connected === true && data?.canList === true && data?.shippingBlocked !== true;
+      if (liberado) {
+        veloToast.success("Tudo certo! Sua conta já está liberada. Pode publicar.");
+        onClose();
+      } else if (data?.shippingBlocked === true) {
+        veloToast.info("O Mercado Envios ainda não está ativo na sua conta. Conclua o anúncio de teste no Mercado Livre e tente de novo.");
+      } else {
+        veloToast.info("O Mercado Livre ainda não liberou sua conta. Aguarde alguns minutos e tente de novo.");
+      }
+    } catch {
+      veloToast.error("Não consegui verificar agora. Tente de novo em instantes.");
+    } finally {
+      setVerificando(false);
+    }
+  };
 
   useEffect(() => {
     setVisible(open);
@@ -95,6 +123,14 @@ const MlMissingInfoModal = ({ open, onClose, sellerCodes }: Props) => {
             >
               {info.botao}
               <ExternalLink size={14} />
+            </button>
+            <button
+              onClick={() => void verificarDeNovo()}
+              disabled={verificando}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full border border-[#2563EB]/25 bg-[#EFF4FF] px-5 py-2.5 text-[13.5px] font-semibold text-[#2563EB] transition-colors hover:bg-[#E2EBFF] disabled:opacity-60"
+            >
+              <RefreshCw size={14} className={verificando ? "animate-spin" : ""} />
+              {verificando ? "Verificando..." : "Já fiz, verificar de novo"}
             </button>
             <p className="mt-3 text-center text-[12px] leading-[1.5] text-[#8A8F98]">
               Depois de preencher lá, volte e toque em publicar de novo.

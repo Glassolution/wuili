@@ -78,6 +78,8 @@ type MLAttribute = {
 type SellerStatusBlock = {
   message: string
   details: Record<string, unknown>
+  /** true = bloquear a publicação de fato; false/ausente = só logar (soft-block). */
+  hard?: boolean
 }
 
 // Limites de produtos publicados por plano, alinhados ao que é vendido no
@@ -205,6 +207,13 @@ function buildSellerBlockedMessage(codes: string[]): string {
   return `O Mercado Livre bloqueou a criação do anúncio para esta conta: ${reason}.${codeText} Faça uma publicação manual de teste dentro do Mercado Livre com esta mesma conta para ver o aviso oficial e, depois de resolver, reconecte a integração na Velo.`
 }
 
+// Conta sem Mercado Envios aceito (status.mercadoenvios = 'not_accepted'):
+// publicar em me2 deixa o anúncio como "Entrega a combinar" para o comprador,
+// sem etiqueta — o que quebra todo o fluxo de pós-venda da Velo. Por isso
+// este bloqueio é HARD (diferente dos soft-blocks de list.allow).
+const ML_SHIPPING_NOT_ACCEPTED_MESSAGE =
+  'Seu Mercado Envios ainda não está ativo. Crie um anúncio de teste direto no Mercado Livre escolhendo Mercado Envios e volte aqui.'
+
 async function validateSellerCanList(accessToken: string): Promise<SellerStatusBlock | null> {
   try {
     const res = await fetch('https://api.mercadolibre.com/users/me', {
@@ -224,6 +233,26 @@ async function validateSellerCanList(accessToken: string): Promise<SellerStatusB
     const listAllow = list.allow
     const sellAllow = sell.allow
     const shoppingCartSell = shoppingCart.sell
+
+    // Mercado Envios não aceito na conta: publicar em me2 gera anúncio
+    // "Entrega a combinar" sem etiqueta, inviável para o pós-venda da Velo.
+    // Bloqueio HARD — reconferido a cada tentativa de publicação, então
+    // libera sozinho assim que o ML marcar a conta como accepted.
+    if (status.mercadoenvios === 'not_accepted') {
+      return {
+        message: ML_SHIPPING_NOT_ACCEPTED_MESSAGE,
+        hard: true,
+        details: {
+          ml_user_id: data.id,
+          code: 'ML_SHIPPING_NOT_ACCEPTED',
+          seller_codes: ['mercadoenvios_not_accepted'],
+          status: {
+            mercadoenvios: status.mercadoenvios,
+            site_status: status.site_status,
+          },
+        },
+      }
+    }
 
     if (listAllow === false || sellAllow === false || shoppingCartSell === 'not_allowed') {
       const codes = collectSellerStatusCodes(
@@ -1058,6 +1087,14 @@ Deno.serve(async (req) => {
     // buildSellerBlockedMessage + code=ML_SELLER_CANNOT_LIST e a UI abre o
     // tutorial. Mantemos apenas um log de aviso para observabilidade.
     const sellerBlock = await validateSellerCanList(accessToken)
+    if (sellerBlock?.hard) {
+      // Bloqueio real (ex.: Mercado Envios não aceito): não tenta publicar.
+      return json({
+        error: sellerBlock.message,
+        code: (sellerBlock.details.code as string) ?? 'ML_SELLER_CANNOT_LIST',
+        seller_codes: (sellerBlock.details.seller_codes as string[]) ?? [],
+      }, 400)
+    }
     if (sellerBlock) {
       console.warn('[ml-publish] /users/me indica bloqueio soft, tentando publicar mesmo assim:', JSON.stringify(sellerBlock.details).substring(0, 500))
     }

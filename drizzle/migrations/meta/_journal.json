@@ -260,6 +260,13 @@
       "when": 1793543454514,
       "tag": "0036_lifetime_charge_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793923394787,
+      "tag": "0037_ml_seller_readiness_mercadoenvios",
+      "breakpoints": true
     }
   ]
 }

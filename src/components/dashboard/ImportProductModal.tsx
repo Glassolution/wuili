@@ -450,7 +450,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         // Conta do ML ainda não habilitada a vender. Como o pagamento vem antes
         // da ativação, o anúncio não se perde: guardamos pronto e ele sobe
         // sozinho assim que a conta for liberada.
-        if (codigo === "ML_SELLER_CANNOT_LIST") {
+        if (codigo === "ML_SELLER_CANNOT_LIST" || codigo === "ML_SHIPPING_NOT_ACCEPTED") {
           trackError("publish:ml_seller_cannot_list");
           veloToast.dismiss(toastId);
           trackMobileHomeEvent(user.id, "paid_without_seller", { productId: product.id, detail: "na_publicacao" });

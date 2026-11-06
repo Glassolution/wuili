@@ -311,7 +311,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       }
     } catch (erro) {
       const codigo = erro instanceof ErroDePublicacao ? erro.codigo : undefined;
-      if (codigo === "ML_SELLER_CANNOT_LIST") {
+      if (codigo === "ML_SELLER_CANNOT_LIST" || codigo === "ML_SHIPPING_NOT_ACCEPTED") {
         veloToast.dismiss(toastId);
         setContaBloqueada(true);
         setMlMissingCodes(erro instanceof ErroDePublicacao ? (erro.sellerCodes ?? []) : []);

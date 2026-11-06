@@ -160,19 +160,23 @@ async function verificarContaML(admin: SupabaseClient, userId: string) {
   if (!me?.phone?.number) faltando.push("número de celular");
   if (!me?.identification?.number) faltando.push("CPF/CNPJ");
 
+  const mercadoenvios = typeof st?.mercadoenvios === 'string' ? st.mercadoenvios : null
+
   await admin.from("ml_seller_readiness").upsert({
     user_id: userId, can_list: listAllow && sellAllow, codes, source: "assistente",
-    ml_user_id: tok.mlUserId, last_error: null, checked_at: new Date().toISOString(),
+    ml_user_id: tok.mlUserId, mercadoenvios, last_error: null, checked_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
 
   return {
     pode_publicar: listAllow && sellAllow,
     apelido_conta: me?.nickname ?? null,
     tipo_conta: me?.user_type ?? null,
+    mercadoenvios,
+    mercado_envios_ativo: mercadoenvios !== 'not_accepted',
     bloqueios: codes.map((c) => TRADUCAO[c] ?? `código do Mercado Livre não reconhecido: ${c}`),
     dados_faltando_no_cadastro: faltando,
     onde_corrigir: "mercadolivre.com.br > Meu perfil > Meus dados (endereço, telefone e documento)",
-    observacao: "Explique os bloqueios e o passo a passo para resolver. Peça para a pessoa conferir no Mercado Livre e testar publicando um anúncio manual lá. Só acione o suporte humano se o código não for reconhecido ou se ela já fez tudo isso, esperou algumas horas e continua bloqueada.",
+    observacao: "Explique os bloqueios e o passo a passo para resolver. Se mercado_envios_ativo for false, o Mercado Envios não está ativo na conta: anúncios ficam como 'Entrega a combinar' (sem etiqueta) e a Velo bloqueia a publicação — oriente a pessoa a criar um anúncio de teste direto no Mercado Livre escolhendo Mercado Envios e tentar de novo. Peça para a pessoa conferir no Mercado Livre e testar publicando um anúncio manual lá. Só acione o suporte humano se o código não for reconhecido ou se ela já fez tudo isso, esperou algumas horas e continua bloqueada.",
   };
 }
 
