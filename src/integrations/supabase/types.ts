@@ -2696,6 +2696,59 @@ export type Database = {
           },
         ]
       }
+      provider_cancellation_requests: {
+        Row: {
+          attempts: number
+          confirmed_at: string | null
+          created_at: string
+          last_error: string | null
+          lease_until: string | null
+          next_retry_at: string | null
+          provider_subscription_id: string
+          reason: string
+          state: string
+          subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          confirmed_at?: string | null
+          created_at?: string
+          last_error?: string | null
+          lease_until?: string | null
+          next_retry_at?: string | null
+          provider_subscription_id: string
+          reason: string
+          state?: string
+          subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          confirmed_at?: string | null
+          created_at?: string
+          last_error?: string | null
+          lease_until?: string | null
+          next_retry_at?: string | null
+          provider_subscription_id?: string
+          reason?: string
+          state?: string
+          subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_cancellation_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: true
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_rewards: {
         Row: {
           applied_at: string | null
@@ -4525,6 +4578,29 @@ export type Database = {
       }
       auth_email_exists: { Args: { p_email: string }; Returns: boolean }
       claim_project_invites: { Args: never; Returns: number }
+      claim_provider_cancellation: {
+        Args: { p_subscription_id: string }
+        Returns: {
+          attempts: number
+          confirmed_at: string | null
+          created_at: string
+          last_error: string | null
+          lease_until: string | null
+          next_retry_at: string | null
+          provider_subscription_id: string
+          reason: string
+          state: string
+          subscription_id: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "provider_cancellation_requests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       close_stale_support_tickets: { Args: never; Returns: number }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
       get_aliexpress_cron_status: {
