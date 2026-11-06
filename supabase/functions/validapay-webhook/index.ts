@@ -449,7 +449,8 @@ Deno.serve(async (req) => {
         .from("profiles")
         .update({ plano: subscription.plan })
         .eq("user_id", subscription.user_id);
-      await clearRefundCooldownAfterRepurchase(admin, subscription.user_id);
+      // activate() runs only after server-side confirmation, including events without chargeId.
+      await clearRefundCooldownAfterRepurchase(admin, subscription.user_id, subscription.id);
     };
 
     const setStatus = async (status: string, downgrade = false) => {

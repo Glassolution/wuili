@@ -13,7 +13,7 @@ type Subscription = {
   origin_paid_at?: string | null;
 };
 
-export function isPaidRepurchase(sub: Subscription, refundedAt: string): boolean {
+export function isPaidRepurchase(sub: Subscription, refundedAt: string, verifiedSubscriptionId?: string): boolean {
   const created = Date.parse(sub.created_at);
   const refunded = Date.parse(refundedAt);
   const paymentIds = [sub.validapay_charge_id, sub.mp_payment_id, sub.stripe_subscription_id];
@@ -21,7 +21,8 @@ export function isPaidRepurchase(sub: Subscription, refundedAt: string): boolean
     ["base", "go", "plus", "pro", "business"].includes(sub.plan) &&
     sub.provider !== "sandbox" && sub.payment_method !== "sandbox" &&
     Number.isFinite(created) && Number.isFinite(refunded) && created > refunded &&
-    paymentIds.some((id) => typeof id === "string" && id.trim().length > 0 && !id.startsWith("sandbox_"));
+    (sub.id === verifiedSubscriptionId ||
+      paymentIds.some((id) => typeof id === "string" && id.trim().length > 0 && !id.startsWith("sandbox_")));
 }
 
 // Structural interface accepts both SDK imports used by the existing functions.
@@ -31,7 +32,7 @@ type Admin = {
 };
 
 /** Only server clients may call this; never accept payment evidence from a browser. */
-export async function clearRefundCooldownAfterRepurchase(admin: Admin, userId: string): Promise<boolean> {
+export async function clearRefundCooldownAfterRepurchase(admin: Admin, userId: string, verifiedSubscriptionId?: string): Promise<boolean> {
   const { data: profile, error: profileError } = await admin.from("profiles")
     .select("refund_cooldown_until").eq("user_id", userId).maybeSingle();
   if (profileError) throw new Error(`cooldown_profile_read:${profileError.message}`);
@@ -49,7 +50,7 @@ export async function clearRefundCooldownAfterRepurchase(admin: Admin, userId: s
     .select("id,status,created_at,amount,plan,is_trial,provider,payment_method,validapay_charge_id,mp_payment_id,stripe_subscription_id,origin_paid_at")
     .eq("user_id", userId).eq("status", "active").gt("created_at", refund.processed_at);
   if (subError) throw new Error(`cooldown_subscription_read:${subError.message}`);
-  if (!(subscriptions ?? []).some((sub: Subscription) => isPaidRepurchase(sub, refund.processed_at))) return false;
+  if (!(subscriptions ?? []).some((sub: Subscription) => isPaidRepurchase(sub, refund.processed_at, verifiedSubscriptionId))) return false;
 
   // Compare-and-set: a simultaneous new refund must not lose its new cooldown.
   const { data: updated, error: updateError } = await admin.from("profiles")

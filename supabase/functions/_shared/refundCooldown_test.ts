@@ -25,6 +25,11 @@ Deno.test("gratuito, teste ou sem comprovante não libera", () => {
   assertEquals(isPaidRepurchase({ ...repurchase, validapay_charge_id: null }, refundedAt), false);
   assertEquals(isPaidRepurchase({ ...repurchase, provider: "sandbox" }, refundedAt), false);
 });
+Deno.test("webhook sem chargeId libera apenas a assinatura que confirmou no servidor", () => {
+  const sub = { ...repurchase, validapay_charge_id: null };
+  assertEquals(isPaidRepurchase(sub, refundedAt, "new-base"), true);
+  assertEquals(isPaidRepurchase(sub, refundedAt, "another-sub"), false);
+});
 
 function fakeAdmin(options: { cooldown?: string | null; refund?: string | null; fail?: string; concurrentRefund?: boolean } = {}) {
   let cooldown = options.cooldown === undefined ? "2026-12-05T15:00:00Z" : options.cooldown;
