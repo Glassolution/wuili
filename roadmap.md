@@ -1,9 +1,9 @@
 # Roadmap
 
 ## Admin — Fase 1
-- [ ] Paginar Usuários no servidor com abas, busca e contadores globais
-- [ ] Corrigir leituras inválidas de role e validar índices com EXPLAIN
-- [ ] Testar regras, acesso e comparar uma abertura antes/depois sem gravações
+- [x] Paginar Usuários no servidor com abas, busca e contadores globais
+- [x] Corrigir leituras inválidas de role e validar quatro índices com EXPLAIN
+- [x] Quatro testes de entrada e nove regras SQL; abas/página/busca e 401/400 conferidos sem gravações; abertura 40,3s (função 546) → 4,3s (200), duas chamadas principais
 - Escopo: não alterar Suporte, Reembolsos, pagamentos nem registros de clientes
 
 ## Nova compra após reembolso e FAQ 5
