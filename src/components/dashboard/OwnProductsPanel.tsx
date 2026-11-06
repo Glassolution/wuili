@@ -112,7 +112,7 @@ const OwnProductsPanel = () => {
           });
           return;
         }
-        if (code === "ML_SELLER_CANNOT_LIST") {
+        if (code === "ML_SELLER_CANNOT_LIST" || code === "ML_SHIPPING_NOT_ACCEPTED") {
           veloToast.dismiss(toastId);
           setMlMissingCodes(Array.isArray(body?.seller_codes) ? body.seller_codes : []);
           return;
