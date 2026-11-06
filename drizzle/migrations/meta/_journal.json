@@ -288,6 +288,13 @@
       "when": 1793994533800,
       "tag": "0040_validapay_cancellation_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793995498273,
+      "tag": "0041_harden_cancelled_payment_lifecycle",
+      "breakpoints": true
     }
   ]
 }

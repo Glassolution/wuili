@@ -2526,6 +2526,50 @@ export type Database = {
         }
         Relationships: []
       }
+      post_cancel_refund_operations: {
+        Row: {
+          amount: number
+          charge_id: string
+          created_at: string
+          reason: string
+          refund_request_id: string | null
+          state: string
+          subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          charge_id: string
+          created_at?: string
+          reason: string
+          refund_request_id?: string | null
+          state?: string
+          subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          charge_id?: string
+          created_at?: string
+          reason?: string
+          refund_request_id?: string | null
+          state?: string
+          subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_cancel_refund_operations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           aliexpress_access_token: string | null
@@ -4549,6 +4593,21 @@ export type Database = {
       admin_mark_support_ticket_seen: {
         Args: { p_ticket_id: string }
         Returns: string
+      }
+      admin_post_cancel_renewals: {
+        Args: never
+        Returns: {
+          amount: number
+          cancelled_at: string
+          charge_id: string
+          email: string
+          paid_at: string
+          refund_recorded: boolean
+          refunded_at: string
+          subscription_id: string
+          user_id: string
+          validapay_subscription_id: string
+        }[]
       }
       admin_support_unread_count: { Args: never; Returns: number }
       admin_user_segment: {
