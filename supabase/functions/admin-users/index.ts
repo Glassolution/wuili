@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { parsePageRequest } from "./request.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,23 +45,6 @@ async function isAdmin(adminClient: ReturnType<typeof createClient>, userId: str
   return !!data;
 }
 
-async function loadProfiles(adminClient: ReturnType<typeof createClient>): Promise<ProfileRow[]> {
-  const fullSelect = await adminClient
-    .from("profiles")
-    .select("id,user_id,full_name,display_name,email,avatar_url,created_at")
-    .order("created_at", { ascending: false });
-
-  if (!fullSelect.error) return (fullSelect.data ?? []) as ProfileRow[];
-
-  const fallback = await adminClient
-    .from("profiles")
-    .select("id,user_id,display_name,avatar_url,created_at")
-    .order("created_at", { ascending: false });
-
-  if (fallback.error) throw fallback.error;
-  return (fallback.data ?? []) as ProfileRow[];
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -88,18 +72,29 @@ Deno.serve(async (req) => {
       return json({ error: "Acesso restrito a admins" }, 403);
     }
 
-    // Quando o cliente pede apenas alguns usuários (ex.: fallback do suporte),
-    // evitamos varrer os milhares de usuários do projeto.
-    let requestedIds: string[] = [];
+    let body: Record<string, unknown> = {};
     if (req.method === "POST") {
       try {
-        const body = await req.json();
-        if (Array.isArray(body?.user_ids)) {
-          requestedIds = body.user_ids.filter((id: unknown) => typeof id === "string");
-        }
-      } catch {
-        /* corpo vazio */
+        const parsed: unknown = await req.json();
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json({ error: "Parâmetros inválidos" }, 400);
+        body = parsed as Record<string, unknown>;
+      } catch { return json({ error: "JSON inválido" }, 400); }
+    }
+    // Keep the requested-ID compatibility path used by support and finance.
+    const requestedIds = Array.isArray(body.user_ids) ? body.user_ids.filter((id): id is string => typeof id === "string") : [];
+    if ("user_ids" in body && (!requestedIds.length || requestedIds.length > 2000 || requestedIds.some((id) => !/^[0-9a-f-]{36}$/i.test(id)))) return json({ error: "IDs inválidos" }, 400);
+    if (!("user_ids" in body)) {
+      if (body.action === "counts") {
+        const { data, error } = await userClient.rpc("admin_users_counts");
+        if (error) throw error;
+        return json(data);
       }
+      let parameters;
+      try { parameters = parsePageRequest(body); }
+      catch (error) { return json({ error: error instanceof Error ? error.message : "Parâmetros inválidos" }, 400); }
+      const { data, error } = await userClient.rpc("admin_users_page", parameters);
+      if (error) throw error;
+      return json(data);
     }
 
     // deno-lint-ignore no-explicit-any -- usuários do auth têm shape heterogêneo
@@ -112,14 +107,6 @@ Deno.serve(async (req) => {
         })
       );
       authUsers.push(...found.filter(Boolean));
-    } else {
-      const perPage = 1000;
-      for (let page = 1; ; page += 1) {
-        const { data, error: authError } = await adminClient.auth.admin.listUsers({ page, perPage });
-        if (authError) throw authError;
-        authUsers.push(...data.users);
-        if (data.users.length < perPage) break;
-      }
     }
 
     const userIds = authUsers.map((u) => u.id).filter(Boolean);
