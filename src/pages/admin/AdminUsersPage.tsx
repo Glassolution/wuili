@@ -230,7 +230,7 @@ const AdminUsersPage = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="admin-segmented">
                   {statusFilters.map((s) => (
-                    <button
+                    <Button variant="ghost" size="sm"
                       key={s.key}
                       onClick={() => {
                         setFilter(s.key);
