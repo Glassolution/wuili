@@ -1784,6 +1784,14 @@ const fallbackReply = (message: string): AtlasResponse => {
     };
   }
 
+  // Reembolso/cancelamento: só orientação geral em texto, sem botão nem atalho.
+  if (/reembols|cancelar (a )?(renovacao|assinatura)|estorno/.test(normalizedMessage)) {
+    return {
+      message: "Você pode consultar as opções de reembolso e de renovação em Configurações, na área de gerenciamento da assinatura.",
+      actions: [],
+    };
+  }
+
   if (normalizedMessage.includes("plano") || normalizedMessage.includes("assinatura")) {
     return {
       message:
