@@ -9,8 +9,8 @@ export const SUPPORT_PAGES = [
   { id: "suporte", label: "Configurações → Suporte", route: "/dashboard/configuracoes?tab=Suporte", description: "Chamados e atendimento da Velo.", aliases: ["suporte", "chamado", "chamados", "atendimento"] },
   { id: "perfil", label: "Configurações → Perfil", route: "/dashboard/configuracoes?tab=Perfil", description: "Dados pessoais e alteração de e-mail.", aliases: ["perfil", "email", "e-mail"] },
   { id: "seguranca", label: "Configurações → Segurança", route: "/dashboard/configuracoes?tab=Seguran%C3%A7a", description: "Segurança da conta e senha.", aliases: ["seguranca", "segurança", "senha"] },
-  { id: "assinatura", label: "Configurações → Perfil", route: "/dashboard/configuracoes?tab=Perfil#velo-reembolso", description: "Gerenciar assinatura: solicitação de reembolso dentro da garantia (some do Perfil depois dos 7 dias). Abrir esta página não cancela nada.", aliases: ["reembolso", "garantia"] },
-  { id: "renovacao", label: "Configurações → Plano", route: "/dashboard/configuracoes?tab=Plano#velo-cancelar-renovacao", description: "Cancelar a renovação depois dos 7 dias da garantia. Abrir esta página não cancela nada.", aliases: ["cancelar renovacao", "cancelar renovação", "cancelar assinatura"] },
+  { id: "assinatura", label: "Configurações, na área de gerenciamento da assinatura", route: "/dashboard/configuracoes?tab=Perfil#velo-reembolso", description: "Gerenciar assinatura: solicitação de reembolso dentro da garantia (some do Perfil depois dos 7 dias). Abrir esta página não cancela nada.", aliases: ["reembolso", "garantia"] },
+  { id: "renovacao", label: "Configurações, na área de gerenciamento da assinatura", route: "/dashboard/configuracoes?tab=Plano#velo-cancelar-renovacao", description: "Cancelar a renovação depois dos 7 dias da garantia. Abrir esta página não cancela nada.", aliases: ["cancelar renovacao", "cancelar renovação", "cancelar assinatura"] },
   { id: "ajuda", label: "Central de Ajuda", route: "/ajuda", description: "Artigos do FAQ.", aliases: ["faq", "central de ajuda"] },
 ];
 
@@ -32,7 +32,7 @@ export function supportNavigationReply(message: string): string | null {
   const match = ranked[0];
   if (!match || (ranked[1]?.score === match.score)) return null;
   if (SEM_LINK.has(match.page.id)) {
-    return `No menu, vá em ${match.page.label} e desça até a seção "Gerenciar assinatura".`;
+    return "Você pode consultar as opções da sua assinatura em Configurações, na área de gerenciamento da assinatura.";
   }
   return `Você encontra em [${match.page.label}](${match.page.route}).`;
 }
@@ -41,5 +41,5 @@ export const SUPPORT_NAVIGATION_PROMPT = `Páginas reais da Velo (use links mark
 ${SUPPORT_PAGES.map((page) => SEM_LINK.has(page.id)
   ? `- ${page.label} (só em texto, NUNCA com link): ${page.description}`
   : `- ${page.label}: ${page.route}. ${page.description}`).join("\n")}
-Reembolso e cancelamento da assinatura: diga só onde fica (Configurações → Perfil, seção "Gerenciar assinatura"; ou Configurações → Plano, seção "Gerenciar assinatura"), sem link e sem atalho. O cliente vai até lá sozinho.
+Reembolso e cancelamento da assinatura: dê só uma orientação geral ("em Configurações, na área de gerenciamento da assinatura"), sem aba exata, etapas, link, botão ou atalho. O cliente vai até lá sozinho.
 Perguntas apenas sobre onde fica uma página: responda diretamente com o link, salvo as telas indicadas acima como só em texto, sem verificar a conta do Mercado Livre, buscar artigos ou encaminhar a uma pessoa (use também o artigo onde-fica-cada-pagina da Central de Ajuda). Se o cliente disser que não encontrou, peça um print da tela e só então encaminhe para o suporte humano. No computador, Catálogo e Páginas com IA ficam no grupo Produtos. No celular o menu pode estar recolhido. Não invente botões, menus nem funções. A página de influencers se chama Avatares, nunca TikTok. Para conectar o Mercado Livre, use Configurações → Integrações. Abrir um formulário não confirma nenhuma ação.`;

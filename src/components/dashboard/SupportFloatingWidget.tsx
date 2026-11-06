@@ -1263,7 +1263,7 @@ const SupportBubble = ({ message }: { message: SupportMessage }) => {
         <div className="w-full max-w-[82%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm ring-1 ring-black/[0.04]">
           <p className="mb-1 text-[11px] font-semibold text-[#6B7280]">{senderLabel}</p>
           <p className="text-[13px] leading-5 text-[#111827]">
-            O reembolso e o cancelamento da assinatura são feitos por você em Configurações → Perfil, na seção "Gerenciar assinatura".
+            Você pode consultar as opções de reembolso e de renovação em Configurações, na área de gerenciamento da assinatura.
           </p>
           <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
         </div>
