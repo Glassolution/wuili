@@ -130,17 +130,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    Promise.allSettled([
-      (supabase as any).from("profiles").select("role").eq("user_id", user.id).maybeSingle(),
-      (supabase as any).from("profiles").select("role").eq("id", user.id).maybeSingle(),
-      (supabase as any).from("user_roles").select("role").eq("user_id", user.id).maybeSingle(),
-    ]).then((results) => {
-      const roles = results.flatMap((result) => {
-        if (result.status !== "fulfilled" || !result.value?.data?.role) return [];
-        return [String(result.value.data.role)];
-      });
+    let active = true;
+    void supabase.from("user_roles").select("role").eq("user_id", user.id).then(({ data, error }) => {
+      if (!active) return;
+      const roles = error ? [] : (data ?? []).map((item) => item.role);
       setRole(roles.includes("admin") ? "admin" : roles[0] ?? "user");
     });
+    return () => { active = false; };
   }, [user]);
 
   const signOut = async () => {
