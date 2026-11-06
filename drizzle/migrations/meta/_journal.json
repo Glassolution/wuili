@@ -267,6 +267,13 @@
       "when": 1793923394787,
       "tag": "0037_ml_seller_readiness_mercadoenvios",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793993154820,
+      "tag": "0038_admin_users_server_pagination",
+      "breakpoints": true
     }
   ]
 }
