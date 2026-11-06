@@ -234,14 +234,15 @@ async function validateSellerCanList(accessToken: string): Promise<SellerStatusB
     const sellAllow = sell.allow
     const shoppingCartSell = shoppingCart.sell
 
-    // Mercado Envios não aceito na conta: publicar em me2 gera anúncio
-    // "Entrega a combinar" sem etiqueta, inviável para o pós-venda da Velo.
-    // Bloqueio HARD — reconferido a cada tentativa de publicação, então
-    // libera sozinho assim que o ML marcar a conta como accepted.
+    // Mercado Envios não aceito na conta: validação mostrou que o campo
+    // `mercadoenvios` NÃO é confiável sozinho (31 contas com etiqueta gerada
+    // constam como not_accepted). Por isso NÃO bloqueamos: marcamos o caso
+    // para avisar o vendedor DEPOIS de publicar, com base no que o ML
+    // realmente gravou no anúncio (logistic_type).
     if (status.mercadoenvios === 'not_accepted') {
       return {
         message: ML_SHIPPING_NOT_ACCEPTED_MESSAGE,
-        hard: true,
+        hard: false,
         details: {
           ml_user_id: data.id,
           code: 'ML_SHIPPING_NOT_ACCEPTED',
