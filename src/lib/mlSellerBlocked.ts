@@ -56,6 +56,25 @@ export function infoFaltanteDoVendedor(codes: string[] | undefined | null): Info
 
   const has = (...needles: string[]) => normalized.some((code) => needles.some((n) => code.includes(n)));
 
+  // Conta sem Mercado Envios aceito: anúncio publicado em me2 vira
+  // "Entrega a combinar" (sem etiqueta), o que quebra o pós-venda da Velo.
+  if (has("mercadoenvios")) {
+    return {
+      titulo: "Seu Mercado Envios ainda não está ativo",
+      explicacao:
+        "Sem o Mercado Envios ativo, seus anúncios ficam como “Entrega a combinar”, sem etiqueta de envio — e a etiqueta é o coração do fluxo da Velo. Por isso bloqueamos a publicação até o Mercado Livre ativar o envio na sua conta.",
+      passos: [
+        "Acesse mercadolivre.com.br e entre na sua conta.",
+        "Clique em “Vender” e crie um anúncio de teste com qualquer produto.",
+        "Na parte de envio, escolha a opção Mercado Envios e conclua a ativação.",
+        "Pode pausar ou apagar o anúncio de teste depois.",
+        "Volte aqui e toque em “Já fiz, verificar de novo”.",
+      ],
+      url: ML_VENDER_URL,
+      botao: "Criar anúncio de teste no Mercado Livre",
+    };
+  }
+
   if (has("address", "endereco")) {
     return {
       titulo: "Falta o endereço de cadastro",
