@@ -2676,10 +2676,11 @@ Deno.serve(async (req) => {
         }))
         await supabase.from('ml_publish_errors').insert({
           user_id,
-          ml_user_id: mlUserId ?? null,
-          error_code: 'SHIPPING_WITHOUT_ME2',
-          error_message: `logistic_type=${logistic || 'vazio'} free_shipping=${ship.free_shipping ?? 'null'} item=${itemId}`,
+          ml_user_id: itemData?.seller_id ? String(itemData.seller_id) : null,
+          mapped_code: 'SHIPPING_WITHOUT_ME2',
+          mapped_message: `logistic_type=${logistic || 'vazio'} free_shipping=${ship.free_shipping ?? 'null'} item=${itemId}`,
           product_title: title,
+          category_id: categoryId ?? null,
         }).then(() => {}, () => {})
       }
     } catch (shipErr) {
