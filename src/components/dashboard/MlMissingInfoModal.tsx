@@ -124,6 +124,14 @@ const MlMissingInfoModal = ({ open, onClose, sellerCodes }: Props) => {
               {info.botao}
               <ExternalLink size={14} />
             </button>
+            <button
+              onClick={() => void verificarDeNovo()}
+              disabled={verificando}
+              className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-full border border-[#2563EB]/25 bg-[#EFF4FF] px-5 py-2.5 text-[13.5px] font-semibold text-[#2563EB] transition-colors hover:bg-[#E2EBFF] disabled:opacity-60"
+            >
+              <RefreshCw size={14} className={verificando ? "animate-spin" : ""} />
+              {verificando ? "Verificando..." : "Já fiz, verificar de novo"}
+            </button>
             <p className="mt-3 text-center text-[12px] leading-[1.5] text-[#8A8F98]">
               Depois de preencher lá, volte e toque em publicar de novo.
             </p>
