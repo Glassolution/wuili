@@ -14,6 +14,7 @@ import {
   pausarAnuncio,
 } from '../_shared/mlPackage.ts'
 import { isDeadRefreshError, markRefreshTokenDead } from '../_shared/mlSellerToken.ts'
+import { clearRefundCooldownAfterRepurchase } from '../_shared/refundCooldown.ts'
 
 /**
  * Grava no catálogo o veredito das diretrizes apurado na publicação (com
@@ -947,6 +948,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(dbUrl, dbKey)
 
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
+    await clearRefundCooldownAfterRepurchase(supabase, user_id)
     const { data: profileCd } = await supabase
       .from('profiles')
       .select('refund_cooldown_until, plano')
