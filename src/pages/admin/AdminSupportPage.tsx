@@ -363,10 +363,8 @@ const fetchSupportTickets = async (filters: SupportTicketFilters): Promise<Suppo
     needs_human_reason: ticket.needs_human_reason ?? null,
     admin_last_seen_at: ticket.admin_last_seen_at ?? null,
     previous_ticket_count: Number(ticket.previous_ticket_count ?? 0),
-    unread: isSupportTicketUnread(
-      ticket.last_message_sender ? { sender: ticket.last_message_sender, created_at: ticket.last_message_at } : null,
-      ticket.admin_last_seen_at ?? null,
-    ),
+    // calculado no banco (support_ticket_is_unread), mesma regra do contador do menu
+    unread: ticket.unread === true,
   })) as AdminTicket[];
   const counts = result.counts ?? {};
   return {
@@ -455,8 +453,10 @@ const AdminSupportPage = () => {
       setOpenTicketId(null);
       return;
     }
-    if (!visibleTickets.some((ticket) => ticket.id === openTicketId)) {
-      setOpenTicketId(visibleTickets[0].id);
+    // Nunca abre um ticket sozinho: abrir marca como lido, e isso só pode
+    // acontecer quando o admin clica. Se o aberto saiu da lista, fecha.
+    if (openTicketId && !visibleTickets.some((ticket) => ticket.id === openTicketId)) {
+      setOpenTicketId(null);
     }
   }, [openTicketId, visibleTickets]);
 
