@@ -903,7 +903,11 @@ const AdminPainelPage = () => {
       const payload = asRecord(row.payload);
       const metadata = asRecord(payload.metadata);
       if (String(metadata.kind ?? "") === "store_order" || metadata.store_order_id) return;
-      const key = getValidaPayEventKey(row);
+      // A venda e o reembolso da mesma cobrança são fatos separados, cada um no
+      // seu dia: se só o último evento contasse, um estorno feito hoje apagaria
+      // a venda de ontem e mudaria o faturamento de um dia que já passou.
+      const isRefundEvent = normalizeValidaPayStatus(row.status, row.event) === "refunded";
+      const key = `${getValidaPayEventKey(row)}${isRefundEvent ? ":refund" : ""}`;
       const current = latestByCharge.get(key);
       if (!current || new Date(row.created_at).getTime() > new Date(current.created_at).getTime()) {
         latestByCharge.set(key, row);
@@ -945,7 +949,7 @@ const AdminPainelPage = () => {
       ).toUpperCase();
       return [{
         activity: {
-          id: getValidaPayEventKey(row),
+          id: `${getValidaPayEventKey(row)}${status === "refunded" ? ":refund" : ""}`,
           user_id: matchedSubscription?.user_id ?? (String(metadata.user_id ?? metadata.userId ?? "").trim() || null),
           payer_name: String(customer.name ?? payer.name ?? "").trim() || null,
           payer_email: String(customer.email ?? payload.email ?? "").trim() || null,
@@ -1203,7 +1207,7 @@ const AdminPainelPage = () => {
     (activity) => ["refunded", "cancelled", "canceled"].includes(activity.status.toLowerCase()),
   ).length;
   const transactionalPaidCount = paymentActivities.filter(
-    (activity) => ["active", "paid", "approved", "completed", "refunded"].includes(activity.status.toLowerCase()),
+    (activity) => ["active", "paid", "approved", "completed"].includes(activity.status.toLowerCase()),
   ).length;
   const transactionalChurnBase = transactionalPaidCount + paymentActivities.filter(
     (activity) => ["cancelled", "canceled"].includes(activity.status.toLowerCase()),
