@@ -504,11 +504,6 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         id: toastId,
         action: data.permalink ? { label: "Ver", onClick: () => window.open(data.permalink, "_blank", "noopener,noreferrer") } : undefined,
       });
-      // Anúncio publicado mas possivelmente sem Mercado Envios: avisa sem
-      // assustar — a publicação em si deu certo.
-      if (data.aviso_envio) {
-        veloToast.info(data.aviso_envio, { duration: 15000 });
-      }
       void planLimits.refreshUsage();
       if (data.permalink) window.open(data.permalink, "_blank", "noopener,noreferrer");
     } catch (err) {
