@@ -51,7 +51,7 @@ const AdminRoute = ({ children }: { children: ReactNode }) => {
     };
   }, [initialAdmin, role, user]);
 
-  if (loading || roleLoading) {
+  if (loading || roleLoading || (user && role === null && !effectiveIsAdmin)) {
     return <VeloLoadingScreen message="Carregando painel..." />;
   }
 
