@@ -8,6 +8,7 @@
 //     via GET /v1/charges/:chargeId com o token OAuth2 antes de alterar o banco.
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
+import { clearRefundCooldownAfterRepurchase } from "../_shared/refundCooldown.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCharge, isConfirmedPayment, lookupPaymentStatus, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
@@ -415,7 +416,7 @@ Deno.serve(async (req) => {
         await admin.from("profiles").update({ plano: "gratis" }).eq("user_id", subscription.user_id);
         return;
       }
-      await admin
+      const { error: activationError } = await admin
 
         .from("subscriptions")
         .update({
@@ -443,10 +444,13 @@ Deno.serve(async (req) => {
           updated_at: nowIso,
         })
         .eq("id", subscription.id);
+      if (activationError) throw new Error(`subscription_activation_failed:${activationError.message}`);
       await admin
         .from("profiles")
         .update({ plano: subscription.plan })
         .eq("user_id", subscription.user_id);
+      // activate() runs only after server-side confirmation, including events without chargeId.
+      await clearRefundCooldownAfterRepurchase(admin, subscription.user_id, subscription.id);
     };
 
     const setStatus = async (status: string, downgrade = false) => {

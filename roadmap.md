@@ -1,5 +1,11 @@
 # Roadmap
 
+## Nova compra após reembolso e FAQ 5
+- [x] Liberar cooldown no webhook e na tentativa de publicar somente para nova assinatura paga ativa posterior ao reembolso
+- [x] Contar, limpar e reconferir: 59 cooldowns ativos, 1 elegível liberado, 58 mantidos e zero elegíveis restantes
+- [x] Atualizar FAQ 5: 52 artigos publicados, cinco novos; links e menus conferidos, preservando ressalvas sobre causas do ML
+- [x] Nove testes passaram; publicadas validapay-webhook e ml-publish; FAQ verificado no navegador e webhook recusou token inválido. Sem executar nova compra/publicação real; check Deno de ml-publish segue com erros preexistentes
+
 ## Oferta vitalícia para novas compras
 - [x] Substituir opção anual por vitalício sem mudar assinaturas existentes
 - [x] Configurar pagamento único confirmado e acesso sem expiração
