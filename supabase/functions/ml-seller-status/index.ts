@@ -65,14 +65,18 @@ Deno.serve(async (req) => {
     const sellAllow = sell.allow === true
     const canList = listAllow && sellAllow
     const codes = Array.isArray(list.codes) ? list.codes : []
+    const mercadoenvios = typeof status.mercadoenvios === 'string' ? status.mercadoenvios : null
+    const shippingBlocked = mercadoenvios === 'not_accepted'
 
     // Guarda a aptidão real para o painel admin saber o motivo mesmo sem a
-    // pessoa estar usando o app.
+    // pessoa estar usando o app. O status do Mercado Envios fica junto para
+    // a IA de suporte enxergar "entrega a combinar" sem chamar o ML de novo.
     await admin.from('ml_seller_readiness').upsert(
       {
         user_id: userId,
         can_list: canList,
         codes: codes.map(String),
+        mercadoenvios,
         source: 'check',
         last_error: null,
         checked_at: new Date().toISOString(),
@@ -85,7 +89,8 @@ Deno.serve(async (req) => {
       canList,
       codes,
       required_action: status.required_action ?? null,
-      mercadoenvios: status.mercadoenvios ?? null,
+      mercadoenvios,
+      shippingBlocked,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
