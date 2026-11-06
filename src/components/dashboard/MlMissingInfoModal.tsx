@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, ExternalLink, MapPin, RefreshCw } from "lucide-react";
 import { infoFaltanteDoVendedor } from "@/lib/mlSellerBlocked";
 import { supabase } from "@/integrations/supabase/client";
-import { veloToast } from "@/lib/veloToast";
+import { veloToast } from "@/components/ui/velo-toast";
 
 type Props = {
   open: boolean;
