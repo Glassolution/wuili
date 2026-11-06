@@ -1,0 +1,2 @@
+ALTER TABLE public.ml_seller_readiness ADD COLUMN IF NOT EXISTS mercadoenvios text;
+COMMENT ON COLUMN public.ml_seller_readiness.mercadoenvios IS 'Status do Mercado Envios na conta ML (accepted/not_accepted), lido de /users/me. Usado para bloquear publicacao me2 e para diagnostico do suporte.';

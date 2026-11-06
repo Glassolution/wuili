@@ -2120,6 +2120,7 @@ export type Database = {
           codes: string[]
           created_at: string
           last_error: string | null
+          mercadoenvios: string | null
           ml_user_id: number | null
           source: string
           user_id: string
@@ -2130,6 +2131,7 @@ export type Database = {
           codes?: string[]
           created_at?: string
           last_error?: string | null
+          mercadoenvios?: string | null
           ml_user_id?: number | null
           source?: string
           user_id: string
@@ -2140,6 +2142,7 @@ export type Database = {
           codes?: string[]
           created_at?: string
           last_error?: string | null
+          mercadoenvios?: string | null
           ml_user_id?: number | null
           source?: string
           user_id?: string
