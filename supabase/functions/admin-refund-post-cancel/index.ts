@@ -2,7 +2,7 @@
 // Uso: POST { dry_run?: boolean, subscription_ids?: string[] } — restrito a admins.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { refundCharge, validaPayFetch, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, refundCharge, validaPayFetch, ValidaPayError } from "../_shared/validapay.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -93,8 +93,10 @@ Deno.serve(async (req) => {
       inspect_subscription?: string;
       refund_charge_id?: string;
       refund_subscription_id?: string;
+      confirmation?: { user_id: string; amount: number; reason: string };
     };
-    const dryRun = body.dry_run === true;
+    const dryRun = body.dry_run !== false;
+    if (body.dry_run === false && !body.refund_charge_id) return json({ error: "Estorno em massa desativado. Confirme cliente, valor e motivo de uma cobrança específica." }, 400);
 
     // Modo diagnóstico: lista cobranças do gateway por e-mail/assinatura.
     if (body.inspect_email || body.inspect_subscription) {
@@ -123,9 +125,21 @@ Deno.serve(async (req) => {
     // Estorno pontual de uma cobrança específica já identificada.
     if (body.refund_charge_id) {
       const chargeId = body.refund_charge_id;
+      if (!body.refund_subscription_id || !body.confirmation?.user_id || !body.confirmation.reason?.trim() || !(body.confirmation.amount > 0)) {
+        return json({ error: "Confirme assinatura, cliente, valor e motivo antes do estorno." }, 400);
+      }
       const { data: sub } = body.refund_subscription_id
         ? await admin.from("subscriptions").select("*").eq("id", body.refund_subscription_id).maybeSingle()
         : { data: null as Any };
+      if (!sub || sub.user_id !== body.confirmation.user_id || !sub.cancelled_at) return json({ error: "Cliente/assinatura não corresponde ao cancelamento." }, 400);
+      const verifiedCharge = await getCharge(chargeId);
+      if (!PAID.includes(verifiedCharge.status) || Number(verifiedCharge.amount) !== body.confirmation.amount ||
+        !verifiedCharge.paidAt || Date.parse(verifiedCharge.paidAt) <= Date.parse(sub.cancelled_at)) {
+        return json({ error: "Cobrança, valor ou data não comprovam pagamento posterior ao cancelamento." }, 400);
+      }
+      const { data: linked } = await admin.from("validapay_webhook_events").select("id")
+        .eq("charge_id", chargeId).eq("subscription_id", sub.validapay_subscription_id).limit(1);
+      if (!linked?.length) return json({ error: "Vínculo da cobrança com este contrato precisa de revisão." }, 400);
       const { data: prior } = await admin
         .from("refund_requests").select("id,status").eq("charge_id", chargeId)
         .in("status", ["processed", "pending"]).maybeSingle();
@@ -134,7 +148,7 @@ Deno.serve(async (req) => {
       let providerResponse: Record<string, unknown> | null = null;
       let ok = false;
       try {
-        const result = await refundCharge(chargeId, undefined, "CUSTOMER_REQUEST") as Record<string, unknown>;
+        const result = await refundCharge(chargeId, body.confirmation.amount, "CUSTOMER_REQUEST") as Record<string, unknown>;
         const st = String(result?.status ?? "").toUpperCase();
         ok = ["CONFIRMED", "COMPLETED", "SUCCESS", "PROCESSING"].includes(st) || result?.success === true;
         providerResponse = { provider: "validapay", chargeId, ...result };
@@ -152,7 +166,7 @@ Deno.serve(async (req) => {
           reason: "Cobrança indevida após cancelamento",
           reason_details: "Renovação cobrada mesmo após o cancelamento. Estorno integral pelo suporte.",
           status: ok ? "processed" : "rejected",
-          refund_amount: Number(sub.amount ?? 0),
+          refund_amount: body.confirmation.amount,
           provider_response: providerResponse,
           requested_at: now,
           processed_at: now,
@@ -225,7 +239,6 @@ Deno.serve(async (req) => {
       const candidates = charges
         .filter((c) =>
           c.subscriptionId === sub.validapay_subscription_id &&
-          c.chargeId !== sub.validapay_charge_id &&
           PAID.includes(String(c.status ?? "").toUpperCase()) &&
           (explicit
             ? new Date(c.createdAt ?? 0).getTime() > new Date(sub.cancelled_at).getTime()
