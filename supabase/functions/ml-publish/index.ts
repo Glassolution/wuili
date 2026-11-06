@@ -2657,6 +2657,35 @@ Deno.serve(async (req) => {
     }
 
     console.log('=== ml-publish SUCCESS ===', itemId)
+
+    // Aviso pós-publicação (não bloqueia): se o ML gravou o anúncio sem
+    // Mercado Envios 2 real (logistic_type diferente de xd_drop_off) ou sem
+    // frete grátis, o comprador pode ver "Entrega a combinar" — sem etiqueta,
+    // o que quebra o pós-venda. Avisamos o vendedor e registramos o caso.
+    let avisoEnvio: string | null = null
+    try {
+      const ship = (itemData?.shipping ?? {}) as Record<string, unknown>
+      const logistic = String(ship.logistic_type ?? '')
+      const semMe2Real = logistic !== 'xd_drop_off'
+      if (semMe2Real) {
+        avisoEnvio =
+          'Atenção: seu anúncio pode estar sem Mercado Envios (o comprador pode ver "Entrega a combinar", sem etiqueta). Confira o anúncio no Mercado Livre; se estiver assim, crie um anúncio de teste direto no site do Mercado Livre escolhendo Mercado Envios para ativar o envio na sua conta.'
+        console.warn('[ml-publish] Anúncio sem ME2 real:', JSON.stringify({
+          user_id, item_id: itemId, logistic_type: logistic,
+          free_shipping: ship.free_shipping ?? null,
+        }))
+        await supabase.from('ml_publish_errors').insert({
+          user_id,
+          ml_user_id: mlUserId ?? null,
+          error_code: 'SHIPPING_WITHOUT_ME2',
+          error_message: `logistic_type=${logistic || 'vazio'} free_shipping=${ship.free_shipping ?? 'null'} item=${itemId}`,
+          product_title: title,
+        }).then(() => {}, () => {})
+      }
+    } catch (shipErr) {
+      console.warn('[ml-publish] Falha ao avaliar frete do anúncio:', shipErr)
+    }
+
     // Falha parcial: quando o anúncio foi publicado por variação (modelo User
     // Products) e alguma irmã falhou, o frontend NÃO pode mostrar "publicado
     // com sucesso" puro — devolvemos o placar exato das variações.
@@ -2667,6 +2696,7 @@ Deno.serve(async (req) => {
       success: true,
       permalink: itemData.permalink,
       item_id: itemId,
+      ...(avisoEnvio ? { aviso_envio: avisoEnvio } : {}),
       ...(totalVariacoes > 0
         ? {
           partial: parcial,
