@@ -174,6 +174,18 @@ Purchase sai do `validapay-webhook` com `event_id` = `purchase_<subscription_id>
 `tiktok_ttp`) por `salvarOrigemTikTokNoPerfil`. O script do TikTok é carregado
 com `historyObserver: false`; sem isso ele conta visita sozinho em toda troca de rota.
 
+**Pixel da Meta (anúncios da Velo):** `src/lib/veloMetaPixel.ts`, ID `2170225700534826`
+(substituiu o antigo `1732267104505162`). PageView em `/`, `/login`, `/cadastro`,
+`/checkout` e `/assinatura/confirmada`. Eventos: `Lead` nos botões de cadastro da
+landing, `CompleteRegistration` na conta criada (e-mail no `LoginPage`, Google em
+`atribuirCadastroOAuth`, `eventID` = `cadastro_<user_id>`), `InitiateCheckout` dentro
+de `startValidaPayCheckout` (cobre `/checkout` e o modal de planos do painel) e
+`Purchase` (+ `Subscribe`, menos no vitalício) em `/assinatura/confirmada`, com plano e
+valor guardados no InitiateCheckout, uma vez por checkout. Divide o `fbq` com o pixel
+de cada seller (`src/lib/metaPixel.ts`), por isso a Velo só usa `trackSingle` e os
+sellers só recebem nos IDs deles. O script sobe com `fbq.disablePushState = true`
+para não contar visita sozinho a cada troca de rota.
+
 **Números reais:** a edge function `landing-stats` devolve produtos ativos e
 assinantes ativos. Precisa de `supabase functions deploy landing-stats
 --no-verify-jwt`. Sem ela, a landing cai no endpoint `catalog` e mostra só o

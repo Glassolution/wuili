@@ -20,7 +20,7 @@ import {
 } from "@/lib/signupFunnel";
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 import { EVENTOS_LANDING, medirLanding } from "@/lib/landingFunnel";
-import { medirMetaVelo } from "@/lib/veloMetaPixel";
+import { metaVeloCadastroConcluido } from "@/lib/veloMetaPixel";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
@@ -356,7 +356,7 @@ const LoginPage = () => {
       trackSignup("signup_success");
       // Supabase pode devolver um usuário ofuscado para e-mail já cadastrado.
       if (data.user.identities?.length) {
-        medirMetaVelo("CompleteRegistration", { content_name: "cadastro_velo", status: true });
+        metaVeloCadastroConcluido(data.user.id);
       }
       medirLanding(EVENTOS_LANDING.contaCriada, { confirmacao_pendente: !data.session });
       // Registro do aceite e da origem do visitante (comprovação e atribuição de canal).

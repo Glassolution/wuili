@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { lerCookieTtp, tiktokCadastroConcluido, tiktokCadastroServidor } from "@/lib/tiktokPixel";
+import { metaVeloCadastroConcluido } from "@/lib/veloMetaPixel";
 
 /*
   Medição da etapa de login/cadastro. Reaproveita a mesma tabela de eventos da landing
@@ -298,6 +299,8 @@ export function atribuirCadastroOAuth(user: {
 
   trackSignup("signup_success", provedor);
   concluirCadastroNoTikTok({ id: user.id, email: user.email });
+  // Conta Google cai direto no /dashboard, fora das rotas do pixel: por isso o forcar.
+  metaVeloCadastroConcluido(user.id, { forcar: true });
   const origem = readOrigin();
   // O filtro em visitor_id nulo impede sobrescrever uma atribuição feita em outro navegador.
   void supabase

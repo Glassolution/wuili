@@ -78,6 +78,16 @@ export function trackPixel(event: string, params?: Record<string, unknown>): voi
 }
 
 /** Envia somente ao pixel informado, sem misturar a Velo com as lojas. */
-export function trackSinglePixel(pixelId: string, event: string, params: Record<string, unknown> = {}, custom = false): void {
-  getFbq()?.(custom ? "trackSingleCustom" : "trackSingle", pixelId, event, params);
+export function trackSinglePixel(
+  pixelId: string,
+  event: string,
+  params: Record<string, unknown> = {},
+  custom = false,
+  eventId?: string,
+): void {
+  const fbq = getFbq();
+  if (!fbq) return;
+  const metodo = custom ? "trackSingleCustom" : "trackSingle";
+  if (eventId) fbq(metodo, pixelId, event, params, { eventID: eventId });
+  else fbq(metodo, pixelId, event, params);
 }

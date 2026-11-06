@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 import { tiktokCliqueCadastro } from "@/lib/tiktokPixel";
+import { metaVeloCliqueCadastro } from "@/lib/veloMetaPixel";
 
 
 /*
@@ -542,6 +543,7 @@ export default function Index() {
     if (user) return;
     void registrarEvento(evento);
     tiktokCliqueCadastro(evento);
+    metaVeloCliqueCadastro(evento);
   };
 
   const authTarget = !authLoading && user ? "/dashboard" : "/login";

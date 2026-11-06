@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { metaVeloCompraConcluida } from "@/lib/veloMetaPixel";
 import { Button } from "@/components/ui/button";
 import { VeloLogo } from "@/components/VeloLogo";
 import { useSearchParams } from "react-router-dom";
@@ -21,6 +23,13 @@ const SUCCESS = "#22C55E";
 const AssinaturaConfirmadaPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+
+  // Pixel da Meta da Velo: Purchase (+ Subscribe), uma vez por checkout iniciado.
+  // Fica antes do retorno do vitalício para valer nas duas telas.
+  useEffect(() => {
+    metaVeloCompraConcluida();
+  }, []);
+
   if (params.get("cycle") === "lifetime") return <SubscriptionConfirmedPage />;
 
   return (

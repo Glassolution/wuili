@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getReferralCode } from "@/lib/affiliateFunnel";
+import { VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { metaVeloInicioCheckout } from "@/lib/veloMetaPixel";
 
 export type VelloPlanId = "base" | "pro" | "business";
 export type VelloBillingCycle = "monthly" | "annual" | "lifetime";
@@ -61,6 +63,8 @@ export const startValidaPayCheckout = async (
   try {
     const checkoutUrl = new URL(data.url);
     if (checkoutUrl.protocol !== "https:") throw new Error("invalid_protocol");
+    // Pixel da Velo: valor de tabela do plano (cupom e indicação são aplicados na ValidaPay).
+    metaVeloInicioCheckout({ plano: plan, ciclo: cycle, valor: VELO_PLAN_PRICES[plan]?.[cycle] ?? 0 });
     window.location.href = checkoutUrl.toString();
     return { ok: true };
   } catch {
