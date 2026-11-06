@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 import { identityAlreadyRefunded } from "../_shared/refundIdentity.ts";
-import { getRefundMode, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES } from "../_shared/refundPolicy.ts";
+import { formatRefundFeedback, getRefundMode, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES } from "../_shared/refundPolicy.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,11 +32,16 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
 
     const body = await req.json().catch(() => ({}));
-    const { subscription_id, reason, reason_details } = body ?? {};
+    const { subscription_id, reason_details, had_error, can_contact } = body ?? {};
+    const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
     const sandboxRequested = body?.sandbox === true || body?.sandbox === "true";
-    if (!subscription_id || !reason) return json({ error: "subscription_id e reason são obrigatórios" }, 400);
-    // Os detalhes são opcionais: o pedido nunca pode travar por falta de texto.
-    const detalhes = String(reason_details ?? "").trim() || "Não informado.";
+    if (typeof subscription_id !== "string" || !subscription_id || !reason || reason.length > 207) {
+      return json({ error: "Informe a assinatura e o motivo do reembolso." }, 400);
+    }
+    const detalhes = formatRefundFeedback(reason_details, had_error, can_contact);
+    if (!detalhes) {
+      return json({ error: "Preencha todos os campos do pedido de reembolso." }, 400);
+    }
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,

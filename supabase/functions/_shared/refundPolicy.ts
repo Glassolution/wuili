@@ -29,6 +29,20 @@ export const REFUNDABLE_SUBSCRIPTION_STATUSES = ["active", "paid", "approved", "
 /** Pedido que já virou devolução de dinheiro. */
 const REEMBOLSO_CONCLUIDO = ["processed", "approved"];
 
+export const REFUND_FEEDBACK_MAX_LENGTH = 2000;
+
+export function formatRefundFeedback(details: unknown, hadError: unknown, canContact: unknown): string | null {
+  if (typeof details !== "string" || !details.trim() || details.trim().length > REFUND_FEEDBACK_MAX_LENGTH) return null;
+  if (typeof hadError !== "boolean" || typeof canContact !== "boolean") return null;
+
+  return [
+    `Ocorreu algum erro? ${hadError ? "Sim" : "Não"}`,
+    `Autoriza contato para ajudar? ${canContact ? "Sim" : "Não"}`,
+    "",
+    details.trim(),
+  ].join("\n");
+}
+
 /** Link da única tela onde o cliente faz o pedido. */
 export const REFUND_PAGE_PATH = "/dashboard/configuracoes?tab=Perfil#velo-reembolso";
 export const REFUND_PAGE_LABEL = "Configurações → Perfil";

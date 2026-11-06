@@ -97,6 +97,7 @@ const ProdutosMLPage = lazy(() => import("./pages/dashboard/ProdutosMLPage"));
 const ReportsPage = lazy(() => import("./pages/dashboard/ReportsPage"));
 const ResultsPage = lazy(() => import("./pages/dashboard/ResultsPage"));
 const SettingsPage = lazy(() => import("./pages/dashboard/SettingsPage"));
+const SubscriptionCenterPage = lazy(() => import("./pages/dashboard/SubscriptionCenterPage"));
 const DashboardInfoPage = lazy(() => import("./pages/dashboard/DashboardInfoPage"));
 const SaldosPage = lazy(() => import("./pages/dashboard/SaldosPage"));
 const TransacoesPage = lazy(() => import("./pages/dashboard/TransacoesPage"));
@@ -407,6 +408,7 @@ const App = () => (
                 <Route path="integracoes" element={<IntegracoesPage />} />
                 <Route path="integracoes/adicionar" element={<AdicionarLojaShopifyPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
+                <Route path="configuracoes/central-da-assinatura" element={<SubscriptionCenterPage />} />
                 <Route path="criar-video" element={<CriarVideoPage />} />
                 <Route path="chat-fornecedores" element={<ChatFornecedoresPage />} />
                 <Route path="cursos-ecommerce" element={<DocumentacaoComunidadePage />} />

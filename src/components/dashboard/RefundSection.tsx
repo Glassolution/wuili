@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BookOpen, CheckCircle2, ChevronDown, Clock, Loader2, MessageCircle, RefreshCw } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, FileText, Loader2, RefreshCw } from "lucide-react";
 import { veloToast } from "@/components/ui/velo-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
-import { openSupportChat } from "@/lib/support";
 import {
   createLocalSandboxRefund,
   getLocalSandboxRefunds,
@@ -15,24 +14,24 @@ import {
 } from "@/lib/localSandbox";
 import { fetchRefundStatus, type RefundAssinatura, type RefundStatus } from "@/lib/refundStatus";
 import {
+  formatRefundFeedback,
   getRefundMode,
   PRAZO_DEVOLUCAO,
   PRAZO_REEMBOLSO,
+  REFUND_FEEDBACK_MAX_LENGTH,
   REFUND_WINDOW_DAYS,
   refundDaysUsed,
 } from "@/lib/refundEligibility";
 
 /*
- * Único lugar onde o cliente pede reembolso ou cancela a renovação da assinatura
- * (Configurações → Perfil, âncora #velo-reembolso). A IA do chat só aponta para cá.
+ * A página da Gerenciar assinatura recebe os pedidos de reembolso e cancelamento.
+ * Em Perfil e Plano, o componente mostra apenas a entrada para essa página.
  *
  * Regra (supabase/functions/_shared/refundPolicy.ts, a mesma do servidor):
  * - até 7 dias do pagamento: pedido de reembolso, analisado pela equipe em /admin/reembolsos;
  * - depois disso: o próprio cliente cancela a renovação, sem passar pela equipe.
  *
- * Fluxo: linha "Garantia de 7 dias" → visão da conta (uso, produtos, vendas) →
- * "Solicitar reembolso" (motivo + oferta de ajuda) → enviado.
- * Nenhum campo de texto é obrigatório e a ajuda é só oferecida, nunca exigida.
+ * A Gerenciar assinatura mostra a conta e abre o formulário antes do envio para análise.
  */
 
 const PLAN_LABEL: Record<string, string> = {
@@ -49,14 +48,7 @@ const MOTIVOS = [
   "Outro motivo",
 ];
 
-/** Sugestão de ajuda conforme o motivo. Só sugere: o botão de enviar continua liberado. */
-const AJUDA_POR_MOTIVO: Record<string, string> = {
-  "Não consegui vender": "Vender costuma levar alguns dias de anúncio no ar. Os tutoriais mostram como deixar o anúncio mais atraente.",
-  "Não entendi como usar a plataforma": "A Central de Ajuda tem o passo a passo de cada parte, e o suporte pode te guiar pelo chat.",
-  "Tive problemas técnicos": "Conte o que aconteceu para o suporte pelo chat. Muitas vezes dá para resolver na hora.",
-};
-
-type Passo = "visao" | "reembolso" | "cancelar" | "enviado";
+type Passo = "visao" | "motivo" | "reembolso" | "cancelar" | "enviado";
 type Acao = "reembolso" | "cancelamento";
 type UsoDaConta = { publicados: number | null; ativos: number | null; vendas: number | null };
 
@@ -96,7 +88,10 @@ const MODOS_VISIVEIS: Record<Local, string[]> = {
 };
 const ANCORA: Record<Local, string> = { perfil: "#velo-reembolso", plano: "#velo-cancelar-renovacao" };
 
-const RefundSection = ({ local = "perfil" }: { local?: Local }) => {
+export const SUBSCRIPTION_CENTER_PATH = "/dashboard/configuracoes/central-da-assinatura";
+
+const RefundSection = ({ local = "perfil" }: { local?: Local | "central" }) => {
+  const paginaCentral = local === "central";
   const { user, role } = useAuth();
   const location = useLocation();
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -109,12 +104,13 @@ const RefundSection = ({ local = "perfil" }: { local?: Local }) => {
   const [uso, setUso] = useState<UsoDaConta | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [aberto, setAberto] = useState(false);
   const [passo, setPasso] = useState<Passo>("visao");
   const [acao, setAcao] = useState<Acao>("reembolso");
   const [motivo, setMotivo] = useState("");
   const [outro, setOutro] = useState("");
   const [detalhes, setDetalhes] = useState("");
+  const [houveErro, setHouveErro] = useState("");
+  const [autorizaContato, setAutorizaContato] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [mensagemFinal, setMensagemFinal] = useState("");
@@ -150,20 +146,23 @@ const RefundSection = ({ local = "perfil" }: { local?: Local }) => {
 
   // Os números da conta só são buscados quando o cliente abre a garantia.
   useEffect(() => {
-    if (!aberto || uso || !user) return;
+    if (!paginaCentral || uso || !user) return;
     carregarUso(user.id)
       .then(setUso)
       .catch(() => setUso({ publicados: null, ativos: null, vendas: null }));
-  }, [aberto, uso, user]);
+  }, [paginaCentral, uso, user]);
 
-  // Links do chat e da Central de Ajuda chegam com #velo-reembolso: já abre a visão da conta.
+  // Links antigos com âncora continuam levando à entrada da página de assinatura.
   useEffect(() => {
-    if (loading || location.hash !== ANCORA[local]) return;
-    setAberto(true);
+    if (local === "central" || loading || location.hash !== ANCORA[local]) return;
     // Espera o restante do Perfil carregar; senão a página cresce depois e a rolagem se perde.
     const t = window.setTimeout(() => sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 600);
     return () => window.clearTimeout(t);
   }, [loading, location.hash, location.key, local]);
+
+  useEffect(() => {
+    if (paginaCentral) sectionRef.current?.scrollIntoView({ block: "start" });
+  }, [paginaCentral, passo]);
 
   const assinatura = status?.assinatura ?? null;
   // No sandbox o admin testa o reembolso mesmo fora dos 7 dias (o servidor também libera).
@@ -171,28 +170,35 @@ const RefundSection = ({ local = "perfil" }: { local?: Local }) => {
   const dentroDaGarantia = modo === "reembolso";
   const motivoFinal = motivo === "Outro motivo" ? `Outro: ${outro.trim()}` : motivo;
   const motivoOk = Boolean(motivo) && (motivo !== "Outro motivo" || outro.trim().length >= 3);
+  const hadError = houveErro === "" ? null : houveErro === "sim";
+  const canContact = autorizaContato === "" ? null : autorizaContato === "sim";
+  const respostas = formatRefundFeedback(detalhes, hadError, canContact);
 
   const comecar = (nova: Acao) => {
     setAcao(nova);
     setMotivo("");
     setOutro("");
     setDetalhes("");
+    setHouveErro("");
+    setAutorizaContato("");
     setErro(null);
-    setPasso(nova === "reembolso" ? "reembolso" : "cancelar");
+    setPasso(nova === "reembolso" ? "motivo" : "cancelar");
   };
 
   const voltar = () => {
     setErro(null);
-    setPasso("visao");
+    setPasso(passo === "reembolso" && dentroDaGarantia ? "motivo" : "visao");
   };
 
   const confirmar = async () => {
-    if (!assinatura) return;
+    if (!assinatura || enviando) return;
+    if (acao === "cancelamento" && !motivo.trim()) return;
+    if (acao === "reembolso" && (!dentroDaGarantia || !motivoOk || !respostas)) return;
     setEnviando(true);
     setErro(null);
     try {
-      if (acao === "reembolso" && sandboxLocal) {
-        createLocalSandboxRefund(sandboxKey, assinatura.id, motivoFinal, detalhes.trim());
+      if (acao === "reembolso" && sandboxLocal && respostas) {
+        createLocalSandboxRefund(sandboxKey, assinatura.id, motivoFinal, respostas);
         setMensagemFinal("");
         setPasso("enviado");
         return;
@@ -201,9 +207,9 @@ const RefundSection = ({ local = "perfil" }: { local?: Local }) => {
       const { data, error } = await supabase.functions.invoke(fn, {
         body: {
           subscription_id: assinatura.id,
-          reason: motivoFinal || "Cancelamento da renovação",
+          reason: acao === "reembolso" ? motivoFinal : motivo.trim(),
           reason_details: detalhes.trim(),
-          sandbox: acao === "reembolso" && sandbox,
+          ...(acao === "reembolso" && { had_error: hadError, can_contact: canContact, sandbox }),
         },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- resposta simples da função
@@ -229,232 +235,264 @@ const RefundSection = ({ local = "perfil" }: { local?: Local }) => {
   };
 
   const concluir = () => {
+    setLoading(true);
     setPasso("visao");
     void carregar();
   };
 
   const prazoAte = assinatura ? fimDoPrazo(assinatura.created_at) : null;
   const acessoAte = fmtAcessoAte(assinatura?.current_period_end);
-  const titulo = dentroDaGarantia ? "Garantia de 7 dias" : "Encerrar assinatura";
-  const descricao = loading
-    ? "Carregando sua assinatura..."
-    : dentroDaGarantia
-      ? `Não ficou satisfeito com a Velo? Veja como está sua conta e as opções até ${prazoAte}.`
-      : status?.mode === "em_analise"
-        ? "Você tem um pedido em análise pela nossa equipe."
-        : "Veja como está sua conta e cancele a renovação quando quiser.";
+  const descricao = dentroDaGarantia
+    ? `Consulte as opções da sua assinatura. A garantia de ${REFUND_WINDOW_DAYS} dias vai até ${prazoAte}.`
+    : status?.mode === "em_analise"
+      ? "Você tem um pedido em análise pela nossa equipe."
+      : "Consulte a situação e as opções da sua assinatura.";
 
-  // Enquanto carrega, ou se esta aba não é a da situação atual, a seção não aparece.
-  // A tela de "enviado" continua visível mesmo que a situação mude depois do envio.
-  const visivel =
-    passo === "enviado" ||
-    (!loading && (loadError ? local === "perfil" : Boolean(modo && MODOS_VISIVEIS[local].includes(modo))));
-  if (!visivel) return null;
+  if (!paginaCentral) {
+    const visivel = !loading && (loadError ? local === "perfil" : Boolean(modo && MODOS_VISIVEIS[local].includes(modo)));
+    if (!visivel) return null;
 
-  return (
-    <div ref={sectionRef} className="mt-8 border-t border-[#EDEDED] dark:border-white/10">
-      <div className="flex flex-col gap-2.5 py-5 md:flex-row md:items-center md:justify-between md:gap-10">
-        <div className="md:max-w-[330px]">
-          <div className="flex items-center gap-2">
-            <p className="text-[13px] font-semibold tracking-[-0.005em] text-[#111113] dark:text-white">{titulo}</p>
-            {sandbox && (
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-                Sandbox
-              </span>
-            )}
+    return (
+      <div ref={sectionRef} className="mt-8 border-t border-[#EDEDED] dark:border-white/10">
+        <div className="flex flex-col gap-2.5 py-5 md:flex-row md:items-center md:justify-between md:gap-10">
+          <div className="md:max-w-[330px]">
+            <div className="flex items-center gap-2">
+              <p className="text-[13px] font-semibold tracking-[-0.005em] text-[#111113] dark:text-white">Gerenciar assinatura</p>
+              {sandbox && (
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                  Sandbox
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[12px] leading-[1.45] text-[#9A9A9A] dark:text-zinc-400">{descricao}</p>
           </div>
-          <p className="mt-0.5 text-[12px] leading-[1.45] text-[#9A9A9A] dark:text-zinc-400">{descricao}</p>
-        </div>
-        <div className="w-full md:w-[300px] md:shrink-0">
-          <button
-            type="button"
-            onClick={() => setAberto((v) => !v)}
-            disabled={loading}
-            aria-expanded={aberto}
-            aria-controls="velo-garantia-painel"
-            className="inline-flex h-[42px] w-full items-center justify-center gap-1.5 rounded-full border border-[#E6E6E6] bg-white px-4 text-[13px] font-medium text-[#111113] transition hover:border-[#111113] disabled:opacity-50 dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:border-white"
-          >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
-            {aberto ? "Fechar" : "Ver minha conta"}
-            {!loading && <ChevronDown size={15} className={`transition ${aberto ? "rotate-180" : ""}`} />}
-          </button>
+          <div className="w-full md:w-[300px] md:shrink-0">
+            <Link
+              to={SUBSCRIPTION_CENTER_PATH}
+              state={{ origem: local }}
+              className="inline-flex h-[42px] w-full items-center justify-center gap-2 rounded-full border border-[#E6E6E6] bg-white px-4 text-[13px] font-medium text-[#111113] transition hover:border-[#2563EB] hover:text-[#2563EB] dark:border-white/15 dark:bg-transparent dark:text-white dark:hover:text-blue-300"
+            >
+              Ver opções
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {aberto && !loading && (
-        <div id="velo-garantia-painel" className="pb-6">
-          {sandbox && (
-            <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[12px] text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
-              Sandbox ligado: aqui aparecem só assinaturas de teste, e o reembolso é aceito mesmo fora dos 7 dias.
-            </div>
-          )}
+  if (loading) {
+    return <p role="status" className="text-sm text-zinc-600 dark:text-zinc-400">Carregando sua assinatura…</p>;
+  }
 
-          {loadError ? (
-            <Caixa>
-              <p className="text-[14px] text-[#0A0A0A] dark:text-white">Não conseguimos carregar sua assinatura agora.</p>
-              <div className="mt-3">
-                <BotaoSecundario onClick={() => { setLoading(true); void carregar(); }}>
-                  <RefreshCw size={14} /> Tentar de novo
-                </BotaoSecundario>
-              </div>
-            </Caixa>
-          ) : passo === "enviado" ? (
-            <Enviado acao={acao} mensagem={mensagemFinal} onFechar={concluir} />
-          ) : !assinatura || !modo || !["reembolso", "cancelamento"].includes(modo) ? (
-            <div className="space-y-3">
-              {assinatura && <VisaoDaConta assinatura={assinatura} uso={uso} garantia={dentroDaGarantia} />}
-              <SituacaoAtual status={status} />
-            </div>
-          ) : passo === "visao" ? (
-            <div className="space-y-3">
-              <VisaoDaConta assinatura={assinatura} uso={uso} garantia={dentroDaGarantia} />
-              <Caixa semPadding>
-                {dentroDaGarantia && (
-                  <OpcaoLinha
-                    titulo="Solicitar reembolso"
-                    descricao={`Disponível até ${prazoAte}. O valor volta pelo mesmo meio de pagamento, depois da análise da equipe.`}
-                  >
-                    <BotaoPrincipal onClick={() => comecar("reembolso")} largo>Solicitar reembolso</BotaoPrincipal>
-                  </OpcaoLinha>
-                )}
-                {assinatura.purchase_kind !== "lifetime" && (
-                  <OpcaoLinha
-                    titulo="Cancelar renovação"
-                    descricao={`Sem novas cobranças. Você usa a Velo até ${acessoAte ?? "o fim do período já pago"}${dentroDaGarantia ? ", sem reembolso" : ". O prazo de reembolso terminou em " + prazoAte}.`}
-                    divisor={dentroDaGarantia}
-                  >
-                    <BotaoSecundario onClick={() => comecar("cancelamento")} largo perigoHover>Cancelar renovação</BotaoSecundario>
-                  </OpcaoLinha>
-                )}
-              </Caixa>
-            </div>
-          ) : passo === "reembolso" ? (
-            <Caixa>
-              <h4 className="text-[16px] font-semibold text-[#0A0A0A] dark:text-white">Solicitar reembolso</h4>
+  return (
+    <div ref={sectionRef} className="scroll-mt-6 pb-6">
+      {sandbox && (
+        <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-[12px] text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-200">
+          Sandbox ligado: aqui aparecem só assinaturas de teste, e o reembolso é aceito mesmo fora dos 7 dias.
+        </div>
+      )}
 
-              <div className="mt-3 rounded-lg bg-[#F7F7F7] p-3.5 dark:bg-white/5">
-                <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Podemos ajudar antes?</p>
-                <p className="mt-0.5 text-[12.5px] leading-5 text-[#525252] dark:text-zinc-300">
-                  Se algo não funcionou, os tutoriais e o suporte podem resolver. Pedir ajuda não impede o reembolso.
-                </p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
-                  <Link
-                    to="/dashboard/ajuda"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#E6E6E6] bg-white px-3.5 py-1.5 text-[12.5px] font-medium text-[#111113] hover:border-[#111113] dark:border-white/15 dark:bg-transparent dark:text-white"
-                  >
-                    <BookOpen size={13} /> Ver tutoriais
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={openSupportChat}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#E6E6E6] bg-white px-3.5 py-1.5 text-[12.5px] font-medium text-[#111113] hover:border-[#111113] dark:border-white/15 dark:bg-transparent dark:text-white"
-                  >
-                    <MessageCircle size={13} /> Falar com o suporte
-                  </button>
+      {loadError ? (
+        <Caixa>
+          <p className="text-[14px] text-[#0A0A0A] dark:text-white">Não conseguimos carregar sua assinatura agora.</p>
+          <div className="mt-3">
+            <BotaoSecundario onClick={() => { setLoading(true); void carregar(); }}>
+              <RefreshCw size={14} /> Tentar de novo
+            </BotaoSecundario>
+          </div>
+        </Caixa>
+      ) : passo === "enviado" ? (
+        <Enviado acao={acao} mensagem={mensagemFinal} onFechar={concluir} />
+      ) : !assinatura || !modo || !["reembolso", "cancelamento"].includes(modo) ? (
+        <div className="space-y-3">
+          {assinatura && <VisaoDaConta assinatura={assinatura} uso={uso} garantia={dentroDaGarantia} />}
+          <SituacaoAtual status={status} />
+        </div>
+      ) : passo === "visao" || (!dentroDaGarantia && (passo === "motivo" || passo === "reembolso")) ? (
+        <div className="space-y-5">
+          <section aria-labelledby="reembolso-titulo" className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-500/25 dark:bg-blue-500/10 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="inline-flex size-10 items-center justify-center rounded-xl bg-white text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+                <FileText size={19} aria-hidden="true" />
+              </span>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-500/20 dark:text-blue-200">
+                {dentroDaGarantia ? "Disponível para esta assinatura" : "Fora da garantia"}
+              </span>
+            </div>
+            <h2 id="reembolso-titulo" className="mt-4 text-xl font-semibold text-[#111113] dark:text-white">Reembolso da assinatura</h2>
+            <p className="mt-1.5 max-w-xl text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+              {dentroDaGarantia
+                ? `Envie seu pedido para análise até ${prazoAte}. Você responde às perguntas nesta página.`
+                : `O prazo de ${REFUND_WINDOW_DAYS} dias para pedir reembolso terminou em ${prazoAte}.`}
+            </p>
+            {dentroDaGarantia && (
+              <button type="button" onClick={() => comecar("reembolso")} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1D4ED8]">
+                Solicitar reembolso <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            )}
+            {erro && <Erro texto={erro} />}
+          </section>
+          {assinatura.purchase_kind !== "lifetime" && (
+            <section aria-labelledby="renovacao-titulo" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-zinc-200/80 px-1 pb-5 dark:border-white/10">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                  <RefreshCw size={16} aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 id="renovacao-titulo" className="text-sm font-semibold text-zinc-950 dark:text-white">Renovação do plano</h2>
+                  <p className="mt-1 max-w-sm text-[13px] leading-5 text-zinc-600 dark:text-zinc-400">
+                    Você pode interromper as próximas cobranças e manter o acesso até {acessoAte ?? "o fim do período já pago"}.
+                  </p>
                 </div>
               </div>
-
-              <p className="mt-4 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Qual o motivo?</p>
-              <div className="mt-2 space-y-2" role="radiogroup" aria-label="Motivo">
-                {MOTIVOS.map((m) => (
-                  <label
-                    key={m}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
-                      motivo === m
-                        ? "border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-800"
-                        : "border-[#E5E5E5] hover:bg-[#FAFAFA] dark:border-zinc-800 dark:hover:bg-zinc-800"
-                    }`}
-                  >
-                    <input type="radio" name="motivo-reembolso" checked={motivo === m} onChange={() => setMotivo(m)} className="accent-black" />
-                    <span className="text-[14px] text-[#0A0A0A] dark:text-white">{m}</span>
-                  </label>
-                ))}
-              </div>
-              {motivo === "Outro motivo" && (
-                <input
-                  autoFocus
-                  value={outro}
-                  onChange={(e) => setOutro(e.target.value)}
-                  placeholder="Qual foi o motivo?"
-                  className="mt-2 h-11 w-full rounded-lg border border-[#E5E5E5] px-3 text-[14px] outline-none focus:border-black dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-white"
-                />
-              )}
-              {AJUDA_POR_MOTIVO[motivo] && (
-                <p className="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-3.5 py-2.5 text-[12.5px] leading-5 text-blue-900 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
-                  {AJUDA_POR_MOTIVO[motivo]} Se mesmo assim preferir, é só continuar.
-                </p>
-              )}
-
-              <label className="mt-4 block text-[13px] font-medium text-[#0A0A0A] dark:text-white" htmlFor="detalhes-reembolso">
-                Quer contar mais? <span className="font-normal text-[#A3A3A3]">(opcional)</span>
-              </label>
-              <textarea
-                id="detalhes-reembolso"
-                value={detalhes}
-                onChange={(e) => setDetalhes(e.target.value)}
-                rows={3}
-                placeholder="Sua resposta ajuda a equipe a melhorar a Velo."
-                className="mt-1.5 w-full resize-none rounded-lg border border-[#E5E5E5] p-3 text-[14px] outline-none focus:border-black dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
-              />
-
-              <p className="mt-4 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Ao solicitar:</p>
-              <Lista
-                itens={[
-                  `Valor do reembolso: ${fmtValor(assinatura.amount)}.`,
-                  "A renovação é cancelada na hora e você continua usando a Velo durante a análise.",
-                  "Se o reembolso for aprovado, o plano é encerrado e os anúncios publicados pela Velo no Mercado Livre são encerrados.",
-                  assinatura.purchase_kind === "lifetime"
-                    ? "Se o pedido for recusado, você continua com o seu plano."
-                    : `Se o pedido for recusado, você continua com acesso até ${acessoAte ?? "o fim do período já pago"}.`,
-                  PRAZO_REEMBOLSO,
-                ]}
-              />
-
-              {erro && <Erro texto={erro} />}
-              <Rodape>
-                <BotaoSecundario onClick={voltar} disabled={enviando}>Voltar</BotaoSecundario>
-                <BotaoPrincipal onClick={confirmar} disabled={!motivoOk || enviando} perigo>
-                  {enviando && <Loader2 size={15} className="animate-spin" />}
-                  Solicitar reembolso
-                </BotaoPrincipal>
-              </Rodape>
-            </Caixa>
-          ) : (
-            <Caixa>
-              <h4 className="text-[16px] font-semibold text-[#0A0A0A] dark:text-white">Cancelar renovação</h4>
-              <Lista
-                itens={[
-                  "Não haverá novas cobranças.",
-                  `Você continua usando a Velo até ${acessoAte ?? "o fim do período já pago"}.`,
-                  "Os anúncios que você já publicou continuam no Mercado Livre.",
-                  "Vale na hora, sem análise. Não há reembolso do valor já pago.",
-                ]}
-              />
-              <label className="mt-4 block text-[13px] font-medium text-[#0A0A0A] dark:text-white" htmlFor="motivo-cancelamento">
-                Por que está cancelando? <span className="font-normal text-[#A3A3A3]">(opcional)</span>
-              </label>
-              <select
-                id="motivo-cancelamento"
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                className="mt-1.5 h-11 w-full rounded-lg border border-[#E5E5E5] bg-white px-3 text-[14px] outline-none focus:border-black dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
-              >
-                <option value="">Prefiro não dizer</option>
-                {MOTIVOS.filter((m) => m !== "Outro motivo").map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              {erro && <Erro texto={erro} />}
-              <Rodape>
-                <BotaoSecundario onClick={voltar} disabled={enviando}>Voltar</BotaoSecundario>
-                <BotaoPrincipal onClick={confirmar} disabled={enviando}>
-                  {enviando && <Loader2 size={15} className="animate-spin" />}
-                  Confirmar cancelamento
-                </BotaoPrincipal>
-              </Rodape>
-            </Caixa>
+              <button type="button" onClick={() => comecar("cancelamento")} className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white">
+                Cancelar renovação <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            </section>
           )}
+          <VisaoDaConta assinatura={assinatura} uso={uso} garantia={dentroDaGarantia} />
         </div>
+      ) : passo === "motivo" ? (
+        <form onSubmit={(event) => { event.preventDefault(); if (motivoOk) setPasso("reembolso"); }}>
+          <Caixa>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Etapa 1 de 2</p>
+            <h2 className="mt-1 text-lg font-semibold text-[#111113] dark:text-white">Motivo do reembolso</h2>
+            <p className="mt-4 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Qual é o motivo principal do pedido?</p>
+            <div className="mt-2 space-y-2" role="radiogroup" aria-label="Motivo">
+              {MOTIVOS.map((m) => (
+                <label
+                  key={m}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition ${
+                    motivo === m
+                      ? "border-black bg-[#FAFAFA] dark:border-white dark:bg-zinc-800"
+                      : "border-[#E5E5E5] hover:bg-[#FAFAFA] dark:border-zinc-800 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  <input type="radio" name="motivo-reembolso" required checked={motivo === m} onChange={() => setMotivo(m)} className="accent-black" />
+                  <span className="text-[14px] text-[#0A0A0A] dark:text-white">{m}</span>
+                </label>
+              ))}
+            </div>
+            {motivo === "Outro motivo" && (
+              <input
+                autoFocus
+                aria-label="Informe o outro motivo"
+                required
+                maxLength={200}
+                value={outro}
+                onChange={(e) => setOutro(e.target.value)}
+                placeholder="Qual foi o motivo?"
+                className="mt-2 h-11 w-full rounded-lg border border-[#E5E5E5] px-3 text-[14px] outline-none focus:border-black dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-white"
+              />
+            )}
+            <Rodape>
+              <BotaoSecundario onClick={voltar}>Voltar às opções</BotaoSecundario>
+              <BotaoPrincipal type="submit" disabled={!motivoOk}>Continuar</BotaoPrincipal>
+            </Rodape>
+          </Caixa>
+        </form>
+      ) : passo === "reembolso" ? (
+        <form onSubmit={(event) => { event.preventDefault(); void confirmar(); }}>
+          <Caixa>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Etapa 2 de 2</p>
+            <h2 className="mt-1 text-lg font-semibold text-[#111113] dark:text-white">Detalhes do pedido</h2>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Preencha todos os campos. A equipe vai analisar suas respostas junto com o pedido.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="block text-[13px] font-medium text-[#0A0A0A] dark:text-white">
+                Aconteceu algum erro na Velo?
+                <select required value={houveErro} onChange={(e) => setHouveErro(e.target.value)}
+                  className="mt-1.5 block h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <option value="" disabled>Selecione</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+              <label className="block text-[13px] font-medium text-[#0A0A0A] dark:text-white">
+                Podemos entrar em contato para ajudar?
+                <select required value={autorizaContato} onChange={(e) => setAutorizaContato(e.target.value)}
+                  className="mt-1.5 block h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <option value="" disabled>Selecione</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-4 block text-[13px] font-medium text-[#0A0A0A] dark:text-white" htmlFor="detalhes-reembolso">
+              {houveErro === "sim" ? "Descreva o erro e explique por que você quer o reembolso." : "Explique por que você quer o reembolso."}
+            </label>
+            <textarea
+              id="detalhes-reembolso"
+              required
+              maxLength={REFUND_FEEDBACK_MAX_LENGTH}
+              value={detalhes}
+              onChange={(e) => setDetalhes(e.target.value)}
+              rows={3}
+              placeholder="Sua resposta ajuda a equipe a melhorar a Velo."
+              className="mt-1.5 w-full resize-none rounded-lg border border-[#E5E5E5] p-3 text-[14px] outline-none focus:border-black dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-500 dark:focus:border-white"
+            />
+
+            <p className="mt-4 text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Ao solicitar:</p>
+            <Lista
+              itens={[
+                `Valor do reembolso: ${fmtValor(assinatura.amount)}.`,
+                "A renovação é cancelada na hora e você continua usando a Velo durante a análise.",
+                "Se o reembolso for aprovado, o plano é encerrado e os anúncios publicados pela Velo no Mercado Livre são encerrados.",
+                assinatura.purchase_kind === "lifetime"
+                  ? "Se o pedido for recusado, você continua com o seu plano."
+                  : `Se o pedido for recusado, você continua com acesso até ${acessoAte ?? "o fim do período já pago"}.`,
+                PRAZO_REEMBOLSO,
+              ]}
+            />
+
+            {erro && <Erro texto={erro} />}
+            <Rodape>
+              <BotaoSecundario onClick={voltar} disabled={enviando}>Voltar</BotaoSecundario>
+              <BotaoPrincipal type="submit" disabled={!motivoOk || !respostas || enviando}>
+                {enviando && <Loader2 size={15} className="animate-spin" />}
+                Enviar pedido para análise
+              </BotaoPrincipal>
+            </Rodape>
+          </Caixa>
+        </form>
+      ) : (
+        <form onSubmit={(event) => { event.preventDefault(); void confirmar(); }}>
+          <Caixa>
+            <h4 className="text-[16px] font-semibold text-[#0A0A0A] dark:text-white">Cancelar renovação</h4>
+            <Lista
+              itens={[
+                "Não haverá novas cobranças.",
+                `Você continua usando a Velo até ${acessoAte ?? "o fim do período já pago"}.`,
+                "Os anúncios que você já publicou continuam no Mercado Livre.",
+                "Vale na hora, sem análise. Não há reembolso do valor já pago.",
+              ]}
+            />
+            <label className="mt-4 block text-[13px] font-medium text-[#0A0A0A] dark:text-white" htmlFor="motivo-cancelamento">
+              Por que você quer cancelar a renovação? <span className="font-normal text-zinc-600 dark:text-zinc-400">(obrigatório)</span>
+            </label>
+            <textarea
+              id="motivo-cancelamento"
+              required
+              maxLength={2000}
+              rows={4}
+              value={motivo}
+              onChange={(event) => setMotivo(event.target.value)}
+              placeholder="Escreva o motivo do cancelamento."
+              className="mt-1.5 w-full resize-y rounded-lg border border-zinc-200 bg-white p-3 text-sm outline-none focus:border-blue-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+            />
+            {erro && <Erro texto={erro} />}
+            <Rodape>
+              <BotaoSecundario onClick={voltar} disabled={enviando}>Voltar</BotaoSecundario>
+              <BotaoPrincipal type="submit" disabled={enviando || !motivo.trim()}>
+                {enviando && <Loader2 size={15} className="animate-spin" />}
+                Confirmar cancelamento
+              </BotaoPrincipal>
+            </Rodape>
+          </Caixa>
+        </form>
       )}
     </div>
   );
@@ -473,44 +511,24 @@ const VisaoDaConta = ({ assinatura, uso, garantia }: { assinatura: RefundAssinat
     { rotulo: "Garantia de 7 dias", valor: garantia ? `até ${fimDoPrazo(assinatura.created_at)}` : "encerrada", detalhe: garantia ? undefined : `em ${fimDoPrazo(assinatura.created_at)}` },
   ];
   return (
-    <Caixa>
-      <p className="text-[13px] font-semibold text-[#0A0A0A] dark:text-white">Sua conta na Velo</p>
-      <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {itens.map((i) => (
-          <div key={i.rotulo} className="rounded-lg border border-[#EDEDED] p-3 dark:border-white/10">
-            <dt className="text-[11.5px] text-[#8A8A8A] dark:text-zinc-400">{i.rotulo}</dt>
-            <dd className="mt-0.5 text-[15px] font-semibold text-[#0A0A0A] dark:text-white">{i.valor}</dd>
-            {i.detalhe && <dd className="text-[11.5px] text-[#8A8A8A] dark:text-zinc-500">{i.detalhe}</dd>}
+    <section aria-labelledby="conta-titulo" className="overflow-hidden rounded-2xl border border-zinc-200/80 dark:border-white/10">
+      <div className="px-4 py-4 sm:px-5">
+        <h2 id="conta-titulo" className="text-sm font-semibold tracking-tight text-zinc-950 dark:text-white">Sua conta na Velo</h2>
+      </div>
+      <dl className="grid grid-cols-2 gap-px border-t border-zinc-200/80 bg-zinc-200/80 dark:border-white/10 dark:bg-white/10 sm:grid-cols-3">
+        {itens.map(({ rotulo, valor, detalhe }) => (
+          <div key={rotulo} className="min-w-0 bg-[#FAFAFB] px-4 py-3.5 dark:bg-[#18181B] sm:px-5">
+            <dt className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{rotulo}</dt>
+            <dd className="mt-1 text-base font-semibold tracking-tight text-zinc-950 tabular-nums dark:text-white">
+              {valor}
+              {detalhe && <span className="mt-0.5 block text-xs font-normal tracking-normal text-zinc-600 dark:text-zinc-400">{detalhe}</span>}
+            </dd>
           </div>
         ))}
       </dl>
-    </Caixa>
+    </section>
   );
 };
-
-const OpcaoLinha = ({
-  titulo,
-  descricao,
-  divisor,
-  children,
-}: {
-  titulo: string;
-  descricao: string;
-  divisor?: boolean;
-  children: React.ReactNode;
-}) => (
-  <div
-    className={`flex flex-col gap-3 p-4 sm:p-5 md:flex-row md:items-center md:justify-between md:gap-8 ${
-      divisor ? "border-t border-[#EDEDED] dark:border-white/10" : ""
-    }`}
-  >
-    <div className="md:max-w-[340px]">
-      <p className="text-[13px] font-semibold text-[#111113] dark:text-white">{titulo}</p>
-      <p className="mt-0.5 text-[12px] leading-[1.45] text-[#9A9A9A] dark:text-zinc-400">{descricao}</p>
-    </div>
-    <div className="w-full md:w-[220px] md:shrink-0">{children}</div>
-  </div>
-);
 
 const Enviado = ({ acao, mensagem, onFechar }: { acao: Acao; mensagem: string; onFechar: () => void }) => (
   <Caixa>
@@ -525,7 +543,7 @@ const Enviado = ({ acao, mensagem, onFechar }: { acao: Acao; mensagem: string; o
     </p>
     {acao === "reembolso" && (
       <p className="mt-1.5 text-[13px] leading-5 text-[#525252] dark:text-zinc-300">
-        A resposta chega nas suas notificações e no chat de suporte.
+        Acompanhe a situação nesta página e nas suas notificações.
       </p>
     )}
     <div className="mt-4">
@@ -539,7 +557,7 @@ const SituacaoAtual = ({ status }: { status: RefundStatus | null }) => {
   const acessoAte = fmtAcessoAte(a?.current_period_end);
   const conteudo =
     status?.mode === "em_analise"
-      ? { icone: <Clock size={32} className="text-amber-600" />, titulo: "Seu pedido de reembolso está em análise", corpo: `${PRAZO_REEMBOLSO} A resposta chega nas suas notificações e no chat de suporte.` }
+      ? { icone: <Clock size={32} className="text-amber-600" />, titulo: "Seu pedido de reembolso está em análise", corpo: `${PRAZO_REEMBOLSO} Acompanhe a situação nesta página e nas suas notificações.` }
       : status?.mode === "aprovado"
         ? { icone: <CheckCircle2 size={32} className="text-emerald-600" />, titulo: "Seu reembolso foi aprovado", corpo: PRAZO_DEVOLUCAO }
         : status?.mode === "cancelado"
@@ -571,8 +589,8 @@ const Erro = ({ texto }: { texto: string }) => (
   <p className="mt-3 rounded-lg bg-red-50 px-3.5 py-2.5 text-[13px] text-red-700 dark:bg-red-500/10 dark:text-red-300">{texto}</p>
 );
 
-const Caixa = ({ children, semPadding }: { children: React.ReactNode; semPadding?: boolean }) => (
-  <div className={`rounded-xl border border-[#E5E5E5] dark:border-zinc-800 dark:bg-zinc-950 ${semPadding ? "" : "p-4 sm:p-5"}`}>{children}</div>
+const Caixa = ({ children }: { children: React.ReactNode }) => (
+  <div className="rounded-xl border border-[#E5E5E5] p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:p-5">{children}</div>
 );
 
 const Rodape = ({ children }: { children: React.ReactNode }) => (
@@ -582,23 +600,19 @@ const Rodape = ({ children }: { children: React.ReactNode }) => (
 const BotaoPrincipal = ({
   children,
   onClick,
+  type = "button",
   disabled,
-  perigo,
-  largo,
 }: {
   children: React.ReactNode;
-  onClick: () => void;
+  onClick?: () => void;
+  type?: "button" | "submit";
   disabled?: boolean;
-  perigo?: boolean;
-  largo?: boolean;
 }) => (
   <button
-    type="button"
+    type={type}
     onClick={onClick}
     disabled={disabled}
-    className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[14px] font-medium text-white transition disabled:opacity-40 ${
-      largo ? "w-full" : ""
-    } ${perigo ? "bg-red-600 hover:bg-red-700" : "bg-black hover:opacity-85 dark:bg-white dark:text-black"}`}
+    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1D4ED8] disabled:opacity-40"
   >
     {children}
   </button>
@@ -608,25 +622,16 @@ const BotaoSecundario = ({
   children,
   onClick,
   disabled,
-  largo,
-  perigoHover,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  largo?: boolean;
-  /** Fica vermelho ao passar o mouse (ação que encerra algo). */
-  perigoHover?: boolean;
 }) => (
   <button
     type="button"
     onClick={onClick}
     disabled={disabled}
-    className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#E5E5E5] px-5 py-2.5 text-[14px] font-medium text-[#525252] transition disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 ${
-      perigoHover
-        ? "hover:border-red-600 hover:bg-red-600 hover:text-white dark:hover:border-red-600 dark:hover:bg-red-600 dark:hover:text-white"
-        : "hover:border-black hover:text-black dark:hover:border-white dark:hover:text-white"
-    } ${largo ? "w-full" : ""}`}
+    className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-white/10"
   >
     {children}
   </button>

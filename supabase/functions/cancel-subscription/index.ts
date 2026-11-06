@@ -31,11 +31,15 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
 
     const body = await req.json().catch(() => ({}));
-    const { subscription_id, reason, reason_details } = (body ?? {}) as {
+    const { subscription_id, reason: rawReason, reason_details } = (body ?? {}) as {
       subscription_id?: string;
       reason?: string;
       reason_details?: string;
     };
+    const reason = typeof rawReason === "string" ? rawReason.trim() : "";
+    if (!reason || reason.length > 2000) {
+      return json({ error: "Informe o motivo do cancelamento em até 2.000 caracteres." }, 400);
+    }
     if (!subscription_id) return json({ error: "subscription_id é obrigatório" }, 400);
 
     const admin = createClient(
@@ -69,7 +73,7 @@ Deno.serve(async (req) => {
       .update({
         cancel_at_period_end: true,
         cancelled_at: nowIso,
-        cancellation_reason: [reason, reason_details].filter(Boolean).join(" — ") || null,
+        cancellation_reason: [reason, reason_details].filter(Boolean).join(" — "),
         updated_at: nowIso,
       })
       .eq("id", sub.id);

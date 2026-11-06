@@ -64,12 +64,12 @@ import {
  * Mantém o shell (sidebar/header/Atlas) montado e troca só o miolo, sem loader
  * de tela cheia: a página nova apenas entra com uma animação suave.
  */
-const PageOutlet = () => {
+const PageOutlet = ({ settingsReturnTo }: { settingsReturnTo?: string }) => {
   const { pathname } = useLocation();
   return (
     <Suspense fallback={<div aria-hidden className="min-h-[1px] w-full" />}>
       <div key={pathname} className="animate-fade-in flex min-h-0 w-full flex-1 flex-col">
-        <Outlet />
+        <Outlet context={settingsReturnTo} />
       </div>
     </Suspense>
   );
@@ -635,6 +635,15 @@ const MobileDashboardChrome = ({ children }: { children: ReactNode }) => {
 const DashboardLayoutInner = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isSettingsRoute = /^\/dashboard\/configuracoes(?:\/central-da-assinatura)?\/?$/i.test(location.pathname);
+  const settingsReturnTo = useRef("/dashboard");
+
+  useEffect(() => {
+    if (!isSettingsRoute) {
+      settingsReturnTo.current = location.pathname + location.search + location.hash;
+    }
+  }, [isSettingsRoute, location]);
+
   const { user, loading } = useAuth();
   const { aberto: atlasAberto, enviar: enviarParaAtlas } = useAtlasChat();
   const isMobile = useIsMobile();
@@ -643,7 +652,7 @@ const DashboardLayoutInner = () => {
   // toolbar). Sem travar na visualViewport o Atlas fica cortado e a pessoa
   // precisa arrastar a página para ver o campo de mensagem.
   useLayoutEffect(() => {
-    if (!isMobile || loading || !user) return;
+    if (isSettingsRoute || !isMobile || loading || !user) return;
     const el = mobileShellRef.current;
     if (!el) return;
 
@@ -672,7 +681,7 @@ const DashboardLayoutInner = () => {
       window.removeEventListener("orientationchange", apply);
       window.removeEventListener("resize", apply);
     };
-  }, [isMobile, loading, user]);
+  }, [isSettingsRoute, isMobile, loading, user]);
   // Exibição do novo onboarding em modal — gating próprio, independente do
   // estado de loja/perfil no Supabase. Abre no primeiro acesso após o cadastro
   // e não reaparece depois de concluído (flag em localStorage por usuário).
@@ -804,10 +813,8 @@ const DashboardLayoutInner = () => {
   const showFreePlanBanner = !planLoading && currentPlan === "gratis";
   // A barra do topo (nome da tela + sino) some em quase tudo: cada página já
   // abre com o próprio título e a seta de voltar, e os dois cabeçalhos
-  // empilhados só repetiam a mesma informação. Sobra nas telas de conta —
-  // assinatura e configurações —, que não têm cabeçalho próprio.
+  // empilhados só repetiam a mesma informação. Sobra nas telas de assinatura.
   const HEADER_ROUTES = [
-    "/dashboard/configuracoes",
     "/dashboard/planos",
     "/dashboard/pagamentos",
     "/dashboard/assinatura",
@@ -817,8 +824,6 @@ const DashboardLayoutInner = () => {
   );
   const isCatalogRoute = location.pathname.startsWith("/dashboard/catalogo");
   const isCatalogProductDetailRoute = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
-  // Configurações usa layout sem moldura, então o fundo da área principal é branco.
-  const isSettingsRoute = location.pathname.startsWith("/dashboard/configuracoes");
   const isHelpCenterRoute = location.pathname.startsWith("/dashboard/ajuda");
   // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
   // é quase branco e, sobre bege, a diferença de temperatura ficava evidente.
@@ -910,6 +915,17 @@ const DashboardLayoutInner = () => {
     return <Navigate to="/login" replace />;
   }
 
+  if (isSettingsRoute) {
+    return (
+      <div className="dashboard-inter flex min-h-svh flex-col bg-white dark:bg-[#111113]">
+        <PageErrorBoundary key={location.pathname}>
+          <PageOutlet settingsReturnTo={settingsReturnTo.current} />
+        </PageErrorBoundary>
+        <NotificationBannerStack />
+      </div>
+    );
+  }
+
   if (isMobile) {
     return (
       <div
@@ -999,7 +1015,7 @@ const DashboardLayoutInner = () => {
               data-dashboard-tour="dashboard-main"
               className="flex min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-5 sm:p-6 lg:p-7"
               style={{
-                background: isCatalogRoute || isSettingsRoute || isHelpCenterRoute
+                background: isCatalogRoute || isHelpCenterRoute
                   ? "#FFFFFF"
                   : isAiImagesRoute
                     ? "#F4F4F6"

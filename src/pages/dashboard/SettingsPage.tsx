@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { BadgeCheck, Bell, CheckCircle2, CreditCard, FlaskConical, Loader2, Lock, MessageCircle, Plug, Shield, Sparkles, Store, Trash2, User, Zap } from "lucide-react";
+import { Link, useLocation, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import { ArrowLeft, BadgeCheck, Bell, CheckCircle2, ChevronDown, CreditCard, FlaskConical, Loader2, Lock, MessageCircle, Plug, Search, Shield, Sparkles, Store, Trash2, User, Zap } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -40,95 +40,118 @@ type TabId =
   | "Segurança"
   | "Suporte";
 
-const NAV: { id: TabId; icon: typeof User; separatorBefore?: boolean }[] = [
+const NAV: { id: TabId; icon: typeof User }[] = [
   { id: "Perfil", icon: User },
   { id: "Minhas Lojas", icon: Store },
   { id: "Integrações", icon: Plug },
   { id: "Plano", icon: CreditCard },
   { id: "Notificações", icon: Bell },
   { id: "Segurança", icon: Shield },
-  { id: "Suporte", icon: MessageCircle, separatorBefore: true },
+  { id: "Suporte", icon: MessageCircle },
 ];
 
 const isTabId = (value: string | null): value is TabId => NAV.some((item) => item.id === value);
 
+const normalizeSearch = (value: string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
 const SettingsPage = () => {
   const [searchParams] = useSearchParams();
+  const { pathname, hash } = useLocation();
+  const returnTo = useOutletContext<string | undefined>();
   const tabParam = searchParams.get("tab");
-  const initialTab: TabId = isTabId(tabParam) ? tabParam : "Perfil";
-  const [tab, setTab] = useState<TabId>(initialTab);
+  const tab = isTabId(tabParam) ? tabParam : "Perfil";
+  const [query, setQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const visibleItems = NAV.filter((item) => normalizeSearch(item.id).includes(normalizeSearch(query)));
+  const contentRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const t = searchParams.get("tab");
-    if (isTabId(t) && t !== tab) setTab(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
-
-  const mobileTabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-
-  useEffect(() => {
-    mobileTabRefs.current[tab]?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    });
-  }, [tab]);
-
-  // Largura única para toda a tela. Antes o Plano usava 980 e as demais abas
-  // 720, e como a classe ficava no wrapper externo, trocar de aba mexia no
-  // título e na barra de abas junto. A régua da página não pode depender da
-  // aba aberta.
-  const contentMaxWidth = "max-w-[720px]";
+    const anchor = hash && document.getElementById(hash.slice(1));
+    if (anchor) {
+      anchor.scrollIntoView();
+    } else {
+      contentRef.current?.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
+    }
+  }, [tab, hash]);
 
   return (
-    <div className={`mx-auto w-full ${contentMaxWidth}`} style={{ minHeight: 'calc(100vh - 56px - 4rem)' }}>
-      {/* Main */}
-      <div className="min-w-0 flex-1 overflow-x-hidden px-3 py-4 md:px-0 md:py-6">
-        <div className="mb-4">
-          <h1 className="text-[19px] font-semibold tracking-[-0.015em] text-[#111113] dark:text-white sm:text-[20px]">
-            Configurações
-          </h1>
-          <p className="mt-0.5 text-[12.5px] text-[#9A9A9A] dark:text-zinc-400">
-            Gerencie seu perfil, lojas e preferências da conta.
-          </p>
-        </div>
-
-        {/* Abas de configuração (estilo sublinhado) */}
-        <div className="mb-6 border-b border-[#EDEDED] dark:border-white/10">
-          <div className="flex w-full items-center justify-between gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
-            {NAV.map((item) => {
-              const active = tab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  ref={(node) => { mobileTabRefs.current[item.id] = node; }}
-                  onClick={() => setTab(item.id)}
-                  className={`relative min-w-max flex-1 whitespace-nowrap px-1 pb-2 pt-1 text-center text-[12.5px] transition-colors ${
-                    active
-                      ? "font-semibold text-[#111113] dark:text-white"
-                      : "font-normal text-[#9A9A9A] hover:text-[#111113] dark:text-zinc-500 dark:hover:text-white"
-                  }`}
-                >
-                  {item.id}
-                  {active && <span className="absolute inset-x-0 -bottom-px h-[2px] bg-[#111113] dark:bg-white" />}
-                </button>
-              );
-            })}
+    <div className="flex min-h-svh flex-col text-[#111113] dark:text-white md:h-svh md:flex-row md:overflow-hidden">
+      <aside className="shrink-0 border-b border-[#E5E7EB] bg-[#F6F7F9] px-4 py-4 dark:border-white/10 dark:bg-[#17171A] md:w-60 md:overflow-y-auto md:border-b-0 md:border-r md:px-4 md:py-6 lg:w-72">
+        <div className="flex items-center justify-between gap-2 md:block">
+          <div className="mb-6 hidden items-center gap-2 px-3 text-lg font-semibold md:flex">
+            <img src="/logo.png" alt="" className="size-7 object-contain" />
+            Velo
           </div>
+          <Link
+            to={returnTo ?? "/dashboard"}
+            replace
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+          >
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Voltar ao painel
+          </Link>
+          <button
+            type="button"
+            aria-expanded={menuOpen}
+            aria-controls="settings-navigation"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#E8EFFF] px-3 py-2.5 text-sm font-semibold text-[#1E40AF] dark:bg-blue-500/15 dark:text-blue-300 md:hidden"
+          >
+            Seções
+            <ChevronDown className={`size-4 ${menuOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
         </div>
+        <div id="settings-navigation" className={`mt-4 md:block ${menuOpen ? "block" : "hidden"}`}>
+          <label className="flex items-center gap-2 rounded-full border border-transparent bg-[#EDEFF3] px-3 text-[#525866] focus-within:border-[#2563EB] dark:bg-white/10 dark:text-zinc-300">
+            <Search className="size-4 shrink-0" aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Buscar seção de configurações"
+              placeholder="Buscar"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#525866] dark:placeholder:text-zinc-300"
+            />
+          </label>
+          <p className="mb-2 mt-6 px-3 text-xs font-semibold text-[#525866] dark:text-zinc-400">Configurações</p>
+          <nav aria-label="Seções de configurações" className="space-y-1">
+            {visibleItems.map(({ id, icon: Icon }) => (
+              <Link
+                key={id}
+                to={{ pathname, search: new URLSearchParams({ tab: id }).toString() }}
+                aria-current={tab === id ? "page" : undefined}
+                onClick={() => setMenuOpen(false)}
+                className={`flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  tab === id
+                    ? "bg-[#E8EFFF] font-semibold text-[#1E40AF] dark:bg-blue-500/15 dark:text-blue-300"
+                    : "hover:bg-black/5 dark:hover:bg-white/10"
+                }`}
+              >
+                <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+                {id}
+              </Link>
+            ))}
+            {visibleItems.length === 0 && (
+              <p role="status" className="px-3 py-2 text-sm text-[#525866] dark:text-zinc-400">Nenhuma seção encontrada.</p>
+            )}
+          </nav>
+        </div>
+      </aside>
 
-        <div className="w-full">
-          {tab === "Perfil"        && <ProfileTab />}
-          {tab === "Minhas Lojas"  && <StoresTab />}
-          {tab === "Integrações"   && <IntegrationsTab />}
-          {tab === "Plano"         && <PlanTab />}
-          {tab === "Notificações"  && <NotificationsTab />}
-          {tab === "Segurança"     && <SecurityTab />}
-          {tab === "Suporte"       && (
-<SupportTab />
-          )}
+      <main ref={contentRef} className="min-w-0 flex-1 px-4 py-6 sm:px-8 md:overflow-y-auto md:py-8 lg:px-12">
+        <div className="mx-auto w-full max-w-[880px]">
+          <h1 className="mb-8 text-[26px] font-semibold leading-tight tracking-tight md:mb-10 md:text-[30px]">{tab}</h1>
+          {tab === "Perfil" && <ProfileTab />}
+          {tab === "Minhas Lojas" && <StoresTab />}
+          {tab === "Integrações" && <IntegrationsTab />}
+          {tab === "Plano" && <PlanTab />}
+          {tab === "Notificações" && <NotificationsTab />}
+          {tab === "Segurança" && <SecurityTab />}
+          {tab === "Suporte" && <SupportTab />}
         </div>
-      </div>
+      </main>
     </div>
   );
 };
@@ -535,7 +558,7 @@ const ProfileTab = () => {
         <button onClick={handleSalvar} className={saveBtn}>Salvar alterações</button>
       </div>
 
-      {/* Encerrar assinatura / garantia de 7 dias (link do chat: ?tab=Perfil#velo-reembolso) */}
+      {/* Gerenciar assinatura durante a garantia. */}
       <div id="velo-reembolso" className="scroll-mt-6"><RefundSection /></div>
     </div>
   );

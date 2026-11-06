@@ -1,6 +1,8 @@
 // A regra mora em supabase/functions/_shared/refundPolicy.ts, a mesma que o
 // servidor (request-refund) e a IA de suporte usam.
 export {
+  formatRefundFeedback,
+  REFUND_FEEDBACK_MAX_LENGTH,
   getRefundMode,
   refundDaysUsed,
   REFUND_WINDOW_DAYS,

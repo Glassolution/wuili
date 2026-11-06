@@ -4,7 +4,7 @@ export type { RefundMode } from "./refundEligibility";
 
 /*
  * Situação do cliente para reembolso/cancelamento: o que ele pode fazer agora.
- * Usado pela seção Garantia de 7 dias / Encerrar assinatura (Configurações → Perfil).
+ * Usado pela Gerenciar assinatura em Configurações.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- tabelas de reembolso ainda fora dos tipos gerados

@@ -3,8 +3,6 @@ import { createPortal } from "react-dom";
 import { Download, ExternalLink, Image as ImageIcon, X } from "lucide-react";
 import { parseSupportMessage } from "@/lib/support";
 import { renderSupportTextWithLinks } from "@/lib/supportLinks";
-import { REFUND_PAGE_PATH } from "@/lib/refundEligibility";
-import { Button } from "@/components/ui/button";
 
 type SupportMessageMediaProps = {
   value: string;
@@ -37,29 +35,15 @@ export const SupportMessageMedia = ({
     if (adminTone) {
       return (
         <p className="text-[12px] font-semibold text-white">
-          Cartão antigo de cancelamento / reembolso (hoje vira atalho para Configurações)
+          Cartão antigo de cancelamento / reembolso (hoje só indica Configurações → Perfil)
         </p>
       );
     }
-    // Cartão antigo do chat: hoje o pedido é feito só em Configurações → Perfil.
-    const abrirReembolso = () => {
-      const alvo = document.getElementById("velo-reembolso");
-      if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
-      else window.location.href = REFUND_PAGE_PATH;
-    };
+    // Cartão antigo do chat: hoje só diz onde fica a tela, sem levar o cliente até lá.
     return (
-      <div className="min-w-[220px]">
-        <p className="text-[13px] leading-5">
-          O reembolso e o cancelamento da assinatura são feitos em Configurações → Perfil.
-        </p>
-        <Button
-          type="button"
-          onClick={abrirReembolso}
-          className="mt-2.5 h-9 w-full rounded-lg px-3 text-[12.5px] font-bold"
-        >
-          Abrir em Configurações
-        </Button>
-      </div>
+      <p className="min-w-[220px] text-[13px] leading-5">
+        O reembolso e o cancelamento da assinatura são feitos por você em Configurações → Perfil, na seção "Gerenciar assinatura".
+      </p>
     );
   }
 

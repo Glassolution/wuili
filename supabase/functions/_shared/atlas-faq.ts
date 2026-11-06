@@ -12,7 +12,7 @@
  * cuidar — errar para o lado do modelo custa alguns centavos, errar para o
  * lado do texto fixo custa a confiança do usuário.
  */
-import { CANCEL_PAGE_LABEL, CANCEL_PAGE_PATH, PRAZO_REEMBOLSO, REFUND_PAGE_LABEL, REFUND_PAGE_PATH } from "./refundPolicy.ts";
+import { CANCEL_PAGE_LABEL, PRAZO_REEMBOLSO, REFUND_PAGE_LABEL } from "./refundPolicy.ts";
 
 export type AtlasFaqNavigation = {
   type: "navigation";
@@ -80,15 +80,13 @@ export const ATLAS_FAQ: AtlasFaqEntry[] = [
     pattern: /\b(cancelar|cancelamento|encerrar)\b/,
     requires: /\b(assinatura|plano|conta)\b/,
     message:
-      `Até 7 dias após o pagamento: **${REFUND_PAGE_LABEL}**, em Garantia de 7 dias, onde você pode pedir reembolso ou cancelar. Depois disso, cancele a renovação em **${CANCEL_PAGE_LABEL}**.\n\nSeu acesso continua até o fim do ciclo já pago, e os anúncios que você publicou seguem no Mercado Livre normalmente.`,
-    actions: [nav("Garantia de 7 dias", REFUND_PAGE_PATH, "primary"), nav("Cancelar renovação", CANCEL_PAGE_PATH)],
+      `Até 7 dias após o pagamento: **${REFUND_PAGE_LABEL}**, em Gerenciar assinatura, onde você pode pedir reembolso ou cancelar. Depois disso, cancele a renovação em **${CANCEL_PAGE_LABEL}**, na seção Gerenciar assinatura.\n\nSeu acesso continua até o fim do ciclo já pago, e os anúncios que você publicou seguem no Mercado Livre normalmente.`,
   },
   {
     id: "reembolso",
     pattern: /\b(reembolso|estorno|devolver o dinheiro|quero meu dinheiro)\b/,
     message:
-      `O pedido de reembolso é feito em **${REFUND_PAGE_LABEL}**, até 7 dias após o pagamento. ${PRAZO_REEMBOLSO}`,
-    actions: [nav("Abrir em Configurações", REFUND_PAGE_PATH, "primary")],
+      `O pedido de reembolso é feito em **${REFUND_PAGE_LABEL}**, na seção Gerenciar assinatura, até 7 dias após o pagamento. ${PRAZO_REEMBOLSO}`,
   },
   {
     id: "pagina_de_vendas",

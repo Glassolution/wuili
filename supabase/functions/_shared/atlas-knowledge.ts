@@ -1,5 +1,5 @@
 import { atlasRouteTagPromptSection } from "./atlas-route-tags.ts";
-import { PRAZO_REEMBOLSO, REFUND_PAGE_LABEL, REFUND_PAGE_PATH } from "./refundPolicy.ts";
+import { CANCEL_PAGE_LABEL, PRAZO_REEMBOLSO, REFUND_PAGE_LABEL, REFUND_WINDOW_DAYS } from "./refundPolicy.ts";
 export type AtlasNavItem = {
   id: string;
   label: string;
@@ -92,8 +92,8 @@ export const ATLAS_NAV_ITEMS: AtlasNavItem[] = [
     id: "pagamentos",
     label: "Pagamentos",
     route: "/dashboard/pagamentos",
-    description: "Cobranças, assinatura, reembolso e histórico financeiro da assinatura.",
-    aliases: ["pagamento", "pagamentos", "assinatura", "cobranca", "cobrança", "reembolso", "cancelar assinatura"],
+    description: "Cobranças e histórico financeiro da assinatura.",
+    aliases: ["pagamento", "pagamentos", "assinatura", "cobranca", "cobrança"],
   },
   {
     id: "planos",
@@ -188,8 +188,8 @@ PLANOS E LIMITES OPERACIONAIS CONFIRMADOS
 AJUDA E SUPORTE DOCUMENTADOS
 - Anúncio pausado: pode ser por estoque, atributo obrigatório ausente ou política do Mercado Livre. Se for estoque, o scraper reativa quando o fornecedor repõe.
 - Erro de publicação: verificar Integrações, reconectar Mercado Livre se vermelho/expirado, checar estoque do produto e tentar novamente se o erro for categoria.
-- Reembolso da assinatura Velo: até 7 dias após o pagamento, em ${REFUND_PAGE_LABEL} (${REFUND_PAGE_PATH}). ${PRAZO_REEMBOLSO}
-- Cancelar assinatura: ${REFUND_PAGE_LABEL} → Cancelar renovação, sem falar com a equipe. Acesso segue até o fim do ciclo pago. Anúncios já publicados no Mercado Livre continuam lá.
+- Reembolso da assinatura Velo: até ${REFUND_WINDOW_DAYS} dias após o pagamento, em ${REFUND_PAGE_LABEL}, seção Gerenciar assinatura (diga só onde fica, sem link nem botão). ${PRAZO_REEMBOLSO}
+- Cancelar renovação: durante a garantia, em ${REFUND_PAGE_LABEL}, seção Gerenciar assinatura. Depois, em ${CANCEL_PAGE_LABEL}, seção Gerenciar assinatura. Indique o caminho em texto, sem link nem botão. Acesso segue até o fim do ciclo pago. Anúncios já publicados no Mercado Livre continuam lá.
 - Troca de email e exclusão de dados: abrir chamado no suporte.
 
 SEGURANÇA E PRIVACIDADE
