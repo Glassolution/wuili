@@ -2694,7 +2694,6 @@ Deno.serve(async (req) => {
       success: true,
       permalink: itemData.permalink,
       item_id: itemId,
-      ...(avisoEnvio ? { aviso_envio: avisoEnvio } : {}),
       ...(totalVariacoes > 0
         ? {
           partial: parcial,
