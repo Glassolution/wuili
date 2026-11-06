@@ -3,6 +3,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getCharge, refundCharge, validaPayFetch, ValidaPayError } from "../_shared/validapay.ts";
+import { refundExecutionRequested } from "../_shared/subscriptionLifecyclePolicy.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -145,7 +146,7 @@ Deno.serve(async (req) => {
         .in("status", ["processed", "pending", "processing", "approved"]).maybeSingle();
       if (prior) return json({ ok: true, skipped: "ja_estornada", charge_id: chargeId });
 
-      if (dryRun) return json({ ok: true, dry_run: true, eligible: true, charge_id: chargeId,
+      if (!refundExecutionRequested(body)) return json({ ok: true, dry_run: true, eligible: true, charge_id: chargeId,
         subscription_id: sub.id, amount: body.confirmation.amount });
       // Durable reservation happens before the provider call. Uncertain outcomes cannot be retried blindly.
       const { error: reserveError } = await admin.from("post_cancel_refund_operations").insert({
