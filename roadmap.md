@@ -1,10 +1,11 @@
 # Roadmap
 
 ## Recorrências após cancelamento/reembolso
-- [ ] Unificar cancelamento confirmado na ValidaPay com fila de retentativas para novos pedidos
-- [ ] Bloquear reativação e efeitos financeiros no webhook e reconciliação; preservar outras assinaturas válidas
-- [ ] Exibir incidentes e diagnóstico histórico somente leitura; exigir confirmação pontual para estorno
-- [ ] Testar com provedor simulado, publicar funções afetadas e verificar logs sem movimentação histórica
+- [x] Unificar cancelamento confirmado na ValidaPay com fila de retentativas para novos pedidos; aproveita reconciliação existente, sem novo agendamento
+- [x] Bloquear reativação e efeitos financeiros no webhook e reconciliação; preservar outras assinaturas válidas e adicionar proteção no banco
+- [x] Exibir incidentes e diagnóstico histórico somente leitura; estorno em massa desativado e operação pontual exige confirmação/reserva durável
+- [x] 15 testes simulados passaram, sete funções publicadas e diagnóstico autenticado conferido; logs da reconciliação sem movimentações e oito contratos históricos sem alterações
+- Limite de validação: nenhum cancelamento/estorno real executado; resposta real de agendamento da ValidaPay permanece não exercitada. Falha antes/depois do envio de estorno reservado exige revisão manual, nunca repetição cega.
 
 ## Admin — Fase 1
 - [x] Paginar Usuários no servidor com abas, busca e contadores globais
