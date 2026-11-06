@@ -1,5 +1,11 @@
 # Roadmap
 
+## Nova compra após reembolso e FAQ 5
+- [ ] Liberar cooldown no webhook e na tentativa de publicar somente para nova assinatura paga ativa posterior ao reembolso
+- [ ] Contar, limpar e reconferir todos os casos existentes autorizados
+- [ ] Atualizar FAQ 5 com links e menus conferidos, preservando regras internas
+- [ ] Testar as regras e publicar as duas funções alteradas
+
 ## Oferta vitalícia para novas compras
 - [x] Substituir opção anual por vitalício sem mudar assinaturas existentes
 - [x] Configurar pagamento único confirmado e acesso sem expiração
