@@ -145,6 +145,7 @@ Deno.serve(async (req) => {
     let canList: boolean | null = null
     let codes: string[] = []
     let lastError: string | null = null
+    let mercadoenvios: string | null = null
 
     if (!token) {
       lastError = 'conexao_expirada'
@@ -160,6 +161,7 @@ Deno.serve(async (req) => {
           const sellAllow = status?.sell?.allow === true
           canList = listAllow && sellAllow
           codes = Array.isArray(status?.list?.codes) ? status.list.codes.map(String) : []
+          mercadoenvios = typeof status?.mercadoenvios === 'string' ? status.mercadoenvios : null
         } else {
           lastError = `ml_http_${res.status}`
         }
@@ -173,6 +175,7 @@ Deno.serve(async (req) => {
         user_id: integ.user_id,
         can_list: canList,
         codes,
+        mercadoenvios,
         source: 'batch',
         ml_user_id: integ.ml_user_id,
         last_error: lastError,
