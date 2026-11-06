@@ -229,25 +229,33 @@ const AdminRefundsPage = () => {
     enabled: isAdmin && userIds.length > 0,
     queryFn: async () => {
       const map: Record<string, UserProfile> = {};
-      const { data: directProfiles, error: directError } = await supabase
-        .from("profiles")
-        .select("user_id, display_name, avatar_url, email")
-        .in("user_id", userIds);
+      // Evita exceder o tamanho máximo da URL ao consultar centenas de usuários.
+      const CHUNK = 100;
+      for (let i = 0; i < userIds.length; i += CHUNK) {
+        const { data: directProfiles, error: directError } = await supabase
+          .from("profiles")
+          .select("user_id, display_name, avatar_url, email")
+          .in("user_id", userIds.slice(i, i + CHUNK));
 
-      if (directError) {
-        console.error("[admin-refunds] falha ao carregar profiles direto", directError);
+        if (directError) {
+          console.error("[admin-refunds] falha ao carregar profiles direto", directError);
+          continue;
+        }
+
+        (directProfiles || []).forEach((profile) => {
+          map[profile.user_id] = {
+            display_name: profile.display_name ?? null,
+            avatar_url: profile.avatar_url ?? null,
+            email: profile.email ?? null,
+          };
+        });
       }
 
-      (directProfiles || []).forEach((profile: any) => {
-        map[profile.user_id] = {
-          display_name: profile.display_name ?? null,
-          avatar_url: profile.avatar_url ?? null,
-          email: profile.email ?? null,
-        };
-      });
+      const missingIds = userIds.filter((id) => !map[id]?.email || isGenericUserName(map[id]?.display_name));
+      if (!missingIds.length) return map;
 
       const { data, error } = await supabase.functions.invoke("admin-list-profiles", {
-        body: { user_ids: userIds },
+        body: { user_ids: missingIds },
       });
       if (error) {
         console.error("[admin-refunds] falha ao carregar perfis", error);
