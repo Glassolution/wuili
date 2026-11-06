@@ -309,9 +309,6 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       } else {
         veloToast.success(dados.mensagem ?? "Produto publicado com sucesso", { id: toastId });
       }
-      if (dados.aviso_envio) {
-        veloToast.info(dados.aviso_envio, { duration: 15000 });
-      }
     } catch (erro) {
       const codigo = erro instanceof ErroDePublicacao ? erro.codigo : undefined;
       if (codigo === "ML_SELLER_CANNOT_LIST" || codigo === "ML_SHIPPING_NOT_ACCEPTED") {
