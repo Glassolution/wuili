@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, ExternalLink, MapPin } from "lucide-react";
+import { X, ExternalLink, MapPin, RefreshCw } from "lucide-react";
 import { infoFaltanteDoVendedor } from "@/lib/mlSellerBlocked";
+import { supabase } from "@/integrations/supabase/client";
+import { veloToast } from "@/lib/veloToast";
 
 type Props = {
   open: boolean;
