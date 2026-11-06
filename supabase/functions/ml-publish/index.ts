@@ -1087,6 +1087,14 @@ Deno.serve(async (req) => {
     // buildSellerBlockedMessage + code=ML_SELLER_CANNOT_LIST e a UI abre o
     // tutorial. Mantemos apenas um log de aviso para observabilidade.
     const sellerBlock = await validateSellerCanList(accessToken)
+    if (sellerBlock?.hard) {
+      // Bloqueio real (ex.: Mercado Envios não aceito): não tenta publicar.
+      return json({
+        error: sellerBlock.message,
+        code: (sellerBlock.details.code as string) ?? 'ML_SELLER_CANNOT_LIST',
+        seller_codes: (sellerBlock.details.seller_codes as string[]) ?? [],
+      }, 400)
+    }
     if (sellerBlock) {
       console.warn('[ml-publish] /users/me indica bloqueio soft, tentando publicar mesmo assim:', JSON.stringify(sellerBlock.details).substring(0, 500))
     }
