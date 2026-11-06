@@ -289,6 +289,8 @@ export type ResultadoDaPublicacao = {
   variacoesPublicadas?: number;
   variacoesComFalha?: Array<{ valor: string | null; erro: string }>;
   mensagem?: string;
+  /** Aviso pós-publicação: o ML pode ter gravado o anúncio sem Mercado Envios. */
+  aviso_envio?: string;
 };
 
 
