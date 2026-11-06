@@ -1,5 +1,11 @@
 # Roadmap
 
+## Admin — Fase 1
+- [ ] Paginar Usuários no servidor com abas, busca e contadores globais
+- [ ] Corrigir leituras inválidas de role e validar índices com EXPLAIN
+- [ ] Testar regras, acesso e comparar uma abertura antes/depois sem gravações
+- Escopo: não alterar Suporte, Reembolsos, pagamentos nem registros de clientes
+
 ## Nova compra após reembolso e FAQ 5
 - [x] Liberar cooldown no webhook e na tentativa de publicar somente para nova assinatura paga ativa posterior ao reembolso
 - [x] Contar, limpar e reconferir: 59 cooldowns ativos, 1 elegível liberado, 58 mantidos e zero elegíveis restantes
