@@ -7,6 +7,8 @@
 //     webhook, e ativa o acesso se o pagamento já foi confirmado no gateway.
 //  3) Roda a detecção/estorno automático de cobranças duplicadas.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { processProviderCancellation } from "../_shared/providerCancellation.ts";
+import { guardPaidSubscription } from "../_shared/subscriptionLifecycle.ts";
 import { getCharge, isConfirmedPayment, isPaidStatus, lookupPaymentStatus } from "../_shared/validapay.ts";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
@@ -70,6 +72,12 @@ Deno.serve(async (req) => {
       duplicates_refunded: 0,
     };
     const usersToAudit = new Set<string>();
+    // Only newly enqueued explicit requests. No historical cancellation sweep.
+    const { data: cancellationJobs, error: cancellationReadError } = await admin.from("provider_cancellation_requests")
+      .select("subscription_id").in("state", ["pending", "processing"]).lte("next_retry_at", nowIso).limit(10);
+    if (cancellationReadError) throw new Error(`cancellation_queue_read:${cancellationReadError.message}`);
+    for (const job of cancellationJobs ?? []) await processProviderCancellation(admin, job.subscription_id);
+
 
     // ---------------------------------------------------------------
     // 1) Fila de reprocessamento de webhooks que falharam
@@ -90,21 +98,25 @@ Deno.serve(async (req) => {
       let recovered = false;
 
       try {
+        const paymentEvents = ["payment.success", "oneoff.payment.success", "subscription.activated", "subscription.renewed"];
+        if (!paymentEvents.includes(ev.event)) {
+          // Never turn cancellation/refund/failure notifications into activation.
+          await admin.from("validapay_webhook_events").update({ next_retry_at: null, retry_exhausted: true,
+            error: "non_payment_event_requires_manual_review" }).eq("id", ev.id);
+          continue;
+        }
         const reference = ev.charge_id ?? ev.payment_id ?? ev.subscription_id;
         if (reference) {
-          // Só cobrança real confirma pagamento (sessão de checkout não).
-          const confirmed = ev.charge_id
-            ? isPaidStatus(String((await getCharge(ev.charge_id)).status ?? "").toUpperCase())
-            : isConfirmedPayment(await lookupPaymentStatus(reference));
-
-          if (confirmed) {
-            // deno-lint-ignore no-explicit-any -- payload do gateway não é tipado
-            const meta = ((ev as any).payload?.metadata ?? {}) as Record<string, unknown>;
+          const info = await lookupPaymentStatus(reference);
+          if (isConfirmedPayment(info) && info) {
+            const meta = (ev.payload?.metadata ?? {}) as Record<string, unknown>;
             recovered = await activateFromReference(admin, {
-              chargeId: ev.charge_id,
+              chargeId: info.chargeId ?? ev.charge_id,
               subscriptionId: ev.subscription_id,
-              amount: ev.amount ? Number(ev.amount) : null,
-              userId: (meta.user_id ?? meta.userId) as string | undefined ?? null,
+              amount: info.amount ?? null,
+              paidAt: info.paidAt ?? null,
+              eventId: ev.id,
+              userId: typeof meta.user_id === "string" ? meta.user_id : null,
             }, usersToAudit);
           }
         }
@@ -147,7 +159,7 @@ Deno.serve(async (req) => {
     // ---------------------------------------------------------------
     const { data: pendings } = await admin
       .from("subscriptions")
-      .select("id,user_id,plan,amount,purchase_kind,validapay_charge_id,validapay_subscription_id,created_at")
+      .select("id,user_id,plan,status,amount,purchase_kind,cancel_at_period_end,cancelled_at,current_period_end,validapay_charge_id,validapay_subscription_id,created_at")
       .eq("status", "pending")
       .lte("created_at", new Date(Date.now() - PENDING_MIN_AGE_MS).toISOString())
       .gte("created_at", new Date(Date.now() - PENDING_MAX_AGE_MS).toISOString())
@@ -165,8 +177,9 @@ Deno.serve(async (req) => {
         if (!isConfirmedPayment(info) || !info) continue;
         if (sub.purchase_kind === "lifetime" && !lifetimePaymentMatches(Number(sub.amount), info.amount)) continue;
 
+        if (await guardPaidSubscription(admin, sub, { chargeId: info.chargeId ?? null, amount: info.amount ?? null, paidAt: info.paidAt ?? null })) continue;
         const now = new Date();
-        await admin.from("subscriptions").update({
+        const { error: pendingActivationError } = await admin.from("subscriptions").update({
           status: "active",
           provider: "validapay",
           payment_method: (info.paymentMethod ?? "pix").toString().toLowerCase(),
@@ -175,7 +188,8 @@ Deno.serve(async (req) => {
           current_period_end: addMonths(now, 1).toISOString(),
           ...(sub.purchase_kind === "lifetime" ? { ...lifetimePeriod, origin_paid_at: now.toISOString() } : {}),
           updated_at: now.toISOString(),
-        }).eq("id", sub.id);
+        }).eq("id", sub.id).eq("status", "pending");
+        if (pendingActivationError) throw new Error(`pending_activation:${pendingActivationError.message}`);
         await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", sub.user_id);
 
         result.pending_recovered++;
@@ -240,13 +254,15 @@ async function activateFromReference(
     subscriptionId: string | null;
     amount: number | null;
     userId?: string | null;
+    paidAt?: string | null;
+    eventId?: string | null;
   },
   usersToAudit: Set<string>,
 ): Promise<boolean> {
   // A cobrança pode não estar gravada na assinatura ainda (o checkout guarda
   // só a sessão cs_...). Por isso tentamos, em ordem: cobrança, assinatura do
   // gateway e, por fim, a última assinatura do usuário indicado no evento.
-  const cols = "id,user_id,plan,status,amount,purchase_kind";
+  const cols = "id,user_id,plan,status,amount,purchase_kind,cancel_at_period_end,cancelled_at,current_period_end";
   const byField = async (field: string, value: string) => {
     const { data } = await admin
       .from("subscriptions").select(cols).eq(field, value)
@@ -264,6 +280,8 @@ async function activateFromReference(
     sub = data?.[0] ?? null;
   }
   if (!sub) return false;
+  if (await guardPaidSubscription(admin, sub, { chargeId: ref.chargeId, amount: ref.amount,
+    paidAt: ref.paidAt ?? null, eventId: ref.eventId ?? null })) return true;
   if (sub.purchase_kind === "lifetime") {
     const info = await lookupPaymentStatus(ref.chargeId ?? ref.subscriptionId ?? "");
     if (!isConfirmedPayment(info) || !lifetimePaymentMatches(Number(sub.amount), info?.amount ?? null)) return false;
@@ -271,7 +289,7 @@ async function activateFromReference(
 
   if (sub.status !== "active") {
     const now = new Date();
-    await admin.from("subscriptions").update({
+    const { error: activationError } = await admin.from("subscriptions").update({
       status: "active",
       provider: "validapay",
       validapay_charge_id: ref.chargeId ?? undefined,
@@ -281,6 +299,7 @@ async function activateFromReference(
       ...(sub.purchase_kind === "lifetime" ? { ...lifetimePeriod, origin_paid_at: now.toISOString() } : {}),
       updated_at: now.toISOString(),
     }).eq("id", sub.id);
+    if (activationError) throw new Error(`retry_activation:${activationError.message}`);
     await admin.from("profiles").update({ plano: sub.plan }).eq("user_id", sub.user_id);
   }
   usersToAudit.add(sub.user_id);
