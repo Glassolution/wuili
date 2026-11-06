@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
 import {
   Bell,
+  RefreshCw,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -21,6 +22,7 @@ import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import { AdminKPIStat } from "@/components/admin/AdminPrimitives";
 import { AdminUserDetailModal } from "@/components/admin/AdminUserDetailModal";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 
@@ -31,8 +33,7 @@ type AdminUserRow = {
   avatar_url: string | null;
   plan: string | null;
   subscription_status: string | null;
-  subscription_amount?: number | null;
-  subscription_updated_at?: string | null;
+  segment: "ativos" | "risco" | "vencida" | "sem_plano";
   created_at: string;
   ml_connected: boolean;
   orders_count: number;
@@ -47,118 +48,25 @@ const isOnline = (lastSeenAt?: string | null) => {
   return Date.now() - t < ONLINE_WINDOW_MS;
 };
 
-type ProfileRow = {
-  user_id: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  plano: string | null;
-  created_at: string;
-};
-
-type SubscriptionRow = {
-  user_id: string;
-  plan: string | null;
-  status: string | null;
-  amount: number | null;
-  is_trial: boolean | null;
-  created_at: string | null;
-  updated_at: string | null;
-};
-
-type UserStatusFilter = "todos" | "online" | "ativos" | "gratis";
-type SortKey = "created_at" | "name" | "plan" | "orders_count";
-
+type UserStatusFilter = "ativos" | "risco" | "vencida" | "sem_plano" | "todos";
 const statusFilters: Array<{ key: UserStatusFilter; label: string }> = [
-  { key: "todos", label: "Todos" },
-  { key: "online", label: "Online" },
   { key: "ativos", label: "Ativos" },
-  { key: "gratis", label: "Gratuitos" },
+  { key: "risco", label: "Em risco" },
+  { key: "vencida", label: "Assinatura vencida" },
+  { key: "sem_plano", label: "Sem plano" },
+  { key: "todos", label: "Todos" },
 ];
-
-const isActiveStatus = (status?: string | null) =>
-  ["active", "paid", "approved", "authorized"].includes((status ?? "").toLowerCase());
-
-const chooseSubscription = (current: SubscriptionRow | undefined, next: SubscriptionRow) => {
-  if (!current) return next;
-  const currentActive = isActiveStatus(current.status);
-  const nextActive = isActiveStatus(next.status);
-  if (nextActive && !currentActive) return next;
-  if (currentActive && !nextActive) return current;
-  const currentDate = new Date(current.updated_at ?? current.created_at ?? 0).getTime();
-  const nextDate = new Date(next.updated_at ?? next.created_at ?? 0).getTime();
-  return nextDate > currentDate ? next : current;
+type UserPage = { users: AdminUserRow[]; total: number; page: number; size: number };
+type UserCounts = Record<UserStatusFilter | "online", number>;
+const fetchAdminUsers = async (page = 1, size = 25, search = "", tab: UserStatusFilter = "ativos"): Promise<UserPage> => {
+  const { data, error } = await supabase.functions.invoke("admin-users", { body: { page, size, search, tab } });
+  if (error || data?.error) throw new Error(data?.error || error?.message || "Não foi possível carregar usuários.");
+  return data as UserPage;
 };
-
-const fetchAdminUsers = async (): Promise<AdminUserRow[]> => {
-  const [functionResult, profilesResult, subscriptionsResult, sessionsResult] = await Promise.all([
-    supabase.functions.invoke("admin-users") as Promise<{ data: AdminUserRow[] | null; error: unknown }>,
-    supabase
-      .from("profiles")
-      .select("user_id,display_name,avatar_url,plano,created_at")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("subscriptions")
-      .select("user_id,plan,status,amount,is_trial,created_at,updated_at")
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from("user_sessions")
-      .select("user_id,last_seen_at")
-      .order("last_seen_at", { ascending: false })
-      .limit(2000),
-  ]);
-
-  if (profilesResult.error && functionResult.error) throw profilesResult.error;
-
-  const lastSeenByUser = new Map<string, string>();
-  for (const row of (sessionsResult.data ?? []) as Array<{ user_id: string; last_seen_at: string | null }>) {
-    if (!row.user_id || !row.last_seen_at) continue;
-    if (!lastSeenByUser.has(row.user_id)) lastSeenByUser.set(row.user_id, row.last_seen_at);
-  }
-
-  const usersById = new Map<string, AdminUserRow>();
-  const functionUsers = Array.isArray(functionResult.data) ? functionResult.data : [];
-  for (const item of functionUsers)
-    usersById.set(item.user_id, { ...item, last_seen_at: lastSeenByUser.get(item.user_id) ?? null });
-
-  const subscriptionsByUser = new Map<string, SubscriptionRow>();
-  for (const s of (subscriptionsResult.data ?? []) as SubscriptionRow[]) {
-    subscriptionsByUser.set(s.user_id, chooseSubscription(subscriptionsByUser.get(s.user_id), s));
-  }
-
-  for (const profile of (profilesResult.data ?? []) as ProfileRow[]) {
-    const subscription = subscriptionsByUser.get(profile.user_id);
-    const existing = usersById.get(profile.user_id);
-    usersById.set(profile.user_id, {
-      user_id: profile.user_id,
-      name: existing?.name ?? profile.display_name,
-      email: existing?.email ?? null,
-      avatar_url: existing?.avatar_url ?? profile.avatar_url,
-      plan: subscription?.plan ?? existing?.plan ?? profile.plano ?? "gratis",
-      subscription_status: subscription?.status ?? existing?.subscription_status ?? null,
-      subscription_amount: subscription?.amount ?? existing?.subscription_amount ?? null,
-      subscription_updated_at:
-        subscription?.updated_at ?? subscription?.created_at ?? existing?.subscription_updated_at ?? null,
-      created_at: existing?.created_at ?? profile.created_at,
-      ml_connected: existing?.ml_connected ?? false,
-      orders_count: existing?.orders_count ?? 0,
-      last_seen_at: lastSeenByUser.get(profile.user_id) ?? existing?.last_seen_at ?? null,
-    });
-  }
-
-  for (const [userId, existing] of usersById) {
-    const subscription = subscriptionsByUser.get(userId);
-    if (!subscription) continue;
-    usersById.set(userId, {
-      ...existing,
-      plan: subscription.plan ?? existing.plan,
-      subscription_status: subscription.status ?? existing.subscription_status,
-      subscription_amount: subscription.amount ?? existing.subscription_amount ?? null,
-      subscription_updated_at:
-        subscription.updated_at ?? subscription.created_at ?? existing.subscription_updated_at ?? null,
-    });
-  }
-
-  return Array.from(usersById.values());
+const fetchCounts = async (): Promise<UserCounts> => {
+  const { data, error } = await supabase.functions.invoke("admin-users", { body: { action: "counts" } });
+  if (error || data?.error) throw new Error(data?.error || error?.message || "Não foi possível carregar contadores.");
+  return data as UserCounts;
 };
 
 const formatDateShort = (value: string | null) => {
@@ -188,6 +96,7 @@ const relativeTime = (value: string | null) => {
 
 const formatPlan = (plan?: string | null) => {
   const n = (plan ?? "gratis").toLowerCase();
+  if (n === "base") return "Base";
   if (n === "business") return "Business";
   if (n === "pro") return "Pro";
   if (n === "plus") return "Plus";
@@ -206,19 +115,9 @@ const getInitials = (name?: string | null, email?: string | null) => {
     .toUpperCase();
 };
 
-const isFreePlan = (plan?: string | null) =>
-  ["gratis", "free", "gratuito"].includes((plan ?? "gratis").toLowerCase());
-
-const getSortValue = (u: AdminUserRow, key: SortKey) => {
-  if (key === "created_at") return new Date(u.created_at).getTime();
-  if (key === "orders_count") return Number(u.orders_count ?? 0);
-  if (key === "plan") return formatPlan(u.plan);
-  return u.name ?? u.email ?? "";
-};
-
 type LeadTemp = "cold" | "warm" | "hot";
 const leadTemperature = (u: AdminUserRow): LeadTemp => {
-  if (isActiveStatus(u.subscription_status)) return "hot";
+  if (u.segment === "ativos" || u.segment === "risco") return "hot";
   if (u.ml_connected || u.orders_count > 0) return "warm";
   return "cold";
 };
@@ -232,67 +131,44 @@ const tempStyle: Record<LeadTemp, string> = {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
-/** Dados pré-buscados valem 30s: passar o mouse de novo na aba não refaz a consulta. */
-const PREFETCH_STALE_MS = 30_000;
-
-/** Pré-busca usada pelo AdminLayout para a aba abrir já com a lista. */
 export const prefetchAdminData = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({ queryKey: ["admin-users-clean"], queryFn: fetchAdminUsers , staleTime: PREFETCH_STALE_MS });
+  queryClient.prefetchQuery({ queryKey: ["admin-users-page", 1, 25, "", "ativos"], queryFn: () => fetchAdminUsers(), staleTime: 30_000 });
 
 const AdminUsersPage = () => {
-  const polling15s = useAdminPolling(15_000);
+  const polling15s = useAdminPolling(60_000);
   const { user, loading } = useAuth();
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<UserStatusFilter>("todos");
-  const [sortBy] = useState<SortKey>("created_at");
+  const [filter, setFilter] = useState<UserStatusFilter>("ativos");
   const [view, setView] = useState<"list" | "grid">("list");
-  const [pageSize, setPageSize] = useState(11);
+  const [pageSize, setPageSize] = useState(25);
   const [page, setPage] = useState(1);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
-  const { data: users = [], isLoading, isError, error } = useQuery({
-    queryKey: ["admin-users-clean"],
-    queryFn: fetchAdminUsers,
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => { setDebouncedSearch(search.trim()); setPage(1); }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+  const { data, isLoading, isError, error, isFetching, refetch } = useQuery({
+    queryKey: ["admin-users-page", page, pageSize, debouncedSearch, filter],
+    queryFn: () => fetchAdminUsers(page, pageSize, debouncedSearch, filter),
     enabled: !!user?.id,
+    staleTime: 30_000,
     refetchInterval: polling15s,
   });
-
-  const filteredUsers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return users
-      .filter((item) => {
-        const matchesSearch =
-          !q ||
-          (item.name ?? "").toLowerCase().includes(q) ||
-          (item.email ?? "").toLowerCase().includes(q) ||
-          item.user_id.toLowerCase().includes(q);
-        const matchesFilter =
-          filter === "todos" ||
-          (filter === "online" && isOnline(item.last_seen_at)) ||
-          (filter === "ativos" && isActiveStatus(item.subscription_status)) ||
-          (filter === "gratis" && isFreePlan(item.plan));
-        return matchesSearch && matchesFilter;
-      })
-      .sort((a, b) => {
-        const va = getSortValue(a, sortBy);
-        const vb = getSortValue(b, sortBy);
-        if (typeof va === "number" && typeof vb === "number") return vb - va;
-        return String(va).localeCompare(String(vb), "pt-BR", { sensitivity: "base" });
-      });
-  }, [filter, search, sortBy, users]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const counts = useQuery({
+    queryKey: ["admin-users-counts"], queryFn: fetchCounts, enabled: !!user?.id,
+    staleTime: 120_000, refetchInterval: polling15s ? 120_000 : false,
+  });
+  const pagedUsers = data?.users ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pagedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const stats = useMemo(
-    () => [
-      { label: "Total", value: users.length },
-      { label: "Online", value: users.filter((item) => isOnline(item.last_seen_at)).length },
-      { label: "Ativos", value: users.filter((item) => isActiveStatus(item.subscription_status)).length },
-      { label: "Gratuitos", value: users.filter((item) => isFreePlan(item.plan)).length },
-    ],
-    [users],
-  );
+  const stats = [
+    { label: "Total", value: counts.data?.todos },
+    { label: "Online", value: counts.data?.online },
+    { label: "Ativos", value: counts.data?.ativos },
+    { label: "Sem plano", value: counts.data?.sem_plano },
+  ];
 
   if (loading) {
     return <AdminPageLoading message="Carregando usuários..." />;
@@ -329,7 +205,7 @@ const AdminUsersPage = () => {
       <div className="space-y-5 text-[#171715]">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map((item) => (
-            <AdminKPIStat key={item.label} label={item.label} value={<span className="admin-kpi-value">{item.value}</span>} />
+            <AdminKPIStat key={item.label} label={item.label} value={<span className="admin-kpi-value">{item.value ?? "—"}</span>} />
           ))}
         </div>
 
@@ -354,7 +230,7 @@ const AdminUsersPage = () => {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="admin-segmented">
                   {statusFilters.map((s) => (
-                    <button
+                    <Button variant="ghost" size="sm"
                       key={s.key}
                       onClick={() => {
                         setFilter(s.key);
@@ -363,22 +239,13 @@ const AdminUsersPage = () => {
                       aria-pressed={filter === s.key}
                       data-active={filter === s.key}
                     >
-                      {s.label}
-                    </button>
+                      {s.label} {counts.data?.[s.key] ?? "—"}
+                    </Button>
                   ))}
                 </div>
-                <button type="button" className="admin-pill">
-                  <Filter strokeWidth={1.7} />
-                  Filtrar
-                </button>
-                <button type="button" className="admin-pill">
-                  <Download strokeWidth={1.7} />
-                  Exportar
-                </button>
-                <button type="button" className="admin-btn-primary">
-                  <Plus strokeWidth={2} />
-                  Novo usuário
-                </button>
+                <Button variant="outline" size="sm" disabled={isFetching} onClick={() => { void refetch(); void counts.refetch(); }} aria-label="Atualizar usuários">
+                  <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} /> Atualizar
+                </Button>
               </div>
             </div>
           </div>
@@ -510,7 +377,7 @@ const UserRow = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void }
           </span>
         ) : (
           <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
-            {tempLabel[temp]}
+            {user.segment === "risco" ? "Em risco" : user.segment === "vencida" ? "Assinatura vencida" : tempLabel[temp]}
           </span>
         )}
       </td>
@@ -541,7 +408,7 @@ const UserCard = ({ user, onClick }: { user: AdminUserRow; onClick?: () => void 
           </span>
         ) : (
           <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", tempStyle[temp])}>
-            {tempLabel[temp]}
+            {user.segment === "risco" ? "Em risco" : user.segment === "vencida" ? "Assinatura vencida" : tempLabel[temp]}
           </span>
         )}
         <span className="text-[11px] text-[#8A8F9B]">{relativeTime(user.created_at)}</span>

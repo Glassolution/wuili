@@ -4406,6 +4406,20 @@ export type Database = {
       }
     }
     Views: {
+      admin_users_latest: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          ml_connected: boolean | null
+          name: string | null
+          plan: string | null
+          segment: string | null
+          subscription_status: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       help_center_documents: {
         Row: {
           category_slug: string | null
@@ -4484,6 +4498,26 @@ export type Database = {
         Returns: string
       }
       admin_support_unread_count: { Args: never; Returns: number }
+      admin_user_segment: {
+        Args: {
+          p_end: string
+          p_kind: string
+          p_now: string
+          p_refresh_failed: string
+          p_status: string
+        }
+        Returns: string
+      }
+      admin_users_counts: { Args: never; Returns: Json }
+      admin_users_page: {
+        Args: {
+          p_page?: number
+          p_search?: string
+          p_size?: number
+          p_tab?: string
+        }
+        Returns: Json
+      }
       affiliate_generate_code: { Args: { p_user_id: string }; Returns: string }
       apply_pending_referral_rewards: {
         Args: { p_user_id: string }
