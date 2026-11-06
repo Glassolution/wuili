@@ -395,6 +395,7 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
   return {
     permalink: resposta?.permalink,
     item_id: resposta?.item_id,
+    aviso_envio: typeof resposta?.aviso_envio === "string" ? resposta.aviso_envio : undefined,
     ...(typeof resposta?.variations_total === "number"
       ? {
         parcial: Boolean(resposta?.partial),
