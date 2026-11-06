@@ -1725,6 +1725,10 @@ const parseAtlasModelResponse = (raw: string): AtlasResponse => {
     const actions = Array.isArray(parsed.actions)
       ? parsed.actions.map(sanitizeAction).filter((action): action is AtlasAction => Boolean(action))
       : [];
+    // Reembolso/cancelamento da assinatura: só texto, sem botão, atalho nem link.
+    if (/reembols|estorno|cancelar a renova|cancelamento da (assinatura|renova)/i.test(message)) {
+      return { message: message.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"), actions: [] };
+    }
     return { message, actions };
   } catch {
     return {
