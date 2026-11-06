@@ -415,8 +415,8 @@ const AdminRefundsPage = () => {
         <div className="mx-auto flex max-w-[1280px] flex-col gap-6">
           <AdminSandboxGrant />
           {(lifecycleIncidents.length > 0 || cancellationRequests.length > 0 || postCancelPreview.length > 0) && (
-            <section className="border-b border-border pb-4 text-foreground">
-              <h2 className="mb-3 text-base font-semibold">Renovações e cancelamentos em revisão</h2>
+            <section className="border-b border-border pb-4 text-muted-foreground">
+              <h2 className="mb-3 text-base font-semibold text-muted-foreground">Renovações e cancelamentos em revisão</h2>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[700px] text-left text-xs">
                   <thead><tr><th className="p-2">Cliente / contrato</th><th className="p-2">Cobrança</th><th className="p-2">Valor</th><th className="p-2">Situação</th></tr></thead>

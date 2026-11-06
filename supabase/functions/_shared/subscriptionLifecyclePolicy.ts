@@ -29,6 +29,11 @@ export function providerCancellationConfirmed(value: unknown): boolean {
     (typeof row.canceledAt === "string" && Number.isFinite(Date.parse(row.canceledAt)));
 }
 
+export function refundExecutionRequested(body: { dry_run?: boolean; confirmation?: { user_id?: string; amount?: number; reason?: string } }): boolean {
+  return body.dry_run === false && typeof body.confirmation?.user_id === "string" &&
+    Number(body.confirmation.amount) > 0 && Boolean(body.confirmation.reason?.trim());
+}
+
 export async function confirmProviderCancellation(
   read: () => Promise<unknown>, cancel: () => Promise<unknown>, saveConfirmation: () => Promise<void>,
 ): Promise<void> {

@@ -7,11 +7,12 @@
 //  2) Verificação server-side obrigatória: todo evento de pagamento é reconferido
 //     via GET /v1/charges/:chargeId com o token OAuth2 antes de alterar o banco.
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
-import { guardPaidSubscription, syncPaidProfile } from "../_shared/subscriptionLifecycle.ts";
+import { guardPaidSubscription, hasTerminatingRefund, syncPaidProfile } from "../_shared/subscriptionLifecycle.ts";
+import { providerCancellationConfirmed, preservesPaidAccess } from "../_shared/subscriptionLifecyclePolicy.ts";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { clearRefundCooldownAfterRepurchase } from "../_shared/refundCooldown.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getCharge, isConfirmedPayment, lookupPaymentStatus, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, isConfirmedPayment, lookupPaymentStatus, validaPayFetch, safeEqual, ValidaPayError } from "../_shared/validapay.ts";
 import { recordAffiliateCommission } from "../_shared/affiliateCommission.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
 import {
@@ -333,25 +334,22 @@ Deno.serve(async (req) => {
     if (event === "refund.confirmed" || event === "refund.requested") {
       const chargeId = String(payload.chargeId ?? "").trim();
       if (event === "refund.confirmed" && chargeId) {
-        const { data: subs } = await admin
-          .from("subscriptions").select("id").eq("validapay_charge_id", chargeId);
-        const subIds = (subs ?? []).map((s: { id: string }) => s.id);
-        let q = admin.from("refund_requests").select("id,provider_response,subscription_id");
-        q = subIds.length
-          ? q.or(`charge_id.eq.${chargeId},subscription_id.in.(${subIds.join(",")})`)
-          : q.eq("charge_id", chargeId);
-        const { data: reqs } = await q;
+        const { data: reqs, error: refundReadError } = await admin.from("refund_requests")
+          .select("id,user_id,provider_response,subscription_id,charge_id,keep_access")
+          .or(`charge_id.eq.${chargeId},provider_response->>chargeId.eq.${chargeId}`);
+        if (refundReadError) throw new Error(`refund_confirmation_read:${refundReadError.message}`);
         for (const r of reqs ?? []) {
           const pr = (r.provider_response ?? {}) as Record<string, unknown>;
-          await admin.from("refund_requests").update({
-            status: "processed",
-            processed_at: nowIsoRefund(),
-            provider_response: { ...pr, status: "CONFIRMED", confirmed_by_webhook: true },
-            updated_at: nowIsoRefund(),
+          const { error: refundSaveError } = await admin.from("refund_requests").update({
+            status: "processed", processed_at: nowIsoRefund(),
+            provider_response: { ...pr, status: "CONFIRMED", confirmed_by_webhook: true }, updated_at: nowIsoRefund(),
           }).eq("id", r.id);
-          if (r.subscription_id) {
-            await admin.from("subscriptions")
+          if (refundSaveError) throw new Error(`refund_confirmation_save:${refundSaveError.message}`);
+          if (r.subscription_id && r.keep_access !== true) {
+            const { error: terminalError } = await admin.from("subscriptions")
               .update({ status: "refunded", updated_at: nowIsoRefund() }).eq("id", r.subscription_id);
+            if (terminalError) throw new Error(`refund_terminal_save:${terminalError.message}`);
+            await syncPaidProfile(admin, r.user_id);
           }
         }
       }
@@ -587,16 +585,23 @@ Deno.serve(async (req) => {
         break;
 
       case "subscription.canceled":
-        await admin.from("subscriptions").update({ cancel_at_period_end: true,
-          cancelled_at: subscription.cancelled_at ?? nowIso, provider_cancelled_at: nowIso }).eq("id", subscription.id);
-        await setStatus("cancelled", true);
+      case "subscription.cancel_scheduled": {
+        if (!subscription.validapay_subscription_id) return await fail("cancellation_contract_missing");
+        const provider = await validaPayFetch(`/v1/subscriptions/${encodeURIComponent(subscription.validapay_subscription_id)}`,
+          { method: "GET", scope: "subscriptions/read checkouts/read accounts/read" });
+        if (!providerCancellationConfirmed(provider)) return await fail("cancellation_provider_unconfirmed");
+        const refunded = await hasTerminatingRefund(admin, subscription.id);
+        const nextStatus = ["refunded", "refunded_duplicate"].includes(subscription.status) ? subscription.status
+          : refunded ? "refunded"
+          : preservesPaidAccess(subscription, false, Date.now()) ? "cancel_scheduled" : "cancelled";
+        const { error: cancellationSaveError } = await admin.from("subscriptions").update({
+          status: nextStatus, cancel_at_period_end: true,
+          cancelled_at: subscription.cancelled_at ?? nowIso, provider_cancelled_at: nowIso, updated_at: nowIso,
+        }).eq("id", subscription.id);
+        if (cancellationSaveError) throw new Error(`cancellation_event_save:${cancellationSaveError.message}`);
+        await syncPaidProfile(admin, subscription.user_id);
         break;
-      case "subscription.cancel_scheduled":
-        await admin.from("subscriptions").update({ cancel_at_period_end: true,
-          cancelled_at: subscription.cancelled_at ?? nowIso, provider_cancelled_at: nowIso }).eq("id", subscription.id);
-        // Preserve terminal states on late scheduled-cancellation notifications.
-        if (!["cancelled", "refunded", "refunded_duplicate", "expired"].includes(subscription.status)) await setStatus("cancel_scheduled");
-        break;
+      }
       case "subscription.trial":
         await setStatus("trialing");
         break;

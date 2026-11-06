@@ -1,7 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
-import { paymentIsBlocked, preservesPaidAccess, confirmProviderCancellation, isPostCancellationPayment } from "./subscriptionLifecyclePolicy";
+import { paymentIsBlocked, preservesPaidAccess, confirmProviderCancellation, isPostCancellationPayment, refundExecutionRequested } from "./subscriptionLifecyclePolicy";
 const sub = { id: "46da48d0-d850-413d-a648-5d3036875754", user_id: "12287108-8160-45cf-b62e-f4c338cb7435", status: "expired", cancel_at_period_end: true, cancelled_at: "2026-10-06T23:18:29.137Z" };
 describe("cancelled recurring payment rules", () => {
+  it("a preview never authorizes a refund even when customer amount and reason are supplied", () => {
+    const confirmation = { user_id: sub.user_id, amount: 79.80, reason: "Cobrança após cancelamento" };
+    expect(refundExecutionRequested({ confirmation })).toBe(false);
+    expect(refundExecutionRequested({ dry_run: true, confirmation })).toBe(false);
+    expect(refundExecutionRequested({ dry_run: false, confirmation })).toBe(true);
+    expect(refundExecutionRequested({ dry_run: false })).toBe(false);
+  });
+  it("confirmed cancellation preserves the remaining paid period", () => {
+    expect(preservesPaidAccess({ ...sub, status: "cancel_scheduled", current_period_end: "2026-11-06T22:28:03.528Z" }, false, Date.parse("2026-11-06T13:05:23Z"))).toBe(true);
+  });
   it("blocks the paid November 6 renewal after the October 6 cancellation", () => {
     expect(paymentIsBlocked(sub, true)).toBe(true);
     expect(isPostCancellationPayment("2026-11-06T13:05:23.392Z", sub.cancelled_at)).toBe(true);
