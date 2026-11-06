@@ -20,7 +20,33 @@ type Props = {
 */
 const MlMissingInfoModal = ({ open, onClose, sellerCodes }: Props) => {
   const [visible, setVisible] = useState(false);
+  const [verificando, setVerificando] = useState(false);
   const info = infoFaltanteDoVendedor(sellerCodes);
+
+  // "Já fiz, verificar de novo": pergunta de novo ao Mercado Livre se a conta
+  // já está apta (e se o Mercado Envios já foi ativado). Liberou → fecha o
+  // modal e a pessoa publica na hora; ainda não → aviso para tentar depois.
+  const verificarDeNovo = async () => {
+    if (verificando) return;
+    setVerificando(true);
+    try {
+      const { data } = await supabase.functions.invoke("ml-seller-status");
+      const liberado =
+        data?.connected === true && data?.canList === true && data?.shippingBlocked !== true;
+      if (liberado) {
+        veloToast.success("Tudo certo! Sua conta já está liberada. Pode publicar.");
+        onClose();
+      } else if (data?.shippingBlocked === true) {
+        veloToast.info("O Mercado Envios ainda não está ativo na sua conta. Conclua o anúncio de teste no Mercado Livre e tente de novo.");
+      } else {
+        veloToast.info("O Mercado Livre ainda não liberou sua conta. Aguarde alguns minutos e tente de novo.");
+      }
+    } catch {
+      veloToast.error("Não consegui verificar agora. Tente de novo em instantes.");
+    } finally {
+      setVerificando(false);
+    }
+  };
 
   useEffect(() => {
     setVisible(open);
