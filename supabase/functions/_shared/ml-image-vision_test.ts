@@ -35,6 +35,33 @@ Deno.test('nome suspeito da URL não é reprovação visual', async () => {
   assertEquals(result.inconclusive.length, 1);
   assertEquals(writes, 0);
 });
+Deno.test('dry-run com aprovação nova não grava cache', async () => {
+  let writes = 0;
+  const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: [] }) }), upsert: () => { writes++; return Promise.resolve({}); } }) } as unknown as SupabaseClient;
+  const original = globalThis.fetch;
+  globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ id: 'dry-test', choices: [{ message: { content: '{"clean":true,"reason":"foto limpa"}' } }] }), { headers: { 'Content-Type': 'application/json' } }));
+  try {
+    const result = await filterCleanImagesCached(db, ['https://example.com/photo.jpg'], { dryRun: true });
+    assertEquals(result.clean.length, 1);
+    assertEquals(writes, 0);
+  } finally { globalThis.fetch = original; }
+});
+Deno.test('erro da IA não interrompe próximo item nem grava reprovação', async () => {
+  let writes = 0;
+  let calls = 0;
+  const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: [] }) }), upsert: () => { writes++; return Promise.resolve({}); } }) } as unknown as SupabaseClient;
+  const original = globalThis.fetch;
+  globalThis.fetch = () => { calls++; return calls === 1
+    ? Promise.resolve(new Response('error', { status: 500 }))
+    : Promise.resolve(new Response(JSON.stringify({ id: 'next-test', choices: [{ message: { content: '{"clean":true,"reason":"foto limpa"}' } }] }), { headers: { 'Content-Type': 'application/json' } })); };
+  try {
+    const result = await filterCleanImagesCached(db, ['https://example.com/a.jpg', 'https://example.com/b.jpg'], { dryRun: true });
+    assertEquals(result.clean.length, 1);
+    assertEquals(result.inconclusive.length, 1);
+    assertEquals(result.rejected.length, 0);
+    assertEquals(writes, 0);
+  } finally { globalThis.fetch = original; }
+});
 Deno.test('foto da fornecedora é enviada com bytes e MIME real', async () => {
   const original = globalThis.fetch;
   globalThis.fetch = () => Promise.resolve(new Response(new Uint8Array([1, 2, 3]), { headers: { 'content-type': 'image/webp' } }));
