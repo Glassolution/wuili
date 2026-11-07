@@ -18,6 +18,7 @@ import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
 import { Button } from "@/components/ui/button";
 import { billingCycleForPlan, formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 
 
 type PaymentMethod = "pix" | "credit_card";
@@ -714,6 +715,7 @@ const CheckoutPage = () => {
                       )}
                     </button>
 
+                    {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={cardCycle} />}
                     <p className="mb-3 mt-6 text-[13px] font-semibold text-black">O que está incluído:</p>
                     <ul className="space-y-2.5">
                       {currentPlan.features.map((feature) => (
@@ -750,6 +752,7 @@ const CheckoutPage = () => {
                 )}
               </button>
             </div>
+            {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={billingCycle} />}
           </section>
         </div>
       </div>
@@ -1017,6 +1020,7 @@ const CheckoutPage = () => {
                   </label>
                 </div>
 
+                {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={billingCycle} />}
                 <button
                   onClick={handleCheckout}
                   disabled={checkoutState === "loading" || !acceptTerms || !acceptPrivacy}
@@ -1036,13 +1040,8 @@ const CheckoutPage = () => {
         </div>
 
         <p className="ml-auto mt-8 max-w-[390px] text-[13px] leading-5 text-[#777]">
-          {sandboxPurchaseEnabled
-            ? "Sandbox ligado: nenhuma cobrança real será criada."
-            : <>Renovação {recurringCycleLabel} até cancelar. Cobraremos {finalCheckoutPrice}{billingCycle === "monthly" ? "/mês" : "/ano"}.</>}{" "}
-          <button type="button" className="font-medium text-black underline underline-offset-2">
-            Cancele quando quiser
-          </button>{" "}
-          em Configurações. Ao assinar, você concorda com os{" "}
+          {sandboxPurchaseEnabled ? "Sandbox ligado: nenhuma cobrança real será criada. " : billingCycle === "lifetime" ? "Pagamento único, sem renovação. " : ""}
+          Ao assinar, você concorda com os{" "}
           <Link to="/termos-de-servico" target="_blank" className="font-medium text-black underline underline-offset-2">
             Termos de Uso
           </Link>{" "}

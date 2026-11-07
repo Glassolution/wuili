@@ -29,6 +29,7 @@ import { createLocalSandboxSubscription } from "@/lib/localSandbox";
 import { Button } from "@/components/ui/button";
 import { VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
+import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 
 
 
@@ -598,6 +599,7 @@ const MobilePlansSheet = ({
                   )}
                 </button>
 
+                {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={cycle} />}
                 <p className="mt-6 text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">Tudo do {highlights.from}, e:</p>
                 <ul className="mt-3.5 space-y-3.5">
                   {highlights.items.map((item) => {
@@ -877,7 +879,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                   )}
                 </PremiumActionButton>
 
-
+                {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={cardCycle} />}
                 <p className="mb-3 mt-6 border-t border-black/[0.08] pt-5 text-[14px] font-semibold text-black">O que está incluído:</p>
                 <ul className="space-y-2.5">
                   {plan.features.map((feature) => {

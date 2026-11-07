@@ -1,5 +1,11 @@
 # Roadmap
 
+## Cortesia Igor e aviso de renovação mensal
+- [x] Estorno R$ 79,80 confirmado (ref_1794092439013_9qiienm65), motivo registrado, acesso encerrado sem cooldown
+- [ ] Cancelamento ValidaPay: bloqueado por HTTP 400; provider_cancelled_at nulo, sem nova tentativa após falha
+- [x] Aviso mensal e Como cancelar nos planos, checkout e confirmação por e-mail; vitalício excluído
+- [x] Avisos e destino autenticados conferidos, registros financeiros relidos; lembrete exige esforço moderado e não foi implementado
+
 ## Leitura de imagens do catálogo
 - [x] Corrigir envio das fotos e não memorizar análises inconclusivas como reprovação
 - [x] Preservar produtos em falhas temporárias; seis testes passaram e fotos reais foram aprovadas

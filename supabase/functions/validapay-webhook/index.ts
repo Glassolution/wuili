@@ -20,6 +20,7 @@ import {
   grantInviterDiscountForPaidInvitee,
 } from "../_shared/referral-rewards.ts";
 import { loadTikTokUser, trackTikTokEvent } from "../_shared/tiktokEvents.ts";
+import { sendSubscriptionConfirmationEmailOnce } from "../_shared/transactional-email-templates.ts";
 
 
 const corsHeaders = {
@@ -513,6 +514,11 @@ Deno.serve(async (req) => {
         // renovações e avisos repetidos nunca geram outro Purchase.
         const wasActiveBefore = subscription.status === "active";
         await activate();
+        // Email failure must never interrupt payment activation or webhook processing.
+        try {
+          const { data: emailSub } = await admin.from("subscriptions").select("*").eq("id", subscription.id).maybeSingle();
+          if (emailSub) await sendSubscriptionConfirmationEmailOnce({ adminClient: admin, subscription: emailSub, resendApiKey: Deno.env.get("RESEND_API_KEY") });
+        } catch (error) { console.error("subscription_confirmation_email", String(error)); }
 
         if (!wasActiveBefore && !subscription.cancel_at_period_end) {
           const purchaseValue = Number(verifiedAmount ?? payload.amount ?? 0);

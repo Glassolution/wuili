@@ -8,6 +8,7 @@ import { carregarSdkMercadoPago } from "@/lib/mercadoPagoSdk";
 import { veloToast as toast } from "@/components/ui/velo-toast";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
+import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 
 const PLANS = [
   {
@@ -292,6 +293,7 @@ const PlansPage = () => {
                   )}
                 </PremiumActionButton>
               ) : null}
+              {!isCurrentPlan && plan.id !== "gratis" && <MonthlyRenewalNotice cycle="monthly" />}
             </div>
           );
         })}

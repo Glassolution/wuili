@@ -5,6 +5,7 @@ import { refundCharge, ValidaPayError } from "../_shared/validapay.ts";
 import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 import { syncPaidProfile } from "../_shared/subscriptionLifecycle.ts";
 import { PRAZO_DEVOLUCAO } from "../_shared/refundPolicy.ts";
+import { adminCourtesyRefund } from "../_shared/adminCourtesyRefund.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +42,9 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
+    if (body.action === "approve" && body.courtesy === true) {
+      return json(await adminCourtesyRefund(admin, body));
+    }
     let { refund_id } = body as { refund_id?: string | null };
     const { action, user_id, reason, reason_details } = body as {
       action?: string;
