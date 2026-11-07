@@ -1,4 +1,5 @@
 import { generateChatCompletion, type GeminiChatMessage } from 'npm:@lovable.dev/ai-gateway@0.1.11';
+import type {} from './generated/ai-gateway/models.d.ts';
 
 export const IMAGE_VALIDATION_REVISION = 'tri-state-explicit-2026-11-08';
 export const IMAGE_VISION_PROMPT = 'Você audita imagens de produto para o Mercado Livre. Responda APENAS com JSON: ' +
