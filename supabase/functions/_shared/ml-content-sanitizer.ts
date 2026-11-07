@@ -11,15 +11,20 @@
 //      não vieram do atributo BRAND validado pela categoria.
 // =====================================================================
 
+import { imageInput, parseImageVerdict } from './ml-image-input.ts'
+
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
 const AI_MODEL = 'google/gemini-3.6-flash'
 
 async function callAI(
   messages: unknown[],
-  opts: { maxTokens?: number; timeoutMs?: number } = {},
+  opts: { maxTokens?: number; timeoutMs?: number; strict?: boolean } = {},
 ): Promise<string | null> {
   const key = Deno.env.get('LOVABLE_API_KEY')
-  if (!key) return null
+  if (!key) {
+    if (opts.strict) throw new Error('Análise de imagens não configurada')
+    return null
+  }
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 25000)
   try {
@@ -37,6 +42,7 @@ async function callAI(
       signal: ctrl.signal,
     })
     if (!res.ok) {
+      if (opts.strict) throw new Error(`Análise de imagens indisponível (HTTP ${res.status})`)
       console.warn('[ml-sanitizer] IA retornou', res.status, (await res.text()).slice(0, 300))
       return null
     }
@@ -44,6 +50,7 @@ async function callAI(
     const text = data?.choices?.[0]?.message?.content
     return typeof text === 'string' ? text.trim() : null
   } catch (err) {
+    if (opts.strict) throw err
     console.warn('[ml-sanitizer] falha na IA:', String(err).slice(0, 200))
     return null
   } finally {
@@ -85,12 +92,18 @@ export function isSuspiciousImageUrl(url: string): boolean {
   return DIRTY_URL_PATTERNS.some((re) => re.test(path))
 }
 
-type VisionVerdict = { url: string; clean: boolean; reason?: string }
+type VisionVerdict = { url: string; clean: boolean | null; reason?: string }
 
 // Checagem visual via IA: detecta marca d'água, logo de loja, texto promocional
 // sobreposto e arte de catálogo. Se a análise não responder, a imagem não é
 // aprovada automaticamente: publicar sem validação expõe a conta do vendedor.
 export async function visionCheck(url: string): Promise<VisionVerdict> {
+  let input: string
+  try {
+    input = await imageInput(url)
+  } catch {
+    return { url, clean: null, reason: 'não foi possível validar: falha ao baixar a imagem' }
+  }
   const raw = await callAI(
     [
       {
@@ -109,31 +122,15 @@ export async function visionCheck(url: string): Promise<VisionVerdict> {
         role: 'user',
         content: [
           { type: 'text', text: 'Esta imagem pode ser publicada como foto de produto?' },
-          { type: 'image_url', image_url: { url } },
+          { type: 'image_url', image_url: { url: input } },
         ],
       },
     ],
     // orçamento alto: o modelo gasta tokens internos antes de responder e um
     // limite baixo devolve JSON cortado (todas as fotos eram recusadas à toa).
-    { maxTokens: 1200, timeoutMs: 30000 },
+    { maxTokens: 1200, timeoutMs: 30000, strict: true },
   )
-  if (!raw) return { url, clean: false, reason: 'não foi possível validar visualmente a imagem' }
-  const text = raw.replace(/```json|```/g, '').trim()
-  // A IA às vezes devolve o JSON embrulhado em texto; extrai o primeiro objeto.
-  const candidate = text.startsWith('{') ? text : (text.match(/\{[\s\S]*\}/)?.[0] ?? '')
-  if (candidate) {
-    try {
-      const parsed = JSON.parse(candidate)
-      return { url, clean: parsed?.clean !== false, reason: parsed?.reason }
-    } catch { /* cai para a leitura textual abaixo */ }
-  }
-  // Sem JSON: aceita apenas uma afirmação textual inequívoca de imagem limpa.
-  if (/"?clean"?\s*[:=]\s*true/i.test(text)) return { url, clean: true }
-  if (/"?clean"?\s*[:=]\s*false/i.test(text)) {
-    return { url, clean: false, reason: 'marca d\'água, texto ou arte na imagem' }
-  }
-  console.warn('[ml-sanitizer] veredito visual ilegível:', text.slice(0, 160))
-  return { url, clean: false, reason: 'resposta inválida na validação visual' }
+  return { url, ...parseImageVerdict(raw) }
 }
 
 export type ImageFilterResult = {
@@ -166,6 +163,7 @@ export async function filterCleanImages(
   }
 
   const verdicts = await Promise.all(candidates.slice(0, max + 4).map(visionCheck))
+  if (verdicts.some(v => v.clean === null)) throw new Error('Análise de imagens inconclusiva')
   const clean: string[] = []
   for (const v of verdicts) {
     if (v.clean) clean.push(v.url)

@@ -36,7 +36,8 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
     const isServiceRole = !!token && token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const hasRepairToken = req.headers.get("x-repair-token") === Deno.env.get("ML_REPAIR_TOKEN");
+    const repairToken = Deno.env.get("ML_REPAIR_TOKEN");
+    const hasRepairToken = !!repairToken && req.headers.get("x-repair-token") === repairToken;
     if (!isServiceRole && !hasRepairToken) {
       const { data: userData } = await supabase.auth.getUser(token);
       const uid = userData?.user?.id;
@@ -67,10 +68,16 @@ Deno.serve(async (req) => {
 
     let aprovados = 0;
     let bloqueados = 0;
+    let inconclusivos = 0;
 
     for (const row of rows ?? []) {
       const imagens = listaDeImagens(row.images);
-      const { clean } = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 14 });
+      const { clean, inconclusive } = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 14 });
+      if (!clean.length && inconclusive.length) {
+        inconclusivos++;
+        // Preserve previous state; a failed analysis is not a dirty photo.
+        continue;
+      }
       // Mesma régua da publicação: basta uma foto dentro das diretrizes.
       const aprovado = clean.length >= 1;
 
@@ -104,6 +111,7 @@ Deno.serve(async (req) => {
       auditados: rows?.length ?? 0,
       aprovados,
       bloqueados,
+      inconclusivos,
       pendentes: pendentes ?? 0,
     });
   } catch (err) {

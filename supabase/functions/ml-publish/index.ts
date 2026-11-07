@@ -912,6 +912,12 @@ Deno.serve(async (req) => {
       // foto passa na régua de diretrizes — antes exigíamos 3 e o produto com
       // 2 fotos boas (mas 9 artes do fornecedor) ficava impossível de publicar.
       if (filtered.clean.length < 1) {
+        if (filtered.inconclusive.length) {
+          return json({
+            error: 'Não foi possível analisar as fotos agora. Isso não significa que elas foram reprovadas. Tente novamente em alguns minutos; nenhuma publicação foi enviada ao Mercado Livre.',
+            code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
+          }, 503)
+        }
         await registrarVeredictoNoCatalogo(
           product.id, 'blocked', ['imagens_insuficientes', 'imagens_arte_fornecedor'], filtered.clean.length,
         )

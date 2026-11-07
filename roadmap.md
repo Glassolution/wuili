@@ -1,5 +1,10 @@
 # Roadmap
 
+## Leitura de imagens do catálogo
+- [ ] Corrigir envio das fotos e não memorizar análises inconclusivas como reprovação
+- [ ] Preservar produtos em falhas temporárias e testar fotos reais do ticket 67298a58
+- [ ] Publicar somente as funções de imagens afetadas e reavaliar os dois produtos indicados
+
 ## Recorrências após cancelamento/reembolso
 - [x] Unificar cancelamento confirmado na ValidaPay com fila de retentativas para novos pedidos; aproveita reconciliação existente, sem novo agendamento
 - [x] Bloquear reativação e efeitos financeiros no webhook e reconciliação; preservar outras assinaturas válidas e adicionar proteção no banco

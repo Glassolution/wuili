@@ -8,10 +8,12 @@
 // barato e o resultado é idêntico ao da publicação.
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { isSuspiciousImageUrl, visionCheck } from "./ml-content-sanitizer.ts";
+import { isInconclusiveImageReason } from "./ml-image-input.ts";
 
 export type VisionFilterResult = {
   clean: string[];
   rejected: { url: string; reason: string }[];
+  inconclusive: { url: string; reason: string }[];
 };
 
 /** Quanto tempo um veredito continua valendo (fotos do fornecedor não mudam). */
@@ -31,6 +33,7 @@ export async function filterCleanImagesCached(
   const maxChecks = opts.maxChecks ?? 14;
 
   const rejected: { url: string; reason: string }[] = [];
+  const inconclusive: { url: string; reason: string }[] = [];
   const candidatos: string[] = [];
 
   for (const url of urls) {
@@ -40,7 +43,7 @@ export async function filterCleanImagesCached(
       candidatos.push(url);
     }
   }
-  if (candidatos.length === 0) return { clean: [], rejected };
+  if (candidatos.length === 0) return { clean: [], rejected, inconclusive };
 
   const limite = new Date(Date.now() - VALIDADE_DIAS * 864e5).toISOString();
   const { data: cacheRows } = await supabase
@@ -50,7 +53,7 @@ export async function filterCleanImagesCached(
 
   const cache = new Map<string, { clean: boolean; reason?: string }>();
   for (const row of cacheRows ?? []) {
-    if (String(row.checked_at) >= limite) {
+    if (String(row.checked_at) >= limite && !isInconclusiveImageReason(row.reason)) {
       cache.set(row.url as string, { clean: !!row.clean, reason: row.reason ?? undefined });
     }
   }
@@ -63,9 +66,16 @@ export async function filterCleanImagesCached(
     if (clean.length >= max) break;
     let veredito = cache.get(url);
     if (!veredito) {
-      if (analises >= maxChecks) break;
+      if (analises >= maxChecks) {
+        inconclusive.push({ url, reason: 'limite de análise atingido' });
+        continue;
+      }
       analises++;
       const v = await visionCheck(url);
+      if (v.clean === null) {
+        inconclusive.push({ url, reason: v.reason ?? 'análise inconclusiva' });
+        continue;
+      }
       veredito = { clean: v.clean, reason: v.reason };
       novos.push({ url, clean: v.clean, reason: v.reason ?? null });
     }
@@ -88,5 +98,5 @@ export async function filterCleanImagesCached(
     if (error) console.warn("[ml-image-vision] não foi possível gravar o cache:", error.message);
   }
 
-  return { clean: clean.slice(0, max), rejected };
+  return { clean: clean.slice(0, max), rejected, inconclusive };
 }
