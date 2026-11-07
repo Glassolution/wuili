@@ -1,5 +1,10 @@
 # Roadmap
 
+## Cortesia Igor e aviso de renovação mensal
+- [ ] Estornar somente a renovação autorizada de Igor (R$ 79,80), registrar motivo, confirmar cancelamento ValidaPay e encerrar acesso sem cooldown
+- [ ] Mostrar aviso de renovação e link real de cancelamento nos planos, checkout e confirmação por e-mail, somente mensal
+- [ ] Validar avisos, reler registros financeiros e informar esforço do lembrete de três dias sem implementá-lo
+
 ## Leitura de imagens do catálogo
 - [x] Corrigir envio das fotos e não memorizar análises inconclusivas como reprovação
 - [x] Preservar produtos em falhas temporárias; seis testes passaram e fotos reais foram aprovadas
