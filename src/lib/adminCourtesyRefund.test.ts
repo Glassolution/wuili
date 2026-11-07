@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("../../supabase/functions/_shared/validapay.ts", () => ({ getCharge: vi.fn(), validaPayFetch: vi.fn() }));
 import { courtesyConfirmationMatches } from "../../supabase/functions/_shared/adminCourtesyRefund";
 
 describe("courtesy refund transaction confirmation", () => {
