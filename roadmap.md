@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Cortesia Igor e aviso de renovação mensal
-- [ ] Estornar somente a renovação autorizada de Igor (R$ 79,80), registrar motivo, confirmar cancelamento ValidaPay e encerrar acesso sem cooldown
-- [ ] Mostrar aviso de renovação e link real de cancelamento nos planos, checkout e confirmação por e-mail, somente mensal
-- [ ] Validar avisos, reler registros financeiros e informar esforço do lembrete de três dias sem implementá-lo
+- [x] Estorno R$ 79,80 confirmado (ref_1794092439013_9qiienm65), motivo registrado, acesso encerrado sem cooldown
+- [ ] Cancelamento ValidaPay: bloqueado por HTTP 400; provider_cancelled_at nulo, sem nova tentativa após falha
+- [x] Aviso mensal e Como cancelar nos planos, checkout e confirmação por e-mail; vitalício excluído
+- [x] Avisos e destino autenticados conferidos, registros financeiros relidos; lembrete exige esforço moderado e não foi implementado
 
 ## Leitura de imagens do catálogo
 - [x] Corrigir envio das fotos e não memorizar análises inconclusivas como reprovação

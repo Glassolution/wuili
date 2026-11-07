@@ -10,6 +10,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { PlanBadgeIcon, useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import RefundSection from "@/components/dashboard/RefundSection";
+import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -1037,6 +1038,7 @@ const PlanTab = () => {
                 {sandboxPlansEnabled ? "Testar no Sandbox" : isCurrent ? "Plano atual" : "Fazer upgrade"}
               </PremiumActionButton>
 
+              {!isCurrent && !sandboxPlansEnabled && <MonthlyRenewalNotice cycle="monthly" />}
               <ul className="mt-5 flex-1 space-y-3">
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-[12px] leading-snug text-[#27272A] dark:text-zinc-200">
