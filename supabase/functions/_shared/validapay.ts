@@ -92,9 +92,9 @@ export function clearValidaPayToken() {
 /** Chamada autenticada à API REST da ValidaPay, com retry automático em 401. */
 export async function validaPayFetch<T = unknown>(
   path: string,
-  init: RequestInit & { scope?: string } = {},
+  init: RequestInit & { scope?: string; retryUnauthorized?: boolean } = {},
 ): Promise<T> {
-  const { scope, ...rest } = init;
+  const { scope, retryUnauthorized = true, ...rest } = init;
   const call = async (token: string) =>
     await fetch(`${VALIDAPAY_API_URL}${path}`, {
       ...rest,
@@ -106,7 +106,7 @@ export async function validaPayFetch<T = unknown>(
     });
 
   let resp = await call(await getValidaPayToken(scope));
-  if (resp.status === 401) {
+  if (resp.status === 401 && retryUnauthorized) {
     clearValidaPayToken();
     resp = await call(await getValidaPayToken(scope));
   }
