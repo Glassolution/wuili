@@ -1,5 +1,12 @@
 # Roadmap
 
+## Recuperação controlada de imagens — novembro
+- [ ] Confirmar versões publicadas e tri-state no ar
+- [ ] Mapear todas as gravações de is_blocked e quantificar motivos/coexistências do legado
+- [ ] Aplicar proteção permanente contra bloqueio/cache negativo por falha técnica, testar e conferir
+- [ ] Dry-run de 40 produtos, incluindo Natal, sem gravações; entregar decisões, métricas e estimativa/teto
+- [ ] PASSO 3 aguarda aprovação: motivos estruturados, backup reversível, recuperação e fila limitada
+
 ## Cortesia Igor e aviso de renovação mensal
 - [x] Estorno R$ 79,80 confirmado (ref_1794092439013_9qiienm65), motivo registrado, acesso encerrado sem cooldown
 - [ ] Cancelamento ValidaPay: bloqueado por HTTP 400; provider_cancelled_at nulo, sem nova tentativa após falha
