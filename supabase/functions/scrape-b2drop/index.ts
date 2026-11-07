@@ -184,6 +184,7 @@ Deno.serve(async (req) => {
     for (const row of rows as Record<string, unknown>[]) {
       const anterior = anteriores.get(row.external_id as string);
       if (!anterior) continue;
+      if (anterior.is_blocked) row.is_blocked = true;
       const mesmasFotos =
         JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
       if (mesmasFotos) { if (anterior.is_blocked) row.is_blocked = true; }

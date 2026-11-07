@@ -496,6 +496,7 @@ Deno.serve(async (req) => {
     for (const row of rows) {
       const anterior = anteriores.get(row.external_id as string);
       if (!anterior) continue;
+      if (anterior.is_blocked) row.is_blocked = true;
       const mesmasFotos =
         JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
       if (mesmasFotos) {
