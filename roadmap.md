@@ -1,5 +1,11 @@
 # Roadmap
 
+## Leitura de imagens do catálogo
+- [x] Corrigir envio das fotos e não memorizar análises inconclusivas como reprovação
+- [x] Preservar produtos em falhas temporárias; seis testes passaram e fotos reais foram aprovadas
+- [x] Publicar ml-publish e ml-catalog-vision-audit; reavaliar/restaurar os dois produtos e conferir fotos no site autenticado
+- Limites: outros produtos anteriormente bloqueados ainda precisam de reavaliação; nenhum anúncio foi publicado. Check Deno de ml-publish mantém dez erros de tipagem preexistentes, enquanto os módulos alterados e a auditoria passam.
+
 ## Recorrências após cancelamento/reembolso
 - [x] Unificar cancelamento confirmado na ValidaPay com fila de retentativas para novos pedidos; aproveita reconciliação existente, sem novo agendamento
 - [x] Bloquear reativação e efeitos financeiros no webhook e reconciliação; preservar outras assinaturas válidas e adicionar proteção no banco
