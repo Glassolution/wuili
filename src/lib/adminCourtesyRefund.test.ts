@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-vi.mock("../../supabase/functions/_shared/validapay.ts", () => ({ getCharge: vi.fn(), validaPayFetch: vi.fn() }));
-import { courtesyConfirmationMatches } from "../../supabase/functions/_shared/adminCourtesyRefund";
+import { describe, expect, it } from "vitest";
+import { courtesyConfirmationMatches } from "../../supabase/functions/_shared/courtesyRefundPolicy";
 
 describe("courtesy refund transaction confirmation", () => {
   const input = { subscription_id: "8ee4e190-fabc-432f-a59e-5d2af023cacb", charge_id: "cha_1794056729053_du9gn1qc2",
