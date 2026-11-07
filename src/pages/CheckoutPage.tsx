@@ -752,6 +752,7 @@ const CheckoutPage = () => {
                 )}
               </button>
             </div>
+            {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={billingCycle} />}
           </section>
         </div>
       </div>
