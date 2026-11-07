@@ -12,6 +12,7 @@
 // =====================================================================
 
 import { imageInput, parseImageVerdict } from './ml-image-input.ts'
+import { requestImageVision } from './ml-vision-request.ts'
 
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
 const AI_MODEL = 'google/gemini-3.6-flash'
@@ -101,36 +102,19 @@ export async function visionCheck(url: string): Promise<VisionVerdict> {
   let input: string
   try {
     input = await imageInput(url)
-  } catch {
-    return { url, clean: null, reason: 'não foi possível validar: falha ao baixar a imagem' }
+  } catch (error) {
+    console.warn('[image-validation]', JSON.stringify({ host: (() => { try { return new URL(url).hostname } catch { return 'invalid' } })(), stage: 'download_or_format', error: String(error).slice(0, 200) }))
+    return { url, clean: null, reason: `não foi possível validar: falha de download/formato (${String(error).slice(0, 120)})` }
   }
-  const raw = await callAI(
-    [
-      {
-        role: 'system',
-        content:
-          'Você audita imagens de produto para o Mercado Livre. Responda APENAS com JSON: ' +
-          '{"clean":true|false,"reason":"..."}. ' +
-          'clean=false APENAS se a imagem tiver marca d\'água, logo/nome de loja ou de fornecedor, ' +
-          'texto promocional sobreposto (preço, "oferta", "frete grátis", "compre já"), ' +
-          'infográfico com textos explicativos, moldura com texto ou banner publicitário. ' +
-          'clean=true para foto do produto em fundo limpo, inclusive quando mostra várias cores/ângulos ' +
-          'do mesmo produto lado a lado, sombra, reflexo ou a marca impressa no próprio produto.',
-
-      },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'Esta imagem pode ser publicada como foto de produto?' },
-          { type: 'image_url', image_url: { url: input } },
-        ],
-      },
-    ],
-    // orçamento alto: o modelo gasta tokens internos antes de responder e um
-    // limite baixo devolve JSON cortado (todas as fotos eram recusadas à toa).
-    { maxTokens: 1200, timeoutMs: 30000, strict: true },
-  )
-  return { url, ...parseImageVerdict(raw) }
+  try {
+    const { raw } = await requestImageVision(input)
+    const verdict = parseImageVerdict(raw)
+    if (verdict.clean === null) console.warn('[image-validation]', JSON.stringify({ host: new URL(url).hostname, stage: 'response_parse', reason: verdict.reason }))
+    return { url, ...verdict }
+  } catch (error) {
+    console.warn('[image-validation]', JSON.stringify({ host: new URL(url).hostname, stage: 'ai', error: String(error).slice(0, 200) }))
+    return { url, clean: null, reason: 'análise indisponível: falha na IA' }
+  }
 }
 
 export type ImageFilterResult = {
