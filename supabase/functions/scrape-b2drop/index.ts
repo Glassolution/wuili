@@ -183,10 +183,10 @@ Deno.serve(async (req) => {
     // ele volta para a fila de auditoria.
     for (const row of rows as Record<string, unknown>[]) {
       const anterior = anteriores.get(row.external_id as string);
-      if (!anterior || anterior.ml_vision_clean_count !== 0) continue;
+      if (!anterior) continue;
       const mesmasFotos =
         JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
-      if (mesmasFotos) row.is_blocked = true;
+      if (mesmasFotos) { if (anterior.is_blocked) row.is_blocked = true; }
       else {
         row.ml_vision_clean_count = null;
         row.ml_vision_checked_at = null;

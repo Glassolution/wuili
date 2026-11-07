@@ -27,7 +27,7 @@ const VALIDADE_DIAS = 60;
 export async function filterCleanImagesCached(
   supabase: SupabaseClient,
   urls: string[],
-  opts: { max?: number; maxChecks?: number } = {},
+  opts: { max?: number; maxChecks?: number; dryRun?: boolean; forceRecheck?: boolean } = {},
 ): Promise<VisionFilterResult> {
   const max = opts.max ?? 6;
   const maxChecks = opts.maxChecks ?? 14;
@@ -64,7 +64,7 @@ export async function filterCleanImagesCached(
 
   for (const url of candidatos) {
     if (clean.length >= max) break;
-    let veredito = cache.get(url);
+    let veredito = opts.forceRecheck ? undefined : cache.get(url);
     if (!veredito) {
       if (analises >= maxChecks) {
         inconclusive.push({ url, reason: 'limite de análise atingido' });
@@ -90,7 +90,7 @@ export async function filterCleanImagesCached(
     }
   }
 
-  if (novos.length) {
+  if (novos.length && !opts.dryRun) {
     const { error } = await supabase
       .from("ml_image_vision_cache")
       .upsert(

@@ -7,6 +7,8 @@ import {
   sanitizeTitle,
 } from '../_shared/ml-content-sanitizer.ts'
 import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
+import { imageProductDecision } from '../_shared/ml-vision-policy.ts'
+import { IMAGE_VALIDATION_REVISION } from '../_shared/ml-vision-request.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 import {
   montarPesoMedidas,
@@ -60,6 +62,7 @@ async function registrarVeredictoNoCatalogo(
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'x-image-validation-revision': IMAGE_VALIDATION_REVISION,
 }
 
 function json(body: Record<string, unknown>, status = 200) {
@@ -912,7 +915,7 @@ Deno.serve(async (req) => {
       // foto passa na régua de diretrizes — antes exigíamos 3 e o produto com
       // 2 fotos boas (mas 9 artes do fornecedor) ficava impossível de publicar.
       if (filtered.clean.length < 1) {
-        if (filtered.inconclusive.length) {
+        if (imageProductDecision(filtered) === 'inconclusive') {
           return json({
             error: 'Não foi possível analisar as fotos agora. Isso não significa que elas foram reprovadas. Tente novamente em alguns minutos; nenhuma publicação foi enviada ao Mercado Livre.',
             code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
