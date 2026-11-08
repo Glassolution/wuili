@@ -155,7 +155,7 @@ Deno.test('primeira foto aceita exige principal mesmo após rejeição da primei
   const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
   assertEquals(result.clean.length, 0);
   assertEquals(result.rejected.length, 1);
-  assertEquals(result.inconclusive.length, 1);
+  assertEquals(result.inconclusive.length, 2);
 });
 
 Deno.test('medida e inserção secundária mudam por código sem IA e preservam código', () => {
