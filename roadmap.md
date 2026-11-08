@@ -1,5 +1,11 @@
 # Roadmap
 
+## Liberação dos 74 e parada antecipada — 08/11 07:16 UTC
+- [x] Liberar os 74 com snapshot e CAS (execução 16571d52): 74 recuperados; 22 restantes intocados
+- [x] Causa do custo: ~10,4 chamadas/produto (todas as fotos + principal testada em várias) e ~0,013/chamada por tokens de raciocínio
+- [x] Rodar 388 candidatos C7Drop com parada antecipada (teste db641f3f + execução 84ff7d12): 188 liberados, 181 sem principal, 17 inconclusivos, 2 abaixo de 3; 820 chamadas, acumulado 33,51 de 45
+- [x] Relatório em até 10 linhas; 1 candidato novo surgiu depois do início e não foi analisado
+
 ## Consolidação sem nova análise — 08/11 07:07 UTC
 - [x] Consolidar os 100: 74 candidatos, 9 sem principal elegível, 13 inconclusivos sem principal e 4 abaixo de três aprovadas; sem IA/desbloqueios
 - [x] Entregar até dez linhas com dez fotos aprovadas distintas e cinco reprovadas com motivo; custo acumulado estimado 23,150046 créditos (9,687429 histórico + 13,462617 acumulador novo, sem somar repetidamente acumuladores por foto)
