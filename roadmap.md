@@ -8,9 +8,9 @@
 - [x] Atualização automática retirou 94 bloqueios por leitura truncada: restaurados somente esses bloqueios, paginação corrigida; zero dos 645 originais liberados
 - Limite: gatilho/scrapers ainda bloqueiam por três URLs e pré-checagem por heurística; alinhar no PASSO 3 sem desbloqueio automático. Total concorrente passou a 648.
 - [x] PASSO 3 piloto Natal: 13 recuperados com snapshot/CAS; 7 pulados por fornecedor concorrente, 2 principal reprovada, 1 menos de três URLs; fila sem execução automática
-- [ ] Conferir preservação na próxima atualização real do fornecedor (sem invocação manual)
+- [ ] Preservação após fornecedor: kit 5 cm atualizado 00:15 UTC manteve desbloqueio/oito aprovadas; outros 12 aguardam inclusão em atualização real
 - [ ] Restante aguarda conferência do piloto; gravador/REP-p excluídos e outros riscos apresentados antes
-- [ ] Propor modelo substituto/custo/equivalência sem trocar; teto 60/5.000 com pausas 25%/50%
+- [x] Proposto Gemini 3.8 Flash, tarifa igual/custo condicional e teste de 100 fotos; nenhum modelo trocado ou inferência nova no piloto; teto 60/5.000 com pausas 25%/50%
 
 ## Cortesia Igor e aviso de renovação mensal
 - [x] Estorno R$ 79,80 confirmado (ref_1794092439013_9qiienm65), motivo registrado, acesso encerrado sem cooldown
