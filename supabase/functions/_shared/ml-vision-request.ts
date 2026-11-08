@@ -1,13 +1,8 @@
 import { generateChatCompletion, type GeminiChatMessage } from 'npm:@lovable.dev/ai-gateway@0.1.11';
 import type {} from './generated/ai-gateway/models.d.ts';
-
-export const IMAGE_VALIDATION_REVISION = 'tri-state-explicit-2026-11-08';
-export const IMAGE_VISION_PROMPT = 'Você audita imagens de produto para o Mercado Livre. Responda APENAS com JSON: ' +
-  '{"clean":true|false,"reason":"..."}. clean=false APENAS se a imagem tiver marca d\'água, logo/nome de loja ou de fornecedor, ' +
-  'texto promocional sobreposto (preço, "oferta", "frete grátis", "compre já"), infográfico com textos explicativos, ' +
-  'moldura com texto ou banner publicitário. clean=true para foto do produto em fundo limpo, inclusive quando mostra ' +
-  'várias cores/ângulos do mesmo produto lado a lado, sombra, reflexo ou a marca impressa no próprio produto. ' +
-  'Se não conseguir ver ou analisar a imagem, retorne {"clean":null,"reason":"análise inconclusiva"}; nunca retorne false por falha técnica.';
+import { IMAGE_CRITERION_VERSION, IMAGE_VISION_PROMPT } from './ml-image-criterion.ts';
+export { IMAGE_VISION_PROMPT } from './ml-image-criterion.ts';
+export const IMAGE_VALIDATION_REVISION = IMAGE_CRITERION_VERSION;
 
 export async function requestImageVision(input: string, runId?: string) {
   const messages: GeminiChatMessage[] = [
