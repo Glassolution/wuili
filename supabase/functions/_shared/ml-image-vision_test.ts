@@ -134,3 +134,15 @@ Deno.test('fora do esquema incluindo markdown e campos extras fica inconclusivo'
   const raw = JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'PRODUTO', justificativa: 'Produto físico' });
   for (const invalid of ['```json\n' + raw + '\n```', raw.slice(0, -1) + ',"extra":true}', raw.replace('"OK"', '"inventado"')]) assertEquals(parseImageVerdict(invalid).clean, null);
 });
+Deno.test('primeira foto aceita exige principal mesmo após rejeição da primeira URL', async () => {
+  const urls = ['https://example.com/rejected.jpg', 'https://example.com/gallery.jpg'];
+  const rows = [
+    { url: urls[0], clean: false, reason: parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 'SOBRE_FOTO', justificativa: 'Logo sobreposto' }), true).reason, checked_at: new Date().toISOString() },
+    { url: urls[1], clean: true, reason: parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'PRODUTO', justificativa: 'Foto de galeria' }), false).reason, checked_at: new Date().toISOString() },
+  ];
+  const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
+  const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
+  assertEquals(result.clean.length, 0);
+  assertEquals(result.rejected.length, 1);
+  assertEquals(result.inconclusive.length, 1);
+});
