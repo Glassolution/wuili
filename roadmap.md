@@ -1,6 +1,9 @@
 # Roadmap
 
 ## Recuperação controlada de imagens — novembro
+- [ ] Retentar somente sete conflitos: CAS is_blocked/galeria, snapshot novo e estoque/restrições atuais
+- [ ] Entregar links e razões das duas fotos principais reprovadas
+- [ ] Comparar 3.6/3.8 nas mesmas 100 fotos, teto 3/200 sem retries; entregar somente divergências
 - [x] Confirmar versões observadas (auditoria 332→334, publicação 1875→1877, catálogo 1738) e nova revisão tri-state no ar; bundle anterior não disponível
 - [x] Mapear gravadores e quantificar snapshot 645/624: 574 sem outro motivo detectável, 50 com evidência adicional; causa exclusiva não comprovável
 - [x] Proteger validação visual contra falha técnica/cache negativo/URL heurística; 11 testes, dry-run real e importadores conferidos
