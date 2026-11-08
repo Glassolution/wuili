@@ -50,19 +50,31 @@ export function parseImageVerdict(raw: string | null, primary = false): { clean:
       return { clean: null, reason: parsed.justificativa, evidence: { ...invalid, justificativa: parsed.justificativa } };
     }
     const code = IMAGE_REJECTION_CODES.find(code => code === parsed.codigo);
+    const locations = ['SOBRE_FOTO', 'PRODUTO', 'EMBALAGEM', 'IMAGEM_INTEIRA', 'FUNDO_LIMPO'];
+    if (!locations.includes(parsed.localizacao)) return inconclusive();
     if (parsed.veredito === 'reprovada' && code) {
-      const location = code === 'COLAGEM' || code === 'SEM_PRODUTO' ? 'IMAGEM_INTEIRA' : 'SOBRE_FOTO';
-      if (parsed.localizacao !== location) return inconclusive();
-      const evidence: ImageVerdict = { veredito: 'reprovada', codigo: code, localizacao: location, justificativa: parsed.justificativa };
+      if (['MARCA_DAGUA', 'LOGO_LOJA', 'SOBREPOSICAO_TEXTO', 'MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'].includes(code) && parsed.localizacao !== 'SOBRE_FOTO') return inconclusive();
+      const secondaryReject = ['MARCA_DAGUA', 'LOGO_LOJA', 'CONTATO_QR', 'BANNER_PROMOCIONAL', 'PRECO_FRETE', 'SELO_ML', 'VARIOS_PRODUTOS'];
+      if (!primary && !secondaryReject.includes(code)) return inconclusive();
+      const evidence: ImageVerdict = { veredito: 'reprovada', codigo: code, localizacao: parsed.localizacao, justificativa: parsed.justificativa };
       return { clean: false, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}`, evidence };
     }
-    if (parsed.veredito === 'aprovada' && parsed.codigo === 'OK' && (primary ? parsed.localizacao === 'FUNDO_LIMPO' : ['PRODUTO', 'EMBALAGEM', 'FUNDO_LIMPO', 'IMAGEM_INTEIRA'].includes(parsed.localizacao))) {
-      const evidence: ImageVerdict = { veredito: 'aprovada', codigo: 'OK', localizacao: parsed.localizacao, justificativa: parsed.justificativa };
+    const allowed = ['OK', 'MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR', 'SOBREPOSICAO_TEXTO', 'COLAGEM'];
+    if (parsed.veredito === 'aprovada' && (primary ? parsed.codigo === 'OK' && parsed.localizacao === 'FUNDO_LIMPO' : allowed.includes(parsed.codigo))) {
+      const evidence: ImageVerdict = { veredito: 'aprovada', codigo: parsed.codigo, localizacao: parsed.localizacao, justificativa: parsed.justificativa };
       return { clean: true, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}`, evidence };
     }
     return inconclusive();
   } catch { /* An invalid response is not proof that a photo violates rules. */ }
   return inconclusive();
+}
+
+/** Reuse old evidence by code only; ambiguous text/montage and old primary OK need review. */
+export function reclassifySavedEvidence(evidence: ImageVerdict, primary = false): ImageVerdict {
+  if (evidence.codigo === 'FALHA_TECNICA') return { ...evidence, veredito: 'inconclusiva' };
+  if (!primary && ['MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'].includes(evidence.codigo)) return { ...evidence, veredito: 'aprovada' };
+  if (!primary && ['SOBREPOSICAO_TEXTO', 'COLAGEM', 'SEM_PRODUTO'].includes(evidence.codigo) || primary && evidence.codigo === 'OK') return { ...evidence, veredito: 'inconclusiva' };
+  return evidence;
 }
 
 export function isInconclusiveImageReason(reason: string | null | undefined): boolean {

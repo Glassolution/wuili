@@ -1,6 +1,8 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import { imageEvidencePrefix } from './ml-image-criterion.ts';
-import { imageInput, isInconclusiveImageReason, parseImageVerdict } from './ml-image-input.ts';
+import { imageInput, isInconclusiveImageReason, parseImageVerdict, reclassifySavedEvidence } from './ml-image-input.ts';
+import { IMAGE_CRITERION_VERSION } from './ml-image-criterion.ts';
+import { primarySizeDecision } from './ml-primary-size.ts';
 import { filterCleanImagesCached } from './ml-image-vision.ts';
 import { imageProductDecision } from './ml-vision-policy.ts';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
@@ -43,7 +45,8 @@ Deno.test('dry-run com aprovação nova não grava cache', async () => {
   globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ id: 'dry-test', choices: [{ message: { content: '{"veredito":"aprovada","codigo":"OK","localizacao":"FUNDO_LIMPO","justificativa":"foto limpa"}' } }] }), { headers: { 'Content-Type': 'application/json' } }));
   try {
     const result = await filterCleanImagesCached(db, ['https://example.com/photo.jpg'], { dryRun: true });
-    assertEquals(result.clean.length, 1);
+    assertEquals(result.clean.length, 0);
+    assertEquals(result.inconclusive.length > 0, true);
     assertEquals(writes, 0);
   } finally { globalThis.fetch = original; }
 });
@@ -57,8 +60,8 @@ Deno.test('erro da IA não interrompe próximo item nem grava reprovação', asy
     : Promise.resolve(new Response(JSON.stringify({ id: 'next-test', choices: [{ message: { content: '{"veredito":"aprovada","codigo":"OK","localizacao":"FUNDO_LIMPO","justificativa":"foto limpa"}' } }] }), { headers: { 'Content-Type': 'application/json' } })); };
   try {
     const result = await filterCleanImagesCached(db, ['https://example.com/a.jpg', 'https://example.com/b.jpg'], { dryRun: true });
-    assertEquals(result.clean.length, 1);
-    assertEquals(result.inconclusive.length, 1);
+    assertEquals(result.clean.length, 0);
+    assertEquals(result.inconclusive.length > 0, true);
     assertEquals(result.rejected.length, 0);
     assertEquals(writes, 0);
   } finally { globalThis.fetch = original; }
@@ -80,7 +83,7 @@ Deno.test('cache inconclusivo não rejeita nem grava resultado com análise pend
   assertEquals(writes, 0);
 });
 Deno.test('reprovação visual conclusiva permanece bloqueada no cache', async () => {
-  const rows = [{ url: 'https://example.com/photo.jpg', clean: false, reason: parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 'SOBRE_FOTO', justificativa: 'marca de água' }), true).reason, checked_at: new Date().toISOString() }];
+  const rows = [{ url: 'https://example.com/photo.jpg', clean: false, reason: parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 'SOBRE_FOTO', justificativa: 'marca de água' }), false).reason, checked_at: new Date().toISOString() }];
   const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
   const result = await filterCleanImagesCached(db, [rows[0].url]);
   assertEquals(result.clean.length, 0);
@@ -97,12 +100,12 @@ Deno.test('rejeição atribuída a impressão física não é prova de sobreposi
 });
 Deno.test('medidas sobrepostas não dependem da palavra texto', () => {
   for (const reason of ['Medidas e setas sobrepostas indicando dimensões', 'Texto com dimensões']) {
-    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MEDIDA_SOBREPOSTA', localizacao: 'SOBRE_FOTO', justificativa: reason })).clean, false);
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MEDIDA_SOBREPOSTA', localizacao: 'SOBRE_FOTO', justificativa: reason }), true).clean, false);
   }
 });
 Deno.test('colagem e ausência do produto exigem evidência na imagem inteira', () => {
   for (const code of ['COLAGEM', 'SEM_PRODUTO']) {
-    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: code, localizacao: 'IMAGEM_INTEIRA', justificativa: 'Evidência visual identificada' })).clean, false);
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: code, localizacao: 'IMAGEM_INTEIRA', justificativa: 'Evidência visual identificada' }), true).clean, false);
     assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: code, localizacao: 'DESCONHECIDA', justificativa: 'Evidência visual identificada' })).clean, null);
   }
 });
@@ -127,7 +130,7 @@ Deno.test('principal só aprova fundo limpo e cache tem escopo próprio', () => 
 });
 Deno.test('banner e inserção circular têm rejeição codificada sem regex do motivo', () => {
   for (const codigo of ['SOBREPOSICAO_TEXTO', 'INSERCAO_CIRCULAR']) {
-    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'Arte de divulgação adicionada' })).clean, false);
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'Arte de divulgação adicionada' }), true).clean, false);
   }
 });
 Deno.test('cerca JSON completa preserva validação estrita do conteúdo', () => {
@@ -145,12 +148,44 @@ Deno.test('fora do esquema ou cerca incompleta/prosa permanece inconclusivo', ()
 Deno.test('primeira foto aceita exige principal mesmo após rejeição da primeira URL', async () => {
   const urls = ['https://example.com/rejected.jpg', 'https://example.com/gallery.jpg'];
   const rows = [
-    { url: urls[0], clean: false, reason: parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 'SOBRE_FOTO', justificativa: 'Logo sobreposto' }), true).reason, checked_at: new Date().toISOString() },
+    { url: urls[0], clean: false, reason: parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 'SOBRE_FOTO', justificativa: 'Logo sobreposto' }), false).reason, checked_at: new Date().toISOString() },
     { url: urls[1], clean: true, reason: parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'PRODUTO', justificativa: 'Foto de galeria' }), false).reason, checked_at: new Date().toISOString() },
   ];
   const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
   const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
   assertEquals(result.clean.length, 0);
   assertEquals(result.rejected.length, 1);
-  assertEquals(result.inconclusive.length, 1);
+  assertEquals(result.inconclusive.length, 2);
+});
+
+Deno.test('medida e inserção secundária mudam por código sem IA e preservam código', () => {
+  for (const codigo of ['MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'] as const) {
+    const original = { veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'evidência salva' } as const;
+    const secondary = reclassifySavedEvidence(original);
+    assertEquals(secondary.veredito, 'aprovada');
+    assertEquals(secondary.codigo, codigo);
+    assertEquals(parseImageVerdict(JSON.stringify(secondary)).clean, true);
+    assertEquals(reclassifySavedEvidence(original, true).veredito, 'reprovada');
+  }
+});
+Deno.test('texto e colagem antigos exigem revisão sem regex de justificativa', () => {
+  for (const codigo of ['SOBREPOSICAO_TEXTO', 'COLAGEM'] as const) assertEquals(reclassifySavedEvidence({ veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'promoção ou especificação' }).veredito, 'inconclusiva');
+});
+Deno.test('principal mínimo 500x500 em ambas as dimensões', () => {
+  assertEquals(primarySizeDecision(500, 500), 'eligible');
+  assertEquals(primarySizeDecision(499, 1000), 'too_small');
+  assertEquals(primarySizeDecision(1000, 499), 'too_small');
+});
+Deno.test('secundárias rejeitam só códigos proibidos e embalagem não é principal', () => {
+  for (const codigo of ['CONTATO_QR', 'BANNER_PROMOCIONAL', 'PRECO_FRETE', 'SELO_ML', 'VARIOS_PRODUTOS']) assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo, localizacao: 'IMAGEM_INTEIRA', justificativa: 'evidência identificada' })).clean, false);
+  assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'EMBALAGEM', justificativa: 'embalagem' })).clean, true);
+  assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'EMBALAGEM', justificativa: 'embalagem' }), true).clean, null);
+});
+Deno.test('publicação reordena principal elegível sem perder secundária original', async () => {
+  const urls = ['https://example.com/pack.jpg', 'https://example.com/clean.jpg'];
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'produto limpo' };
+  const rows = urls.map((url, i) => ({ url, clean: true, checked_at: new Date().toISOString(), reason: `[${IMAGE_CRITERION_VERSION}] roles: ` + JSON.stringify({ secondary: i === 0 ? { ...ok, localizacao: 'EMBALAGEM' } : ok, primary: i === 0 ? { veredito: 'reprovada', codigo: 'EMBALAGEM_PRINCIPAL', localizacao: 'EMBALAGEM', justificativa: 'embalagem' } : ok }) }));
+  const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
+  const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
+  assertEquals(result.clean, [urls[1], urls[0]]);
 });

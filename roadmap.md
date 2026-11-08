@@ -1,12 +1,19 @@
 # Roadmap
 
+## Dois níveis e conclusão dry-run — 08/11 04:39 UTC
+- [x] Aplicar principal estrita 500x500 e secundárias permissivas com códigos persistidos por função; duas funções publicadas
+- [x] Reclassificar 112 recuperadas: 40 reprovações viram aprovação só por código; 60 chamadas ambíguas sem retry, 0,922857 estimados; final 89/19/4
+- [ ] Recuperar 291 respostas e manifesto original dos 100 (73/27): artefatos não disponíveis; não repetir os 73 nem escolher outro lote
+- [x] Entregar relatório curto e CSV com 10 aprovadas de produtos distintos / 5 reprovadas; zero desbloqueios
+- [x] Reordenação testada, 27 testes e Deno check passaram; ml-publish OPTIONS 200 confirmou two-level-v4; audit OPTIONS 200; nenhum anúncio real
+
 ## Parser urgente e primeiro lote autorizado — 08/11 01:17 UTC
 - [x] Aceitar cerca JSON completa mantendo esquema estrito; 22 testes passaram; duas funções publicadas
 - [x] Reprocessar 112 respostas sem IA: 4 aprovadas, 107 reprovadas, 1 inconclusiva
 - [x] JSON puro real confirmado; auditoria dry-run aprovou fotos, ml-publish validate_only validou fotos sem anúncio (conta ML recusou elegibilidade)
 - [ ] Selecionar primeiro lote 100 C7Drop legado com estoque e checar restrições
 - [ ] Reanalisar sem retry, parar ao ter principal e 3 aprovadas, respeitar 60 créditos/5.000 chamadas
-- [ ] Aplicar snapshot/CAS reversível, conferir catálogo, entregar contagens/dez links e parar
+- [ ] Aplicar desbloqueios: suspenso pela instrução 04:39 UTC; apenas relatório dry-run autorizado
 
 ## Ajustes aprovados e reanálise restrita — 08/11 00:58 UTC
 - [x] Critério banner/colagem/inserção/medidas e principal estrita, esquema português validado sem regex de motivo; publicado 3.6 preservado e JSON mode adicionado após falha de formato
