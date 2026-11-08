@@ -146,7 +146,7 @@ export async function filterCleanImages(
     return { clean: candidates.slice(0, max), rejected }
   }
 
-  const verdicts = await Promise.all(candidates.slice(0, max + 4).map(visionCheck))
+  const verdicts = await Promise.all(candidates.slice(0, max + 4).map((url, index) => visionCheck(url, index === 0)))
   if (verdicts.some(v => v.clean === null)) throw new Error('Análise de imagens inconclusiva')
   const clean: string[] = []
   for (const v of verdicts) {
