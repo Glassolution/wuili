@@ -6,6 +6,13 @@
 - [x] Conferir estado dos 20: zero perdeu desbloqueio, galeria igual; apenas kit 5 cm atualizado depois, 19 aguardam fornecedor
 - [x] Preparar plano para aprovação; nenhuma mudança em parser, importadores, modelo, regras ou anúncios
 
+## Execução por etapas do plano ampliado aprovado
+- [x] Etapa 1: critério físico/embalagem versus overlay e interpretação estruturada versionada implementados localmente; 26 testes simulados passaram, sem IA real ou alteração de produtos
+- [ ] Publicar critério após equivalência aprovada; modelo permanece 3.6 e funções publicadas permanecem intactas
+- [ ] Etapas 2–4: mudanças de importadores/schema/admin/filtros aguardam aprovação específica por etapa prevista no plano
+- [ ] Etapa 5: execução da nova equivalência exige aprovação específica, referência humana e reconciliação do orçamento; nenhum teste pago iniciado
+- [ ] Etapa 6: lotes aguardam atualização real dos 19 natalinos e autorização individual
+
 ## Recuperação controlada de imagens — novembro
 - [x] Sete conflitos recuperados, galerias iguais; CAS somente bloqueio/galeria e snapshots novos, preços/estoque intocados
 - [x] Links e razões das duas principais entregues; cascata é foto de embalagem, não confirmação de arte sobreposta
