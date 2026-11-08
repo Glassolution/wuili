@@ -1,15 +1,15 @@
 # Roadmap
 
 ## Consolidação sem nova análise — 08/11 07:07 UTC
-- [ ] Consolidar os 100 produtos da tabela permanente e custo acumulado, sem IA ou desbloqueios
-- [ ] Entregar até dez linhas com dez fotos aprovadas distintas e cinco reprovadas com motivo
-- [ ] Diagnóstico ML somente se dez fotos couberem em uma chamada já conhecida; caso contrário pular
+- [x] Consolidar os 100: 74 candidatos, 9 sem principal elegível, 13 inconclusivos sem principal e 4 abaixo de três aprovadas; sem IA/desbloqueios
+- [x] Entregar até dez linhas com dez fotos aprovadas distintas e cinco reprovadas com motivo; custo acumulado estimado 23,150046 créditos (9,687429 histórico + 13,462617 acumulador novo, sem somar repetidamente acumuladores por foto)
+- [x] Diagnóstico ML pulado: nenhum endpoint em lote sem anúncio previamente estabelecido; viabilidade não confirmada, sem investigação adicional
 
 ## Registro persistente e lote sem desbloqueio — 08/11 06:31 UTC
-- [ ] Criar e confirmar tabela permanente; importar todos os resultados recuperáveis antes de IA
-- [ ] Revisar aprovações por código com justificativa promocional e registrar diferenças
-- [ ] Refazer primeiro lote de 100 C7Drop legado por estoque, sem desbloqueios, preservando resultados por foto
-- [ ] Diagnóstico ML sem anúncio em dez fotos se endpoint permitir; relatório curto e orçamento acumulado 60
+- [x] Criar e confirmar tabela permanente; resultados arquivados e históricos importados
+- [x] Aprovações atuais do lote usam respostas vision_no_retry, não aprovação automática por código
+- [x] Primeiro lote de 100 registrado: 1048 avaliações finais por papel (750 aprovadas, 250 reprovadas, 48 inconclusivas), reservas excluídas; sem desbloqueios
+- [x] Relatório curto consolidado; diagnóstico pulado sem endpoint conhecido, orçamento acumulado estimado abaixo de 60
 
 ## Dois níveis e conclusão dry-run — 08/11 04:39 UTC
 - [x] Aplicar principal estrita 500x500 e secundárias permissivas com códigos persistidos por função; duas funções publicadas
