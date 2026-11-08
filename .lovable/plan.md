@@ -1,7 +1,7 @@
 # Recuperação permanente do catálogo — aprovação por etapas
 
 ## Escopo e situação atual
-Recuperar produtos elegíveis do catálogo inteiro e impedir bloqueios por falha técnica, sem alterar anúncios existentes. Esta rodada foi somente leitura: nenhum lote executado, nenhuma regra, modelo, parser ou importador alterado.
+Recuperar catálogo elegível sem bloqueios técnicos ou alteração de anúncios. Nesta rodada: somente leitura, sem lotes ou mudanças em regras, modelo, parser e importadores.
 
 - C7Drop: **935 ativos com estoque; 628 bloqueados; 307 disponíveis na grade comum**.
 - AliExpress: **231 ativos com estoque; 29 bloqueados; 202 desbloqueados**, mas fonte continua restrita a admins e fora da grade comum.
