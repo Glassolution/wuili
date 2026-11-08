@@ -19,7 +19,7 @@ const RefundSupportPage = () => (
       <Breadcrumb
         basePath="/ajuda"
         items={[
-          { label: "Pagamentos e planos", to: "/ajuda/pagamentos-e-planos" },
+          { label: "Assinatura e cobrança", to: "/ajuda/pagamentos-e-planos" },
           { label: "Pedir reembolso", to: REFUND_PAGE_PATH },
           { label: "Atendimento" },
         ]}

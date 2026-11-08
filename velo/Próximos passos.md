@@ -6,7 +6,8 @@ atualizado: 2026-11-08
 ## Publicar o novo fluxo de reembolso e da Central
 - [x] Código na `main` do GitHub (08/11)
 - [x] Coleções novas da Central aplicadas (`drizzle/migrations/0049`, Lovable)
-- [ ] Colar `PROMPT_LOVABLE_REEMBOLSO.md` na Lovable: cria e aplica `drizzle/migrations/0050_refund_help_center.sql` (cópia da `20261107120000`) e publica as funções (`refund-assistant` nova, `request-refund`, `support-assistant`, `admin-refund-action` etc.) → [[Migrations pendentes]]
+- [x] Lovable aplicou a `0050` e publicou as 14 funções (incluindo `refund-assistant`)
+- [ ] Publicar o site na Lovable (até lá, `/ajuda/reembolso` mostra "Artigo não encontrado" no endereço publicado)
 - [ ] Conferir em produção: link no artigo, atendimento `/ajuda/reembolso` com IA real, envio, histórico, admin, respostas fixas do chat
 
 ## Atendimento de reembolso com IA (feito no local, 08/11)
