@@ -1,6 +1,9 @@
 # Roadmap
 
 ## Recuperação controlada de imagens — novembro
+- [x] Sete conflitos recuperados, galerias iguais; CAS somente bloqueio/galeria e snapshots novos, preços/estoque intocados
+- [x] Links e razões das duas principais entregues; cascata é foto de embalagem, não confirmação de arte sobreposta
+- [x] Comparação 100/200 sem retries: estimado 1,645071; três divergências brutas e quatro diferenças só do parser; produção intacta
 - [x] Confirmar versões observadas (auditoria 332→334, publicação 1875→1877, catálogo 1738) e nova revisão tri-state no ar; bundle anterior não disponível
 - [x] Mapear gravadores e quantificar snapshot 645/624: 574 sem outro motivo detectável, 50 com evidência adicional; causa exclusiva não comprovável
 - [x] Proteger validação visual contra falha técnica/cache negativo/URL heurística; 11 testes, dry-run real e importadores conferidos
