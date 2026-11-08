@@ -14,3 +14,6 @@ public/email-previews/
 # Dumps locais de teste do catalogo/scraper
 catalog_test.json
 img_test.json
+
+# Obsidian: layout local das abas (muda a cada abertura)
+velo/.obsidian/workspace*.json

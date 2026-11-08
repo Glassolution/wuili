@@ -5,7 +5,7 @@
 **Nome:** Velo  
 **Slogan:** "Apenas venda."  
 **O que é:** Plataforma de dropshipping com IA para iniciantes brasileiros. Permite que o usuário escolha produtos do catálogo Velo alimentado por scraping de fornecedores brasileiros, personalize com IA e publique no Mercado Livre e Shopee.
-**Stack principal:** Next.js 14 + TypeScript + Tailwind CSS + Supabase + Lovable
+**Stack principal:** Vite + React + React Router + TypeScript + Tailwind CSS (shadcn/ui) + Supabase + Lovable
 
 ---
 
@@ -14,16 +14,20 @@
 ```
 /
 ├── src/
-│   ├── app/             # Rotas Next.js (App Router)
-│   ├── components/      # Componentes React reutilizáveis
+│   ├── App.tsx          # Todas as rotas (React Router)
+│   ├── pages/           # Páginas: raiz (públicas), dashboard/, admin/, help/
+│   ├── components/      # Componentes React, por área (dashboard, admin, help-center, ui…)
 │   ├── hooks/           # Custom hooks
-│   ├── lib/             # Clientes e utilitários (supabase.ts, etc.)
+│   ├── contexts/        # Contextos (Auth, Atlas)
+│   ├── lib/             # Regras e utilitários (+ testes *.test.ts)
+│   ├── integrations/supabase/  # Cliente e types.ts (esquema gerado do banco)
 │   ├── types/           # Tipos TypeScript globais
 │   └── styles/          # CSS global
 ├── supabase/
-│   ├── functions/       # Edge Functions (Deno/TypeScript)
+│   ├── functions/       # Edge Functions (Deno/TypeScript); _shared/ = regras comuns
 │   └── migrations/      # Migrations SQL do banco
 ├── public/              # Assets estáticos (imagens, ícones)
+├── velo/                # Cofre Obsidian (memória do projeto, ver seção 13)
 └── CLAUDE.md
 ```
 
@@ -209,3 +213,27 @@ supabase functions deploy <nome-da-function>
 # Rodar migrations
 supabase db push
 ```
+
+---
+
+## 13. Memória do projeto (cofre Obsidian)
+
+O cofre `velo/` (na raiz do repositório) é a memória organizada do projeto: use-o para entender
+e planejar sem reler o código inteiro.
+
+**Antes de trabalhar:**
+1. Leia `velo/00 Índice.md`.
+2. Abra só as notas do assunto (normalmente 1 a 3).
+3. Só então abra o código, e apenas os arquivos que a nota aponta em "Onde está no código".
+   Não varra o projeto (grep/find amplo, pastas inteiras, relatórios antigos da raiz) sem motivo concreto.
+4. Nota e código divergem? O código vale; corrija a nota.
+5. Reembolso, cancelamento e padrões recentes: o `AGENTS.md` continua sendo a fonte mais atual;
+   o cofre resume e aponta para ele.
+
+**Ao terminar uma mudança relevante** (funcionalidade, tabela, migration, edge function, integração,
+decisão ou bug):
+- atualize as notas afetadas e a data em `atualizado:`;
+- decisão nova → `velo/06 Decisões/`; bug → `velo/Bugs conhecidos.md`; pendência → `velo/Próximos passos.md`;
+- nota nova entra no `velo/00 Índice.md`;
+- no fim da resposta, diga em uma linha quais notas mudaram.
+Ajustes triviais (texto, estilo) não precisam. Detalhes em `velo/Como manter o cofre.md`.
