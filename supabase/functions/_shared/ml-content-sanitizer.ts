@@ -12,7 +12,9 @@
 // =====================================================================
 
 import { imageInput, parseImageVerdict } from './ml-image-input.ts'
-import { requestImageVision } from './ml-vision-request.ts'
+import { IMAGE_VISION_MODELS, requestImageVision } from './ml-vision-request.ts'
+import { sequentialVision } from './ml-vision-policy.ts'
+import { imageEvidencePrefix } from './ml-image-criterion.ts'
 
 const AI_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions'
 const AI_MODEL = 'google/gemini-3.6-flash'
@@ -106,15 +108,25 @@ export async function visionCheck(url: string, primary = false): Promise<VisionV
     console.warn('[image-validation]', JSON.stringify({ host: (() => { try { return new URL(url).hostname } catch { return 'invalid' } })(), stage: 'download_or_format', error: String(error).slice(0, 200) }))
     return { url, clean: null, reason: `não foi possível validar: falha de download/formato (${String(error).slice(0, 120)})` }
   }
-  try {
-    const { raw } = await requestImageVision(input, undefined, primary)
-    const verdict = parseImageVerdict(raw, primary)
-    if (verdict.clean === null) console.warn('[image-validation]', JSON.stringify({ host: new URL(url).hostname, stage: 'response_parse', reason: verdict.reason }))
-    return { url, ...verdict }
-  } catch (error) {
-    console.warn('[image-validation]', JSON.stringify({ host: new URL(url).hostname, stage: 'ai', error: String(error).slice(0, 200) }))
-    return { url, clean: null, reason: 'análise indisponível: falha na IA' }
-  }
+  const host = new URL(url).hostname
+  // Every model of the active pipeline must approve; the second opinion runs only on approvals.
+  const verdict = await sequentialVision(IMAGE_VISION_MODELS, async (model) => {
+    try {
+      const { raw } = await requestImageVision(input, undefined, primary, model)
+      const parsed = parseImageVerdict(raw, primary)
+      if (parsed.clean === null) console.warn('[image-validation]', JSON.stringify({ host, model, stage: 'response_parse', reason: parsed.reason }))
+      if (parsed.clean === false && model !== IMAGE_VISION_MODELS[0]) {
+        // Keep the 4-field evidence schema; name the model that rejected in the justification.
+        const evidence = { ...parsed.evidence, justificativa: `2ª opinião (${model}): ${parsed.evidence.justificativa}`.slice(0, 400) }
+        return { clean: false, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}` }
+      }
+      return { clean: parsed.clean, reason: parsed.reason }
+    } catch (error) {
+      console.warn('[image-validation]', JSON.stringify({ host, model, stage: 'ai', error: String(error).slice(0, 200) }))
+      return { clean: null, reason: 'análise indisponível: falha na IA' }
+    }
+  })
+  return { url, clean: verdict.clean, reason: verdict.reason }
 }
 
 export type ImageFilterResult = {
