@@ -323,6 +323,13 @@
       "when": 1793999339965,
       "tag": "0045_refund_requests_single_pending_and_server_only_insert",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1794096741392,
+      "tag": "0046_catalog_recovery_pilot_audit",
+      "breakpoints": true
     }
   ]
 }
