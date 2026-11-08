@@ -130,9 +130,17 @@ Deno.test('banner e inserção circular têm rejeição codificada sem regex do 
     assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'Arte de divulgação adicionada' })).clean, false);
   }
 });
-Deno.test('fora do esquema incluindo markdown e campos extras fica inconclusivo', () => {
+Deno.test('cerca JSON completa preserva validação estrita do conteúdo', () => {
+  const raw = JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'Fundo limpo' });
+  for (const wrapper of ['```json\n' + raw + '\n```', '```\n' + raw + '\n```', '  ```JSON\r\n' + raw + '\r\n```  ']) {
+    assertEquals(parseImageVerdict(wrapper, true).clean, true);
+  }
+  const rejected = JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 'SOBRE_FOTO', justificativa: 'Marca sobreposta' });
+  assertEquals(parseImageVerdict('```json\n' + rejected + '\n```').clean, false);
+});
+Deno.test('fora do esquema ou cerca incompleta/prosa permanece inconclusivo', () => {
   const raw = JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'PRODUTO', justificativa: 'Produto físico' });
-  for (const invalid of ['```json\n' + raw + '\n```', raw.slice(0, -1) + ',"extra":true}', raw.replace('"OK"', '"inventado"')]) assertEquals(parseImageVerdict(invalid).clean, null);
+  for (const invalid of ['Prosa\n```json\n' + raw + '\n```', '```json\n' + raw, '```js\n' + raw + '\n```', '```json\n' + raw.slice(0, -1) + ',"extra":true}\n```', raw.slice(0, -1) + ',"extra":true}', raw.replace('"OK"', '"inventado"')]) assertEquals(parseImageVerdict(invalid).clean, null);
 });
 Deno.test('primeira foto aceita exige principal mesmo após rejeição da primeira URL', async () => {
   const urls = ['https://example.com/rejected.jpg', 'https://example.com/gallery.jpg'];
