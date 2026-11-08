@@ -10,7 +10,7 @@ Recuperar produtos elegíveis do catálogo inteiro e impedir bloqueios por falha
 - Restrições/evidências sobrepostas: C7Drop 38 Anatel, 32 menos de três URLs, 5 celulares, 63 com alguma rejeição visual antiga; AliExpress 3 com rejeição visual antiga. Conteúdo proibido detectado: zero. Não tratar rejeição de uma foto como rejeição de todo produto.
 - **20 natalinos continuam liberados, estoque positivo e galeria igual.** Só o kit de bolas de 5 cm foi atualizado após recuperação e preservou o desbloqueio. Os outros 19 aguardam atualização que realmente os inclua. Não iniciar lote seguinte antes dessa conferência, salvo autorização expressa.
 
-As respostas originais das três divergências, quatro diferenças de interpretação, fotos principais e contagens detalhadas estão no relatório entregue. A cascata mostra impressão na embalagem; a tiara mostra texto sobreposto, marca-d’água e colagem. Sem nova inferência ou desbloqueio.
+Relatório entregue: respostas originais, filtros e fotos. Cascata: impressão na embalagem; tiara: sobreposição, marca-d’água e colagem. Sem nova inferência.
 
 ## Etapa 1 — aprovar o critério antes de aplicar
 **Texto proposto para a análise visual:**
@@ -27,7 +27,7 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 
 ## Etapa 2 — motivos e mudança da galeria
 - Aproveitar `block_reasons` e trilha de auditoria existentes; não inventar motivos históricos. Separar visual, Anatel, proibido, URLs insuficientes e motivo legado desconhecido. Registrar evidência e versão do critério.
-- Guardar assinatura da galeria, incluindo ordem/principal, e vínculo entre aprovação e imagem analisada. Idealmente guardar identidade do conteúdo para URLs reutilizadas, sem assumir que uma URL nunca muda.
+- Guardar assinatura da galeria, ordem/principal e identidade do conteúdo: URL reutilizada pode mudar de imagem.
 - Importador que detectar galeria diferente invalida somente a aprovação visual associada à galeria antiga e cria pendência de reanálise. Não limpa `is_blocked` nem restrições independentes automaticamente.
 - Produto visualmente bloqueado volta à análise; só retirar o motivo visual após nova análise elegível e CAS. Produto já visível apenas inconclusivo permanece visível, salvo estoque ou restrição independente; publicação exige validação das imagens atuais.
 - CAS compara **is_blocked e galeria**, não preço/estoque. Em transação, reler estoque, motivos e campos independentes atuais para manter elegibilidade. Atualizar só campos de recuperação; nunca restaurar preço/estoque sobre atualização do fornecedor.
@@ -37,8 +37,7 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 ## Etapa 3 — fila e visibilidade administrativa
 - Propor **máximo de três tentativas totais por imagem/galeria/critério**, sem repetir chamadas de orçamento ambíguo; uma nova galeria só abre novo ciclo mediante registro e controle de gasto.
 - Intervalos propostos: inicial autorizada; segunda após 24h; terceira após 72h da segunda. Permanecer manual/aguardando aprovação: nenhum worker ou retentativa automática está autorizado.
-- Após limite, estado “inconclusivo — revisão necessária”, nunca reprovado/bloqueado por esgotamento.
-- Uma falha não interrompe outras imagens/produtos; interrupção global só por orçamento ou falha sistêmica de segurança.
+- Após limite: revisão necessária, nunca bloqueio. Falha individual não para lote; orçamento/segurança podem parar.
 - Medir servidor, etapa (download, MIME/tamanho, chamada IA, interpretação, CAS), status, latência, modelo, consumo estimado/confirmado e motivo técnico.
 - Indicador admin por fornecedor: ativos com estoque, visíveis para cliente, bloqueados por motivo (categorias sobrepostas), motivo desconhecido e inconclusivos em fila.
 - Alerta proposto, a aprovar: bloqueados acima de **50%** dos ativos com estoque ou crescimento de **10 pontos percentuais em 24h**. Mostrar base/data e separar falha técnica de rejeição explícita. C7Drop está em 67,2% agora.
@@ -80,6 +79,5 @@ Somente **depois de aprovar o critério novo**:
 - Sem orçamento adicional, tratar catálogo inteiro como objetivo por fases, não promessa de reanalisar todas as imagens numa rodada.
 
 ## Detalhes técnicos e verificação
-Aplicação futura deve usar política visual compartilhada, evidências versionadas, auditoria atômica e fila existente; testes pequenos de cada regra (embalagem aceita, overlay/colagem rejeitados, falha inconclusiva sem escrita negativa, galeria alterada não libera, CAS ignora preço mas relê restrições, três aprovadas/principal/estoque, teto e tentativas). Revisar policies/grants antes de qualquer migration futura.
-
-Não alterar dados de clientes ou assinaturas. Nenhuma publicação de anúncio de teste. Verificação de publicação termina antes do envio real ao ML; não prometer aceitação oficial apenas por validação interna.
+Usar política compartilhada, evidência versionada, auditoria atômica e fila existente. Testar cada regra: embalagem, overlay/colagem, inconclusivo sem bloqueio/cache negativo, CAS/galeria, elegibilidade, orçamento e tentativas. Revisar policies/grants antes de migrations.
+Não alterar clientes/assinaturas nem enviar anúncios de teste ao ML; validação interna não garante aceitação oficial.
