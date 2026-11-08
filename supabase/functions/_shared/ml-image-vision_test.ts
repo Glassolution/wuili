@@ -122,11 +122,20 @@ Deno.test('cache de critério antigo não rejeita nem desbloqueia produto', asyn
   assertEquals(writes, 0);
 });
 
-Deno.test('principal só aprova fundo limpo e cache tem escopo próprio', () => {
+Deno.test('principal aprova pelo código OK e cache tem escopo próprio', () => {
   const data = { veredito: 'aprovada', codigo: 'OK', localizacao: 'EMBALAGEM', justificativa: 'Etiqueta física original' };
-  assertEquals(parseImageVerdict(JSON.stringify(data), true).clean, null);
-  assertEquals(parseImageVerdict(JSON.stringify({ ...data, localizacao: 'FUNDO_LIMPO' }), true).clean, true);
+  assertEquals(parseImageVerdict(JSON.stringify(data), true).clean, true);
+  assertEquals(parseImageVerdict(JSON.stringify({ ...data, codigo: 'EMBALAGEM_PRINCIPAL', veredito: 'reprovada' }), true).clean, false);
   assertEquals(imageEvidencePrefix(true) === imageEvidencePrefix(false), false);
+});
+Deno.test('qualquer localização é aceita e não decide o veredito', () => {
+  for (const localizacao of ['IMAGEM_INTEIRA', 'CANTO_SUPERIOR', 'DESCONHECIDA', '', 42, null]) {
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao, justificativa: "marca d'água" })).clean, false);
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'INSERCAO_CIRCULAR', localizacao, justificativa: 'inserção' }), true).clean, false);
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao, justificativa: 'foto limpa' }), true).clean, true);
+    assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'inconclusiva', codigo: 'FALHA_TECNICA', localizacao, justificativa: 'não deu' })).clean, null);
+  }
+  assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'MARCA_DAGUA', localizacao: 7, justificativa: 'x' })).evidence.localizacao, 'DESCONHECIDA');
 });
 Deno.test('banner e inserção circular têm rejeição codificada sem regex do motivo', () => {
   for (const codigo of ['SOBREPOSICAO_TEXTO', 'INSERCAO_CIRCULAR']) {
@@ -187,7 +196,7 @@ Deno.test('principal mínimo 500x500 em ambas as dimensões', () => {
 Deno.test('secundárias rejeitam só códigos proibidos e embalagem não é principal', () => {
   for (const codigo of ['CONTATO_QR', 'BANNER_PROMOCIONAL', 'PRECO_FRETE', 'SELO_ML', 'VARIOS_PRODUTOS']) assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo, localizacao: 'IMAGEM_INTEIRA', justificativa: 'evidência identificada' })).clean, false);
   assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'EMBALAGEM', justificativa: 'embalagem' })).clean, true);
-  assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo: 'OK', localizacao: 'EMBALAGEM', justificativa: 'embalagem' }), true).clean, null);
+  assertEquals(parseImageVerdict(JSON.stringify({ veredito: 'reprovada', codigo: 'EMBALAGEM_PRINCIPAL', localizacao: 'EMBALAGEM', justificativa: 'embalagem' }), true).clean, false);
 });
 Deno.test('publicação reordena principal elegível sem perder secundária original', async () => {
   const urls = ['https://example.com/pack.jpg', 'https://example.com/clean.jpg'];

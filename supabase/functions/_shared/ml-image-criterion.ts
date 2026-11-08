@@ -5,7 +5,8 @@ export const IMAGE_REJECTION_CODES = ['SOBREPOSICAO_TEXTO', 'MARCA_DAGUA', 'LOGO
 export type ImageVerdict = {
   veredito: 'aprovada' | 'reprovada' | 'inconclusiva';
   codigo: typeof IMAGE_REJECTION_CODES[number] | 'FALHA_TECNICA' | 'OK';
-  localizacao: 'SOBRE_FOTO' | 'PRODUTO' | 'EMBALAGEM' | 'IMAGEM_INTEIRA' | 'FUNDO_LIMPO' | 'DESCONHECIDA';
+  /** Descriptive evidence only; any model value is accepted and never decides the verdict. */
+  localizacao: string;
   justificativa: string;
 };
 export function imageEvidencePrefix(primary = false): string {
