@@ -3,9 +3,12 @@
 ## Ajustes aprovados e reanálise restrita — 08/11 00:58 UTC
 - [x] Critério banner/colagem/inserção/medidas e principal estrita, esquema português validado sem regex de motivo; publicado 3.6 preservado e JSON mode adicionado após falha de formato
 - [x] Reanalisar só 101 rejeitadas e 7 casos nos dois modelos: 112 chamadas, 1,374057 estimados, 101 rejeitadas inconclusivas no esquema estrito; 110 retornos Markdown, sem retries/escritas
-- [ ] Entregar transições, 10 aprovadas/10 mantidas e resultados dos 7 pares
+- [x] Entregar relatório/CSV com 101 transições para inconclusivo por formato e 7 pares; não há 10 aprovadas válidas (bruto tem só 2 aceites)
 - [ ] Explicar nota/filtros e propostas sem aplicar Etapa 4; hash URLs/fila aplicado em migration0047, sem worker/bloqueio
-- [ ] Consultar saldo/limites e reler 20 natalinos; sem lotes, sem Etapa 5 nem troca de modelo
+- [x] Consultar saldo/limites: 130,60 créditos na última leitura, nenhum limite; 20 natalinos preservados, 19 sem atualização posterior
+- [ ] Reanálise válida em JSON mode depende de nova autorização; sem repetir chamadas automaticamente
+- [ ] Indicador/alerta admin depende de baseline 24h ainda não coletado; limiar aprovado apenas +10pp, percentual atual numérico
+- [ ] Teste isolado reversível da fila sem tocar produtos reais ainda não exercitado
 
 ## Plano ampliado de recuperação — somente leitura nesta rodada
 - [x] Reunir respostas brutas das três divergências e quatro diferenças de interpretação e fotos principais no relatório
@@ -15,7 +18,7 @@
 
 ## Execução por etapas do plano ampliado aprovado
 - [x] Etapa 1: critério físico/embalagem versus overlay e interpretação estruturada versionada implementados localmente; 26 testes simulados passaram, sem IA real ou alteração de produtos
-- [ ] Publicar critério após equivalência aprovada; modelo permanece 3.6 e funções publicadas permanecem intactas
+- [x] Publicar critério Etapa 1 após aprovação específica 00:58; modelo permanece 3.6, só ml-publish/ml-catalog-vision-audit publicadas
 - [ ] Etapas 2–4: mudanças de importadores/schema/admin/filtros aguardam aprovação específica por etapa prevista no plano
 - [ ] Etapa 5: execução da nova equivalência exige aprovação específica, referência humana e reconciliação do orçamento; nenhum teste pago iniciado
 - [ ] Etapa 6: lotes aguardam atualização real dos 19 natalinos e autorização individual
