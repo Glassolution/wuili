@@ -7233,6 +7233,8 @@
     "https://esm.sh/bufferutil@4.2.0?target=denonext": "0024d03eadad2e0fb3a8d29c96a044a099e5a1cb6ad4d0cb11da1f77cadeb87b",
     "https://esm.sh/iceberg-js@0.8.1/denonext/iceberg-js.mjs": "d839d81a2e3966500ca2cdd0c1cb458e9608bacfc91f7bb67a69b2e878dcdb4f",
     "https://esm.sh/iceberg-js@0.8.1?target=denonext": "58c849d7fe2bf4eca4a84eb501e83c161a7d8c34ca1bec15a962b3bec3062633",
+    "https://esm.sh/image-size@2.0.2/deno/image-size.mjs": "6796f68e46d20a36192df98dd8b6a65e5ffa6b5799ec69efc8c917b46a9a8482",
+    "https://esm.sh/image-size@2.0.2?target=deno": "61ea52905557f12338d6b22ebe213b22a2ff8c2b548f48db8103c0fd5e0abd0e",
     "https://esm.sh/node-gyp-build@4.8.4/denonext/node-gyp-build.mjs": "9a86f2d044fc77bd60aaa3d697c2ba1b818da5fb1b9aaeedec59a40b8e908803",
     "https://esm.sh/node-gyp-build@4.8.4?target=denonext": "261a6cedf1fdbf159798141ba1e2311ac1510682c5c8b55dacc8cf5fdee4aa06",
     "https://esm.sh/tr46@0.0.3/denonext/tr46.mjs": "5753ec0a99414f4055f0c1f97691100f13d88e48a8443b00aebb90a512785fa2",
