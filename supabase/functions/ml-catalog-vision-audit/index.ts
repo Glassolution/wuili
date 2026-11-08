@@ -7,6 +7,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { filterCleanImagesCached } from "../_shared/ml-image-vision.ts";
+import { imageProductDecision } from '../_shared/ml-vision-policy.ts';
+import { IMAGE_VALIDATION_REVISION } from '../_shared/ml-vision-request.ts';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -47,6 +49,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
+    if (body.action === 'status') return json({ revision: IMAGE_VALIDATION_REVISION, tri_state: true, technical_failure_blocks: false });
     const limit = Math.min(Math.max(Number(body.limit ?? 20), 1), 100);
     const recheckAll = body.recheck_all === true;
     const productId = typeof body.product_id === "string" ? body.product_id : null;
@@ -69,11 +72,17 @@ Deno.serve(async (req) => {
     let aprovados = 0;
     let bloqueados = 0;
     let inconclusivos = 0;
+    const results: unknown[] = [];
+    const dryRun = body.dry_run === true;
 
     for (const row of rows ?? []) {
+      try {
       const imagens = listaDeImagens(row.images);
-      const { clean, inconclusive } = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 14 });
-      if (!clean.length && inconclusive.length) {
+      const filtered = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 14, dryRun, forceRecheck: body.force_recheck === true });
+      const { clean } = filtered;
+      const decision = imageProductDecision(filtered);
+      results.push({ id: row.id, title: row.title, ...filtered, decision });
+      if (decision === 'inconclusive') {
         inconclusivos++;
         // Preserve previous state; a failed analysis is not a dirty photo.
         continue;
@@ -84,7 +93,9 @@ Deno.serve(async (req) => {
       if (aprovado) aprovados++;
       else bloqueados++;
 
-      await supabase
+      if (dryRun) continue;
+
+      const { error: writeError } = await supabase
         .from("catalog_products")
         .update({
           ml_vision_clean_count: clean.length,
@@ -98,6 +109,12 @@ Deno.serve(async (req) => {
           ...(aprovado ? {} : { is_blocked: true }),
         })
         .eq("id", row.id);
+      if (writeError) console.warn('[image-validation]', JSON.stringify({ product_id: row.id, stage: 'database', error: writeError.message }));
+      } catch (error) {
+        inconclusivos++;
+        results.push({ id: row.id, title: row.title, decision: 'inconclusive', error: String(error) });
+        console.warn('[image-validation]', JSON.stringify({ product_id: row.id, stage: 'product', error: String(error).slice(0, 200) }));
+      }
     }
 
     const { count: pendentes } = await supabase
@@ -108,6 +125,9 @@ Deno.serve(async (req) => {
 
     return json({
       ok: true,
+      revision: IMAGE_VALIDATION_REVISION,
+      dry_run: dryRun,
+      results,
       auditados: rows?.length ?? 0,
       aprovados,
       bloqueados,

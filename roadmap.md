@@ -1,5 +1,14 @@
 # Roadmap
 
+## Recuperação controlada de imagens — novembro
+- [x] Confirmar versões observadas (auditoria 332→334, publicação 1875→1877, catálogo 1738) e nova revisão tri-state no ar; bundle anterior não disponível
+- [x] Mapear gravadores e quantificar snapshot 645/624: 574 sem outro motivo detectável, 50 com evidência adicional; causa exclusiva não comprovável
+- [x] Proteger validação visual contra falha técnica/cache negativo/URL heurística; 11 testes, dry-run real e importadores conferidos
+- [x] Dry-run 40/290 fotos: 183 aprovadas, 101 reprovadas, 6 inconclusivas; 38 candidatos e 2 outras restrições; custo estimado 2,574444, projeção 43,93/teto proposto 60
+- [x] Atualização automática retirou 94 bloqueios por leitura truncada: restaurados somente esses bloqueios, paginação corrigida; zero dos 645 originais liberados
+- Limite: gatilho/scrapers ainda bloqueiam por três URLs e pré-checagem por heurística; alinhar no PASSO 3 sem desbloqueio automático. Total concorrente passou a 648.
+- [ ] PASSO 3 aguarda aprovação: motivos estruturados, backup reversível, recuperação e fila limitada
+
 ## Cortesia Igor e aviso de renovação mensal
 - [x] Estorno R$ 79,80 confirmado (ref_1794092439013_9qiienm65), motivo registrado, acesso encerrado sem cooldown
 - [ ] Cancelamento ValidaPay: bloqueado por HTTP 400; provider_cancelled_at nulo, sem nova tentativa após falha

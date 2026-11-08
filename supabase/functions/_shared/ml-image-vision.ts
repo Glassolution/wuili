@@ -7,8 +7,8 @@
 // imagem nunca é analisada duas vezes, então auditar o catálogo inteiro é
 // barato e o resultado é idêntico ao da publicação.
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { isSuspiciousImageUrl, visionCheck } from "./ml-content-sanitizer.ts";
-import { isInconclusiveImageReason } from "./ml-image-input.ts";
+import { visionCheck } from "./ml-content-sanitizer.ts";
+import { isInconclusiveImageReason, isExplicitVisualRejection } from "./ml-image-input.ts";
 
 export type VisionFilterResult = {
   clean: string[];
@@ -27,7 +27,7 @@ const VALIDADE_DIAS = 60;
 export async function filterCleanImagesCached(
   supabase: SupabaseClient,
   urls: string[],
-  opts: { max?: number; maxChecks?: number } = {},
+  opts: { max?: number; maxChecks?: number; dryRun?: boolean; forceRecheck?: boolean } = {},
 ): Promise<VisionFilterResult> {
   const max = opts.max ?? 6;
   const maxChecks = opts.maxChecks ?? 14;
@@ -37,9 +37,8 @@ export async function filterCleanImagesCached(
   const candidatos: string[] = [];
 
   for (const url of urls) {
-    if (isSuspiciousImageUrl(url)) {
-      rejected.push({ url, reason: "arte/banner do fornecedor detectado na URL" });
-    } else if (!candidatos.includes(url)) {
+    // A filename is not a visual verdict; even suspicious URLs must be seen.
+    if (!candidatos.includes(url)) {
       candidatos.push(url);
     }
   }
@@ -53,7 +52,8 @@ export async function filterCleanImagesCached(
 
   const cache = new Map<string, { clean: boolean; reason?: string }>();
   for (const row of cacheRows ?? []) {
-    if (String(row.checked_at) >= limite && !isInconclusiveImageReason(row.reason)) {
+    if (String(row.checked_at) >= limite && !isInconclusiveImageReason(row.reason) &&
+      (row.clean === true || (row.clean === false && isExplicitVisualRejection(row.reason) && !/detectado na URL/i.test(row.reason ?? '')))) {
       cache.set(row.url as string, { clean: !!row.clean, reason: row.reason ?? undefined });
     }
   }
@@ -64,15 +64,17 @@ export async function filterCleanImagesCached(
 
   for (const url of candidatos) {
     if (clean.length >= max) break;
-    let veredito = cache.get(url);
+    let veredito = opts.forceRecheck ? undefined : cache.get(url);
     if (!veredito) {
       if (analises >= maxChecks) {
         inconclusive.push({ url, reason: 'limite de análise atingido' });
         continue;
       }
       analises++;
-      const v = await visionCheck(url);
-      if (v.clean === null) {
+      let v;
+      try { v = await visionCheck(url); }
+      catch { v = { clean: null, reason: 'análise indisponível: falha inesperada' }; }
+      if (v.clean === null || (v.clean === false && (!isExplicitVisualRejection(v.reason) || isInconclusiveImageReason(v.reason)))) {
         inconclusive.push({ url, reason: v.reason ?? 'análise inconclusiva' });
         continue;
       }
@@ -88,7 +90,7 @@ export async function filterCleanImagesCached(
     }
   }
 
-  if (novos.length) {
+  if (novos.length && !opts.dryRun) {
     const { error } = await supabase
       .from("ml_image_vision_cache")
       .upsert(

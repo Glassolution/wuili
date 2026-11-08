@@ -757,6 +757,10 @@ serve(async (req) => {
 
 
     // Regra fixa (segunda camada): produto AliExpress só entra "publicável" (visível no catálogo)
+    // Missing/failed detail must never persist a block from a truncated gallery.
+    const fullyEnriched = detailed.filter((item) => enrichedIds.has(item.external_id));
+    detailed.length = 0;
+    detailed.push(...fullyEnriched);
     // se atender TODOS os critérios que o Mercado Livre exige e o AliExpress raramente fornece:
     //   • ≥ MIN_IMAGES_REQUIRED fotos
     //   • estoque > 0

@@ -39,6 +39,9 @@ export function parseImageVerdict(raw: string | null): { clean: boolean | null; 
   const candidate = text.startsWith('{') ? text : (text.match(/\{[\s\S]*\}/)?.[0] ?? '');
   try {
     const parsed = JSON.parse(candidate);
+    if (parsed.clean === false && (!isExplicitVisualRejection(parsed.reason) || isInconclusiveImageReason(parsed.reason))) {
+      return { clean: null, reason: 'resposta sem reprovação visual explícita' };
+    }
     if (typeof parsed.clean === 'boolean') return {
       clean: parsed.clean,
       reason: typeof parsed.reason === 'string' ? parsed.reason : '',
@@ -48,5 +51,9 @@ export function parseImageVerdict(raw: string | null): { clean: boolean | null; 
 }
 
 export function isInconclusiveImageReason(reason: string | null | undefined): boolean {
-  return !!reason && /não foi possível validar|resposta inválida|falha.*(valid|análise)|análise.*indisponível/i.test(reason);
+  return !!reason && /não foi possível|n[aã]o consigo|n[aã]o.*(ler|visualizar|analisar)|resposta.*(inválida|ilegível)|falha|inconclusiv|indisponível|timeout|download|formato.*(inválido|suportado)|erro.*(ia|http|análise)|limite de análise|sem reprovação visual/i.test(reason);
+}
+
+export function isExplicitVisualRejection(reason: unknown): boolean {
+  return typeof reason === 'string' && /marca.{0,8}[áa]gua|watermark|texto|infogr[aá]fico|banner|logo|logotipo|selo|moldura|arte (de|do)|promocional/i.test(reason);
 }

@@ -480,10 +480,16 @@ Deno.serve(async (req) => {
     );
 
     // Detecta insert vs update + preserva o bloqueio da auditoria visual.
-    const { data: existing } = await supabase
-      .from("catalog_products")
-      .select("external_id,is_blocked,images,ml_vision_clean_count")
-      .eq("source", SOURCE);
+    // Explicitly paginate: default REST row caps otherwise omit existing blocks.
+    const existing: Array<{ external_id: string; is_blocked: boolean; images: unknown; ml_vision_clean_count: number | null }> = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await supabase.from('catalog_products')
+        .select('external_id,is_blocked,images,ml_vision_clean_count')
+        .eq('source', SOURCE).order('id').range(offset, offset + 499);
+      if (error) throw new Error(`Falha ao ler bloqueios existentes: ${error.message}`);
+      existing.push(...(data ?? []));
+      if ((data?.length ?? 0) < 500) break;
+    }
     const existingIds = new Set((existing ?? []).map((r) => r.external_id));
     const anteriores = new Map(
       (existing ?? []).map((r) => [r.external_id as string, r]),
@@ -495,11 +501,13 @@ Deno.serve(async (req) => {
     // Só reabrimos quando as fotos realmente mudaram — e aí pedimos nova auditoria.
     for (const row of rows) {
       const anterior = anteriores.get(row.external_id as string);
-      if (!anterior || anterior.ml_vision_clean_count !== 0) continue;
+      if (!anterior) continue;
+      if (anterior.is_blocked) row.is_blocked = true;
       const mesmasFotos =
         JSON.stringify(anterior.images ?? []) === JSON.stringify(row.images ?? []);
       if (mesmasFotos) {
-        row.is_blocked = true;
+        // Preserve existing blocks, but zero clean photos is not proof of rejection.
+        if (anterior.is_blocked) row.is_blocked = true;
       } else {
         (row as Record<string, unknown>).ml_vision_clean_count = null;
         (row as Record<string, unknown>).ml_vision_checked_at = null;
