@@ -136,10 +136,15 @@ Deno.serve(async (req) => {
 
     // Pré-carrega existentes para classificar insert vs update no log e para
     // preservar o bloqueio da auditoria visual.
-    const { data: existing } = await supabase
-      .from("catalog_products")
-      .select("external_id,is_blocked,images,ml_vision_clean_count")
-      .eq("source", SOURCE);
+    const existing: Array<{ external_id: string; is_blocked: boolean; images: unknown; ml_vision_clean_count: number | null }> = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await supabase.from('catalog_products')
+        .select('external_id,is_blocked,images,ml_vision_clean_count')
+        .eq('source', SOURCE).order('id').range(offset, offset + 499);
+      if (error) throw new Error(`Falha ao ler bloqueios existentes: ${error.message}`);
+      existing.push(...(data ?? []));
+      if ((data?.length ?? 0) < 500) break;
+    }
     const existingIds = new Set((existing ?? []).map((r) => r.external_id));
     const anteriores = new Map((existing ?? []).map((r) => [r.external_id as string, r]));
 
