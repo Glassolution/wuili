@@ -1,4 +1,4 @@
-import { imageSize } from 'npm:image-size@2.0.2';
+import { imageSize } from 'https://esm.sh/image-size@2.0.2?target=deno';
 import { imageInput } from './ml-image-input.ts';
 
 export function primarySizeDecision(width: number, height: number): 'eligible' | 'too_small' {
