@@ -4,7 +4,9 @@ import { imageInput, isInconclusiveImageReason, parseImageVerdict, reclassifySav
 import { IMAGE_CRITERION_VERSION } from './ml-image-criterion.ts';
 import { primarySizeDecision } from './ml-primary-size.ts';
 import { filterCleanImagesCached } from './ml-image-vision.ts';
-import { imageProductDecision } from './ml-vision-policy.ts';
+import { imageProductDecision, sequentialVision } from './ml-vision-policy.ts';
+import { IMAGE_VISION_MODELS } from './ml-vision-request.ts';
+import { IMAGE_VISION_PIPELINES } from './ml-image-criterion.ts';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 Deno.test('falha ou JSON sem booleano não aprova nem reprova foto', () => {
@@ -205,4 +207,29 @@ Deno.test('publicação reordena principal elegível sem perder secundária orig
   const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
   const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
   assertEquals(result.clean, [urls[1], urls[0]]);
+});
+
+Deno.test('dupla checagem: foto só passa se os dois modelos aprovarem', async () => {
+  const ok = { clean: true, reason: 'ok' };
+  const no = { clean: false, reason: 'marca' };
+  const calls: string[] = [];
+  const ask = (answers: Record<string, unknown>) => (m: string) => { calls.push(m); const a = answers[m]; if (a instanceof Error) throw a; return Promise.resolve(a as { clean: boolean | null; reason: string }); };
+  assertEquals((await sequentialVision(['g', 't'], ask({ g: ok, t: ok }))).clean, true);
+  assertEquals((await sequentialVision(['g', 't'], ask({ g: ok, t: no }))).clean, false);
+  calls.length = 0;
+  assertEquals((await sequentialVision(['g', 't'], ask({ g: no, t: ok }))).clean, false);
+  assertEquals(calls, ['g']);
+});
+Deno.test('dupla checagem: falha, tempo esgotado ou formato inválido em qualquer modelo fica inconclusiva', async () => {
+  const ok = { clean: true, reason: 'ok' };
+  const ask = (a: unknown, b: unknown) => (m: string) => { const x = m === 'g' ? a : b; return x instanceof Error ? Promise.reject(x) : Promise.resolve(x as { clean: boolean | null; reason: string }); };
+  assertEquals((await sequentialVision(['g', 't'], ask(ok, new Error('timeout')))).clean, null);
+  assertEquals((await sequentialVision(['g', 't'], ask(ok, { clean: null, reason: 'resposta fora do esquema' }))).clean, null);
+  assertEquals((await sequentialVision(['g', 't'], ask(new Error('503'), ok))).clean, null);
+  assertEquals((await sequentialVision(['g', 't'], ask({ clean: null, reason: 'x' }, ok))).clean, null);
+});
+Deno.test('chave do cache inclui os dois modelos e a versão do critério', () => {
+  assertEquals(IMAGE_VISION_MODELS, ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra']);
+  for (const m of ['gemini-3.8-flash', 'gpt-6.1-terra', 'two-level-v5']) assertEquals(IMAGE_CRITERION_VERSION.includes(m), true);
+  assertEquals(IMAGE_VISION_PIPELINES.legacy.models[0], 'google/gemini-3.6-flash');
 });
