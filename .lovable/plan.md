@@ -28,10 +28,10 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 ## Etapa 2 — motivos e mudança da galeria
 - Aproveitar `block_reasons` e trilha de auditoria existentes; não inventar motivos históricos. Separar visual, Anatel, proibido, URLs insuficientes e motivo legado desconhecido. Registrar evidência e versão do critério.
 - Guardar assinatura da galeria, ordem/principal e identidade do conteúdo: URL reutilizada pode mudar de imagem.
-- Importador que detectar galeria diferente invalida somente a aprovação visual associada à galeria antiga e cria pendência de reanálise. Não limpa `is_blocked` nem restrições independentes automaticamente.
+- Galeria diferente invalida aprovação visual antiga e cria pendência; não limpa bloqueio/restrições automaticamente.
 - Produto visualmente bloqueado volta à análise; só retirar o motivo visual após nova análise elegível e CAS. Produto já visível apenas inconclusivo permanece visível, salvo estoque ou restrição independente; publicação exige validação das imagens atuais.
 - CAS compara **is_blocked e galeria**, não preço/estoque. Em transação, reler estoque, motivos e campos independentes atuais para manter elegibilidade. Atualizar só campos de recuperação; nunca restaurar preço/estoque sobre atualização do fornecedor.
-- Snapshot reversível antes da gravação, resultado depois, evidência, execução e versão da política. Reversão compara campos alterados com resultado esperado antes de desfazer.
+- Snapshot antes/depois com evidência e versão; reversão usa CAS dos campos alterados.
 - Alterações em importadores/gatilhos precisam de aprovação específica desta etapa e testes de concorrência. Não mudar a regra de três URLs.
 
 ## Etapa 3 — fila e visibilidade administrativa
@@ -43,7 +43,7 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 - Alerta proposto, a aprovar: bloqueados acima de **50%** dos ativos com estoque ou crescimento de **10 pontos percentuais em 24h**. Mostrar base/data e separar falha técnica de rejeição explícita. C7Drop está em 67,2% agora.
 
 ## Etapa 4 — filtros que escondem produtos bons
-Propor correções separadas, nenhuma aplicada nesta rodada:
+Correções separadas, não aplicadas:
 
 - Remover condição de categoria exclusiva “Produto de Natal” do processo de recuperação; priorizar Natal por lista revisada/título sem alterar categoria do fornecedor. O piloto antigo pulou o kit em Mais vendidos; já foi recuperado.
 - Unificar mapeamento do endpoint com categorias reais: as oito categorias antigas mapeadas correspondem a zero dos 307 atuais. Grade atual usa valores crus e não tem essa mesma falha.
@@ -53,14 +53,12 @@ Propor correções separadas, nenhuma aplicada nesta rodada:
 - Faixas de preço atuais incluem 50/150 em duas faixas: 162/110/37; propor limites sem sobreposição. Filtro de avaliação carrega até 1.200 e pode truncar catálogo futuro; propor filtragem/paginação coerentes, não execução atual.
 - Busca/favoritos/Atlas dependem da seleção; números não globais. Itens descartados antes de importar precisam de métricas de origem para contar impacto histórico.
 
-## Etapa 5 — equivalência e troca de modelo
-Somente **depois de aprovar o critério novo**:
-
-1. Revisar referência humana das mesmas 100 imagens, cobrindo embalagem, rótulo, sobreposição, colagem e falha técnica. As três divergências antigas não certificam equivalência no critério novo.
-2. Comparar Gemini 3.6 Flash e **Gemini 3.8 Flash**, mesmo prompt/fotos, 200 chamadas máximas, sem retry. Proposta de teto específico 3 créditos, incluído no saldo global; requer aprovação da execução.
-3. Exigir ≥95% concordância com referência humana e zero aceite indevido de sobreposição/colagem nos casos confirmados; medir inconclusivos, latência e custo. Entregar divergências brutas e diferenças de interpretação separadamente.
-4. Tarifa anteriormente consultada igual (0,000003 entrada/token e 0,000015 saída/token), custo antigo medido estimado 1,645071/200 chamadas. Revalidar disponibilidade, tarifa e expiração antes do teste; não garantir custo do novo critério.
-5. Troca somente após aprovação do resultado, antes da expiração informada do 3.6 em 19/11. Versionar cache/evidência por modelo e critério para não reutilizar rejeições antigas. Não trocar agora.
+## Etapa 5 — equivalência e modelo (após critério aprovado)
+1. Referência humana nas mesmas 100 fotos: embalagem/rótulo, overlay, colagem e falha técnica. Teste antigo não certifica novo critério.
+2. Comparar 3.6 e **3.8 Flash**, 200 chamadas sem retry, teto proposto 3 créditos dentro do saldo global; execução exige aprovação.
+3. ≥95% concordância humana e zero aceite indevido de overlay/colagem confirmados; medir inconclusivos/latência/custo e separar divergências brutas das de interpretação.
+4. Tarifa anterior igual: 0,000003 entrada/token e 0,000015 saída/token. Teste antigo: estimados 1,645071 créditos. Revalidar tarifa/disponibilidade; custo novo não garantido.
+5. Aprovar resultado antes da troca e expiração informada em 19/11. Versionar cache por modelo/critério. Não trocar agora.
 
 ## Etapa 6 — catálogo inteiro em lotes aprovados
 - Primeiro encerrar monitoramento dos 19 natalinos ainda sem atualização posterior; depois analisar Natal pendente com novo critério. Parar para conferência como cliente comum.
