@@ -712,6 +712,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           external_id: string
+          gallery_urls_hash: string | null
           id: string
           images: Json | null
           in_top_50: boolean
@@ -754,6 +755,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           external_id: string
+          gallery_urls_hash?: string | null
           id?: string
           images?: Json | null
           in_top_50?: boolean
@@ -796,6 +798,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           external_id?: string
+          gallery_urls_hash?: string | null
           id?: string
           images?: Json | null
           in_top_50?: boolean
@@ -879,6 +882,7 @@ export type Database = {
         Row: {
           attempts: number
           created_at: string
+          gallery_urls_hash: string | null
           id: string
           max_attempts: number
           product_id: string
@@ -889,6 +893,7 @@ export type Database = {
         Insert: {
           attempts?: number
           created_at?: string
+          gallery_urls_hash?: string | null
           id?: string
           max_attempts?: number
           product_id: string
@@ -899,6 +904,7 @@ export type Database = {
         Update: {
           attempts?: number
           created_at?: string
+          gallery_urls_hash?: string | null
           id?: string
           max_attempts?: number
           product_id?: string
@@ -4735,6 +4741,7 @@ export type Database = {
         Returns: number
       }
       auth_email_exists: { Args: { p_email: string }; Returns: boolean }
+      catalog_gallery_urls_hash: { Args: { p_images: Json }; Returns: string }
       claim_project_invites: { Args: never; Returns: number }
       claim_provider_cancellation: {
         Args: { p_subscription_id: string }

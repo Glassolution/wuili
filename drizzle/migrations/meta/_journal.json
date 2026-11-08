@@ -330,6 +330,13 @@
       "when": 1794096741392,
       "tag": "0046_catalog_recovery_pilot_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794100170027,
+      "tag": "0047_gallery_url_hash_manual_queue",
+      "breakpoints": true
     }
   ]
 }
