@@ -67,6 +67,14 @@ export async function filterCleanImagesCached(
     const reason = cache.get(url)?.reason;
     if (!opts.forceRecheck && reason?.startsWith(rolePrefix)) {
       try { evidenceByUrl.set(url, JSON.parse(reason.slice(rolePrefix.length))); } catch { /* invalid cache needs analysis */ }
+    } else if (!opts.forceRecheck && reason) {
+      for (const primary of [false, true]) {
+        const prefix = imageEvidencePrefix(primary);
+        if (reason.startsWith(prefix)) {
+          const parsed = parseImageVerdict(reason.slice(prefix.length), primary);
+          if (parsed.clean !== null) evidenceByUrl.set(url, { [primary ? 'primary' : 'secondary']: parsed.evidence });
+        }
+      }
     }
   }
   async function check(url: string, primary: boolean) {
