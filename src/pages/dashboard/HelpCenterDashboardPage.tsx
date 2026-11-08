@@ -1,14 +1,13 @@
-import HelpCenterView from "@/components/help-center/HelpCenterView";
+import { Navigate, useLocation } from "react-router-dom";
 
 /**
- * Mesma Central de Ajuda da rota pública, dentro do painel (/dashboard/ajuda).
- * Sem a moldura do DashboardPageShell: a página segue a referência, solta no
- * fundo branco (o DashboardLayout pinta o <main> de branco nesta rota).
+ * A Central de Ajuda vive só em /ajuda (fora dos menus, sem indexação).
+ * Links antigos para /dashboard/ajuda/... seguem funcionando: vão para o
+ * mesmo endereço sem o /dashboard.
  */
-const HelpCenterDashboardPage = () => (
-  <div className="mx-auto w-full max-w-[1240px] pb-10 pt-1 lg:pl-4">
-    <HelpCenterView basePath="/dashboard/ajuda" />
-  </div>
-);
+const HelpCenterDashboardPage = () => {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate to={`${pathname.replace(/^\/dashboard/, "")}${search}${hash}`} replace />;
+};
 
 export default HelpCenterDashboardPage;

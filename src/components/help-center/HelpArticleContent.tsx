@@ -1,8 +1,8 @@
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { revealOnScroll } from "@/components/help-center/helpMotion";
+import { isValidElement, type ReactNode } from "react";
+import { headingId } from "@/lib/helpArticleOutline";
 
 /*
   Corpo do artigo em Markdown. Usado na central, na página de leitura do artigo
@@ -10,8 +10,8 @@ import { revealOnScroll } from "@/components/help-center/helpMotion";
 
   Duas escalas:
   - "compact": texto pequeno, usado na prévia da página inicial da central;
-  - "note": página de leitura, coluna estreita, texto grande, seções separadas
-    por linha e tabelas com borda arredondada.
+  - "note": página de leitura, texto grande, títulos com âncora (o sumário
+    lateral usa articleOutline/headingId) e tabelas com borda arredondada.
 */
 
 export type HelpArticleVariant = "compact" | "note";
@@ -65,52 +65,65 @@ const compact: Components = {
   img: () => null,
 };
 
+/** Texto puro de um título renderizado (os filhos podem ter negrito, código...). */
+function textOf(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children);
+  return "";
+}
+
 const note: Components = {
-  // Cada seção abre com uma linha divisória acima, como num artigo longo.
   h2: ({ children }) => (
-    <motion.h2 {...revealOnScroll} className="mb-4 mt-10 border-t border-[#E4E4E7] pt-10 text-[26px] !font-medium leading-[1.25] tracking-[-0.02em] text-[#0F172A] sm:text-[30px]">
+    <h2
+      id={headingId(textOf(children))}
+      className="mb-5 mt-14 scroll-mt-8 text-[28px] !font-semibold leading-[1.2] tracking-[-0.02em] text-[#0D0D0D] sm:text-[36px]"
+    >
       {children}
-    </motion.h2>
+    </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="mb-3 mt-8 text-[20px] !font-medium tracking-[-0.015em] text-[#0F172A]">{children}</h3>
+    <h3
+      id={headingId(textOf(children))}
+      className="mb-3 mt-9 scroll-mt-8 text-[21px] !font-semibold leading-[1.3] tracking-[-0.01em] text-[#0D0D0D] sm:text-[24px]"
+    >
+      {children}
+    </h3>
   ),
-  p: ({ children }) => <p className="my-4 text-[16.5px] leading-[1.7] text-[#3F4652]">{children}</p>,
+  p: ({ children }) => <p className="my-5 text-[17px] leading-[1.7] text-[#0D0D0D] sm:text-[18px]">{children}</p>,
   ul: ({ children }) => (
-    <ul className="my-4 list-disc space-y-2 pl-7 text-[16.5px] leading-[1.6] text-[#3F4652] marker:text-[#0F172A]">
+    <ul className="my-5 list-disc space-y-2.5 pl-7 text-[17px] leading-[1.65] text-[#0D0D0D] marker:text-[#0D0D0D] sm:text-[18px]">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="my-4 list-decimal space-y-2 pl-7 text-[16.5px] leading-[1.6] text-[#3F4652] marker:font-medium marker:text-[#0F172A]">
+    <ol className="my-5 list-decimal space-y-2.5 pl-7 text-[17px] leading-[1.65] text-[#0D0D0D] marker:text-[#0D0D0D] sm:text-[18px]">
       {children}
     </ol>
   ),
   li: ({ children }) => <li className="pl-1.5">{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold text-[#0F172A]">{children}</strong>,
+  strong: ({ children }) => <strong className="font-semibold text-[#0D0D0D]">{children}</strong>,
   blockquote: ({ children }) => (
-    <motion.blockquote {...revealOnScroll} className="my-6 rounded-[10px] border border-[#E4E4E7] bg-[#F8FAFC] px-5 py-1 [&_p]:my-3 [&_p]:text-[15.5px]">
-      {children}
-    </motion.blockquote>
+    <blockquote className="my-7 rounded-[12px] bg-[#F7F7F8] px-6 py-1 [&_p]:my-4 [&_p]:text-[16.5px]">{children}</blockquote>
   ),
   code: ({ children }) => (
-    <code className="rounded-[5px] bg-[#F1F5F9] px-1.5 py-0.5 font-mono text-[14.5px] text-[#0F172A]">{children}</code>
+    <code className="rounded-[5px] bg-[#F3F3F3] px-1.5 py-0.5 font-mono text-[15px] text-[#0D0D0D]">{children}</code>
   ),
-  hr: () => <hr className="my-10 border-[#E4E4E7]" />,
+  hr: () => <hr className="my-12 border-[#E5E5E5]" />,
   table: ({ children }) => (
-    <motion.div {...revealOnScroll} className="my-7 overflow-x-auto rounded-[12px] border border-[#E4E4E7]">
-      <table className="w-full border-collapse text-left text-[15px]">{children}</table>
-    </motion.div>
+    <div className="my-8 overflow-x-auto rounded-[12px] border border-[#E5E5E5]">
+      <table className="w-full border-collapse text-left text-[16px]">{children}</table>
+    </div>
   ),
-  th: ({ children }) => <th className="bg-[#F8FAFC] px-4 py-3.5 font-medium text-[#0F172A]">{children}</th>,
-  td: ({ children }) => <td className="border-t border-[#E4E4E7] px-4 py-3.5 text-[#3F4652]">{children}</td>,
-  tr: ({ children }) => <tr className="transition-colors duration-150 hover:bg-[#F8FAFC]">{children}</tr>,
-  a: makeLink("text-[#2563EB] underline underline-offset-[3px] decoration-[#2563EB]/40 hover:decoration-[#2563EB]"),
+  th: ({ children }) => <th className="bg-[#F7F7F8] px-4 py-3.5 font-semibold text-[#0D0D0D]">{children}</th>,
+  td: ({ children }) => <td className="border-t border-[#E5E5E5] px-4 py-3.5 text-[#0D0D0D]">{children}</td>,
+  a: makeLink("text-[#0D0D0D] underline underline-offset-[3px] decoration-[#0D0D0D]/40 hover:decoration-[#0D0D0D]"),
   img: () => null,
 };
 
 const HelpArticleContent = ({ markdown, variant = "compact" }: { markdown: string; variant?: HelpArticleVariant }) => (
-  <div className={variant === "note" ? "help-article-note [&>*:first-child]:mt-0 [&>h2:first-child]:border-t-0 [&>h2:first-child]:pt-0" : "help-article-content"}>
+  <div className={variant === "note" ? "help-article-note [&>*:first-child]:mt-0" : "help-article-content"}>
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={variant === "note" ? note : compact}>
       {markdown}
     </ReactMarkdown>
