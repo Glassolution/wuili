@@ -38,7 +38,7 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 - Intervalos propostos: inicial autorizada; segunda após 24h; terceira após 72h da segunda. Permanecer manual/aguardando aprovação: nenhum worker ou retentativa automática está autorizado.
 - Após limite: revisão necessária, nunca bloqueio. Falha individual não para lote; orçamento/segurança podem parar.
 - Métricas: servidor, etapa (download/MIME/IA/parser/CAS), status, latência, modelo, consumo e falha técnica.
-- Indicador admin por fornecedor: ativos com estoque, visíveis para cliente, bloqueados por motivo (categorias sobrepostas), motivo desconhecido e inconclusivos em fila.
+- Admin por fornecedor: ativos/estoque, visíveis, bloqueados por motivos sobrepostos/desconhecidos e fila inconclusiva.
 - Alerta proposto, a aprovar: bloqueados acima de **50%** dos ativos com estoque ou crescimento de **10 pontos percentuais em 24h**. Mostrar base/data e separar falha técnica de rejeição explícita. C7Drop está em 67,2% agora.
 
 ## Etapa 4 — filtros (correções separadas, não aplicadas)
@@ -73,6 +73,6 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 - Teste novo e tentativas futuras precisam caber no saldo ou de orçamento adicional aprovado. Timeout com cobrança desconhecida reserva custo e pausa; nunca repetir às cegas. Limite local não garante fatura: verificar limite financeiro disponível sem mudá-lo sem autorização.
 - Sem orçamento adicional, tratar catálogo inteiro como objetivo por fases, não promessa de reanalisar todas as imagens numa rodada.
 
-## Detalhes técnicos e verificação
+## Técnica e testes
 Usar política compartilhada, evidência versionada, auditoria atômica e fila existente. Testar cada regra: embalagem, overlay/colagem, inconclusivo sem bloqueio/cache negativo, CAS/galeria, elegibilidade, orçamento e tentativas. Revisar policies/grants antes de migrations.
-Não alterar clientes/assinaturas nem enviar anúncios de teste ao ML; validação interna não garante aceitação oficial.
+Sem alterar clientes ou enviar anúncios; análise interna não garante aceite ML.
