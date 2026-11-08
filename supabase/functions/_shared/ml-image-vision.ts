@@ -8,7 +8,7 @@
 // barato e o resultado é idêntico ao da publicação.
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { visionCheck } from "./ml-content-sanitizer.ts";
-import { isInconclusiveImageReason, isExplicitVisualRejection } from "./ml-image-input.ts";
+import { parseImageVerdict, isExplicitVisualRejection } from "./ml-image-input.ts";
 import { imageEvidencePrefix } from './ml-image-criterion.ts';
 
 export type VisionFilterResult = {
@@ -53,11 +53,7 @@ export async function filterCleanImagesCached(
 
   const cache = new Map<string, { clean: boolean; reason?: string }>();
   for (const row of cacheRows ?? []) {
-    const primary = row.url === candidatos[0];
-    if (String(row.checked_at) >= limite && typeof row.reason === 'string' && row.reason.startsWith(imageEvidencePrefix(primary)) &&
-      (row.clean === true || (row.clean === false && isExplicitVisualRejection(row.reason)))) {
-      cache.set(row.url as string, { clean: !!row.clean, reason: row.reason ?? undefined });
-    }
+    if (String(row.checked_at) >= limite && typeof row.reason === 'string') cache.set(row.url as string, { clean: row.clean === true, reason: row.reason });
   }
 
   const clean: string[] = [];
@@ -66,7 +62,15 @@ export async function filterCleanImagesCached(
 
   for (const url of candidatos) {
     if (clean.length >= max) break;
+    // The first accepted image is what publication will use as its primary.
+    const primary = clean.length === 0;
     let veredito = opts.forceRecheck ? undefined : cache.get(url);
+    const prefix = imageEvidencePrefix(primary);
+    if (veredito) {
+      const reason = veredito.reason ?? '';
+      const cached = reason.startsWith(prefix) ? parseImageVerdict(reason.slice(prefix.length), primary) : undefined;
+      if (!cached || cached.clean === null || cached.clean !== veredito.clean) veredito = undefined;
+    }
     if (!veredito) {
       if (analises >= maxChecks) {
         inconclusive.push({ url, reason: 'limite de análise atingido' });
@@ -74,7 +78,7 @@ export async function filterCleanImagesCached(
       }
       analises++;
       let v;
-      try { v = await visionCheck(url, url === candidatos[0]); }
+      try { v = await visionCheck(url, primary); }
       catch { v = { clean: null, reason: 'análise indisponível: falha inesperada' }; }
       if (v.clean === null || (v.clean === false && !isExplicitVisualRejection(v.reason))) {
         inconclusive.push({ url, reason: v.reason ?? 'análise inconclusiva' });
