@@ -14,6 +14,7 @@ export async function requestImageVision(input: string, runId?: string, primary 
   ];
   const result = await generateChatCompletion({
     model: 'google/gemini-3.6-flash', messages, max_tokens: 1200,
+    response_format: { type: 'json_object' },
   }, { signal: AbortSignal.timeout(30000), maxRetries: 0, ...(runId ? { runId } : {}) });
   const content = result.choices?.[0]?.message?.content;
   return { raw: typeof content === 'string' ? content : null, usage: result.usage, id: result.id };
