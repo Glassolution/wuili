@@ -98,7 +98,7 @@ type VisionVerdict = { url: string; clean: boolean | null; reason?: string }
 // Checagem visual via IA: detecta marca d'água, logo de loja, texto promocional
 // sobreposto e arte de catálogo. Se a análise não responder, a imagem não é
 // aprovada automaticamente: publicar sem validação expõe a conta do vendedor.
-export async function visionCheck(url: string): Promise<VisionVerdict> {
+export async function visionCheck(url: string, primary = false): Promise<VisionVerdict> {
   let input: string
   try {
     input = await imageInput(url)
@@ -107,8 +107,8 @@ export async function visionCheck(url: string): Promise<VisionVerdict> {
     return { url, clean: null, reason: `não foi possível validar: falha de download/formato (${String(error).slice(0, 120)})` }
   }
   try {
-    const { raw } = await requestImageVision(input)
-    const verdict = parseImageVerdict(raw)
+    const { raw } = await requestImageVision(input, undefined, primary)
+    const verdict = parseImageVerdict(raw, primary)
     if (verdict.clean === null) console.warn('[image-validation]', JSON.stringify({ host: new URL(url).hostname, stage: 'response_parse', reason: verdict.reason }))
     return { url, ...verdict }
   } catch (error) {

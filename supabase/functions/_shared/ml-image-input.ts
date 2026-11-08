@@ -1,4 +1,4 @@
-import { IMAGE_EVIDENCE_PREFIX, IMAGE_REJECTION_CODES } from './ml-image-criterion.ts';
+import { IMAGE_EVIDENCE_PREFIX, IMAGE_REJECTION_CODES, imageEvidencePrefix, type ImageVerdict } from './ml-image-criterion.ts';
 /** Only supplier CDNs are fetched server-side; arbitrary user URLs stay remote. */
 const SUPPLIER_HOSTS = new Set(['arquivos.c7drop.com.br', 'ae01.alicdn.com', 'ae-pic-a1.aliexpress-media.com']);
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -34,26 +34,32 @@ export async function imageInput(url: string): Promise<string> {
   return `data:${mime};base64,${btoa(binary)}`;
 }
 
-export function parseImageVerdict(raw: string | null): { clean: boolean | null; reason: string } {
-  if (!raw) return { clean: null, reason: 'não foi possível validar visualmente a imagem' };
-  const text = raw.replace(/```json|```/g, '').trim();
-  const candidate = text.startsWith('{') ? text : (text.match(/\{[\s\S]*\}/)?.[0] ?? '');
+export function parseImageVerdict(raw: string | null, primary = false): { clean: boolean | null; reason: string; evidence: ImageVerdict } {
+  const invalid: ImageVerdict = { veredito: 'inconclusiva', codigo: 'FALHA_TECNICA', localizacao: 'DESCONHECIDA', justificativa: 'resposta fora do esquema na validação visual' };
+  const inconclusive = () => ({ clean: null, reason: invalid.justificativa, evidence: invalid });
+  if (!raw) return inconclusive();
   try {
-    const parsed = JSON.parse(candidate);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { clean: null, reason: 'resposta inválida na validação visual' };
-    const reason = typeof parsed.reason === 'string' ? parsed.reason.trim() : '';
-    if (!reason || isInconclusiveImageReason(reason)) return { clean: null, reason: 'resposta inconclusiva na validação visual' };
-    if (parsed.clean === false) {
-      const code = IMAGE_REJECTION_CODES.find(code => code === parsed.code);
-      const location = code === 'photo_collage' || code === 'no_product' ? 'whole_image' : 'photo_overlay';
-      if (code && parsed.location === location) return { clean: false, reason: `${IMAGE_EVIDENCE_PREFIX}${code}: ${reason}` };
-      return { clean: null, reason: 'resposta sem reprovação visual explícita' };
+    const parsed = JSON.parse(raw.trim());
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return inconclusive();
+    if (Object.keys(parsed).length !== 4 || !['veredito', 'codigo', 'localizacao', 'justificativa'].every(key => Object.hasOwn(parsed, key))) return inconclusive();
+    if (typeof parsed.justificativa !== 'string' || !parsed.justificativa.trim() || parsed.justificativa.length > 400) return inconclusive();
+    if (parsed.veredito === 'inconclusiva' && parsed.codigo === 'FALHA_TECNICA' && parsed.localizacao === 'DESCONHECIDA') {
+      return { clean: null, reason: parsed.justificativa, evidence: { ...invalid, justificativa: parsed.justificativa } };
     }
-    if (parsed.clean === true && parsed.code === 'approved' && ['physical_product', 'physical_packaging', 'whole_image'].includes(parsed.location)) {
-      return { clean: true, reason: `${IMAGE_EVIDENCE_PREFIX}approved: ${reason}` };
+    const code = IMAGE_REJECTION_CODES.find(code => code === parsed.codigo);
+    if (parsed.veredito === 'reprovada' && code) {
+      const location = code === 'COLAGEM' || code === 'SEM_PRODUTO' ? 'IMAGEM_INTEIRA' : 'SOBRE_FOTO';
+      if (parsed.localizacao !== location) return inconclusive();
+      const evidence: ImageVerdict = { veredito: 'reprovada', codigo: code, localizacao: location, justificativa: parsed.justificativa };
+      return { clean: false, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}`, evidence };
     }
+    if (parsed.veredito === 'aprovada' && parsed.codigo === 'OK' && (primary ? parsed.localizacao === 'FUNDO_LIMPO' : ['PRODUTO', 'EMBALAGEM', 'FUNDO_LIMPO', 'IMAGEM_INTEIRA'].includes(parsed.localizacao))) {
+      const evidence: ImageVerdict = { veredito: 'aprovada', codigo: 'OK', localizacao: parsed.localizacao, justificativa: parsed.justificativa };
+      return { clean: true, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}`, evidence };
+    }
+    return inconclusive();
   } catch { /* An invalid response is not proof that a photo violates rules. */ }
-  return { clean: null, reason: 'resposta inválida na validação visual' };
+  return inconclusive();
 }
 
 export function isInconclusiveImageReason(reason: string | null | undefined): boolean {
@@ -62,7 +68,10 @@ export function isInconclusiveImageReason(reason: string | null | undefined): bo
 
 export function isExplicitVisualRejection(reason: unknown): boolean {
   if (typeof reason === 'string' && reason.startsWith(IMAGE_EVIDENCE_PREFIX)) {
-    return IMAGE_REJECTION_CODES.some(code => reason.startsWith(`${IMAGE_EVIDENCE_PREFIX}${code}: `));
+    for (const primary of [false, true]) {
+      const prefix = imageEvidencePrefix(primary);
+      if (reason.startsWith(prefix)) return parseImageVerdict(reason.slice(prefix.length), primary).clean === false;
+    }
   }
-  return typeof reason === 'string' && /marca.{0,8}[áa]gua|watermark|texto|infogr[aá]fico|banner|logo|logotipo|selo|moldura|arte (de|do)|promocional/i.test(reason);
+  return false;
 }
