@@ -10,6 +10,8 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4
 import { visionCheck } from "./ml-content-sanitizer.ts";
 import { parseImageVerdict, isExplicitVisualRejection } from "./ml-image-input.ts";
 import { imageEvidencePrefix } from './ml-image-criterion.ts';
+import { IMAGE_CRITERION_VERSION, type ImageVerdict } from './ml-image-criterion.ts';
+import { checkPrimarySize } from './ml-primary-size.ts';
 
 export type VisionFilterResult = {
   clean: string[];
@@ -57,54 +59,74 @@ export async function filterCleanImagesCached(
   }
 
   const clean: string[] = [];
-  const novos: Array<{ url: string; clean: boolean; reason: string | null }> = [];
+  const evidenceByUrl = new Map<string, { secondary?: ImageVerdict; primary?: ImageVerdict }>();
+  const changed = new Set<string>();
   let analises = 0;
-
+  const rolePrefix = `[${IMAGE_CRITERION_VERSION}] roles: `;
   for (const url of candidatos) {
-    if (clean.length >= max) break;
-    // The first accepted image is what publication will use as its primary.
-    const primary = clean.length === 0;
-    let veredito = opts.forceRecheck ? undefined : cache.get(url);
-    const prefix = imageEvidencePrefix(primary);
-    if (veredito) {
-      const reason = veredito.reason ?? '';
-      const cached = reason.startsWith(prefix) ? parseImageVerdict(reason.slice(prefix.length), primary) : undefined;
-      if (!cached || cached.clean === null || cached.clean !== veredito.clean) veredito = undefined;
+    const reason = cache.get(url)?.reason;
+    if (!opts.forceRecheck && reason?.startsWith(rolePrefix)) {
+      try { evidenceByUrl.set(url, JSON.parse(reason.slice(rolePrefix.length))); } catch { /* invalid cache needs analysis */ }
     }
-    if (!veredito) {
+  }
+  async function check(url: string, primary: boolean) {
+    const roles = evidenceByUrl.get(url) ?? {};
+    const key = primary ? 'primary' : 'secondary';
+    const saved = roles[key];
+    if (saved) {
+      const parsed = parseImageVerdict(JSON.stringify(saved), primary);
+      if (parsed.clean !== null) return parsed;
+    }
       if (analises >= maxChecks) {
-        inconclusive.push({ url, reason: 'limite de análise atingido' });
-        continue;
+        return { clean: null, reason: 'limite de análise atingido' };
+      }
+      if (primary) {
+        const size = await checkPrimarySize(url);
+        if (size === 'unavailable') return { clean: null, reason: 'falha técnica ao verificar resolução da principal' };
+        if (size === 'too_small') {
+          const evidence: ImageVerdict = { veredito: 'reprovada', codigo: 'RESOLUCAO_INSUFICIENTE', localizacao: 'IMAGEM_INTEIRA', justificativa: 'Foto principal menor que 500x500 pixels' };
+          roles.primary = evidence;
+          evidenceByUrl.set(url, roles); changed.add(url);
+          return parseImageVerdict(JSON.stringify(evidence), true);
+        }
       }
       analises++;
       let v;
       try { v = await visionCheck(url, primary); }
       catch { v = { clean: null, reason: 'análise indisponível: falha inesperada' }; }
       if (v.clean === null || (v.clean === false && !isExplicitVisualRejection(v.reason))) {
-        inconclusive.push({ url, reason: v.reason ?? 'análise inconclusiva' });
-        continue;
+        return { clean: null, reason: v.reason ?? 'análise inconclusiva' };
       }
-      veredito = { clean: v.clean, reason: v.reason };
-      novos.push({ url, clean: v.clean, reason: v.reason ?? null });
-    }
-    if (veredito.clean) clean.push(url);
-    else {
-      rejected.push({
-        url,
-        reason: veredito.reason || "marca d'água ou texto promocional na imagem",
-      });
+      const prefix = imageEvidencePrefix(primary);
+      if (v.reason?.startsWith(prefix)) {
+        roles[key] = parseImageVerdict(v.reason.slice(prefix.length), primary).evidence;
+        evidenceByUrl.set(url, roles); changed.add(url);
+      }
+      return v;
+  }
+  let primaryUrl: string | undefined;
+  for (const url of candidatos) {
+    if (primaryUrl && clean.length >= max) break;
+    const secondary = await check(url, false);
+    if (secondary.clean === null) { inconclusive.push({ url, reason: secondary.reason ?? 'análise inconclusiva' }); continue; }
+    if (!secondary.clean) { rejected.push({ url, reason: secondary.reason ?? 'reprovação visual' }); continue; }
+    clean.push(url);
+    if (!primaryUrl) {
+      const primary = await check(url, true);
+      if (primary.clean === true) primaryUrl = url;
+      else if (primary.clean === null) inconclusive.push({ url, reason: primary.reason ?? 'principal inconclusiva' });
     }
   }
-
-  if (novos.length && !opts.dryRun) {
+  if (changed.size && !opts.dryRun) {
     const { error } = await supabase
       .from("ml_image_vision_cache")
       .upsert(
-        novos.map((n) => ({ ...n, checked_at: new Date().toISOString() })),
+        [...changed].map(url => ({ url, clean: evidenceByUrl.get(url)?.secondary?.veredito === 'aprovada', reason: rolePrefix + JSON.stringify(evidenceByUrl.get(url)), checked_at: new Date().toISOString() })),
         { onConflict: "url" },
       );
     if (error) console.warn("[ml-image-vision] não foi possível gravar o cache:", error.message);
   }
 
-  return { clean: clean.slice(0, max), rejected, inconclusive };
+  if (!primaryUrl && clean.length) inconclusive.push({ url: clean[0], reason: 'nenhuma principal elegível validada; fotos secundárias preservadas' });
+  return { clean: primaryUrl ? [primaryUrl, ...clean.filter(url => url !== primaryUrl)].slice(0, max) : [], rejected, inconclusive };
 }
