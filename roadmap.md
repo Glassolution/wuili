@@ -1,5 +1,12 @@
 # Roadmap
 
+## Ajustes aprovados e reanálise restrita — 08/11 00:58 UTC
+- [ ] Critério banner/colagem/inserção/medidas e principal estrita, esquema português validado sem regex de motivo
+- [ ] Reanalisar só 101 rejeitadas e 7 casos nos dois modelos, dry-run sem gravações, teto conjunto 2 créditos sem retries
+- [ ] Entregar transições, 10 aprovadas/10 mantidas e resultados dos 7 pares
+- [ ] Explicar nota/filtros e propostas sem aplicar Etapa 4; hash URLs/fila e alerta 10pp como escopo simplificado
+- [ ] Consultar saldo/limites e reler 20 natalinos; sem lotes, sem Etapa 5 nem troca de modelo
+
 ## Plano ampliado de recuperação — somente leitura nesta rodada
 - [x] Reunir respostas brutas das três divergências e quatro diferenças de interpretação e fotos principais no relatório
 - [x] Medir catálogo inteiro por fornecedor, motivos e filtros; propor critério, reanálise de galeria, fila, indicador e lotes sem executar
