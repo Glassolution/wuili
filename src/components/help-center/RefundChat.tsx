@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 import { Link, useLocation } from "react-router-dom";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { AlertCircle, ArrowUp, CheckCircle2, Loader2, LogIn, RefreshCw, ShieldCheck, XCircle } from "lucide-react";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -392,13 +393,14 @@ function Painel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Mesma foto do chat de suporte Velo (SupportTab): bússola do Atlas num círculo branco. */
 function AvatarAtendente({ pequeno = false }: { pequeno?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`grid shrink-0 place-items-center rounded-full bg-[#2563EB] font-semibold text-white ${pequeno ? "size-8 text-[13px]" : "size-10 text-[15px]"}`}
+      className={`grid shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-[#DBEAFE] ${pequeno ? "size-9" : "size-11"}`}
     >
-      V
+      <AtlasAvatarIcon size={pequeno ? 24 : 30} animated={false} />
     </span>
   );
 }
@@ -573,7 +575,7 @@ function CartaoConfirmacao({
   };
 
   return (
-    <div className="ml-11 mt-3 max-w-[560px] rounded-[16px] border border-[#BFD3FB] bg-white p-4 shadow-[0_8px_24px_-14px_rgba(37,99,235,0.45)] sm:p-5">
+    <div className="ml-12 mt-3 max-w-[560px] rounded-[16px] border border-[#BFD3FB] bg-white p-4 shadow-[0_8px_24px_-14px_rgba(37,99,235,0.45)] sm:p-5">
       <p className="flex items-center gap-2 text-[15.5px] font-medium text-[#0F172A]">
         <CheckCircle2 size={18} className="text-[#2563EB]" aria-hidden="true" /> Confira o seu pedido de reembolso
       </p>

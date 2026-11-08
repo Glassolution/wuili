@@ -21,7 +21,26 @@ type RefundSubscription = {
   amount: number | null;
   validapay_charge_id: string | null;
   payment_method: string | null;
+  provider?: string | null;
 };
+
+/**
+ * Pedido de teste: feito sobre uma assinatura sandbox (sem cobrança real), seja
+ * pelo modo sandbox do admin, seja por uma assinatura de teste dada a outra
+ * conta. Aparece com faixa listrada e selo TESTE; aprovar não chama a ValidaPay.
+ */
+const ehPedidoDeTeste = (r: { reason_details: string | null }, s: RefundSubscription | null | undefined) =>
+  String(s?.provider ?? "").toLowerCase() === "sandbox" ||
+  String(s?.payment_method ?? "").toLowerCase() === "sandbox" ||
+  String(s?.validapay_charge_id ?? "").startsWith("sandbox_") ||
+  /^\[(sandbox|teste)\]/i.test(r.reason_details ?? "");
+
+// Cores em estilo inline: o tema escuro do admin (velo-admin-surface) sobrescreve as classes de fundo.
+const FAIXA_TESTE = {
+  backgroundImage: "repeating-linear-gradient(135deg, rgba(245,158,11,0.16) 0 12px, rgba(245,158,11,0.04) 12px 24px)",
+};
+const SELO_TESTE = { backgroundColor: "#F59E0B", color: "#1C1917" };
+const BORDA_TESTE = { borderLeft: "4px solid #F59E0B" };
 
 type RefundRow = {
   id: string;
@@ -291,7 +310,7 @@ const AdminRefundsPage = () => {
       for (let i = 0; i < subIds.length; i += CHUNK) {
         const { data, error } = await supabase
           .from("subscriptions")
-          .select("id, plan, created_at, amount, validapay_charge_id, payment_method")
+          .select("id, plan, created_at, amount, validapay_charge_id, payment_method, provider")
           .in("id", subIds.slice(i, i + CHUNK));
         if (error) {
           console.error("[admin-refunds] falha ao carregar assinaturas", error);
@@ -517,6 +536,7 @@ const AdminRefundsPage = () => {
           key={reviewing.id}
           // Sempre a versão mais nova da linha (o polling atualiza a lista).
           row={allRefunds.find((r) => r.id === reviewing.id) ?? reviewing}
+          teste={ehPedidoDeTeste(reviewing, reviewing.subscription_id ? subs[reviewing.subscription_id] : null)}
           customer={profiles[reviewing.user_id]?.display_name || profiles[reviewing.user_id]?.email || reviewing.user_id.slice(0, 8)}
           busy={busyId === reviewing.id}
           onClose={() => setReviewing(null)}
@@ -685,7 +705,9 @@ const RefundsTable = ({
             const busy = busyId === r.id;
             const waitingDays = daysSince(r.requested_at);
             const accountDays = s?.created_at ? daysSince(s.created_at) : null;
-            const overdue = variant === "pending" && waitingDays >= 2;
+            const teste = ehPedidoDeTeste(r, s);
+            // Pedido de teste não conta como atrasado: a faixa de teste tem prioridade.
+            const overdue = !teste && variant === "pending" && waitingDays >= 2;
             const pastRefundWindow = accountDays != null && accountDays > 7;
             const statusTone =
               variant === "processing"
@@ -704,9 +726,19 @@ const RefundsTable = ({
             return (
               <tr
                 key={r.id}
-                className={`align-top transition hover:bg-[#F8FAFC] ${overdue ? "bg-red-50" : ""}`}
+                style={teste ? FAIXA_TESTE : undefined}
+                className={`align-top transition ${teste ? "" : "hover:bg-[#F8FAFC]"} ${overdue ? "bg-red-50" : ""}`}
               >
-                <td className={`px-4 py-4 ${overdue ? "border-l-4 border-l-red-500" : ""}`}>
+                <td className={`px-4 py-4 ${overdue ? "border-l-4 border-l-red-500" : ""}`} style={teste ? BORDA_TESTE : undefined}>
+                  {teste ? (
+                    <span
+                      title="Pedido feito sobre uma assinatura de teste (sandbox), sem cobrança real. Aprovar não chama a ValidaPay."
+                      style={SELO_TESTE}
+                      className="mb-2 inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                    >
+                      Teste
+                    </span>
+                  ) : null}
                   <UserCell p={p} fallback={r.user_id.slice(0, 8)} chargeId={r.charge_id ?? s?.validapay_charge_id ?? null} />
                 </td>
                 <td className="px-4 py-4 font-semibold text-[#171715]">{s?.plan || "—"}</td>

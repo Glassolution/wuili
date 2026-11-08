@@ -38,6 +38,7 @@ const fmtDataHora = (iso: string) =>
 const fmtMoney = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const SOURCE_LABEL: Record<string, string> = {
+  refund_chat: "Atendimento de reembolso (IA)",
   help_center: "Central de Ajuda",
   settings: "Configurações (tela antiga)",
   admin: "Admin",
@@ -49,10 +50,13 @@ export function RefundReviewDialog({
   busy,
   onClose,
   onAction,
+  teste = false,
 }: {
   row: RefundReviewRow | null;
   customer: string;
   busy: boolean;
+  /** Pedido sobre assinatura sandbox: mostra o aviso de teste. */
+  teste?: boolean;
   onClose: () => void;
   onAction: (action: RefundReviewAction, message: string) => Promise<unknown>;
 }) {
@@ -111,6 +115,16 @@ export function RefundReviewDialog({
             {row.source ? ` · via ${SOURCE_LABEL[row.source] ?? row.source}` : ""}
           </DialogDescription>
         </DialogHeader>
+
+        {teste ? (
+          <p
+            className="rounded-xl px-4 py-3 text-[13px] leading-5"
+            style={{ backgroundColor: "#FEF3C7", border: "1px solid #F59E0B", color: "#713F12" }}
+          >
+            <strong className="font-semibold">Pedido de teste.</strong> Feito sobre uma assinatura sandbox, sem cobrança real. Aprovar não
+            chama a ValidaPay e não devolve dinheiro.
+          </p>
+        ) : null}
 
         <section className="rounded-xl border border-[#E5E7EB] p-4 text-[13px]">
           <p className="font-semibold text-[#171715]">{row.reason}</p>
