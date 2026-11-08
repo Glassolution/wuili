@@ -3075,8 +3075,57 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_request_events: {
+        Row: {
+          actor_id: string | null
+          actor_role: string
+          created_at: string
+          from_status: string | null
+          id: string
+          kind: string
+          message: string | null
+          refund_request_id: string
+          to_status: string | null
+          visible_to_customer: boolean
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          kind: string
+          message?: string | null
+          refund_request_id: string
+          to_status?: string | null
+          visible_to_customer?: boolean
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string
+          created_at?: string
+          from_status?: string | null
+          id?: string
+          kind?: string
+          message?: string | null
+          refund_request_id?: string
+          to_status?: string | null
+          visible_to_customer?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_request_events_refund_request_id_fkey"
+            columns: ["refund_request_id"]
+            isOneToOne: false
+            referencedRelation: "refund_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       refund_requests: {
         Row: {
+          access_end_acknowledged_at: string | null
+          admin_response: string | null
           automated: boolean
           charge_id: string | null
           created_at: string
@@ -3090,12 +3139,17 @@ export type Database = {
           refund_amount: number
           refund_kind: string
           requested_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source: string
           status: string
           subscription_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_end_acknowledged_at?: string | null
+          admin_response?: string | null
           automated?: boolean
           charge_id?: string | null
           created_at?: string
@@ -3109,12 +3163,17 @@ export type Database = {
           refund_amount?: number
           refund_kind?: string
           requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
           status?: string
           subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_end_acknowledged_at?: string | null
+          admin_response?: string | null
           automated?: boolean
           charge_id?: string | null
           created_at?: string
@@ -3128,6 +3187,9 @@ export type Database = {
           refund_amount?: number
           refund_kind?: string
           requested_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source?: string
           status?: string
           subscription_id?: string | null
           updated_at?: string
