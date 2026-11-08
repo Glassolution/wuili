@@ -1,10 +1,10 @@
 # Roadmap
 
 ## Ajustes aprovados e reanálise restrita — 08/11 00:58 UTC
-- [ ] Critério banner/colagem/inserção/medidas e principal estrita, esquema português validado sem regex de motivo
-- [ ] Reanalisar só 101 rejeitadas e 7 casos nos dois modelos, dry-run sem gravações, teto conjunto 2 créditos sem retries
+- [x] Critério banner/colagem/inserção/medidas e principal estrita, esquema português validado sem regex de motivo; publicado 3.6 preservado e JSON mode adicionado após falha de formato
+- [x] Reanalisar só 101 rejeitadas e 7 casos nos dois modelos: 112 chamadas, 1,374057 estimados, 101 rejeitadas inconclusivas no esquema estrito; 110 retornos Markdown, sem retries/escritas
 - [ ] Entregar transições, 10 aprovadas/10 mantidas e resultados dos 7 pares
-- [ ] Explicar nota/filtros e propostas sem aplicar Etapa 4; hash URLs/fila e alerta 10pp como escopo simplificado
+- [ ] Explicar nota/filtros e propostas sem aplicar Etapa 4; hash URLs/fila aplicado em migration0047, sem worker/bloqueio
 - [ ] Consultar saldo/limites e reler 20 natalinos; sem lotes, sem Etapa 5 nem troca de modelo
 
 ## Plano ampliado de recuperação — somente leitura nesta rodada
