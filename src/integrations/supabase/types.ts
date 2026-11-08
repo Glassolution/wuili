@@ -702,6 +702,66 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_image_analysis_results: {
+        Row: {
+          analyzed_at: string
+          criterion_version: string
+          evidence: Json
+          evidence_location: string
+          id: string
+          image_role: string
+          image_url: string
+          justification: string
+          method: string
+          model: string
+          product_id: string | null
+          product_title: string
+          reason_code: string
+          record_key: string
+          recorded_at: string
+          run_id: string
+          verdict: string
+        }
+        Insert: {
+          analyzed_at: string
+          criterion_version: string
+          evidence?: Json
+          evidence_location: string
+          id?: string
+          image_role?: string
+          image_url: string
+          justification: string
+          method: string
+          model: string
+          product_id?: string | null
+          product_title?: string
+          reason_code: string
+          record_key: string
+          recorded_at?: string
+          run_id: string
+          verdict: string
+        }
+        Update: {
+          analyzed_at?: string
+          criterion_version?: string
+          evidence?: Json
+          evidence_location?: string
+          id?: string
+          image_role?: string
+          image_url?: string
+          justification?: string
+          method?: string
+          model?: string
+          product_id?: string | null
+          product_title?: string
+          reason_code?: string
+          record_key?: string
+          recorded_at?: string
+          run_id?: string
+          verdict?: string
+        }
+        Relationships: []
+      }
       catalog_products: {
         Row: {
           aliexpress_category_id: string | null
