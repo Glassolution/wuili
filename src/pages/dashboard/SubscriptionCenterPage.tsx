@@ -1,12 +1,9 @@
 import { ArrowLeft } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import RefundSection from "@/components/dashboard/RefundSection";
+import { Link } from "react-router-dom";
+import SubscriptionManageSection from "@/components/dashboard/SubscriptionManageSection";
 
 const SubscriptionCenterPage = () => {
-  const { state } = useLocation();
-  const backTo = state?.origem === "plano"
-    ? "/dashboard/configuracoes?tab=Plano#velo-cancelar-renovacao"
-    : "/dashboard/configuracoes?tab=Perfil#velo-reembolso";
+  const backTo = "/dashboard/configuracoes?tab=Plano";
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
@@ -21,9 +18,9 @@ const SubscriptionCenterPage = () => {
         Gerenciar assinatura
       </h1>
       <p className="mb-7 mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Peça ou acompanhe um reembolso e gerencie a renovação do seu plano.
+        Veja o seu plano e gerencie a renovação.
       </p>
-      <RefundSection local="central" />
+      <SubscriptionManageSection />
     </main>
   );
 };

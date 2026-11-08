@@ -1,4 +1,4 @@
-import { CANCEL_PAGE_LABEL, PRAZO_REEMBOLSO, REFUND_PAGE_LABEL } from "@/lib/refundEligibility";
+import { PRAZO_REEMBOLSO, REFUND_ARTICLE_TITLE } from "@/lib/refundEligibility";
 import {
   AlertTriangle,
   CreditCard,
@@ -196,11 +196,11 @@ export const guideSections: GuideSection[] = [
         summary:
           "O reembolso pode ser pedido em até 7 dias após o pagamento e é analisado pela equipe.",
         steps: [
-          `Vá em ${REFUND_PAGE_LABEL}.`,
-          "Em Garantia de 7 dias, toque em Ver minha conta e depois em Solicitar reembolso.",
-          "Escolha o motivo e toque em Solicitar reembolso para enviar.",
+          "Peça o reembolso no chat de suporte: você recebe o link do formulário.",
+          "Abra o link logado na conta que foi cobrada.",
+          `No artigo "${REFUND_ARTICLE_TITLE}", abra o atendimento de reembolso pelo link do passo a passo, converse com a atendente, confira o resumo e envie o pedido.`,
           PRAZO_REEMBOLSO,
-          `Passou de 7 dias do pagamento? Você mesmo cancela a renovação em ${CANCEL_PAGE_LABEL}, mantendo o acesso até o fim do período pago.`,
+          "Passou de 7 dias do pagamento? Peça o cancelamento no chat de suporte: você recebe o link e cancela a renovação por conta própria, mantendo o acesso até o fim do período pago.",
         ],
       },
       {
@@ -270,8 +270,8 @@ export const guideSections: GuideSection[] = [
         summary:
           "Você pode cancelar a assinatura a qualquer momento.",
         steps: [
-          `Até 7 dias após o pagamento: vá em ${REFUND_PAGE_LABEL}, toque em Ver minha conta e depois em Cancelar renovação.`,
-          `Depois dos 7 dias: vá em ${CANCEL_PAGE_LABEL}, toque em Ver minha conta e depois em Cancelar renovação.`,
+          "Peça o cancelamento no chat de suporte: você recebe o link da página Gerenciar assinatura.",
+          "Abra o link logado na sua conta e toque em Cancelar renovação.",
           "O acesso continua até o fim do ciclo já pago.",
           "Anúncios já publicados no seu Mercado Livre continuam lá — cancelar a Velo não apaga anúncios.",
           "Para excluir os dados da conta em definitivo, abra chamado no Suporte pedindo exclusão (LGPD).",

@@ -35,14 +35,14 @@ export const SupportMessageMedia = ({
     if (adminTone) {
       return (
         <p className="text-[12px] font-semibold text-white">
-          Cartão antigo de cancelamento / reembolso (hoje só indica Configurações → Perfil)
+          Cartão antigo de cancelamento / reembolso (hoje só pede para o cliente escrever no chat)
         </p>
       );
     }
-    // Cartão antigo do chat: hoje só diz onde fica a tela, sem levar o cliente até lá.
+    // Cartão antigo do chat: hoje só diz para pedir o link no chat.
     return (
       <p className="min-w-[220px] text-[13px] leading-5">
-        O reembolso e o cancelamento da assinatura são feitos por você em Configurações → Perfil, na seção "Gerenciar assinatura".
+        Para cancelar a renovação ou pedir reembolso (até 7 dias da contratação), escreva aqui o que você quer e enviamos o link certo.
       </p>
     );
   }

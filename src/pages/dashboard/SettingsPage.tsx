@@ -9,7 +9,6 @@ import PlatformLogo from "@/components/dashboard/PlatformLogo";
 import { usePlan } from "@/hooks/usePlan";
 import { PlanBadgeIcon, useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
-import RefundSection from "@/components/dashboard/RefundSection";
 import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 import SupportTab from "@/components/dashboard/SupportTab";
 import UpgradeLimitModal from "@/components/UpgradeLimitModal";
@@ -559,8 +558,6 @@ const ProfileTab = () => {
         <button onClick={handleSalvar} className={saveBtn}>Salvar alterações</button>
       </div>
 
-      {/* Gerenciar assinatura durante a garantia. */}
-      <div id="velo-reembolso" className="scroll-mt-6"><RefundSection /></div>
     </div>
   );
 };
@@ -1052,8 +1049,6 @@ const PlanTab = () => {
         })}
       </div>
 
-      {/* Depois da garantia de 7 dias, cancelar a renovação fica aqui (link: ?tab=Plano#velo-cancelar-renovacao) */}
-      <div id="velo-cancelar-renovacao" className="scroll-mt-6"><RefundSection local="plano" /></div>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { PRAZO_REEMBOLSO, REFUND_PAGE_LABEL, CANCEL_PAGE_LABEL } from "./refundEligibility";
+import { PRAZO_REEMBOLSO, REFUND_PAGE_LABEL, CANCEL_PAGE_HOW } from "./refundEligibility";
 
 /** Prazo oficial, igual em todos os lugares (site, IA e notificações). */
 export { PRAZO_REEMBOLSO };
@@ -328,7 +328,7 @@ export const FAQ_ITEMS: Array<{ question: string; answer: string }> = [
   {
     question: "Como cancelo minha assinatura ou peço reembolso?",
     answer:
-      `Você pode consultar as opções em Configurações, na área de gerenciamento da assinatura. O reembolso vale para pagamentos feitos há até 7 dias; depois disso, você mesmo cancela a renovação, mantendo o acesso até o fim do período pago. ${PRAZO_REEMBOLSO}`,
+      `Vá em ${REFUND_PAGE_LABEL}. Lá aparece um resumo do seu plano antes de qualquer confirmação. O reembolso vale para pagamentos feitos há até 7 dias; depois disso, dá para cancelar a renovação, mantendo o acesso até o fim do período pago. ${CANCEL_PAGE_HOW} ${PRAZO_REEMBOLSO}`,
   },
   {
     question: "Como conecto o Mercado Livre à minha conta?",

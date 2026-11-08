@@ -43,12 +43,68 @@ export function formatRefundFeedback(details: unknown, hadError: unknown, canCon
   ].join("\n");
 }
 
-/** Link da única tela onde o cliente faz o pedido. */
-export const REFUND_PAGE_PATH = "/dashboard/configuracoes?tab=Perfil#velo-reembolso";
-export const REFUND_PAGE_LABEL = "Configurações → Perfil";
-/** Depois dos 7 dias a seção some do Perfil; cancelar a renovação fica na aba Plano. */
-export const CANCEL_PAGE_PATH = "/dashboard/configuracoes?tab=Plano#velo-cancelar-renovacao";
-export const CANCEL_PAGE_LABEL = "Configurações → Plano";
+/**
+ * Único caminho do pedido de reembolso: o artigo da Central de Ajuda, que
+ * traz, no passo a passo, um link discreto para o atendimento de reembolso (REFUND_CHAT_PATH).
+ * A central não tem botão nem link em lugar nenhum do app: só se chega pelo
+ * endereço, que o chat de suporte envia quando a pessoa pede reembolso
+ * (resposta fixa do support-assistant, nunca texto livre da IA).
+ */
+export const REFUND_ARTICLE_TITLE = "Pedir reembolso de uma cobrança";
+export const REFUND_PAGE_PATH = "/ajuda/pagamentos-e-planos/pedir-reembolso";
+export const REFUND_PAGE_LABEL = `Central de Ajuda, artigo "${REFUND_ARTICLE_TITLE}"`;
+/** Como chegar ao pedido, em texto: o link só é enviado pelo chat de suporte. */
+export const REFUND_PAGE_HOW =
+  `O pedido é feito no atendimento de reembolso, aberto pelo link no passo a passo do artigo da Central de Ajuda, com você logado na conta que foi cobrada. Para receber o link do artigo, peça o reembolso no chat de suporte.`;
+/**
+ * Cancelar a renovação (sem reembolso), a qualquer momento: página "Gerenciar
+ * assinatura", que também não tem botão nem link no app. O link vai pela
+ * resposta fixa do support-assistant quando a pessoa pede para cancelar.
+ */
+export const CANCEL_PAGE_PATH = "/dashboard/configuracoes/central-da-assinatura";
+export const CANCEL_PAGE_LABEL = "página Gerenciar assinatura";
+/** Como chegar ao cancelamento, em texto. */
+export const CANCEL_PAGE_HOW =
+  `O cancelamento da renovação é feito por você mesmo, na página Gerenciar assinatura. Para receber o link, peça o cancelamento no chat de suporte.`;
+
+/**
+ * Atendimento de reembolso: chat próprio, com a IA, aberto pelo link discreto
+ * no passo a passo do artigo de reembolso. A IA confere a situação e monta o pedido, mas
+ * quem envia é o cliente, no cartão de confirmação (função request-refund).
+ */
+export const REFUND_CHAT_PATH = "/ajuda/reembolso";
+
+/** Motivos aceitos no pedido (o formulário antigo e a IA usam a mesma lista). */
+export const REFUND_REASONS = [
+  "Não consegui vender",
+  "Não entendi como usar a plataforma",
+  "Tive problemas técnicos",
+  "Achei caro",
+  "Estou sem tempo",
+  "Não era o que eu esperava",
+  "Outro motivo",
+] as const;
+export type RefundReason = (typeof REFUND_REASONS)[number];
+
+/**
+ * Texto que a equipe lê no pedido feito pelo atendimento: o resumo da IA e as
+ * palavras do próprio cliente, sempre dentro do limite do campo.
+ */
+export function composeRefundChatDetails(resumo: string, mensagensDoCliente: string[]): string {
+  const cabecalho = `Resumo do atendimento (IA): ${resumo.trim()}`;
+  const palavras = mensagensDoCliente.map((m) => m.trim()).filter(Boolean);
+  // Espaço das linhas "Ocorreu algum erro?" / "Autoriza contato?" do formatRefundFeedback.
+  const limite = REFUND_FEEDBACK_MAX_LENGTH - 120;
+  let texto = cabecalho.slice(0, limite);
+  if (palavras.length) {
+    const resto = limite - texto.length - "\n\nPalavras do cliente:\n".length;
+    if (resto > 40) {
+      const corpo = palavras.map((m) => `- ${m}`).join("\n");
+      texto += `\n\nPalavras do cliente:\n${corpo.length > resto ? `${corpo.slice(0, resto - 1)}…` : corpo}`;
+    }
+  }
+  return texto;
+}
 
 /** Prazo oficial exibido em todos os textos antes da aprovação. */
 export const PRAZO_REEMBOLSO =

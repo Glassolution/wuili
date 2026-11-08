@@ -9,6 +9,7 @@ Formato: **problema** — onde — origem/data. Ao corrigir, mova para "Resolvid
 - **`README.md` é a spec antiga "Wuili"** com dados mock (contradiz "sem dados mock"). Não usar como referência. — nov/2026.
 - **Check Deno do `ml-publish` com erros preexistentes.** — roadmap, nov/2026.
 - **Stripe: 2 assinaturas ativas cobrando sem sincronizar período**; **MP: 2 preapprovals** pedem conferência manual. — roadmap (auditoria out/2026).
+- **Central de Ajuda, coleção `pos-venda`:** card sem descrição (correção no `PROMPT_LOVABLE_COLECOES_AJUDA.md`, ainda não aplicada); resumo do artigo "Cliente comprou mas o fornecedor sumiu" mostra link Markdown cru com âncora antiga (`#pos-venda-fluxo`). — 2026-11-08.
 - **`validapay-overdue-check`** é diagnóstico temporário: apagar depois do uso. — nov/2026.
 
 ## Achados de ago/2026 — status não reconferido

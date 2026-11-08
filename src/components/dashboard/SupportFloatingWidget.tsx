@@ -1253,7 +1253,7 @@ const SupportBubble = ({ message }: { message: SupportMessage }) => {
   const senderLabel = "Suporte Velo";
 
   // Conversas antigas guardam o cartão de reembolso que existia no chat. Hoje o
-  // pedido é feito só em Configurações → Perfil, então o cartão só diz onde fica.
+  // cartão só diz para pedir aqui o link de cancelamento ou de reembolso.
   if (!isUser && parseSupportMessage(message.message).refundPrompt) {
     return (
       <div className="flex items-start gap-2.5">
@@ -1263,7 +1263,7 @@ const SupportBubble = ({ message }: { message: SupportMessage }) => {
         <div className="w-full max-w-[82%] rounded-[6px_18px_18px_18px] bg-white px-3.5 py-3 shadow-sm ring-1 ring-black/[0.04]">
           <p className="mb-1 text-[11px] font-semibold text-[#6B7280]">{senderLabel}</p>
           <p className="text-[13px] leading-5 text-[#111827]">
-            Você pode consultar as opções de reembolso e de renovação em Configurações, na área de gerenciamento da assinatura.
+            Para cancelar a renovação ou pedir reembolso (até 7 dias da contratação), escreva aqui o que você quer e enviamos o link certo.
           </p>
           <p className="mt-1.5 text-[10px] font-medium text-[#9CA3AF]">{formatTicketTime(message.created_at)}</p>
         </div>

@@ -35,8 +35,14 @@ Deno.serve(async (req) => {
     const { subscription_id, reason_details, had_error, can_contact } = body ?? {};
     const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
     const sandboxRequested = body?.sandbox === true || body?.sandbox === "true";
+    // refund_chat: cartão do atendimento de reembolso (/ajuda/reembolso); help_center: formulário antigo do artigo.
+    const source = body?.source === "refund_chat" || body?.source === "help_center" ? body.source : "settings";
     if (typeof subscription_id !== "string" || !subscription_id || !reason || reason.length > 207) {
       return json({ error: "Informe a assinatura e o motivo do reembolso." }, 400);
+    }
+    // O cliente precisa marcar que entende que o acesso acaba se o reembolso for aprovado.
+    if (body?.access_end_acknowledged !== true) {
+      return json({ error: "Confirme que você entende que o acesso será encerrado se o reembolso for aprovado." }, 400);
     }
     const detalhes = formatRefundFeedback(reason_details, had_error, can_contact);
     if (!detalhes) {
@@ -125,6 +131,8 @@ Deno.serve(async (req) => {
       status: "pending",
       refund_amount: sub.amount,
       requested_at: new Date().toISOString(),
+      source,
+      access_end_acknowledged_at: new Date().toISOString(),
     }).select().single();
     if (insErr) {
       // Índice único: só um pedido pendente por cliente (clique duplo ou nova tentativa).

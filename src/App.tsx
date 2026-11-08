@@ -124,6 +124,7 @@ const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
 const ClientesPage = lazy(() => import("./pages/dashboard/ClientesPage"));
 const CommissionsPage = lazy(() => import("./pages/dashboard/CommissionsPage"));
 const HelpCenterPage = lazy(() => import("./pages/HelpCenterPage"));
+const RefundSupportPage = lazy(() => import("./pages/RefundSupportPage"));
 const HelpCenterDashboardPage = lazy(() => import("./pages/dashboard/HelpCenterDashboardPage"));
 const ReferralAcceptPage = lazy(() => import("./pages/ReferralAcceptPage"));
 
@@ -309,6 +310,8 @@ const App = () => (
               <Route path="/docs" element={<Navigate to="/dashboard/comunidade" replace />} />
               {/* Central de Ajuda pública: sem login, para quem chega pelo suporte ou por busca. */}
               <Route path="/ajuda" element={<HelpCenterPage />} />
+              {/* Atendimento de reembolso com IA, aberto pelo link do artigo de reembolso. */}
+              <Route path="/ajuda/reembolso" element={<RefundSupportPage />} />
               <Route path="/ajuda/:categorySlug" element={<HelpCenterPage />} />
               <Route path="/ajuda/:categorySlug/:articleSlug" element={<HelpCenterPage />} />
               <Route path="/termos-de-servico" element={<TermsPage />} />

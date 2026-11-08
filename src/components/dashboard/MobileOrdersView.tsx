@@ -4,16 +4,13 @@
 // e a referência não.
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { ArrowUpDown, CircleHelp, MoreHorizontal, Package, Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Package, Search, ShoppingBag, SlidersHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
 
-/** Artigo da Central de Ajuda sobre o fluxo de pós-venda (velods.com.br/ajuda/pos-venda/pos-venda-fluxo). */
-export const POS_VENDA_FAQ_PATH = "/dashboard/ajuda/pos-venda/pos-venda-fluxo";
 
 type StatusAba = "todos" | "pago" | "enviado" | "entregue" | "pendente" | "cancelado";
 type Canal = "ml" | "loja";
@@ -378,14 +375,7 @@ export const MobileOrdersView = ({
             Pedidos
           </p>
           <div className="flex items-center gap-2">
-          <Link
-            to={POS_VENDA_FAQ_PATH}
-            aria-label="Como funciona o pós-venda"
-            className="inline-flex h-9 items-center gap-1.5 rounded-[12px] border border-black/[0.08] bg-white px-3 text-[12px] font-semibold active:scale-95"
-          >
-            <CircleHelp size={15} strokeWidth={1.9} className="text-[#2563EB]" />
-            Pós-venda
-          </Link>
+          {/* A Central de Ajuda não tem botão no app: só se chega pelo link direto. */}
           <button
             type="button"
             onClick={() => setFiltrosAbertos((aberto) => !aberto)}

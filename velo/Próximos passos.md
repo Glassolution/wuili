@@ -3,13 +3,19 @@ atualizado: 2026-11-08
 ---
 # Próximos passos
 
-## Publicar o novo fluxo de reembolso e da Central (aguarda aprovação)
-- [ ] Decidir se as migrations novas vão para `drizzle/migrations/` (pasta ativa) e conciliar com a `0045` → [[Migrations pendentes]]
-- [ ] Aplicar `20261107120000_refund_help_center.sql`
-- [ ] Aplicar `20261108120000_help_center_new_collections.sql`
-- [ ] Deploy de `request-refund`, `admin-refund-action`, `support-assistant` (e demais funções alteradas)
-- [ ] Commit/push na `main` das mudanças de reembolso e Central (só quando o dono pedir)
-- [ ] Conferir em produção: formulário no artigo, histórico, admin, respostas fixas do chat
+## Publicar o novo fluxo de reembolso e da Central
+- [x] Código na `main` do GitHub (08/11)
+- [x] Coleções novas da Central aplicadas (`drizzle/migrations/0049`, Lovable)
+- [ ] Colar `PROMPT_LOVABLE_REEMBOLSO.md` na Lovable: cria e aplica `drizzle/migrations/0050_refund_help_center.sql` (cópia da `20261107120000`) e publica as funções (`refund-assistant` nova, `request-refund`, `support-assistant`, `admin-refund-action` etc.) → [[Migrations pendentes]]
+- [ ] Conferir em produção: link no artigo, atendimento `/ajuda/reembolso` com IA real, envio, histórico, admin, respostas fixas do chat
+
+## Atendimento de reembolso com IA (feito no local, 08/11)
+- [x] Artigo completo de reembolso na migration `20261107120000` (marcador `[[atendimento-reembolso]]`)
+- [x] Tela/rota `/ajuda/reembolso` (chat próprio, exige login), link discreto no artigo `pedir-reembolso`, `RefundRequestForm` removido
+- [x] Função `refund-assistant` + `_shared/refundAssistant.ts` (8 testes); IA propõe, cliente confirma no cartão, `request-refund` envia
+- [x] `refundPolicy.ts` e respostas fixas do `support-assistant` falam em atendimento, não formulário
+- [x] Bullet de atualização do reembolso acrescentado no `AGENTS.md`
+- [ ] Testar com o Gemini de verdade depois do deploy (no local foi testado com a função simulada)
 
 ## Pagamentos (auditoria out/2026)
 - [ ] ETAPA 3: expiração em modo simulação + aviso de 7 dias para migrados — aguarda aprovação

@@ -9,6 +9,7 @@ Regras de negócio do servidor. Antes de reescrever lógica numa função, procu
 | Arquivo | Para quê |
 |---|---|
 | `refundPolicy.ts` | Regra e textos do reembolso (7 dias, status aceitos, sem repetição), `REFUND_PAGE_PATH`, `CANCEL_PAGE_PATH`. Roda em Deno **e** Vite → [[Cancelamento e reembolso]] |
+| `refundAssistant.ts` | Prompt, ferramenta `preparar_pedido`, validação da proposta e saudação do atendimento de reembolso (`refund-assistant`); testes em `refundAssistant_test.ts` → [[Atendimento de reembolso com IA]] |
 | `refundCooldown.ts`, `refundIdentity.ts` | Cooldown pós-reembolso e bloqueio por mesma pessoa → [[Cooldown de reembolso]] |
 | `providerCancellation.ts` | Cancelamento durável com confirmação do provedor → [[Cancelamento confirmado no provedor]] |
 | `subscriptionLifecycle*.ts`, `paymentGuard.ts` | Ativação, retentativas e proteção de reativação |

@@ -12,7 +12,7 @@
  * cuidar — errar para o lado do modelo custa alguns centavos, errar para o
  * lado do texto fixo custa a confiança do usuário.
  */
-
+import { CANCEL_PAGE_HOW, PRAZO_REEMBOLSO, REFUND_PAGE_HOW } from "./refundPolicy.ts";
 
 export type AtlasFaqNavigation = {
   type: "navigation";
@@ -80,13 +80,13 @@ export const ATLAS_FAQ: AtlasFaqEntry[] = [
     pattern: /\b(cancelar|cancelamento|encerrar)\b/,
     requires: /\b(assinatura|plano|conta)\b/,
     message:
-      `Você pode cancelar a renovação em Configurações, na área de gerenciamento da assinatura. Seu acesso continua até o fim do ciclo já pago, e os anúncios que você publicou seguem no Mercado Livre normalmente.`,
+      `${CANCEL_PAGE_HOW} Vale a qualquer momento: seu acesso continua até o fim do ciclo já pago, e os anúncios que você publicou seguem no Mercado Livre normalmente.\n\nQuer o dinheiro de volta (até 7 dias após a contratação)? ${REFUND_PAGE_HOW}`,
   },
   {
     id: "reembolso",
     pattern: /\b(reembolso|estorno|devolver o dinheiro|quero meu dinheiro)\b/,
     message:
-      `Você pode consultar as opções de reembolso em Configurações, na área de gerenciamento da assinatura. O pedido vale até 7 dias após o pagamento e é analisado pela equipe.`,
+      `O reembolso pode ser pedido até 7 dias após a contratação. ${REFUND_PAGE_HOW} ${PRAZO_REEMBOLSO}`,
   },
   {
     id: "pagina_de_vendas",

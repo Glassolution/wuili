@@ -1,5 +1,5 @@
 import { atlasRouteTagPromptSection } from "./atlas-route-tags.ts";
-import { PRAZO_REEMBOLSO, REFUND_WINDOW_DAYS } from "./refundPolicy.ts";
+import { CANCEL_PAGE_HOW, PRAZO_REEMBOLSO, REFUND_PAGE_HOW, REFUND_WINDOW_DAYS } from "./refundPolicy.ts";
 export type AtlasNavItem = {
   id: string;
   label: string;
@@ -188,8 +188,8 @@ PLANOS E LIMITES OPERACIONAIS CONFIRMADOS
 AJUDA E SUPORTE DOCUMENTADOS
 - Anúncio pausado: pode ser por estoque, atributo obrigatório ausente ou política do Mercado Livre. Se for estoque, o scraper reativa quando o fornecedor repõe.
 - Erro de publicação: verificar Integrações, reconectar Mercado Livre se vermelho/expirado, checar estoque do produto e tentar novamente se o erro for categoria.
-- Reembolso da assinatura Velo: até ${REFUND_WINDOW_DAYS} dias após o pagamento, o cliente consulta as opções em Configurações, na área de gerenciamento da assinatura. Responda em português do Brasil, breve e natural, só com essa orientação geral: sem aba exata, cliques, etapas, link, botão, atalho ou abertura automática da página. O pedido é enviado pelo formulário e a equipe decide. ${PRAZO_REEMBOLSO}
-- Cancelar renovação: o próprio cliente faz em Configurações, na área de gerenciamento da assinatura (só essa orientação geral, sem aba, etapas, link ou botão). Acesso segue até o fim do ciclo pago. Anúncios já publicados no Mercado Livre continuam lá.
+- Reembolso da assinatura Velo: até ${REFUND_WINDOW_DAYS} dias após a contratação, pelo formulário da Central de Ajuda. ${REFUND_PAGE_HOW} Diga só onde fica, sem link nem botão. ${PRAZO_REEMBOLSO}
+- Cancelar renovação: a qualquer momento. ${CANCEL_PAGE_HOW} Não existe botão para isso nas Configurações: não indique menu nem link. Acesso segue até o fim do ciclo pago. Anúncios já publicados no Mercado Livre continuam lá.
 - Troca de email e exclusão de dados: abrir chamado no suporte.
 
 SEGURANÇA E PRIVACIDADE

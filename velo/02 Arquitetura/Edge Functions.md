@@ -16,7 +16,7 @@ Pasta `supabase/functions/<nome>/index.ts`. Regras: `supabase/functions/AGENTS.m
 `validapay-checkout`, `validapay-webhook`, `subscription-sync-self`, `expire-pending-charges`, `payments-reconcile` (cron 5 min), `validapay-cancel-sweep`, `validapay-refund-status`, `validapay-audit-subscriptions`, `validapay-diag`, `validapay-overdue-check` (**temporária**, nov/2026, apagar depois), `cancel-subscription`, `regularize-subscriptions`, `regularization-expire`, `lembrete-planos`, `migrate-subscriptions-to-validapay`
 
 ## Reembolso → [[Cancelamento e reembolso]]
-`request-refund`, `admin-refund-action`, `check-pending-refunds` (cron 30 min), `process-refund`, `admin-refund-post-cancel`, `admin-cancel-subscription`
+`request-refund`, `refund-assistant` (IA do atendimento `/ajuda/reembolso`, nova, não publicada), `admin-refund-action`, `check-pending-refunds` (cron 30 min), `process-refund`, `admin-refund-post-cancel`, `admin-cancel-subscription`
 
 ## Pedidos/dropshipping → [[Pedidos e dropshipping]]
 `dropship-worker` (ponte do bot Node), `dropship-worker-control`, `dropship-request-c7drop-pix`, `dropship-confirm-c7drop-pix`, `dropship-request-payment-retry`, `dropship-expire-pending-payments`, `dropship-process-refunds`, `dropship-watch-pending-labels`, `c7drop-account`

@@ -52,8 +52,41 @@ Deno.serve(async (req) => {
       reason?: string | null;
       reason_details?: string | null;
     };
-    if (!["approve", "reject"].includes(String(action))) {
-      return json({ error: "action (approve|reject) obrigatório" }, 400);
+    if (!["approve", "reject", "respond", "note"].includes(String(action))) {
+      return json({ error: "action (approve|reject|respond|note) obrigatório" }, 400);
+    }
+    // Resposta ao cliente (aparece na notificação e no artigo da Central de Ajuda).
+    const rawMessage = (body as { message?: unknown }).message;
+    const message = typeof rawMessage === "string" ? rawMessage.trim().slice(0, 4000) : "";
+
+    // Mensagem ao cliente ou anotação interna, sem mudar o status do pedido.
+    if (action === "respond" || action === "note") {
+      if (!refund_id) return json({ error: "refund_id obrigatório" }, 400);
+      if (!message) return json({ error: "Escreva a mensagem." }, 400);
+      const { data: target } = await admin.from("refund_requests").select("id, user_id").eq("id", refund_id).maybeSingle();
+      if (!target) return json({ error: "Reembolso não encontrado" }, 404);
+      const isResponse = action === "respond";
+      const { error: eventError } = await admin.from("refund_request_events").insert({
+        refund_request_id: target.id,
+        kind: isResponse ? "response" : "note",
+        message,
+        actor_id: callerId,
+        actor_role: "admin",
+        visible_to_customer: isResponse,
+      });
+      if (eventError) return json({ error: eventError.message }, 500);
+      if (isResponse) {
+        await admin.from("refund_requests")
+          .update({ admin_response: message, updated_at: new Date().toISOString() })
+          .eq("id", target.id);
+        await admin.from("notifications").insert({
+          user_id: target.user_id,
+          title: "Resposta sobre o seu pedido de reembolso",
+          message,
+          type: "refund",
+        });
+      }
+      return json({ success: true });
     }
 
     if (!refund_id && action === "approve" && user_id) {
@@ -115,6 +148,7 @@ Deno.serve(async (req) => {
             requested_at: now,
             automated: true,
             refund_kind: "admin_direct",
+            source: "admin",
           })
           .select("*")
           .single();
@@ -132,15 +166,21 @@ Deno.serve(async (req) => {
     if (refund.status !== "pending") return json({ error: "Pedido já processado" }, 400);
 
     if (action === "reject") {
+      if (!message) return json({ error: "Explique ao cliente o motivo da recusa." }, 400);
       await admin.from("refund_requests").update({
         status: "rejected",
+        admin_response: message,
+        reviewed_by: callerId,
+        reviewed_at: new Date().toISOString(),
         processed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", refund_id);
+      await logResponse(admin, refund_id, callerId, message);
+      // A renovação foi cancelada no pedido; o acesso segue até o fim do período pago.
       await admin.from("notifications").insert({
         user_id: refund.user_id,
         title: "Reembolso recusado",
-        message: "Após análise, seu pedido de reembolso foi recusado. Sua assinatura continua ativa.",
+        message: `Após análise, seu pedido de reembolso foi recusado. Você mantém o acesso até o fim do período já pago. ${message}`,
         type: "refund",
       });
       return json({ success: true, message: "Reembolso recusado." });
@@ -201,6 +241,9 @@ Deno.serve(async (req) => {
 
     await admin.from("refund_requests").update({
       status: refundOk ? "processed" : "rejected",
+      reviewed_by: callerId,
+      reviewed_at: new Date().toISOString(),
+      ...(message && { admin_response: message }),
       provider_response: providerResponse,
       processed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -243,11 +286,22 @@ Deno.serve(async (req) => {
       } catch (e) { console.error("derrubar pubs", e); }
     }
 
+    if (message) await logResponse(admin, refund_id, callerId, message);
+    if (!refundOk) {
+      await admin.from("refund_request_events").insert({
+        refund_request_id: refund_id,
+        kind: "note",
+        message: "O estorno falhou no meio de pagamento. Veja provider_response.",
+        actor_role: "system",
+        visible_to_customer: false,
+      });
+    }
+
     await admin.from("notifications").insert({
       user_id: refund.user_id,
       title: refundOk ? "Reembolso aprovado" : "Falha ao processar reembolso",
       message: refundOk
-        ? `Seu reembolso foi aprovado. ${PRAZO_DEVOLUCAO}`
+        ? `Seu reembolso foi aprovado. ${PRAZO_DEVOLUCAO}${message ? ` ${message}` : ""}`
         : "Não foi possível processar o reembolso. Entre em contato com o suporte.",
       type: "refund",
     });
@@ -272,3 +326,17 @@ Deno.serve(async (req) => {
     return json({ error: "Erro interno", message: String(err) }, 500);
   }
 });
+
+/** Grava a mensagem do admin ao cliente no histórico do pedido. */
+// deno-lint-ignore no-explicit-any -- cliente supabase-js sem tipos gerados nas funções
+async function logResponse(admin: any, refundId: string, adminId: string, message: string) {
+  const { error } = await admin.from("refund_request_events").insert({
+    refund_request_id: refundId,
+    kind: "response",
+    message,
+    actor_id: adminId,
+    actor_role: "admin",
+    visible_to_customer: true,
+  });
+  if (error) console.error("refund_request_events", error.message);
+}

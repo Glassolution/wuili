@@ -382,7 +382,6 @@ const MobileAccountPage = ({
         <MobileDrawerLink to="/colecoes" label="Coleções" icon={Copy} />
         <MobileDrawerLink to="/dashboard/imagens-ia" label="Imagens com IA" icon={ImageIcon} />
         <MobileDrawerButton label="Convidar amigo" icon={UserPlus} onClick={() => setInviteOpen(true)} />
-        <MobileDrawerLink to="/dashboard/ajuda" label="Central de ajuda" icon={HelpCircle} />
         <MobileDrawerLink to="/dashboard/comunidade" label="Comunidade" icon={HelpCircle} />
         {isAdmin && (
           <MobileDrawerLink to="/admin/painel" label="Painel Admin" icon={ShieldCheck} badge="Admin" />

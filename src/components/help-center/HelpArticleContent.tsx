@@ -78,7 +78,7 @@ const note: Components = {
   h2: ({ children }) => (
     <h2
       id={headingId(textOf(children))}
-      className="mb-5 mt-14 scroll-mt-8 text-[28px] !font-semibold leading-[1.2] tracking-[-0.02em] text-[#0D0D0D] sm:text-[36px]"
+      className="mb-4 mt-11 scroll-mt-8 text-[22px] !font-semibold leading-[1.25] tracking-[-0.015em] text-[#0D0D0D] sm:text-[26px]"
     >
       {children}
     </h2>
@@ -86,39 +86,39 @@ const note: Components = {
   h3: ({ children }) => (
     <h3
       id={headingId(textOf(children))}
-      className="mb-3 mt-9 scroll-mt-8 text-[21px] !font-semibold leading-[1.3] tracking-[-0.01em] text-[#0D0D0D] sm:text-[24px]"
+      className="mb-3 mt-8 scroll-mt-8 text-[18px] !font-semibold leading-[1.3] text-[#0D0D0D] sm:text-[19px]"
     >
       {children}
     </h3>
   ),
-  p: ({ children }) => <p className="my-5 text-[17px] leading-[1.7] text-[#0D0D0D] sm:text-[18px]">{children}</p>,
+  p: ({ children }) => <p className="my-4 text-[15.5px] leading-[1.7] text-[#1F1F24] sm:text-[16px]">{children}</p>,
   ul: ({ children }) => (
-    <ul className="my-5 list-disc space-y-2.5 pl-7 text-[17px] leading-[1.65] text-[#0D0D0D] marker:text-[#0D0D0D] sm:text-[18px]">
+    <ul className="my-4 list-disc space-y-2 pl-6 text-[15.5px] leading-[1.65] text-[#1F1F24] marker:text-[#6E6E80] sm:text-[16px]">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="my-5 list-decimal space-y-2.5 pl-7 text-[17px] leading-[1.65] text-[#0D0D0D] marker:text-[#0D0D0D] sm:text-[18px]">
+    <ol className="my-4 list-decimal space-y-2 pl-6 text-[15.5px] leading-[1.65] text-[#1F1F24] marker:text-[#6E6E80] sm:text-[16px]">
       {children}
     </ol>
   ),
   li: ({ children }) => <li className="pl-1.5">{children}</li>,
   strong: ({ children }) => <strong className="font-semibold text-[#0D0D0D]">{children}</strong>,
   blockquote: ({ children }) => (
-    <blockquote className="my-7 rounded-[12px] bg-[#F7F7F8] px-6 py-1 [&_p]:my-4 [&_p]:text-[16.5px]">{children}</blockquote>
+    <blockquote className="my-7 rounded-[12px] bg-[#F7F7F8] px-6 py-1 [&_p]:my-3.5 [&_p]:text-[15px]">{children}</blockquote>
   ),
   code: ({ children }) => (
-    <code className="rounded-[5px] bg-[#F3F3F3] px-1.5 py-0.5 font-mono text-[15px] text-[#0D0D0D]">{children}</code>
+    <code className="rounded-[5px] bg-[#F3F3F3] px-1.5 py-0.5 font-mono text-[14px] text-[#0D0D0D]">{children}</code>
   ),
   hr: () => <hr className="my-12 border-[#E5E5E5]" />,
   table: ({ children }) => (
     <div className="my-8 overflow-x-auto rounded-[12px] border border-[#E5E5E5]">
-      <table className="w-full border-collapse text-left text-[16px]">{children}</table>
+      <table className="w-full border-collapse text-left text-[14.5px]">{children}</table>
     </div>
   ),
   th: ({ children }) => <th className="bg-[#F7F7F8] px-4 py-3.5 font-semibold text-[#0D0D0D]">{children}</th>,
   td: ({ children }) => <td className="border-t border-[#E5E5E5] px-4 py-3.5 text-[#0D0D0D]">{children}</td>,
-  a: makeLink("text-[#0D0D0D] underline underline-offset-[3px] decoration-[#0D0D0D]/40 hover:decoration-[#0D0D0D]"),
+  a: makeLink("text-[#2563EB] underline underline-offset-[3px] decoration-[#2563EB]/40 hover:decoration-[#2563EB]"),
   img: () => null,
 };
 

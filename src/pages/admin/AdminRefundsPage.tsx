@@ -11,6 +11,7 @@ import { AdminSandboxGrant } from "@/components/admin/AdminSandboxGrant";
 import { useAdminPolling } from "@/components/admin/adminLayoutContext";
 import { AdminPageLoading } from "@/components/admin/AdminPageLoading";
 import { AdminLayoutContext } from "@/components/admin/adminLayoutContext";
+import { RefundReviewDialog, type RefundReviewAction } from "@/components/admin/RefundReviewDialog";
 
 /** Recorte da assinatura que a tabela de reembolsos consulta. */
 type RefundSubscription = {
@@ -35,6 +36,9 @@ type RefundRow = {
   processed_at: string | null;
   provider_response: Record<string, unknown> | null;
   created_at: string;
+  /** Colunas da migration 20261107120000 (ausentes antes dela). */
+  admin_response?: string | null;
+  source?: string | null;
 };
 
 type SubRow = {
@@ -321,17 +325,29 @@ const AdminRefundsPage = () => {
   });
 
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState<RefundRow | null>(null);
   const action = useMutation({
-    mutationFn: async ({ id, kind }: { id: string; kind: "approve" | "reject" }) => {
+    mutationFn: async ({ id, kind, message }: { id: string; kind: RefundReviewAction; message?: string }) => {
       setBusyId(id);
       const { data, error } = await supabase.functions.invoke("admin-refund-action", {
-        body: { refund_id: id, action: kind },
+        body: { refund_id: id, action: kind, message: message || undefined },
       });
-      if (error || (data && data.error)) throw new Error((data && data.error) || error?.message || "Falha");
+      if (error || (data && data.error)) {
+        // FunctionsHttpError: a mensagem útil vem no corpo da resposta.
+        const ctx = (error as { context?: Response } | null)?.context;
+        const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+        throw new Error((data && data.error) || body?.error || error?.message || "Falha");
+      }
       return data;
     },
     onSuccess: (_d, vars) => {
-      toast.success(vars.kind === "approve" ? "Reembolso aprovado." : "Reembolso recusado.");
+      const done: Record<RefundReviewAction, string> = {
+        approve: "Reembolso aprovado.",
+        reject: "Reembolso recusado.",
+        respond: "Resposta enviada ao cliente.",
+        note: "Anotação salva.",
+      };
+      toast.success(done[vars.kind]);
       qc.invalidateQueries({ queryKey: ["admin-refunds-all"] });
       qc.invalidateQueries({ queryKey: ["admin-pending-counts"] });
     },
@@ -479,24 +495,34 @@ const AdminRefundsPage = () => {
                 subs={subs}
                 variant="pending"
                 busyId={busyId}
-                onApprove={(id) => action.mutate({ id, kind: "approve" })}
-                onReject={(id) => action.mutate({ id, kind: "reject" })}
+                onOpen={setReviewing}
               />
             ) : tab === "processing" ? (
               <>
                 <p className="mb-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-[12px] text-blue-800">
                   Reembolsos em processo já foram enviados ao provedor e aguardam confirmação automática.
                 </p>
-                <RefundsTable rows={processing} profiles={profiles} subs={subs} variant="processing" />
+                <RefundsTable rows={processing} profiles={profiles} subs={subs} variant="processing" onOpen={setReviewing} />
               </>
             ) : tab === "approved" ? (
-              <RefundsTable rows={approved} profiles={profiles} subs={subs} variant="approved" />
+              <RefundsTable rows={approved} profiles={profiles} subs={subs} variant="approved" onOpen={setReviewing} />
             ) : (
-              <RefundsTable rows={rejected} profiles={profiles} subs={subs} variant="rejected" />
+              <RefundsTable rows={rejected} profiles={profiles} subs={subs} variant="rejected" onOpen={setReviewing} />
             )}
           </div>
         </div>
       </div>
+      {reviewing ? (
+        <RefundReviewDialog
+          key={reviewing.id}
+          // Sempre a versão mais nova da linha (o polling atualiza a lista).
+          row={allRefunds.find((r) => r.id === reviewing.id) ?? reviewing}
+          customer={profiles[reviewing.user_id]?.display_name || profiles[reviewing.user_id]?.email || reviewing.user_id.slice(0, 8)}
+          busy={busyId === reviewing.id}
+          onClose={() => setReviewing(null)}
+          onAction={(kind, message) => action.mutateAsync({ id: reviewing.id, kind, message })}
+        />
+      ) : null}
     </AdminShell>
   );
 };
@@ -614,16 +640,14 @@ const RefundsTable = ({
   subs,
   variant,
   busyId,
-  onApprove,
-  onReject,
+  onOpen,
 }: {
   rows: RefundRow[];
   profiles: Record<string, UserProfile>;
   subs: Record<string, RefundSubscription>;
   variant: "pending" | "processing" | "approved" | "rejected";
   busyId?: string | null;
-  onApprove?: (id: string) => void;
-  onReject?: (id: string) => void;
+  onOpen?: (row: RefundRow) => void;
 }) => {
   if (rows.length === 0) {
     const t =
@@ -738,19 +762,11 @@ const RefundsTable = ({
                     <div className="flex justify-end gap-2">
                       <button
                         disabled={busy}
-                        onClick={() => onApprove?.(r.id)}
+                        onClick={() => onOpen?.(r)}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8] disabled:opacity-50"
                       >
                         {busy ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} strokeWidth={1.5} />}
-                        Aprovar
-                      </button>
-                      <button
-                        disabled={busy}
-                        onClick={() => onReject?.(r.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#475569] shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                      >
-                        {busy ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} strokeWidth={1.5} />}
-                        Recusar
+                        Analisar
                       </button>
                     </div>
                   </td>
@@ -766,6 +782,11 @@ const RefundsTable = ({
                         Em processo no banco emissor — prazo de até 30 dias para aparecer na fatura do cliente.
                       </p>
                     )}
+                    {onOpen ? (
+                      <button type="button" onClick={() => onOpen(r)} className="mt-1.5 block text-[11.5px] font-semibold text-[#2563EB] hover:underline">
+                        Histórico e resposta
+                      </button>
+                    ) : null}
                   </td>
                 )}
               </tr>

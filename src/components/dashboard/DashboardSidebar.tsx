@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LifeBuoy, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Store, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Store, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -667,16 +667,7 @@ const DashboardSidebar = () => {
 
       {/* Daqui para baixo nada rola: é o rodapé âncora da sidebar. */}
       <div style={styles.fixedBottom}>
-        {/* Linha "Feature Requests" da referência. Era "Sugestões"; deu lugar à
-            Central de Ajuda (/dashboard/sugestoes segue acessível pela URL). */}
-        <button
-          type="button"
-          onClick={() => navigate("/dashboard/ajuda")}
-          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 9px", marginBottom: 7, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
-        >
-          <LifeBuoy size={17} strokeWidth={2} aria-hidden="true" />
-          <span style={{ fontSize: 14, lineHeight: "19px", fontWeight: 500, letterSpacing: "-0.02em" }}>Central de ajuda</span>
-        </button>
+        {/* A Central de Ajuda (/ajuda) não aparece em menus: só por link direto. */}
 
         {/* "Comunidade e Ajuda" movido da lista principal para cá, logo abaixo de
             "Sugestões" e antes dos cards promocionais. Mesmo estilo de "Sugestões". */}
@@ -810,18 +801,6 @@ const DashboardSidebar = () => {
                 </span>
               </button>
 
-              <button
-                className="velo-profile-menu-row"
-                type="button"
-                role="menuitem"
-                onClick={() => handlePanelNavigate("/dashboard/ajuda")}
-                style={styles.profileMenuRow}
-              >
-                <span style={styles.profileMenuRowLeft}>
-                  <Info size={15} strokeWidth={2} style={styles.profileMenuIcon} />
-                  <span style={styles.profileMenuLabel}>Central de ajuda</span>
-                </span>
-              </button>
 
               {isAdmin ? (
                 <button

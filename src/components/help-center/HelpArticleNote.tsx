@@ -6,6 +6,7 @@ import { ptBR } from "date-fns/locale";
 import { type HelpArticle, type HelpCategory } from "@/lib/helpCenter";
 import HelpArticleContent from "@/components/help-center/HelpArticleContent";
 import { articleOutline } from "@/lib/helpArticleOutline";
+import RefundChatLink from "@/components/help-center/RefundChatLink";
 import { ArticleList, Breadcrumb } from "@/components/help-center/HelpCenterParts";
 import { fadeUp, stagger } from "@/components/help-center/helpMotion";
 
@@ -18,9 +19,12 @@ import { fadeUp, stagger } from "@/components/help-center/helpMotion";
 /**
  * Marcadores que o artigo (Markdown no banco) usa para encaixar um bloco
  * interativo, sozinhos numa linha. O admin edita o texto em volta à vontade.
- * Marcador sem bloco registrado aqui some do texto.
  */
-const EMBEDS: Record<string, () => JSX.Element> = {};
+const EMBEDS: Record<string, () => JSX.Element> = {
+  "atendimento-reembolso": () => <RefundChatLink />,
+  // Marcador antigo (o formulário dentro do artigo virou o atendimento em /ajuda/reembolso).
+  "formulario-reembolso": () => <RefundChatLink />,
+};
 const EMBED_LINE = /^\[\[([a-z0-9-]+)\]\]\s*$/m;
 
 /** Corpo do artigo com os blocos interativos no lugar dos marcadores. */
@@ -93,44 +97,44 @@ export default function HelpArticleNote({
   const updated = updatedLabel(article.updated_at ?? article.published_at);
 
   return (
-    <motion.div variants={stagger(0.06)} initial="hidden" animate="show" className="mt-10 sm:mt-12">
+    <motion.div variants={stagger(0.06)} initial="hidden" animate="show" className="mt-8 sm:mt-10">
       <Breadcrumb
         basePath={basePath}
         items={[{ label: category.title, to: `${basePath}/${category.slug}` }, { label: article.title }]}
       />
 
-      <div className="mt-10 grid gap-x-20 sm:mt-14 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px]">
-        <article className="min-w-0 max-w-[860px]">
+      <div className="mt-8 grid gap-x-14 sm:mt-10 lg:grid-cols-[minmax(0,1fr)_230px]">
+        <article className="min-w-0 max-w-[720px]">
           <motion.header variants={fadeUp}>
-            <h2 className="text-[34px] !font-semibold leading-[1.12] tracking-[-0.025em] text-[#0D0D0D] sm:text-[48px]">
+            <h2 className="text-[28px] !font-semibold leading-[1.18] tracking-[-0.02em] text-[#0D0D0D] sm:text-[34px]">
               {article.title}
             </h2>
             {article.summary ? (
-              <p className="mt-4 text-[18px] leading-[1.5] text-[#6E6E80] sm:text-[21px]">{article.summary}</p>
+              <p className="mt-3 text-[16px] leading-[1.55] text-[#6E6E80] sm:text-[17px]">{article.summary}</p>
             ) : null}
-            {updated ? <p className="mt-5 text-[15px] text-[#8E8EA0]">{updated}</p> : null}
+            {updated ? <p className="mt-4 text-[13px] text-[#8E8EA0]">{updated}</p> : null}
           </motion.header>
 
-          <motion.div variants={fadeUp} className="mt-10 sm:mt-12">
+          <motion.div variants={fadeUp} className="mt-8 sm:mt-10">
             <ArticleBody markdown={article.content} />
 
-            <p className="mt-14 border-t border-[#E5E5E5] pt-8 text-[17px] text-[#6E6E80]">
+            <p className="mt-12 border-t border-[#E5E5E5] pt-6 text-[15px] text-[#6E6E80]">
               Ainda com dúvida ou algo não funcionou como descrito?{" "}
-              <Link to={supportPath} className="text-[#0D0D0D] underline underline-offset-4">
+              <Link to={supportPath} className="text-[#2563EB] underline underline-offset-4">
                 Fale com o suporte
               </Link>
               .
             </p>
 
             {related.length ? (
-              <section className="mt-14">
-                <h2 className="text-[24px] !font-semibold tracking-[-0.015em] text-[#0D0D0D] sm:text-[28px]">
+              <section className="mt-12">
+                <h2 className="text-[20px] !font-semibold tracking-[-0.015em] text-[#0D0D0D] sm:text-[22px]">
                   Mais em {category.title}
                 </h2>
                 <ArticleList
                   basePath={basePath}
                   rows={related.map((item) => ({ article: item, category }))}
-                  className="mt-6"
+                  className="mt-5"
                 />
               </section>
             ) : null}
@@ -139,12 +143,12 @@ export default function HelpArticleNote({
 
         {outline.length ? (
           <motion.aside variants={fadeUp} aria-label="Nesta página" className="hidden lg:block">
-            <nav className="sticky top-10">
-              <ul className="space-y-3.5 text-[15px] leading-[1.4]">
+            <nav className="sticky top-8">
+              <ul className="space-y-3 border-l border-[#E5E5E5] text-[13.5px] leading-[1.4]">
                 {outline.map((item) => {
                   const isActive = item.id === active;
                   return (
-                    <li key={`${item.id}-${item.text}`} className={item.level === 3 ? "pl-4" : ""}>
+                    <li key={`${item.id}-${item.text}`} className={item.level === 3 ? "pl-7" : "pl-4"}>
                       <a
                         href={`#${item.id}`}
                         onClick={(event) => {
@@ -152,9 +156,11 @@ export default function HelpArticleNote({
                           document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                         }}
                         aria-current={isActive ? "location" : undefined}
-                        className={`block transition-colors hover:text-[#0D0D0D] ${
+                        className={`relative block transition-colors hover:text-[#2563EB] before:absolute before:-left-[17px] before:top-0 before:h-full before:w-[2px] before:rounded-full ${
+                          item.level === 3 ? "before:-left-[29px]" : ""
+                        } ${isActive ? "before:bg-[#2563EB]" : "before:bg-transparent"} ${
                           isActive
-                            ? "font-semibold text-[#0D0D0D]"
+                            ? "font-medium text-[#2563EB]"
                             : item.level === 2
                               ? "font-medium text-[#0D0D0D]/80"
                               : "text-[#8E8EA0]"
