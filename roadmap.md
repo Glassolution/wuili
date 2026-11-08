@@ -1,11 +1,11 @@
 # Roadmap
 
 ## Dois níveis e conclusão dry-run — 08/11 04:39 UTC
-- [ ] Aplicar principal estrita 500x500 e secundárias permissivas com códigos persistidos
-- [ ] Reclassificar 291+112 respostas sem IA e quantificar mudanças
-- [ ] Reanalisar apenas códigos ambíguos, concluir os 27 restantes reaproveitando os 73
-- [ ] Entregar relatório curto e 10 links aprovados de produtos distintos / 5 reprovados; NÃO desbloquear
-- [ ] Confirmar seleção/reordenação da principal e testes; teto total 60 créditos
+- [x] Aplicar principal estrita 500x500 e secundárias permissivas com códigos persistidos por função; duas funções publicadas
+- [x] Reclassificar 112 recuperadas: 40 reprovações viram aprovação só por código; 60 chamadas ambíguas sem retry, 0,922857 estimados; final 89/19/4
+- [ ] Recuperar 291 respostas e manifesto original dos 100 (73/27): artefatos não disponíveis; não repetir os 73 nem escolher outro lote
+- [x] Entregar relatório curto e CSV com 10 aprovadas de produtos distintos / 5 reprovadas; zero desbloqueios
+- [x] Reordenação testada, 27 testes e Deno check passaram; ml-publish OPTIONS 200 confirmou two-level-v4; audit OPTIONS 200; nenhum anúncio real
 
 ## Parser urgente e primeiro lote autorizado — 08/11 01:17 UTC
 - [x] Aceitar cerca JSON completa mantendo esquema estrito; 22 testes passaram; duas funções publicadas
