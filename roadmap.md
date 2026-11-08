@@ -1,5 +1,11 @@
 # Roadmap
 
+## Plano ampliado de recuperação — somente leitura nesta rodada
+- [ ] Entregar respostas brutas das três divergências e quatro diferenças de interpretação, com fotos principais pendentes
+- [ ] Medir catálogo inteiro por fornecedor, motivos e filtros; propor critério, reanálise de galeria, fila, indicador e lotes sem executar
+- [ ] Conferir os 20 natalinos recuperados após atualização real; relatar pendências sem iniciar processamento
+- [ ] Apresentar plano para aprovação; nenhuma mudança em parser, importadores, modelo, regras ou anúncios
+
 ## Recuperação controlada de imagens — novembro
 - [x] Sete conflitos recuperados, galerias iguais; CAS somente bloqueio/galeria e snapshots novos, preços/estoque intocados
 - [x] Links e razões das duas principais entregues; cascata é foto de embalagem, não confirmação de arte sobreposta
