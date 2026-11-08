@@ -1,7 +1,7 @@
 /** Version evidence without changing the legacy cache schema or its rows. */
-export const IMAGE_CRITERION_VERSION = 'structured-pt-v3-2026-11-08';
+export const IMAGE_CRITERION_VERSION = 'two-level-v4-2026-11-08';
 export const IMAGE_EVIDENCE_PREFIX = `[${IMAGE_CRITERION_VERSION}] `;
-export const IMAGE_REJECTION_CODES = ['SOBREPOSICAO_TEXTO', 'MARCA_DAGUA', 'LOGO_LOJA', 'COLAGEM', 'INSERCAO_CIRCULAR', 'MEDIDA_SOBREPOSTA', 'SEM_PRODUTO'] as const;
+export const IMAGE_REJECTION_CODES = ['SOBREPOSICAO_TEXTO', 'MARCA_DAGUA', 'LOGO_LOJA', 'COLAGEM', 'INSERCAO_CIRCULAR', 'MEDIDA_SOBREPOSTA', 'SEM_PRODUTO', 'CONTATO_QR', 'BANNER_PROMOCIONAL', 'PRECO_FRETE', 'SELO_ML', 'VARIOS_PRODUTOS', 'EMBALAGEM_PRINCIPAL', 'FUNDO_INADEQUADO', 'BORDA', 'RESOLUCAO_INSUFICIENTE'] as const;
 export type ImageVerdict = {
   veredito: 'aprovada' | 'reprovada' | 'inconclusiva';
   codigo: typeof IMAGE_REJECTION_CODES[number] | 'FALHA_TECNICA' | 'OK';
@@ -12,22 +12,18 @@ export function imageEvidencePrefix(primary = false): string {
   return `${IMAGE_EVIDENCE_PREFIX}${primary ? 'principal' : 'galeria'}: `;
 }
 
-export const IMAGE_VISION_PROMPT = `Avalie a fotografia distinguindo o objeto fotografado de elementos adicionados sobre a imagem.
-Texto, marca, especificações, etiquetas e rótulos fisicamente impressos ou fixados no produto ou na embalagem original NÃO reprovam.
-Fotografia da embalagem original não é automaticamente imagem sem produto. Ilustrações e quadros impressos nela não são colagem digital da fotografia.
-Reprove somente por evidência visual clara de texto/selo/logo SOBREPOSTO à fotografia (promoção, preço, telefone, marca-d'água, logo de loja, anotações), banner ou arte promocional do fornecedor (texto/arte de divulgação ocupando a imagem), colagem digital de fotografias ou imagem sem produto nem embalagem original.
-Inserção circular ou quadro de uso adicionado sobre a foto, e montagem de vários quadros/ângulos, reprovam como INSERCAO_CIRCULAR ou COLAGEM. Quadros fisicamente impressos na embalagem não são montagens da fotografia.
-Linhas e números de medidas digitais sobrepostos reprovam; medidas impressas no produto/embalagem não. Marca física do fabricante não reprova.
-Se não conseguir ver, analisar ou distinguir com segurança, retorne inconclusiva. Falha técnica nunca é reprovação. Nunca invente evidência.
-Responda APENAS um objeto JSON com exatamente os campos veredito, codigo, localizacao, justificativa.
+export const IMAGE_VISION_PROMPT = `Avalie a foto conforme sua função, sem confundir rótulo físico com marca d'água digital.
+FOTOS SECUNDÁRIAS: reprove SOMENTE marca d'água (MARCA_DAGUA), logo de loja (LOGO_LOJA), contato/QR (CONTATO_QR), banner ou arte promocional do fornecedor (BANNER_PROMOCIONAL), preço/frete (PRECO_FRETE), selo do Mercado Livre (SELO_ML), vários produtos distintos juntos (VARIOS_PRODUTOS). Um kit vendido como um único produto não é vários produtos distintos.
+Medidas e linhas de dimensão (MEDIDA_SOBREPOSTA), especificações do produto (SOBREPOSICAO_TEXTO), detalhe ampliado/inserção circular (INSERCAO_CIRCULAR) e embalagem NÃO reprovam secundárias; preserve esse código mesmo quando aprovada. Montagem de detalhes do MESMO produto não é vários produtos. Impressão física na embalagem não é banner.
+Se não conseguir analisar com segurança, retorne inconclusiva/FALHA_TECNICA/DESCONHECIDA. Falha técnica nunca reprova. Nunca invente evidência.
+Responda APENAS JSON com exatamente veredito, codigo, localizacao, justificativa.
 veredito: aprovada/reprovada/inconclusiva.
-codigo: SOBREPOSICAO_TEXTO/MARCA_DAGUA/LOGO_LOJA/COLAGEM/INSERCAO_CIRCULAR/MEDIDA_SOBREPOSTA/SEM_PRODUTO/FALHA_TECNICA/OK.
-localizacao: SOBRE_FOTO/PRODUTO/EMBALAGEM/IMAGEM_INTEIRA/FUNDO_LIMPO/DESCONHECIDA. justificativa: frase curta não vazia (máximo 400 caracteres).
-Reprovada: código visual, localização SOBRE_FOTO (texto/marca/logo/inserção/medida) ou IMAGEM_INTEIRA (COLAGEM/SEM_PRODUTO). Banner com texto usa SOBREPOSICAO_TEXTO; arte com montagem usa COLAGEM.
-Aprovada: código OK, localização PRODUTO/EMBALAGEM/FUNDO_LIMPO/IMAGEM_INTEIRA. Inconclusiva: FALHA_TECNICA e DESCONHECIDA. Resposta fora do esquema não será aceita.`;
+codigo: ${[...IMAGE_REJECTION_CODES, 'FALHA_TECNICA', 'OK'].join('/')}.
+localizacao: SOBRE_FOTO/PRODUTO/EMBALAGEM/IMAGEM_INTEIRA/FUNDO_LIMPO/DESCONHECIDA.
+justificativa: frase curta não vazia, máximo 400 caracteres. Localize a evidência real. Aprovada sem característica especial: OK. Nunca devolva prosa fora do JSON.`;
 
 export function imageVisionPrompt(primary = false): string {
   return IMAGE_VISION_PROMPT + (primary
-    ? '\nEsta é a FOTO PRINCIPAL: exija produto ou embalagem original em FUNDO LIMPO, sem texto ou logo sobreposto, sem banner/colagem/inserção. Para aprovar use localizacao=FUNDO_LIMPO, mesmo com impressão física no produto/embalagem. Se não puder certificar fundo limpo e não houver infração visual codificada, retorne inconclusiva; não invente código de reprovação.'
-    : '\nEsta é uma FOTO DA GALERIA: aplique as regras acima; não trate impressão física como sobreposição.');
+    ? '\nEsta é a FOTO PRINCIPAL, com regras MAIS ESTRITAS que substituem as permissões das secundárias: só o produto em fundo branco ou limpo; sem texto/logo sobreposto, borda, colagem, inserção/detalhe adicionado nem embalagem. Embalagem usa EMBALAGEM_PRINCIPAL; fundo inadequado usa FUNDO_INADEQUADO; borda usa BORDA. Medida/texto/inserção usam seu código próprio e reprovam. Para aprovar exija OK/FUNDO_LIMPO. O tamanho mínimo 500x500 é verificado por leitura dos bytes, não estime pixels visualmente.'
+    : '\nEsta é FOTO SECUNDÁRIA. Especificações, medidas, detalhe ampliado e embalagem são permitidos. SOBREPOSICAO_TEXTO só pode significar especificação permitida; promoção deve usar BANNER_PROMOCIONAL, preço/frete PRECO_FRETE, contato CONTATO_QR.');
 }
