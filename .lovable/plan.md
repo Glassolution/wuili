@@ -6,8 +6,7 @@ Recuperar produtos elegíveis do catálogo inteiro e impedir bloqueios por falha
 - C7Drop: **935 ativos com estoque; 628 bloqueados; 307 disponíveis na grade comum**.
 - AliExpress: **231 ativos com estoque; 29 bloqueados; 202 desbloqueados**, mas fonte continua restrita a admins e fora da grade comum.
 - B2Drop: **zero registros**. CJ: legado inativo, não reintroduzir.
-- Erro antigo nos bloqueados: C7Drop 571 (506 sem outra evidência detectável; 65 com outra), AliExpress 26 (26 sem outra). Não é possível provar causa exclusiva: os 657 bloqueados têm motivo histórico não documentado.
-- Restrições/evidências sobrepostas: C7Drop 38 Anatel, 32 menos de três URLs, 5 celulares, 63 com alguma rejeição visual antiga; AliExpress 3 com rejeição visual antiga. Conteúdo proibido detectado: zero. Não tratar rejeição de uma foto como rejeição de todo produto.
+- Erro antigo: C7Drop 571 (506 sem outra evidência, 65 com); AliExpress 26 sem outra. Os 657 bloqueados têm motivo não documentado; não é prova de causa exclusiva. Evidências sobrepostas detalhadas no relatório.
 - **20 natalinos continuam liberados, estoque positivo e galeria igual.** Só o kit de bolas de 5 cm foi atualizado após recuperação e preservou o desbloqueio. Os outros 19 aguardam atualização que realmente os inclua. Não iniciar lote seguinte antes dessa conferência, salvo autorização expressa.
 
 Relatório entregue: respostas originais, filtros e fotos. Cascata: impressão na embalagem; tiara: sobreposição, marca-d’água e colagem. Sem nova inferência.
@@ -30,15 +29,15 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 - Guardar assinatura da galeria, ordem/principal e identidade do conteúdo: URL reutilizada pode mudar de imagem.
 - Galeria diferente invalida aprovação visual antiga e cria pendência; não limpa bloqueio/restrições automaticamente.
 - Produto visualmente bloqueado volta à análise; só retirar o motivo visual após nova análise elegível e CAS. Produto já visível apenas inconclusivo permanece visível, salvo estoque ou restrição independente; publicação exige validação das imagens atuais.
-- CAS compara **is_blocked e galeria**, não preço/estoque. Em transação, reler estoque, motivos e campos independentes atuais para manter elegibilidade. Atualizar só campos de recuperação; nunca restaurar preço/estoque sobre atualização do fornecedor.
+- CAS compara **is_blocked e galeria**, não preço/estoque; reler elegibilidade em transação. Alterar só recuperação, nunca preço/estoque.
 - Snapshot antes/depois com evidência e versão; reversão usa CAS dos campos alterados.
-- Alterações em importadores/gatilhos precisam de aprovação específica desta etapa e testes de concorrência. Não mudar a regra de três URLs.
+- Importadores/gatilhos exigem aprovação e testes de concorrência; preservar três URLs.
 
 ## Etapa 3 — fila e visibilidade administrativa
 - Propor **máximo de três tentativas totais por imagem/galeria/critério**, sem repetir chamadas de orçamento ambíguo; uma nova galeria só abre novo ciclo mediante registro e controle de gasto.
 - Intervalos propostos: inicial autorizada; segunda após 24h; terceira após 72h da segunda. Permanecer manual/aguardando aprovação: nenhum worker ou retentativa automática está autorizado.
 - Após limite: revisão necessária, nunca bloqueio. Falha individual não para lote; orçamento/segurança podem parar.
-- Medir servidor, etapa (download, MIME/tamanho, chamada IA, interpretação, CAS), status, latência, modelo, consumo estimado/confirmado e motivo técnico.
+- Métricas: servidor, etapa (download/MIME/IA/parser/CAS), status, latência, modelo, consumo e falha técnica.
 - Indicador admin por fornecedor: ativos com estoque, visíveis para cliente, bloqueados por motivo (categorias sobrepostas), motivo desconhecido e inconclusivos em fila.
 - Alerta proposto, a aprovar: bloqueados acima de **50%** dos ativos com estoque ou crescimento de **10 pontos percentuais em 24h**. Mostrar base/data e separar falha técnica de rejeição explícita. C7Drop está em 67,2% agora.
 
