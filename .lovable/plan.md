@@ -42,16 +42,14 @@ Somente após aprovação: alinhar prompt, interpretação estruturada e testes.
 - Indicador admin por fornecedor: ativos com estoque, visíveis para cliente, bloqueados por motivo (categorias sobrepostas), motivo desconhecido e inconclusivos em fila.
 - Alerta proposto, a aprovar: bloqueados acima de **50%** dos ativos com estoque ou crescimento de **10 pontos percentuais em 24h**. Mostrar base/data e separar falha técnica de rejeição explícita. C7Drop está em 67,2% agora.
 
-## Etapa 4 — filtros que escondem produtos bons
-Correções separadas, não aplicadas:
-
-- Remover condição de categoria exclusiva “Produto de Natal” do processo de recuperação; priorizar Natal por lista revisada/título sem alterar categoria do fornecedor. O piloto antigo pulou o kit em Mais vendidos; já foi recuperado.
-- Unificar mapeamento do endpoint com categorias reais: as oito categorias antigas mapeadas correspondem a zero dos 307 atuais. Grade atual usa valores crus e não tem essa mesma falha.
-- Preservar três URLs: afeta 32 ativos com estoque; zero exclusão adicional entre os 307 hoje visíveis. Não afirmar que é exigência universal oficial do ML apenas porque há comentário no código.
-- Preço/título/fotos no frontend excluem zero adicionais atualmente. Fonte C7Drop exclui os 202 AliExpress deliberadamente; não abrir essa fonte sem aprovação própria.
-- Avaliação 4.5+ usa nota sintética por ID e esconde **135 dos 307**; propor retirar nota e filtro sintéticos em favor de evidência real. Não alterar nesta rodada.
-- Faixas de preço atuais incluem 50/150 em duas faixas: 162/110/37; propor limites sem sobreposição. Filtro de avaliação carrega até 1.200 e pode truncar catálogo futuro; propor filtragem/paginação coerentes, não execução atual.
-- Busca/favoritos/Atlas dependem da seleção; números não globais. Itens descartados antes de importar precisam de métricas de origem para contar impacto histórico.
+## Etapa 4 — filtros (correções separadas, não aplicadas)
+- Natal: retirar categoria exclusiva do processo de recuperação, não da categoria do fornecedor. Kit em Mais vendidos foi pulado e já recuperado; 7 títulos natal/pisca/cascata/árvore visíveis têm outra categoria (busca ampla).
+- Endpoint: oito categorias antigas mapeadas têm zero dos 307 visíveis; unificar com categorias reais. Grade dinâmica não usa esse mapa.
+- Três URLs afetam 32 ativos com estoque; zero exclusão extra dos 307 atuais. Não mudar limite nem afirmar exigência universal oficial do ML baseada em comentário.
+- Preço/título/fotos excluem zero adicionais. Fonte exclui 202 AliExpress deliberadamente.
+- Nota sintética por ID: 4.5+ esconde **135/307**; propor retirar nota/filtro falsos, mediante aprovação.
+- Faixas inclusivas sobrepõem 50/150: 162/110/37; corrigir limites mediante aprovação. Caminho de avaliação limitado a 1.200 pode truncar catálogo futuro.
+- Busca/favoritos/Atlas dependem da seleção; descartes antes de importar não têm contagem histórica recuperável nesta base.
 
 ## Etapa 5 — equivalência e modelo (após critério aprovado)
 1. Referência humana nas mesmas 100 fotos: embalagem/rótulo, overlay, colagem e falha técnica. Teste antigo não certifica novo critério.
