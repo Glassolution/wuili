@@ -70,9 +70,14 @@ export function parseImageVerdict(raw: string | null, primary = false): { clean:
 }
 
 /** Reuse old evidence by code only; ambiguous text/montage and old primary OK need review. */
+export function hasPromotionalEvidence(justification: string): boolean {
+  const normalized = justification.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return /\b(promocional\w*|publicitari\w*|divulgacao|banner\w*|arte\w*)\b/.test(normalized);
+}
+
 export function reclassifySavedEvidence(evidence: ImageVerdict, primary = false): ImageVerdict {
   if (evidence.codigo === 'FALHA_TECNICA') return { ...evidence, veredito: 'inconclusiva' };
-  if (!primary && ['MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'].includes(evidence.codigo)) return { ...evidence, veredito: 'aprovada' };
+  if (!primary && ['MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'].includes(evidence.codigo)) return { ...evidence, veredito: hasPromotionalEvidence(evidence.justificativa) ? 'inconclusiva' : 'aprovada' };
   if (!primary && ['SOBREPOSICAO_TEXTO', 'COLAGEM', 'SEM_PRODUTO'].includes(evidence.codigo) || primary && evidence.codigo === 'OK') return { ...evidence, veredito: 'inconclusiva' };
   return evidence;
 }

@@ -337,6 +337,13 @@
       "when": 1794100170027,
       "tag": "0047_gallery_url_hash_manual_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794119569428,
+      "tag": "0048_persistent_catalog_image_analysis",
+      "breakpoints": true
     }
   ]
 }

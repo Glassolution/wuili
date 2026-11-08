@@ -1,5 +1,11 @@
 # Roadmap
 
+## Registro persistente e lote sem desbloqueio — 08/11 06:31 UTC
+- [ ] Criar e confirmar tabela permanente; importar todos os resultados recuperáveis antes de IA
+- [ ] Revisar aprovações por código com justificativa promocional e registrar diferenças
+- [ ] Refazer primeiro lote de 100 C7Drop legado por estoque, sem desbloqueios, preservando resultados por foto
+- [ ] Diagnóstico ML sem anúncio em dez fotos se endpoint permitir; relatório curto e orçamento acumulado 60
+
 ## Dois níveis e conclusão dry-run — 08/11 04:39 UTC
 - [x] Aplicar principal estrita 500x500 e secundárias permissivas com códigos persistidos por função; duas funções publicadas
 - [x] Reclassificar 112 recuperadas: 40 reprovações viram aprovação só por código; 60 chamadas ambíguas sem retry, 0,922857 estimados; final 89/19/4
