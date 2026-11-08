@@ -705,6 +705,7 @@ export type Database = {
       catalog_products: {
         Row: {
           aliexpress_category_id: string | null
+          block_reasons: Json | null
           brand: string | null
           category: string | null
           cost_price: number
@@ -746,6 +747,7 @@ export type Database = {
         }
         Insert: {
           aliexpress_category_id?: string | null
+          block_reasons?: Json | null
           brand?: string | null
           category?: string | null
           cost_price: number
@@ -787,6 +789,7 @@ export type Database = {
         }
         Update: {
           aliexpress_category_id?: string | null
+          block_reasons?: Json | null
           brand?: string | null
           category?: string | null
           cost_price?: number
@@ -827,6 +830,91 @@ export type Database = {
           weight?: number | null
         }
         Relationships: []
+      }
+      catalog_recovery_audit: {
+        Row: {
+          after_state: Json | null
+          applied_at: string | null
+          before_state: Json
+          created_at: string
+          decision: string
+          evidence: Json
+          id: string
+          product_id: string
+          run_id: string
+        }
+        Insert: {
+          after_state?: Json | null
+          applied_at?: string | null
+          before_state: Json
+          created_at?: string
+          decision: string
+          evidence: Json
+          id?: string
+          product_id: string
+          run_id: string
+        }
+        Update: {
+          after_state?: Json | null
+          applied_at?: string | null
+          before_state?: Json
+          created_at?: string
+          decision?: string
+          evidence?: Json
+          id?: string
+          product_id?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_recovery_audit_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_recovery_retry_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          max_attempts: number
+          product_id: string
+          reason: string
+          run_id: string
+          state: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          max_attempts?: number
+          product_id: string
+          reason: string
+          run_id: string
+          state?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          max_attempts?: number
+          product_id?: string
+          reason?: string
+          run_id?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_recovery_retry_queue_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       category_mapping: {
         Row: {

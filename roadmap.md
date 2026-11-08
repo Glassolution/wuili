@@ -7,7 +7,10 @@
 - [x] Dry-run 40/290 fotos: 183 aprovadas, 101 reprovadas, 6 inconclusivas; 38 candidatos e 2 outras restrições; custo estimado 2,574444, projeção 43,93/teto proposto 60
 - [x] Atualização automática retirou 94 bloqueios por leitura truncada: restaurados somente esses bloqueios, paginação corrigida; zero dos 645 originais liberados
 - Limite: gatilho/scrapers ainda bloqueiam por três URLs e pré-checagem por heurística; alinhar no PASSO 3 sem desbloqueio automático. Total concorrente passou a 648.
-- [ ] PASSO 3 aguarda aprovação: motivos estruturados, backup reversível, recuperação e fila limitada
+- [x] PASSO 3 piloto Natal: 13 recuperados com snapshot/CAS; 7 pulados por fornecedor concorrente, 2 principal reprovada, 1 menos de três URLs; fila sem execução automática
+- [ ] Preservação após fornecedor: kit 5 cm atualizado 00:15 UTC manteve desbloqueio/oito aprovadas; outros 12 aguardam inclusão em atualização real
+- [ ] Restante aguarda conferência do piloto; gravador/REP-p excluídos e outros riscos apresentados antes
+- [x] Proposto Gemini 3.8 Flash, tarifa igual/custo condicional e teste de 100 fotos; nenhum modelo trocado ou inferência nova no piloto; teto 60/5.000 com pausas 25%/50%
 
 ## Cortesia Igor e aviso de renovação mensal
 - [x] Estorno R$ 79,80 confirmado (ref_1794092439013_9qiienm65), motivo registrado, acesso encerrado sem cooldown
