@@ -1,5 +1,10 @@
 # Roadmap
 
+## Consolidação sem nova análise — 08/11 07:07 UTC
+- [ ] Consolidar os 100 produtos da tabela permanente e custo acumulado, sem IA ou desbloqueios
+- [ ] Entregar até dez linhas com dez fotos aprovadas distintas e cinco reprovadas com motivo
+- [ ] Diagnóstico ML somente se dez fotos couberem em uma chamada já conhecida; caso contrário pular
+
 ## Registro persistente e lote sem desbloqueio — 08/11 06:31 UTC
 - [ ] Criar e confirmar tabela permanente; importar todos os resultados recuperáveis antes de IA
 - [ ] Revisar aprovações por código com justificativa promocional e registrar diferenças
