@@ -46,21 +46,23 @@ export function parseImageVerdict(raw: string | null, primary = false): { clean:
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return inconclusive();
     if (Object.keys(parsed).length !== 4 || !['veredito', 'codigo', 'localizacao', 'justificativa'].every(key => Object.hasOwn(parsed, key))) return inconclusive();
     if (typeof parsed.justificativa !== 'string' || !parsed.justificativa.trim() || parsed.justificativa.length > 400) return inconclusive();
-    if (parsed.veredito === 'inconclusiva' && parsed.codigo === 'FALHA_TECNICA' && parsed.localizacao === 'DESCONHECIDA') {
-      return { clean: null, reason: parsed.justificativa, evidence: { ...invalid, justificativa: parsed.justificativa } };
+    // Location is descriptive only: any value is kept as evidence and never decides the verdict.
+    const location = typeof parsed.localizacao === 'string' && parsed.localizacao.trim()
+      ? parsed.localizacao.trim().slice(0, 60)
+      : 'DESCONHECIDA';
+    parsed.localizacao = location;
+    if (parsed.veredito === 'inconclusiva' && parsed.codigo === 'FALHA_TECNICA') {
+      return { clean: null, reason: parsed.justificativa, evidence: { ...invalid, localizacao: location, justificativa: parsed.justificativa } };
     }
     const code = IMAGE_REJECTION_CODES.find(code => code === parsed.codigo);
-    const locations = ['SOBRE_FOTO', 'PRODUTO', 'EMBALAGEM', 'IMAGEM_INTEIRA', 'FUNDO_LIMPO'];
-    if (!locations.includes(parsed.localizacao)) return inconclusive();
     if (parsed.veredito === 'reprovada' && code) {
-      if (['MARCA_DAGUA', 'LOGO_LOJA', 'SOBREPOSICAO_TEXTO', 'MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'].includes(code) && parsed.localizacao !== 'SOBRE_FOTO') return inconclusive();
       const secondaryReject = ['MARCA_DAGUA', 'LOGO_LOJA', 'CONTATO_QR', 'BANNER_PROMOCIONAL', 'PRECO_FRETE', 'SELO_ML', 'VARIOS_PRODUTOS'];
       if (!primary && !secondaryReject.includes(code)) return inconclusive();
       const evidence: ImageVerdict = { veredito: 'reprovada', codigo: code, localizacao: parsed.localizacao, justificativa: parsed.justificativa };
       return { clean: false, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}`, evidence };
     }
     const allowed = ['OK', 'MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR', 'SOBREPOSICAO_TEXTO', 'COLAGEM'];
-    if (parsed.veredito === 'aprovada' && (primary ? parsed.codigo === 'OK' && parsed.localizacao === 'FUNDO_LIMPO' : allowed.includes(parsed.codigo))) {
+    if (parsed.veredito === 'aprovada' && (primary ? parsed.codigo === 'OK' : allowed.includes(parsed.codigo))) {
       const evidence: ImageVerdict = { veredito: 'aprovada', codigo: parsed.codigo, localizacao: parsed.localizacao, justificativa: parsed.justificativa };
       return { clean: true, reason: `${imageEvidencePrefix(primary)}${JSON.stringify(evidence)}`, evidence };
     }
