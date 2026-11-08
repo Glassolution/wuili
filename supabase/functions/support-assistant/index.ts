@@ -5,7 +5,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getSellerAccessToken } from "../_shared/mlSellerToken.ts";
 import { isCancellationConfirmation } from "../_shared/supportCancellation.ts";
-import { getRefundMode, PRAZO_DEVOLUCAO, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES, REFUND_PAGE_LABEL, REFUND_PAGE_HOW, REFUND_PAGE_PATH, CANCEL_PAGE_HOW, CANCEL_PAGE_PATH } from "../_shared/refundPolicy.ts";
+import { getRefundMode, PRAZO_DEVOLUCAO, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES, REFUND_PAGE_LABEL, REFUND_PAGE_PATH, CANCEL_PAGE_HOW, CANCEL_PAGE_PATH } from "../_shared/refundPolicy.ts";
 import { classifyRefundContext } from "../_shared/supportRefundContext.ts";
 import { SUPPORT_NAVIGATION_PROMPT, supportNavigationReply } from "../_shared/supportNavigation.ts";
 
@@ -369,9 +369,8 @@ const AVISO_ESPERA = `Já solicitei o atendimento humano. ${HORARIOS_ATENDIMENTO
 const MARCADOR_CARTAO_REEMBOLSO = "__VELO_REFUND_PROMPT__";
 
 // O artigo de reembolso (com o link do atendimento de reembolso, /ajuda/reembolso)
-// só chega ao cliente por aqui: o link vai nesta resposta fixa, nunca em texto livre da IA. O mesmo vale para a página de
-// cancelamento da renovação, que também não tem botão no app.
-const LINK_REEMBOLSO = `${APP_URL}${REFUND_PAGE_PATH}`;
+// só chega ao cliente por aqui: o endereço vai em texto (sem link clicável) nesta resposta fixa, nunca em texto livre da IA.
+// A página de cancelamento da renovação, que também não tem botão no app, vai como link nesta resposta fixa.
 const LINK_CANCELAMENTO = `${APP_URL}${CANCEL_PAGE_PATH}`;
 
 // Endereço em texto, sem protocolo: o chat só vira link o que começa com http(s):// ou [texto](url).
