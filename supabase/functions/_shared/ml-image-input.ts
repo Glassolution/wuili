@@ -39,7 +39,10 @@ export function parseImageVerdict(raw: string | null, primary = false): { clean:
   const inconclusive = () => ({ clean: null, reason: invalid.justificativa, evidence: invalid });
   if (!raw) return inconclusive();
   try {
-    const parsed = JSON.parse(raw.trim());
+    // Accept one complete Markdown wrapper, never prose or partial JSON extraction.
+    const trimmed = raw.trim();
+    const fence = /^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/i.exec(trimmed);
+    const parsed = JSON.parse(fence ? fence[1].trim() : trimmed);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return inconclusive();
     if (Object.keys(parsed).length !== 4 || !['veredito', 'codigo', 'localizacao', 'justificativa'].every(key => Object.hasOwn(parsed, key))) return inconclusive();
     if (typeof parsed.justificativa !== 'string' || !parsed.justificativa.trim() || parsed.justificativa.length > 400) return inconclusive();
