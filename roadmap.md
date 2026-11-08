@@ -1,10 +1,10 @@
 # Roadmap
 
 ## Plano ampliado de recuperação — somente leitura nesta rodada
-- [ ] Entregar respostas brutas das três divergências e quatro diferenças de interpretação, com fotos principais pendentes
-- [ ] Medir catálogo inteiro por fornecedor, motivos e filtros; propor critério, reanálise de galeria, fila, indicador e lotes sem executar
-- [ ] Conferir os 20 natalinos recuperados após atualização real; relatar pendências sem iniciar processamento
-- [ ] Apresentar plano para aprovação; nenhuma mudança em parser, importadores, modelo, regras ou anúncios
+- [x] Reunir respostas brutas das três divergências e quatro diferenças de interpretação e fotos principais no relatório
+- [x] Medir catálogo inteiro por fornecedor, motivos e filtros; propor critério, reanálise de galeria, fila, indicador e lotes sem executar
+- [x] Conferir estado dos 20: zero perdeu desbloqueio, galeria igual; apenas kit 5 cm atualizado depois, 19 aguardam fornecedor
+- [x] Preparar plano para aprovação; nenhuma mudança em parser, importadores, modelo, regras ou anúncios
 
 ## Recuperação controlada de imagens — novembro
 - [x] Sete conflitos recuperados, galerias iguais; CAS somente bloqueio/galeria e snapshots novos, preços/estoque intocados
@@ -17,8 +17,8 @@
 - [x] Atualização automática retirou 94 bloqueios por leitura truncada: restaurados somente esses bloqueios, paginação corrigida; zero dos 645 originais liberados
 - Limite: gatilho/scrapers ainda bloqueiam por três URLs e pré-checagem por heurística; alinhar no PASSO 3 sem desbloqueio automático. Total concorrente passou a 648.
 - [x] PASSO 3 piloto Natal: 13 recuperados com snapshot/CAS; 7 pulados por fornecedor concorrente, 2 principal reprovada, 1 menos de três URLs; fila sem execução automática
-- [ ] Preservação após fornecedor: kit 5 cm atualizado 00:15 UTC manteve desbloqueio/oito aprovadas; outros 12 aguardam inclusão em atualização real
-- [ ] Restante aguarda conferência do piloto; gravador/REP-p excluídos e outros riscos apresentados antes
+- [ ] Preservação após fornecedor: kit 5 cm atualizado 00:15 UTC manteve desbloqueio/oito aprovadas; outros 19 dos 20 recuperados aguardam inclusão em atualização real
+- [ ] Restante aguarda aprovação por etapa do plano ampliado e conferência do fornecedor; gravador/REP-p excluídos e outros riscos apresentados antes
 - [x] Proposto Gemini 3.8 Flash, tarifa igual/custo condicional e teste de 100 fotos; nenhum modelo trocado ou inferência nova no piloto; teto 60/5.000 com pausas 25%/50%
 
 ## Cortesia Igor e aviso de renovação mensal
