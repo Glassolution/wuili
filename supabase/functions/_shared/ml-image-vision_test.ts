@@ -171,6 +171,14 @@ Deno.test('medida e inserção secundária mudam por código sem IA e preservam 
 Deno.test('texto e colagem antigos exigem revisão sem regex de justificativa', () => {
   for (const codigo of ['SOBREPOSICAO_TEXTO', 'COLAGEM'] as const) assertEquals(reclassifySavedEvidence({ veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'promoção ou especificação' }).veredito, 'inconclusiva');
 });
+Deno.test('aprovação por medida ou inserção não ignora evidência promocional', () => {
+  for (const codigo of ['MEDIDA_SOBREPOSTA', 'INSERCAO_CIRCULAR'] as const) {
+    for (const justificativa of ['arte promocional', 'arte publicitária', 'textos de divulgação', 'banner', 'arte gráfica']) {
+      assertEquals(reclassifySavedEvidence({ veredito: 'aprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa }).veredito, 'inconclusiva');
+    }
+    assertEquals(reclassifySavedEvidence({ veredito: 'reprovada', codigo, localizacao: 'SOBRE_FOTO', justificativa: 'Detalhe da parte interna' }).veredito, 'aprovada');
+  }
+});
 Deno.test('principal mínimo 500x500 em ambas as dimensões', () => {
   assertEquals(primarySizeDecision(500, 500), 'eligible');
   assertEquals(primarySizeDecision(499, 1000), 'too_small');
