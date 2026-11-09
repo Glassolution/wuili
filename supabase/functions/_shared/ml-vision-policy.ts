@@ -20,8 +20,10 @@ export async function sequentialVision<M extends string>(models: readonly M[], a
   return approved ?? { clean: null, reason: 'nenhum modelo configurado' };
 }
 
-export function imageProductDecision(result: VisionFilterResult): 'approved' | 'rejected' | 'inconclusive' {
+export function imageProductDecision(result: VisionFilterResult): 'approved' | 'rejected' | 'inconclusive' | 'no_primary' {
   if (result.clean.length >= 1) return 'approved';
+  if (result.inconclusive.length) return 'inconclusive';
+  if (result.secondaryApproved?.length && result.primaryRejected?.length === result.secondaryApproved.length) return 'no_primary';
   if (result.inconclusive.length || !result.rejected.length) return 'inconclusive';
   return 'rejected';
 }
