@@ -13,7 +13,7 @@ Código base: `3758697cd549b46bb3efdc948387bdf0b6640d7f`. Nova inspeção em 09/
 
 `0051` está disponível **como candidato no histórico e checkout observados**, não reservado; trabalho externo no Mac ou outra sessão não é visível. Nenhuma migration numerada será criada nesta rodada. Repetir a inspeção imediatamente antes da criação autorizada; se a sequência avançar, escolher o próximo número real. SQL proposto fica fora de `drizzle/migrations/`; aplicação posterior exclusivamente pela ferramenta de migration, que aplica imediatamente.
 
-Pacote seletivo: seis SQLs `0045`–`0050`, seis snapshots correspondentes e `_journal.json` completo, byte-exatos, com manifesto SHA-256 e instruções. Não inclui `.git`, dependências, builds ou secrets. O journal completo referencia também `0000`–`0044`: **não substituir cegamente** journal/snapshots do Mac, especialmente se houver trabalho posterior; comparar prefixo, hashes e cadeia antes de incorporar. Snapshots customizados vazios não representam todo o banco. Não reexecutar SQL já aplicado.
+Pacote: seis SQLs `0045`–`0050`, seis snapshots e journal completo, byte-exatos, manifesto SHA-256. Sem `.git`, dependências, builds ou secrets. **Não substituir cegamente** journal do Mac: comparar prefixo `0000`–`0044`, hashes, cadeia e trabalho posterior. Snapshots vazios não representam o banco; não reexecutar SQL aplicado.
 
 ## Autorização própria
 **Proposta:** entitlement dedicado `founder_entitlements`, sem estender `app_role` nem tocar no admin legado.
@@ -34,7 +34,7 @@ Propor tabelas isoladas:
 3. `founder_findings`: identidade estável `(agent, rule_version, finding_key)`, estado atual e referências primeira/última ocorrência.
 4. `founder_finding_occurrences`: evidência agregada imutável por execução/regra, incluindo confirmação, resolução e reaparecimento.
 
-**Contrato de aquisição:** em uma única transação, serializar a request key (advisory xact lock) e disputar o lease do agente por INSERT ON CONFLICT DO UPDATE com condição `leased_until <= clock_timestamp()`. Só o vencedor recebe run/token/fence e cria a execução; o perdedor recebe `busy`, sem executar consultas. Request repetida concluída devolve o resultado anterior; tentativa expirada só retoma por pedido explícito, com nova tentativa e fence.
+**Aquisição:** transação única serializa request key (advisory xact lock) e disputa lease por INSERT ON CONFLICT DO UPDATE condicionado a `leased_until <= clock_timestamp()`. Vencedor cria run/token/fence; perdedor recebe `busy`. Request concluída devolve resultado anterior; expirada retoma só por pedido explícito, nova tentativa/fence.
 
 - Lease proposto de 180 segundos; renovar a cada 30 segundos; deadline total 120 segundos por tentativa. Valores revisáveis, não agendamentos ativos.
 - Heartbeat, conclusão e persistência exigem run/token/fence atuais e lease válido; atualização/completion e gravação das ocorrências ocorrem numa única transação com row lock. Dono antigo não escreve depois de retomada, mesmo que sua consulta termine tarde.
@@ -54,9 +54,9 @@ Janela `[start,end)` UTC, fim no passado, máximo proposto 7 dias. Servidor norm
 | `dq.session_links.v1` | user_page_views/user_sessions: total de views, session_id ausente, referência inexistente; apenas contagens, sem IDs | Referência inexistente é observação; só classificar como falha após confirmar contrato de retenção; ausência pode ser legítima |
 | `dq.traffic_recount.v1` | sessões/views: totais e dias UTC, DISTINCT user_id calculado no banco; contagem separada de dias apenas com views | Recontagem completa; não somar distintos diários como distintos da janela. Omitir dias só de views na RPC legada é diferença conhecida de definição, não corrupção |
 
-Somente projeções positivas: contagens inteiras, timestamps, enums e IDs de consulta. Nenhum email, contato, visitor/user/session ID, path, referrer, user-agent, detail, payload, mensagem ou erro bruto sai das consultas. Service role fica restrito por código e RPCs fechadas, não só pela allowlist MCP.
+Projeções positivas: contagens, timestamps, enums e IDs de consulta. Sem contatos, IDs pessoais, URLs, user-agent, detail, payload, mensagens ou erros brutos; RPCs fechadas delimitam o runner service role.
 
-Não chamar as RPCs admin legadas sob sessão Founder: elas exigem is_admin do perfil. Consultas Founder novas usam entitlement próprio e agregação independente. Não alterar as RPCs existentes. Comparação com funis legados só será adicionada se datas, filtros, estado, deduplicação e denominadores coincidirem; esta etapa não declara divergência de conversão por contagens diferentes.
+Não chamar/alterar RPCs admin legadas: novas consultas usam entitlement e agregação independente. Comparar funis só com datas, filtros, estados, deduplicação e denominadores iguais.
 
 Duplicidade por `visitor_id + evento + intervalo` não será achado confirmado. Sem contrato/ID idempotente, apenas observação heurística; não incluir detector automático de duplicação nesta versão.
 
@@ -68,7 +68,7 @@ Nova função isolada `founder-data-quality` (Deno), sem implantação nesta rod
 - Persistência guarda parâmetros normalizados, versão, início/fim, cobertura completa/parcial e IDs das consultas. Achados mantêm evidência por run; problema resolvido que reaparece gera nova ocorrência e reabre o achado. Fechamento apenas por verificação completa da mesma regra.
 
 ## Implementação posterior e critérios de revisão
-Arquivos futuros separados: SQL proposto não numerado em `docs/founder-mode/`, contratos e regras puras `_shared/founderDataQuality.ts`, função nova, testes ao lado; integração da UI apenas após receber arquivos originais do Mac. Nenhum import/rota ativo nesta rodada.
+Arquivos futuros: SQL não numerado em `docs/founder-mode/`, regras/contratos `_shared/founderDataQuality.ts`, função e testes separados. UI só nos originais do Mac; sem import/rota ativo agora.
 
 Antes de aplicar: revisar SQL completo (helpers antes das policies, grants em cada tabela, sem auth FK/enum migration, funções service-role-only), reconferir número e EXPLAIN das consultas em janela máxima; sem índices globais novos sem necessidade medida.
 
@@ -79,7 +79,7 @@ Testes exigidos antes da implantação:
 - Zero/baixa recência sem sinal independente → inconclusivo; evento legítimo repetido não é duplicação; consulta parcial não resolve achado; resolução e reaparecimento preservam ocorrências.
 - Nenhuma saída ou log transporta campos pessoais/URLs/erro bruto, incluindo objetos aninhados; testes usam fixtures apenas, nunca dados fictícios na interface.
 
-Testes SQL de concorrência/RLS e fluxo autenticado só em ambiente isolado autorizado depois: **não podem ser declarados validados nesta rodada sem aplicar o schema**. Sem migration/deploy, o agente ainda não roda.
+Concorrência/RLS e fluxo autenticado exigem ambiente isolado autorizado; não validados nesta rodada. Sem migration/deploy, o agente não roda.
 
 ## Pendências específicas
 - Arquivos do Founder Mode do Mac para integrar sem redesenhar; não bloqueiam revisão dos contratos.
