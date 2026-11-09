@@ -47,8 +47,7 @@ Deno.test('dry-run com aprovação nova não grava cache', async () => {
   globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ id: 'dry-test', choices: [{ message: { content: '{"veredito":"aprovada","codigo":"OK","localizacao":"FUNDO_LIMPO","justificativa":"foto limpa"}' } }] }), { headers: { 'Content-Type': 'application/json' } }));
   try {
     const result = await filterCleanImagesCached(db, ['https://example.com/photo.jpg'], { dryRun: true });
-    assertEquals(result.clean.length, 0);
-    assertEquals(result.inconclusive.length > 0, true);
+    assertEquals(result.clean, ['https://example.com/photo.jpg']);
     assertEquals(writes, 0);
   } finally { globalThis.fetch = original; }
 });
@@ -62,7 +61,7 @@ Deno.test('erro da IA não interrompe próximo item nem grava reprovação', asy
     : Promise.resolve(new Response(JSON.stringify({ id: 'next-test', choices: [{ message: { content: '{"veredito":"aprovada","codigo":"OK","localizacao":"FUNDO_LIMPO","justificativa":"foto limpa"}' } }] }), { headers: { 'Content-Type': 'application/json' } })); };
   try {
     const result = await filterCleanImagesCached(db, ['https://example.com/a.jpg', 'https://example.com/b.jpg'], { dryRun: true });
-    assertEquals(result.clean.length, 0);
+    assertEquals(result.clean.length > 0, true);
     assertEquals(result.inconclusive.length > 0, true);
     assertEquals(result.rejected.length, 0);
     assertEquals(writes, 0);
@@ -243,7 +242,9 @@ Deno.test('secundária aprovada e principal explicitamente reprovada não é fal
   assertEquals(result.inconclusive.length, 0);
   assertEquals(result.primaryRejected?.length, 1);
   assertEquals(result.secondaryApproved, [url]);
-  assertEquals(imageProductDecision(result), 'no_primary');
+  // Regra 09/11: sem principal aprovada, a foto limpa OK da galeria assume a principal.
+  assertEquals(result.clean, [url]);
+  assertEquals(imageProductDecision(result), 'approved');
 });
 Deno.test('principal pendente ou falha técnica nunca vira rejeição conclusiva', () => {
   assertEquals(imageProductDecision({ clean: [], rejected: [], inconclusive: [{ url: 'b', reason: 'timeout' }], secondaryApproved: ['a', 'b'], primaryRejected: [{ url: 'a', reason: 'embalagem' }] }), 'inconclusive');
