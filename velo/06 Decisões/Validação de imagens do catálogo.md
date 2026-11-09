@@ -14,3 +14,7 @@ fontes: [AGENTS.md (main), drizzle 0046–0048]
 - Evidência fica em `catalog_image_analysis_results` (append-only), gravada antes de avançar o lote; arquivo temporário nunca é registro oficial.
 **Por quê:** evitar bloquear produto bom por erro técnico ou por inferência por palavra, mantendo prova de cada decisão.
 Ver [[Catálogo]], [[Tabelas - Catálogo]].
+
+## 09/11 — Principal mais flexível + foto limpa como reserva
+- A principal aceita o produto com os próprios acessórios ou em vários ângulos sobre fundo limpo.
+- Sem principal aprovada, usa a primeira foto da galeria aprovada pelos dois modelos com código OK (sem texto, medida, inserção ou embalagem). Fotos só com texto/medida nunca viram principal.

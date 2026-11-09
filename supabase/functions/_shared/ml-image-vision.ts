@@ -130,6 +130,11 @@ export async function filterCleanImagesCached(
       else primaryRejected.push({ url, reason: primary.reason ?? 'principal reprovada' });
     }
   }
+  // Fallback (regra do dono, 09/11): sem principal aprovada, usa a melhor foto limpa da galeria —
+  // aprovada pelos modelos como secundária com código OK (sem texto, medida, inserção ou embalagem).
+  if (!primaryUrl) {
+    primaryUrl = clean.find(url => evidenceByUrl.get(url)?.secondary?.codigo === 'OK');
+  }
   if (changed.size && !opts.dryRun) {
     const { error } = await supabase
       .from("ml_image_vision_cache")
