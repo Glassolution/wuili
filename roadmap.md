@@ -1,8 +1,8 @@
 # Roadmap
 
 ## Aviso de fotos na publicação — 09/11
-- [ ] Separar principal reprovada de falha técnica, reservar checagens para os dois papéis e registrar diagnóstico por tentativa
-- [ ] Testar regressões, publicar somente ml-publish e validar sem criar anúncio
+- [x] Separar principal reprovada de falha técnica, reservar checagens para os dois papéis e registrar diagnóstico por tentativa
+- [x] 34 testes passaram; somente ml-publish publicada; teste autenticado com três fotos reais em cache retornou NO_ELIGIBLE_PRIMARY_IMAGE/409 e diagnóstico persistido, sem IA nova nem anúncio. Galeria completa e tela do cliente não exercitadas.
 
 ## Founder Mode — etapa 1 revisável, sem implantação (09/11)
 - [x] Preparar proposta isolada de autorização, execução atômica e consultas agregadas para Qualidade de dados, sem alterar admin/crons
