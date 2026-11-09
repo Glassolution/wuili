@@ -41,6 +41,7 @@ Ponto de entrada. Leia isto, abra **só** a nota do assunto e, se ainda precisar
 [[Catálogo]] · [[Publicação no Mercado Livre]] · [[Pedidos e dropshipping]] · [[Assinatura e checkout]] · [[Cancelamento e reembolso]] · [[Central de Ajuda]] · [[Suporte com IA]] · [[Atlas]] · [[Painel admin]] · [[Landing e cadastro]] · [[Lojas públicas e páginas de venda]] · [[Afiliados]]
 
 ## Decisões (por quê)
+[[Founder Mode isolado]] — proposta revisável de acesso, execução e agregados; não implantada.
 [[Reembolso só pela Central de Ajuda]] · [[Atendimento de reembolso com IA]] · [[Cancelamento confirmado no provedor]] · [[Vitalício com pagamento único]] · [[Cooldown de reembolso]] · [[ME2 não bloqueia publicação]] · [[Token ML morto não é renovado]] · [[Webhook ML com fila]] · [[Vínculo anúncio-catálogo]] · [[Pagamento antes da conta de vendedor]] · [[Não lido do suporte calculado no banco]] · [[Admin paginado no servidor]] · [[MCP somente leitura]] · [[CJ Dropshipping descontinuada]] · [[Reembolso de cortesia]] · [[Validação de imagens do catálogo]] · [[Cofre Obsidian como memória]]
 
 ## Fontes de verdade (quando a nota não basta)

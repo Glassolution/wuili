@@ -1,5 +1,11 @@
 # Roadmap
 
+## Founder Mode — etapa 1 revisável, sem implantação (09/11)
+- [x] Preparar proposta isolada de autorização, execução atômica e consultas agregadas para Qualidade de dados, sem alterar admin/crons
+- [x] Reconferir histórico e número candidato (0051); não criar migration ativa nem editar journal
+- [x] Preparar recuperação seletiva byte-exata de 0045–0050, snapshots e journal com manifesto
+- [ ] Preservar UI do Mac sem recriar o design; integração visual aguarda arquivos locais, indisponíveis aqui
+
 ## Liberação dos 74 e parada antecipada — 08/11 07:16 UTC
 - [x] Liberar os 74 com snapshot e CAS (execução 16571d52): 74 recuperados; 22 restantes intocados
 - [x] Causa do custo: ~10,4 chamadas/produto (todas as fotos + principal testada em várias) e ~0,013/chamada por tokens de raciocínio

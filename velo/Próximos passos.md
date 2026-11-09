@@ -3,6 +3,12 @@ atualizado: 2026-11-08
 ---
 # Próximos passos
 
+## Founder Mode — proposta da etapa 1 (09/11)
+- [x] Reconferir histórico 0000–0050 e preparar recuperação seletiva, sem reaplicar
+- [x] Propor acesso próprio, aquisição atômica e consultas agregadas fechadas → [[Founder Mode isolado]]
+- [ ] Integrar ao design original — aguarda arquivos Founder Mode do Mac
+- [ ] SQL completo, implementação e testes isolados após revisão da proposta; sem autorização de migration/deploy nesta etapa
+
 ## Publicar o novo fluxo de reembolso e da Central
 - [x] Código na `main` do GitHub (08/11)
 - [x] Coleções novas da Central aplicadas (`drizzle/migrations/0049`, Lovable)
