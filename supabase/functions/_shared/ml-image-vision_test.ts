@@ -164,9 +164,22 @@ Deno.test('primeira foto aceita exige principal mesmo após rejeição da primei
   ];
   const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
   const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
-  assertEquals(result.clean.length, 0);
+  // Sem principal confirmada, a melhor foto limpa (galeria aprovada com código OK) vira a principal.
+  assertEquals(result.clean, [urls[1]]);
   assertEquals(result.rejected.length, 1);
-  assertEquals(result.inconclusive.length, 1);
+});
+Deno.test('sem principal aprovada usa foto limpa OK, nunca foto com texto/medida', async () => {
+  const urls = ['https://example.com/spec.jpg', 'https://example.com/limpa.jpg'];
+  const gal = (codigo: string) => parseImageVerdict(JSON.stringify({ veredito: 'aprovada', codigo, localizacao: 'PRODUTO', justificativa: 'galeria' }), false).reason;
+  const rows = [
+    { url: urls[0], clean: true, reason: gal('MEDIDA_SOBREPOSTA'), checked_at: new Date().toISOString() },
+    { url: urls[1], clean: true, reason: gal('OK'), checked_at: new Date().toISOString() },
+  ];
+  const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
+  const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
+  assertEquals(result.clean[0], urls[1]);
+  const onlySpec = await filterCleanImagesCached(db, [urls[0]], { maxChecks: 0, dryRun: true });
+  assertEquals(onlySpec.clean.length, 0);
 });
 
 Deno.test('medida e inserção secundária mudam por código sem IA e preservam código', () => {
