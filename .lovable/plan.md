@@ -60,24 +60,20 @@ Não chamar/alterar RPCs admin legadas: novas consultas usam entitlement e agreg
 
 Duplicidade por `visitor_id + evento + intervalo` não será achado confirmado. Sem contrato/ID idempotente, apenas observação heurística; não incluir detector automático de duplicação nesta versão.
 
-## API e persistência propostas
-Nova função isolada `founder-data-quality` (Deno), sem implantação nesta rodada:
-- `access`: booleano; `run`: janela limitada e request key UUID; `runs`/`findings`: paginação por cursor, máximo 25/50; `run_detail`: ID de execução, apenas resultados agregados.
-- Verificar JWT no servidor e entitlement antes de qualquer operação; 401 sem sessão, 403 sem acesso. Sem parâmetros de usuário para impersonação.
-- Contratos versionados com validação de entrada/saída e chaves extras rejeitadas; códigos sanitizados (`QUERY_TIMEOUT`, `CONTRACT_MISMATCH`, `LEASE_LOST`, `SOURCE_UNAVAILABLE`). Nunca devolver stack/SQL/erros do banco.
-- Persistência guarda parâmetros normalizados, versão, início/fim, cobertura completa/parcial e IDs das consultas. Achados mantêm evidência por run; problema resolvido que reaparece gera nova ocorrência e reabre o achado. Fechamento apenas por verificação completa da mesma regra.
+## API proposta
+Função isolada `founder-data-quality` (Deno): `access`, `run` com janela/request key UUID, `runs`/`findings` por cursor (25/50), `run_detail` agregado. JWT/entitlement antes de operar (401/403), sem impersonação. Schemas fechados; erros `QUERY_TIMEOUT`, `CONTRACT_MISMATCH`, `LEASE_LOST`, `SOURCE_UNAVAILABLE`, nunca stack/SQL. Persistir parâmetros, versões, janela, cobertura e IDs de consultas; ocorrências por run preservam resolução e reaparecimento, com fechamento só após verificação completa.
 
 ## Implementação posterior e critérios de revisão
 Arquivos futuros: SQL não numerado em `docs/founder-mode/`, regras/contratos `_shared/founderDataQuality.ts`, função e testes separados. UI só nos originais do Mac; sem import/rota ativo agora.
 
 Antes de aplicar: revisar SQL completo (helpers antes das policies, grants em cada tabela, sem auth FK/enum migration, funções service-role-only), reconferir número e EXPLAIN das consultas em janela máxima; sem índices globais novos sem necessidade medida.
 
-Testes exigidos antes da implantação:
-- Sem login/sem entitlement/entitlement revogado recusados; founder sem admin acessa apenas Founder, nunca Administração, mesmo acessando endpoint diretamente; admin atual continua com o mesmo acesso, sem entitlement implícito.
-- Duas aquisições simultâneas → uma execução; mesma request key → idempotência; takeover após lease → fence antigo rejeitado; heartbeat/completion perdidos não gravam; tentativa abandonada preservada.
-- Rejeitar SQL livre/chaves extras/janela >7 dias/fim futuro; consultas agregam janela inteira, sem truncamento; UTC/denominador uniforme; DISTINCT por janela versus dia distinto.
-- Zero/baixa recência sem sinal independente → inconclusivo; evento legítimo repetido não é duplicação; consulta parcial não resolve achado; resolução e reaparecimento preservam ocorrências.
-- Nenhuma saída ou log transporta campos pessoais/URLs/erro bruto, incluindo objetos aninhados; testes usam fixtures apenas, nunca dados fictícios na interface.
+Testar antes da implantação:
+- Login/entitlement/revogação; founder sem admin recusado no diálogo e endpoints admin; admin atual inalterado.
+- Aquisição concorrente única, idempotência, takeover/fencing, heartbeat perdido, abandono preservado.
+- SQL/chaves extras/janelas inválidas rejeitados; janela completa, UTC e DISTINCT corretos.
+- Silêncio sem sinal inconclusivo; repetição legítima não é duplicação; parcial não resolve; histórico preservado.
+- Schemas/logs sem dados pessoais, URLs ou erros brutos, inclusive aninhados. Fixtures apenas em testes, não UI.
 
 Concorrência/RLS e fluxo autenticado exigem ambiente isolado autorizado; não validados nesta rodada. Sem migration/deploy, o agente não roda.
 
