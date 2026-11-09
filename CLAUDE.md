@@ -178,8 +178,8 @@ Purchase sai do `validapay-webhook` com `event_id` = `purchase_<subscription_id>
 `tiktok_ttp`) por `salvarOrigemTikTokNoPerfil`. O script do TikTok é carregado
 com `historyObserver: false`; sem isso ele conta visita sozinho em toda troca de rota.
 
-**Pixel da Meta (anúncios da Velo):** `src/lib/veloMetaPixel.ts`, ID `2170225700534826`
-(substituiu o antigo `1732267104505162`). PageView em `/`, `/login`, `/cadastro`,
+**Pixel da Meta (anúncios da Velo):** `src/lib/veloMetaPixel.ts`, ID `1471185231740534`
+(substituiu os antigos `2170225700534826` e `1732267104505162`). PageView em `/`, `/login`, `/cadastro`,
 `/checkout` e `/assinatura/confirmada`. Eventos: `Lead` nos botões de cadastro da
 landing, `CompleteRegistration` na conta criada (e-mail no `LoginPage`, Google em
 `atribuirCadastroOAuth`, `eventID` = `cadastro_<user_id>`), `InitiateCheckout` dentro

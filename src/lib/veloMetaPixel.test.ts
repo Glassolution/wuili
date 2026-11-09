@@ -24,8 +24,8 @@ beforeEach(() => {
 });
 
 describe("pixel dos anúncios da Velo", () => {
-  it("usa o ID 2170225700534826", () => {
-    expect(VELO_META_PIXEL_ID).toBe("2170225700534826");
+  it("usa o ID 1471185231740534", () => {
+    expect(VELO_META_PIXEL_ID).toBe("1471185231740534");
   });
 
   it("mede visitas e cadastro somente no pixel da Velo, mesmo com um seller inicializado", () => {

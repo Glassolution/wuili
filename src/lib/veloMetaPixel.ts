@@ -22,7 +22,7 @@
 
 import { initMetaPixel, trackSinglePixel } from "./metaPixel";
 
-export const VELO_META_PIXEL_ID = "2170225700534826";
+export const VELO_META_PIXEL_ID = "1471185231740534";
 
 const ROTAS_COM_PIXEL = ["/", "/login", "/cadastro", "/checkout", "/assinatura/confirmada"];
 const CHAVE_COMPRA_PENDENTE = "velo-meta-compra-pendente";
