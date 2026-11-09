@@ -17,6 +17,8 @@ export type VisionFilterResult = {
   clean: string[];
   rejected: { url: string; reason: string }[];
   inconclusive: { url: string; reason: string }[];
+  primaryRejected?: { url: string; reason: string }[];
+  secondaryApproved?: string[];
 };
 
 /** Quanto tempo um veredito continua valendo (fotos do fornecedor não mudam). */
@@ -33,10 +35,12 @@ export async function filterCleanImagesCached(
   opts: { max?: number; maxChecks?: number; dryRun?: boolean; forceRecheck?: boolean } = {},
 ): Promise<VisionFilterResult> {
   const max = opts.max ?? 6;
-  const maxChecks = opts.maxChecks ?? 14;
+  // Each URL can require a secondary and a primary verdict, not just one check.
+  const maxChecks = opts.maxChecks ?? urls.length * 2;
 
   const rejected: { url: string; reason: string }[] = [];
   const inconclusive: { url: string; reason: string }[] = [];
+  const primaryRejected: { url: string; reason: string }[] = [];
   const candidatos: string[] = [];
 
   for (const url of urls) {
@@ -123,6 +127,7 @@ export async function filterCleanImagesCached(
       const primary = await check(url, true);
       if (primary.clean === true) primaryUrl = url;
       else if (primary.clean === null) inconclusive.push({ url, reason: primary.reason ?? 'principal inconclusiva' });
+      else primaryRejected.push({ url, reason: primary.reason ?? 'principal reprovada' });
     }
   }
   if (changed.size && !opts.dryRun) {
@@ -135,6 +140,5 @@ export async function filterCleanImagesCached(
     if (error) console.warn("[ml-image-vision] não foi possível gravar o cache:", error.message);
   }
 
-  if (!primaryUrl && clean.length) inconclusive.push({ url: clean[0], reason: 'nenhuma principal elegível validada; fotos secundárias preservadas' });
-  return { clean: primaryUrl ? [primaryUrl, ...clean.filter(url => url !== primaryUrl)].slice(0, max) : [], rejected, inconclusive };
+  return { clean: primaryUrl ? [primaryUrl, ...clean.filter(url => url !== primaryUrl)].slice(0, max) : [], rejected, inconclusive, primaryRejected, secondaryApproved: clean };
 }

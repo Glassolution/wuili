@@ -166,7 +166,7 @@ Deno.test('primeira foto aceita exige principal mesmo após rejeição da primei
   const result = await filterCleanImagesCached(db, urls, { maxChecks: 0, dryRun: true });
   assertEquals(result.clean.length, 0);
   assertEquals(result.rejected.length, 1);
-  assertEquals(result.inconclusive.length, 2);
+  assertEquals(result.inconclusive.length, 1);
 });
 
 Deno.test('medida e inserção secundária mudam por código sem IA e preservam código', () => {
@@ -219,6 +219,21 @@ Deno.test('dupla checagem: foto só passa se os dois modelos aprovarem', async (
   calls.length = 0;
   assertEquals((await sequentialVision(['g', 't'], ask({ g: no, t: ok }))).clean, false);
   assertEquals(calls, ['g']);
+});
+
+Deno.test('secundária aprovada e principal explicitamente reprovada não é falha técnica', async () => {
+  const url = 'https://example.com/pack.jpg';
+  const evidence = { veredito: 'aprovada', codigo: 'OK', localizacao: 'PRODUTO', justificativa: 'Produto e embalagem' };
+  const rows = [{ url, clean: true, checked_at: new Date().toISOString(), reason: `[${IMAGE_CRITERION_VERSION}] roles: ` + JSON.stringify({ secondary: evidence, primary: { ...evidence, veredito: 'reprovada', codigo: 'EMBALAGEM_PRINCIPAL' } }) }];
+  const db = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: rows }) }) }) } as unknown as SupabaseClient;
+  const result = await filterCleanImagesCached(db, [url], { maxChecks: 0, dryRun: true });
+  assertEquals(result.inconclusive.length, 0);
+  assertEquals(result.primaryRejected?.length, 1);
+  assertEquals(result.secondaryApproved, [url]);
+  assertEquals(imageProductDecision(result), 'no_primary');
+});
+Deno.test('principal pendente ou falha técnica nunca vira rejeição conclusiva', () => {
+  assertEquals(imageProductDecision({ clean: [], rejected: [], inconclusive: [{ url: 'b', reason: 'timeout' }], secondaryApproved: ['a', 'b'], primaryRejected: [{ url: 'a', reason: 'embalagem' }] }), 'inconclusive');
 });
 Deno.test('dupla checagem: falha, tempo esgotado ou formato inválido em qualquer modelo fica inconclusiva', async () => {
   const ok = { clean: true, reason: 'ok' };

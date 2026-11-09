@@ -905,7 +905,7 @@ Deno.serve(async (req) => {
       )
       const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
         max: 6,
-        maxChecks: Math.max(10, allPublicImages.length),
+        maxChecks: allPublicImages.length * 2,
       })
       if (filtered.rejected.length) {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
@@ -915,9 +915,35 @@ Deno.serve(async (req) => {
       // foto passa na régua de diretrizes — antes exigíamos 3 e o produto com
       // 2 fotos boas (mas 9 artes do fornecedor) ficava impossível de publicar.
       if (filtered.clean.length < 1) {
-        if (imageProductDecision(filtered) === 'inconclusive') {
+        const decision = imageProductDecision(filtered)
+        const diagnostic = {
+          decision,
+          rejected: filtered.rejected,
+          primary_rejected: filtered.primaryRejected ?? [],
+          inconclusive: filtered.inconclusive,
+          secondary_approved: filtered.secondaryApproved ?? [],
+          revision: IMAGE_VALIDATION_REVISION,
+        }
+        // Keep failures attributable to a user/product even before the ML request.
+        console.warn('[ml-publish] image-validation-result', JSON.stringify({ user_id, product_id: product.id, ...diagnostic }))
+        const code = decision === 'no_primary' ? 'NO_ELIGIBLE_PRIMARY_IMAGE'
+          : decision === 'inconclusive' ? 'IMAGE_COMPLIANCE_UNAVAILABLE' : 'INSUFFICIENT_COMPLIANT_IMAGES'
+        const message = decision === 'no_primary'
+          ? 'Há fotos aceitas para a galeria, mas nenhuma adequada como foto principal. Adicione uma foto só do produto, em fundo branco ou limpo, sem texto, montagem ou embalagem, com pelo menos 500 × 500 pixels, ou escolha outro produto. Repetir a tentativa com as mesmas fotos não resolve; nenhum anúncio foi enviado ao Mercado Livre.'
+          : decision === 'inconclusive'
+          ? 'A análise de uma ou mais fotos não foi concluída. Isso não é reprovação do produto nem confirmação de problema na sua conta do Mercado Livre. Nenhum anúncio foi enviado. Se já tentou novamente, informe ao suporte o produto e o horário da tentativa.'
+          : 'Nenhuma foto foi aprovada para publicação. Escolha outro produto ou adicione fotos dentro das diretrizes; nenhum anúncio foi enviado ao Mercado Livre.'
+        const { error: diagnosticError } = await visionClient.from('ml_publish_errors').insert({
+          user_id, product_title: product.title, http_status: decision === 'inconclusive' ? 503 : 409,
+          mapped_code: code, mapped_message: message, raw_response: diagnostic,
+        })
+        if (diagnosticError) console.warn('[ml-publish] falha ao gravar diagnóstico de fotos:', diagnosticError.message)
+        if (decision === 'no_primary') {
+          return json({ error: message, code, primary_rejected: diagnostic.primary_rejected }, 409)
+        }
+        if (decision === 'inconclusive') {
           return json({
-            error: 'Não foi possível analisar as fotos agora. Isso não significa que elas foram reprovadas. Tente novamente em alguns minutos; nenhuma publicação foi enviada ao Mercado Livre.',
+            error: message,
             code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
           }, 503)
         }
