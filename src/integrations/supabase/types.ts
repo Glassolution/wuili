@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       affiliate_applications: {
@@ -975,6 +970,104 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "catalog_recovery_retry_queue_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      catalog_vision_review_control: {
+        Row: {
+          armed: boolean
+          consecutive_failures: number
+          id: number
+          lease_expires_at: string | null
+          lease_owner: string | null
+          lease_token: number
+          pause_kind: string | null
+          pause_message: string | null
+          paused: boolean
+          paused_at: string | null
+          paused_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          armed?: boolean
+          consecutive_failures?: number
+          id?: number
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          lease_token?: number
+          pause_kind?: string | null
+          pause_message?: string | null
+          paused?: boolean
+          paused_at?: string | null
+          paused_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          armed?: boolean
+          consecutive_failures?: number
+          id?: number
+          lease_expires_at?: string | null
+          lease_owner?: string | null
+          lease_token?: number
+          pause_kind?: string | null
+          pause_message?: string | null
+          paused?: boolean
+          paused_at?: string | null
+          paused_until?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      catalog_vision_review_queue: {
+        Row: {
+          claimed_at: string | null
+          claimed_token: number | null
+          completed_at: string | null
+          criterion_version: string
+          enqueued_at: string
+          enqueued_by: string | null
+          gallery_hash: string
+          id: string
+          models: string
+          outcome: Json | null
+          product_id: string
+          status: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_token?: number | null
+          completed_at?: string | null
+          criterion_version: string
+          enqueued_at?: string
+          enqueued_by?: string | null
+          gallery_hash: string
+          id?: string
+          models: string
+          outcome?: Json | null
+          product_id: string
+          status?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_token?: number | null
+          completed_at?: string | null
+          criterion_version?: string
+          enqueued_at?: string
+          enqueued_by?: string | null
+          gallery_hash?: string
+          id?: string
+          models?: string
+          outcome?: Json | null
+          product_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_vision_review_queue_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "catalog_products"
@@ -2950,6 +3043,89 @@ export type Database = {
           },
         ]
       }
+      publication_recovery_manifests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_ids: string[] | null
+          created_at: string
+          created_by: string
+          executed_at: string | null
+          frozen_ids: string[]
+          id: string
+          items: Json
+          reverted_at: string | null
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_ids?: string[] | null
+          created_at?: string
+          created_by: string
+          executed_at?: string | null
+          frozen_ids: string[]
+          id?: string
+          items: Json
+          reverted_at?: string | null
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_ids?: string[] | null
+          created_at?: string
+          created_by?: string
+          executed_at?: string | null
+          frozen_ids?: string[]
+          id?: string
+          items?: Json
+          reverted_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      publication_recovery_snapshots: {
+        Row: {
+          after_attempts: number
+          applied: boolean
+          before_row: Json
+          executed_at: string
+          manifest_id: string
+          pending_id: string
+          reverted_at: string | null
+          skip_reason: string | null
+        }
+        Insert: {
+          after_attempts: number
+          applied: boolean
+          before_row: Json
+          executed_at?: string
+          manifest_id: string
+          pending_id: string
+          reverted_at?: string | null
+          skip_reason?: string | null
+        }
+        Update: {
+          after_attempts?: number
+          applied?: boolean
+          before_row?: Json
+          executed_at?: string
+          manifest_id?: string
+          pending_id?: string
+          reverted_at?: string | null
+          skip_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_recovery_snapshots_manifest_id_fkey"
+            columns: ["manifest_id"]
+            isOneToOne: false
+            referencedRelation: "publication_recovery_manifests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referral_rewards: {
         Row: {
           applied_at: string | null
@@ -4898,6 +5074,60 @@ export type Database = {
         Returns: undefined
       }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
+      cvr_acquire: { Args: { p_owner: string; p_ttl: number }; Returns: number }
+      cvr_candidates: {
+        Args: { p_criterion: string; p_limit: number }
+        Returns: {
+          photos: number
+          product_id: string
+          title: string
+        }[]
+      }
+      cvr_claim: {
+        Args: { p_limit: number; p_token: number }
+        Returns: {
+          id: string
+          product_id: string
+          title: string
+          urls: Json
+        }[]
+      }
+      cvr_complete: {
+        Args: {
+          p_id: string
+          p_outcome: Json
+          p_status: string
+          p_token: number
+        }
+        Returns: boolean
+      }
+      cvr_end: {
+        Args: { p_success: boolean; p_token: number }
+        Returns: number
+      }
+      cvr_enqueue: {
+        Args: {
+          p_admin: string
+          p_criterion: string
+          p_ids: string[]
+          p_models: string
+        }
+        Returns: number
+      }
+      cvr_lease_valid: { Args: { p_token: number }; Returns: boolean }
+      cvr_pause: {
+        Args: { p_delay_seconds: number; p_kind: string; p_message: string }
+        Returns: undefined
+      }
+      cvr_release: {
+        Args: { p_id: string; p_token: number }
+        Returns: undefined
+      }
+      cvr_resume: { Args: { p_admin: string }; Returns: undefined }
+      dual_approved_photos: {
+        Args: { p_product: string; p_role: string }
+        Returns: number
+      }
       enqueue_image_publication: {
         Args: {
           p_active_limit: number
@@ -5149,6 +5379,19 @@ export type Database = {
       publication_image_resume_after_success: {
         Args: never
         Returns: undefined
+      }
+      publication_recovery_check: { Args: { p_pending: string }; Returns: Json }
+      publication_recovery_execute: {
+        Args: { p_admin: string; p_approved: string[]; p_manifest: string }
+        Returns: Json
+      }
+      publication_recovery_preview: {
+        Args: { p_admin: string; p_ids: string[] }
+        Returns: string
+      }
+      publication_recovery_revert: {
+        Args: { p_admin: string; p_manifest: string }
+        Returns: number
       }
       refund_normalize_email: { Args: { p: string }; Returns: string }
       release_publication_worker: {
@@ -5620,3 +5863,4 @@ export const Constants = {
     },
   },
 } as const
+

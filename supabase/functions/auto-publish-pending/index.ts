@@ -9,6 +9,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { authenticateCronRequest } from '../_shared/cron-auth.ts'
+import { attemptsAfterPublishFailure } from '../_shared/catalogVisionReview.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -179,9 +180,10 @@ Deno.serve(async (req) => {
       const {error}=await admin.rpc('complete_pending_publication',{p_id:item.id,p_item_id:String(corpo.item_id),p_permalink:corpo.permalink ?? null})
       if(error) return json({error:error.message},500)
     } else {
-      const unavailable = corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE'
+      // Instabilidade (503/429/5xx) não consome as 25 tentativas.
+      const { attempts, unavailable } = attemptsAfterPublishFailure(item.attempts, res.status, corpo?.code)
       const { error } = await admin.from('pending_publications').update({
-        attempts: unavailable ? item.attempts : item.attempts + 1,
+        attempts,
         seller_ready_at: new Date().toISOString(),
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
       }).eq('id', item.id)

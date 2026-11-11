@@ -1,6 +1,6 @@
 /** Only explicit, same-run opinions from BOTH models can be reused. */
 export const PUBLICATION_IMAGE_MODELS = ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'] as const;
-export const IMAGE_QUEUE_MESSAGE = 'Estamos com instabilidade na conferência das fotos. Seu anúncio entrou na fila e será publicado automaticamente.';
+export const IMAGE_QUEUE_MESSAGE = 'Nossa conferência de fotos está instável agora. Seu pedido ficou salvo; vamos tentar novamente e avisar aqui na Velo.';
 export type SavedImageRow = {
   image_url: string; image_role: string; verdict: string; reason_code: string;
   evidence_location: string; justification: string; criterion_version: string;

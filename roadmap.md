@@ -1,5 +1,13 @@
 # Roadmap
 
+## Conferência gradual, avisos e recuperação restrita — 11/11 (só versão de teste)
+- [x] Regras puras da conferência (dois modelos, principal entre 3 primeiras, mínimo 3, parada antecipada, pausa 402/403/429/5xx, lease/fencing) + fila/lease/pausa no banco do teste; 9 testes
+- [ ] Função de execução da conferência (estimar/simular/enfileirar/rodar) ligando as regras ao gateway: não concluída; nenhum lote real nem IA usada
+- [x] Textos ao cliente: reprovação explícita × instabilidade; instabilidade/503 não consome as 25 tentativas
+- [ ] Mostrar a fila dentro da tela Publicações e conferir no navegador logado: não feito
+- [x] Prévia somente leitura com manifesto congelado, execução só de IDs aprovados com snapshot/CAS e reversão (não executada)
+- [ ] Importar os 99 erros fora da fila: só proposta (exige rascunho original, consentimento e deduplicação)
+
 ## Publicação com evidência salva e fila por instabilidade — 11/11
 - [x] Reutilizar vereditos explícitos dos dois modelos, incluindo cache de produção, com principal e três fotos aprovadas; nenhuma alteração de catálogo
 - [x] Reaproveitar pending_publications e auto-publish-pending com deduplicação, limites, lease e disjuntor persistente; migrations 0051–0052

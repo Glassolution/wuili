@@ -1032,10 +1032,10 @@ Deno.serve(async (req) => {
         const code = decision === 'no_primary' ? 'NO_ELIGIBLE_PRIMARY_IMAGE'
           : decision === 'inconclusive' ? 'IMAGE_COMPLIANCE_UNAVAILABLE' : 'INSUFFICIENT_COMPLIANT_IMAGES'
         const message = decision === 'no_primary'
-          ? 'Há fotos aceitas para a galeria, mas nenhuma adequada como foto principal. Adicione uma foto só do produto, em fundo branco ou limpo, sem texto, montagem ou embalagem, com pelo menos 500 × 500 pixels, ou escolha outro produto. Repetir a tentativa com as mesmas fotos não resolve; nenhum anúncio foi enviado ao Mercado Livre.'
+          ? 'As fotos não passaram nas regras do Mercado Livre. A foto principal precisa mostrar só o produto, com fundo limpo e sem texto. Nenhum anúncio foi enviado.'
           : decision === 'inconclusive'
-          ? 'A análise de uma ou mais fotos não foi concluída. Isso não é reprovação do produto nem confirmação de problema na sua conta do Mercado Livre. Nenhum anúncio foi enviado. Se já tentou novamente, informe ao suporte o produto e o horário da tentativa.'
-          : 'Nenhuma foto foi aprovada para publicação. Escolha outro produto ou adicione fotos dentro das diretrizes; nenhum anúncio foi enviado ao Mercado Livre.'
+          ? 'Nossa conferência de fotos está instável agora. Seu pedido ficou salvo; vamos tentar novamente e avisar aqui na Velo.'
+          : 'As fotos não passaram nas regras do Mercado Livre. A foto principal precisa mostrar só o produto, com fundo limpo e sem texto. Nenhum anúncio foi enviado.'
         const { error: diagnosticError } = await visionClient.from('ml_publish_errors').insert({
           user_id, product_title: product.title, http_status: decision === 'inconclusive' ? 503 : 409,
           mapped_code: code, mapped_message: message, raw_response: diagnostic,
@@ -1049,7 +1049,7 @@ Deno.serve(async (req) => {
           return json(await queueImagePublication(supabase, user_id, product, productLimit, monthlyLimit), 202)
         }
         return json({
-          error: 'Este produto não tem três fotos aprovadas incluindo uma principal. Adicione fotos adequadas ou escolha outro produto.',
+          error: 'As fotos não passaram nas regras do Mercado Livre. A foto principal precisa mostrar só o produto, com fundo limpo e sem texto. Nenhum anúncio foi enviado.',
           code: 'INSUFFICIENT_COMPLIANT_IMAGES',
           rejected_images: filtered.rejected.length,
         }, 409)
