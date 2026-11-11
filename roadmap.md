@@ -1,5 +1,11 @@
 # Roadmap
 
+## Publicação com evidência salva e fila por instabilidade — 11/11
+- [ ] Reutilizar exclusivamente vereditos explícitos dos dois modelos, com principal e três fotos aprovadas
+- [ ] Reaproveitar pending_publications e auto-publish-pending com deduplicação, limites, lease e disjuntor persistente
+- [ ] Notificar publicação e encaminhar espera superior a 24h ao suporte
+- [ ] Medir cobertura do catálogo, testar e implantar somente alterações necessárias
+
 ## Aviso de fotos na publicação — 09/11
 - [x] Separar principal reprovada de falha técnica, reservar checagens para os dois papéis e registrar diagnóstico por tentativa
 - [x] 34 testes passaram; somente ml-publish publicada; teste autenticado com três fotos reais em cache retornou NO_ELIGIBLE_PRIMARY_IMAGE/409 e diagnóstico persistido, sem IA nova nem anúncio. Galeria completa e tela do cliente não exercitadas.

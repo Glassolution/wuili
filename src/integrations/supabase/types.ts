@@ -2636,6 +2636,7 @@ export type Database = {
           reminder_3d_at: string | null
           seller_ready_at: string | null
           status: string
+          support_notified_at: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -2655,6 +2656,7 @@ export type Database = {
           reminder_3d_at?: string | null
           seller_ready_at?: string | null
           status?: string
+          support_notified_at?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -2674,6 +2676,7 @@ export type Database = {
           reminder_3d_at?: string | null
           seller_ready_at?: string | null
           status?: string
+          support_notified_at?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
@@ -4888,8 +4891,20 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_publication_worker: { Args: { p_owner: string }; Returns: boolean }
       close_stale_support_tickets: { Args: never; Returns: number }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
+      enqueue_image_publication: {
+        Args: {
+          p_active_limit: number
+          p_monthly_limit: number
+          p_payload: Json
+          p_product_id: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       get_aliexpress_cron_status: {
         Args: never
         Returns: {
@@ -5115,7 +5130,23 @@ export type Database = {
           publication_count: number
         }[]
       }
+      publication_image_gate: {
+        Args: { p_background?: boolean }
+        Returns: boolean
+      }
+      publication_image_pause: {
+        Args: { p_delay_seconds: number; p_kind: string; p_message: string }
+        Returns: undefined
+      }
+      publication_image_resume_after_success: {
+        Args: never
+        Returns: undefined
+      }
       refund_normalize_email: { Args: { p: string }; Returns: string }
+      release_publication_worker: {
+        Args: { p_owner: string }
+        Returns: undefined
+      }
       resolve_catalog_product_for_listing: {
         Args: { p_thumbnail: string; p_title: string }
         Returns: {
