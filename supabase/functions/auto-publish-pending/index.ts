@@ -8,6 +8,7 @@
 // recebe lembretes em D+1 e D+3.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { authenticateCronRequest } from '../_shared/cron-auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,6 +33,8 @@ type Pendente = {
   created_at: string
   reminder_1d_at: string | null
   reminder_3d_at: string | null
+  reason: string
+  support_notified_at: string | null
 }
 
 const MAX_ATTEMPTS = 25
@@ -52,7 +55,7 @@ Deno.serve(async (req) => {
 
   // O agendamento usa um token guardado em cron_tokens (mesmo padrão já usado
   // por outros jobs), para não escrever segredo dentro do SQL do cron.
-  let cronOk = Boolean(cronSecret && headerSecret && headerSecret === cronSecret)
+  let cronOk = Boolean(cronSecret && headerSecret && headerSecret === cronSecret) || authenticateCronRequest(req) === null
   if (!cronOk && headerSecret) {
     const { data: tok } = await admin
       .from('cron_tokens')
@@ -73,13 +76,18 @@ Deno.serve(async (req) => {
     escopoUsuario = data.user.id
   }
 
+  const owner = crypto.randomUUID()
+  const { data: locked, error: lockError } = await admin.rpc('claim_publication_worker', { p_owner: owner })
+  if (lockError) return json({ error: lockError.message }, 500)
+  if (!locked) return json({ ok: true, busy: true })
+  try {
   let query = admin
     .from('pending_publications')
-    .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at')
+    .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at,reason,support_notified_at')
     .eq('status', 'pending')
     .lt('attempts', MAX_ATTEMPTS)
     .order('created_at', { ascending: true })
-    .limit(escopoUsuario ? 10 : 80)
+    .limit(1)
 
   if (escopoUsuario) query = query.eq('user_id', escopoUsuario)
 
@@ -91,6 +99,20 @@ Deno.serve(async (req) => {
   const agora = Date.now()
 
   for (const item of (pendentes ?? []) as Pendente[]) {
+    if (item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
+      const { error } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
+      if (error) return json({ error: error.message }, 500)
+    }
+    // A saved successful publication is idempotent progress, not another provider request.
+    const { data: existing, error: existingError } = await admin.from('user_publications')
+      .select('ml_item_id,permalink').eq('user_id',item.user_id).eq('catalog_product_id',item.product_id)
+      .in('status',['active','published']).limit(1).maybeSingle()
+    if (existingError) return json({error:existingError.message},500)
+    if(existing?.ml_item_id) {
+      const {error}=await admin.rpc('complete_pending_publication',{p_id:item.id,p_item_id:existing.ml_item_id,p_permalink:existing.permalink})
+      if(error) return json({error:error.message},500)
+      publicados++; continue
+    }
     // 1. A conta já pode anunciar?
     const { data: integ } = await admin
       .from('user_integrations')
@@ -115,7 +137,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (apta !== true) {
+    if (apta !== true && item.reason !== 'image_compliance_unavailable') {
       aguardando += 1
       // Lembretes proativos para quem pagou e ainda não conseguiu publicar.
       const idadeHoras = (agora - new Date(item.created_at).getTime()) / 36e5
@@ -154,32 +176,24 @@ Deno.serve(async (req) => {
 
     if (res.ok && !corpo?.error && corpo?.item_id) {
       publicados += 1
-      await admin.from('pending_publications').update({
-        status: 'published',
-        published_at: new Date().toISOString(),
-        seller_ready_at: new Date().toISOString(),
-        ml_item_id: String(corpo.item_id),
-        permalink: corpo.permalink ?? null,
-        attempts: item.attempts + 1,
-        last_error: null,
-      }).eq('id', item.id)
-
-      await admin.from('notifications').insert({
-        user_id: item.user_id,
-        type: 'ml_auto_published',
-        title: 'Seu anúncio foi publicado',
-        message: `Sua conta do Mercado Livre foi liberada e publicamos ${item.title ?? 'seu anúncio'} automaticamente.`,
-        action_url: corpo.permalink ?? '/dashboard/publicacoes',
-        metadata: { pending_publication_id: item.id, ml_item_id: corpo.item_id },
-      })
+      const {error}=await admin.rpc('complete_pending_publication',{p_id:item.id,p_item_id:String(corpo.item_id),p_permalink:corpo.permalink ?? null})
+      if(error) return json({error:error.message},500)
     } else {
-      await admin.from('pending_publications').update({
-        attempts: item.attempts + 1,
+      const unavailable = corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE'
+      const { error } = await admin.from('pending_publications').update({
+        attempts: unavailable ? item.attempts : item.attempts + 1,
         seller_ready_at: new Date().toISOString(),
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
       }).eq('id', item.id)
+      if(error) return json({error:error.message},500)
+      // Circuit breaker covers the whole batch, not just this product.
+      if (unavailable) { aguardando++; break }
     }
   }
 
   return json({ ok: true, analisados: pendentes?.length ?? 0, publicados, aguardando })
+  } finally {
+    const {error}=await admin.rpc('release_publication_worker',{p_owner:owner})
+    if(error) console.error('Não foi possível liberar execução:',error.message)
+  }
 })

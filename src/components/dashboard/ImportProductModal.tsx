@@ -487,6 +487,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
         return;
       }
 
+      if (data.pendente) {
+        veloToast.info(data.mensagem ?? 'Seu anúncio entrou na fila de publicação.', { id: toastId });
+        trackMobileHomeEvent(user.id, 'pending_publication_queued', { productId: product.id });
+        onClose();
+        return;
+      }
       setMlMissingCodes(null);
       setPublishResult({ permalink: data.permalink, item_id: data.item_id });
       trackMobileHomeEvent(user.id, "publish_result", { productId: product.id, detail: data.parcial ? "partial" : "success" });

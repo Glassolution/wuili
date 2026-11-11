@@ -192,12 +192,13 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   if (immediate.length >= 3) return { clean: immediate, rejected, inconclusive, primaryRejected, secondaryApproved: immediate };
   if (dryRun) return { clean: [], rejected, inconclusive: [{url: candidates[0] ?? '',reason:'Fotos aprovadas insuficientes; validação sem IA'}], primaryRejected, secondaryApproved: [] };
   let halted = false;
+  const deadline = Date.now() + 90000;
   const runId = crypto.randomUUID();
   async function check(url: string, primary: boolean) {
     const key = primary ? 'primary' : 'secondary';
     const saved = roles.get(url)?.[key];
     if (saved) return parseImageVerdict(JSON.stringify({veredito:saved.verdict,codigo:saved.reason_code,localizacao:saved.evidence_location,justificativa:saved.justification}),primary);
-    if (halted || !await imageCallAllowed(db,opts.background === true)) return { clean: null,reason:'Conferência de fotos pausada' };
+    if (halted || Date.now() >= deadline || !await imageCallAllowed(db,opts.background === true)) { halted=true; return { clean: null,reason:'Conferência de fotos pausada' }; }
     const opinions: Array<{model:string;raw:string|null;evidence:ImageVerdict}> = [];
     try {
       if (primary) {

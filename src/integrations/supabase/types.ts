@@ -4893,6 +4893,10 @@ export type Database = {
       }
       claim_publication_worker: { Args: { p_owner: string }; Returns: boolean }
       close_stale_support_tickets: { Args: never; Returns: number }
+      complete_pending_publication: {
+        Args: { p_id: string; p_item_id: string; p_permalink: string }
+        Returns: undefined
+      }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
       enqueue_image_publication: {
         Args: {
@@ -5129,6 +5133,10 @@ export type Database = {
           product_id: string
           publication_count: number
         }[]
+      }
+      notify_overdue_image_publication: {
+        Args: { p_id: string }
+        Returns: undefined
       }
       publication_image_gate: {
         Args: { p_background?: boolean }

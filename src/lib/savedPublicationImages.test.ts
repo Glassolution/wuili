@@ -20,6 +20,9 @@ describe('publicação com evidência salva', () => {
     const roles=savedPublicationRoles([row('a'),row('b'),row('c','secondary',undefined,'reprovada'),row('d','secondary',undefined,'inconclusiva')],urls);
     expect(savedPublishableImages(roles,urls)).toEqual([]);
   });
+  it('reprovação explícita do primeiro modelo não exige segunda opinião nem nova IA', () => {
+    expect(savedPublicationRoles([row('a','secondary','google/gemini-3.8-flash','reprovada')],['a']).get('a')?.secondary?.verdict).toBe('reprovada');
+  });
   it('exige principal ou reserva limpa OK, não usa medidas como principal', () => {
     const urls=['a','b','c'];
     expect(savedPublishableImages(savedPublicationRoles(urls.map(url=>({...row(url),reason_code:'MEDIDA_SOBREPOSTA'})),urls),urls)).toEqual([]);

@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
 import { resolveCatalogLink } from '../_shared/catalogLink.ts'
 import {
@@ -8,6 +8,7 @@ import {
 } from '../_shared/ml-content-sanitizer.ts'
 import { filterCleanImagesCached } from '../_shared/ml-image-vision.ts'
 import { imageProductDecision } from '../_shared/ml-vision-policy.ts'
+import { queueImagePublication } from '../_shared/publication-image-state.ts'
 import { IMAGE_VALIDATION_REVISION } from '../_shared/ml-vision-request.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 import {
@@ -703,7 +704,7 @@ async function predictCategory(title: string): Promise<PredictionResult> {
 }
 
 async function logPrediction(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   args: {
     productId: string | null
     userId: string | null
@@ -803,7 +804,7 @@ function isPublicUrl(url: string): boolean {
 }
 
 async function notifyUser(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   row: {
     user_id: string
     type: string
@@ -891,86 +892,10 @@ Deno.serve(async (req) => {
       }, 400)
     }
 
-    // O ML pausa anúncios cujas fotos sejam artes/infográficos do fornecedor
-    // ("Ajuste o título e/ou substitua as fotos"). Nunca recoloque uma imagem
-    // recusada só para atingir o mínimo: é preferível bloquear a publicação a
-    // criar um anúncio que será penalizado logo depois.
-    let publicImages = allPublicImages.slice(0, 6)
-    try {
-      // Mesma régua (e mesmo cache de vereditos) usada na auditoria do catálogo.
-      const visionClient = createClient(
-        Deno.env.get('DB_URL') ?? supabaseUrl ?? '',
-        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey ?? '',
-        { auth: { persistSession: false } },
-      )
-      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
-        max: 6,
-        maxChecks: allPublicImages.length * 2,
-      })
-      if (filtered.rejected.length) {
-        console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
-          filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
-      }
-      // O Mercado Livre aceita anúncio com 1 foto. Só bloqueamos quando NENHUMA
-      // foto passa na régua de diretrizes — antes exigíamos 3 e o produto com
-      // 2 fotos boas (mas 9 artes do fornecedor) ficava impossível de publicar.
-      if (filtered.clean.length < 1) {
-        const decision = imageProductDecision(filtered)
-        const diagnostic = {
-          decision,
-          rejected: filtered.rejected,
-          primary_rejected: filtered.primaryRejected ?? [],
-          inconclusive: filtered.inconclusive,
-          secondary_approved: filtered.secondaryApproved ?? [],
-          revision: IMAGE_VALIDATION_REVISION,
-        }
-        // Keep failures attributable to a user/product even before the ML request.
-        console.warn('[ml-publish] image-validation-result', JSON.stringify({ user_id, product_id: product.id, ...diagnostic }))
-        const code = decision === 'no_primary' ? 'NO_ELIGIBLE_PRIMARY_IMAGE'
-          : decision === 'inconclusive' ? 'IMAGE_COMPLIANCE_UNAVAILABLE' : 'INSUFFICIENT_COMPLIANT_IMAGES'
-        const message = decision === 'no_primary'
-          ? 'Há fotos aceitas para a galeria, mas nenhuma adequada como foto principal. Adicione uma foto só do produto, em fundo branco ou limpo, sem texto, montagem ou embalagem, com pelo menos 500 × 500 pixels, ou escolha outro produto. Repetir a tentativa com as mesmas fotos não resolve; nenhum anúncio foi enviado ao Mercado Livre.'
-          : decision === 'inconclusive'
-          ? 'A análise de uma ou mais fotos não foi concluída. Isso não é reprovação do produto nem confirmação de problema na sua conta do Mercado Livre. Nenhum anúncio foi enviado. Se já tentou novamente, informe ao suporte o produto e o horário da tentativa.'
-          : 'Nenhuma foto foi aprovada para publicação. Escolha outro produto ou adicione fotos dentro das diretrizes; nenhum anúncio foi enviado ao Mercado Livre.'
-        const { error: diagnosticError } = await visionClient.from('ml_publish_errors').insert({
-          user_id, product_title: product.title, http_status: decision === 'inconclusive' ? 503 : 409,
-          mapped_code: code, mapped_message: message, raw_response: diagnostic,
-        })
-        if (diagnosticError) console.warn('[ml-publish] falha ao gravar diagnóstico de fotos:', diagnosticError.message)
-        if (decision === 'no_primary') {
-          return json({ error: message, code, primary_rejected: diagnostic.primary_rejected }, 409)
-        }
-        if (decision === 'inconclusive') {
-          return json({
-            error: message,
-            code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
-          }, 503)
-        }
-        await registrarVeredictoNoCatalogo(
-          product.id, 'blocked', ['imagens_insuficientes', 'imagens_arte_fornecedor'], filtered.clean.length,
-        )
-        return json({
-          error: `Nenhuma das fotos deste produto está dentro das diretrizes do Mercado Livre (todas têm texto, selo, marca d'água ou banner do fornecedor). Escolha outro produto ou adicione fotos limpas.`,
-          code: 'INSUFFICIENT_COMPLIANT_IMAGES',
-          rejected_images: filtered.rejected.length,
-        }, 409)
-      }
-      publicImages = filtered.clean
-      await registrarVeredictoNoCatalogo(product.id, 'ok', [], filtered.clean.length)
-
-    } catch (err) {
-      console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
-      return json({
-        error: 'Não foi possível validar as fotos agora. Tente novamente em alguns minutos; nenhuma publicação foi enviada ao Mercado Livre.',
-        code: 'IMAGE_COMPLIANCE_UNAVAILABLE',
-      }, 503)
-    }
-
     console.log('user_id:', user_id)
     console.log('title:', product.title.substring(0, 60))
     console.log('price:', product.price)
-    console.log('images (public):', publicImages.length)
+    console.log('images (public):', allPublicImages.length)
 
 
     if (!supabaseUrl || !serviceRoleKey) {
@@ -1069,10 +994,83 @@ Deno.serve(async (req) => {
       }
     }
 
+    // O ML pausa anúncios cujas fotos sejam artes/infográficos do fornecedor
+    // ("Ajuste o título e/ou substitua as fotos"). Nunca recoloque uma imagem
+    // recusada só para atingir o mínimo: é preferível bloquear a publicação a
+    // criar um anúncio que será penalizado logo depois.
+    let publicImages = allPublicImages.slice(0, 6)
+    try {
+      // Mesma régua (e mesmo cache de vereditos) usada na auditoria do catálogo.
+      const visionClient = createClient(
+        Deno.env.get('DB_URL') ?? supabaseUrl ?? '',
+        Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey ?? '',
+        { auth: { persistSession: false } },
+      )
+      const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
+        max: 6,
+        maxChecks: allPublicImages.length * 2,
+        publication: { productId: product.id, title: product.title, background: isInternalRepair },
+        dryRun: body.validate_only === true,
+      })
+      if (filtered.rejected.length) {
+        console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
+          filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
+      }
+      // This requested publication path requires three approved photos and a primary.
+      if (filtered.clean.length < 3) {
+        const decision = imageProductDecision(filtered)
+        const diagnostic = {
+          decision,
+          rejected: filtered.rejected,
+          primary_rejected: filtered.primaryRejected ?? [],
+          inconclusive: filtered.inconclusive,
+          secondary_approved: filtered.secondaryApproved ?? [],
+          revision: IMAGE_VALIDATION_REVISION,
+        }
+        // Keep failures attributable to a user/product even before the ML request.
+        console.warn('[ml-publish] image-validation-result', JSON.stringify({ user_id, product_id: product.id, ...diagnostic }))
+        const code = decision === 'no_primary' ? 'NO_ELIGIBLE_PRIMARY_IMAGE'
+          : decision === 'inconclusive' ? 'IMAGE_COMPLIANCE_UNAVAILABLE' : 'INSUFFICIENT_COMPLIANT_IMAGES'
+        const message = decision === 'no_primary'
+          ? 'Há fotos aceitas para a galeria, mas nenhuma adequada como foto principal. Adicione uma foto só do produto, em fundo branco ou limpo, sem texto, montagem ou embalagem, com pelo menos 500 × 500 pixels, ou escolha outro produto. Repetir a tentativa com as mesmas fotos não resolve; nenhum anúncio foi enviado ao Mercado Livre.'
+          : decision === 'inconclusive'
+          ? 'A análise de uma ou mais fotos não foi concluída. Isso não é reprovação do produto nem confirmação de problema na sua conta do Mercado Livre. Nenhum anúncio foi enviado. Se já tentou novamente, informe ao suporte o produto e o horário da tentativa.'
+          : 'Nenhuma foto foi aprovada para publicação. Escolha outro produto ou adicione fotos dentro das diretrizes; nenhum anúncio foi enviado ao Mercado Livre.'
+        const { error: diagnosticError } = await visionClient.from('ml_publish_errors').insert({
+          user_id, product_title: product.title, http_status: decision === 'inconclusive' ? 503 : 409,
+          mapped_code: code, mapped_message: message, raw_response: diagnostic,
+        })
+        if (diagnosticError) console.warn('[ml-publish] falha ao gravar diagnóstico de fotos:', diagnosticError.message)
+        if (decision === 'no_primary') {
+          return json({ error: message, code, primary_rejected: diagnostic.primary_rejected }, 409)
+        }
+        if (decision === 'inconclusive') {
+          if (body.validate_only === true || isInternalRepair) return json({ error: message, code: 'IMAGE_COMPLIANCE_UNAVAILABLE' }, 503)
+          return json(await queueImagePublication(supabase, user_id, product, productLimit, monthlyLimit), 202)
+        }
+        return json({
+          error: 'Este produto não tem três fotos aprovadas incluindo uma principal. Adicione fotos adequadas ou escolha outro produto.',
+          code: 'INSUFFICIENT_COMPLIANT_IMAGES',
+          rejected_images: filtered.rejected.length,
+        }, 409)
+      }
+      publicImages = filtered.clean
+
+    } catch (err) {
+      console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
+      if (body.validate_only === true || isInternalRepair) return json({ error: 'Conferência de fotos indisponível', code: 'IMAGE_COMPLIANCE_UNAVAILABLE' }, 503)
+      return json(await queueImagePublication(supabase, user_id, product, productLimit, monthlyLimit), 202)
+    }
+
+    if (body.validate_only === true && body.images_only === true) {
+      return json({ validate_only: true, images_only: true, approved_images: publicImages, ai_calls: 0 })
+    }
+
+
     // === GET ML INTEGRATION ===
     const { data: integration, error } = await supabase
       .from('user_integrations')
-      .select('access_token, expires_at, refresh_token')
+      .select('access_token, expires_at, refresh_token, ml_user_id')
       .eq('user_id', user_id)
       .eq('platform', 'mercadolivre')
       .single()
@@ -1507,7 +1505,7 @@ Deno.serve(async (req) => {
           }
         }
       } catch (err) {
-        console.error('[ml-publish] Erro ou Timeout ao obter peso da página (usará fallbacks):', err.message || err)
+        console.error('[ml-publish] Erro ou Timeout ao obter peso da página (usará fallbacks):', err instanceof Error ? err.message : String(err))
       }
     }
 

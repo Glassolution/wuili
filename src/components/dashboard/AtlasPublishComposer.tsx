@@ -114,6 +114,7 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
   // exatamente o que falta no cadastro da conta.
   const [mlMissingCodes, setMlMissingCodes] = useState<string[] | null>(null);
   const [resultado, setResultado] = useState<{ permalink: string; item_id: string } | null>(null);
+  const [mensagemPendente, setMensagemPendente] = useState<string | null>(null);
 
   const publicandoRef = useRef(false);
 
@@ -299,6 +300,11 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
         estoque,
       });
 
+      if (dados.pendente) {
+        veloToast.info(dados.mensagem ?? 'Seu anúncio entrou na fila de publicação.', { id: toastId });
+        setMensagemPendente(dados.mensagem ?? 'Seu anúncio entrou na fila de publicação.');
+        return;
+      }
       setMlMissingCodes(null);
       setResultado(dados);
       setEtapa("publicado");
@@ -355,6 +361,8 @@ const AtlasPublishComposer = ({ produtoId, label, compacto = false }: Props) => 
       </div>
     );
   }
+
+  if (mensagemPendente) return <p role="status" className="mt-3 text-sm text-muted-foreground">{mensagemPendente}</p>;
 
   // ── Publicado ─────────────────────────────────────────────────────────────
   if (etapa === "publicado" && resultado) {

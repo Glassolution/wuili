@@ -281,6 +281,8 @@ export class ErroDePublicacao extends Error {
 }
 
 export type ResultadoDaPublicacao = {
+  pendente?: boolean;
+  pendingId?: string;
   permalink: string;
   item_id: string;
   /** Verdadeiro quando o produto foi publicado por variação e alguma delas falhou. */
@@ -390,6 +392,10 @@ export const publicarNoMercadoLivre = async (dados: DadosDaPublicacao): Promise<
       resposta?.code,
       sellerCodes,
     );
+  }
+
+  if (status === 202 && resposta?.queued === true && typeof resposta?.pending_publication_id === 'string') {
+    return { permalink: '', item_id: '', pendente: true, pendingId: resposta.pending_publication_id, mensagem: resposta.message };
   }
 
   return {

@@ -365,6 +365,13 @@
       "when": 1794373436652,
       "tag": "0051_publication_image_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794373766635,
+      "tag": "0052_publication_queue_notifications",
+      "breakpoints": true
     }
   ]
 }

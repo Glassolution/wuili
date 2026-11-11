@@ -1,10 +1,12 @@
 # Roadmap
 
 ## Publicação com evidência salva e fila por instabilidade — 11/11
-- [ ] Reutilizar exclusivamente vereditos explícitos dos dois modelos, com principal e três fotos aprovadas
-- [ ] Reaproveitar pending_publications e auto-publish-pending com deduplicação, limites, lease e disjuntor persistente
-- [ ] Notificar publicação e encaminhar espera superior a 24h ao suporte
-- [ ] Medir cobertura do catálogo, testar e implantar somente alterações necessárias
+- [x] Reutilizar vereditos explícitos dos dois modelos, incluindo cache de produção, com principal e três fotos aprovadas; nenhuma alteração de catálogo
+- [x] Reaproveitar pending_publications e auto-publish-pending com deduplicação, limites, lease e disjuntor persistente; migrations 0051–0052
+- [x] Notificação transacional de publicação e ticket após 24h; cron gerenciado 51 a cada 5min substitui o antigo 46 pausado
+- [x] 295/820 produtos prontos sem IA; 525 dependem dela; 33 testes Vitest + 35 Deno e checks passaram; produto real com 3 fotos confirmado sem IA
+- [ ] Validação completa com publicação e retomada de IA: gateway retornou 402; conta autenticada sem papel admin nem conexão ML ativa
+- [ ] Ativar ao enfileirar e pausar agendamento vazio: ferramenta gerenciada bloqueia funções SQL que consultem cron; rotina atual retorna vazia sem IA
 
 ## Aviso de fotos na publicação — 09/11
 - [x] Separar principal reprovada de falha técnica, reservar checagens para os dois papéis e registrar diagnóstico por tentativa

@@ -1,6 +1,6 @@
 ---
 data: 2026-11-08
-atualizado: 2026-11-09
+atualizado: 2026-11-11
 fontes: [AGENTS.md (main), drizzle 0046–0048]
 ---
 # Validação de imagens do catálogo
@@ -18,3 +18,8 @@ Ver [[Catálogo]], [[Tabelas - Catálogo]].
 ## 09/11 — Principal mais flexível + foto limpa como reserva
 - A principal aceita o produto com os próprios acessórios ou em vários ângulos sobre fundo limpo.
 - Sem principal aprovada, usa a primeira foto da galeria aprovada pelos dois modelos com código OK (sem texto, medida, inserção ou embalagem). Fotos só com texto/medida nunca viram principal.
+
+## 11/11 — Reutilização na publicação
+- Publicação aceita aprovação explícita dos dois modelos de qualquer revisão em dois níveis, mesma rodada/URL/papel; produção histórica estava no cache, não na tabela de análises, e também é reaproveitada.
+- Três fotos aprovadas bastam: demais desconhecidas ficam de fora. Nova análise só dos papéis sem veredito; falha técnica enfileira sem alterar catálogo.
+- Migrations 0051–0052 adicionam deduplicação, lease, pausa persistente e avisos transacionais. Créditos insuficientes confirmados; nenhuma publicação de teste criada.

@@ -176,6 +176,10 @@ describe("publicarNoMercadoLivre", () => {
 
     await expect(publicar()).rejects.toMatchObject({ codigo: "CATEGORY_LOW_CONFIDENCE" });
   });
+  it('202 com pedido durável é pendente, nunca anúncio publicado', async () => {
+    responderCom(202, { queued: true, pending_publication_id: 'pending-1', message: 'Fila' });
+    expect(await publicar()).toMatchObject({ pendente: true, pendingId: 'pending-1', item_id: '', permalink: '' });
+  });
 });
 
 describe("mensagemDoErroDePublicacao", () => {
