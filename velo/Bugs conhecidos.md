@@ -28,6 +28,7 @@ Fonte: `00_maestro_relatorio.md` (18–19/08/2026). Verificar no código antes d
 
 ## Resolvidos
 - AliExpress podia ser publicado por conta comum e consultado na ficha completa do Atlas; proteção restritiva no banco e autorização no servidor antes de publicar, sem mudar anúncios existentes — 2026-11-12. Ver [[Catálogo]].
+- Anúncios AliExpress já no ar: em 2026-11-12 o dono mandou encerrar todos (ML não desfaz). Função admin `admin-close-aliexpress-listings` (preview/inspect/execute com confirmação), log em `aliexpress_listing_closures`. 160 encerrados; 49 o ML não deixou mexer (já fora do ar: em análise/proibido/excluído); 32 de 11 vendedores com conexão ML expirada ficaram sem confirmação. Ver [[Catálogo]].
 - Suporte parava ao marcar `needs_human`, antes de um humano responder — removida a interrupção antecipada; resposta pública do admin/pausa manual continuam parando a IA, com conferência antes de enviar. Repetições filtradas e histórico completo — 2026-11-12.
 - `CLAUDE.md` §1–2 dizia Next.js 14 e `src/app/` — corrigido para Vite + React Router em 2026-11-08.
 - Widget `atlas-search` aceitava identidade informada pelo cliente — corrigido no commit `b5643859` (ago/2026).

@@ -38,3 +38,4 @@ atualizado: 2026-11-08
 ## Documentação
 - [x] Corrigir §1–2 do `CLAUDE.md` (Vite, não Next.js) — feito em 2026-11-08
 - [ ] Completar notas com o que surgir: crons exatos (`cron.job`), policies RLS das tabelas centrais
+- Reexecutar `admin-close-aliexpress-listings` (execute, `retry_failed: true`) para os 32 anúncios AliExpress de vendedores com conexão ML expirada quando reconectarem, e para os 49 em análise caso o ML os reative.

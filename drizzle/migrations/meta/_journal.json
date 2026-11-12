@@ -393,6 +393,13 @@
       "when": 1794450493138,
       "tag": "0055_catalog_source_legacy_identifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794452126004,
+      "tag": "0056_aliexpress_listing_closures",
+      "breakpoints": true
     }
   ]
 }

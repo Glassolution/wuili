@@ -454,6 +454,48 @@ export type Database = {
           },
         ]
       }
+      aliexpress_listing_closures: {
+        Row: {
+          catalog_product_id: string | null
+          created_at: string
+          id: string
+          ml_http_status: number | null
+          ml_item_id: string
+          ml_response: string | null
+          previous_status: string | null
+          publication_id: string
+          requested_by: string | null
+          result: string
+          user_id: string
+        }
+        Insert: {
+          catalog_product_id?: string | null
+          created_at?: string
+          id?: string
+          ml_http_status?: number | null
+          ml_item_id: string
+          ml_response?: string | null
+          previous_status?: string | null
+          publication_id: string
+          requested_by?: string | null
+          result: string
+          user_id: string
+        }
+        Update: {
+          catalog_product_id?: string | null
+          created_at?: string
+          id?: string
+          ml_http_status?: number | null
+          ml_item_id?: string
+          ml_response?: string | null
+          previous_status?: string | null
+          publication_id?: string
+          requested_by?: string | null
+          result?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       aliexpress_oauth_states: {
         Row: {
           consumed_at: string | null
