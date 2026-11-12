@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { canAccessCatalogProduct, CATALOG_ACCESS_ERROR } from "../_shared/catalogSourcePolicy.ts";
 import {
   callTikTokShop,
   corsHeaders,
@@ -41,6 +42,10 @@ Deno.serve(async (req) => {
   if (productIds.length === 0) return json({ error: "Informe ao menos um produto" }, 400);
 
   const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  for (const id of productIds) {
+    if (!await canAccessCatalogProduct(admin, userId, { id })) return json({ error: CATALOG_ACCESS_ERROR }, 403);
+  }
 
   const { data: rawAccount } = await admin
     .from("tiktok_shop_accounts")

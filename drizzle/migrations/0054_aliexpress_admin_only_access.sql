@@ -1,0 +1,14 @@
+CREATE OR REPLACE FUNCTION public.catalog_source_admin(p_user uuid DEFAULT auth.uid()) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id=p_user AND role='admin') $$;
+REVOKE ALL ON FUNCTION public.catalog_source_admin(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.catalog_source_admin(uuid) TO authenticated, anon, service_role;
+ALTER POLICY "Authenticated can read active catalog" ON public.catalog_products USING (is_blocked=false AND (lower(coalesce(source,'')) <> 'aliexpress' OR public.catalog_source_admin(auth.uid())));
+CREATE POLICY "AliExpress requires catalog admin" ON public.catalog_products AS RESTRICTIVE FOR SELECT TO authenticated, anon USING (lower(coalesce(source,'')) <> 'aliexpress' OR public.catalog_source_admin(auth.uid()));
+CREATE OR REPLACE FUNCTION public.catalog_payload_access_allowed(p_user uuid,p_ids text[],p_images text[],p_restricted_reference boolean DEFAULT false) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
+SELECT public.catalog_source_admin(p_user) OR (NOT coalesce(p_restricted_reference,false) AND NOT EXISTS (
+ SELECT 1 FROM public.catalog_products c WHERE lower(c.source)='aliexpress' AND (c.id::text=ANY(coalesce(p_ids,ARRAY[]::text[])) OR (jsonb_typeof(c.images)='array' AND c.images ?| coalesce(p_images,ARRAY[]::text[])))
+)); $$;
+REVOKE ALL ON FUNCTION public.catalog_payload_access_allowed(uuid,text[],text[],boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.catalog_payload_access_allowed(uuid,text[],text[],boolean) TO service_role;
+CREATE OR REPLACE FUNCTION public.get_public_store_products(p_ids uuid[]) RETURNS TABLE(id uuid,title text,description text,images jsonb,suggested_price numeric,original_price numeric,category text,variants jsonb,brand text,model text,rating numeric,reviews_count integer) LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$ BEGIN
+IF p_ids IS NULL OR cardinality(p_ids)=0 THEN RETURN QUERY SELECT cp.id,cp.title,cp.description,cp.images,cp.suggested_price,NULLIF(cp.original_price,0),cp.category,cp.variants,cp.brand,cp.model,cp.rating,cp.reviews_count FROM public.catalog_products cp WHERE cp.source='c7drop' AND cp.is_active AND NOT cp.is_blocked AND coalesce(cp.stock_quantity,0)>0 ORDER BY cp.orders_count DESC NULLS LAST LIMIT 12;
+ELSE RETURN QUERY SELECT cp.id,cp.title,cp.description,cp.images,cp.suggested_price,NULLIF(cp.original_price,0),cp.category,cp.variants,cp.brand,cp.model,cp.rating,cp.reviews_count FROM public.catalog_products cp WHERE cp.id=ANY(p_ids) AND cp.is_active AND NOT cp.is_blocked AND coalesce(cp.stock_quantity,0)>0 AND (lower(coalesce(cp.source,''))<>'aliexpress' OR public.catalog_source_admin(auth.uid())); END IF; END; $$;

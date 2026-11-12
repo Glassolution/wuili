@@ -5048,6 +5048,16 @@ export type Database = {
       }
       auth_email_exists: { Args: { p_email: string }; Returns: boolean }
       catalog_gallery_urls_hash: { Args: { p_images: Json }; Returns: string }
+      catalog_payload_access_allowed: {
+        Args: {
+          p_ids: string[]
+          p_images: string[]
+          p_restricted_reference?: boolean
+          p_user: string
+        }
+        Returns: boolean
+      }
+      catalog_source_admin: { Args: { p_user?: string }; Returns: boolean }
       claim_project_invites: { Args: never; Returns: number }
       claim_provider_cancellation: {
         Args: { p_subscription_id: string }

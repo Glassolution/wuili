@@ -380,6 +380,7 @@ async function loadProductFull(supabase: ReturnType<typeof createClient>, id: st
     .from("catalog_products")
     .select("id, title, category, description, cost_price, suggested_price, margin_percent, orders_count, images, product_url, stock_quantity")
     .eq("id", id)
+    .in("source", ALLOWED_SOURCES)
     .maybeSingle();
   return data;
 }
@@ -965,6 +966,7 @@ Nunca invente dados que você não tem. Se o usuário fizer nova busca, apenas p
         if (topProd.category) {
           const { data: catAvg } = await supabase
             .from("catalog_products").select("margin_percent")
+            .in("source", ALLOWED_SOURCES)
             .eq("category", topProd.category).eq("is_blocked", false)
             .gt("stock_quantity", 0).not("margin_percent", "is", null).limit(200);
           if (catAvg && catAvg.length > 0) {

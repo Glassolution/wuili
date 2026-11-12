@@ -1,5 +1,11 @@
 # Roadmap
 
+## AliExpress exclusivo para admins — 12/11
+- [ ] Fechar acesso direto/favoritos e RPC público com autorização por user_roles
+- [ ] Bloquear publicação e geração de páginas no servidor, inclusive payloads antigos
+- [ ] Fechar consultas completas e categorias do Atlas
+- [ ] Aplicar proteção, publicar funções e validar conta comum/admin sem anúncio real
+
 ## Correção de escopo e consulta Davi — 12/11
 - [x] Filtro/instrução limitados à última resposta; 22 testes e deno check passaram; publicada somente support-assistant
 - [x] Consulta somente leitura: 17 publicações AliExpress em 07/11, 16 active e 1 under_review nos registros; nenhum anúncio alterado

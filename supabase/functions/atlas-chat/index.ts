@@ -357,6 +357,7 @@ const categoriasEmDestaque = async (
   const { data, error } = await supabase
     .from("catalog_products")
     .select("category")
+    .eq("source", "c7drop")
     .eq("is_blocked", false)
     .gt("stock_quantity", 0)
     .limit(5000);

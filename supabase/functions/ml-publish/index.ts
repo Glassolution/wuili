@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
+import { canAccessCatalogProduct, CATALOG_ACCESS_ERROR } from '../_shared/catalogSourcePolicy.ts'
 import { resolveCatalogLink } from '../_shared/catalogLink.ts'
 import {
   buildSafeDescription,
@@ -906,6 +907,11 @@ Deno.serve(async (req) => {
     const dbUrl = Deno.env.get('DB_URL') ?? supabaseUrl
     const dbKey = Deno.env.get('DB_SERVICE_ROLE_KEY') ?? serviceRoleKey
     const supabase = createClient(dbUrl, dbKey)
+
+    // Must precede AI, queue writes and every ML request, including internal retries.
+    if (!await canAccessCatalogProduct(supabase, user_id, product)) {
+      return json({ error: CATALOG_ACCESS_ERROR, code: 'CATALOG_ACCESS_DENIED' }, 403)
+    }
 
     // === COOLDOWN ANTI-ABUSO (pós-reembolso) ===
     await clearRefundCooldownAfterRepurchase(supabase, user_id)

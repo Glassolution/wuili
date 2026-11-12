@@ -3,6 +3,7 @@
 // legada é somente-leitura a partir de agora (ver migration de deprecação).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { canAccessCatalogProduct, CATALOG_ACCESS_ERROR } from "../_shared/catalogSourcePolicy.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -87,6 +88,11 @@ Deno.serve(async (req) => {
       .select("id, title, description, suggested_price, images, category")
       .eq("id", catalogProductId)
       .maybeSingle();
+    if (!await canAccessCatalogProduct(admin, userId, { catalog_product_id: catalogProductId })) {
+      return new Response(JSON.stringify({ error: CATALOG_ACCESS_ERROR }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (prodErr || !product) {
       return new Response(JSON.stringify({ error: "product_not_found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },

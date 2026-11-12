@@ -2,6 +2,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createPage, PagePilotError } from "../_shared/pagepilot.ts";
+import { canAccessCatalogProduct, CATALOG_ACCESS_ERROR } from "../_shared/catalogSourcePolicy.ts";
 
 const RATE_LIMIT_SECONDS = 60;
 
@@ -66,6 +67,10 @@ Deno.serve(async (req) => {
     }
 
     if (!productUrl || !isHttpUrl(productUrl)) return json({ error: "invalid_product_url" }, 400);
+
+    if (!await canAccessCatalogProduct(admin, userId, { catalog_product_id: catalogProductId, product_url: productUrl })) {
+      return json({ error: CATALOG_ACCESS_ERROR }, 403);
+    }
 
     // Rate limit por usuário: 1 geração a cada 60s (ignora tentativas com erro).
     const { data: lastRow } = await admin
