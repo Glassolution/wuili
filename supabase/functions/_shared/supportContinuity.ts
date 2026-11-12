@@ -16,7 +16,10 @@ function normalize(text: string): string {
 // A user message between replies does not make repeating the immediately previous answer useful.
 export function omitRepeatedReply(text: string, turns: SupportTurn[]): string {
   const publicTurns = turns.filter((turn) => !turn.internal);
-  const lastAiIndex = publicTurns.findLastIndex((turn) => turn.sender === "ai");
+  let lastAiIndex = -1;
+  for (let i = publicTurns.length - 1; i >= 0; i--) {
+    if (publicTurns[i].sender === "ai") { lastAiIndex = i; break; }
+  }
   const previous: string[] = [];
   for (let i = lastAiIndex; i >= 0 && publicTurns[i].sender === "ai"; i--) {
     previous.unshift(normalize(publicTurns[i].message ?? ""));

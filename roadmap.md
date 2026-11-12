@@ -1,8 +1,8 @@
 # Roadmap
 
 ## Correção de escopo e consulta Davi — 12/11
-- [ ] Limitar filtro e instrução às repetições consecutivas, testar e publicar só support-assistant
-- [ ] Consultar publicações AliExpress de Davi sem alterar dados
+- [x] Filtro/instrução limitados à última resposta; 22 testes e deno check passaram; publicada somente support-assistant
+- [x] Consulta somente leitura: 17 publicações AliExpress em 07/11, 16 active e 1 under_review nos registros; nenhum anúncio alterado
 
 ## Continuidade do suporte — 12/11
 - [x] Continuar IA após encaminhar para humano, até resposta pública do admin; preservar pausa manual e fechamento
