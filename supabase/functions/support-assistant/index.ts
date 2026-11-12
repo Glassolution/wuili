@@ -8,6 +8,7 @@ import { isCancellationConfirmation } from "../_shared/supportCancellation.ts";
 import { getRefundMode, PRAZO_DEVOLUCAO, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES, REFUND_PAGE_LABEL, REFUND_PAGE_PATH, CANCEL_PAGE_HOW, CANCEL_PAGE_PATH } from "../_shared/refundPolicy.ts";
 import { classifyRefundContext } from "../_shared/supportRefundContext.ts";
 import { SUPPORT_NAVIGATION_PROMPT, supportNavigationReply } from "../_shared/supportNavigation.ts";
+import { omitRepeatedReply, shouldPauseSupport, SUPPORT_CONTINUITY_PROMPT } from "../_shared/supportContinuity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -284,15 +285,22 @@ Deno.serve(async (req) => {
     await admin.from("support_ai_messages").insert({ user_id: userId, role: "user", content: message });
 
     if (navigationReply) {
-      await admin.from("support_ai_messages").insert({ user_id: userId, role: "assistant", content: navigationReply });
-      return json({ reply: navigationReply });
+      const { data: previous, error } = await admin.from("support_ai_messages").select("role,content")
+        .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: true });
+      if (error) throw error;
+      if ((previous ?? []).some((m) => m.role === "admin")) return json({ reply: "", skip: "humano_assumiu" });
+      const reply = omitRepeatedReply(navigationReply, (previous ?? []).map((m) => ({ sender: m.role === "assistant" ? "ai" : m.role, message: m.content })));
+      if (reply) await admin.from("support_ai_messages").insert({ user_id: userId, role: "assistant", content: reply });
+      return json({ reply });
     }
     if (!GEMINI_API_KEY) return json({ error: "Assistente ainda não configurado." }, 503);
 
-    const { data: hist } = await admin.from("support_ai_messages").select("role,content")
-      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: false }).limit(20);
+    const { data: hist, error: historyError } = await admin.from("support_ai_messages").select("role,content")
+      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: true });
+    if (historyError) throw historyError;
+    if ((hist ?? []).some((m) => m.role === "admin")) return json({ reply: "", skip: "humano_assumiu" });
     const contents: Content[] = [];
-    for (const m of (hist ?? []).reverse()) {
+    for (const m of (hist ?? [])) {
       const role = m.role === "user" ? "user" : "model";
       const text = m.role === "admin" ? `[Mensagem da equipe Velo] ${m.content}` : m.content;
       const last = contents[contents.length - 1];
@@ -307,7 +315,7 @@ Deno.serve(async (req) => {
     let reply = "";
 
     for (let i = 0; i < 4; i++) {
-      const r = await chamarGemini(GEMINI_API_KEY, contents, `${SYSTEM}\n\n${REGRA_CONTEXTO_REEMBOLSO}`, i === 3);
+      const r = await chamarGemini(GEMINI_API_KEY, contents, `${SYSTEM}\n\n${REGRA_CONTEXTO_REEMBOLSO}\n\n${SUPPORT_CONTINUITY_PROMPT}`, i === 3);
       if (!r.ok) {
         const t = await r.text();
         console.error("gemini", r.status, t.slice(0, 500));
@@ -352,6 +360,12 @@ Deno.serve(async (req) => {
     // Garantia de que o horário humano nunca depende só da boa vontade do modelo.
     if (escalou && !reply.includes("13h")) reply = `${reply}\n\n${HORARIOS_ATENDIMENTO}`;
 
+    const { data: latest, error: latestError } = await admin.from("support_ai_messages").select("role,content")
+      .eq("user_id", userId).eq("archived", false).order("created_at", { ascending: true });
+    if (latestError) throw latestError;
+    if ((latest ?? []).some((m) => m.role === "admin")) return json({ reply: "", skip: "humano_assumiu" });
+    reply = omitRepeatedReply(reply, (latest ?? []).map((m) => ({ sender: m.role === "assistant" ? "ai" : m.role, message: m.content })));
+    if (!reply) return json({ reply: "", skip: "resposta_repetida" });
     await admin.from("support_ai_messages").insert({
       user_id: userId, role: "assistant", content: reply, tool_calls: usadas.length ? usadas : null,
     });
@@ -363,7 +377,7 @@ Deno.serve(async (req) => {
 });
 
 // ───────── Respostas automáticas nos tickets da Caixa de entrada ─────────
-const AVISO_ESPERA = `Já solicitei o atendimento humano. ${HORARIOS_ATENDIMENTO} Aguarde, que em breve alguém da equipe Velo vai te responder por aqui.`;
+const AVISO_ESPERA = `Já solicitei o atendimento humano. ${HORARIOS_ATENDIMENTO} A equipe vai te responder por aqui; enquanto isso, continuo ajudando no que puder.`;
 
 // Cartão antigo de reembolso (desativado). Só serve para tirá-lo do histórico enviado à IA.
 const MARCADOR_CARTAO_REEMBOLSO = "__VELO_REFUND_PROMPT__";
@@ -408,7 +422,8 @@ Jeito de escrever nos tickets (muito importante):
 
 Reembolso e cancelamento DA ASSINATURA VELO: quando a pessoa PEDIR, chame "acionar_suporte_humano" com motivo "reembolso". O sistema responde sozinho, conforme a assinatura: dentro do prazo, manda o passo a passo para o próprio cliente pedir no atendimento de reembolso da Central de Ajuda, com o endereço em texto; fora dele, manda o link da página de cancelamento da renovação. Essa chamada NÃO encaminha para a equipe: não diga que solicitou atendimento humano. Nunca escreva link, URL com "http", link no formato [texto](url) nem botão para a Central de Ajuda ou para o artigo de reembolso. Nunca prometa, aprove ou negue reembolso, e nunca diga que o reembolso ou o cancelamento já foi feito: quem faz o pedido é a própria pessoa. Se ela só PERGUNTAR como funciona, explique as regras (até 7 dias do pagamento, análise da equipe, fim do acesso ao plano se for aprovado) sem link e diga que, se quiser pedir, é só falar aqui que você explica o caminho; não chame a ferramenta. Pedido de reembolso à fornecedora não segue este fluxo. Não tente reter a pessoa nem perguntar o motivo: apenas avise o que ela deve fazer, chamando a ferramenta.
 
-Regra extra para tickets: quando o resultado confirmar atendimento_humano, explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Isso inclui reembolso da fornecedora. Não diga que encaminhou se o sistema pediu esclarecimento ou indicou que o cliente faz o pedido na tela de reembolso. Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
+${SUPPORT_CONTINUITY_PROMPT}
+Regra extra para tickets: quando o resultado confirmar atendimento_humano PELA PRIMEIRA VEZ, explique brevemente o que entendeu e termine EXATAMENTE com: "${AVISO_ESPERA}". Isso inclui reembolso da fornecedora. Se a equipe já foi solicitada, não repita esse aviso: responda apenas o que houver de novo. Não diga que encaminhou se o sistema pediu esclarecimento ou indicou que o cliente faz o pedido na tela de reembolso. Não tente resolver sozinho o que depende da equipe. Não mencione ferramentas.`;
 
 // Remove marcações que o cliente veria como símbolos soltos.
 function limparTexto(t: string): string {
@@ -442,15 +457,14 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const { data: ticket } = await admin.from("support_tickets")
     .select("id,user_id,status,ai_paused,needs_human").eq("id", ticketId).maybeSingle();
   if (!ticket || ticket.ai_paused || ticket.status === "closed") return json({ skip: "pausado_ou_fechado" });
-  // Já foi para a equipe: a IA não responde mais (evita repetir "aguarde" e gastar à toa).
-  if (ticket.needs_human) return json({ skip: "aguardando_humano" });
-
-  const { data: msgs } = await admin.from("support_messages")
+  // Encaminhamento é pendência, não posse da conversa. Só pausa manual ou resposta humana param a IA.
+  const { data: msgs, error: messagesError } = await admin.from("support_messages")
     .select("id,message,sender,internal,attachment_url,created_at")
-    .eq("ticket_id", ticketId).order("created_at", { ascending: true }).limit(200);
+    .eq("ticket_id", ticketId).order("created_at", { ascending: true });
+  if (messagesError) throw messagesError;
   const publicas = (msgs ?? []).filter((m) => !m.internal);
   // Depois que alguém da equipe responde, a IA sai da conversa.
-  if (publicas.some((m) => m.sender === "admin")) return json({ skip: "humano_assumiu" });
+  if (shouldPauseSupport(ticket.ai_paused, ticket.status, publicas)) return json({ skip: "humano_assumiu" });
   const ultimaUser = [...publicas].reverse().find((m) => m.sender === "user");
   if (!ultimaUser || ultimaUser.id !== messageId) return json({ skip: "nao_e_a_ultima" });
   if (isCancellationConfirmation(String(ultimaUser.message ?? ""))) return json({ skip: "cancelamento_ja_confirmado" });
@@ -458,10 +472,14 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const desde = Date.now() - 86400_000;
   const respostasIA = publicas.filter((m) => m.sender === "ai" && new Date(m.created_at).getTime() > desde).length;
 
+  let humanoSolicitado = ticket.needs_human;
   const marcarHumano = async (motivo: string, resumo: string) => {
-    await admin.from("support_tickets").update({
+    if (humanoSolicitado) return;
+    const { error } = await admin.from("support_tickets").update({
       needs_human: true, needs_human_reason: motivo, needs_human_at: new Date().toISOString(),
     }).eq("id", ticketId);
+    if (error) throw error;
+    humanoSolicitado = true;
     await admin.from("support_messages").insert({
       ticket_id: ticketId, user_id: ticket.user_id, sender: "ai", internal: true,
       message: `IA acionou atendimento humano — motivo: ${motivo}. ${resumo}`.slice(0, 1500),
@@ -469,7 +487,17 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   };
 
   const enviar = async (texto: string) => {
-    await admin.from("support_messages").insert({ ticket_id: ticketId, user_id: ticket.user_id, sender: "ai", message: texto });
+    // A equipe pode assumir enquanto o modelo responde; confira novamente antes de cada envio.
+    const [{ data: state, error: stateError }, { data: latest, error: latestError }] = await Promise.all([
+      admin.from("support_tickets").select("ai_paused,status").eq("id", ticketId).maybeSingle(),
+      admin.from("support_messages").select("sender,message,internal").eq("ticket_id", ticketId).order("created_at", { ascending: true }),
+    ]);
+    if (stateError || latestError) throw stateError ?? latestError;
+    if (!state || shouldPauseSupport(state.ai_paused, state.status, latest ?? [])) return;
+    const freshText = omitRepeatedReply(texto, latest ?? []);
+    if (!freshText) return;
+    const { error } = await admin.from("support_messages").insert({ ticket_id: ticketId, user_id: ticket.user_id, sender: "ai", message: freshText });
+    if (error) throw error;
     await admin.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", ticketId);
   };
 
@@ -512,8 +540,8 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   const contents: Content[] = [];
   // Mensagens automáticas (ex.: horário de atendimento) podem chegar depois da
   // pergunta; o Gemini exige que a conversa termine com a vez do usuário.
-  // Só as últimas 20 mensagens vão para a IA: conversa inteira a cada resposta encarece.
-  const ateUltimaUser = publicas.slice(0, publicas.findIndex((m) => m.id === ultimaUser.id) + 1).slice(-20);
+  // Histórico completo para reconhecer orientações e dados já enviados.
+  const ateUltimaUser = publicas.slice(0, publicas.findIndex((m) => m.id === ultimaUser.id) + 1);
   for (const m of ateUltimaUser) {
     if (String(m.message ?? "") === MARCADOR_CARTAO_REEMBOLSO) continue;
     const role = m.sender === "user" ? "user" : "model";
@@ -543,7 +571,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
   let reembolsoFornecedora = false;
   let esclarecerReembolso = false;
   let reply = "";
-  const systemTicket = `${SYSTEM_TICKET}\n\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
+  const systemTicket = `${SYSTEM_TICKET}\n\nAtendimento humano ${ticket.needs_human ? "JÁ SOLICITADO, mas ninguém assumiu: não repita o encaminhamento nem o aviso de espera; continue ajudando em dúvidas novas." : "ainda não solicitado."}\nContexto da assinatura deste usuário: ${assinatura?.created_at ? `assinatura paga em ${new Date(assinatura.created_at).toLocaleDateString("pt-BR")} — ${dentroDoPrazoReembolso ? "DENTRO" : "FORA"} do prazo de 7 dias para reembolso.` : "nenhuma assinatura paga encontrada — FORA do prazo de reembolso."}`;
 
   for (let i = 0; i < 4; i++) {
     const r = await chamarGemini(GEMINI_API_KEY, contents, systemTicket, i === 3);
@@ -593,7 +621,7 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
               ? `PEDIDO DE REEMBOLSO SEM ASSINATURA ATIVA ENCONTRADA — conferir se houve cobrança. ${resumo}`
               : resumo);
           }
-          escalou = true; result = { ok: true, atendimento_humano: true };
+          escalou = true; result = { ok: true, atendimento_humano: true, ja_solicitado: ticket.needs_human, continuar_ajudando: true };
         } else result = { erro: "ferramenta desconhecida" };
       } catch (e) {
         console.error("tool", name, e);
@@ -602,11 +630,11 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       respostas.push({ functionResponse: { name, response: { result } } });
     }
     contents.push({ role: "user", parts: respostas });
-    if (orientarReembolso || reembolsoFornecedora || esclarecerReembolso) break;
+    if (orientarReembolso || esclarecerReembolso || (reembolsoFornecedora && !ticket.needs_human)) break;
   }
 
   if (esclarecerReembolso) reply = "Você quer o reembolso da assinatura da Velo ou de uma compra feita na fornecedora?";
-  else if (reembolsoFornecedora) reply = `Entendi: você quer verificar o reembolso de uma compra na fornecedora, não da assinatura da Velo. Envie o número do pedido na fornecedora e informe se ele já foi enviado. A equipe vai conferir o pagamento e a situação do pedido, sem confirmar o reembolso antes dessa análise.\n\n${AVISO_ESPERA}`;
+  else if (reembolsoFornecedora && !ticket.needs_human) reply = `Entendi: você quer verificar o reembolso de uma compra na fornecedora, não da assinatura da Velo. Envie o número do pedido na fornecedora e informe se ele já foi enviado. A equipe vai conferir o pagamento e a situação do pedido, sem confirmar o reembolso antes dessa análise.\n\n${AVISO_ESPERA}`;
   if (!reply && !orientarReembolso) {
     if (!escalou && !ticket.needs_human) await marcarHumano("erro_desconhecido", "A IA não conseguiu responder esta mensagem.");
     escalou = true;
@@ -637,10 +665,10 @@ async function responderTicket(admin: SupabaseClient, req: Request, token: strin
       .eq("ticket_id", ticketId).eq("sender", "user").eq("internal", false)
       .gt("created_at", ultimaUser.created_at).limit(1);
     if (novaMsg?.length) return json({ skip: "chegou_mensagem_nova" });
-    if (escalou && !texto.includes("13h")) texto += `\n\n${HORARIOS_ATENDIMENTO}`;
+    if (escalou && !ticket.needs_human && !texto.includes("13h")) texto += `\n\n${HORARIOS_ATENDIMENTO}`;
     await enviar(texto);
     return json({ ok: true, escalou });
-  } else if (escalou && !reply.includes("13h")) reply = `${reply}\n\n${AVISO_ESPERA}`;
+  } else if (escalou && !ticket.needs_human && !reply.includes("13h")) reply = `${reply}\n\n${AVISO_ESPERA}`;
   // Se o cliente mandou outra mensagem enquanto a IA pensava, a chamada dessa
   // mensagem nova responde tudo junto; esta desiste para não duplicar.
   const { data: maisNova } = await admin.from("support_messages").select("id")

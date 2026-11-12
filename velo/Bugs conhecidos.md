@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-08
+atualizado: 2026-11-12
 ---
 # Bugs conhecidos
 
@@ -27,5 +27,6 @@ Fonte: `00_maestro_relatorio.md` (18–19/08/2026). Verificar no código antes d
 - Muito código morto (páginas `*Old`, `DashboardRedesignPage`, ~37 componentes, ~34 pacotes).
 
 ## Resolvidos
+- Suporte parava ao marcar `needs_human`, antes de um humano responder — removida a interrupção antecipada; resposta pública do admin/pausa manual continuam parando a IA, com conferência antes de enviar. Repetições filtradas e histórico completo — 2026-11-12.
 - `CLAUDE.md` §1–2 dizia Next.js 14 e `src/app/` — corrigido para Vite + React Router em 2026-11-08.
 - Widget `atlas-search` aceitava identidade informada pelo cliente — corrigido no commit `b5643859` (ago/2026).

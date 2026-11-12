@@ -1,5 +1,11 @@
 # Roadmap
 
+## Continuidade do suporte — 12/11
+- [x] Continuar IA após encaminhar para humano, até resposta pública do admin; preservar pausa manual e fechamento
+- [x] Histórico completo, orientação antirrepetição e filtro de respostas/trechos iguais; aviso humano só no primeiro encaminhamento
+- [x] Testes de continuidade, pausa, nota interna e repetição; check da função
+- [x] Publicada somente support-assistant; 20 testes e deno check passaram; nenhuma mensagem enviada a tickets reais. Conversa real não exercitada nesta rodada.
+
 ## Conferência gradual, avisos e recuperação restrita — 11/11 (só versão de teste)
 - [x] Regras puras da conferência (dois modelos, principal entre 3 primeiras, mínimo 3, parada antecipada, pausa 402/403/429/5xx, lease/fencing) + fila/lease/pausa no banco do teste; 9 testes
 - [ ] Função de execução da conferência (estimar/simular/enfileirar/rodar) ligando as regras ao gateway: não concluída; nenhum lote real nem IA usada
