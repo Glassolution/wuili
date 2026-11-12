@@ -1,5 +1,9 @@
 # Roadmap
 
+## Correção de escopo e consulta Davi — 12/11
+- [ ] Limitar filtro e instrução às repetições consecutivas, testar e publicar só support-assistant
+- [ ] Consultar publicações AliExpress de Davi sem alterar dados
+
 ## Continuidade do suporte — 12/11
 - [x] Continuar IA após encaminhar para humano, até resposta pública do admin; preservar pausa manual e fechamento
 - [x] Histórico completo, orientação antirrepetição e filtro de respostas/trechos iguais; aviso humano só no primeiro encaminhamento

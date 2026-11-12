@@ -20,4 +20,26 @@ describe("support continuity", () => {
     expect(omitRepeatedReply("A equipe vai verificar.\n\nA etiqueta está no Mercado Livre.", history)).toBe("A etiqueta está no Mercado Livre.");
     expect(omitRepeatedReply("Uma resposta nova.", history)).toBe("Uma resposta nova.");
   });
+  it("allows an older answer after a different response", () => {
+    const history = [
+      { sender: "ai", message: "Abra Pedidos." },
+      { sender: "user", message: "Onde fica a etiqueta?" },
+      { sender: "ai", message: "A etiqueta está no Mercado Livre." },
+      { sender: "user", message: "E os pedidos mesmo?" },
+    ];
+    expect(omitRepeatedReply("Abra Pedidos.", history)).toBe("Abra Pedidos.");
+    expect(omitRepeatedReply("A etiqueta está no Mercado Livre.", history)).toBe("");
+  });
+  it("compares all parts of only the latest assistant response", () => {
+    const history = [
+      { sender: "ai", message: "Orientação antiga." },
+      { sender: "user", message: "Outra pergunta" },
+      { sender: "ai", message: "Primeira parte." },
+      { sender: "ai", internal: true, message: "Nota" },
+      { sender: "ai", message: "Segunda parte." },
+      { sender: "user", message: "Repete?" },
+    ];
+    expect(omitRepeatedReply("Primeira parte.", history)).toBe("");
+    expect(omitRepeatedReply("Orientação antiga.", history)).toBe("Orientação antiga.");
+  });
 });
