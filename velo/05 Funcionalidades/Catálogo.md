@@ -1,10 +1,13 @@
 ---
-atualizado: 2026-11-08
+atualizado: 2026-11-12
 fontes: [CLAUDE.md, roadmap.md]
 ---
 # Catálogo
 
 Produtos da [[C7Drop]] para o usuário escolher e importar.
+
+- AliExpress exclusivo de admins por `user_roles`: migration 0054 aplica RLS restritiva e fecha RPC de loja por IDs; guard no servidor bloqueia ML, TikTok Shop e páginas IA antes de chamadas externas, inclusive dados antigos. Atlas restringe ficha completa e categorias a C7Drop. Não altera anúncios existentes.
+- Verificação autenticada: admin acessa a ficha; Davi (não admin) recebe zero linhas no link/favoritos/RPC público e 403 em ML com e sem ID. Quatro testes de regra passaram.
 
 - Rotas: `/dashboard/catalogo`, `/dashboard/catalogo/:id` (ficha), `/dashboard/produtos-em-alta`, `/colecoes`, `/catalogo` (público).
 - Servido pela função `catalog` (paginado); filtros em `src/lib/catalogFilters.ts`, categorias em `catalogCategories.ts`.

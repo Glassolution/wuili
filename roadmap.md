@@ -1,10 +1,10 @@
 # Roadmap
 
 ## AliExpress exclusivo para admins — 12/11
-- [ ] Fechar acesso direto/favoritos e RPC público com autorização por user_roles
-- [ ] Bloquear publicação e geração de páginas no servidor, inclusive payloads antigos
-- [ ] Fechar consultas completas e categorias do Atlas
-- [ ] Aplicar proteção, publicar funções e validar conta comum/admin sem anúncio real
+- [x] Fechar acesso direto/favoritos e RPC público com autorização por user_roles
+- [x] Bloquear publicação e geração de páginas no servidor, inclusive payloads antigos
+- [x] Fechar consultas completas e categorias do Atlas
+- [x] Migration 0054 aplicada; seis funções publicadas; admin acessa e Davi recebe zero linhas no link/favoritos/RPC e 403 no ML com e sem ID; quatro testes passaram. Nenhum anúncio criado/alterado.
 
 ## Correção de escopo e consulta Davi — 12/11
 - [x] Filtro/instrução limitados à última resposta; 22 testes e deno check passaram; publicada somente support-assistant
