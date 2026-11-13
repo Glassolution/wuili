@@ -16,6 +16,8 @@ import AtlasDockPanel from "@/components/dashboard/AtlasDockPanel";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import NotificationBannerStack from "@/components/dashboard/NotificationBannerStack";
 import OnboardingModal, {
+  markOnboardingDeferred,
+  clearOnboardingDeferred,
   markOnboardingSeen,
   shouldShowOnboarding,
 } from "@/components/onboarding/OnboardingModal";
@@ -693,6 +695,7 @@ const DashboardLayoutInner = () => {
 
   useEffect(() => {
     if (!user?.id) {
+      clearOnboardingDeferred();
       setShowOnboarding(false);
       return;
     }
@@ -708,6 +711,13 @@ const DashboardLayoutInner = () => {
     },
     [],
   );
+
+  const handleSkipToCatalog = () => {
+    if (user?.id) markOnboardingDeferred(user.id);
+    setShowOnboarding(false);
+    setEntrada("idle");
+    navigate("/dashboard/catalogo");
+  };
 
   // Chamado ao concluir o onboarding.
   const handleOnboardingComplete = (respostas: Record<string, string>) => {
@@ -955,7 +965,7 @@ const DashboardLayoutInner = () => {
         <NotificationBannerStack />
         {showSupportWidget && !atlasAberto && <SupportFloatingWidget />}
         <AnimatePresence>
-          {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} />}
+          {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} onSkipToCatalog={handleSkipToCatalog} />}
         </AnimatePresence>
       </div>
     );
@@ -1033,7 +1043,7 @@ const DashboardLayoutInner = () => {
         </div>
       </div>
       <AnimatePresence>
-        {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} />}
+        {showOnboarding && <OnboardingModal key="onboarding" onComplete={handleOnboardingComplete} onSkipToCatalog={handleSkipToCatalog} />}
       </AnimatePresence>
       {!isMobile && <AtlasTour open={tourAberto} onClose={fecharTour} onAsk={perguntarAoAtlas} />}
       <NotificationBannerStack />

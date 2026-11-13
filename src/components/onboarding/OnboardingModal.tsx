@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ENTRADA_POS_ONBOARDING } from "@/lib/dashboardIntro";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { trackSignup } from "@/lib/signupFunnel";
+import { Button } from "@/components/ui/button";
 
 /*
   Onboarding curto da Velo (3 perguntas).
@@ -147,6 +148,25 @@ export const hasPendingOnboarding = (userId: string): boolean => {
   return window.localStorage.getItem(onboardingPendingKey(userId)) === "1";
 };
 
+const onboardingDeferredPrefix = "velo-onboarding-deferred:";
+
+export const markOnboardingDeferred = (userId: string): void => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(`${onboardingDeferredPrefix}${userId}`, "1");
+};
+
+export const hasDeferredOnboarding = (userId: string): boolean => {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem(`${onboardingDeferredPrefix}${userId}`) === "1";
+};
+
+export const clearOnboardingDeferred = (): void => {
+  if (typeof window === "undefined") return;
+  for (const key of Object.keys(window.sessionStorage)) {
+    if (key.startsWith(onboardingDeferredPrefix)) window.sessionStorage.removeItem(key);
+  }
+};
+
 // Considera "cadastro recente" quando o metadata de onboarding pendente está
 // marcado (definido no signup) ou quando criação e último login ocorreram na
 // mesma janela de ~10 min. Não depende do perfil salvo no banco.
@@ -179,12 +199,14 @@ type OnboardingUser = {
 export const shouldShowOnboarding = (user: OnboardingUser): boolean => {
   if (!user?.id) return false;
   const wants = hasPendingOnboarding(user.id) || isFreshSignup(user);
-  return wants && !hasSeenOnboarding(user.id);
+  return wants && !hasSeenOnboarding(user.id) && !hasDeferredOnboarding(user.id);
 };
 
 type OnboardingModalProps = {
   /** Chamado quando o usuário conclui a última etapa. */
   onComplete: (answers: Answers) => void;
+  /** Adia o quiz nesta aba sem marcar sua conclusão. */
+  onSkipToCatalog: () => void;
 };
 
 // Easing "ease-out expo" — sensação suave/premium usada nas transições de etapa.
@@ -384,7 +406,7 @@ const OrbitaMobile = ({
    → nicho → fim. */
 type Screen = { kind: "welcome" } | { kind: "question"; question: Question } | { kind: "ml-guide" };
 
-const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
+const OnboardingModal = ({ onComplete, onSkipToCatalog }: OnboardingModalProps) => {
   const [started, setStarted] = useState(false);
   const [index, setIndex] = useState(0);
   const [mostrandoGuiaML, setMostrandoGuiaML] = useState(false);
@@ -495,6 +517,12 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
     setDirection(1);
     setStarted(true);
     trackSignup("onboarding_start");
+  };
+
+  const handleSkipToCatalog = () => {
+    concluido.current = true;
+    trackSignup("onboarding_skip", "ver_catalogo");
+    onSkipToCatalog();
   };
 
   const handleSignOut = async () => {
@@ -934,7 +962,19 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
               {/* pt-8: respiro entre o texto e o botão — o bloco inteiro (bolinhas, título,
                   texto) sobe junto, em vez de o botão encostar no subtítulo. */}
               {screen.kind === "welcome" ? (
-                botaoSeguir(handleStart, "Começar")
+                <div className="flex flex-col items-center gap-4 text-primary-foreground">
+                  {botaoSeguir(handleStart, "Começar")}
+                  <motion.div variants={itemVariants}>
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={handleSkipToCatalog}
+                      className="text-[15px] text-inherit underline underline-offset-4 active:opacity-60"
+                    >
+                      Ver o catálogo agora
+                    </Button>
+                  </motion.div>
+                </div>
               ) : screen.kind === "ml-guide" ? (
                 botaoSeguir(sairDoGuia, "Ver o catálogo agora")
               ) : screen.question.kind === "text" ? (
@@ -1062,6 +1102,16 @@ const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                 >
                   Começar
                 </motion.button>
+                <motion.div variants={itemVariants} className="mt-2">
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={handleSkipToCatalog}
+                    className="text-[14px] text-muted-foreground"
+                  >
+                    Ver o catálogo agora
+                  </Button>
+                </motion.div>
               </motion.div>
             ) : (
               <motion.div
