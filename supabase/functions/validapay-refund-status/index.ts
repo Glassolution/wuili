@@ -2,6 +2,7 @@
 // Consulta o status real de cada estorno e atualiza o registro na Velo.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCharge, getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+import { finalizeConfirmedRefund } from "../_shared/confirmedRefundLifecycle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
 
     const { data: rows, error } = await admin
       .from("refund_requests")
-      .select("id,user_id,status,refund_amount,charge_id,provider_response,subscription_id")
+      .select("id,user_id,status,refund_amount,charge_id,provider_response,subscription_id,keep_access")
       .order("created_at", { ascending: false })
       .limit(500);
     if (error) return json({ error: error.message }, 500);
@@ -150,10 +151,7 @@ Deno.serve(async (req) => {
           }).eq("id", r.id);
 
           if (done && r.subscription_id) {
-            await admin.from("subscriptions").update({
-              status: "refunded",
-              updated_at: nowIso,
-            }).eq("id", r.subscription_id);
+            await finalizeConfirmedRefund(admin, r);
           }
         }
       } catch (err) {

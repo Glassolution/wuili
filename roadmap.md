@@ -1,5 +1,10 @@
 # Roadmap
 
+## Cobrança antiga Adriel — 13/11
+- [ ] Estornar somente cha_1794575123466_v3t342oi8 (R$39,90), cancelar sub_1791906917331_2242rw67q e resolver incidente após confirmação; preservar assinatura nova
+- [ ] Corrigir execução pontual para assinatura reembolsada sem cancelled_at e unificar cancelamento durável nos caminhos de confirmação/cortesia
+- [ ] Validar testes e resultado no provedor; estornos futuros continuam exigindo confirmação por transação
+
 ## AliExpress exclusivo para admins — 12/11
 - [x] Fechar acesso direto/favoritos e RPC público com autorização por user_roles
 - [x] Bloquear publicação e geração de páginas no servidor, inclusive payloads antigos

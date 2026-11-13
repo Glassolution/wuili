@@ -21,6 +21,14 @@ export function isPostCancellationPayment(paidAt: string | null, cancelledAt: st
   return Number.isFinite(paid) && Number.isFinite(cancelled) && paid > cancelled;
 }
 
+/** A completed terminating refund is a cutoff even for legacy contracts without cancelled_at. */
+export function renewalAfterTermination(paidAt: string | null, cancelledAt: string | null,
+  refunds: Array<{ status: string; keep_access: boolean | null; processed_at: string | null }>): boolean {
+  if (isPostCancellationPayment(paidAt, cancelledAt)) return true;
+  return refunds.some(r => r.keep_access === false && ["processed", "refunded_by_mp"].includes(r.status) &&
+    isPostCancellationPayment(paidAt, r.processed_at));
+}
+
 /** Fail closed: an HTTP success by itself does not confirm provider cancellation. */
 export function providerCancellationConfirmed(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
@@ -40,7 +48,13 @@ export async function confirmProviderCancellation(
   let before: unknown;
   try { before = await read(); } catch { /* DELETE still must be attempted on a failed pre-read. */ }
   if (!providerCancellationConfirmed(before)) {
-    const response = await cancel();
+    let response: unknown;
+    try { response = await cancel(); } catch (error) {
+      // Some providers reject a second DELETE after scheduling cancellation. Only a fresh read may confirm it.
+      if (!providerCancellationConfirmed(await read())) throw error;
+      await saveConfirmation();
+      return;
+    }
     const confirmed = providerCancellationConfirmed(response) || providerCancellationConfirmed(await read());
     if (!confirmed) throw new Error("provider_cancellation_unconfirmed");
   }

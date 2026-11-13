@@ -1,7 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { paymentIsBlocked, preservesPaidAccess, confirmProviderCancellation, isPostCancellationPayment, refundExecutionRequested } from "./subscriptionLifecyclePolicy";
+import { paymentIsBlocked, preservesPaidAccess, confirmProviderCancellation, isPostCancellationPayment, refundExecutionRequested, renewalAfterTermination } from "./subscriptionLifecyclePolicy";
 const sub = { id: "46da48d0-d850-413d-a648-5d3036875754", user_id: "12287108-8160-45cf-b62e-f4c338cb7435", status: "expired", cancel_at_period_end: true, cancelled_at: "2026-10-06T23:18:29.137Z" };
 describe("cancelled recurring payment rules", () => {
+  it("accepts the authorized November 13 renewal after the old October refund without cancelled_at", () => {
+    const refunds = [{ status: "processed", keep_access: false, processed_at: "2026-10-25T05:25:15.640Z" }];
+    expect(renewalAfterTermination("2026-11-13T13:05:23.078Z", null, refunds)).toBe(true);
+    expect(renewalAfterTermination("2026-10-13T15:50:44Z", null, refunds)).toBe(false);
+    expect(renewalAfterTermination("2026-11-13T13:05:23.078Z", null, [{ ...refunds[0], keep_access: true }])).toBe(false);
+    expect(renewalAfterTermination("2026-11-13T13:05:23.078Z", null, [{ ...refunds[0], status: "pending" }])).toBe(false);
+  });
   it("a preview never authorizes a refund even when customer amount and reason are supplied", () => {
     const confirmation = { user_id: sub.user_id, amount: 79.80, reason: "Cobrança após cancelamento" };
     expect(refundExecutionRequested({ confirmation })).toBe(false);

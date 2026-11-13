@@ -3,7 +3,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { getCharge, refundCharge, validaPayFetch, ValidaPayError } from "../_shared/validapay.ts";
-import { refundExecutionRequested } from "../_shared/subscriptionLifecyclePolicy.ts";
+import { refundExecutionRequested, renewalAfterTermination } from "../_shared/subscriptionLifecyclePolicy.ts";
+import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
+import { finalizeConfirmedRefund } from "../_shared/confirmedRefundLifecycle.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -94,10 +96,25 @@ Deno.serve(async (req) => {
       inspect_subscription?: string;
       refund_charge_id?: string;
       refund_subscription_id?: string;
+      cancel_subscription_id?: string;
       confirmation?: { user_id: string; amount: number; reason: string };
     };
     const dryRun = body.dry_run !== false;
-    if (body.dry_run === false && !body.refund_charge_id) return json({ error: "Estorno em massa desativado. Confirme cliente, valor e motivo de uma cobrança específica." }, 400);
+    if (body.dry_run === false && !body.refund_charge_id && !body.cancel_subscription_id) return json({ error: "Estorno em massa desativado. Confirme cliente, valor e motivo de uma cobrança específica." }, 400);
+
+    if (body.cancel_subscription_id) {
+      if (!body.confirmation?.user_id || !body.confirmation.reason?.trim()) return json({ error: "Confirme cliente e motivo do cancelamento pontual." }, 400);
+      const { data: sub, error } = await admin.from("subscriptions").select("*").eq("id", body.cancel_subscription_id)
+        .eq("user_id", body.confirmation.user_id).maybeSingle();
+      if (error) throw new Error(`cancellation_subscription_read:${error.message}`);
+      if (!sub || sub.provider !== "validapay" || sub.purchase_kind === "lifetime" ||
+        !["cancelled", "refunded", "refunded_duplicate"].includes(sub.status)) {
+        return json({ error: "Cancelamento pontual permitido somente no contrato antigo já encerrado/reembolsado." }, 400);
+      }
+      if (dryRun) return json({ ok: true, dry_run: true, subscription_id: sub.id, contract: sub.validapay_subscription_id });
+      const confirmed = await requestProviderCancellation(admin, sub, body.confirmation.reason);
+      return json({ ok: confirmed, provider_cancelled: confirmed, subscription_id: sub.id });
+    }
 
     // Modo diagnóstico: lista cobranças do gateway por e-mail/assinatura.
     if (body.inspect_email || body.inspect_subscription) {
@@ -132,19 +149,25 @@ Deno.serve(async (req) => {
       const { data: sub } = body.refund_subscription_id
         ? await admin.from("subscriptions").select("*").eq("id", body.refund_subscription_id).maybeSingle()
         : { data: null as Any };
-      if (!sub || sub.user_id !== body.confirmation.user_id || !sub.cancelled_at) return json({ error: "Cliente/assinatura não corresponde ao cancelamento." }, 400);
+      if (!sub || sub.user_id !== body.confirmation.user_id || sub.provider !== "validapay" || sub.purchase_kind === "lifetime") return json({ error: "Cliente/assinatura não corresponde ao contrato recorrente." }, 400);
+      const { data: terminatingRefunds, error: terminationError } = await admin.from("refund_requests")
+        .select("status,keep_access,processed_at").eq("subscription_id", sub.id).eq("keep_access", false)
+        .in("status", ["processed", "refunded_by_mp"]);
+      if (terminationError) throw new Error(`refund_termination_read:${terminationError.message}`);
       const verifiedCharge = await getCharge(chargeId);
-      if (!PAID.includes(verifiedCharge.status) || Number(verifiedCharge.amount) !== body.confirmation.amount ||
-        !verifiedCharge.paidAt || Date.parse(verifiedCharge.paidAt) <= Date.parse(sub.cancelled_at)) {
+      if (verifiedCharge.chargeId !== chargeId || !PAID.includes(verifiedCharge.status) || Number(verifiedCharge.amount) !== body.confirmation.amount ||
+        !renewalAfterTermination(verifiedCharge.paidAt ?? null, sub.cancelled_at, terminatingRefunds ?? [])) {
         return json({ error: "Cobrança, valor ou data não comprovam pagamento posterior ao cancelamento." }, 400);
       }
-      const { data: linked } = await admin.from("validapay_webhook_events").select("id")
+      const { data: linked, error: linkedError } = await admin.from("validapay_webhook_events").select("id")
         .eq("charge_id", chargeId).eq("subscription_id", sub.validapay_subscription_id).limit(1);
+      if (linkedError) throw new Error(`refund_charge_link:${linkedError.message}`);
       if (!linked?.length) return json({ error: "Vínculo da cobrança com este contrato precisa de revisão." }, 400);
-      const { data: prior } = await admin
+      const { data: prior, error: priorError } = await admin
         .from("refund_requests").select("id,status").eq("charge_id", chargeId)
         .in("status", ["processed", "pending", "processing", "approved"]).maybeSingle();
-      if (prior) return json({ ok: true, skipped: "ja_estornada", charge_id: chargeId });
+      if (priorError) throw new Error(`refund_prior_read:${priorError.message}`);
+      if (prior) return json({ ok: true, skipped: "operacao_existente_nao_reenviada", charge_id: chargeId });
 
       if (!refundExecutionRequested(body)) return json({ ok: true, dry_run: true, eligible: true, charge_id: chargeId,
         subscription_id: sub.id, amount: body.confirmation.amount });
@@ -169,7 +192,10 @@ Deno.serve(async (req) => {
       let providerResponse: Record<string, unknown>;
       let state = "uncertain";
       try {
-        const result = await refundCharge(chargeId, body.confirmation.amount, "CUSTOMER_REQUEST") as Record<string, unknown>;
+        const result = await validaPayFetch<Record<string, unknown>>("/v1/wallet/refunds", {
+          method: "POST", scope: "wallet/write wallet/read", retryUnauthorized: false,
+          body: JSON.stringify({ chargeId, amount: body.confirmation.amount, reason: "CUSTOMER_REQUEST" }),
+        });
         const status = String(result.status ?? "").toUpperCase();
         state = ["CONFIRMED", "COMPLETED", "SUCCESS"].includes(status) ? "confirmed" : "processing";
         providerResponse = { provider: "validapay", chargeId, ...result };
@@ -186,7 +212,12 @@ Deno.serve(async (req) => {
       const { error: outcomeError } = await admin.from("post_cancel_refund_operations")
         .update({ state, updated_at: now }).eq("charge_id", chargeId);
       if (outcomeError) throw new Error(`refund_operation_outcome:${outcomeError.message}`);
-      return json({ ok: state !== "uncertain", processing: state !== "confirmed", charge_id: chargeId, provider: providerResponse });
+      const providerCancelled = await requestProviderCancellation(admin, sub, body.confirmation.reason);
+      if (state === "confirmed" && providerCancelled) await finalizeConfirmedRefund(admin, {
+        subscription_id: sub.id, user_id: sub.user_id, keep_access: true, charge_id: chargeId,
+      });
+      return json({ ok: state !== "uncertain", processing: state !== "confirmed", charge_id: chargeId,
+        provider: providerResponse, provider_cancelled: providerCancelled });
     }
 
 

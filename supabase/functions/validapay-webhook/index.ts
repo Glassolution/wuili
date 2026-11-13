@@ -9,6 +9,7 @@
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
 import { guardPaidSubscription, hasTerminatingRefund, syncPaidProfile } from "../_shared/subscriptionLifecycle.ts";
 import { providerCancellationConfirmed, preservesPaidAccess } from "../_shared/subscriptionLifecyclePolicy.ts";
+import { finalizeConfirmedRefund } from "../_shared/confirmedRefundLifecycle.ts";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { clearRefundCooldownAfterRepurchase } from "../_shared/refundCooldown.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -346,12 +347,7 @@ Deno.serve(async (req) => {
             provider_response: { ...pr, status: "CONFIRMED", confirmed_by_webhook: true }, updated_at: nowIsoRefund(),
           }).eq("id", r.id);
           if (refundSaveError) throw new Error(`refund_confirmation_save:${refundSaveError.message}`);
-          if (r.subscription_id && r.keep_access !== true) {
-            const { error: terminalError } = await admin.from("subscriptions")
-              .update({ status: "refunded", updated_at: nowIsoRefund() }).eq("id", r.subscription_id);
-            if (terminalError) throw new Error(`refund_terminal_save:${terminalError.message}`);
-            await syncPaidProfile(admin, r.user_id);
-          }
+          await finalizeConfirmedRefund(admin, r);
         }
       }
       await admin.from("validapay_webhook_events")

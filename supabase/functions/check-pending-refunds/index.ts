@@ -3,6 +3,7 @@
 // este job a cada 30 minutos via pg_cron.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getCharge, getRefundStatus, ValidaPayError } from "../_shared/validapay.ts";
+import { finalizeConfirmedRefund } from "../_shared/confirmedRefundLifecycle.ts";
 
 // A consulta de estorno costuma travar em PROCESSING mesmo depois do dinheiro
 // voltar. A cobrança é a fonte que realmente comprova a devolução.
@@ -78,7 +79,7 @@ Deno.serve(async (req) => {
     // 1) Estornos ainda em PROCESSING
     const { data: rows, error } = await admin
       .from("refund_requests")
-      .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at, charge_id")
+      .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at, charge_id, keep_access")
       .eq("status", "processed")
       .order("processed_at", { ascending: true })
       .limit(200);
@@ -128,11 +129,7 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         }).eq("id", row.id);
 
-        if (row.subscription_id) {
-          await admin.from("subscriptions")
-            .update({ status: "cancelled", updated_at: new Date().toISOString() })
-            .eq("id", row.subscription_id);
-        }
+        await finalizeConfirmedRefund(admin, row);
         results.push({ id: row.id, refundId, outcome: "confirmed" });
         console.log("refund_logs", JSON.stringify({ origin: "check-pending-refunds", outcome: "confirmed", refundId }));
         continue;
@@ -158,11 +155,7 @@ Deno.serve(async (req) => {
             updated_at: nowIso,
           }).eq("id", row.id);
 
-          if (row.subscription_id) {
-            await admin.from("subscriptions")
-              .update({ status: "cancelled", updated_at: nowIso })
-              .eq("id", row.subscription_id);
-          }
+          await finalizeConfirmedRefund(admin, row);
           results.push({ id: row.id, refundId, outcome: "confirmed_by_charge" });
           continue;
         }
@@ -233,7 +226,7 @@ Deno.serve(async (req) => {
     // na operadora (estorno concluído fora do fluxo, ou aviso que nunca chegou).
     const { data: pendentesRows } = await admin
       .from("refund_requests")
-      .select("id, user_id, subscription_id, provider_response, charge_id, requested_at")
+      .select("id, user_id, subscription_id, provider_response, charge_id, requested_at, keep_access")
       .eq("status", "pending")
       .not("charge_id", "is", null)
       .order("requested_at", { ascending: true })
@@ -256,11 +249,7 @@ Deno.serve(async (req) => {
         updated_at: nowIso,
       }).eq("id", row.id);
 
-      if (row.subscription_id) {
-        await admin.from("subscriptions")
-          .update({ status: "cancelled", updated_at: nowIso })
-          .eq("id", row.subscription_id);
-      }
+      await finalizeConfirmedRefund(admin, row);
       results.push({ id: row.id, outcome: "pending_confirmed_by_charge" });
       console.log("refund_logs", JSON.stringify({ origin: "check-pending-refunds", outcome: "pending_confirmed_by_charge", id: row.id }));
     }

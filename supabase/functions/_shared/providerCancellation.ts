@@ -1,4 +1,4 @@
-import { validaPayFetch } from "./validapay.ts";
+import { validaPayFetch, ValidaPayError } from "./validapay.ts";
 import { confirmProviderCancellation } from "./subscriptionLifecyclePolicy.ts";
 import type { LifecycleAdmin } from "./subscriptionLifecycle.ts";
 
@@ -49,7 +49,8 @@ export async function processProviderCancellation(admin: Admin, subscriptionId: 
     );
     return true;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof ValidaPayError ? `${err.message}: ${JSON.stringify(err.details)}`
+      : err instanceof Error ? err.message : String(err);
     const exhausted = job.attempts >= 6;
     const delay = [1, 5, 15, 60, 180, 360][Math.min(job.attempts - 1, 5)];
     const { error: retryError } = await admin.from("provider_cancellation_requests").update({

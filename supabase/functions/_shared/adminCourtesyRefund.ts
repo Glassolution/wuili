@@ -1,5 +1,5 @@
 import { getCharge, validaPayFetch } from "./validapay.ts";
-import { providerCancellationConfirmed } from "./subscriptionLifecyclePolicy.ts";
+import { requestProviderCancellation } from "./providerCancellation.ts";
 import { syncPaidProfile, type LifecycleAdmin } from "./subscriptionLifecycle.ts";
 
 import { courtesyConfirmationMatches, type CourtesyInput } from "./courtesyRefundPolicy.ts";
@@ -78,21 +78,11 @@ export async function adminCourtesyRefund(admin: LifecycleAdmin, body: CourtesyI
   await syncPaidProfile(admin, sub.user_id);
   let cancellation: unknown;
   try {
-    const path = `/v1/subscriptions/${encodeURIComponent(sub.validapay_subscription_id)}`;
-    const options = { scope: "checkouts/write checkouts/read subscriptions/write subscriptions/read accounts/read", retryUnauthorized: false };
-    cancellation = await validaPayFetch(path, { ...options, method: "DELETE" });
-    if (!providerCancellationConfirmed(cancellation)) cancellation = await validaPayFetch(path, { ...options, method: "GET" });
-    if (!providerCancellationConfirmed(cancellation)) throw new Error("provider_cancellation_unconfirmed");
-    const confirmedAt = new Date().toISOString();
-    const { error: cancelSaveError } = await admin.from("subscriptions").update({ provider_cancelled_at: confirmedAt }).eq("id", sub.id);
-    if (cancelSaveError) throw new Error(`courtesy_cancel_save:${cancelSaveError.message}`);
-    const { error: jobError } = await admin.from("provider_cancellation_requests").update({
-      state: "confirmed", confirmed_at: confirmedAt, next_retry_at: null, lease_until: null, updated_at: confirmedAt,
-    }).eq("subscription_id", sub.id);
-    if (jobError) throw new Error(`courtesy_cancel_job_save:${jobError.message}`);
+    cancellation = await requestProviderCancellation(admin, sub, String(body.reason));
+    if (!cancellation) throw new Error("provider_cancellation_unconfirmed");
     return { success: true, refund_request_id: refund.id, provider, provider_cancelled: true, cancellation };
   } catch (error) {
-    // No new retry job: an administrator must review a failed courtesy cancellation.
+    // The durable cancellation job remains pending or failed for explicit review.
     return { success: false, refund_request_id: refund.id, provider, provider_cancelled: false,
       cancellation_error: error instanceof Error ? error.message : String(error), cancellation,
       requires_manual_review: true, access_ended: true };
