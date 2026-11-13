@@ -2,7 +2,7 @@
 // Uso: POST { dry_run?: boolean, subscription_ids?: string[] } — restrito a admins.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { getCharge, refundCharge, validaPayFetch, ValidaPayError } from "../_shared/validapay.ts";
+import { getCharge, validaPayFetch } from "../_shared/validapay.ts";
 import { refundExecutionRequested, renewalAfterTermination } from "../_shared/subscriptionLifecyclePolicy.ts";
 import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 import { finalizeConfirmedRefund } from "../_shared/confirmedRefundLifecycle.ts";
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
         .in("status", ["processed", "refunded_by_mp"]);
       if (terminationError) throw new Error(`refund_termination_read:${terminationError.message}`);
       const verifiedCharge = await getCharge(chargeId);
-      if (verifiedCharge.chargeId !== chargeId || !PAID.includes(verifiedCharge.status) || Number(verifiedCharge.amount) !== body.confirmation.amount ||
+      if (verifiedCharge.chargeId !== chargeId || !PAID.includes(String(verifiedCharge.status).toUpperCase()) || Number(verifiedCharge.amount) !== body.confirmation.amount ||
         !renewalAfterTermination(verifiedCharge.paidAt ?? null, sub.cancelled_at, terminatingRefunds ?? [])) {
         return json({ error: "Cobrança, valor ou data não comprovam pagamento posterior ao cancelamento." }, 400);
       }
@@ -197,7 +197,8 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ chargeId, amount: body.confirmation.amount, reason: "CUSTOMER_REQUEST" }),
         });
         const status = String(result.status ?? "").toUpperCase();
-        state = ["CONFIRMED", "COMPLETED", "SUCCESS"].includes(status) ? "confirmed" : "processing";
+        state = ["CONFIRMED", "COMPLETED", "SUCCESS"].includes(status) ? "confirmed"
+          : ["PROCESSING", "PENDING", "IN_PROCESS"].includes(status) ? "processing" : "uncertain";
         providerResponse = { provider: "validapay", chargeId, ...result };
       } catch (err) {
         providerResponse = { provider: "validapay", chargeId, status: "UNKNOWN",

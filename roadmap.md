@@ -1,9 +1,10 @@
 # Roadmap
 
 ## Cobrança antiga Adriel — 13/11
-- [ ] Estornar somente cha_1794575123466_v3t342oi8 (R$39,90), cancelar sub_1791906917331_2242rw67q e resolver incidente após confirmação; preservar assinatura nova
-- [ ] Corrigir execução pontual para assinatura reembolsada sem cancelled_at e unificar cancelamento durável nos caminhos de confirmação/cortesia
-- [ ] Validar testes e resultado no provedor; estornos futuros continuam exigindo confirmação por transação
+- [ ] Estornar somente cha_1794575123466_v3t342oi8 (R$39,90), cancelar sub_1791906917331_2242rw67q e resolver incidente após confirmação; bloqueado: sessão solicitante sem papel admin, escolha de conta admin não fornecida. Nenhuma ação financeira/contrato alterado; assinatura nova preservada.
+- [x] Corrigir execução pontual para assinatura reembolsada sem cancelled_at e unificar cancelamento durável nos caminhos de confirmação/cortesia; manter autorização global intacta
+- [x] 21 testes passaram e deno check de cinco funções passou; estornos futuros continuam exigindo confirmação por transação. Resultado financeiro real não validado por falta de sessão administrativa autorizada.
+- [x] Publicadas oito funções de pagamentos/cancelamento afetadas; nenhuma migration, secret ou site publicado. Releitura confirmou contrato antigo e assinatura nova inalterados e incidente ainda aberto.
 
 ## AliExpress exclusivo para admins — 12/11
 - [x] Fechar acesso direto/favoritos e RPC público com autorização por user_roles

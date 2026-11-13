@@ -3,6 +3,8 @@ import { paymentIsBlocked, preservesPaidAccess, isPostCancellationPayment, type 
 export type LifecycleAdmin = {
   // deno-lint-ignore no-explicit-any -- structural SDK interface supports both server SDK imports.
   from(table: string): any;
+  // deno-lint-ignore no-explicit-any -- structural SDK interface for durable provider cancellation.
+  rpc(name: string, args: Record<string, unknown>): any;
 };
 
 export async function hasTerminatingRefund(admin: LifecycleAdmin, subscriptionId: string): Promise<boolean> {

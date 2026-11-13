@@ -45,6 +45,13 @@ describe("cancelled recurring payment rules", () => {
     await confirmProviderCancellation(async () => ({ status: "ACTIVE" }), cancel, save);
     expect(cancel).toHaveBeenCalledOnce(); expect(save).toHaveBeenCalledOnce();
   });
+  it("accepts a rejected DELETE only if a fresh provider read confirms cancellation", async () => {
+    const read = vi.fn().mockResolvedValueOnce({ status: "ACTIVE" }).mockResolvedValueOnce({ status: "CANCEL_SCHEDULED" });
+    const save = vi.fn();
+    await confirmProviderCancellation(read, async () => { throw new Error("400"); }, save);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenCalledOnce();
+  });
   it("retries missing local confirmation without cancelling an already cancelled provider again", async () => {
     const cancel = vi.fn(); const save = vi.fn();
     await confirmProviderCancellation(async () => ({ status: "CANCELED" }), cancel, save);

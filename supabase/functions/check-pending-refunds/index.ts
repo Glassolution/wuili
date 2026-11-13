@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const { data: rows, error } = await admin
       .from("refund_requests")
       .select("id, user_id, subscription_id, status, provider_response, processed_at, created_at, charge_id, keep_access")
-      .eq("status", "processed")
+      .in("status", ["processed", "processing"])
       .order("processed_at", { ascending: true })
       .limit(200);
     if (error) throw error;

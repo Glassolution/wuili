@@ -9,7 +9,7 @@ function fakeAdmin(refunds: Array<Record<string, unknown>> = []) {
     profiles: [{ user_id: "customer", plano: "base" }], refund_requests: refunds, payment_incidents: [],
   };
   let counter = 0;
-  const admin = { from(table: string) {
+  const admin = { rpc: async () => ({ data: [], error: null }), from(table: string) {
     const filters: Array<(r: Record<string, unknown>) => boolean> = [];
     let patch: Record<string, unknown> | null = null;
     const q = {
