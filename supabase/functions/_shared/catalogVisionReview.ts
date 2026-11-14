@@ -1,13 +1,13 @@
 // Conferência gradual de fotos do catálogo — SOMENTE registra resultados.
 //
-// Regra (Felipe, 11/11): mesma regra de dupla aprovação da `ml-publish`
-// (gemini-3.8-flash em todas as fotos, gpt-6.1-terra só nas aprovadas pelo
-// primeiro; só passa se os dois aprovarem). Esta via nunca publica, nunca
+// Regra (Felipe, 14/11): somente Gemini, sem segunda revisão pelo GPT.
+// Esta via nunca publica, nunca
 // bloqueia/desbloqueia, nunca mexe em preço/estoque e nunca chama a ml-publish.
 // Por isso as dependências abaixo NÃO têm nenhum método que faça essas coisas.
-// Módulo puro (sem imports) para ser testado no Vitest e usado no Deno.
+// Compartilha a configuração pura com publicação e auditoria.
 
-export const REVIEW_MODELS = ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'] as const;
+import { ACTIVE_IMAGE_PIPELINE, IMAGE_VISION_PIPELINES } from './ml-image-criterion.ts';
+export const REVIEW_MODELS = IMAGE_VISION_PIPELINES[ACTIVE_IMAGE_PIPELINE].models;
 export type ReviewModel = typeof REVIEW_MODELS[number];
 export type Role = 'primary' | 'secondary';
 export const MIN_APPROVED = 3;
@@ -36,7 +36,7 @@ export type ReviewDeps = {
 export type PauseKind = 'credit' | 'denied' | 'rate' | 'temporary' | 'config';
 export type Halt = { kind: PauseKind; message: string; delaySeconds: number | null };
 
-/** Chave do cache: versão do critério + os dois modelos + papel + URL. */
+/** Chave do cache: versão do critério + modelos ativos + papel + URL. */
 export function reviewCacheKey(criterion: string, role: Role, url: string) {
   return `${criterion}|${REVIEW_MODELS.join('+')}|${role}|${url}`;
 }
@@ -68,7 +68,7 @@ export function classifyFailure(f: Extract<ModelAnswer, { kind: 'failure' }>, co
 
 type PhotoResult = { decision: 'aprovada' | 'reprovada' | 'inconclusiva'; halt?: Halt; calls: number };
 
-/** Uma foto em um papel: os dois modelos em sequência; só decisões explícitas viram cache. */
+/** Uma foto em um papel: modelos ativos; só decisões explícitas viram cache. */
 export async function reviewPhoto(deps: ReviewDeps, ctx: { runId: string; productId: string; title: string; criterion: string }, url: string, role: Role, budget: { calls: number }): Promise<PhotoResult> {
   const key = reviewCacheKey(ctx.criterion, role, url);
   const cached = await deps.readCache(key);

@@ -1,5 +1,9 @@
 # Roadmap
 
+## Fotos sem revisão GPT — 14/11
+- [x] Usar somente Gemini na publicação, auditoria e conferência; preservar falhas inconclusivas e evidência anterior
+- [x] 51 testes passaram; quatro serviços implantados; versão Gemini-only confirmada ao vivo via cabeçalho de ml-publish. Três checks passaram; ml-fix-noncompliant mantém erro de tipo preexistente (moderation). Sem análise paga, alteração de anúncios, catálogo ou pagamentos.
+
 ## Upgrade pela diferença integral — 14/11
 - [x] Mostrar cotação antes de confirmar; Base → Pro R$39,90
 - [x] Fluxo da diferença avulsa no contrato existente e substituição sem pró-rata; migration 0057 e três funções publicadas

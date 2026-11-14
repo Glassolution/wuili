@@ -1,13 +1,13 @@
 ---
 data: 2026-11-08
-atualizado: 2026-11-11
+atualizado: 2026-11-14
 fontes: [AGENTS.md (main), drizzle 0046–0048]
 ---
 # Validação de imagens do catálogo
 
 **Decisão:**
 - Evidência estruturada, versionada e por papel (principal/secundária), guardando códigos de aprovação e de rejeição; o campo de localização é só descritivo, nunca decide.
-- Modelos de visão formam pipeline em que **todos precisam aprovar**; os modelos entram na versão/chave de cache.
+- Desde 14/11, somente Gemini 3.8 analisa fotos, sem segunda revisão GPT, por autorização de Felipe para reduzir consumo. Configuração compartilhada e cache versionado; falhas continuam inconclusivas. Reprovações explícitas históricas são preservadas.
 - Falha técnica ou schema inválido **nunca bloqueia** nem gera cache negativo; dry-run não grava; recuperação de produtos só com aprovação.
 - Publicação reserva até duas checagens por URL (galeria/principal). Principal explicitamente reprovada fica separada de falha técnica; ausência de principal não gera aviso de tentar em minutos. Diagnóstico por usuário/produto fica em `ml_publish_errors`, sem publicar foto não validada.
 - Recuperação do catálogo: snapshot atômico/CAS; gatilho por hash das URLs da galeria só enfileira manualmente.

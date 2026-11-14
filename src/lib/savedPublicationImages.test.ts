@@ -11,9 +11,10 @@ describe('publicação com evidência salva', () => {
     expect(savedPublishableImages(savedPublicationRoles([row('a'),row('b')],urls),urls)).toEqual([]);
     expect(savedPublishableImages(savedPublicationRoles([row('a'),row('b'),row('c'),row('c','primary')],urls),urls)).toEqual(['c','a','b']);
   });
-  it('não aceita um modelo só ou opiniões de rodadas diferentes', () => {
+  it('reutiliza Gemini sem exigir GPT e preserva reprovação histórica', () => {
     const rows=[row('a','secondary','google/gemini-3.8-flash'),{...row('a','secondary','openai/gpt-6.1-terra'),run_id:'another'}];
-    expect(savedPublicationRoles(rows,['a']).size).toBe(0);
+    expect(savedPublicationRoles(rows,['a']).get('a')?.secondary?.verdict).toBe('aprovada');
+    expect(savedPublicationRoles([row('a','secondary','google/gemini-3.8-flash'),row('a','secondary','openai/gpt-6.1-terra','reprovada')],['a']).get('a')?.secondary?.verdict).toBe('reprovada');
   });
   it('nunca usa reprovação nem inconclusivo no anúncio', () => {
     const urls=['a','b','c','d'];

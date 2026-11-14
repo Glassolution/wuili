@@ -16,24 +16,24 @@ function deps(answer: (m: string, u: string, r: string) => ModelAnswer) {
 const ctx = { runId: 'r', productId: 'p', title: 't', criterion: 'v' };
 const urls = ['http://a', 'http://b', 'http://c', 'http://d', 'http://e'];
 describe('conferência de fotos (só registra)', () => {
-  it('aprova só com os dois modelos e para cedo com principal + 3', async () => {
+  it('usa somente Gemini e para cedo com principal + 3', async () => {
     const { d, log } = deps(() => ok);
     const r = await reviewProduct(d, ctx, urls, { calls: 100 });
     expect(r.outcome).toBe('eligible'); expect(r.approved).toEqual(['http://a', 'http://b', 'http://c']);
     expect(log.some(l => l.includes('http://d'))).toBe(false);
+    expect(log).toHaveLength(4);
+    expect(log.every(l => l.startsWith('google/gemini-3.8-flash|'))).toBe(true);
   });
-  it('reprovação do primeiro pula o segundo; reprovação do segundo reprova', async () => {
+  it('reprovação do Gemini não chama GPT', async () => {
     const a = deps(m => m.startsWith('google') ? no : ok); await reviewProduct(a.d, ctx, urls, { calls: 100 });
     expect(a.log.every(l => l.startsWith('google'))).toBe(true);
-    const b = deps(m => m.startsWith('openai') ? no : ok);
-    expect((await reviewProduct(b.d, ctx, urls, { calls: 100 })).outcome).toBe('no_primary');
   });
   it('schema inválido fica inconclusivo, sem cache', async () => {
     const { d, cache } = deps(() => ({ kind: 'invalid', raw: 'x', reason: 'fora do formato' }));
     expect((await reviewProduct(d, ctx, urls, { calls: 100 })).outcome).toBe('inconclusive'); expect(cache.size).toBe(0);
   });
   it('timeout de qualquer modelo pausa e nunca aprova', async () => {
-    for (const bad of ['google', 'openai']) {
+    for (const bad of ['google']) {
       const { d, cache } = deps(m => m.startsWith(bad) ? { kind: 'failure', timeout: true, reason: 'timeout' } : ok);
       const r = await reviewProduct(d, ctx, urls, { calls: 100 });
       expect(r.outcome).toBeNull(); expect(r.halt?.kind).toBe('temporary'); expect(cache.size).toBe(0);

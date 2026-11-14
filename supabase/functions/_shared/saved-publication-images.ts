@@ -1,5 +1,6 @@
-/** Only explicit, same-run opinions from BOTH models can be reused. */
-export const PUBLICATION_IMAGE_MODELS = ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'] as const;
+import { ACTIVE_IMAGE_PIPELINE, IMAGE_VISION_PIPELINES } from './ml-image-criterion.ts';
+/** Explicit Gemini evidence is reusable; preserve historical explicit GPT rejections. */
+export const PUBLICATION_IMAGE_MODELS = IMAGE_VISION_PIPELINES[ACTIVE_IMAGE_PIPELINE].models;
 export const IMAGE_QUEUE_MESSAGE = 'Nossa conferência de fotos está instável agora. Seu pedido ficou salvo; vamos tentar novamente e avisar aqui na Velo.';
 export type SavedImageRow = {
   image_url: string; image_role: string; verdict: string; reason_code: string;
@@ -17,7 +18,7 @@ export function savedPublicationRoles(rows: SavedImageRow[], urls: string[]): Sa
   }
   const result: SavedRoles = new Map();
   for (const group of groups.values()) {
-    const explicitDenial = group.find(row => PUBLICATION_IMAGE_MODELS.includes(row.model as typeof PUBLICATION_IMAGE_MODELS[number]) && row.verdict === 'reprovada');
+    const explicitDenial = group.find(row => ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'].includes(row.model) && row.verdict === 'reprovada');
     const combined = group.find(row => PUBLICATION_IMAGE_MODELS.every(model => row.model.split('+').includes(model)));
     const opinions = combined ? [combined] : PUBLICATION_IMAGE_MODELS.map(model => group.filter(row => row.model === model).sort((a,b) => b.analyzed_at.localeCompare(a.analyzed_at))[0]);
     if (!explicitDenial && opinions.some(row => !row)) continue;

@@ -257,8 +257,8 @@ Deno.test('dupla checagem: falha, tempo esgotado ou formato inválido em qualque
   assertEquals((await sequentialVision(['g', 't'], ask(new Error('503'), ok))).clean, null);
   assertEquals((await sequentialVision(['g', 't'], ask({ clean: null, reason: 'x' }, ok))).clean, null);
 });
-Deno.test('chave do cache inclui os dois modelos e a versão do critério', () => {
-  assertEquals(IMAGE_VISION_MODELS, ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra']);
-  for (const m of ['gemini-3.8-flash', 'gpt-6.1-terra', 'two-level-v5']) assertEquals(IMAGE_CRITERION_VERSION.includes(m), true);
+Deno.test('fotos usam somente Gemini e cache distingue a revisão sem GPT', () => {
+  assertEquals(IMAGE_VISION_MODELS, ['google/gemini-3.8-flash']);
+  assertEquals(IMAGE_CRITERION_VERSION, 'two-level-v6-2026-11-14+gemini-3.8-flash');
   assertEquals(IMAGE_VISION_PIPELINES.legacy.models[0], 'google/gemini-3.6-flash');
 });

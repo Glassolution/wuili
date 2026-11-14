@@ -4,10 +4,11 @@
  * ml-publish + ml-catalog-vision-audit. The version (cache key) carries the pipeline models.
  */
 export const IMAGE_VISION_PIPELINES = {
+  gemini: { version: 'two-level-v6-2026-11-14+gemini-3.8-flash', models: ['google/gemini-3.8-flash'] },
   dual: { version: 'two-level-v5-2026-11-08+gemini-3.8-flash+gpt-6.1-terra', models: ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'] },
   legacy: { version: 'two-level-v4-2026-11-08', models: ['google/gemini-3.6-flash'] },
 } as const;
-export const ACTIVE_IMAGE_PIPELINE: keyof typeof IMAGE_VISION_PIPELINES = 'dual';
+export const ACTIVE_IMAGE_PIPELINE: keyof typeof IMAGE_VISION_PIPELINES = 'gemini';
 /** Version evidence without changing the legacy cache schema or its rows. */
 export const IMAGE_CRITERION_VERSION: string = IMAGE_VISION_PIPELINES[ACTIVE_IMAGE_PIPELINE].version;
 /** Supplier/store names already confirmed as overlaid watermarks in catalog photos. */

@@ -170,7 +170,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   const { data: cache, error: cacheError } = await db.from('ml_image_vision_cache').select('url,reason,checked_at').in('url', candidates);
   if (cacheError) throw new Error(cacheError.message);
   for (const entry of cache ?? []) {
-    const match = /^\[(two-level-[^\]]*gemini-3\.8-flash\+gpt-6\.1-terra)\] roles: (.+)$/.exec(entry.reason ?? '');
+    const match = /^\[(two-level-[^\]]*gemini-3\.8-flash(?:\+gpt-6\.1-terra)?)\] roles: (.+)$/.exec(entry.reason ?? '');
     if (!match) continue;
     try {
       const roles = JSON.parse(match[2]);
@@ -180,7 +180,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
         if (parsed.clean === null) continue;
         rows.push({ image_url: entry.url, image_role: role, verdict: parsed.evidence.veredito,
           reason_code: parsed.evidence.codigo, evidence_location: parsed.evidence.localizacao, justification: parsed.evidence.justificativa,
-          criterion_version: match[1], model: 'google/gemini-3.8-flash+openai/gpt-6.1-terra', analyzed_at: entry.checked_at, run_id: 'cache' });
+          criterion_version: match[1], model: match[1].includes('gpt-6.1-terra') ? 'google/gemini-3.8-flash+openai/gpt-6.1-terra' : 'google/gemini-3.8-flash', analyzed_at: entry.checked_at, run_id: 'cache' });
       }
     } catch { /* Invalid cache is not a verdict. */ }
   }
