@@ -5,6 +5,20 @@ import { metaVeloInicioCheckout } from "@/lib/veloMetaPixel";
 
 export type VelloPlanId = "base" | "pro" | "business";
 export type VelloBillingCycle = "monthly" | "annual" | "lifetime";
+export type UpgradeQuote = { upgrade: boolean; id?: string; fromPlan?: string; toPlan?: string;
+  amount?: number; recurringAmount?: number; nextChargeDate?: string; state?: string;
+  payment?: { pix?: { emv?: string; qrCode?: string } } | null };
+export async function requestPlanUpgrade(body: Record<string, unknown>): Promise<UpgradeQuote> {
+  const { data, error } = await supabase.functions.invoke("validapay-checkout", { body });
+  if (error) {
+    const response = (error as unknown as { context?: Response }).context;
+    let message = "Não foi possível conferir o upgrade. Nenhuma nova assinatura foi aberta.";
+    try { const details = await response?.json(); if (details?.error) message = String(details.error); } catch { /* non JSON */ }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(String(data.error));
+  return data as UpgradeQuote;
+}
 
 /**
  * Cria uma sessão de checkout na ValidaPay (Pix + cartão) para o usuário logado

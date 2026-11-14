@@ -5,6 +5,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createCheckoutSession, isConfirmedPayment, lookupPaymentStatus, ValidaPayError } from "../_shared/validapay.ts";
 import { LIFETIME_PLANS, lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { validateCoupon } from "../_shared/coupons.ts";
+import { quoteUpgrade, confirmUpgrade, readUpgrade } from "../_shared/planUpgrade.ts";
 
 const PRICE_ENV: Record<string, Record<string, string>> = {
   monthly: {
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const email = claimsData.claims.email as string | undefined;
 
-    let body: { plan?: string; cycle?: string; affiliate_code?: string; coupon?: string } = {};
+    let body: { plan?: string; cycle?: string; affiliate_code?: string; coupon?: string; action?: string; upgrade_id?: string; confirmed_amount?: number } = {};
     try {
       body = await req.json();
     } catch {
@@ -63,6 +64,16 @@ Deno.serve(async (req) => {
     if (!["monthly", "annual", "lifetime"].includes(requestedCycle)) return json({ error: "Ciclo inválido." }, 400);
     if (requestedCycle === "annual") return json({ error: "A opção anual foi substituída por Vitalício. Selecione novamente seu plano." }, 400);
     const cycle = requestedCycle;
+    const upgradeAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", { auth: { persistSession: false } });
+    if (body.action === "confirm_upgrade" || body.action === "upgrade_status") {
+      if (typeof body.upgrade_id !== "string" || !/^[0-9a-f-]{36}$/i.test(body.upgrade_id) ||
+        typeof body.confirmed_amount !== "number" || !Number.isFinite(body.confirmed_amount)) return json({ error: "Confirmação de upgrade inválida." }, 400);
+      return json(body.action === "upgrade_status" ? await readUpgrade(upgradeAdmin, userId, body.upgrade_id) :
+        await confirmUpgrade(upgradeAdmin, userId, body.upgrade_id, body.confirmed_amount));
+    }
+    const upgradeQuote = await quoteUpgrade(upgradeAdmin, userId, plan, cycle);
+    if (body.action === "quote") return json(upgradeQuote);
+    if (upgradeQuote.upgrade) return json({ ...upgradeQuote, error: "Confira a diferença e confirme o upgrade antes de pagar." }, 409);
     const lifetimePlan = plan === "base" || plan === "pro" || plan === "business" ? LIFETIME_PLANS[plan] : null;
     const priceEnv = cycle === "lifetime" ? lifetimePlan?.priceId : PRICE_ENV[cycle]?.[plan];
     if (!priceEnv) return json({ error: "Plano inválido. Use base, pro ou business." }, 400);
@@ -167,7 +178,7 @@ Deno.serve(async (req) => {
     }
 
     // Não acumula com cupom: vale o maior desconto.
-    const couponPercentOff = coupon?.coupon.percentOff ?? 0;
+    const couponPercentOff = coupon?.coupon?.percentOff ?? 0;
     const discountPercent = Math.max(couponPercentOff, referralPercentOff);
     const discountSource = discountPercent === 0
       ? null
@@ -216,7 +227,7 @@ Deno.serve(async (req) => {
         purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
         velo_purchase_id: purchaseId,
         ...(affiliateCode ? { affiliate_code: affiliateCode } : {}),
-        ...(discountSource === "coupon" && coupon ? { coupon_code: coupon.coupon.code } : {}),
+        ...(discountSource === "coupon" && coupon?.coupon ? { coupon_code: coupon.coupon.code } : {}),
         ...(discountSource === "referral" ? { referral_discount: "15", referral_id: referralId ?? "" } : {}),
       },
       // Desconto só na 1ª cobrança (fromCycle/toCycle = 1).
@@ -325,6 +336,8 @@ Deno.serve(async (req) => {
 
     // A API usa `creditcard` (sem underscore). O valor anterior `credit_card`
     // era ignorado pelo checkout hospedado, por isso apenas o Pix aparecia.
+    const refreshedQuote = await quoteUpgrade(admin, userId, plan, cycle);
+    if (refreshedQuote.upgrade) return json({ ...refreshedQuote, error: "Encontramos seu plano pago. Confira a diferença antes de confirmar o upgrade." }, 409);
     const { error: pendingError } = await admin.from("subscriptions").insert({
       id: purchaseId,
       user_id: userId,
@@ -363,7 +376,7 @@ Deno.serve(async (req) => {
     // Falha do lado do gateway (conta do adquirente indisponível): o cliente não
     // tem o que corrigir, então mostramos um aviso claro em vez de erro técnico.
     const code = (err instanceof ValidaPayError
-      ? (err.data as { error?: { code?: string } } | null)?.error?.code
+      ? (err.details as { error?: { code?: string } } | null)?.error?.code
       : null) ?? "";
     if (code === "ACCOUNT_NOT_FOUND" || (err instanceof ValidaPayError && err.status === 404)) {
       return json(

@@ -1,5 +1,12 @@
 # Roadmap
 
+## Upgrade pela diferença integral — 14/11
+- [x] Mostrar cotação antes de confirmar; Base → Pro R$39,90
+- [x] Fluxo da diferença avulsa no contrato existente e substituição sem pró-rata; migration 0057 e três funções publicadas
+- [x] Reserva durável contra clique duplo/resultado incerto; confirmação de pagamento e preservação das datas
+- [x] 19 testes e check das três funções passaram; consulta autenticada recusou contrato não elegível sem cobrança
+- [ ] Validação financeira ponta a ponta: bloqueada por falta de contrato elegível de teste. Nenhum cliente cobrado; tela de confirmação só verificada com resposta simulada no navegador.
+
 ## Cobrança antiga Adriel — 13/11
 - [ ] Estornar somente cha_1794575123466_v3t342oi8 (R$39,90), cancelar sub_1791906917331_2242rw67q e resolver incidente após confirmação; bloqueado: sessão solicitante sem papel admin, escolha de conta admin não fornecida. Nenhuma ação financeira/contrato alterado; assinatura nova preservada.
 - [x] Corrigir execução pontual para assinatura reembolsada sem cancelled_at e unificar cancelamento durável nos caminhos de confirmação/cortesia; manter autorização global intacta

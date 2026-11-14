@@ -1,6 +1,7 @@
 # Edge Functions — regras
 
 - Escritas em Deno/TypeScript; nunca instalar pacotes Node.js para elas.
+- Monthly upgrades reserve an explicit quote, charge a ONE_TIME difference and replace the existing recurring item without prorata; intercept adjustment events before activation and never resend uncertain mutations, preserving billing dates and preventing duplicate contracts.
 - Funções principais: `ml-publish`, `ml-connect`, `ml-callback` (salva token em `user_integrations`), `scrape-c7drop`, `catalog`, `chat` (Gemini).
 - Suporte: a IA (`support-assistant`) responde tickets via gatilho no banco; avisos internos usam `support_messages.internal` e ficam ocultos do cliente pelas regras de acesso. Motivo: cobre todas as telas de envio de ticket.
 - TikTok Events API: eventos de servidor passam por `_shared/tiktokEvents.ts` e ficam registrados em `tiktok_events` (event_id único). Motivo: evita duplicidade e permite reenviar falhas sem afetar o webhook de pagamento.

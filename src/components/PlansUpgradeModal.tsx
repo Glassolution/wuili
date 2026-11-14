@@ -20,7 +20,9 @@ import {
 import { toast } from "sonner";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { VeloLogo } from "@/components/VeloLogo";
-import { startValidaPayCheckout, type VelloPlanId } from "@/lib/validapayCheckout";
+import { startValidaPayCheckout, requestPlanUpgrade, type UpgradeQuote, type VelloPlanId } from "@/lib/validapayCheckout";
+import { Dialog, DialogPortal, DialogOverlay, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
@@ -638,6 +640,21 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
   const sandboxPurchaseEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(session?.user?.email));
   const openedAt = useRef(Date.now());
+  const [upgrade, setUpgrade] = useState<UpgradeQuote | null>(null);
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
+  const upgradeInFlight = useRef(false);
+  const submitUpgrade = async () => {
+    if (!upgrade?.id || upgrade.amount === undefined || upgradeInFlight.current) return;
+    upgradeInFlight.current = true;
+    setUpgradeBusy(true);
+    try {
+      const next = await requestPlanUpgrade({ action: upgrade.state === "quoted" ? "confirm_upgrade" : "upgrade_status",
+        upgrade_id: upgrade.id, confirmed_amount: upgrade.amount });
+      setUpgrade(next);
+      if (next.state === "completed") toast.success("Upgrade concluído. A data de renovação foi mantida.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível confirmar o upgrade."); }
+    finally { upgradeInFlight.current = false; setUpgradeBusy(false); }
+  };
 
   const closeWithTracking = () => {
     trackMobileHomeEvent(session?.user?.id, "plans_exit", {
@@ -685,6 +702,12 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
         return;
       }
 
+      const quote = await requestPlanUpgrade({ action: "quote", plan: planId, cycle: checkoutCycle });
+      if (quote.upgrade) {
+        setUpgrade(quote);
+        setCheckingOutPlanId(null);
+        return;
+      }
       const res = await startValidaPayCheckout(planId as VelloPlanId, checkoutCycle);
       if (res.ok) return;
       setCheckingOutPlanId(null);
@@ -718,6 +741,22 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
 
   return (
     <div className="fixed inset-0 z-[80] flex items-stretch justify-center p-0 sm:items-center sm:p-6">
+      <Dialog open={upgrade !== null} onOpenChange={(value) => { if (!value && !upgradeBusy) setUpgrade(null); }}>
+        <DialogPortal>
+          <DialogOverlay className="z-[90] bg-background/80" />
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[91] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 text-foreground shadow-lg">
+            <DialogTitle>Upgrade para {upgrade?.toPlan === "pro" ? "Pro" : "Business"}</DialogTitle>
+            <DialogDescription className="mt-3">Diferença a pagar uma única vez: <strong>{formatBRL(upgrade?.amount ?? 0)}</strong>.</DialogDescription>
+            <p className="mt-3 text-sm text-muted-foreground">Na próxima renovação: {formatBRL(upgrade?.recurringAmount ?? 0)}/mês, em {upgrade?.nextChargeDate ? new Date(upgrade.nextChargeDate).toLocaleDateString("pt-BR") : "—"}. O contrato atual será atualizado, sem outra assinatura.</p>
+            {upgrade?.state === "completed" ? <p className="mt-4 text-sm">Upgrade concluído. Sua data de renovação não mudou.</p> : upgrade?.state !== "quoted" ? <p className="mt-4 text-sm">{upgrade?.state === "review" || upgrade?.state === "charging" ? "Pagamento em conferência. Não pague novamente; fale com o suporte se continuar pendente." : "Aguardando confirmação do pagamento da diferença."}</p> : null}
+            {upgrade?.payment?.pix?.emv && <div className="mt-4"><p className="text-sm">Pix copia e cola</p><textarea readOnly aria-label="Pix copia e cola" className="mt-2 w-full rounded border border-input bg-background p-2 text-xs" value={upgrade.payment.pix.emv} /></div>}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button variant="outline" disabled={upgradeBusy} onClick={() => setUpgrade(null)}>Fechar</Button>
+              {upgrade?.state !== "completed" && <Button disabled={upgradeBusy || upgrade?.state === "review" || upgrade?.state === "charging"} onClick={() => void submitUpgrade()}>{upgradeBusy ? "Conferindo…" : upgrade?.state === "quoted" ? `Confirmar ${formatBRL(upgrade.amount ?? 0)}` : "Verificar pagamento"}</Button>}
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
       <button
         type="button"
         aria-label="Fechar"

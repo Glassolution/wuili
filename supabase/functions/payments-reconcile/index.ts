@@ -9,6 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { processProviderCancellation } from "../_shared/providerCancellation.ts";
 import { guardPaidSubscription } from "../_shared/subscriptionLifecycle.ts";
+import { handleUpgradePayment, recoverUpgrades } from "../_shared/planUpgrade.ts";
 import { getCharge, isConfirmedPayment, isPaidStatus, lookupPaymentStatus } from "../_shared/validapay.ts";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
 import { detectAndRefundDuplicates, logIncident } from "../_shared/paymentGuard.ts";
@@ -77,6 +78,7 @@ Deno.serve(async (req) => {
       .select("subscription_id").in("state", ["pending", "processing"]).lte("next_retry_at", nowIso).limit(10);
     if (cancellationReadError) throw new Error(`cancellation_queue_read:${cancellationReadError.message}`);
     for (const job of cancellationJobs ?? []) await processProviderCancellation(admin, job.subscription_id);
+    await recoverUpgrades(admin);
 
 
     // ---------------------------------------------------------------
@@ -259,6 +261,7 @@ async function activateFromReference(
   },
   usersToAudit: Set<string>,
 ): Promise<boolean> {
+  if (await handleUpgradePayment(admin, ref.chargeId, ref.subscriptionId)) return true;
   // A cobrança pode não estar gravada na assinatura ainda (o checkout guarda
   // só a sessão cs_...). Por isso tentamos, em ordem: cobrança, assinatura do
   // gateway e, por fim, a última assinatura do usuário indicado no evento.

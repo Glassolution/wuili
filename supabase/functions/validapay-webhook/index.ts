@@ -8,6 +8,7 @@
 //     via GET /v1/charges/:chargeId com o token OAuth2 antes de alterar o banco.
 //     Ou seja, um POST forjado não consegue ativar assinatura nenhuma.
 import { guardPaidSubscription, hasTerminatingRefund, syncPaidProfile } from "../_shared/subscriptionLifecycle.ts";
+import { handleUpgradePayment } from "../_shared/planUpgrade.ts";
 import { providerCancellationConfirmed, preservesPaidAccess } from "../_shared/subscriptionLifecyclePolicy.ts";
 import { finalizeConfirmedRefund } from "../_shared/confirmedRefundLifecycle.ts";
 import { lifetimePaymentMatches, lifetimePeriod } from "../_shared/lifetimePlans.ts";
@@ -399,6 +400,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (["payment.success", "payment.failed", "payment.expired", "oneoff.payment.success", "subscription.activated", "subscription.renewed"].includes(event) &&
+      await handleUpgradePayment(admin, canonicalChargeId, payload.subscriptionId)) {
+      await admin.from("validapay_webhook_events").update({ processed: true, error: null, next_retry_at: null }).eq("id", eventRow.id);
+      return json({ received: true, upgrade: true });
+    }
     const subscription = await findSubscription(payload);
     if (!subscription) return await fail("subscription_not_found");
 

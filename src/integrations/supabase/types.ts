@@ -2823,6 +2823,86 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_upgrade_requests: {
+        Row: {
+          amount: number
+          charge_id: string | null
+          created_at: string
+          difference_price_id: string | null
+          error: string | null
+          expires_at: string
+          from_plan: string
+          id: string
+          next_charge_date: string
+          period_end: string
+          period_start: string | null
+          provider_item_id: string
+          provider_response: Json | null
+          provider_subscription_id: string
+          recurring_amount: number
+          state: string
+          subscription_id: string
+          target_price_id: string
+          to_plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          charge_id?: string | null
+          created_at?: string
+          difference_price_id?: string | null
+          error?: string | null
+          expires_at?: string
+          from_plan: string
+          id?: string
+          next_charge_date: string
+          period_end: string
+          period_start?: string | null
+          provider_item_id: string
+          provider_response?: Json | null
+          provider_subscription_id: string
+          recurring_amount: number
+          state?: string
+          subscription_id: string
+          target_price_id: string
+          to_plan: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          charge_id?: string | null
+          created_at?: string
+          difference_price_id?: string | null
+          error?: string | null
+          expires_at?: string
+          from_plan?: string
+          id?: string
+          next_charge_date?: string
+          period_end?: string
+          period_start?: string | null
+          provider_item_id?: string
+          provider_response?: Json | null
+          provider_subscription_id?: string
+          recurring_amount?: number
+          state?: string
+          subscription_id?: string
+          target_price_id?: string
+          to_plan?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_upgrade_requests_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_cancel_refund_operations: {
         Row: {
           amount: number
@@ -5130,6 +5210,7 @@ export type Database = {
         Args: { p_id: string; p_item_id: string; p_permalink: string }
         Returns: undefined
       }
+      complete_plan_upgrade: { Args: { p_id: string }; Returns: boolean }
       current_user_ml_seller_ids: { Args: never; Returns: string[] }
       cvr_acquire: { Args: { p_owner: string; p_ttl: number }; Returns: number }
       cvr_candidates: {
