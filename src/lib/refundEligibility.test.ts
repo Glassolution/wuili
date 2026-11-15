@@ -8,6 +8,7 @@ describe("subscription refund eligibility", () => {
   it("offers refund within seven days", () => expect(getRefundMode(subscription, [], start + 2 * day)).toBe("reembolso"));
   it("includes the seven-day boundary", () => expect(getRefundMode(subscription, [], start + 7 * day)).toBe("reembolso"));
   it("offers only cancellation after seven days", () => expect(getRefundMode(subscription, [], start + 7 * day + 1)).toBe("cancelamento"));
+  it("does not offer refund at eight days when the window is not waived", () => expect(getRefundMode(subscription, [], start + 8 * day, { waiveWindow: false })).toBe("cancelamento"));
   it("does not remove refund eligibility after renewal cancellation", () => expect(getRefundMode({ ...subscription, cancel_at_period_end: true }, [], start + day)).toBe("reembolso"));
   it("shows a submitted request as pending", () => expect(getRefundMode(subscription, [{ subscription_id: subscription.id, status: "pending" }], start + day)).toBe("em_analise"));
   it("preserves the repeated refund restriction", () => expect(getRefundMode(subscription, [{ subscription_id: "old", status: "processed" }], start + day)).toBe("cancelamento"));

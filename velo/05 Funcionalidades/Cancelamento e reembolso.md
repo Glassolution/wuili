@@ -38,3 +38,4 @@ A qualquer momento, na página **Gerenciar assinatura** (`/dashboard/configuraco
 Tabelas: [[Tabelas - Reembolsos]]. Front: `src/components/help-center/RefundChat.tsx`, `RefundChatLink.tsx`, `RefundParts.tsx`, `src/pages/RefundSupportPage.tsx`, `src/lib/refundEligibility.ts`, `refundRequestHistory.ts`, `refundStatus.ts`.
 
 - 15/11: a IA do suporte, quando a assinatura tem menos de 7 dias, mostra as duas opções com links: pedir reembolso (atendimento /ajuda/reembolso) ou só cancelar a renovação. A conta admin com exceção pode pedir mesmo já tendo sido reembolsada.
+- 15/11: fora do prazo, a resposta explica primeiro os 7 dias após o pagamento e oferece somente cancelar a renovação, sem link de reembolso. Se já cancelada, informa o prazo vencido e que não há nova ação; vitalício continua sem renovação. Exceção admin preservada.
