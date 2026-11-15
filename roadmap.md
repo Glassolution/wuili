@@ -209,8 +209,8 @@
 
 ## Exceção de prazo admin e proposta de fotos (15/11)
 - [x] Implementar exceção ao prazo somente para a conta admin indicada, sem estorno automático
-- [ ] Validar testes e atendimento publicado sem enviar pedido
-- [ ] Propor redução de consumo de fotos sem alterar robôs ou análises
+- [x] Validar 23 testes de elegibilidade, oito do assistente e atendimento autenticado: exceção recebida, demais restrições preservadas, nenhum pedido enviado
+- [x] Propor conferência sob demanda, reaproveitamento global e teto diário; sem alterar robôs ou análises
 
 ## Contexto de reembolso no suporte
 - [x] Corrigir cartão conforme a assinatura do cliente, inclusive após cancelar renovação
