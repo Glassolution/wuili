@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-08
+atualizado: 2026-11-15
 fontes: [AGENTS.md (fonte mais atual), supabase/functions/_shared/refundPolicy.ts]
 ---
 # Cancelamento e reembolso
@@ -10,6 +10,7 @@ fontes: [AGENTS.md (fonte mais atual), supabase/functions/_shared/refundPolicy.t
 Configurações → Perfil, linha "Garantia de 7 dias" (`RefundSection`, âncora `#velo-reembolso`): mostra uso da conta antes do pedido; "Solicitar reembolso" pede motivo. Depois dos 7 dias some do Perfil e "Cancelar renovação" aparece na aba Plano. Pedido só pelo `request-refund`; um pendente por cliente (drizzle `0045`). O chat só orienta em texto, sem link.
 
 ## Reembolso de cortesia (admin)
+Exceção de prazo para a conta administradora autorizada: `_shared/refundWindowException.ts` verifica ID, e-mail autenticado e papel protegido no servidor; atendimento e envio compartilham a decisão. Só remove os sete dias, não pedidos duplicados, análise, ciência de fim de acesso ou restrições de reembolso repetido. Nenhum estorno é automático.
 Fora da regra padrão: confirmação explícita de cobrança/usuário/assinatura/valor e reserva durável da cobrança; não aplica cooldown nem bloqueio de identidade; nunca reenviar estorno incerto. `_shared/adminCourtesyRefund.ts`, `courtesyRefundPolicy.ts` → [[Reembolso de cortesia]].
 
 ## Atendimento de reembolso com IA (local, não publicado — 08/11)

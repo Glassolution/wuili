@@ -11,6 +11,7 @@
 // de novo. Regras do atendimento em _shared/refundAssistant.ts.
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getRefundMode, REFUNDABLE_SUBSCRIPTION_STATUSES, REFUND_WINDOW_DAYS } from "../_shared/refundPolicy.ts";
+import { verifyRefundWindowException } from "../_shared/refundWindowException.ts";
 import {
   buildRefundAssistantPrompt,
   parseRefundProposal,
@@ -73,19 +74,21 @@ async function carregarSituacao(
     .eq("user_id", userId);
   if (erroPedidos) throw new Error(`refund_requests:${erroPedidos.message}`);
 
-  let mode = getRefundMode(sub, pedidos ?? []);
+  const windowException = await verifyRefundWindowException(admin, userId);
+  let mode = getRefundMode(sub, pedidos ?? [], Date.now(), { waiveWindow: windowException });
   // No sandbox o admin testa fora dos 7 dias (o request-refund também libera).
   if (sandbox && sub && (mode === "cancelamento" || mode === "cancelado")) mode = "reembolso";
   const inicio = sub ? new Date(sub.created_at).getTime() : NaN;
   const fim = inicio + REFUND_WINDOW_DAYS * DAY;
   return {
     mode,
+    windowException,
     plano: sub?.plan ? PLAN_LABEL[sub.plan.toLowerCase()] ?? sub.plan : null,
     vitalicio: sub?.purchase_kind === "lifetime",
     dataCobranca: Number.isFinite(inicio) ? fmtData(inicio) : null,
     valor: fmtValor(sub?.amount),
-    prazoFinal: Number.isFinite(fim) ? fmtData(fim) : null,
-    diasRestantes: Number.isFinite(fim) ? Math.max(0, Math.ceil((fim - Date.now()) / DAY)) : null,
+    prazoFinal: !windowException && Number.isFinite(fim) ? fmtData(fim) : null,
+    diasRestantes: !windowException && Number.isFinite(fim) ? Math.max(0, Math.ceil((fim - Date.now()) / DAY)) : null,
     primeiroNome: nome,
   };
 }

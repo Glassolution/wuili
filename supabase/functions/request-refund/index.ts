@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 import { identityAlreadyRefunded } from "../_shared/refundIdentity.ts";
+import { verifyRefundWindowException } from "../_shared/refundWindowException.ts";
 import { formatRefundFeedback, getRefundMode, PRAZO_REEMBOLSO, REFUNDABLE_SUBSCRIPTION_STATUSES } from "../_shared/refundPolicy.ts";
 
 const corsHeaders = {
@@ -96,11 +97,13 @@ Deno.serve(async (req) => {
     }
 
     // Mesma regra que a página de Configurações mostra (_shared/refundPolicy.ts).
-    const { data: prevRequests } = await admin
+    const { data: prevRequests, error: prevRequestsError } = await admin
       .from("refund_requests")
       .select("subscription_id, status")
       .eq("user_id", userId);
-    const mode = getRefundMode(sub, prevRequests ?? []);
+    if (prevRequestsError) return json({ error: "Não foi possível conferir pedidos anteriores. Tente novamente." }, 503);
+    const waiveWindow = await verifyRefundWindowException(admin, userId);
+    const mode = getRefundMode(sub, prevRequests ?? [], Date.now(), { waiveWindow });
     if (mode !== "reembolso" && !sandboxAllowed) {
       const erro =
         mode === "em_analise" ? "Você já tem uma solicitação de reembolso em análise."

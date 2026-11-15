@@ -26,6 +26,7 @@ const RESUMO_MAX = 600;
 
 export type RefundChatFacts = {
   mode: RefundMode;
+  windowException?: boolean;
   plano: string | null;
   vitalicio: boolean;
   dataCobranca: string | null; // dd/mm/aaaa
@@ -69,6 +70,9 @@ const SITUACAO: Record<RefundMode, string> = {
 export function buildRefundAssistantPrompt(facts: RefundChatFacts): string {
   const artigos = REFUND_CHAT_ARTICLES.map((a) => `- ${a.assunto}: ${a.path}`).join("\n");
   const plano = facts.plano ? `${facts.plano}${facts.vitalicio ? " (vitalício)" : ""}` : "—";
+  const situacao = facts.windowException && facts.mode === "reembolso"
+    ? "EXCEÇÃO DE PRAZO VERIFICADA PELO SERVIDOR: esta conta administradora pode pedir após sete dias. Você pode preparar o pedido; análise e demais restrições continuam."
+    : SITUACAO[facts.mode];
   return `Você é a atendente de reembolso da Velo, plataforma brasileira de dropshipping que publica produtos no Mercado Livre. Este chat existe só para o reembolso da ASSINATURA da Velo.
 
 DADOS DA CONTA (calculados pelo sistema, são a verdade; nunca contradiga nem invente outros):
@@ -77,10 +81,10 @@ DADOS DA CONTA (calculados pelo sistema, são a verdade; nunca contradiga nem in
 - Data da cobrança: ${facts.dataCobranca ?? "—"}
 - Valor: ${facts.valor ?? "—"}
 - Prazo de ${REFUND_WINDOW_DAYS} dias termina em: ${facts.prazoFinal ?? "—"}${facts.diasRestantes != null ? ` (restam ${facts.diasRestantes} dia(s))` : ""}
-- Situação: ${SITUACAO[facts.mode]}
+- Situação: ${situacao}
 
 REGRAS DO REEMBOLSO:
-- Vale até ${REFUND_WINDOW_DAYS} dias corridos depois da contratação, para todos os planos, inclusive o vitalício; uma vez por pessoa (e-mail e chave Pix contam, mesmo em outra conta); um pedido em análise por vez.
+- ${facts.windowException ? "Esta conta tem exceção verificada ao prazo de sete dias, sem data limite para solicitar." : `Vale até ${REFUND_WINDOW_DAYS} dias corridos depois da contratação, para todos os planos, inclusive o vitalício.`} Uma vez por pessoa (e-mail e chave Pix contam, mesmo em outra conta); um pedido em análise por vez.
 - Quem aprova ou recusa é a equipe da Velo. ${PRAZO_REEMBOLSO}
 - Ao enviar o pedido, a renovação é cancelada na hora e a pessoa continua usando a Velo durante a análise.
 - Se for aprovado: o plano acaba na hora, os anúncios publicados pela Velo no Mercado Livre são encerrados e novas publicações ficam bloqueadas por 30 dias (o bloqueio sai se ela assinar um plano pago de novo).
@@ -168,6 +172,7 @@ export function refundChatGreeting(facts: RefundChatFacts): string {
   const oi = facts.primeiroNome ? `Oi, ${facts.primeiroNome}!` : "Oi!";
   switch (facts.mode) {
     case "reembolso":
+      if (facts.windowException) return `${oi} Sua conta administradora pode solicitar reembolso sem o limite de sete dias. O pedido continua sujeito à análise da equipe. Me conta: o que aconteceu?`;
       return `${oi} Sou a atendente de reembolso da Velo. Sua assinatura${facts.plano ? ` ${facts.plano}${facts.vitalicio ? " vitalício" : ""}` : ""} foi cobrada em ${facts.dataCobranca} (${facts.valor}) e você pode pedir reembolso até ${facts.prazoFinal}. Me conta: o que aconteceu?`;
     case "em_analise":
       return `${oi} Você já tem um pedido de reembolso em análise, e a situação dele aparece logo acima. Posso tirar alguma dúvida enquanto a equipe analisa?`;

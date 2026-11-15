@@ -51,15 +51,17 @@ export function ContaLogada({ email, onSair, sandbox }: { email: string; onSair:
 export function ResumoElegibilidade({
   assinatura,
   modo,
+  windowException = false,
 }: {
   assinatura: NonNullable<RefundStatus["assinatura"]>;
   modo: RefundStatus["mode"] | undefined;
+  windowException?: boolean;
 }) {
   const inicio = new Date(assinatura.created_at).getTime();
   const fim = new Date(inicio + REFUND_WINDOW_DAYS * DAY).toISOString();
   const dentro = modo === "reembolso";
   const situacao =
-    modo === "reembolso" ? "Dentro do prazo"
+    modo === "reembolso" ? (windowException ? "Sem limite de prazo" : "Dentro do prazo")
     : modo === "em_analise" ? "Pedido em análise"
     : modo === "aprovado" ? "Reembolso já aprovado"
     : "Fora do prazo";
@@ -71,9 +73,9 @@ export function ResumoElegibilidade({
         <Celula rotulo="Data da cobrança" valor={fmtData(assinatura.created_at)} />
         <Celula rotulo="Valor" valor={fmtValor(assinatura.amount)} />
         <Celula
-          rotulo={`Prazo de ${REFUND_WINDOW_DAYS} dias`}
+          rotulo={windowException ? "Exceção de prazo" : `Prazo de ${REFUND_WINDOW_DAYS} dias`}
           valor={situacao}
-          detalhe={`${new Date(fim).getTime() > Date.now() ? "até" : "terminou em"} ${fmtData(fim)}`}
+          detalhe={windowException ? "Conta administradora autorizada" : `${new Date(fim).getTime() > Date.now() ? "até" : "terminou em"} ${fmtData(fim)}`}
           tom={dentro ? "ok" : "neutro"}
         />
       </dl>

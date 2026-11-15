@@ -23,6 +23,13 @@ export type RefundRequestStatus = { subscription_id: string | null; status: stri
 
 export const REFUND_WINDOW_DAYS = 7;
 
+/** Called only with server-verified identity and protected role, never browser claims. */
+export function hasRefundWindowException(userId: string, email: string | null | undefined, isAdmin: boolean): boolean {
+  return userId === "2af69ba1-536e-42a9-970f-ef69508b7880"
+    && email?.trim().toLowerCase() === "lucassrby@gmail.com"
+    && isAdmin === true;
+}
+
 /** Status de assinatura que contam como "paga e em vigor" para reembolso e cancelamento. */
 export const REFUNDABLE_SUBSCRIPTION_STATUSES = ["active", "paid", "approved", "authorized"];
 
@@ -122,6 +129,7 @@ export function getRefundMode(
   subscription: RefundSubscription | null,
   requests: RefundRequestStatus[],
   now = Date.now(),
+  options: { waiveWindow?: boolean } = {},
 ): RefundMode {
   const status = (r: RefundRequestStatus) => String(r.status ?? "").toLowerCase();
   if (requests.some((r) => status(r) === "pending")) return "em_analise";
@@ -132,7 +140,7 @@ export function getRefundMode(
   const jaReembolsado = requests.some((r) => REEMBOLSO_CONCLUIDO.includes(status(r)));
   const dentroDoPrazo = Number.isFinite(age) && age >= 0 && age <= REFUND_WINDOW_DAYS * 86_400_000;
   // Cancelar a renovação não tira o direito ao reembolso dentro dos 7 dias.
-  if (dentroDoPrazo && !jaReembolsado) return "reembolso";
+  if ((dentroDoPrazo || options.waiveWindow === true) && !jaReembolsado) return "reembolso";
   if (subscription.purchase_kind === "lifetime") return "vitalicio";
   return subscription.cancel_at_period_end ? "cancelado" : "cancelamento";
 }

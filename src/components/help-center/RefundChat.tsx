@@ -89,6 +89,7 @@ export default function RefundChat() {
   const [pedido, setPedido] = useState<RefundRequestRow | null>(null);
   const [historico, setHistorico] = useState<RefundEvent[]>([]);
   const [modo, setModo] = useState<RefundMode | null>(null);
+  const [windowException, setWindowException] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState(false);
 
@@ -131,6 +132,7 @@ export default function RefundChat() {
       ]);
       if (inicio.error || !inicio.data?.greeting) throw inicio.error ?? new Error("sem saudação");
       setModo(inicio.data.mode as RefundMode);
+      setWindowException(inicio.data.facts?.windowException === true);
       const salva = lerConversa(chave);
       setConversa(
         salva && salva.mensagens.length
@@ -288,7 +290,7 @@ export default function RefundChat() {
     <div className="space-y-6">
       <ContaLogada email={user.email ?? ""} onSair={sairDaConta} sandbox={sandbox} />
 
-      {assinatura ? <ResumoElegibilidade assinatura={assinatura} modo={modo ?? status?.mode} /> : null}
+      {assinatura ? <ResumoElegibilidade assinatura={assinatura} modo={modo ?? status?.mode} windowException={windowException} /> : null}
       {mostrarPedido ? <SituacaoDoPedido pedido={pedido} historico={historico} /> : null}
 
       {modo === "cancelamento" ? (

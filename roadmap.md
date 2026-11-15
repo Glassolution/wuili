@@ -207,6 +207,11 @@
 - [x] Adaptar o botão do cartão à situação da assinatura
 - [x] Validar regras e publicar somente o assistente de suporte
 
+## Exceção de prazo admin e proposta de fotos (15/11)
+- [x] Implementar exceção ao prazo somente para a conta admin indicada, sem estorno automático
+- [ ] Validar testes e atendimento publicado sem enviar pedido
+- [ ] Propor redução de consumo de fotos sem alterar robôs ou análises
+
 ## Contexto de reembolso no suporte
 - [x] Corrigir cartão conforme a assinatura do cliente, inclusive após cancelar renovação
 - [x] Distinguir reembolso da assinatura e da compra na fornecedora
