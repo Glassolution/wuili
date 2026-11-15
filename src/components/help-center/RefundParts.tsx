@@ -64,7 +64,7 @@ export function ResumoElegibilidade({
     modo === "reembolso" ? (windowException ? "Sem limite de prazo" : "Dentro do prazo")
     : modo === "em_analise" ? "Pedido em análise"
     : modo === "aprovado" ? "Reembolso já aprovado"
-    : "Fora do prazo";
+    : windowException ? "Prazo dispensado" : "Fora do prazo";
   return (
     <div>
       <h3 className="text-[17px] font-medium text-[#0F172A]">Sua elegibilidade</h3>

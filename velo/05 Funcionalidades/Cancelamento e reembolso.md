@@ -11,6 +11,7 @@ Configurações → Perfil, linha "Garantia de 7 dias" (`RefundSection`, âncora
 
 ## Reembolso de cortesia (admin)
 Exceção de prazo para a conta administradora autorizada: `_shared/refundWindowException.ts` verifica ID, e-mail autenticado e papel protegido no servidor; atendimento e envio compartilham a decisão. Só remove os sete dias, não pedidos duplicados, análise, ciência de fim de acesso ou restrições de reembolso repetido. Nenhum estorno é automático.
+Gerenciar assinatura consulta a ação `start` (sem IA) do atendimento para admins e mostra “Solicitar reembolso” somente quando recebe `facts.windowException: true`. O acesso abre `/ajuda/reembolso`; não envia pedido nem cancela a renovação. Outras contas mantêm a orientação existente.
 Verificação de 15/11: funções `request-refund` e `refund-assistant` publicadas; 23 testes de elegibilidade e oito do assistente passaram. Conta autenticada recebeu `windowException: true`; em situação real retornou `cancelamento` por restrição diferente do prazo. Não foi enviado pedido nem executado estorno.
 Fora da regra padrão: confirmação explícita de cobrança/usuário/assinatura/valor e reserva durável da cobrança; não aplica cooldown nem bloqueio de identidade; nunca reenviar estorno incerto. `_shared/adminCourtesyRefund.ts`, `courtesyRefundPolicy.ts` → [[Reembolso de cortesia]].
 

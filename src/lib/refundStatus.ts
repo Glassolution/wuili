@@ -23,7 +23,7 @@ export type RefundAssinatura = {
   cancel_at_period_end: boolean | null;
 };
 
-export type RefundStatus = { mode: RefundMode; assinatura: RefundAssinatura | null };
+export type RefundStatus = { mode: RefundMode; assinatura: RefundAssinatura | null; windowException?: boolean };
 
 const ehSandbox = (s: Pick<RefundAssinatura, "provider" | "payment_method">) =>
   String(s.provider ?? s.payment_method ?? "").toLowerCase() === "sandbox";
@@ -32,7 +32,7 @@ const ehSandbox = (s: Pick<RefundAssinatura, "provider" | "payment_method">) =>
  * Assinatura mais recente em vigor e o que dá para fazer com ela.
  * `sandbox` separa as assinaturas de teste dos admins das reais.
  */
-export const fetchRefundStatus = async (userId: string, sandbox = false): Promise<RefundStatus> => {
+export const fetchRefundStatus = async (userId: string, sandbox = false, verifyWindow = false): Promise<RefundStatus> => {
   const { data: assinaturas, error } = await db
     .from("subscriptions")
     .select("id, plan, status, amount, provider, payment_method, purchase_kind, created_at, current_period_end, cancel_at_period_end")
@@ -53,5 +53,16 @@ export const fetchRefundStatus = async (userId: string, sandbox = false): Promis
   if (erroPedidos) throw erroPedidos;
   const lista = (pedidos ?? []) as Array<{ subscription_id: string | null; status: string | null }>;
 
-  return { mode: getRefundMode(assinatura, lista), assinatura };
+  // Navigation only: the authenticated server verifies identity and protected role.
+  // Failure leaves the shortcut hidden; request-refund still checks every rule.
+  let windowException = false;
+  if (verifyWindow) {
+    try {
+      const { data, error } = await supabase.functions.invoke("refund-assistant", { body: { action: "start", sandbox } });
+      windowException = !error && data?.facts?.windowException === true;
+    } catch {
+      windowException = false;
+    }
+  }
+  return { mode: getRefundMode(assinatura, lista, Date.now(), { waiveWindow: windowException }), assinatura, windowException };
 };

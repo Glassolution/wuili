@@ -1,5 +1,9 @@
 # Roadmap
 
+## Acesso ao reembolso da conta admin — 15/11
+- [x] Mostrar acesso ao atendimento em Gerenciar assinatura somente com exceção confirmada no servidor; sem estornar ou mudar regras de pedidos anteriores
+- [x] 14 testes passaram; botão e destino verificados com a conta autorizada no desktop/celular, sem envio. Atendimento ainda impede novo pedido por reembolso anterior, não pelo prazo. Site não publicado.
+
 ## Fotos sem revisão GPT — 14/11
 - [x] Usar somente Gemini na publicação, auditoria e conferência; preservar falhas inconclusivas e evidência anterior
 - [x] 51 testes passaram; quatro serviços implantados; versão Gemini-only confirmada ao vivo via cabeçalho de ml-publish. Três checks passaram; ml-fix-noncompliant mantém erro de tipo preexistente (moderation). Sem análise paga, alteração de anúncios, catálogo ou pagamentos.

@@ -8,6 +8,7 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { fetchRefundStatus, type RefundAssinatura, type RefundStatus } from "@/lib/refundStatus";
 import { PRAZO_DEVOLUCAO, PRAZO_REEMBOLSO } from "@/lib/refundEligibility";
+import { Button } from "@/components/ui/button";
 
 /*
   Página Gerenciar assinatura (/dashboard/configuracoes/central-da-assinatura).
@@ -49,14 +50,14 @@ const useSubscriptionStatus = () => {
     if (!user) return;
     setLoadError(false);
     try {
-      setStatus(await fetchRefundStatus(user.id, sandbox));
+      setStatus(await fetchRefundStatus(user.id, sandbox, role === "admin"));
     } catch (e) {
       console.error("assinatura", e);
       setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [user, sandbox]);
+  }, [user, sandbox, role]);
 
   useEffect(() => {
     void carregar();
@@ -263,7 +264,19 @@ const SubscriptionManageSection = () => {
         ) : null}
       </section>
 
-      <RefundHelpNote />
+      {status?.windowException ? (
+        <section aria-labelledby="reembolso-admin-titulo" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-border pt-5">
+          <div className="min-w-0 max-w-md">
+            <h2 id="reembolso-admin-titulo" className="text-sm font-semibold text-foreground">Reembolso</h2>
+            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+              Sua conta admin pode solicitar análise de reembolso sem o limite de sete dias. Pedidos anteriores e demais condições continuam sendo verificados no atendimento.
+            </p>
+          </div>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link to="/ajuda/reembolso">Solicitar reembolso <ArrowRight size={14} aria-hidden="true" /></Link>
+          </Button>
+        </section>
+      ) : <RefundHelpNote />}
     </div>
   );
 };
