@@ -30,8 +30,12 @@ describe("account-scoped admin refund window", () => {
   it("still blocks a duplicate pending request", () => {
     expect(getRefundMode(sub, [{ subscription_id: sub.id, status: "pending" }], now, options)).toBe("em_analise");
   });
-  it("still blocks a repeated completed refund", () => {
-    expect(getRefundMode(sub, [{ subscription_id: "old", status: "processed" }], now, options)).toBe("cancelamento");
+  it("lets the specified admin request again after an earlier completed refund", () => {
+    expect(getRefundMode(sub, [{ subscription_id: "old", status: "processed" }], now, options)).toBe("reembolso");
+  });
+  it("still blocks a repeated completed refund for everyone else", () => {
+    const recent = { id: "paid-sub", created_at: "2026-11-14T00:00:00Z" };
+    expect(getRefundMode(recent, [{ subscription_id: "old", status: "processed" }], now)).toBe("cancelamento");
   });
   it("still requires an eligible subscription", () => {
     expect(getRefundMode(null, [], now, options)).toBe("sem_assinatura");

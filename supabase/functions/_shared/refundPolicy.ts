@@ -140,7 +140,9 @@ export function getRefundMode(
   const jaReembolsado = requests.some((r) => REEMBOLSO_CONCLUIDO.includes(status(r)));
   const dentroDoPrazo = Number.isFinite(age) && age >= 0 && age <= REFUND_WINDOW_DAYS * 86_400_000;
   // Cancelar a renovação não tira o direito ao reembolso dentro dos 7 dias.
-  if ((dentroDoPrazo || options.waiveWindow === true) && !jaReembolsado) return "reembolso";
+  if (dentroDoPrazo && !jaReembolsado) return "reembolso";
+  // Exceção da conta admin verificada: pode pedir a qualquer momento, mesmo já tendo sido reembolsada.
+  if (options.waiveWindow === true) return "reembolso";
   if (subscription.purchase_kind === "lifetime") return "vitalicio";
   return subscription.cancel_at_period_end ? "cancelado" : "cancelamento";
 }
