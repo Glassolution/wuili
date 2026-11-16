@@ -152,18 +152,33 @@ const onboardingDeferredPrefix = "velo-onboarding-deferred:";
 
 export const markOnboardingDeferred = (userId: string): void => {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(`${onboardingDeferredPrefix}${userId}`, "1");
+  try {
+    window.sessionStorage.setItem(`${onboardingDeferredPrefix}${userId}`, "1");
+  } catch {
+    // Modo privado restrito: sessionStorage lança ao gravar. Aqui o adiamento
+    // simplesmente não é gravado e a tela continua funcionando.
+  }
 };
 
 export const hasDeferredOnboarding = (userId: string): boolean => {
   if (typeof window === "undefined") return false;
-  return window.sessionStorage.getItem(`${onboardingDeferredPrefix}${userId}`) === "1";
+  try {
+    return window.sessionStorage.getItem(`${onboardingDeferredPrefix}${userId}`) === "1";
+  } catch {
+    // sessionStorage lança só de ser lido em alguns navegadores — tratar como
+    // "não adiado" é a leitura segura.
+    return false;
+  }
 };
 
 export const clearOnboardingDeferred = (): void => {
   if (typeof window === "undefined") return;
-  for (const key of Object.keys(window.sessionStorage)) {
-    if (key.startsWith(onboardingDeferredPrefix)) window.sessionStorage.removeItem(key);
+  try {
+    for (const key of Object.keys(window.sessionStorage)) {
+      if (key.startsWith(onboardingDeferredPrefix)) window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Idem: limpar o que não foi gravado não pode quebrar a saída.
   }
 };
 
