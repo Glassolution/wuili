@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
       subscription_id: payload.subscriptionId ?? null,
       payment_id: payload.paymentId ?? null,
       status: payload.status ?? null,
-      amount: payload.amount ?? null,
+      amount: payload.amount ?? payload.currentCycle?.amount ?? null,
       payload: payload as unknown as Record<string, unknown>,
     })
     .select("id")
@@ -622,7 +622,12 @@ Deno.serve(async (req) => {
 
     await admin
       .from("validapay_webhook_events")
-      .update({ processed: true, status: verifiedStatus ?? payload.status ?? null })
+      .update({
+        processed: true,
+        status: verifiedStatus ?? payload.status ?? null,
+        // Só grana confirmada: nulo, NaN ou zero não podem apagar o valor já registrado.
+        ...(Number.isFinite(verifiedAmount) && (verifiedAmount as number) > 0 ? { amount: verifiedAmount } : {}),
+      })
       .eq("id", eventRow.id);
 
     return json({ received: true });
