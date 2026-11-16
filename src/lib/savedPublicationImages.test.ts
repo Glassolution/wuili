@@ -28,6 +28,13 @@ describe('publicação com evidência salva', () => {
     const urls=['a','b','c'];
     expect(savedPublishableImages(savedPublicationRoles(urls.map(url=>({...row(url),reason_code:'MEDIDA_SOBREPOSTA'})),urls),urls)).toEqual([]);
   });
+  it('reutiliza aprovação histórica do Gemini 3.6 sem fazer nova chamada', () => {
+    const legacy = row('a', 'secondary', 'google/gemini-3.6-flash');
+    expect(savedPublicationRoles([legacy], ['a']).get('a')?.secondary?.verdict).toBe('aprovada');
+  });
+  it('aprovação isolada do GPT nunca libera foto', () => {
+    expect(savedPublicationRoles([row('a', 'secondary', 'openai/gpt-6.1-terra')], ['a']).has('a')).toBe(false);
+  });
   it('crédito pausa, limite espera, negação de provedor não recebe sondagem', () => {
     expect(publicationFailurePolicy(402)).toBe('credit');
     expect(publicationFailurePolicy(429)).toBe('rate');

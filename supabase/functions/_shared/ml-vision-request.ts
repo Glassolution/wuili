@@ -34,7 +34,12 @@ export function isCreditImageFailure(error: unknown): boolean {
 
 async function requestDirectGemini(input: string, primary: boolean) {
   const key = Deno.env.get('GEMINI_API_KEY');
-  if (!key) throw new Error('Créditos Lovable esgotados e GEMINI_API_KEY não configurada');
+  if (!key) {
+    const error = new Error('Créditos Lovable esgotados e GEMINI_API_KEY não configurada') as Error & { status?: number; type?: string };
+    error.status = 402;
+    error.type = 'credit_limit_reached';
+    throw error;
+  }
   const data = /^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/.exec(input);
   const imagePart = data
     ? { inline_data: { mime_type: data[1], data: data[2] } }

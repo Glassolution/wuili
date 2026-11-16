@@ -6,7 +6,7 @@ import { imageEvidencePrefix } from './ml-image-criterion.ts';
 import { IMAGE_CRITERION_VERSION, type ImageVerdict } from './ml-image-criterion.ts';
 import { checkPrimarySize } from './ml-primary-size.ts';
 import { savedPublicationRoles, type SavedImageRow } from './saved-publication-images.ts';
-import { imageCallAllowed, isTerminalImageFailure, recordImageFailure, recordImageUsage } from './publication-image-state.ts';
+import { imageCallAllowed, isTerminalImageFailure, recordImageFailure, recordImageSuccess, recordImageUsage } from './publication-image-state.ts';
 import { requestImageVision, IMAGE_VISION_MODELS, isCreditImageFailure } from './ml-vision-request.ts';
 import { imageInput } from './ml-image-input.ts';
 import { sequentialVision } from './ml-vision-policy.ts';
@@ -18,6 +18,7 @@ export type VisionFilterResult = {
   inconclusive: { url: string; reason: string }[];
   primaryRejected?: { url: string; reason: string }[];
   secondaryApproved?: string[];
+  creditUnavailable?: boolean;
 };
 
 /** Quanto tempo um veredito continua valendo na auditoria legada (desativada). */
@@ -123,10 +124,25 @@ type CacheEntry = { url: string; clean: boolean | null; reason: string | null; c
 type ClaimRow = { claimed: boolean; inconclusive_attempts: number; retry_after: string | null };
 
 function cachedEvidence(entry: CacheEntry): SavedImageRow[] {
-  const match = /^\[(two-level-[^\]]+)\] roles: (.+)$/.exec(entry.reason ?? '');
-  if (!match) return [];
+  const reason = entry.reason ?? '';
+  const match = /^\[(two-level-[^\]]+)\] roles: (.+)$/.exec(reason);
+  const single = /^\[(two-level-[^\]]+)\] (galeria|principal): (.+)$/.exec(reason);
+  if (!match && !single) return [];
   const rows: SavedImageRow[] = [];
   try {
+    if (single) {
+      const primary = single[2] === 'principal';
+      const parsed = parseImageVerdict(single[3], primary);
+      if (parsed.clean !== null) rows.push({
+        image_url: entry.url, image_role: primary ? 'primary' : 'secondary', verdict: parsed.evidence.veredito,
+        reason_code: parsed.evidence.codigo, evidence_location: parsed.evidence.localizacao,
+        justification: parsed.evidence.justificativa, criterion_version: single[1],
+        model: single[1].includes('gemini-3.6-flash') || single[1] === 'two-level-v4-2026-11-08' ? 'google/gemini-3.6-flash' : 'google/gemini-3.8-flash',
+        analyzed_at: entry.checked_at, run_id: 'cache-single',
+      });
+      return rows;
+    }
+    if (!match) return rows;
     const roles = JSON.parse(match[2]);
     for (const role of ['secondary', 'primary']) {
       const parsed = parseImageVerdict(JSON.stringify(roles[role]), role === 'primary');
@@ -167,6 +183,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   const inconclusive: VisionFilterResult['inconclusive'] = [];
   const primaryRejected: NonNullable<VisionFilterResult['primaryRejected']> = [];
   let halted = false;
+  let creditUnavailable = false;
   const runId = crypto.randomUUID();
 
   async function check(url: string) {
@@ -246,9 +263,11 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
       });
       if (finishError) throw new Error(finishError.message);
       finished = true;
+      await recordImageSuccess(db);
       return parsed;
     } catch (cause) {
       await fail(cause);
+      if (isCreditImageFailure(cause)) creditUnavailable = true;
       if (isTerminalImageFailure(cause)) await recordImageFailure(db, cause);
       if (stage === 'ai') halted = true;
       return { clean: null, reason: cause instanceof Error ? cause.message : 'Conferência indisponível' };
@@ -280,5 +299,5 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   const clean = primaryUrl && approved.length >= 3 && inconclusive.length === 0
     ? [primaryUrl, ...approved.filter(url => url !== primaryUrl)].slice(0, 6)
     : [];
-  return { clean, rejected, inconclusive, primaryRejected, secondaryApproved: approved };
+  return { clean, rejected, inconclusive, primaryRejected, secondaryApproved: approved, creditUnavailable };
 }

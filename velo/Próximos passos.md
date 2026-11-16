@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-08
+atualizado: 2026-11-16
 ---
 # Próximos passos
 
@@ -31,6 +31,7 @@ atualizado: 2026-11-08
 - [ ] Apagar `validapay-overdue-check` após o diagnóstico
 
 ## Produto
+- [ ] Repor saldo pré-pago do Google da `GEMINI_API_KEY`: a reserva direta da validação de fotos respondeu 402 em 16/11; fila continua aguardando, sem trocar modelo nem publicar sem veredito
 - [ ] Decidir se os lembretes de conta ML pendente também vão por e-mail → [[Pagamento antes da conta de vendedor]]
 - [ ] Conferir conversa real e cartão de reembolso no suporte admin (faltou acesso de admin)
 - [ ] Reconferir os achados de ago/2026 listados em [[Bugs conhecidos]]

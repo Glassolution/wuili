@@ -414,6 +414,20 @@
       "when": 1794872109579,
       "tag": "0058_publication_image_url_retry_and_spend_alert",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794872830066,
+      "tag": "0059_publication_image_credit_gate_removal",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794873090928,
+      "tag": "0060_publication_image_provider_recovery",
+      "breakpoints": true
     }
   ]
 }

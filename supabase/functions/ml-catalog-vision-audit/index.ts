@@ -1,141 +1,48 @@
-// Auditoria visual do catálogo: confere as FOTOS de cada produto com a mesma
-// régua usada na publicação (`ml-publish`) e esconde do catálogo o produto que
-// não tem o mínimo de fotos limpas exigido pelo Mercado Livre.
-//
-// Roda em lotes (cron). O veredito de cada foto fica em `ml_image_vision_cache`,
-// então produtos já auditados custam praticamente nada para reconferir.
+// A auditoria visual em lote foi desativada para reduzir consumo. Novas análises
+// acontecem somente na publicação solicitada pelo cliente (ml-publish e fila).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { filterCleanImagesCached } from "../_shared/ml-image-vision.ts";
-import { imageProductDecision } from '../_shared/ml-vision-policy.ts';
 import { IMAGE_VALIDATION_REVISION } from '../_shared/ml-vision-request.ts';
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-
-const listaDeImagens = (images: unknown): string[] => {
-  try {
-    const raw = typeof images === "string" ? JSON.parse(images) : images;
-    return Array.isArray(raw) ? raw.filter((i): i is string => typeof i === "string" && !!i) : [];
-  } catch {
-    return [];
-  }
-};
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+});
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false } },
   );
-
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace("Bearer ", "");
-    const isServiceRole = !!token && token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const repairToken = Deno.env.get("ML_REPAIR_TOKEN");
-    const hasRepairToken = !!repairToken && req.headers.get("x-repair-token") === repairToken;
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const token = authHeader.replace('Bearer ', '');
+    const isServiceRole = !!token && token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const repairToken = Deno.env.get('ML_REPAIR_TOKEN');
+    const hasRepairToken = !!repairToken && req.headers.get('x-repair-token') === repairToken;
     if (!isServiceRole && !hasRepairToken) {
       const { data: userData } = await supabase.auth.getUser(token);
       const uid = userData?.user?.id;
-      if (!uid) return json({ error: "não autenticado" }, 401);
-      const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: uid });
-      if (!isAdmin) return json({ error: "acesso restrito a administradores" }, 403);
+      if (!uid) return json({ error: 'não autenticado' }, 401);
+      const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: uid });
+      if (!isAdmin) return json({ error: 'acesso restrito a administradores' }, 403);
     }
-
     const body = await req.json().catch(() => ({}));
-    if (body.action === 'status') return json({ revision: IMAGE_VALIDATION_REVISION, tri_state: true, technical_failure_blocks: false });
-    const limit = Math.min(Math.max(Number(body.limit ?? 20), 1), 100);
-    const recheckAll = body.recheck_all === true;
-    const productId = typeof body.product_id === "string" ? body.product_id : null;
-
-    let query = supabase
-      .from("catalog_products")
-      .select("id, title, images, is_blocked, ml_vision_checked_at")
-      .eq("is_active", true)
-      .order("ml_vision_checked_at", { ascending: true, nullsFirst: true })
-      .limit(limit);
-    if (productId) query = supabase
-      .from("catalog_products")
-      .select("id, title, images, is_blocked, ml_vision_checked_at")
-      .eq("id", productId);
-    else if (!recheckAll) query = query.is("ml_vision_checked_at", null);
-
-    const { data: rows, error } = await query;
-    if (error) return json({ error: error.message }, 500);
-
-    let aprovados = 0;
-    let bloqueados = 0;
-    let inconclusivos = 0;
-    const results: unknown[] = [];
-    const dryRun = body.dry_run === true;
-
-    for (const row of rows ?? []) {
-      try {
-      const imagens = listaDeImagens(row.images);
-      const filtered = await filterCleanImagesCached(supabase, imagens, { max: 6, maxChecks: 14, dryRun, forceRecheck: body.force_recheck === true });
-      const { clean } = filtered;
-      const decision = imageProductDecision(filtered);
-      results.push({ id: row.id, title: row.title, ...filtered, decision });
-      if (decision === 'inconclusive') {
-        inconclusivos++;
-        // Preserve previous state; a failed analysis is not a dirty photo.
-        continue;
-      }
-      // Mesma régua da publicação: basta uma foto dentro das diretrizes.
-      const aprovado = clean.length >= 1;
-
-      if (aprovado) aprovados++;
-      else bloqueados++;
-
-      if (dryRun) continue;
-
-      const { error: writeError } = await supabase
-        .from("catalog_products")
-        .update({
-          ml_vision_clean_count: clean.length,
-          ml_vision_clean_images: clean,
-          ml_vision_checked_at: new Date().toISOString(),
-          ml_clean_images_count: clean.length,
-          ml_compliance_status: aprovado ? "ok" : "blocked",
-          // Produto sem fotos suficientes some do catálogo em vez de aparecer
-          // e falhar só na hora de publicar. Nunca DESbloqueamos aqui: o
-          // bloqueio pode ter outra causa (conteúdo adulto, celular etc.).
-          ...(aprovado ? {} : { is_blocked: true }),
-        })
-        .eq("id", row.id);
-      if (writeError) console.warn('[image-validation]', JSON.stringify({ product_id: row.id, stage: 'database', error: writeError.message }));
-      } catch (error) {
-        inconclusivos++;
-        results.push({ id: row.id, title: row.title, decision: 'inconclusive', error: String(error) });
-        console.warn('[image-validation]', JSON.stringify({ product_id: row.id, stage: 'product', error: String(error).slice(0, 200) }));
-      }
-    }
-
-    const { count: pendentes } = await supabase
-      .from("catalog_products")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true)
-      .is("ml_vision_checked_at", null);
-
-    return json({
-      ok: true,
+    if (body.action === 'status') return json({
       revision: IMAGE_VALIDATION_REVISION,
-      dry_run: dryRun,
-      results,
-      auditados: rows?.length ?? 0,
-      aprovados,
-      bloqueados,
-      inconclusivos,
-      pendentes: pendentes ?? 0,
+      tri_state: true,
+      technical_failure_blocks: false,
+      batch_analysis_enabled: false,
+      analysis_entrypoint: 'ml-publish',
     });
-  } catch (err) {
-    console.error("[ml-catalog-vision-audit]", err);
-    return json({ error: String(err) }, 500);
+    return json({
+      error: 'A auditoria de fotos em lote foi desativada. A análise agora acontece somente quando um cliente pede uma publicação.',
+      code: 'BATCH_VISION_DISABLED',
+    }, 410);
+  } catch (error) {
+    console.error('[ml-catalog-vision-audit]', error);
+    return json({ error: String(error) }, 500);
   }
 });

@@ -5,7 +5,7 @@ import { IMAGE_CRITERION_VERSION } from './ml-image-criterion.ts';
 import { primarySizeDecision } from './ml-primary-size.ts';
 import { filterCleanImagesCached } from './ml-image-vision.ts';
 import { imageProductDecision, sequentialVision } from './ml-vision-policy.ts';
-import { IMAGE_VISION_MODELS } from './ml-vision-request.ts';
+import { IMAGE_VISION_MODELS, requestImageVision, shouldUseDirectGemini, visionCreditCost } from './ml-vision-request.ts';
 import { IMAGE_VISION_PIPELINES } from './ml-image-criterion.ts';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
@@ -257,8 +257,98 @@ Deno.test('dupla checagem: falha, tempo esgotado ou formato inválido em qualque
   assertEquals((await sequentialVision(['g', 't'], ask(new Error('503'), ok))).clean, null);
   assertEquals((await sequentialVision(['g', 't'], ask({ clean: null, reason: 'x' }, ok))).clean, null);
 });
-Deno.test('fotos usam somente Gemini e cache distingue a revisão sem GPT', () => {
+Deno.test('fotos usam somente Gemini 3.8 e não existe pipeline 3.6/GPT para novas chamadas', () => {
   assertEquals(IMAGE_VISION_MODELS, ['google/gemini-3.8-flash']);
   assertEquals(IMAGE_CRITERION_VERSION, 'two-level-v6-2026-11-14+gemini-3.8-flash');
-  assertEquals(IMAGE_VISION_PIPELINES.legacy.models[0], 'google/gemini-3.6-flash');
+  assertEquals(Object.keys(IMAGE_VISION_PIPELINES), ['gemini']);
+});
+Deno.test('crédito esgotado usa Gemini direto; negação de provedor não troca de caminho', () => {
+  assertEquals(shouldUseDirectGemini(402), true);
+  assertEquals(shouldUseDirectGemini(403, 'credit_limit_reached'), true);
+  assertEquals(shouldUseDirectGemini(403, 'provider_access_denied'), false);
+  assertEquals(shouldUseDirectGemini(429), false);
+});
+Deno.test('custo do alerta usa tarifa Gemini 3.8 e desconto de cache', () => {
+  const cost = visionCreditCost({ prompt_tokens: 1000, completion_tokens: 100, prompt_tokens_details: { cached_tokens: 200 } });
+  assertEquals(Math.abs(cost - 0.00396) < 1e-12, true);
+});
+Deno.test('402 do gateway usa a mesma chave direta do suporte sem nova tentativa no gateway', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get('GEMINI_API_KEY');
+  Deno.env.set('GEMINI_API_KEY', 'teste-sem-segredo');
+  const urls: string[] = [];
+  globalThis.fetch = (input) => {
+    urls.push(String(input));
+    if (urls.length === 1) return Promise.resolve(new Response(JSON.stringify({ error: { type: 'credit_limit_reached', message: 'sem créditos' } }), { status: 402, headers: { 'Content-Type': 'application/json' } }));
+    return Promise.resolve(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"veredito":"aprovada","codigo":"OK","localizacao":"FUNDO_LIMPO","justificativa":"foto limpa"}' }] } }] }), { headers: { 'Content-Type': 'application/json' } }));
+  };
+  try {
+    const result = await requestImageVision('https://example.com/new-photo.jpg');
+    assertEquals(result.provider, 'gemini_direct');
+    assertEquals(result.creditCost, 0);
+    assertEquals(urls.length, 2);
+    assertEquals(urls[1].includes('generativelanguage.googleapis.com'), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) Deno.env.delete('GEMINI_API_KEY'); else Deno.env.set('GEMINI_API_KEY', originalKey);
+  }
+});
+
+function publicationDb(cacheRows: unknown[]) {
+  const writes: Array<Record<string, unknown>> = [];
+  const db = {
+    from(table: string) {
+      if (table === 'catalog_image_analysis_results') return {
+        select: () => ({ in: () => ({ like: () => ({ order: () => ({ limit: () => Promise.resolve({ data: [], error: null }) }) }) }) }),
+        insert: (row: Record<string, unknown>) => { writes.push(row); return Promise.resolve({ error: null }); },
+      };
+      if (table === 'ml_image_vision_cache') return { select: () => ({ in: () => Promise.resolve({ data: cacheRows, error: null }) }) };
+      throw new Error(`tabela inesperada: ${table}`);
+    },
+    rpc(name: string) {
+      if (name === 'publication_image_gate' || name === 'record_publication_image_usage') return Promise.resolve({ data: true, error: null });
+      if (name === 'claim_publication_image_analysis') return Promise.resolve({ data: [{ claimed: true, inconclusive_attempts: 0, retry_after: null }], error: null });
+      if (name === 'finish_publication_image_analysis') return Promise.resolve({ data: null, error: null });
+      return Promise.resolve({ data: null, error: null });
+    },
+  } as unknown as SupabaseClient;
+  return { db, writes };
+}
+
+Deno.test('publicação reutiliza URL conhecida e analisa todas as fotos novas, sem parar na terceira', async () => {
+  const urls = ['a', 'b', 'c', 'd'].map(x => `https://example.com/${x}.jpg`);
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'foto limpa' };
+  const cacheRows = [{ url: urls[0], clean: true, checked_at: new Date().toISOString(), reason: `[${IMAGE_CRITERION_VERSION}] roles: ${JSON.stringify({ secondary: ok, primary: ok })}` }];
+  const { db, writes } = publicationDb(cacheRows);
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    const content = body.messages?.[1]?.content;
+    const image = Array.isArray(content) ? content.find((part: { type?: string }) => part.type === 'image_url') : null;
+    calls.push(image?.image_url?.url ?? 'data-url');
+    return Promise.resolve(new Response(JSON.stringify({ id: 'test', choices: [{ message: { content: JSON.stringify(ok) } }] }), { headers: { 'Content-Type': 'application/json' } }));
+  };
+  try {
+    const result = await filterCleanImagesCached(db, urls, { publication: { productId: '123e4567-e89b-42d3-a456-426614174000', title: 'Teste' } });
+    assertEquals(calls.length, 3);
+    assertEquals(calls.some(call => call.endsWith('/a.jpg')), false);
+    assertEquals(result.clean.length, 4);
+    assertEquals(writes.length, 3);
+  } finally { globalThis.fetch = original; }
+});
+
+Deno.test('produto com todas as fotos aprovadas publica sem chamar IA', async () => {
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'foto limpa' };
+  const urls = ['a', 'b', 'c'].map(x => `https://example.com/${x}.jpg`);
+  const cacheRows = urls.map((url, index) => ({ url, clean: true, checked_at: new Date().toISOString(), reason: `[${IMAGE_CRITERION_VERSION}] roles: ${JSON.stringify({ secondary: ok, ...(index === 0 ? { primary: ok } : {}) })}` }));
+  const { db } = publicationDb(cacheRows);
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = () => { calls++; return Promise.reject(new Error('IA não deveria ser chamada')); };
+  try {
+    const result = await filterCleanImagesCached(db, urls, { publication: { productId: '123e4567-e89b-42d3-a456-426614174000', title: 'Teste' } });
+    assertEquals(result.clean, urls);
+    assertEquals(calls, 0);
+  } finally { globalThis.fetch = original; }
 });

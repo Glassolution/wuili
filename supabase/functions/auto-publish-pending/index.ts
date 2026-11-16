@@ -187,7 +187,12 @@ Deno.serve(async (req) => {
       if(error) return json({error:error.message},500)
       // Sem IA, este item permanece na fila sem consumir tentativa; os demais,
       // inclusive os que já têm vereditos aprovados, continuam sendo processados.
-      if (corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE') { aguardando++; continue }
+      if (corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE') {
+        aguardando++
+        // Falta de crédito nos dois caminhos: no máximo uma sondagem por rodada.
+        if (corpo?.retry_kind === 'credit') break
+        continue
+      }
       if (unavailable) { aguardando++; break }
     }
   }

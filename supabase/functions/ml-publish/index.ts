@@ -1050,7 +1050,7 @@ Deno.serve(async (req) => {
           return json({ error: message, code, primary_rejected: diagnostic.primary_rejected }, 409)
         }
         if (decision === 'inconclusive') {
-          if (body.validate_only === true || isInternalRepair) return json({ error: message, code: 'IMAGE_COMPLIANCE_UNAVAILABLE' }, 503)
+          if (body.validate_only === true || isInternalRepair) return json({ error: message, code: 'IMAGE_COMPLIANCE_UNAVAILABLE', retry_kind: filtered.creditUnavailable ? 'credit' : 'temporary' }, 503)
           return json(await queueImagePublication(supabase, user_id, product, productLimit, monthlyLimit), 202)
         }
         return json({

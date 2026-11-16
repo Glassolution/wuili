@@ -1,11 +1,12 @@
 # Roadmap
 
 ## Validação de fotos sob demanda — 16/11
-- [x] Pausar auditoria e todos os crons de IA de imagem em lote, sem reativar agendamentos
-- [ ] Compartilhar vereditos por URL, analisar todas as fotos só na publicação e limitar inconclusivos a duas tentativas antes de 24h
-- [ ] Remover bloqueios por orçamento, alertar admins acima de 5 créditos/dia e usar Gemini direto como reserva
-- [ ] Manter fila automática sem IA e publicação sem chamadas quando todos os vereditos já existem
-- [ ] Testar regras, publicar somente os serviços afetados e medir URLs/produtos pendentes sem alterar catálogo ou anúncios
+- [x] Pausar auditoria, geração e correção com IA em lote; somente a fila de publicação continua ativa
+- [x] Vereditos globais por URL, todas as fotos na solicitação, duas tentativas e espera de 24h; crédito não conta tentativa
+- [x] Sem freio por gasto; alerta admin acima de 5 créditos/dia e reserva Gemini direto pela chave do suporte
+- [x] Fila sem IA e publicação sem chamadas quando todos os vereditos existem; migrations 0058–0060 e três serviços publicados
+- [x] 61 testes e checks passaram; status ao vivo confirma auditoria desativada. Nenhum catálogo, veredito ou anúncio alterado e nenhuma publicação real testada
+- [ ] Reserva direta voltar a responder: bloqueada por saldo pré-pago Google esgotado (402 confirmado); pedidos sem IA permanecem na fila
 
 ## Acesso ao reembolso da conta admin — 15/11
 - [x] Mostrar acesso ao atendimento em Gerenciar assinatura somente com exceção confirmada no servidor; sem estornar ou mudar regras de pedidos anteriores
