@@ -1,22 +1,16 @@
-// Verificação visual das fotos com memória (cache) compartilhada.
-//
-// Antes, o catálogo usava só a heurística de URL e a `ml-publish` usava IA:
-// o produto aparecia no catálogo e só na hora de publicar o lojista descobria
-// que as fotos eram arte do fornecedor. Agora as duas pontas usam ESTA função,
-// com o veredito de cada foto gravado em `ml_image_vision_cache` — a mesma
-// imagem nunca é analisada duas vezes, então auditar o catálogo inteiro é
-// barato e o resultado é idêntico ao da publicação.
+// Verificação visual das fotos com memória (cache) compartilhada por URL.
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { visionCheck } from "./ml-content-sanitizer.ts";
 import { parseImageVerdict, isExplicitVisualRejection } from "./ml-image-input.ts";
 import { imageEvidencePrefix } from './ml-image-criterion.ts';
 import { IMAGE_CRITERION_VERSION, type ImageVerdict } from './ml-image-criterion.ts';
 import { checkPrimarySize } from './ml-primary-size.ts';
-import { savedPublicationRoles, savedPublishableImages, type SavedImageRow } from './saved-publication-images.ts';
-import { imageCallAllowed, recordImageFailure, recordImageSuccess } from './publication-image-state.ts';
-import { requestImageVision, IMAGE_VISION_MODELS } from './ml-vision-request.ts';
+import { savedPublicationRoles, type SavedImageRow } from './saved-publication-images.ts';
+import { imageCallAllowed, isTerminalImageFailure, recordImageFailure, recordImageUsage } from './publication-image-state.ts';
+import { requestImageVision, IMAGE_VISION_MODELS, isCreditImageFailure } from './ml-vision-request.ts';
 import { imageInput } from './ml-image-input.ts';
 import { sequentialVision } from './ml-vision-policy.ts';
+import { imageFailureRetry } from './image-retry-policy.ts';
 
 export type VisionFilterResult = {
   clean: string[];
@@ -26,14 +20,10 @@ export type VisionFilterResult = {
   secondaryApproved?: string[];
 };
 
-/** Quanto tempo um veredito continua valendo (fotos do fornecedor não mudam). */
+/** Quanto tempo um veredito continua valendo na auditoria legada (desativada). */
 const VALIDADE_DIAS = 60;
 
-/**
- * Filtra as fotos de um produto usando o cache. `max` limita quantas fotos
- * limpas retornam; `maxChecks` limita quantas análises novas são feitas por
- * produto (as já conhecidas pelo cache não contam).
- */
+/** Filtra fotos para a auditoria legada; a publicação usa o fluxo global abaixo. */
 export async function filterCleanImagesCached(
   supabase: SupabaseClient,
   urls: string[],
@@ -41,33 +31,20 @@ export async function filterCleanImagesCached(
 ): Promise<VisionFilterResult> {
   if (opts.publication) return filterPublicationImages(supabase, urls, opts.publication, opts.dryRun === true);
   const max = opts.max ?? 6;
-  // Each URL can require a secondary and a primary verdict, not just one check.
   const maxChecks = opts.maxChecks ?? urls.length * 2;
-
   const rejected: { url: string; reason: string }[] = [];
   const inconclusive: { url: string; reason: string }[] = [];
   const primaryRejected: { url: string; reason: string }[] = [];
   const candidatos: string[] = [];
-
-  for (const url of urls) {
-    // A filename is not a visual verdict; even suspicious URLs must be seen.
-    if (!candidatos.includes(url)) {
-      candidatos.push(url);
-    }
-  }
+  for (const url of urls) if (!candidatos.includes(url)) candidatos.push(url);
   if (candidatos.length === 0) return { clean: [], rejected, inconclusive };
 
   const limite = new Date(Date.now() - VALIDADE_DIAS * 864e5).toISOString();
-  const { data: cacheRows } = await supabase
-    .from("ml_image_vision_cache")
-    .select("url, clean, reason, checked_at")
-    .in("url", candidatos.slice(0, 50));
-
+  const { data: cacheRows } = await supabase.from("ml_image_vision_cache").select("url, clean, reason, checked_at").in("url", candidatos.slice(0, 50));
   const cache = new Map<string, { clean: boolean; reason?: string }>();
   for (const row of cacheRows ?? []) {
     if (String(row.checked_at) >= limite && typeof row.reason === 'string') cache.set(row.url as string, { clean: row.clean === true, reason: row.reason });
   }
-
   const clean: string[] = [];
   const evidenceByUrl = new Map<string, { secondary?: ImageVerdict; primary?: ImageVerdict }>();
   const changed = new Set<string>();
@@ -95,32 +72,27 @@ export async function filterCleanImagesCached(
       const parsed = parseImageVerdict(JSON.stringify(saved), primary);
       if (parsed.clean !== null) return parsed;
     }
-      if (analises >= maxChecks) {
-        return { clean: null, reason: 'limite de análise atingido' };
+    if (analises >= maxChecks) return { clean: null, reason: 'limite de análise atingido' };
+    if (primary) {
+      const size = await checkPrimarySize(url);
+      if (size === 'unavailable') return { clean: null, reason: 'falha técnica ao verificar resolução da principal' };
+      if (size === 'too_small') {
+        const evidence: ImageVerdict = { veredito: 'reprovada', codigo: 'RESOLUCAO_INSUFICIENTE', localizacao: 'IMAGEM_INTEIRA', justificativa: 'Foto principal menor que 500x500 pixels' };
+        roles.primary = evidence; evidenceByUrl.set(url, roles); changed.add(url);
+        return parseImageVerdict(JSON.stringify(evidence), true);
       }
-      if (primary) {
-        const size = await checkPrimarySize(url);
-        if (size === 'unavailable') return { clean: null, reason: 'falha técnica ao verificar resolução da principal' };
-        if (size === 'too_small') {
-          const evidence: ImageVerdict = { veredito: 'reprovada', codigo: 'RESOLUCAO_INSUFICIENTE', localizacao: 'IMAGEM_INTEIRA', justificativa: 'Foto principal menor que 500x500 pixels' };
-          roles.primary = evidence;
-          evidenceByUrl.set(url, roles); changed.add(url);
-          return parseImageVerdict(JSON.stringify(evidence), true);
-        }
-      }
-      analises++;
-      let v;
-      try { v = await visionCheck(url, primary); }
-      catch { v = { clean: null, reason: 'análise indisponível: falha inesperada' }; }
-      if (v.clean === null || (v.clean === false && !isExplicitVisualRejection(v.reason))) {
-        return { clean: null, reason: v.reason ?? 'análise inconclusiva' };
-      }
-      const prefix = imageEvidencePrefix(primary);
-      if (v.reason?.startsWith(prefix)) {
-        roles[key] = parseImageVerdict(v.reason.slice(prefix.length), primary).evidence;
-        evidenceByUrl.set(url, roles); changed.add(url);
-      }
-      return v;
+    }
+    analises++;
+    let v;
+    try { v = await visionCheck(url, primary); }
+    catch { v = { clean: null, reason: 'análise indisponível: falha inesperada' }; }
+    if (v.clean === null || (v.clean === false && !isExplicitVisualRejection(v.reason))) return { clean: null, reason: v.reason ?? 'análise inconclusiva' };
+    const prefix = imageEvidencePrefix(primary);
+    if (v.reason?.startsWith(prefix)) {
+      roles[key] = parseImageVerdict(v.reason.slice(prefix.length), primary).evidence;
+      evidenceByUrl.set(url, roles); changed.add(url);
+    }
+    return v;
   }
   let primaryUrl: string | undefined;
   for (const url of candidatos) {
@@ -136,138 +108,177 @@ export async function filterCleanImagesCached(
       else primaryRejected.push({ url, reason: primary.reason ?? 'principal reprovada' });
     }
   }
-  // Fallback (regra do dono, 09/11): sem principal aprovada, usa a melhor foto limpa da galeria —
-  // aprovada pelos modelos como secundária com código OK (sem texto, medida, inserção ou embalagem).
-  if (!primaryUrl) {
-    primaryUrl = clean.find(url => evidenceByUrl.get(url)?.secondary?.codigo === 'OK');
-  }
+  if (!primaryUrl) primaryUrl = clean.find(url => evidenceByUrl.get(url)?.secondary?.codigo === 'OK');
   if (changed.size && !opts.dryRun) {
-    const { error } = await supabase
-      .from("ml_image_vision_cache")
-      .upsert(
-        [...changed].map(url => ({ url, clean: evidenceByUrl.get(url)?.secondary?.veredito === 'aprovada', reason: rolePrefix + JSON.stringify(evidenceByUrl.get(url)), checked_at: new Date().toISOString() })),
-        { onConflict: "url" },
-      );
+    const { error } = await supabase.from("ml_image_vision_cache").upsert(
+      [...changed].map(url => ({ url, clean: evidenceByUrl.get(url)?.secondary?.veredito === 'aprovada', reason: rolePrefix + JSON.stringify(evidenceByUrl.get(url)), checked_at: new Date().toISOString() })),
+      { onConflict: "url" },
+    );
     if (error) console.warn("[ml-image-vision] não foi possível gravar o cache:", error.message);
   }
-
   return { clean: primaryUrl ? [primaryUrl, ...clean.filter(url => url !== primaryUrl)].slice(0, max) : [], rejected, inconclusive, primaryRejected, secondaryApproved: clean };
 }
 
-/** Publication reuses dual evidence from any two-level revision, never legacy single-model approvals. */
+type CacheEntry = { url: string; clean: boolean | null; reason: string | null; checked_at: string };
+type ClaimRow = { claimed: boolean; inconclusive_attempts: number; retry_after: string | null };
+
+function cachedEvidence(entry: CacheEntry): SavedImageRow[] {
+  const match = /^\[(two-level-[^\]]+)\] roles: (.+)$/.exec(entry.reason ?? '');
+  if (!match) return [];
+  const rows: SavedImageRow[] = [];
+  try {
+    const roles = JSON.parse(match[2]);
+    for (const role of ['secondary', 'primary']) {
+      const parsed = parseImageVerdict(JSON.stringify(roles[role]), role === 'primary');
+      if (parsed.clean === null) continue;
+      const model = match[1].includes('gpt-6.1-terra')
+        ? 'google/gemini-3.8-flash+openai/gpt-6.1-terra'
+        : match[1].includes('gemini-3.6-flash') || match[1] === 'two-level-v4-2026-11-08'
+          ? 'google/gemini-3.6-flash'
+          : 'google/gemini-3.8-flash';
+      rows.push({
+        image_url: entry.url, image_role: role, verdict: parsed.evidence.veredito,
+        reason_code: parsed.evidence.codigo, evidence_location: parsed.evidence.localizacao,
+        justification: parsed.evidence.justificativa, criterion_version: match[1], model,
+        analyzed_at: entry.checked_at, run_id: 'cache',
+      });
+    }
+  } catch { /* Invalid cache is not a verdict. */ }
+  return rows;
+}
+
+/** Publication-only analysis: global URL verdicts, no early stop and no spending cap. */
 async function filterPublicationImages(db: SupabaseClient, urls: string[], opts: { productId?: string; title?: string; background?: boolean }, dryRun: boolean): Promise<VisionFilterResult> {
   const candidates = [...new Set(urls)].slice(0, 50);
   const rows: SavedImageRow[] = [];
-  if (opts.productId && /^[0-9a-f-]{36}$/i.test(opts.productId)) {
-    const { data, error } = await db.from('catalog_image_analysis_results')
-      .select('image_url,image_role,verdict,reason_code,evidence_location,justification,criterion_version,model,analyzed_at,run_id')
-      .eq('product_id', opts.productId).in('image_url', candidates).like('criterion_version', 'two-level-%')
-      .order('analyzed_at', { ascending: false }).limit(3000);
-    if (error) throw new Error(error.message);
-    rows.push(...(data ?? []) as SavedImageRow[]);
-  }
-  // Production dual verdicts previously lived ONLY in cache. Reuse these as dual evidence too.
-  const { data: cache, error: cacheError } = await db.from('ml_image_vision_cache').select('url,reason,checked_at').in('url', candidates);
+  // Evidence follows the URL, not the customer or product that first submitted it.
+  const { data, error } = await db.from('catalog_image_analysis_results')
+    .select('image_url,image_role,verdict,reason_code,evidence_location,justification,criterion_version,model,analyzed_at,run_id')
+    .in('image_url', candidates).like('criterion_version', 'two-level-%')
+    .order('analyzed_at', { ascending: false }).limit(3000);
+  if (error) throw new Error(error.message);
+  rows.push(...(data ?? []) as SavedImageRow[]);
+
+  const { data: cache, error: cacheError } = await db.from('ml_image_vision_cache').select('url,reason,clean,checked_at').in('url', candidates);
   if (cacheError) throw new Error(cacheError.message);
-  for (const entry of cache ?? []) {
-    const match = /^\[(two-level-[^\]]*gemini-3\.8-flash(?:\+gpt-6\.1-terra)?)\] roles: (.+)$/.exec(entry.reason ?? '');
-    if (!match) continue;
-    try {
-      const roles = JSON.parse(match[2]);
-      for (const role of ['secondary','primary']) {
-        const evidence = roles[role];
-        const parsed = parseImageVerdict(JSON.stringify(evidence), role === 'primary');
-        if (parsed.clean === null) continue;
-        rows.push({ image_url: entry.url, image_role: role, verdict: parsed.evidence.veredito,
-          reason_code: parsed.evidence.codigo, evidence_location: parsed.evidence.localizacao, justification: parsed.evidence.justificativa,
-          criterion_version: match[1], model: match[1].includes('gpt-6.1-terra') ? 'google/gemini-3.8-flash+openai/gpt-6.1-terra' : 'google/gemini-3.8-flash', analyzed_at: entry.checked_at, run_id: 'cache' });
-      }
-    } catch { /* Invalid cache is not a verdict. */ }
-  }
+  for (const entry of cache ?? []) rows.push(...cachedEvidence(entry as CacheEntry));
   const roles = savedPublicationRoles(rows, candidates);
   const rejected: VisionFilterResult['rejected'] = [];
   const inconclusive: VisionFilterResult['inconclusive'] = [];
   const primaryRejected: NonNullable<VisionFilterResult['primaryRejected']> = [];
-  const immediate = savedPublishableImages(roles,candidates);
-  if (immediate.length >= 3) return { clean: immediate, rejected, inconclusive, primaryRejected, secondaryApproved: immediate };
-  if (dryRun) return { clean: [], rejected, inconclusive: [{url: candidates[0] ?? '',reason:'Fotos aprovadas insuficientes; validação sem IA'}], primaryRejected, secondaryApproved: [] };
   let halted = false;
-  const deadline = Date.now() + 90000;
   const runId = crypto.randomUUID();
-  async function check(url: string, primary: boolean) {
-    const key = primary ? 'primary' : 'secondary';
-    const saved = roles.get(url)?.[key];
-    if (saved) return parseImageVerdict(JSON.stringify({veredito:saved.verdict,codigo:saved.reason_code,localizacao:saved.evidence_location,justificativa:saved.justification}),primary);
-    if (halted || Date.now() >= deadline || !await imageCallAllowed(db,opts.background === true)) { halted=true; return { clean: null,reason:'Conferência de fotos pausada' }; }
-    const opinions: Array<{model:string;raw:string|null;evidence:ImageVerdict}> = [];
-    try {
-      if (primary) {
-        const size = await checkPrimarySize(url);
-        if (size !== 'eligible') return {clean: size === 'too_small' ? false : null,reason:'Não foi possível aprovar a resolução da principal'};
+
+  async function check(url: string) {
+    const saved = roles.get(url)?.secondary ?? (roles.get(url)?.primary?.verdict === 'aprovada' ? roles.get(url)?.primary : undefined);
+    if (saved) return parseImageVerdict(JSON.stringify({ veredito: saved.verdict, codigo: saved.reason_code, localizacao: saved.evidence_location, justificativa: saved.justification }), false);
+    if (dryRun) return { clean: null, reason: 'Foto ainda sem veredito; validação sem IA' };
+    if (halted || !await imageCallAllowed(db, opts.background === true)) { halted = true; return { clean: null, reason: 'Conferência de fotos temporariamente indisponível' }; }
+
+    const owner = crypto.randomUUID();
+    const { data: claimData, error: claimError } = await db.rpc('claim_publication_image_analysis', { p_url: url, p_owner: owner });
+    if (claimError) throw new Error(claimError.message);
+    const claim = (claimData?.[0] ?? null) as ClaimRow | null;
+    if (!claim?.claimed) {
+      const { data: fresh } = await db.from('ml_image_vision_cache').select('url,reason,clean,checked_at').eq('url', url).maybeSingle();
+      if (fresh) {
+        const freshRoles = savedPublicationRoles(cachedEvidence(fresh as CacheEntry), [url]);
+        const current = freshRoles.get(url);
+        if (current) roles.set(url, current);
+        const decision = current?.secondary ?? (current?.primary?.verdict === 'aprovada' ? current.primary : undefined);
+        if (decision) return parseImageVerdict(JSON.stringify({ veredito: decision.verdict, codigo: decision.reason_code, localizacao: decision.evidence_location, justificativa: decision.justification }), false);
       }
-      const input = await imageInput(url);
-      const result = await sequentialVision(IMAGE_VISION_MODELS, async model => {
-        try {
-          const {raw} = await requestImageVision(input,runId,primary,model);
-          const parsed = parseImageVerdict(raw,primary);
-          opinions.push({model,raw,evidence:parsed.evidence});
-          if (parsed.clean === null) throw new Error('Resposta visual fora do formato ou inconclusiva');
-          return {clean:parsed.clean,reason:parsed.reason};
-        } catch(error) {
-          halted = true;
-          await recordImageFailure(db,error);
-          return {clean:null,reason:error instanceof Error ? error.message : 'Falha da IA'};
-        }
+      return { clean: null, reason: claim?.retry_after ? 'Duas análises inconclusivas; nova tentativa após 24h' : 'Esta foto já está sendo analisada' };
+    }
+
+    let finished = false;
+    let stage = 'download';
+    const fail = async (cause: unknown) => {
+      if (finished) return;
+      const creditFailure = isCreditImageFailure(cause);
+      const retry = imageFailureRetry(claim.inconclusive_attempts ?? 0, creditFailure);
+      const { error: finishError } = await db.rpc('finish_publication_image_analysis', {
+        p_url: url, p_owner: owner, p_provider: creditFailure ? 'unavailable' : 'gemini',
+        p_attempts: retry.attempts, p_retry_after: retry.retryAfter,
+        p_error: cause instanceof Error ? cause.message : String(cause),
       });
-      if (opts.productId && /^[0-9a-f-]{36}$/i.test(opts.productId) && opinions.length) {
-        const {error} = await db.from('catalog_image_analysis_results').insert(opinions.map((opinion,index)=>({
-          run_id:runId,record_key:`${url}:${key}:${index}`,product_id:opts.productId,product_title:opts.title ?? '',image_url:url,image_role:key,
-          verdict:opinion.evidence.veredito,reason_code:opinion.evidence.codigo,evidence_location:opinion.evidence.localizacao,
-          justification:opinion.evidence.justificativa,criterion_version:IMAGE_CRITERION_VERSION,model:opinion.model,
-          method:'publication_dual',evidence:{raw:opinion.raw,pipeline_models:IMAGE_VISION_MODELS},
-        })));
-        if (error) throw new Error(`Falha ao guardar evidência: ${error.message}`);
+      finished = true;
+      if (finishError) throw new Error(finishError.message);
+    };
+    try {
+      const input = await imageInput(url);
+      stage = 'ai';
+      const response = await requestImageVision(input, runId, false, IMAGE_VISION_MODELS[0]);
+      try { await recordImageUsage(db, response.creditCost, response.provider === 'gemini_direct'); }
+      catch (usageError) { console.warn('[ml-image-vision] alerta de consumo não registrado:', String(usageError)); }
+      const parsed = parseImageVerdict(response.raw, false);
+      if (opts.productId && /^[0-9a-f-]{36}$/i.test(opts.productId)) {
+        const { error: evidenceError } = await db.from('catalog_image_analysis_results').insert({
+          run_id: runId, record_key: `${url}:secondary:0`, product_id: opts.productId, product_title: opts.title ?? '',
+          image_url: url, image_role: 'secondary', verdict: parsed.evidence.veredito, reason_code: parsed.evidence.codigo,
+          evidence_location: parsed.evidence.localizacao, justification: parsed.evidence.justificativa,
+          criterion_version: IMAGE_CRITERION_VERSION, model: IMAGE_VISION_MODELS[0], method: 'publication_single',
+          evidence: { raw: response.raw, pipeline_models: IMAGE_VISION_MODELS, provider: response.provider },
+        });
+        if (evidenceError) throw new Error(`Falha ao guardar evidência: ${evidenceError.message}`);
       }
-      if (result.clean !== null && opinions[0]) {
-        const evidence = result.clean ? opinions[0].evidence : opinions.find(o=>o.evidence.veredito==='reprovada')?.evidence;
-        if (evidence) {
-          const current = roles.get(url) ?? {};
-          current[key] = {image_url:url,image_role:key,verdict:evidence.veredito,reason_code:evidence.codigo,evidence_location:evidence.localizacao,
-            justification:evidence.justificativa,criterion_version:IMAGE_CRITERION_VERSION,model:IMAGE_VISION_MODELS.join('+'),analyzed_at:new Date().toISOString(),run_id:runId};
-          roles.set(url,current);
-          const cacheRoles: {secondary?:ImageVerdict;primary?:ImageVerdict} = {};
-          for (const role of ['secondary','primary'] as const) {
-            const row=current[role]; if (!row) continue;
-            const parsed=parseImageVerdict(JSON.stringify({veredito:row.verdict,codigo:row.reason_code,localizacao:row.evidence_location,justificativa:row.justification}),role==='primary');
-            if(parsed.clean!==null) cacheRoles[role]=parsed.evidence;
-          }
-          const {error} = await db.from('ml_image_vision_cache').upsert({url,clean:current.secondary?.verdict==='aprovada',reason:`[${IMAGE_CRITERION_VERSION}] roles: ${JSON.stringify(cacheRoles)}`,checked_at:new Date().toISOString()},{onConflict:'url'});
-          if(error) throw new Error(error.message);
-          await recordImageSuccess(db);
-        }
+      if (parsed.clean === null) {
+        await fail(new Error(parsed.reason));
+        return parsed;
       }
-      return result;
-    } catch(error) {
-      halted=true; await recordImageFailure(db,error);
-      return {clean:null,reason:error instanceof Error ? error.message : 'Conferência indisponível'};
+      const current = roles.get(url) ?? {};
+      current.secondary = {
+        image_url: url, image_role: 'secondary', verdict: parsed.evidence.veredito, reason_code: parsed.evidence.codigo,
+        evidence_location: parsed.evidence.localizacao, justification: parsed.evidence.justificativa,
+        criterion_version: IMAGE_CRITERION_VERSION, model: IMAGE_VISION_MODELS[0], analyzed_at: new Date().toISOString(), run_id: runId,
+      };
+      roles.set(url, current);
+      const cacheRoles: { secondary?: ImageVerdict; primary?: ImageVerdict } = {};
+      for (const role of ['secondary', 'primary'] as const) {
+        const row = current[role]; if (!row) continue;
+        const evidence = parseImageVerdict(JSON.stringify({ veredito: row.verdict, codigo: row.reason_code, localizacao: row.evidence_location, justificativa: row.justification }), role === 'primary');
+        if (evidence.clean !== null) cacheRoles[role] = evidence.evidence;
+      }
+      const reason = `[${IMAGE_CRITERION_VERSION}] roles: ${JSON.stringify(cacheRoles)}`;
+      const { error: finishError } = await db.rpc('finish_publication_image_analysis', {
+        p_url: url, p_owner: owner, p_reason: reason, p_clean: parsed.clean,
+        p_provider: response.provider,
+      });
+      if (finishError) throw new Error(finishError.message);
+      finished = true;
+      return parsed;
+    } catch (cause) {
+      await fail(cause);
+      if (isTerminalImageFailure(cause)) await recordImageFailure(db, cause);
+      if (stage === 'ai') halted = true;
+      return { clean: null, reason: cause instanceof Error ? cause.message : 'Conferência indisponível' };
     }
   }
+
   const approved: string[] = [];
   let primaryUrl: string | undefined;
   for (const url of candidates) {
-    const secondary = await check(url,false);
-    if(secondary.clean === null) { inconclusive.push({url,reason:secondary.reason}); if(halted) break; continue; }
-    if(!secondary.clean) { rejected.push({url,reason:secondary.reason}); continue; }
+    const secondary = await check(url);
+    if (secondary.clean === null) { inconclusive.push({ url, reason: secondary.reason }); continue; }
+    if (!secondary.clean) { rejected.push({ url, reason: secondary.reason }); continue; }
     approved.push(url);
-    if(!primaryUrl) {
-      const primary=await check(url,true);
-      if(primary.clean) primaryUrl=url;
-      else if(primary.clean===null) inconclusive.push({url,reason:primary.reason});
-      else primaryRejected.push({url,reason:primary.reason});
+    if (!primaryUrl) {
+      const current = roles.get(url);
+      const primarySaved = current?.primary;
+      if (primarySaved?.verdict === 'aprovada') primaryUrl = url;
+      else if (current?.secondary?.reason_code === 'OK') {
+        const size = await checkPrimarySize(url);
+        if (size === 'eligible') primaryUrl = url;
+        else if (size === 'too_small') primaryRejected.push({ url, reason: 'Foto principal menor que 500x500 pixels' });
+        else inconclusive.push({ url, reason: 'Falha técnica ao verificar resolução da principal' });
+      } else {
+        primaryRejected.push({ url, reason: primarySaved?.justification ?? 'A foto aprovada como secundária não atende às regras da principal' });
+      }
     }
-    const publishable=savedPublishableImages(roles,candidates);
-    if(publishable.length>=3) return {clean:publishable,rejected,inconclusive,primaryRejected,secondaryApproved:approved};
-    if(halted) break;
   }
-  return {clean:[],rejected,inconclusive,primaryRejected,secondaryApproved:approved};
+  // All URLs must have a conclusive verdict; no early stop after three approvals.
+  const clean = primaryUrl && approved.length >= 3 && inconclusive.length === 0
+    ? [primaryUrl, ...approved.filter(url => url !== primaryUrl)].slice(0, 6)
+    : [];
+  return { clean, rejected, inconclusive, primaryRejected, secondaryApproved: approved };
 }

@@ -19,6 +19,15 @@ export async function recordImageSuccess(db: SupabaseClient) {
   const { error } = await db.rpc('publication_image_resume_after_success');
   if (error) throw new Error(`Não foi possível concluir a conferência de IA: ${error.message}`);
 }
+export async function recordImageUsage(db: SupabaseClient, creditCost: number, direct: boolean) {
+  const { error } = await db.rpc('record_publication_image_usage', { p_credit_cost: creditCost, p_direct: direct });
+  if (error) throw new Error(`Não foi possível registrar o uso de IA: ${error.message}`);
+}
+export function isTerminalImageFailure(error: unknown): boolean {
+  const gateway = error instanceof GatewayError ? error : undefined;
+  const candidate = error as { status?: number; type?: string } | undefined;
+  return publicationFailurePolicy(gateway?.httpStatus ?? candidate?.status, gateway?.remote?.type ?? candidate?.type) === 'terminal';
+}
 export async function queueImagePublication(db: SupabaseClient, userId: string, product: Record<string, unknown>, limit: number | null, monthlyLimit: number | null) {
   const { data, error } = await db.rpc('enqueue_image_publication', {
     p_user_id: userId, p_product_id: String(product.id ?? ''), p_title: String(product.title ?? ''),

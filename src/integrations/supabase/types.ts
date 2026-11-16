@@ -1949,6 +1949,33 @@ export type Database = {
         }
         Relationships: []
       }
+      image_ai_daily_usage: {
+        Row: {
+          alert_sent_at: string | null
+          direct_calls: number
+          gateway_calls: number
+          lovable_credits: number
+          updated_at: string
+          usage_date: string
+        }
+        Insert: {
+          alert_sent_at?: string | null
+          direct_calls?: number
+          gateway_calls?: number
+          lovable_credits?: number
+          updated_at?: string
+          usage_date: string
+        }
+        Update: {
+          alert_sent_at?: string | null
+          direct_calls?: number
+          gateway_calls?: number
+          lovable_credits?: number
+          updated_at?: string
+          usage_date?: string
+        }
+        Relationships: []
+      }
       job_locks: {
         Row: {
           created_at: string
@@ -2274,21 +2301,39 @@ export type Database = {
       }
       ml_image_vision_cache: {
         Row: {
+          analysis_lease_owner: string | null
+          analysis_lease_until: string | null
           checked_at: string
           clean: boolean
+          inconclusive_attempts: number
+          last_error: string | null
+          last_provider: string | null
           reason: string | null
+          retry_after: string | null
           url: string
         }
         Insert: {
+          analysis_lease_owner?: string | null
+          analysis_lease_until?: string | null
           checked_at?: string
           clean: boolean
+          inconclusive_attempts?: number
+          last_error?: string | null
+          last_provider?: string | null
           reason?: string | null
+          retry_after?: string | null
           url: string
         }
         Update: {
+          analysis_lease_owner?: string | null
+          analysis_lease_until?: string | null
           checked_at?: string
           clean?: boolean
+          inconclusive_attempts?: number
+          last_error?: string | null
+          last_provider?: string | null
           reason?: string | null
+          retry_after?: string | null
           url?: string
         }
         Relationships: []
@@ -5204,6 +5249,16 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_publication_image_analysis: {
+        Args: { p_owner: string; p_url: string }
+        Returns: {
+          claimed: boolean
+          clean: boolean
+          inconclusive_attempts: number
+          reason: string
+          retry_after: string
+        }[]
+      }
       claim_publication_worker: { Args: { p_owner: string }; Returns: boolean }
       close_stale_support_tickets: { Args: never; Returns: number }
       complete_pending_publication: {
@@ -5276,6 +5331,19 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      finish_publication_image_analysis: {
+        Args: {
+          p_attempts?: number
+          p_clean?: boolean
+          p_error?: string
+          p_owner: string
+          p_provider?: string
+          p_reason?: string
+          p_retry_after?: string
+          p_url: string
+        }
+        Returns: undefined
       }
       get_aliexpress_cron_status: {
         Args: never
@@ -5530,6 +5598,10 @@ export type Database = {
       publication_recovery_revert: {
         Args: { p_admin: string; p_manifest: string }
         Returns: number
+      }
+      record_publication_image_usage: {
+        Args: { p_credit_cost: number; p_direct: boolean }
+        Returns: undefined
       }
       refund_normalize_email: { Args: { p: string }; Returns: string }
       release_publication_worker: {

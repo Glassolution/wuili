@@ -407,6 +407,13 @@
       "when": 1794693898581,
       "tag": "0057_plan_upgrade_difference",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794872109579,
+      "tag": "0058_publication_image_url_retry_and_spend_alert",
+      "breakpoints": true
     }
   ]
 }

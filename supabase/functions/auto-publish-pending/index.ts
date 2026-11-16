@@ -38,8 +38,6 @@ type Pendente = {
   support_notified_at: string | null
 }
 
-const MAX_ATTEMPTS = 25
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -86,9 +84,8 @@ Deno.serve(async (req) => {
     .from('pending_publications')
     .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at,reason,support_notified_at')
     .eq('status', 'pending')
-    .lt('attempts', MAX_ATTEMPTS)
     .order('created_at', { ascending: true })
-    .limit(1)
+    .limit(5)
 
   if (escopoUsuario) query = query.eq('user_id', escopoUsuario)
 
@@ -188,7 +185,9 @@ Deno.serve(async (req) => {
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
       }).eq('id', item.id)
       if(error) return json({error:error.message},500)
-      // Circuit breaker covers the whole batch, not just this product.
+      // Sem IA, este item permanece na fila sem consumir tentativa; os demais,
+      // inclusive os que já têm vereditos aprovados, continuam sendo processados.
+      if (corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE') { aguardando++; continue }
       if (unavailable) { aguardando++; break }
     }
   }

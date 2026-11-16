@@ -1,5 +1,12 @@
 # Roadmap
 
+## Validação de fotos sob demanda — 16/11
+- [x] Pausar auditoria e todos os crons de IA de imagem em lote, sem reativar agendamentos
+- [ ] Compartilhar vereditos por URL, analisar todas as fotos só na publicação e limitar inconclusivos a duas tentativas antes de 24h
+- [ ] Remover bloqueios por orçamento, alertar admins acima de 5 créditos/dia e usar Gemini direto como reserva
+- [ ] Manter fila automática sem IA e publicação sem chamadas quando todos os vereditos já existem
+- [ ] Testar regras, publicar somente os serviços afetados e medir URLs/produtos pendentes sem alterar catálogo ou anúncios
+
 ## Acesso ao reembolso da conta admin — 15/11
 - [x] Mostrar acesso ao atendimento em Gerenciar assinatura somente com exceção confirmada no servidor; sem estornar ou mudar regras de pedidos anteriores
 - [x] 14 testes passaram; botão e destino verificados com a conta autorizada no desktop/celular, sem envio. Atendimento ainda impede novo pedido por reembolso anterior, não pelo prazo. Site não publicado.

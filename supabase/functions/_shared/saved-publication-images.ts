@@ -18,19 +18,18 @@ export function savedPublicationRoles(rows: SavedImageRow[], urls: string[]): Sa
   }
   const result: SavedRoles = new Map();
   for (const group of groups.values()) {
-    const explicitDenial = group.find(row => ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'].includes(row.model) && row.verdict === 'reprovada');
-    const combined = group.find(row => PUBLICATION_IMAGE_MODELS.every(model => row.model.split('+').includes(model)));
-    const opinions = combined ? [combined] : PUBLICATION_IMAGE_MODELS.map(model => group.filter(row => row.model === model).sort((a,b) => b.analyzed_at.localeCompare(a.analyzed_at))[0]);
-    if (!explicitDenial && opinions.some(row => !row)) continue;
-    const first = explicitDenial ?? opinions[0];
-    if (!first) continue;
-    const denial = explicitDenial ?? opinions.find(row => row?.verdict === 'reprovada');
-    const decision = denial ?? (opinions.every(row => row?.verdict === 'aprovada') ? first : undefined);
+    // Reuse every explicit historical Gemini decision by URL. GPT is never called
+    // again, but its historical explicit rejection remains evidence.
+    const latest = [...group].sort((a,b) => b.analyzed_at.localeCompare(a.analyzed_at));
+    const denial = latest.find(row => row.verdict === 'reprovada');
+    const combined = latest.find(row => row.verdict === 'aprovada' && PUBLICATION_IMAGE_MODELS.every(model => row.model.split('+').includes(model)));
+    const geminiApproval = latest.find(row => row.verdict === 'aprovada' && row.model.split('+').some(model => ['google/gemini-3.8-flash', 'google/gemini-3.6-flash'].includes(model)));
+    const decision = denial ?? combined ?? geminiApproval;
     if (!decision) continue;
-    const roles = result.get(first.image_url) ?? {};
-    const role = first.image_role === 'primary' ? 'primary' : 'secondary';
+    const roles = result.get(decision.image_url) ?? {};
+    const role = decision.image_role === 'primary' ? 'primary' : 'secondary';
     if (!roles[role] || decision.analyzed_at > roles[role].analyzed_at) roles[role] = decision;
-    result.set(first.image_url, roles);
+    result.set(decision.image_url, roles);
   }
   return result;
 }

@@ -1,12 +1,6 @@
-/**
- * Vision pipelines: every model listed must approve for a photo to pass; any failure is inconclusive.
- * Rollback (kept until 2026-11-18): set ACTIVE_IMAGE_PIPELINE to 'legacy' and redeploy
- * ml-publish + ml-catalog-vision-audit. The version (cache key) carries the pipeline models.
- */
+/** Only Gemini 3.8 Flash performs new analyses; historical verdicts remain reusable. */
 export const IMAGE_VISION_PIPELINES = {
   gemini: { version: 'two-level-v6-2026-11-14+gemini-3.8-flash', models: ['google/gemini-3.8-flash'] },
-  dual: { version: 'two-level-v5-2026-11-08+gemini-3.8-flash+gpt-6.1-terra', models: ['google/gemini-3.8-flash', 'openai/gpt-6.1-terra'] },
-  legacy: { version: 'two-level-v4-2026-11-08', models: ['google/gemini-3.6-flash'] },
 } as const;
 export const ACTIVE_IMAGE_PIPELINE: keyof typeof IMAGE_VISION_PIPELINES = 'gemini';
 /** Version evidence without changing the legacy cache schema or its rows. */

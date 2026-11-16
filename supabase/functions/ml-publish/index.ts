@@ -1014,7 +1014,6 @@ Deno.serve(async (req) => {
       )
       const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
         max: 6,
-        maxChecks: allPublicImages.length * 2,
         publication: { productId: product.id, title: product.title, background: isInternalRepair },
         dryRun: body.validate_only === true,
       })
