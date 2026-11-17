@@ -185,9 +185,11 @@ Deno.serve(async (req) => {
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
       }).eq('id', item.id)
       if(error) return json({error:error.message},500)
-      // Overdue notice only after a real failed attempt; a notice failure must
-      // never stop the rest of the queue.
-      if (item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
+      // Aviso de 24h DESLIGADO: abria um chamado de suporte em nome do cliente,
+      // sem mensagem dele, um por anúncio (21 em 16/11). Só religar com
+      // OVERDUE_IMAGE_TICKETS=on depois que o aviso deixar de criar ticket.
+      const avisoAtrasoLigado = Deno.env.get('OVERDUE_IMAGE_TICKETS') === 'on'
+      if (avisoAtrasoLigado && item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
         const { error: notifyError } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
         if (notifyError) console.error('[auto-publish-pending] aviso de fila atrasada falhou:', item.id, notifyError.message)
       }
