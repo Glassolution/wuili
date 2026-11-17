@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
+import { LandingMobile } from "@/components/landing/LandingMobile";
 import { tiktokCliqueCadastro } from "@/lib/tiktokPixel";
 import { metaVeloCliqueCadastro } from "@/lib/veloMetaPixel";
 
@@ -459,7 +460,10 @@ export default function Index() {
   }, []);
 
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ block: "start" });
+    // No celular a página é a LandingMobile: as seções dela têm o sufixo "-mobile".
+    const versaoMobile = document.getElementById(`${id}-mobile`);
+    const alvo = versaoMobile && versaoMobile.offsetParent !== null ? versaoMobile : document.getElementById(id);
+    alvo?.scrollIntoView({ block: "start" });
   };
 
   /*
@@ -524,7 +528,7 @@ export default function Index() {
   useEffect(() => () => window.clearTimeout(closeMenuTimer.current), []);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-white font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
+    <main className="min-h-screen overflow-hidden bg-white max-sm:bg-black font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
       <header
         data-velo-flat-buttons
         onMouseLeave={schedulePanelClose}
@@ -536,14 +540,25 @@ export default function Index() {
               */
               `border-b border-[#EDF1F9] backdrop-blur-md ${mobileNavOpen ? "bg-white" : "bg-white/95"}`
             : "border-b border-transparent bg-transparent"
+        } ${
+          mobileNavOpen
+            ? ""
+            : headerSolid
+              ? "max-sm:border-white/10 max-sm:bg-black/90"
+              : "max-sm:border-transparent max-sm:bg-transparent max-sm:backdrop-blur-none"
         }`}
       >
         {/* Gutter lateral fixo (sem max-width centralizado) — o hero usa exatamente o mesmo. */}
         <div className="flex w-full items-center justify-between px-6 py-4 sm:px-10 lg:px-12">
           <div className="flex items-center gap-10">
             <button type="button" onClick={() => navigate("/")} aria-label="Velo">
-              {/* O hero é claro em todas as larguras: o logo é sempre escuro. */}
-              <VeloLogo tone="dark" />
+              {/* Celular: header escuro sobre a foto (claro só com o menu aberto). Desktop: hero claro. */}
+              <span className="sm:hidden">
+                <VeloLogo tone={mobileNavOpen ? "dark" : "light"} />
+              </span>
+              <span className="hidden sm:block">
+                <VeloLogo tone="dark" />
+              </span>
             </button>
 
             <nav className="hidden items-center gap-8 lg:flex">
@@ -617,13 +632,25 @@ export default function Index() {
               no celular. As duas barras viram X quando o painel abre. No celular o header é
               só logo e menu: "Entrar" mora dentro do painel.
             */}
+            {!mobileNavOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  registrarCliqueCadastro("cta_primary_click");
+                  navigate(signupTarget);
+                }}
+                className="text-[15px] font-medium text-white underline decoration-white/70 underline-offset-[5px] sm:hidden"
+              >
+                {!authLoading && user ? "Painel" : "Criar conta"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setMobileNavOpen((open) => !open)}
               aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
               aria-expanded={mobileNavOpen}
               aria-controls="menu-mobile"
-              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors max-sm:text-[#141414] lg:hidden ${
+              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors lg:hidden ${mobileNavOpen ? "max-sm:text-[#141414]" : "max-sm:text-white"} ${
                 "text-[#0B1B3D] hover:bg-[#F4F7FE]"
               }`}
             >
@@ -745,6 +772,27 @@ export default function Index() {
         </AnimatePresence>
       </header>
 
+      <div className="sm:hidden">
+        <LandingMobile
+          lojistasTexto={lojistasTexto}
+          vendasMes={VENDAS_MES_LOJISTAS}
+          logado={logado}
+          heroCtaRef={mobileHeroCtaRef}
+          passos={PASSOS_COMO_FUNCIONA}
+          faq={faqItems}
+          onCriarConta={(evento) => {
+            registrarCliqueCadastro(evento);
+            navigate(signupTarget);
+          }}
+          onEntrar={() => {
+            void registrarEvento("cta_header_login_click");
+            navigate(authTarget);
+          }}
+          onEvento={(evento) => void registrarEvento(evento)}
+        />
+      </div>
+
+      <div className="hidden sm:block">
       {/*
         Hero: uma promessa, um botão, prova social e a tela real do catálogo.
         Mobile-first (393px); no desktop vira duas colunas com o celular à direita.
@@ -771,7 +819,6 @@ export default function Index() {
             </p>
 
             <button
-              ref={mobileHeroCtaRef}
               type="button"
               onClick={() => {
                 registrarCliqueCadastro("cta_hero_signup_click");
@@ -1052,15 +1099,17 @@ export default function Index() {
         </div>
       </section>
 
+      </div>
+
       <AnimatePresence>
         {showMobileStickyCta && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className={`fixed inset-x-0 bottom-0 z-[70] border-t border-[#E5E5E5] bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:hidden ${FONTE_INTER}`}>
-            <button type="button" onClick={() => { registrarCliqueCadastro("cta_sticky_signup_click"); navigate(signupTarget); }} className="mx-auto block h-[52px] w-full max-w-[360px] rounded-full bg-[#2563EB] text-[17px] font-semibold text-white active:scale-[0.98]">{logado ? "Ir para o painel" : "Criar minha conta"}</button>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className={`fixed inset-x-0 bottom-0 z-[70] border-t border-white/10 bg-black/90 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md sm:hidden ${FONTE_INTER}`}>
+            <button type="button" onClick={() => { registrarCliqueCadastro("cta_sticky_signup_click"); navigate(signupTarget); }} className="mx-auto block h-[52px] w-full max-w-[360px] rounded-full bg-white text-[17px] font-medium text-black active:scale-[0.98]">{logado ? "Ir para o painel" : "Criar minha conta"}</button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <footer className="border-t border-[#EDF1F9] bg-white px-6 py-8 sm:px-8 sm:py-12">
+      <footer className="hidden border-t border-[#EDF1F9] bg-white px-6 py-8 sm:block sm:px-8 sm:py-12">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2.5">
             <div className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#2563EB] text-white">

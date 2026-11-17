@@ -55,7 +55,7 @@
     </noscript>
     <script>
       /*
-        Só na landing: manda buscar a tela do catálogo do hero antes mesmo de o JavaScript
+        Só na landing: manda buscar a imagem do hero antes mesmo de o JavaScript
         do app baixar e montar a página. É o maior elemento da primeira tela —
         quem chega do Instagram no 4G espera por ela.
         Fica dentro do if porque o index.html é o mesmo de todas as rotas: no
@@ -66,12 +66,16 @@
         fotoTopo.rel = "preload";
         fotoTopo.as = "image";
         fotoTopo.type = "image/webp";
-        fotoTopo.href = "/landing/hero-painel-catalogo-720.webp";
+        // Celular: foto de fundo do hero. Desktop: tela do catálogo no mockup.
+        var celular = window.matchMedia("(max-width: 639px)").matches;
+        fotoTopo.href = celular ? "/landing/pessoa-03-640.webp" : "/landing/hero-painel-catalogo-720.webp";
         fotoTopo.setAttribute(
           "imagesrcset",
-          "/landing/hero-painel-catalogo-480.webp 480w, /landing/hero-painel-catalogo-720.webp 720w"
+          celular
+            ? "/landing/pessoa-03-640.webp 640w, /landing/pessoa-03-960.webp 960w, /landing/pessoa-03-1280.webp 1280w"
+            : "/landing/hero-painel-catalogo-480.webp 480w, /landing/hero-painel-catalogo-720.webp 720w"
         );
-        fotoTopo.setAttribute("imagesizes", "(min-width: 1024px) 324px, 284px");
+        fotoTopo.setAttribute("imagesizes", celular ? "100vw" : "(min-width: 1024px) 324px, 284px");
         document.head.appendChild(fotoTopo);
       }
     </script>
