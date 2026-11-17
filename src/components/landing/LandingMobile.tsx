@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type Ref } from "react";
+import { useEffect, useState, type ReactNode, type Ref } from "react";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 /*
@@ -224,6 +224,54 @@ function CenaPasso({ indice }: { indice: number }) {
   );
 }
 
+/*
+  Fotos do fundo do hero, trocando com crossfade. A primeira é a do preload do
+  index.html (pessoa-03-640); as outras só entram no DOM depois que ela pinta,
+  para não disputar banda com a primeira tela no 4G. Com "reduzir movimento"
+  ligado, fica só a primeira.
+*/
+const FOTOS_HERO = [
+  { base: "pessoa-03", original: "/pessoa%2003.webp", foco: "object-[72%_50%]" },
+  { base: "pessoa-01", original: "/pessoa%2001.webp", foco: "object-[56%_50%]" },
+  { base: "pessoa-02", original: "/pessoa%2002.webp", foco: "object-[66%_50%]" },
+];
+const INTERVALO_FOTO_MS = 6000;
+
+function FundoHero() {
+  const [ativa, setAtiva] = useState(0);
+  const [carregarResto, setCarregarResto] = useState(false);
+
+  useEffect(() => {
+    if (!carregarResto) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => setAtiva((atual) => (atual + 1) % FOTOS_HERO.length), INTERVALO_FOTO_MS);
+    return () => window.clearInterval(timer);
+  }, [carregarResto]);
+
+  const visiveis = carregarResto ? FOTOS_HERO : FOTOS_HERO.slice(0, 1);
+
+  return (
+    <>
+      {visiveis.map((foto, indice) => (
+        <ImagemResponsiva
+          key={foto.base}
+          base={foto.base}
+          larguras={[640, 960, 1280]}
+          original={foto.original}
+          sizes="100vw"
+          alt=""
+          aria-hidden
+          prioritaria={indice === 0}
+          onLoad={indice === 0 ? () => setCarregarResto(true) : undefined}
+          className={`absolute inset-0 -z-10 h-full w-full object-cover ${foto.foco} transition-opacity duration-1000 ease-in-out ${
+            indice === ativa ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ))}
+    </>
+  );
+}
+
 export function LandingMobile({
   lojistasTexto,
   vendasMes,
@@ -247,16 +295,7 @@ export function LandingMobile({
     <div className={`bg-black text-white ${FONTE}`}>
       {/* Hero: foto em tela cheia, escurecida onde o texto vive. */}
       <section className="relative isolate flex min-h-[min(100svh,780px)] flex-col overflow-hidden px-6 pb-20 pt-[108px]">
-        <ImagemResponsiva
-          base="pessoa-03"
-          larguras={[640, 960, 1280]}
-          original="/pessoa%2003.webp"
-          sizes="100vw"
-          alt=""
-          aria-hidden
-          prioritaria
-          className="absolute inset-0 -z-10 h-full w-full object-cover object-[72%_50%]"
-        />
+        <FundoHero />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-black/45" />
         <div
           aria-hidden="true"
