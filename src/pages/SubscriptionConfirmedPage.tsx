@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import PostPurchaseTutorial from "@/components/dashboard/PostPurchaseTutorial";
 
 const PLAN_LABEL: Record<string, string> = {
   base: "Base",
@@ -81,12 +82,12 @@ const SubscriptionConfirmedPage = () => {
             ? isLifetime ? `Seu plano ${PLAN_LABEL[plan] ?? ""} vitalício está ativo. Pagamento único, sem renovação.` : `Seu plano ${PLAN_LABEL[plan] ?? ""} já está ativo. Bom trabalho e boas vendas!`
             : "Assim que o pagamento for compensado, seu plano é liberado automaticamente. Isso costuma levar poucos segundos."}
         </p>
-        <Link
+        {status === "ativo" ? <PostPurchaseTutorial /> : <Link
           to="/dashboard"
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#0A0A0A] text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
         >
           Ir para o painel
-        </Link>
+        </Link>}
       </div>
     </main>
   );

@@ -1,8 +1,7 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { metaVeloCompraConcluida } from "@/lib/veloMetaPixel";
-import { Button } from "@/components/ui/button";
+import PostPurchaseTutorial from "@/components/dashboard/PostPurchaseTutorial";
 import { VeloLogo } from "@/components/VeloLogo";
 import { useSearchParams } from "react-router-dom";
 import SubscriptionConfirmedPage from "./SubscriptionConfirmedPage";
@@ -21,7 +20,6 @@ import SubscriptionConfirmedPage from "./SubscriptionConfirmedPage";
 const SUCCESS = "#22C55E";
 
 const AssinaturaConfirmadaPage = () => {
-  const navigate = useNavigate();
   const [params] = useSearchParams();
 
   // Pixel da Meta da Velo: Purchase (+ Subscribe), uma vez por checkout iniciado.
@@ -56,15 +54,7 @@ const AssinaturaConfirmadaPage = () => {
           seu catálogo e publicar suas páginas.
         </p>
 
-        <Button
-          type="button"
-          variant="pilot"
-          onClick={() => navigate("/dashboard")}
-          className="mt-8 h-12 w-full text-[14px] sm:w-auto sm:px-8"
-        >
-          Ir para o painel
-          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-        </Button>
+        <PostPurchaseTutorial />
 
         <p className="mt-6 text-[12.5px] text-[#8A8A8A]">
           Recebeu o comprovante por e-mail. Precisa de ajuda?{" "}
