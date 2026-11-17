@@ -936,6 +936,27 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_products_aliexpress_archive: {
+        Row: {
+          archived_at: string
+          linked_order_ids: string[]
+          product_id: string
+          row_data: Json
+        }
+        Insert: {
+          archived_at?: string
+          linked_order_ids?: string[]
+          product_id: string
+          row_data: Json
+        }
+        Update: {
+          archived_at?: string
+          linked_order_ids?: string[]
+          product_id?: string
+          row_data?: Json
+        }
+        Relationships: []
+      }
       catalog_recovery_audit: {
         Row: {
           after_state: Json | null
