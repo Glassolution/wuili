@@ -37,6 +37,9 @@ gerar "pessoa 03.png" pessoa-03 "$QUALIDADE_FOTO" 640 960 1280 1672
 echo "→ prints do produto"
 gerar "prova-catalogo.png" prova-catalogo "$QUALIDADE_PRINT" 640 960 1440
 gerar "prova-atlas.png" prova-atlas "$QUALIDADE_PRINT" 640 960 1360
+# Tela do catálogo no celular do hero (recorte de prova-catalogo.png).
+# Aparece com ~284px (324px no desktop); 720 cobre tela retina.
+gerar "hero-painel-catalogo.png" hero-painel-catalogo "$QUALIDADE_PRINT" 480 720
 
 # As duas barras da seção "Do produto ao anúncio pronto". São prints de tela
 # (texto fino), por isso a qualidade alta. No desktop cada uma ocupa metade de

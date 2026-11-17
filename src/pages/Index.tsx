@@ -1,4 +1,4 @@
-import { CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,41 +86,38 @@ const faqItems = [
 ];
 
 /*
-  Carrossel de fundo do hero. Os nomes têm espaço no disco ("pessoa 01.png"), por isso
-  o %20 — se os arquivos forem renomeados, é aqui que se ajusta.
+  Prova social do hero. Números informados pela operação em 17/11/2026:
+  - lojistas: piso para o selo e a faixa. Se o banco (rpc_landing_stats) passar
+    disso, vale o número do banco, arredondado para baixo em 50.
+  - vendas: soma do que os lojistas da Velo vendem por mês. Não é promessa de
+    ganho para quem entra; atualize aqui quando o número mudar.
 */
-/*
-  Bump este número sempre que as fotos forem substituídas mantendo o mesmo nome de arquivo.
-  Sem isso o navegador (e qualquer CDN na frente) continua servindo a versão antiga do cache,
-  porque a URL não mudou.
-*/
-const HERO_ASSET_VERSION = 2;
+const LOJISTAS_ATIVOS_PISO = 1250;
+const VENDAS_MES_LOJISTAS = "R$ 300 mil+";
 
-/*
-  Larguras geradas por scripts/otimizar-imagens-landing.sh. A foto do topo
-  ocupa a largura toda da tela, então precisa da maior; as demais aparecem em
-  molduras de no máximo ~600px no desktop.
-*/
-const LARGURAS_FOTO = [640, 960, 1280, 1672];
-const LARGURAS_BARRA = [640, 960, 1280];
-
-const HERO_SLIDES = [
-  /*
-    focus: ponto focal do recorte, no formato de object-position ("50% 50%" = centro).
-    O padrão é o centro e serve para qualquer enquadramento — só vale ajustar se alguma
-    foto específica tiver o sujeito muito fora do meio e ficar cortada no celular, onde
-    cabe bem menos da largura original.
-  */
-  { src: "/pessoa%2001.webp", base: "pessoa-01", focus: "50% 50%", headline: "sem estoque, sem risco." },
-  { src: "/pessoa%2002.webp", base: "pessoa-02", focus: "50% 50%", headline: "com o produto certo." },
-  { src: "/pessoa%2003.webp", base: "pessoa-03", focus: "50% 50%", headline: "em poucos minutos." },
+const PASSOS_COMO_FUNCIONA = [
+  {
+    titulo: "Escolha o produto",
+    texto: "Navegue pelo catálogo de fornecedores brasileiros e veja a margem de cada produto.",
+  },
+  {
+    titulo: "Publique no seu Mercado Livre",
+    texto: "Conecte sua conta e publique o anúncio direto pela Velo.",
+  },
+  {
+    titulo: "Venda e lucre",
+    texto: "Quando sair uma venda, você confirma o pedido com o fornecedor pelo painel, e ele faz o envio.",
+  },
 ];
 
+// Fonte explícita: a regra global de h1–h6 em index.css força Hanken Grotesk.
+const FONTE_INTER = "[font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]";
+
 /*
-  PLACEHOLDER TEMPORÁRIO — some sozinho assim que qualquer foto de HERO_SLIDES carregar.
-  É um mockup com avatar gerado por IA, não um vendedor real usando a Velo.
+  Larguras geradas por scripts/otimizar-imagens-landing.sh para as barras da
+  seção de prova visual (no desktop cada uma ocupa metade de ~1200px).
 */
-const HERO_PLACEHOLDER = "/hero-pasted-image-2.webp";
+const LARGURAS_BARRA = [640, 960, 1280];
 
 /*
   Seção de prova visual, logo abaixo do hero.
@@ -161,135 +158,6 @@ const PROVA_VISUAL = [
   },
 ];
 
-const HERO_SLIDE_INTERVAL = 6000;
-
-const TYPE_DELETE_MS = 26;
-const TYPE_WRITE_MS = 52;
-
-/*
-  Máquina de escrever: apaga a frase atual caractere a caractere e digita a nova. Não tem
-  timer próprio — reage à mudança de `target`, que vem do mesmo índice do carrossel, então
-  o ciclo começa exatamente quando a imagem de fundo troca.
-*/
-function useTypewriter(target: string) {
-  const [display, setDisplay] = useState(target);
-  const [mode, setMode] = useState<"idle" | "deleting" | "typing">("idle");
-  const mounted = useRef(false);
-
-  useEffect(() => {
-    // Na primeira renderização a frase já aparece pronta: nada para apagar ainda.
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setDisplay(target);
-      setMode("idle");
-      return;
-    }
-
-    setMode("deleting");
-  }, [target]);
-
-  useEffect(() => {
-    if (mode === "idle") return;
-
-    const timer = window.setTimeout(
-      () => {
-        setDisplay((current) => (mode === "deleting" ? current.slice(0, -1) : target.slice(0, current.length + 1)));
-      },
-      mode === "deleting" ? TYPE_DELETE_MS : TYPE_WRITE_MS
-    );
-
-    return () => window.clearTimeout(timer);
-  }, [mode, display, target]);
-
-  useEffect(() => {
-    if (mode === "deleting" && display.length === 0) setMode("typing");
-    else if (mode === "typing" && display === target) setMode("idle");
-  }, [mode, display, target]);
-
-  return { display, isAnimating: mode !== "idle" };
-}
-
-/*
-  Um único índice governa foto e segunda linha da headline: as duas trocam no mesmo tick e
-  com o mesmo crossfade, sem timer separado.
-*/
-function useHeroCarousel() {
-  const [failed, setFailed] = useState<Record<string, boolean>>({});
-  const [index, setIndex] = useState(0);
-  // As fotos seguintes só entram no DOM depois que a primeira pinta, para não competir com o LCP.
-  const [preloadRest, setPreloadRest] = useState(false);
-
-  const slides = HERO_SLIDES.filter((slide) => !failed[slide.src]);
-
-  useEffect(() => {
-    if (!preloadRest) return;
-    if (slides.length < 2) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const timer = window.setInterval(() => setIndex((current) => current + 1), HERO_SLIDE_INTERVAL);
-
-    return () => window.clearInterval(timer);
-  }, [preloadRest, slides.length]);
-
-  return {
-    slides,
-    // Sem nenhuma foto disponível o carrossel para, mas a headline ainda precisa de uma frase.
-    phrases: slides.length > 0 ? slides : HERO_SLIDES.slice(0, 1),
-    visibleSlides: preloadRest ? slides : slides.slice(0, 1),
-    active: slides.length > 0 ? index % slides.length : 0,
-    onFirstLoad: () => setPreloadRest(true),
-    onSlideError: (src: string) => setFailed((current) => ({ ...current, [src]: true })),
-  };
-}
-
-type HeroCarousel = ReturnType<typeof useHeroCarousel>;
-
-function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError }: HeroCarousel) {
-  return (
-    <>
-      {slides.length === 0 && (
-        <img
-          src={HERO_PLACEHOLDER}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 h-full w-full object-cover object-[68%_center] lg:object-[75%_center]"
-        />
-      )}
-
-      {visibleSlides.map((slide, slideIndex) => (
-        /*
-          A foto do topo cobre a tela inteira, por isso sizes="100vw": o
-          navegador pega a de 640px num celular comum e a de 1672px num monitor
-          grande, em vez do PNG de ~1,9 MB que vinha antes para todo mundo.
-
-          A primeira é prioritária — é o maior elemento da primeira tela e o
-          index.html já manda buscá-la antes do JavaScript montar a página.
-          As seguintes só entram no DOM depois que ela pinta (ver preloadRest).
-        */
-        <ImagemResponsiva
-          key={slide.src}
-          base={slide.base}
-          larguras={LARGURAS_FOTO}
-          original={`${slide.src}?v=${HERO_ASSET_VERSION}`}
-          sizes="100vw"
-          alt=""
-          aria-hidden
-          prioritaria={slideIndex === 0}
-          style={{ "--hero-focus": slide.focus } as CSSProperties}
-          onLoad={slideIndex === 0 ? onFirstLoad : undefined}
-          onError={() => onSlideError(slide.src)}
-          className={`absolute inset-0 -z-10 h-full w-full object-cover object-[var(--hero-focus)] transition-opacity duration-1000 ease-in-out ${
-            slideIndex === active ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      ))}
-    </>
-  );
-}
 
 /*
   Mesma estrutura da referência: headline de duas linhas em dois tons, seguida de
@@ -302,7 +170,7 @@ function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError
 */
 function SecaoProvaVisual() {
   return (
-    <section id="como-funciona" className="scroll-mt-20 bg-white px-6 py-16 sm:px-10 sm:py-28 lg:px-12 lg:py-40">
+    <section id="do-produto-ao-anuncio" className="scroll-mt-20 bg-white px-6 py-16 sm:px-10 sm:py-28 lg:px-12 lg:py-40">
       <div className="mx-auto w-full max-w-[1200px]">
         <motion.h2
           initial={{ opacity: 0, y: 24 }}
@@ -488,12 +356,6 @@ export default function Index() {
   // Com a aba aberta o header precisa virar sólido: a faixa branca embaixo dele não pode
   // nascer de uma barra transparente sobre a foto.
   const headerOpaque = headerSolid || Boolean(activePanel) || mobileNavOpen;
-  const heroCarousel = useHeroCarousel();
-  const { phrases, active } = heroCarousel;
-  const currentPhrase = phrases[active]?.headline ?? "";
-  const { display: typedPhrase } = useTypewriter(currentPhrase);
-  // Reserva a altura da maior frase para a digitação não empurrar o conteúdo abaixo.
-  const longestPhrase = phrases.reduce((longest, slide) => (slide.headline.length > longest.length ? slide.headline : longest), "");
 
   useEffect(() => {
     const handleScroll = () => setHeaderSolid(window.scrollY > 40);
@@ -550,6 +412,17 @@ export default function Index() {
   // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
   const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
   const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
+  const logado = !authLoading && Boolean(user);
+  const lojistasAtivos = Math.max(
+    LOJISTAS_ATIVOS_PISO,
+    assinantesAtivos !== null ? Math.floor(assinantesAtivos / 50) * 50 : 0,
+  );
+  const lojistasTexto = lojistasAtivos.toLocaleString("pt-BR");
+  const provaHero = [
+    { numero: `${lojistasTexto}+`, rotulo: "lojistas assinantes" },
+    { numero: VENDAS_MES_LOJISTAS, rotulo: "vendidos por mês" },
+    { numero: "100%", rotulo: "fornecedores nacionais" },
+  ];
 
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -669,13 +542,8 @@ export default function Index() {
         <div className="flex w-full items-center justify-between px-6 py-4 sm:px-10 lg:px-12">
           <div className="flex items-center gap-10">
             <button type="button" onClick={() => navigate("/")} aria-label="Velo">
-              {/* No celular o topo é claro: o logo é sempre escuro. */}
-              <span className="sm:hidden">
-                <VeloLogo tone="dark" />
-              </span>
-              <span className="hidden sm:block">
-                <VeloLogo tone={headerOpaque ? "dark" : "light"} />
-              </span>
+              {/* O hero é claro em todas as larguras: o logo é sempre escuro. */}
+              <VeloLogo tone="dark" />
             </button>
 
             <nav className="hidden items-center gap-8 lg:flex">
@@ -695,7 +563,7 @@ export default function Index() {
                     aria-haspopup={item.panel ? "true" : undefined}
                     aria-expanded={item.panel ? isOpen : undefined}
                     className={`flex items-center gap-1.5 text-[15px] font-medium transition-colors duration-200 ${
-                      headerOpaque ? "text-[#0B1B3D] hover:text-[#2563EB]" : "text-white hover:text-white/70"
+                      "text-[#0B1B3D] hover:text-[#2563EB]"
                     }`}
                   >
                     {item.label}
@@ -725,7 +593,7 @@ export default function Index() {
                 navigate(authTarget);
               }}
               className={`hidden text-[15px] font-medium transition-colors duration-200 sm:block ${
-                headerOpaque ? "text-[#0B1B3D] hover:text-[#2563EB]" : "text-white hover:text-white/70"
+                "text-[#0B1B3D] hover:text-[#2563EB]"
               }`}
             >
               Entrar
@@ -737,7 +605,7 @@ export default function Index() {
                 navigate(authTarget);
               }}
               className={`hidden h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:block sm:px-6 ${
-                headerOpaque ? "bg-[#2563EB] text-white hover:bg-[#1E3A8A]" : "bg-white text-[#0B1B3D] hover:bg-white/90"
+                "bg-[#2563EB] text-white hover:bg-[#1E3A8A]"
               }`}
             >
               {ctaLabel}
@@ -756,7 +624,7 @@ export default function Index() {
               aria-expanded={mobileNavOpen}
               aria-controls="menu-mobile"
               className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors max-sm:text-[#141414] lg:hidden ${
-                headerOpaque ? "text-[#0B1B3D] hover:bg-[#F4F7FE]" : "text-white hover:bg-white/10"
+                "text-[#0B1B3D] hover:bg-[#F4F7FE]"
               }`}
             >
               <span className="relative block h-[14px] w-[22px]" aria-hidden="true">
@@ -878,229 +746,97 @@ export default function Index() {
       </header>
 
       {/*
-        [font-feature-settings:normal] desliga o "cv11" herdado do body (index.css): esse
-        character variant troca o "a" do Inter pela versão de andar único, que é o que dava
-        à headline a aparência de fonte arredondada/geométrica.
+        Hero: uma promessa, um botão, prova social e a tela real do catálogo.
+        Mobile-first (393px); no desktop vira duas colunas com o celular à direita.
+        O botão usa o mesmo destino e o mesmo evento de funil do hero anterior.
       */}
       <section
         data-velo-flat-buttons
-        className="relative isolate flex min-h-0 flex-col justify-start overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] sm:justify-end [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
+        className={`relative overflow-hidden bg-[#F6F4EF] px-4 pb-14 pt-24 sm:px-10 sm:pb-20 sm:pt-32 lg:px-12 lg:pb-24 lg:pt-36 ${FONTE_INTER}`}
       >
-        {/*
-          No celular a foto de fundo cortava o rosto e disputava com o texto. Aqui ela
-          sai do fundo e vira um cartão enquadrado mais abaixo; o fundo passa a ser o
-          gradiente da marca. No desktop nada muda: o carrossel continua como estava.
-        */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
-          <HeroBackdrop {...heroCarousel} />
-        </div>
-
-        {/* Fundo do celular: off-white quente, liso. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[#F6F4EF] sm:hidden" />
-
-        {/*
-          Scrim direcional: escuro só no canto inferior esquerdo, onde o texto vive, e
-          praticamente ausente no resto — a foto mantém cor e detalhe. Tom quase preto
-          (8,14,28) de propósito: a função é contraste, não tingir a cena de azul.
-        */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[rgba(8,14,28,0.1)] sm:block" />
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)] sm:block" />
-        {/* Topo: só o necessário para a navbar não sumir sobre foto clara. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)] sm:block" />
-        {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
-
-        {/*
-          Hero do celular: fundo claro, uma frase, um botão, fotos embaixo.
-        */}
-        <div className="relative flex w-full flex-col items-center px-6 pt-28 text-center sm:hidden">
-          <span className="inline-flex items-center gap-2.5 text-[13.5px] font-medium text-[#6F6A62]">
-            <span className="h-2 w-2 rounded-full bg-[#2563EB] ring-4 ring-[#2563EB]/15" aria-hidden="true" />
-            {assinantesAtivos !== null && assinantesAtivos >= 50
-              ? `+${Math.floor(assinantesAtivos / 50) * 50} assinaturas ativas`
-              : "Catálogo pronto para o Mercado Livre"}
-          </span>
-
-          <h1 className="mt-6 max-w-[340px] text-[2.35rem] font-medium leading-[1.08] tracking-[-0.035em] text-[#141414] antialiased [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            Escolha um produto e venda no{" "}
-            <span className="inline-flex items-center gap-[0.18em] whitespace-nowrap">
-              <img
-                src="/brand/mercado-livre.png"
-                alt=""
-                aria-hidden="true"
-                width={200}
-                height={200}
-                // O PNG tem fundo branco: multiply faz o branco sumir no off-white do hero.
-                className="-my-[0.1em] h-[1.3em] w-[1.3em] shrink-0 object-contain mix-blend-multiply"
-              />
-              <span className="text-[1.12em] font-normal italic tracking-[-0.01em] [font-family:'Instrument_Serif',Georgia,serif]">
-                Mercado Livre
-              </span>
+        <div className="mx-auto grid w-full max-w-[1200px] items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-16">
+          <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#E5E5E5] bg-white px-3 py-1.5 text-[13px] font-medium leading-[18px] text-[#444]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" aria-hidden="true" />
+              +{lojistasTexto} lojistas ativos
             </span>
-          </h1>
 
-          <p className="mt-4 max-w-[310px] text-[15.5px] leading-[1.55] text-[#6F6A62]">
-            Você define o preço e fica com a diferença para o custo do fornecedor.
-          </p>
+            <h1 className={`mt-4 max-w-[360px] text-[36px] font-bold leading-[40px] tracking-[-0.02em] text-[#111111] antialiased sm:max-w-[600px] lg:text-[56px] lg:leading-[60px] ${FONTE_INTER}`}>
+              Venda no Mercado Livre sem comprar estoque
+            </h1>
 
-          <button
-            ref={mobileHeroCtaRef}
-            type="button"
-            onClick={() => {
-              registrarCliqueCadastro("cta_hero_signup_click");
-              navigate(signupTarget);
-            }}
-            className="relative mt-7 h-[58px] w-full rounded-full bg-[#2563EB] px-8 text-[17px] font-bold text-white transition-transform active:scale-[0.98]"
-          >
-            {!authLoading && user ? "Continuar na Velo" : "Começar a vender"}
-
-            {/*
-              Cursor "tocando" o botão: o ponto de origem do span é a ponta do dedo, e a
-              onda sai dali a cada toque. O SVG é deslocado para a ponta cair nesse ponto.
-            */}
-            <span aria-hidden="true" className="pointer-events-none absolute right-[11%] top-[34%]">
-              {!reduceMotion && (
-                <motion.span
-                  className="absolute -left-2 -top-2 block h-4 w-4 rounded-full bg-white/70"
-                  animate={{ scale: [0.4, 2.2], opacity: [0.8, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut", delay: 0.25 }}
-                />
-              )}
-              <motion.svg
-                width="32"
-                height="31"
-                viewBox="0 0 24 23"
-                className="relative block drop-shadow-[0_2px_3px_rgba(11,27,61,0.35)]"
-                style={{ x: -12, originX: 0.37, originY: 0 }}
-                animate={reduceMotion ? undefined : { y: [4, 0, 0, 4], scale: [1, 0.88, 1, 1] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", times: [0, 0.18, 0.35, 1] }}
-              >
-                {/* Mãozinha do macOS: luva branca gordinha, contorno preto grosso, indicador para cima. */}
-                <path
-                  d="M6.9 3C6.9 1.9 7.8 1.2 8.8 1.2S10.5 1.9 10.6 2.9L11.1 7.4C11.4 6.4 12.3 5.9 13.2 6.1S14.5 7 14.5 7.9C14.9 7 15.9 6.5 16.8 6.8S18 7.8 18 8.7C18.5 8 19.4 7.8 20.2 8.2S21.4 9.4 21.4 10.3V14C21.4 16.2 20.7 17.8 19.7 19V21.2H16.6L15 19.9 13.6 21.2H9.2L8.6 19C7.4 17.6 5.6 16.3 4.3 14.6 3 13 2.2 11.8 2.6 10.4S4.3 9 5.3 9.6C5.9 10 6.5 10.6 6.9 11.2Z"
-                  fill="#fff"
-                  stroke="#000"
-                  strokeWidth="1.25"
-                  strokeLinejoin="round"
-                />
-                <path d="M12 13.2v3.4M14.4 13.2v3.4M16.8 13.2v3.4" stroke="#000" strokeWidth="1.2" strokeLinecap="round" />
-              </motion.svg>
-            </span>
-          </button>
-
-          {(authLoading || !user) && (
-            <p className="mt-3 max-w-[320px] text-[13.5px] font-medium leading-[1.45] text-[#4A463F] [text-wrap:balance]">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="mr-1.5 inline-block -translate-y-px align-middle text-[#16A34A]">
-                <path d="M3 8.5 6.5 12 13 4.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-              </svg>
-              Comece sem cartão e sem estoque.
+            <p className="mt-4 max-w-[340px] text-[17px] leading-[26px] text-[#555555] lg:max-w-[480px]">
+              Escolha produtos de fornecedores brasileiros, publique no seu Mercado Livre em minutos e fique com a
+              diferença entre o seu preço e o custo do fornecedor.
             </p>
-          )}
 
-          <p className="mt-4 max-w-[340px] text-[11px] leading-[1.45] text-[#8A857C]">
-            A Velo é uma plataforma independente e não faz parte do Mercado Livre.
-          </p>
-
-          {/*
-            Duas fotos levemente inclinadas, sangrando nas laterais e no rodapé da seção.
-            A seção tem overflow-hidden, então o corte embaixo é intencional.
-          */}
-          <div aria-hidden="true" className="relative mt-12 h-[250px] w-[calc(100%+48px)]">
-            <div className="absolute -left-[4%] top-2 h-[300px] w-[56%] -rotate-[4deg] overflow-hidden rounded-[18px] shadow-[0_18px_40px_rgba(40,32,20,0.18)]">
-              <ImagemResponsiva
-                base="pessoa-01"
-                larguras={[640, 960]}
-                original="/pessoa%2001.webp"
-                sizes="60vw"
-                alt=""
-                prioritaria
-                className="h-full w-full object-cover object-[55%_50%]"
-              />
-            </div>
-            <div className="absolute -right-[4%] top-0 h-[300px] w-[56%] rotate-[3deg] overflow-hidden rounded-[18px] shadow-[0_18px_40px_rgba(40,32,20,0.18)]">
-              <ImagemResponsiva
-                base="pessoa-02"
-                larguras={[640, 960]}
-                original="/pessoa%2002.webp"
-                sizes="60vw"
-                alt=""
-                className="h-full w-full object-cover object-[66%_50%]"
-              />
-            </div>
-          </div>
-        </div>
-
-
-        {/* Mesmo gutter do header, em todas as resoluções. */}
-        <div className="relative hidden w-full px-6 pb-14 pt-32 sm:block sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
-          {/* font-family explícito: a regra global de h1–h6 em index.css força Hanken Grotesk. */}
-          {/*
-            As duas linhas usam exatamente o mesmo estilo (peso 200, branco): a diferença
-            entre elas é só estrutural — uma é fixa, a outra é digitada.
-          */}
-          <h1 className="max-w-[900px] text-[2.75rem] leading-[1.02] font-extralight tracking-[-0.035em] text-white antialiased sm:text-[clamp(2.125rem,4.35vw,4rem)] sm:leading-[1.04] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            <span className="block">Comece a vender</span>
-            {/*
-              minmax(0,1fr) é o que impede o texto de estourar a viewport: sem isso a coluna
-              implícita do grid é dimensionada por max-content e a frase vaza em vez de quebrar.
-            */}
-            <span className="grid grid-cols-[minmax(0,1fr)]">
-              <span aria-hidden="true" className="invisible col-start-1 row-start-1 [overflow-wrap:anywhere]">
-                {longestPhrase}
-              </span>
-              <span className="col-start-1 row-start-1 [overflow-wrap:anywhere]">
-                <span className="sr-only">{currentPhrase}</span>
-                <span aria-hidden="true">{typedPhrase}</span>
-                <span
-                  aria-hidden="true"
-                  className="ml-[0.06em] inline-block h-[0.72em] w-[0.05em] translate-y-[0.04em] animate-pulse bg-white align-baseline"
-                />
-              </span>
-            </span>
-          </h1>
-
-          <p className="mt-5 max-w-[420px] text-[16px] leading-[1.55] tracking-[-0.01em] text-white/70 sm:mt-6 sm:text-[18px]">
-            A Velo encontra oportunidades de produto, ajuda a montar o anúncio e a publicar no Mercado Livre.
-          </p>
-
-          <div className="mt-8 flex flex-col gap-4 sm:mt-9 sm:flex-row sm:items-center sm:gap-3">
             <button
+              ref={mobileHeroCtaRef}
               type="button"
               onClick={() => {
                 registrarCliqueCadastro("cta_hero_signup_click");
-                navigate(authTarget);
+                navigate(signupTarget);
               }}
-              className="h-[56px] w-full rounded-full bg-white px-8 text-[17px] font-semibold text-[#0B1B3D] transition-colors hover:bg-white/90 sm:h-[54px] sm:w-auto sm:text-[16px]"
+              className="mt-6 h-14 w-full max-w-[360px] rounded-full bg-[#2563EB] px-8 text-[17px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-[#1E3A8A] active:scale-[0.98]"
             >
-              {ctaLabel}
+              {logado ? "Ir para o painel" : "Criar minha conta"}
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                void registrarEvento("cta_how_it_works_click");
-                scrollToSection("como-funciona");
-              }}
-              className="self-center text-[16px] font-medium text-white underline decoration-white/50 underline-offset-[6px] transition hover:decoration-white max-sm:inline-flex max-sm:min-h-[44px] max-sm:items-center max-sm:justify-center sm:h-[54px] sm:self-auto sm:rounded-full sm:border sm:border-white/70 sm:px-8 sm:no-underline sm:hover:border-white sm:hover:bg-white/10"
-            >
-              Ver como funciona
-            </button>
+            {!logado && <p className="mt-2 text-[13px] leading-[18px] text-[#777]">Leva menos de 1 minuto</p>}
+
+            <ul className="mt-8 grid w-full max-w-[380px] grid-cols-[1fr_1.3fr_1fr] divide-x divide-[#E5E5E5] lg:max-w-[460px]">
+              {provaHero.map((item) => (
+                <li key={item.rotulo} className="flex flex-col items-center px-1.5 text-center">
+                  <span className="whitespace-nowrap text-[22px] font-bold leading-[28px] tracking-[-0.02em] text-[#111]">
+                    {item.numero}
+                  </span>
+                  <span className="mt-1 text-[12px] leading-[16px] text-[#666]">{item.rotulo}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/*
+            Tela real do catálogo da Velo (recorte de public/prova-catalogo.png:
+            foto do produto + coluna de preço, custo e margem), num celular.
+          */}
+          <div className="mx-auto w-full max-w-[300px] lg:max-w-[340px]">
+            <div className="rounded-[24px] bg-[#111] p-2 shadow-[0_20px_40px_rgba(0,0,0,0.12)]">
+              <div className="relative overflow-hidden rounded-[18px] bg-white" style={{ aspectRatio: "9 / 18.5" }}>
+                <ImagemResponsiva
+                  base="hero-painel-catalogo"
+                  larguras={[480, 720]}
+                  original="/hero-painel-catalogo.webp"
+                  sizes="(min-width: 1024px) 324px, 284px"
+                  alt="Tela do catálogo da Velo com o preço de venda sugerido, o custo do fornecedor e a margem do produto"
+                  prioritaria
+                  className="absolute inset-0 h-full w-full object-cover object-top"
+                />
+                <span aria-hidden="true" className="absolute left-1/2 top-2 h-[18px] w-[72px] -translate-x-1/2 rounded-full bg-[#111]" />
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <button
-          type="button"
-          onClick={() => {
-            void registrarEvento("cta_how_it_works_click");
-            scrollToSection("como-funciona");
-          }}
-          className="group absolute bottom-10 right-8 hidden items-center gap-3 text-[14px] text-white/55 transition hover:text-white lg:flex"
-        >
-          <span className="h-px w-10 bg-white/35 transition group-hover:bg-white/80" />
-          Como a Velo escolhe os produtos
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 2.5v11M3.5 9.5 8 14l4.5-4.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
-          </svg>
-        </button>
+      <section id="como-funciona" className={`scroll-mt-20 bg-white px-4 py-16 sm:px-10 sm:py-24 lg:px-12 ${FONTE_INTER}`}>
+        <div className="mx-auto w-full max-w-[1100px]">
+          <h2 className={`text-center text-[28px] font-bold leading-[34px] tracking-[-0.02em] text-[#111] lg:text-[40px] lg:leading-[46px] ${FONTE_INTER}`}>
+            Como funciona
+          </h2>
+          <ol className="mx-auto mt-10 grid max-w-[380px] gap-8 sm:max-w-none sm:grid-cols-3 sm:gap-10 lg:mt-14">
+            {PASSOS_COMO_FUNCIONA.map((passo, indice) => (
+              <li key={passo.titulo} className="flex gap-4 sm:flex-col">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#2563EB] text-[15px] font-semibold text-white">
+                  {indice + 1}
+                </span>
+                <div>
+                  <h3 className={`text-[18px] font-semibold leading-[24px] tracking-[-0.01em] text-[#111] ${FONTE_INTER}`}>{passo.titulo}</h3>
+                  <p className="mt-1.5 text-[15px] leading-[23px] text-[#555]">{passo.texto}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
 
       <SecaoProvaVisual />
@@ -1318,8 +1054,8 @@ export default function Index() {
 
       <AnimatePresence>
         {showMobileStickyCta && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#DCE5F7] bg-white/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(11,27,61,0.12)] backdrop-blur sm:hidden">
-            <button type="button" onClick={() => { registrarCliqueCadastro("cta_sticky_signup_click"); navigate(signupTarget); }} className="h-[54px] w-full rounded-full bg-[#2563EB] text-[17px] font-bold text-white">Criar minha conta</button>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className={`fixed inset-x-0 bottom-0 z-[70] border-t border-[#E5E5E5] bg-white px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:hidden ${FONTE_INTER}`}>
+            <button type="button" onClick={() => { registrarCliqueCadastro("cta_sticky_signup_click"); navigate(signupTarget); }} className="mx-auto block h-[52px] w-full max-w-[360px] rounded-full bg-[#2563EB] text-[17px] font-semibold text-white active:scale-[0.98]">{logado ? "Ir para o painel" : "Criar minha conta"}</button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1350,6 +1086,9 @@ export default function Index() {
             ))}
           </div>
         </div>
+        <p className={`mx-auto mt-6 max-w-[1200px] text-[12px] leading-[18px] text-[#888] ${FONTE_INTER}`}>
+          A Velo é uma plataforma independente e não faz parte do Mercado Livre.
+        </p>
       </footer>
     </main>
   );
