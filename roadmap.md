@@ -3,6 +3,7 @@
 ## Falha interna na revisão de fotos — 17/11
 - [x] Corrigir reserva "sem veredito", evidência sem data, chave repetida em nova tentativa, trava da fila após sucesso e aviso de 24h com tipo de chamado inválido (migrations 0061–0063)
 - [x] Erro interno gravado como IMAGE_REVIEW_INTERNAL_ERROR; ml-publish e auto-publish-pending publicados; 43 testes de fotos passaram
+- [x] Reserva da foto cobre a reserva do Google (2 min) e resultado pago não se perde se a reserva expirar (migration 0064)
 - [x] Teste ponta a ponta parando no validar do ML: produto com 1 foto sem veredito e Fire Stick (2 sem veredito) analisados e gravados; produto já avaliado sem chamar IA; fila publicou 3 pedidos na rodada seguinte
 
 ## Validação de fotos sob demanda — 16/11

@@ -449,6 +449,13 @@
       "when": 1794880935435,
       "tag": "0063_overdue_image_publication_ticket_category",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1794884157790,
+      "tag": "0064_publication_image_lease_covers_fallback",
+      "breakpoints": true
     }
   ]
 }
