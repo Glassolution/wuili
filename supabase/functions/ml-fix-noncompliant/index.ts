@@ -14,13 +14,11 @@ import { mlFetch } from "../_shared/mlClient.ts";
 import { getSellerAccessToken } from "../_shared/mlSellerToken.ts";
 import {
   buildSafeDescription,
-  filterCleanImages,
   looksLikeMLDom,
   sanitizeTitle,
   stripMLHtml,
 } from "../_shared/ml-content-sanitizer.ts";
 
-const MIN_REQUIRED_IMAGES = 3;
 const GAP_MS = 4000;
 
 function json(body: unknown, status = 200) {
@@ -117,6 +115,7 @@ type Result = {
   title_fixed?: boolean;
   description_fixed?: boolean;
   images_fixed?: boolean;
+  moderation?: string | null;
   reactivated?: boolean;
   outcome: string;
   error?: string;
@@ -210,20 +209,9 @@ async function processItem(
   out.description_fixed = descDirty;
 
   // --- imagens ---
-  const urls: string[] = (item.pictures ?? [])
-    .map((p: { secure_url?: string; url?: string }) => String(p.secure_url ?? p.url ?? ""))
-    .filter(Boolean);
-  const filtered = await filterCleanImages(urls, { useVision: true, max: 8 });
-  const needImages = filtered.rejected.length > 0 && filtered.clean.length >= MIN_REQUIRED_IMAGES;
-  out.images_fixed = needImages;
-  if (filtered.rejected.length > 0 && filtered.clean.length < MIN_REQUIRED_IMAGES) {
-    console.log(`[ml-fix-noncompliant] ${pub.ml_item_id} fotos recusadas:`,
-      JSON.stringify(filtered.rejected.slice(0, 8)));
-    out.error = `apenas ${filtered.clean.length} de ${urls.length} foto(s) dentro das diretrizes: ${
-      filtered.rejected[0]?.reason ?? ""
-    }`;
-    out.outcome = "needs_new_photos";
-  }
+  // Nenhuma foto é reanalisada ou alterada por esta correção. Novas análises
+  // visuais acontecem somente em ml-publish, por solicitação de publicação.
+  out.images_fixed = false;
 
   if (!apply) {
     return out;
@@ -232,7 +220,6 @@ async function processItem(
   // --- aplica ---
   const patch: Record<string, unknown> = {};
   if (needTitle) patch.title = san.title;
-  if (needImages) patch.pictures = filtered.clean.map((source) => ({ source }));
 
   const putItem = async (body: Record<string, unknown>) =>
     await mlFetch(`https://api.mercadolibre.com/items/${pub.ml_item_id}`, {
@@ -252,8 +239,6 @@ async function processItem(
       upBody.name = san.title;
       upBody.family_name = san.title;
     }
-    if (needImages) upBody.pictures = filtered.clean.map((source) => ({ source }));
-
     const upRes = await mlFetch(`https://api.mercadolibre.com/user-products/${userProductId}`, {
       method: "PUT",
       headers: { ...auth, "Content-Type": "application/json" },

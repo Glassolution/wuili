@@ -8,7 +8,6 @@ import { mlFetch } from "../_shared/mlClient.ts";
 import { getSellerAccessToken } from "../_shared/mlSellerToken.ts";
 import {
   buildSafeDescription,
-  filterCleanImages,
   looksLikeMLDom,
   sanitizeTitle,
   stripMLHtml,
@@ -127,25 +126,13 @@ async function processJob(supabase: SupabaseClient, job: Job) {
       body: JSON.stringify({ title: afterValue }),
     });
   } else {
-    const urls: string[] = (item.pictures ?? [])
-      .map((p: { secure_url?: string; url?: string }) => String(p.secure_url ?? p.url ?? ""))
-      .filter(Boolean);
-    const filtered = await filterCleanImages(urls, { useVision: true, max: 8 });
-    if (filtered.rejected.length === 0) {
-      return finish(supabase, job, { status: "skipped", ml_status: item.status, ml_status_before: statusBefore, error_message: "imagens já limpas" });
-    }
-    if (filtered.clean.length === 0) {
-      return finish(supabase, job, {
-        status: "error",
-        ml_status: item.status,
-        error_message: "nenhuma imagem limpa disponível — necessita nova foto do produto",
-      });
-    }
-    afterValue = filtered.clean.join("\n");
-    putRes = await mlFetch(`https://api.mercadolibre.com/items/${job.ml_item_id}`, {
-      method: "PUT",
-      headers: { ...auth, "Content-Type": "application/json" },
-      body: JSON.stringify({ pictures: filtered.clean.map((source) => ({ source })) }),
+    // Novas análises visuais são exclusivas de ml-publish. Este worker não
+    // altera fotos nem consome IA fora de uma publicação solicitada.
+    return finish(supabase, job, {
+      status: "skipped",
+      ml_status: item.status,
+      ml_status_before: statusBefore,
+      error_message: "análise e correção de fotos fora da publicação desativadas",
     });
   }
 

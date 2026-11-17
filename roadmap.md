@@ -1,11 +1,12 @@
 # Roadmap
 
 ## Validação de fotos sob demanda — 16/11
-- [x] Pausar auditoria, geração e correção com IA em lote; somente a fila de publicação continua ativa
+- [x] Pausar auditoria, geração, conformidade e correção com IA em lote (inclusive cron 16 encontrado na revisão); somente a fila de publicação continua ativa
 - [x] Vereditos globais por URL, todas as fotos na solicitação, duas tentativas e espera de 24h; crédito não conta tentativa
 - [x] Sem freio por gasto; alerta admin acima de 5 créditos/dia e reserva Gemini direto pela chave do suporte
-- [x] Fila sem IA e publicação sem chamadas quando todos os vereditos existem; migrations 0058–0060 e três serviços publicados
-- [x] 61 testes e checks passaram; status ao vivo confirma auditoria desativada. Nenhum catálogo, veredito ou anúncio alterado e nenhuma publicação real testada
+- [x] Fila sem IA e publicação sem chamadas quando todos os vereditos existem; migrations 0058–0060 e cinco serviços publicados
+- [x] 61 testes e checks passaram; status ao vivo confirma auditoria desativada e produto cacheado retornou 5 fotos com ai_calls=0, sem criar anúncio
+- [x] Revisão final encontrou e pausou também `ml-compliance-worker-5min`; correções manuais não fazem mais visão fora de `ml-publish`. Nenhum catálogo, veredito ou anúncio alterado
 - [ ] Reserva direta voltar a responder: bloqueada por saldo pré-pago Google esgotado (402 confirmado); pedidos sem IA permanecem na fila
 
 ## Acesso ao reembolso da conta admin — 15/11

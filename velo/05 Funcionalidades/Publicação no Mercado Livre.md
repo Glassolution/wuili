@@ -17,7 +17,7 @@ Fluxo mobile em 4 etapas: **detalhes → conexão → revisão → plano → pag
 - Inconclusiva/erro: no máximo duas tentativas e depois 24h; falta de crédito não conta tentativa. Sem teto de gasto ou limite diário; admin recebe notificação quando o uso de IA de fotos passa de 5 créditos/dia.
 - Instabilidade de IA: pedido durável na mesma fila e publicação automática quando a IA voltar; fotos reprovadas/sem veredito nunca são enviadas. Produto inteiro com vereditos suficientes publica sem chamar IA.
 - Crédito Lovable esgotado usa Gemini direto pela `GEMINI_API_KEY` do suporte. Em 16/11 a reserva também estava sem saldo pré-pago; nenhuma publicação real foi testada.
-- Notificação após publicação e ticket de suporte após 24h; rotina gerenciada a cada 5 minutos. Crons de auditoria, geração e correção de imagens em lote estão pausados.
+- Notificação após publicação e ticket de suporte após 24h; rotina gerenciada a cada 5 minutos. Crons de auditoria, geração, conformidade e correção de imagens em lote estão pausados; correções manuais não reanalisam fotos.
 
 ## Onde está no código
 Front: `src/lib/publicacaoMercadoLivre.ts`, `publicacaoPendente.ts`, `src/pages/dashboard/PublicationsPage.tsx`. Servidor: `ml-publish` + `_shared/ml-*`, `catalogLink.ts`, `refundCooldown.ts`.
