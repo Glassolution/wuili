@@ -20,8 +20,12 @@ type Props = {
   heroCtaRef: Ref<HTMLButtonElement>;
   passos: Passo[];
   faq: Pergunta[];
-  /** Registra o clique de cadastro (funil, TikTok, Meta) e leva ao cadastro. */
-  onCriarConta: (evento: string) => void;
+  /**
+   * Registra o clique de cadastro (funil, TikTok, Meta) e leva ao cadastro.
+   * O e-mail, quando vem, vai por estado de navegação: nunca na URL, que o
+   * Pixel da Meta envia inteira no PageView.
+   */
+  onCriarConta: (evento: string, email?: string) => void;
   onEntrar: () => void;
   onEvento: (evento: string) => void;
 };
@@ -51,15 +55,17 @@ function BotaoBranco({
   children,
   onClick,
   botaoRef,
+  tipo = "button",
 }: {
   children: string;
-  onClick: () => void;
+  onClick?: () => void;
   botaoRef?: Ref<HTMLButtonElement>;
+  tipo?: "button" | "submit";
 }) {
   return (
     <button
       ref={botaoRef}
-      type="button"
+      type={tipo}
       onClick={onClick}
       className="h-14 w-full rounded-full bg-white text-[17px] font-medium tracking-[-0.01em] text-black transition-transform duration-150 active:scale-[0.98]"
     >
@@ -145,6 +151,7 @@ export function LandingMobile({
   onEvento,
 }: Props) {
   const [faqAberta, setFaqAberta] = useState<number | null>(0);
+  const [email, setEmail] = useState("");
   const rotuloCta = logado ? "Ir para o painel" : "Criar minha conta";
 
   const irPara = (id: string) => {
@@ -182,9 +189,32 @@ export function LandingMobile({
           custo do fornecedor.
         </p>
 
-        <div className="mt-auto pt-10">
-          {!logado && <p className="mb-3 text-[12px] leading-[16px] text-white/60">Leva menos de 1 minuto. Sem comprar estoque.</p>}
-          <BotaoBranco botaoRef={heroCtaRef} onClick={() => onCriarConta("cta_hero_signup_click")}>
+        <form
+          className="mt-auto pt-10"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            onCriarConta("cta_hero_signup_click", email.trim());
+          }}
+        >
+          {!logado && (
+            <>
+              <p className="mb-2.5 text-[12px] leading-[16px] text-white/70">Você concorda em receber e-mails de marketing da Velo.</p>
+              <label htmlFor="email-hero-mobile" className="sr-only">
+                Seu e-mail
+              </label>
+              <input
+                id="email-hero-mobile"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={email}
+                onChange={(evento) => setEmail(evento.target.value)}
+                placeholder="Digite seu e-mail"
+                className="mb-3 h-14 w-full rounded-[10px] border border-white/45 bg-white/10 px-4 text-[17px] text-white outline-none backdrop-blur-md transition-colors placeholder:text-white/85 focus:border-white"
+              />
+            </>
+          )}
+          <BotaoBranco botaoRef={heroCtaRef} tipo="submit">
             {rotuloCta}
           </BotaoBranco>
           <button
@@ -197,7 +227,7 @@ export function LandingMobile({
           >
             Ver como funciona
           </button>
-        </div>
+        </form>
       </section>
 
       {/* Painel escuro que sobe por cima do fim da foto. */}

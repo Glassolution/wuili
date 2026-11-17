@@ -186,8 +186,12 @@ const LoginPage = () => {
   const entradaPeloCadastro =
     location.pathname === "/cadastro" ||
     new URLSearchParams(location.search).get("modo") === "cadastro";
-  // Vindo de um link com ?email=, o campo já chega preenchido.
-  const emailDaUrl = new URLSearchParams(location.search).get("email")?.trim() ?? "";
+  // Vindo de um link com ?email= (ou da landing, que manda por estado, fora da URL), o campo já chega preenchido.
+  const emailDaUrl = (
+    new URLSearchParams(location.search).get("email") ??
+    (location.state as { email?: string } | null)?.email ??
+    ""
+  ).trim();
 
   const [step, setStep]                   = useState<"initial" | "login" | "signup">(
     entradaPeloCadastro ? "signup" : "initial",

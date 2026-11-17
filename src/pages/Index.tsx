@@ -780,9 +780,10 @@ export default function Index() {
           heroCtaRef={mobileHeroCtaRef}
           passos={PASSOS_COMO_FUNCIONA}
           faq={faqItems}
-          onCriarConta={(evento) => {
+          onCriarConta={(evento, emailDigitado) => {
             registrarCliqueCadastro(evento);
-            navigate(signupTarget);
+            // E-mail fora da URL: o Pixel da Meta manda a URL inteira no PageView do cadastro.
+            navigate(signupTarget, emailDigitado && !logado ? { state: { email: emailDigitado } } : undefined);
           }}
           onEntrar={() => {
             void registrarEvento("cta_header_login_click");
