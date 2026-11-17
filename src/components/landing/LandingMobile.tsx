@@ -231,13 +231,17 @@ function CenaPasso({ indice }: { indice: number }) {
   ligado, fica só a primeira.
 */
 const FOTOS_HERO = [
-  { base: "pessoa-03", original: "/pessoa%2003.webp", foco: "object-[72%_50%]" },
-  { base: "pessoa-01", original: "/pessoa%2001.webp", foco: "object-[56%_50%]" },
-  { base: "pessoa-02", original: "/pessoa%2002.webp", foco: "object-[66%_50%]" },
+  { base: "pessoa-03", original: "/pessoa%2003.webp", foco: "object-[72%_50%]", frase: "sem comprar estoque" },
+  { base: "pessoa-01", original: "/pessoa%2001.webp", foco: "object-[56%_50%]", frase: "com produtos nacionais" },
+  { base: "pessoa-02", original: "/pessoa%2002.webp", foco: "object-[66%_50%]", frase: "em poucos minutos" },
 ];
-const INTERVALO_FOTO_MS = 6000;
+const INTERVALO_FOTO_MS = 4000;
+const APAGAR_MS = 22;
+const DIGITAR_MS = 45;
+const FRASE_MAIS_LONGA = FOTOS_HERO.reduce((maior, foto) => (foto.frase.length > maior.length ? foto.frase : maior), "");
 
-function FundoHero() {
+/* Um só índice governa foto e frase: as duas trocam no mesmo instante. */
+function useCarrosselHero() {
   const [ativa, setAtiva] = useState(0);
   const [carregarResto, setCarregarResto] = useState(false);
 
@@ -248,6 +252,48 @@ function FundoHero() {
     return () => window.clearInterval(timer);
   }, [carregarResto]);
 
+  return { ativa, carregarResto, aoCarregarPrimeira: () => setCarregarResto(true) };
+}
+
+/* Máquina de escrever: apaga a frase atual letra a letra e digita a nova quando o alvo muda. */
+function useDigitacao(alvo: string) {
+  const [texto, setTexto] = useState(alvo);
+  const [modo, setModo] = useState<"parado" | "apagando" | "digitando">("parado");
+
+  useEffect(() => {
+    setModo((atual) => (texto === alvo && atual === "parado" ? "parado" : "apagando"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alvo]);
+
+  useEffect(() => {
+    if (modo === "parado") return;
+    if (modo === "apagando" && texto.length === 0) {
+      setModo("digitando");
+      return;
+    }
+    if (modo === "digitando" && texto === alvo) {
+      setModo("parado");
+      return;
+    }
+    const timer = window.setTimeout(
+      () => setTexto((atual) => (modo === "apagando" ? atual.slice(0, -1) : alvo.slice(0, atual.length + 1))),
+      modo === "apagando" ? APAGAR_MS : DIGITAR_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [modo, texto, alvo]);
+
+  return texto;
+}
+
+function FundoHero({
+  ativa,
+  carregarResto,
+  aoCarregarPrimeira,
+}: {
+  ativa: number;
+  carregarResto: boolean;
+  aoCarregarPrimeira: () => void;
+}) {
   const visiveis = carregarResto ? FOTOS_HERO : FOTOS_HERO.slice(0, 1);
 
   return (
@@ -262,8 +308,8 @@ function FundoHero() {
           alt=""
           aria-hidden
           prioritaria={indice === 0}
-          onLoad={indice === 0 ? () => setCarregarResto(true) : undefined}
-          className={`absolute inset-0 -z-10 h-full w-full object-cover ${foto.foco} transition-opacity duration-1000 ease-in-out ${
+          onLoad={indice === 0 ? aoCarregarPrimeira : undefined}
+          className={`absolute inset-0 -z-10 h-full w-full object-cover ${foto.foco} transition-opacity duration-700 ease-in-out ${
             indice === ativa ? "opacity-100" : "opacity-0"
           }`}
         />
@@ -286,6 +332,9 @@ export function LandingMobile({
   const [faqAberta, setFaqAberta] = useState<number | null>(0);
   const [email, setEmail] = useState("");
   const rotuloCta = logado ? "Ir para o painel" : "Criar minha conta";
+  const carrossel = useCarrosselHero();
+  const fraseAtual = FOTOS_HERO[carrossel.ativa].frase;
+  const fraseDigitada = useDigitacao(fraseAtual);
 
   const irPara = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ block: "start" });
@@ -295,14 +344,27 @@ export function LandingMobile({
     <div className={`bg-black text-white ${FONTE}`}>
       {/* Hero: foto em tela cheia, escurecida onde o texto vive. */}
       <section className="relative isolate flex min-h-[min(100svh,780px)] flex-col overflow-hidden px-6 pb-20 pt-[108px]">
-        <FundoHero />
+        <FundoHero {...carrossel} />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-black/45" />
         <div
           aria-hidden="true"
           className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.15)_32%,rgba(0,0,0,0.35)_62%,rgba(0,0,0,0.92)_100%)]"
         />
 
-        <h1 className={`mt-10 text-[46px] leading-[1.04] ${TITULO}`}>Venda no Mercado Livre sem comprar estoque</h1>
+        <h1 className={`mt-10 text-[46px] leading-[1.04] ${TITULO}`}>
+          <span className="sr-only">Venda no Mercado Livre {fraseAtual}</span>
+          <span aria-hidden="true">
+            <span className="block">Venda no Mercado Livre</span>
+            {/* A frase mais longa, invisível, reserva a altura: a digitação não empurra o resto. */}
+            <span className="grid grid-cols-[minmax(0,1fr)]">
+              <span className="invisible col-start-1 row-start-1">{FRASE_MAIS_LONGA}</span>
+              <span className="col-start-1 row-start-1">
+                {fraseDigitada}
+                <span className="ml-[0.05em] inline-block h-[0.8em] w-[2px] translate-y-[0.08em] animate-pulse bg-white align-baseline" />
+              </span>
+            </span>
+          </span>
+        </h1>
 
         <p className="mt-6 text-[17px] leading-[1.5] tracking-[-0.01em] text-white/90">
           Escolha produtos de fornecedores brasileiros, publique no seu Mercado Livre em minutos e fique com a diferença para o
