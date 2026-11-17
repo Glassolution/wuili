@@ -1,4 +1,4 @@
-import { useState, type Ref } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
 
 /*
@@ -139,6 +139,91 @@ function VisualCard({ id }: { id: (typeof CARDS)[number]["id"] }) {
   );
 }
 
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="grid h-11 w-11 place-items-center rounded-full bg-white ring-2 ring-[#0B1A1A] [&+&]:-ml-2">{children}</span>
+  );
+}
+
+const LOGO_ML = <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-8 w-8 object-contain" />;
+const LOGO_VELO = (
+  <ImagemResponsiva base="logo" larguras={[96]} original="/logo.png" sizes="28px" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+);
+
+function ChipsPasso({ indice }: { indice: number }) {
+  return (
+    <div className="flex" aria-hidden="true">
+      <Chip>{LOGO_VELO}</Chip>
+      {indice > 0 && <Chip>{LOGO_ML}</Chip>}
+    </div>
+  );
+}
+
+/* Miniatura do produto: a foto é o topo do recorte hero-painel-catalogo (770x639 de 770x1770). */
+function ProdutoMini({ legenda }: { legenda: string }) {
+  return (
+    <div className="w-[128px]">
+      <div className="relative aspect-[770/639] overflow-hidden rounded-[8px] bg-white">
+        <ImagemResponsiva
+          base="hero-painel-catalogo"
+          larguras={[480, 720]}
+          original="/hero-painel-catalogo.webp"
+          sizes="140px"
+          alt=""
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-auto w-full"
+        />
+      </div>
+      <p className="mt-2 text-[11px] leading-[14px] text-white/85">Depilador a Laser Mini</p>
+      <p className="text-[11px] leading-[14px] text-white/45">{legenda}</p>
+    </div>
+  );
+}
+
+function Balao({ children, className = "", escuro = false }: { children: ReactNode; className?: string; escuro?: boolean }) {
+  const tom = escuro ? "bg-[#1C3431] text-white/90" : "bg-white text-[#111]";
+  return (
+    <div className={`absolute max-w-[190px] rounded-[10px] px-3 py-2 text-[12px] leading-[16px] shadow-[0_8px_24px_rgba(0,0,0,0.25)] ${tom} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+function CenaPasso({ indice }: { indice: number }) {
+  if (indice === 0) {
+    return (
+      <div aria-hidden="true" className="relative mt-8 h-[220px]">
+        <Balao className="right-3 top-2">Margem de 100%</Balao>
+        <div className="absolute left-[18%] top-[56px]">
+          <ProdutoMini legenda="Custo R$ 22 · venda R$ 44" />
+        </div>
+      </div>
+    );
+  }
+
+  if (indice === 1) {
+    return (
+      <div aria-hidden="true" className="relative mt-8 h-[220px]">
+        <div className="absolute left-[18%] top-[56px]">
+          <ProdutoMini legenda="R$ 44,00" />
+        </div>
+        <Balao className="right-3 top-2 flex items-center gap-2">
+          <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-5 w-5 shrink-0 object-contain" />
+          Anúncio publicado
+        </Balao>
+      </div>
+    );
+  }
+
+  return (
+    <div aria-hidden="true" className="relative mt-8 h-[220px]">
+      <Balao className="left-0 top-6">Nova venda: Depilador a Laser Mini</Balao>
+      <Balao escuro className="right-0 top-[92px]">Pedido confirmado com o fornecedor</Balao>
+      <Balao escuro className="left-6 top-[158px]">O fornecedor faz o envio</Balao>
+    </div>
+  );
+}
+
 export function LandingMobile({
   lojistasTexto,
   vendasMes,
@@ -262,31 +347,25 @@ export function LandingMobile({
         </dl>
       </section>
 
-      {/* Como funciona: card escuro com os três passos. */}
-      <section id="como-funciona-mobile" className="scroll-mt-16 bg-black px-4 py-6">
-        <div className="rounded-[24px] border border-white/[0.08] bg-[#0E1616] px-6 pb-8 pt-7">
-          <div className="flex" aria-hidden="true">
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-white ring-2 ring-[#0E1616]">
-              <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-8 w-8 object-contain" />
-            </span>
-            <span className="-ml-2 grid h-11 w-11 place-items-center rounded-full bg-white ring-2 ring-[#0E1616]">
-              <ImagemResponsiva base="logo" larguras={[96]} original="/logo.png" sizes="28px" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
-            </span>
-          </div>
+      {/*
+        Como funciona: um card por passo, cada um com uma cena curta. As cenas
+        acompanham o mesmo produto real do catálogo (o da tela do hero).
+      */}
+      <section id="como-funciona-mobile" className="scroll-mt-16 bg-black px-4 pb-4 pt-16">
+        <h2 className={`px-2 text-[36px] leading-[1.08] ${TITULO}`}>
+          Como funciona. <span className="text-white/45">Do catálogo à venda, tudo pelo painel da Velo.</span>
+        </h2>
 
-          <h2 className={`mt-6 text-[34px] leading-[1.08] ${TITULO}`}>Como funciona</h2>
-          <p className="mt-3 text-[16px] leading-[1.5] text-white/60">Três passos, tudo pelo painel da Velo.</p>
-
-          <ol className="mt-8 space-y-7">
-            {passos.map((passo, indice) => (
-              <li key={passo.titulo} className="border-t border-white/10 pt-6">
-                <span className="text-[13px] font-medium tabular-nums text-white/45">0{indice + 1}</span>
-                <h3 className={`mt-2 text-[18px] font-semibold leading-[24px] tracking-[-0.01em] text-white ${FONTE}`}>{passo.titulo}</h3>
-                <p className="mt-1.5 text-[15px] leading-[23px] text-white/60">{passo.texto}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <ol className="mt-10 space-y-3">
+          {passos.map((passo, indice) => (
+            <li key={passo.titulo} className="overflow-hidden rounded-[20px] bg-[#0B1A1A] px-6 pt-6">
+              <ChipsPasso indice={indice} />
+              <h3 className={`mt-6 text-[32px] leading-[1.1] ${TITULO}`}>{passo.titulo}</h3>
+              <p className="mt-4 text-[16px] leading-[1.5] text-white/60">{passo.texto}</p>
+              <CenaPasso indice={indice} />
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* Perguntas frequentes. */}
