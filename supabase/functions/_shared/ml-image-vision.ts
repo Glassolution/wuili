@@ -19,7 +19,12 @@ export type VisionFilterResult = {
   primaryRejected?: { url: string; reason: string }[];
   secondaryApproved?: string[];
   creditUnavailable?: boolean;
+  /** Database/code failures inside the review (not AI, not photo). */
+  internalErrors?: { url: string; error: string }[];
 };
+
+/** A failure writing review state/evidence: our bug, never the photo's fault. */
+export class ImageReviewInternalError extends Error {}
 
 /** Quanto tempo um veredito continua valendo na auditoria legada (desativada). */
 const VALIDADE_DIAS = 60;
@@ -184,6 +189,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   const primaryRejected: NonNullable<VisionFilterResult['primaryRejected']> = [];
   let halted = false;
   let creditUnavailable = false;
+  const internalErrors: NonNullable<VisionFilterResult['internalErrors']> = [];
   const runId = crypto.randomUUID();
 
   async function check(url: string) {
@@ -194,7 +200,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
 
     const owner = crypto.randomUUID();
     const { data: claimData, error: claimError } = await db.rpc('claim_publication_image_analysis', { p_url: url, p_owner: owner });
-    if (claimError) throw new Error(claimError.message);
+    if (claimError) throw new ImageReviewInternalError(`Falha ao reservar análise: ${claimError.message}`);
     const claim = (claimData?.[0] ?? null) as ClaimRow | null;
     if (!claim?.claimed) {
       const { data: fresh } = await db.from('ml_image_vision_cache').select('url,reason,clean,checked_at').eq('url', url).maybeSingle();
@@ -220,7 +226,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
         p_error: cause instanceof Error ? cause.message : String(cause),
       });
       finished = true;
-      if (finishError) throw new Error(finishError.message);
+      if (finishError) throw new ImageReviewInternalError(`Falha ao gravar tentativa: ${finishError.message}`);
     };
     try {
       const input = await imageInput(url);
@@ -231,13 +237,14 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
       const parsed = parseImageVerdict(response.raw, false);
       if (opts.productId && /^[0-9a-f-]{36}$/i.test(opts.productId)) {
         const { error: evidenceError } = await db.from('catalog_image_analysis_results').insert({
-          run_id: runId, record_key: `${url}:secondary:0`, product_id: opts.productId, product_title: opts.title ?? '',
+          run_id: runId, record_key: `${runId}:${url}:secondary`, product_id: opts.productId, product_title: opts.title ?? '',
           image_url: url, image_role: 'secondary', verdict: parsed.evidence.veredito, reason_code: parsed.evidence.codigo,
           evidence_location: parsed.evidence.localizacao, justification: parsed.evidence.justificativa,
           criterion_version: IMAGE_CRITERION_VERSION, model: IMAGE_VISION_MODELS[0], method: 'publication_single',
+          analyzed_at: new Date().toISOString(),
           evidence: { raw: response.raw, pipeline_models: IMAGE_VISION_MODELS, provider: response.provider },
         });
-        if (evidenceError) throw new Error(`Falha ao guardar evidência: ${evidenceError.message}`);
+        if (evidenceError) throw new ImageReviewInternalError(`Falha ao guardar evidência: ${evidenceError.message}`);
       }
       if (parsed.clean === null) {
         await fail(new Error(parsed.reason));
@@ -261,12 +268,15 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
         p_url: url, p_owner: owner, p_reason: reason, p_clean: parsed.clean,
         p_provider: response.provider,
       });
-      if (finishError) throw new Error(finishError.message);
+      if (finishError) throw new ImageReviewInternalError(`Falha ao gravar veredito: ${finishError.message}`);
       finished = true;
-      await recordImageSuccess(db);
+      try { await recordImageSuccess(db); }
+      catch (resumeError) { console.warn('[ml-image-vision] pausa de IA não liberada:', String(resumeError)); }
       return parsed;
     } catch (cause) {
-      await fail(cause);
+      if (cause instanceof ImageReviewInternalError) internalErrors.push({ url, error: cause.message });
+      try { await fail(cause); }
+      catch (failError) { internalErrors.push({ url, error: failError instanceof Error ? failError.message : String(failError) }); }
       if (isCreditImageFailure(cause)) creditUnavailable = true;
       if (isTerminalImageFailure(cause)) await recordImageFailure(db, cause);
       if (stage === 'ai') halted = true;
@@ -299,5 +309,5 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   const clean = primaryUrl && approved.length >= 3 && inconclusive.length === 0
     ? [primaryUrl, ...approved.filter(url => url !== primaryUrl)].slice(0, 6)
     : [];
-  return { clean, rejected, inconclusive, primaryRejected, secondaryApproved: approved, creditUnavailable };
+  return { clean, rejected, inconclusive, primaryRejected, secondaryApproved: approved, creditUnavailable, internalErrors };
 }

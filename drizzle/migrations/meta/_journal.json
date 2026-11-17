@@ -428,6 +428,13 @@
       "when": 1794873090928,
       "tag": "0060_publication_image_provider_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794880178542,
+      "tag": "0061_ml_image_vision_cache_clean_nullable",
+      "breakpoints": true
     }
   ]
 }

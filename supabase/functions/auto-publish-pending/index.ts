@@ -80,17 +80,21 @@ Deno.serve(async (req) => {
   if (lockError) return json({ error: lockError.message }, 500)
   if (!locked) return json({ ok: true, busy: true })
   try {
-  let query = admin
-    .from('pending_publications')
-    .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at,reason,support_notified_at')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-    .limit(5)
-
-  if (escopoUsuario) query = query.eq('user_id', escopoUsuario)
-
-  const { data: pendentes, error: erroLista } = await query
+  // Two lanes so hundreds of old "seller not ready" items never starve the
+  // photo queue; each lane rotates by last attempt (seller_ready_at).
+  const lista = (reason: 'image' | 'seller') => {
+    let q = admin
+      .from('pending_publications')
+      .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at,reason,support_notified_at')
+      .eq('status', 'pending')
+    q = reason === 'image' ? q.eq('reason', 'image_compliance_unavailable') : q.neq('reason', 'image_compliance_unavailable')
+    if (escopoUsuario) q = q.eq('user_id', escopoUsuario)
+    return q.order('seller_ready_at', { ascending: true, nullsFirst: true }).order('created_at', { ascending: true }).limit(5)
+  }
+  const [imagens, vendedores] = await Promise.all([lista('image'), lista('seller')])
+  const erroLista = imagens.error ?? vendedores.error
   if (erroLista) return json({ error: erroLista.message }, 500)
+  const pendentes = [...(vendedores.data ?? []), ...(imagens.data ?? [])]
 
   let publicados = 0
   let aguardando = 0

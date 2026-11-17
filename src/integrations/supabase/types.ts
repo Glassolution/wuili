@@ -2304,7 +2304,7 @@ export type Database = {
           analysis_lease_owner: string | null
           analysis_lease_until: string | null
           checked_at: string
-          clean: boolean
+          clean: boolean | null
           inconclusive_attempts: number
           last_error: string | null
           last_provider: string | null
@@ -2316,7 +2316,7 @@ export type Database = {
           analysis_lease_owner?: string | null
           analysis_lease_until?: string | null
           checked_at?: string
-          clean: boolean
+          clean?: boolean | null
           inconclusive_attempts?: number
           last_error?: string | null
           last_provider?: string | null
@@ -2328,7 +2328,7 @@ export type Database = {
           analysis_lease_owner?: string | null
           analysis_lease_until?: string | null
           checked_at?: string
-          clean?: boolean
+          clean?: boolean | null
           inconclusive_attempts?: number
           last_error?: string | null
           last_provider?: string | null
