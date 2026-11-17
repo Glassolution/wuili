@@ -178,11 +178,7 @@ export function LandingMobile({
           className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.15)_32%,rgba(0,0,0,0.35)_62%,rgba(0,0,0,0.92)_100%)]"
         />
 
-        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[13px] font-medium leading-[18px] text-white/90 backdrop-blur-md">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" aria-hidden="true" />+{lojistasTexto} lojistas ativos
-        </span>
-
-        <h1 className={`mt-6 text-[46px] leading-[1.04] ${TITULO}`}>Venda no Mercado Livre sem comprar estoque</h1>
+        <h1 className={`mt-10 text-[46px] leading-[1.04] ${TITULO}`}>Venda no Mercado Livre sem comprar estoque</h1>
 
         <p className="mt-6 text-[17px] leading-[1.5] tracking-[-0.01em] text-white/90">
           Escolha produtos de fornecedores brasileiros, publique no seu Mercado Livre em minutos e fique com a diferença para o
