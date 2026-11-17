@@ -435,6 +435,20 @@
       "when": 1794880178542,
       "tag": "0061_ml_image_vision_cache_clean_nullable",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794880821147,
+      "tag": "0062_publication_image_gate_null_safe",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794880935435,
+      "tag": "0063_overdue_image_publication_ticket_category",
+      "breakpoints": true
     }
   ]
 }

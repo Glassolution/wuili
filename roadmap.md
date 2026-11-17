@@ -1,5 +1,10 @@
 # Roadmap
 
+## Falha interna na revisão de fotos — 17/11
+- [x] Corrigir reserva "sem veredito", evidência sem data, chave repetida em nova tentativa, trava da fila após sucesso e aviso de 24h com tipo de chamado inválido (migrations 0061–0063)
+- [x] Erro interno gravado como IMAGE_REVIEW_INTERNAL_ERROR; ml-publish e auto-publish-pending publicados; 43 testes de fotos passaram
+- [x] Teste ponta a ponta parando no validar do ML: produto com 1 foto sem veredito e Fire Stick (2 sem veredito) analisados e gravados; produto já avaliado sem chamar IA; fila publicou 3 pedidos na rodada seguinte
+
 ## Validação de fotos sob demanda — 16/11
 - [x] Pausar auditoria, geração, conformidade e correção com IA em lote (inclusive cron 16 encontrado na revisão); somente a fila de publicação continua ativa
 - [x] Vereditos globais por URL, todas as fotos na solicitação, duas tentativas e espera de 24h; crédito não conta tentativa

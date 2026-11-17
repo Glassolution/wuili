@@ -101,10 +101,6 @@ Deno.serve(async (req) => {
   const agora = Date.now()
 
   for (const item of (pendentes ?? []) as Pendente[]) {
-    if (item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
-      const { error } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
-      if (error) return json({ error: error.message }, 500)
-    }
     // A saved successful publication is idempotent progress, not another provider request.
     const { data: existing, error: existingError } = await admin.from('user_publications')
       .select('ml_item_id,permalink').eq('user_id',item.user_id).eq('catalog_product_id',item.product_id)
@@ -189,6 +185,12 @@ Deno.serve(async (req) => {
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
       }).eq('id', item.id)
       if(error) return json({error:error.message},500)
+      // Overdue notice only after a real failed attempt; a notice failure must
+      // never stop the rest of the queue.
+      if (item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
+        const { error: notifyError } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
+        if (notifyError) console.error('[auto-publish-pending] aviso de fila atrasada falhou:', item.id, notifyError.message)
+      }
       // Sem IA, este item permanece na fila sem consumir tentativa; os demais,
       // inclusive os que já têm vereditos aprovados, continuam sendo processados.
       if (corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE') {
