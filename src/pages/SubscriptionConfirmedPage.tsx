@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import PostPurchaseTutorial from "@/components/dashboard/PostPurchaseTutorial";
 
 const PLAN_LABEL: Record<string, string> = {
   base: "Base",
@@ -66,27 +67,27 @@ const SubscriptionConfirmedPage = () => {
   }, [user, plan, requestedLifetime]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#FAFAF8] px-6">
-      <div className="w-full max-w-[460px] rounded-2xl border border-[#E8E8E4] bg-white p-8 text-center shadow-sm">
+    <main className="flex min-h-screen items-center justify-center bg-background px-6">
+      <div className="w-full max-w-[460px] rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
         {status === "ativo" ? (
-          <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" aria-hidden />
+          <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden />
         ) : (
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#0A0A0A]" aria-hidden />
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-foreground" aria-hidden />
         )}
-        <h1 className="mt-5 text-[22px] font-bold tracking-[-0.015em] text-[#0A0A0A]">
+        <h1 className="mt-5 text-[22px] font-bold text-foreground">
           {status === "ativo" ? "Assinatura confirmada!" : "Confirmando seu pagamento..."}
         </h1>
-        <p className="mt-2 text-[14px] leading-6 text-[#6B6B66]">
+        <p className="mt-2 text-[14px] leading-6 text-muted-foreground">
           {status === "ativo"
             ? isLifetime ? `Seu plano ${PLAN_LABEL[plan] ?? ""} vitalício está ativo. Pagamento único, sem renovação.` : `Seu plano ${PLAN_LABEL[plan] ?? ""} já está ativo. Bom trabalho e boas vendas!`
             : "Assim que o pagamento for compensado, seu plano é liberado automaticamente. Isso costuma levar poucos segundos."}
         </p>
-        <Link
+        {status === "ativo" ? <PostPurchaseTutorial /> : <Link
           to="/dashboard"
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#0A0A0A] text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
         >
           Ir para o painel
-        </Link>
+        </Link>}
       </div>
     </main>
   );

@@ -1,0 +1,6 @@
+CREATE OR REPLACE FUNCTION public.notify_overdue_image_publication(p_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ DECLARE item public.pending_publications; BEGIN SELECT * INTO item FROM public.pending_publications WHERE id=p_id FOR UPDATE; IF item.id IS NULL OR item.status<>'pending' OR item.support_notified_at IS NOT NULL OR item.reason<>'image_compliance_unavailable' OR item.created_at>now()-interval '24 hours' THEN RETURN; END IF; INSERT INTO public.notifications(user_id,type,title,message,action_url,metadata) VALUES(item.user_id,'ml_publication_waiting','Seu anúncio continua na fila','A conferência das fotos está demorando mais que o esperado. Avisamos o suporte para acompanhar seu anúncio.','/dashboard/publicacoes',jsonb_build_object('pending_publication_id',p_id)); INSERT INTO public.support_tickets(user_id,subject,category,status,needs_human,needs_human_at,needs_human_reason,ai_paused) VALUES(item.user_id,'Anúncio aguardando conferência de fotos: '||coalesce(item.title,'produto'),'integracao','open',true,now(),'Pedido '||p_id::text||' há mais de 24h na fila de fotos.',true); UPDATE public.pending_publications SET support_notified_at=now() WHERE id=p_id; END $function$;

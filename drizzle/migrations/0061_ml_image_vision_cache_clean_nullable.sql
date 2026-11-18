@@ -1,0 +1,2 @@
+ALTER TABLE public.ml_image_vision_cache ALTER COLUMN clean DROP NOT NULL;
+COMMENT ON COLUMN public.ml_image_vision_cache.clean IS 'true/false only for explicit verdicts; NULL while a URL has no verdict yet (retry/lease placeholder).';

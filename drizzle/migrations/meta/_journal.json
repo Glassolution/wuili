@@ -428,6 +428,69 @@
       "when": 1794873090928,
       "tag": "0060_publication_image_provider_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794880178542,
+      "tag": "0061_ml_image_vision_cache_clean_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794880821147,
+      "tag": "0062_publication_image_gate_null_safe",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794880935435,
+      "tag": "0063_overdue_image_publication_ticket_category",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1794884157790,
+      "tag": "0064_publication_image_lease_covers_fallback",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1794884630845,
+      "tag": "0065_overdue_image_queue_admin_digest",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1794943914679,
+      "tag": "0066_remove_aliexpress_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1795027456883,
+      "tag": "0067_get_checkout_resume_candidate",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1795029491756,
+      "tag": "0068_meta_capi_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1795031405534,
+      "tag": "0069_tighten_community_and_review_policies",
+      "breakpoints": true
     }
   ]
 }

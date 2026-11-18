@@ -20,6 +20,9 @@ type Publication = {
   user_id: string;
   published_at: string | null;
   created_at: string;
+  updated_at: string | null;
+  package_dimensions: string | null;
+  package_weight_g: number | null;
 };
 
 // Retorno da edge function ml-item-details (fotos e status vivos no ML).
@@ -31,6 +34,27 @@ type MlItemDetails = {
   available_quantity?: number | null;
   sold_quantity?: number | null;
   pictures?: string[];
+  package?: { height?: string | null; width?: string | null; length?: string | null; weight?: string | null };
+  shipping_dimensions?: string | null;
+  listing_type_id?: string | null;
+  condition?: string | null;
+  warranty?: string | null;
+  free_shipping?: boolean | null;
+  last_updated?: string | null;
+};
+
+const LISTING_TYPES: Record<string, string> = {
+  gold_special: "Clássico",
+  gold_pro: "Premium",
+  free: "Grátis",
+};
+const CONDITIONS: Record<string, string> = { new: "Novo", used: "Usado", refurbished: "Recondicionado" };
+
+// Converte "AxLxC,peso" (formato do ML: altura x largura x comprimento em cm, peso em g).
+const parseDims = (raw?: string | null) => {
+  const m = String(raw ?? "").match(/^\s*([\d.]+)x([\d.]+)x([\d.]+)(?:,([\d.]+))?/);
+  if (!m) return null;
+  return { height: `${m[1]} cm`, width: `${m[2]} cm`, length: `${m[3]} cm`, weight: m[4] ? `${m[4]} g` : null };
 };
 
 // Como cada status do Mercado Livre aparece para o lojista.
@@ -152,9 +176,6 @@ const ProductDetailPage = () => {
   // Livre. O custo do fornecedor é somente leitura e vem do catálogo.
   const [title, setTitle] = useState("");
   const [retailPrice, setRetailPrice] = useState(0);
-  const [category, setCategory] = useState("Laptop");
-  const [productType, setProductType] = useState("Eletrônico");
-  const [vendor, setVendor] = useState("");
 
   useEffect(() => {
     if (product) {
@@ -240,6 +261,22 @@ const ProductDetailPage = () => {
     (image): image is string => typeof image === "string" && image.length > 0,
   );
 
+  const localDims = parseDims(product.package_dimensions) ?? parseDims(mlItem?.shipping_dimensions);
+  const pkg = mlItem?.package ?? {};
+  const pesoLocal = product.package_weight_g ? `${product.package_weight_g} g` : localDims?.weight ?? null;
+  const infoRows: Array<[string, string | null]> = [
+    ["Peso", pkg.weight ?? pesoLocal],
+    ["Altura", pkg.height ?? localDims?.height ?? null],
+    ["Largura", pkg.width ?? localDims?.width ?? null],
+    ["Profundidade", pkg.length ?? localDims?.length ?? null],
+    ["Estoque no ML", mlItem?.available_quantity != null ? String(mlItem.available_quantity) : null],
+    ["Vendidos", mlItem?.sold_quantity != null ? String(mlItem.sold_quantity) : null],
+    ["Tipo de anúncio", mlItem?.listing_type_id ? LISTING_TYPES[mlItem.listing_type_id] ?? mlItem.listing_type_id : null],
+    ["Condição", mlItem?.condition ? CONDITIONS[mlItem.condition] ?? mlItem.condition : null],
+    ["Frete grátis", mlItem?.free_shipping == null ? null : mlItem.free_shipping ? "Sim" : "Não"],
+    ["Garantia", mlItem?.warranty ?? null],
+  ];
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -295,11 +332,11 @@ const ProductDetailPage = () => {
           <span className={`h-1.5 w-1.5 rounded-full ${currentStatus.dot}`} />
           {currentStatus.label}
         </span>
-        <span>SKU {product.ml_item_id?.slice(0, 8) || "N/A"}</span>
+        <span>Código ML {product.ml_item_id || "N/A"}</span>
         <span>·</span>
         <span>Criado em {formatDate(product.created_at)}</span>
         <span>·</span>
-        <span>Atualizado {formatDate(product.created_at)}</span>
+        <span>Atualizado {formatDate(mlItem?.last_updated ?? product.updated_at ?? product.created_at)}</span>
         {product.permalink && (
           <>
             <span>·</span>
@@ -397,7 +434,7 @@ const ProductDetailPage = () => {
             <div className="mt-4 space-y-4">
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  SKU
+                  Código do anúncio no Mercado Livre
                 </label>
                 <input
                   type="text"
@@ -408,56 +445,6 @@ const ProductDetailPage = () => {
                 />
               </div>
 
-
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Categoria
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
-                  <option>Laptop</option>
-                  <option>Smartphone</option>
-                  <option>Tablet</option>
-                  <option>Acessórios</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Tipo
-                </label>
-                <select
-                  value={productType}
-                  onChange={(e) => setProductType(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
-                  <option>Eletrônico</option>
-                  <option>Vestuário</option>
-                  <option>Alimentos</option>
-                  <option>Livros</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
-                  Fornecedor
-                </label>
-                <select
-                  value={vendor}
-                  onChange={(e) => setVendor(e.target.value)}
-                  className="mt-1.5 w-full rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-[13px] text-muted-foreground focus:border-black/[0.12] focus:outline-none focus:ring-0"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
-                  <option value="">Selecionar fornecedor</option>
-                  <option>Fornecedor A</option>
-                  <option>Fornecedor B</option>
-                </select>
-              </div>
 
               <div>
                 <label className="text-[12px] font-medium text-muted-foreground" style={{ letterSpacing: "-0.01em" }}>
@@ -510,6 +497,24 @@ const ProductDetailPage = () => {
               </div>
 
             </div>
+          </div>
+
+          {/* Somente leitura: dados do anúncio no ML que não são editados aqui. */}
+          <div className="rounded-2xl border border-black/[0.05] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            <h3 className="text-[15px] font-semibold text-foreground" style={{ letterSpacing: "-0.02em" }}>
+              Embalagem e anúncio
+            </h3>
+            <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground">
+              Somente consulta. Estes dados não podem ser alterados por aqui.
+            </p>
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+              {infoRows.map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-[12px] font-medium text-muted-foreground">{label}</dt>
+                  <dd className="mt-0.5 font-semibold text-foreground">{value ?? "—"}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
       </div>

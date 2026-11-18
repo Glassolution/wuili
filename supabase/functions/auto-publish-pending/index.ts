@@ -80,27 +80,27 @@ Deno.serve(async (req) => {
   if (lockError) return json({ error: lockError.message }, 500)
   if (!locked) return json({ ok: true, busy: true })
   try {
-  let query = admin
-    .from('pending_publications')
-    .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at,reason,support_notified_at')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-    .limit(5)
-
-  if (escopoUsuario) query = query.eq('user_id', escopoUsuario)
-
-  const { data: pendentes, error: erroLista } = await query
+  // Two lanes so hundreds of old "seller not ready" items never starve the
+  // photo queue; each lane rotates by last attempt (seller_ready_at).
+  const lista = (reason: 'image' | 'seller') => {
+    let q = admin
+      .from('pending_publications')
+      .select('id,user_id,product_id,title,payload,attempts,created_at,reminder_1d_at,reminder_3d_at,reason,support_notified_at')
+      .eq('status', 'pending')
+    q = reason === 'image' ? q.eq('reason', 'image_compliance_unavailable') : q.neq('reason', 'image_compliance_unavailable')
+    if (escopoUsuario) q = q.eq('user_id', escopoUsuario)
+    return q.order('seller_ready_at', { ascending: true, nullsFirst: true }).order('created_at', { ascending: true }).limit(5)
+  }
+  const [imagens, vendedores] = await Promise.all([lista('image'), lista('seller')])
+  const erroLista = imagens.error ?? vendedores.error
   if (erroLista) return json({ error: erroLista.message }, 500)
+  const pendentes = [...(vendedores.data ?? []), ...(imagens.data ?? [])]
 
   let publicados = 0
   let aguardando = 0
   const agora = Date.now()
 
   for (const item of (pendentes ?? []) as Pendente[]) {
-    if (item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
-      const { error } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
-      if (error) return json({ error: error.message }, 500)
-    }
     // A saved successful publication is idempotent progress, not another provider request.
     const { data: existing, error: existingError } = await admin.from('user_publications')
       .select('ml_item_id,permalink').eq('user_id',item.user_id).eq('catalog_product_id',item.product_id)
@@ -185,6 +185,14 @@ Deno.serve(async (req) => {
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
       }).eq('id', item.id)
       if(error) return json({error:error.message},500)
+      // Aviso de 24h DESLIGADO: abria um chamado de suporte em nome do cliente,
+      // sem mensagem dele, um por anúncio (21 em 16/11). Só religar com
+      // OVERDUE_IMAGE_TICKETS=on depois que o aviso deixar de criar ticket.
+      const avisoAtrasoLigado = Deno.env.get('OVERDUE_IMAGE_TICKETS') === 'on'
+      if (avisoAtrasoLigado && item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
+        const { error: notifyError } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
+        if (notifyError) console.error('[auto-publish-pending] aviso de fila atrasada falhou:', item.id, notifyError.message)
+      }
       // Sem IA, este item permanece na fila sem consumir tentativa; os demais,
       // inclusive os que já têm vereditos aprovados, continuam sendo processados.
       if (corpo?.code === 'IMAGE_COMPLIANCE_UNAVAILABLE') {

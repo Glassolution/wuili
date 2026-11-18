@@ -1015,8 +1015,20 @@ Deno.serve(async (req) => {
       const filtered = await filterCleanImagesCached(visionClient, allPublicImages, {
         max: 6,
         publication: { productId: product.id, title: product.title, background: isInternalRepair },
-        dryRun: body.validate_only === true,
+        // Admin end-to-end test: validate_only + analyze_images runs the real
+        // photo review, then stops at /items/validate (no listing is created).
+        dryRun: body.validate_only === true && body.analyze_images !== true,
       })
+      if (filtered.internalErrors?.length) {
+        console.error('[ml-publish] erro interno na conferência de fotos:', JSON.stringify(filtered.internalErrors.slice(0, 5)))
+        const { error: internalLogError } = await visionClient.from('ml_publish_errors').insert({
+          user_id, product_title: product.title, http_status: 500,
+          mapped_code: 'IMAGE_REVIEW_INTERNAL_ERROR',
+          mapped_message: 'Erro interno na conferência de fotos (ao reservar ou gravar o resultado).',
+          raw_response: { product_id: product.id ?? null, errors: filtered.internalErrors.slice(0, 20), revision: IMAGE_VALIDATION_REVISION, background: isInternalRepair },
+        })
+        if (internalLogError) console.warn('[ml-publish] falha ao gravar IMAGE_REVIEW_INTERNAL_ERROR:', internalLogError.message)
+      }
       if (filtered.rejected.length) {
         console.warn('[ml-publish] fotos recusadas (arte/texto promocional):',
           filtered.rejected.map(r => `${r.url} → ${r.reason}`).slice(0, 8))
@@ -1063,12 +1075,22 @@ Deno.serve(async (req) => {
 
     } catch (err) {
       console.error('[ml-publish] filtro visual de imagens indisponível:', String(err))
-      if (body.validate_only === true || isInternalRepair) return json({ error: 'Conferência de fotos indisponível', code: 'IMAGE_COMPLIANCE_UNAVAILABLE' }, 503)
+      // Internal failures (database/code) must be visible, not just a log line.
+      try {
+        const { error: internalLogError } = await supabase.from('ml_publish_errors').insert({
+          user_id, product_title: product.title, http_status: 500,
+          mapped_code: 'IMAGE_REVIEW_INTERNAL_ERROR',
+          mapped_message: 'Erro interno na conferência de fotos (antes de chamar a IA ou ao gravar o resultado).',
+          raw_response: { error: String(err).slice(0, 1000), product_id: product.id ?? null, revision: IMAGE_VALIDATION_REVISION, background: isInternalRepair },
+        })
+        if (internalLogError) console.warn('[ml-publish] falha ao gravar IMAGE_REVIEW_INTERNAL_ERROR:', internalLogError.message)
+      } catch (logErr) { console.warn('[ml-publish] falha ao gravar IMAGE_REVIEW_INTERNAL_ERROR:', String(logErr)) }
+      if (body.validate_only === true || isInternalRepair) return json({ error: 'Conferência de fotos indisponível', code: 'IMAGE_COMPLIANCE_UNAVAILABLE', internal_code: 'IMAGE_REVIEW_INTERNAL_ERROR' }, 503)
       return json(await queueImagePublication(supabase, user_id, product, productLimit, monthlyLimit), 202)
     }
 
     if (body.validate_only === true && body.images_only === true) {
-      return json({ validate_only: true, images_only: true, approved_images: publicImages, ai_calls: 0 })
+      return json({ validate_only: true, images_only: true, approved_images: publicImages, ai_calls: body.analyze_images === true ? undefined : 0 })
     }
 
 

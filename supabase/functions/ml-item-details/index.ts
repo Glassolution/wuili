@@ -128,8 +128,34 @@ Deno.serve(async (req) => {
           .filter((url: string) => url.length > 0)
       : []
 
+    // Medidas da embalagem (somente leitura na tela): atributos SELLER_PACKAGE_*.
+    const attrs: Array<Record<string, unknown>> = Array.isArray(item.attributes) ? item.attributes : []
+    const attr = (id: string) => {
+      const a = attrs.find((x) => x?.id === id)
+      return a ? String(a.value_name ?? '').trim() || null : null
+    }
+    const pkg = {
+      height: attr('SELLER_PACKAGE_HEIGHT'),
+      width: attr('SELLER_PACKAGE_WIDTH'),
+      length: attr('SELLER_PACKAGE_LENGTH'),
+      weight: attr('SELLER_PACKAGE_WEIGHT'),
+    }
+    const warranty = Array.isArray(item.sale_terms)
+      ? (item.sale_terms as Array<Record<string, unknown>>)
+          .filter((t) => t?.id === 'WARRANTY_TYPE' || t?.id === 'WARRANTY_TIME')
+          .map((t) => String(t.value_name ?? '')).filter(Boolean).join(' · ') || null
+      : null
+
     return json({
       connected: true,
+      package: pkg,
+      shipping_dimensions: item.shipping?.dimensions ?? null,
+      category_id: item.category_id ?? null,
+      listing_type_id: item.listing_type_id ?? null,
+      condition: item.condition ?? null,
+      warranty,
+      free_shipping: item.shipping?.free_shipping ?? null,
+      last_updated: item.last_updated ?? null,
       ok: true,
       id: item.id ?? itemId,
       status: item.status ?? null,

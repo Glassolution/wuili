@@ -22,6 +22,7 @@ import {
   grantInviterDiscountForPaidInvitee,
 } from "../_shared/referral-rewards.ts";
 import { loadTikTokUser, trackTikTokEvent } from "../_shared/tiktokEvents.ts";
+import { trackMetaPurchase } from "../_shared/metaCapi.ts";
 import { sendSubscriptionConfirmationEmailOnce } from "../_shared/transactional-email-templates.ts";
 
 
@@ -537,10 +538,15 @@ Deno.serve(async (req) => {
               user: u,
             });
           })().catch((e) => console.error("tiktok purchase falhou", String(e)));
+          const metaTask = trackMetaPurchase(admin, {
+            subscriptionId: subscription.id, userId: subscription.user_id,
+            value: purchaseValue, plan: subscription.plan,
+            eventTime: verifiedPaidAt ? Math.floor(Date.parse(String(verifiedPaidAt)) / 1000) || undefined : undefined,
+          }).catch((e) => console.error("meta purchase falhou", String(e)));
           // Não atrasa a resposta do webhook.
           // deno-lint-ignore no-explicit-any
           const rt = (globalThis as any).EdgeRuntime; // EdgeRuntime não tem tipagem no Deno
-          if (rt?.waitUntil) rt.waitUntil(task);
+          if (rt?.waitUntil) { rt.waitUntil(task); rt.waitUntil(metaTask); }
         }
 
         // Rede de segurança: se o cliente já pagou esse mesmo plano há pouco

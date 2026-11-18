@@ -352,3 +352,51 @@ Deno.test('produto com todas as fotos aprovadas publica sem chamar IA', async ()
     assertEquals(calls, 0);
   } finally { globalThis.fetch = original; }
 });
+
+Deno.test('nova análise da mesma foto (após inconclusiva) grava evidência com chave própria', async () => {
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'foto limpa' };
+  const url = 'https://example.com/retry.jpg';
+  const keys: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    const { db, writes } = publicationDb([]);
+    const original = globalThis.fetch;
+    globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ id: 't', choices: [{ message: { content: JSON.stringify(ok) } }] }), { headers: { 'Content-Type': 'application/json' } }));
+    try {
+      await filterCleanImagesCached(db, [url], { publication: { productId: '123e4567-e89b-42d3-a456-426614174000', title: 'Teste' } });
+    } finally { globalThis.fetch = original; }
+    keys.push(String(writes[0]?.record_key));
+  }
+  assertEquals(keys[0] === keys[1], false);
+  assertEquals(keys.every(k => k.includes(url)), true);
+});
+
+Deno.test('evidência gravada preenche todas as colunas obrigatórias', async () => {
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'foto limpa' };
+  const { db, writes } = publicationDb([]);
+  const original = globalThis.fetch;
+  globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ id: 't', choices: [{ message: { content: JSON.stringify(ok) } }] }), { headers: { 'Content-Type': 'application/json' } }));
+  try {
+    await filterCleanImagesCached(db, ['https://example.com/x.jpg'], { publication: { productId: '123e4567-e89b-42d3-a456-426614174000', title: 'Teste' } });
+  } finally { globalThis.fetch = original; }
+  // Mirrors NOT NULL columns without default in catalog_image_analysis_results.
+  for (const col of ['run_id', 'record_key', 'image_url', 'verdict', 'reason_code', 'evidence_location', 'justification', 'criterion_version', 'model', 'analyzed_at', 'method']) {
+    assertEquals(writes[0]?.[col] !== undefined && writes[0]?.[col] !== null, true, `coluna ${col}`);
+  }
+});
+
+Deno.test('erro ao gravar evidência vira erro interno, separado de falha da IA', async () => {
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'foto limpa' };
+  const { db } = publicationDb([]);
+  const base = db.from.bind(db);
+  (db as unknown as { from: (t: string) => unknown }).from = (t: string) => t === 'catalog_image_analysis_results'
+    ? { ...(base(t) as object), insert: () => Promise.resolve({ error: { message: 'violates not-null constraint' } }) }
+    : base(t);
+  const original = globalThis.fetch;
+  globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ id: 't', choices: [{ message: { content: JSON.stringify(ok) } }] }), { headers: { 'Content-Type': 'application/json' } }));
+  try {
+    const result = await filterCleanImagesCached(db, ['https://example.com/y.jpg'], { publication: { productId: '123e4567-e89b-42d3-a456-426614174000', title: 'Teste' } });
+    assertEquals(result.internalErrors?.length, 1);
+    assertEquals(result.clean.length, 0);
+    assertEquals(result.rejected.length, 0);
+  } finally { globalThis.fetch = original; }
+});

@@ -936,6 +936,27 @@ export type Database = {
         }
         Relationships: []
       }
+      catalog_products_aliexpress_archive: {
+        Row: {
+          archived_at: string
+          linked_order_ids: string[]
+          product_id: string
+          row_data: Json
+        }
+        Insert: {
+          archived_at?: string
+          linked_order_ids?: string[]
+          product_id: string
+          row_data: Json
+        }
+        Update: {
+          archived_at?: string
+          linked_order_ids?: string[]
+          product_id?: string
+          row_data?: Json
+        }
+        Relationships: []
+      }
       catalog_recovery_audit: {
         Row: {
           after_state: Json | null
@@ -2080,6 +2101,57 @@ export type Database = {
           },
         ]
       }
+      meta_capi_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          currency: string | null
+          event_id: string
+          event_name: string
+          id: string
+          response_body: string | null
+          response_status: number | null
+          sent_at: string | null
+          status: string
+          subscription_id: string | null
+          test_event_code: string | null
+          user_id: string | null
+          value: number | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          currency?: string | null
+          event_id: string
+          event_name: string
+          id?: string
+          response_body?: string | null
+          response_status?: number | null
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          test_event_code?: string | null
+          user_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          currency?: string | null
+          event_id?: string
+          event_name?: string
+          id?: string
+          response_body?: string | null
+          response_status?: number | null
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          test_event_code?: string | null
+          user_id?: string | null
+          value?: number | null
+        }
+        Relationships: []
+      }
       ml_api_cache: {
         Row: {
           body: string
@@ -2304,7 +2376,7 @@ export type Database = {
           analysis_lease_owner: string | null
           analysis_lease_until: string | null
           checked_at: string
-          clean: boolean
+          clean: boolean | null
           inconclusive_attempts: number
           last_error: string | null
           last_provider: string | null
@@ -2316,7 +2388,7 @@ export type Database = {
           analysis_lease_owner?: string | null
           analysis_lease_until?: string | null
           checked_at?: string
-          clean: boolean
+          clean?: boolean | null
           inconclusive_attempts?: number
           last_error?: string | null
           last_provider?: string | null
@@ -2328,7 +2400,7 @@ export type Database = {
           analysis_lease_owner?: string | null
           analysis_lease_until?: string | null
           checked_at?: string
-          clean?: boolean
+          clean?: boolean | null
           inconclusive_attempts?: number
           last_error?: string | null
           last_provider?: string | null
@@ -3008,6 +3080,10 @@ export type Database = {
           id: string
           is_admin: boolean
           loja_nome: string | null
+          meta_click_captured_at: string | null
+          meta_fbc: string | null
+          meta_fbclid: string | null
+          meta_fbp: string | null
           nicho: string | null
           objetivo: string | null
           onboarding_completed: boolean
@@ -3049,6 +3125,10 @@ export type Database = {
           id?: string
           is_admin?: boolean
           loja_nome?: string | null
+          meta_click_captured_at?: string | null
+          meta_fbc?: string | null
+          meta_fbclid?: string | null
+          meta_fbp?: string | null
           nicho?: string | null
           objetivo?: string | null
           onboarding_completed?: boolean
@@ -3090,6 +3170,10 @@ export type Database = {
           id?: string
           is_admin?: boolean
           loja_nome?: string | null
+          meta_click_captured_at?: string | null
+          meta_fbc?: string | null
+          meta_fbclid?: string | null
+          meta_fbp?: string | null
           nicho?: string | null
           objetivo?: string | null
           onboarding_completed?: boolean
@@ -5369,6 +5453,16 @@ export type Database = {
           publications_count: number
           recent_count: number
           sellers_count: number
+        }[]
+      }
+      get_checkout_resume_candidate: {
+        Args: never
+        Returns: {
+          created_at: string
+          plan: string
+          purchase_kind: string
+          status: string
+          subscription_id: string
         }[]
       }
       get_customer_orders: {
