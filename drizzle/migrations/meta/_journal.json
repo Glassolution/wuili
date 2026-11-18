@@ -484,6 +484,13 @@
       "when": 1795029491756,
       "tag": "0068_meta_capi_events",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1795031405534,
+      "tag": "0069_tighten_community_and_review_policies",
+      "breakpoints": true
     }
   ]
 }
