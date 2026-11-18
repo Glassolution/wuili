@@ -188,7 +188,8 @@ de `startValidaPayCheckout` (cobre `/checkout` e o modal de planos do painel) e
 valor guardados no InitiateCheckout, uma vez por checkout. O Purchase usa `eventID` =
 `purchase_<sid>` (`?sid=` = `subscription_id`, o mesmo do `validapay-webhook`) e não sai
 sem `sid`. O `fbclid` (com `_fbp`/`_fbc`) é guardado em `localStorage.velo_meta_click`
-em qualquer rota (`src/lib/veloMetaClique.ts`). Divide o `fbq` com o pixel
+em qualquer rota (`src/lib/veloMetaClique.ts`) e gravado no perfil (`meta_fbclid`, `meta_fbc`,
+`meta_fbp`, `meta_click_captured_at`) na criação da conta, sem sobrescrever. Divide o `fbq` com o pixel
 de cada seller (`src/lib/metaPixel.ts`), por isso a Velo só usa `trackSingle` e os
 sellers só recebem nos IDs deles. O script sobe com `fbq.disablePushState = true`
 para não contar visita sozinho a cada troca de rota.

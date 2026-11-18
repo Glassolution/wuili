@@ -6,9 +6,13 @@
   servidor consiga mandar o Purchase com o clique certo. Se o cookie _fbc não
   existir (ou for de outro clique), montamos no formato da Meta: fb.1.<ms>.<fbclid>.
 
-  Ainda não vai para o perfil: isso fica para quando as colunas meta_* estiverem
-  em src/integrations/supabase/types.ts.
+  Na criação da conta, salvarCliqueMetaNoPerfil grava o clique em
+  profiles.meta_fbclid/meta_fbc/meta_fbp/meta_click_captured_at, que o
+  validapay-webhook usa no Purchase pelo servidor.
 */
+
+import { supabase } from "@/integrations/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 export const CHAVE_CLIQUE_META = "velo_meta_click";
 
@@ -83,4 +87,30 @@ function completarFbp(): void {
       /* ignore */
     }
   }, 3000);
+}
+
+/**
+ * Conta criada: grava o clique guardado no perfil. Só grava se houver clique e
+ * se o perfil ainda não tiver um (o filtro em meta_fbclid nulo impede
+ * sobrescrever um clique já salvo). Nunca lança erro nem atrasa o cadastro.
+ */
+export async function salvarCliqueMetaNoPerfil(userId: string): Promise<void> {
+  const clique = lerCliqueMeta();
+  if (!userId || !clique?.fbclid) return;
+  const campos: TablesUpdate<"profiles"> = {
+    meta_fbclid: clique.fbclid,
+    meta_fbc: clique.fbc || null,
+    meta_fbp: clique.fbp || null,
+    meta_click_captured_at: clique.captured_at || null,
+  };
+  try {
+    const { error } = await supabase
+      .from("profiles")
+      .update(campos)
+      .eq("user_id", userId)
+      .is("meta_fbclid", null);
+    if (error) console.warn("[medição] clique da Meta não gravado no perfil:", error.message);
+  } catch {
+    /* medição nunca pode atrapalhar o cadastro */
+  }
 }

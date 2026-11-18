@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { lerCookieTtp, tiktokCadastroConcluido, tiktokCadastroServidor } from "@/lib/tiktokPixel";
 import { metaVeloCadastroConcluido } from "@/lib/veloMetaPixel";
+import { salvarCliqueMetaNoPerfil } from "@/lib/veloMetaClique";
 
 /*
   Medição da etapa de login/cadastro. Reaproveita a mesma tabela de eventos da landing
@@ -257,12 +258,14 @@ export function tipoDeErro(bruta: string): string {
 
 /**
  * Conta criada: avisa o TikTok pelo pixel e pelo servidor, com o mesmo
- * event_id, e grava a origem do clique no perfil. Nada aqui é aguardado nem
+ * event_id, e grava a origem do clique (TikTok e Meta) no perfil. Nada aqui é aguardado nem
  * lança erro, então o cadastro segue igual mesmo se o TikTok estiver fora.
  */
 export function concluirCadastroNoTikTok(usuario: { id: string; email?: string | null }): void {
   const origem = readOrigin();
   void salvarOrigemTikTokNoPerfil(usuario.id);
+  // Clique do anúncio da Meta (velo_meta_click), para o Purchase do servidor.
+  void salvarCliqueMetaNoPerfil(usuario.id);
   void tiktokCadastroConcluido(usuario);
   void tiktokCadastroServidor({
     userId: usuario.id,

@@ -1,5 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CHAVE_CLIQUE_META, capturarCliqueMeta, lerCliqueMeta } from "./veloMetaClique";
+
+const { update, filtros, resposta } = vi.hoisted(() => ({
+  update: vi.fn(),
+  filtros: vi.fn(),
+  resposta: { error: null as { message: string } | null },
+}));
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    from: (tabela: string) => ({
+      update: (campos: unknown) => {
+        update(tabela, campos);
+        return {
+          eq: (...eqArgs: unknown[]) => ({
+            is: (...isArgs: unknown[]) => {
+              filtros(eqArgs, isArgs);
+              return Promise.resolve(resposta);
+            },
+          }),
+        };
+      },
+    }),
+  },
+}));
+
+import { CHAVE_CLIQUE_META, capturarCliqueMeta, lerCliqueMeta, salvarCliqueMetaNoPerfil } from "./veloMetaClique";
 
 function limparCookies() {
   for (const nome of ["_fbp", "_fbc"]) document.cookie = `${nome}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
@@ -10,6 +34,9 @@ beforeEach(() => {
   window.localStorage.clear();
   limparCookies();
   window.history.replaceState({}, "", "/");
+  update.mockClear();
+  filtros.mockClear();
+  resposta.error = null;
 });
 
 afterEach(() => {
@@ -56,5 +83,35 @@ describe("clique do anúncio da Meta", () => {
     });
     expect(() => capturarCliqueMeta()).not.toThrow();
     set.mockRestore();
+  });
+
+  it("grava o clique no perfil só se o perfil ainda não tiver um", async () => {
+    vi.setSystemTime(new Date("2026-11-18T12:00:00Z"));
+    document.cookie = "_fbp=fb.1.1.2; path=/";
+    window.history.replaceState({}, "", "/?fbclid=TESTE");
+    capturarCliqueMeta();
+    await salvarCliqueMetaNoPerfil("user-1");
+    expect(update).toHaveBeenCalledWith("profiles", {
+      meta_fbclid: "TESTE",
+      meta_fbc: `fb.1.${Date.parse("2026-11-18T12:00:00Z")}.TESTE`,
+      meta_fbp: "fb.1.1.2",
+      meta_click_captured_at: "2026-11-18T12:00:00.000Z",
+    });
+    expect(filtros).toHaveBeenCalledWith(["user_id", "user-1"], ["meta_fbclid", null]);
+  });
+
+  it("sem clique guardado não grava nada", async () => {
+    await salvarCliqueMetaNoPerfil("user-1");
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("erro do banco (ex.: RLS) vira aviso e não quebra o cadastro", async () => {
+    window.history.replaceState({}, "", "/?fbclid=TESTE");
+    capturarCliqueMeta();
+    resposta.error = { message: "new row violates row-level security policy" };
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await expect(salvarCliqueMetaNoPerfil("user-1")).resolves.toBeUndefined();
+    expect(aviso).toHaveBeenCalledWith("[medição] clique da Meta não gravado no perfil:", "new row violates row-level security policy");
+    aviso.mockRestore();
   });
 });

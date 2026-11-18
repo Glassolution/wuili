@@ -5,8 +5,9 @@ atualizado: 2026-11-18
 
 ## Purchase da Meta pelo servidor (18/11)
 - [x] Navegador usa `purchase_<sid>` e guarda o clique (`velo_meta_click`) → [[Pixels e medição]]
-- [ ] Lovable sincronizar `meta_fbclid`, `meta_fbc`, `meta_fbp`, `meta_click_captured_at` em `src/integrations/supabase/types.ts`
-- [ ] Gravar `velo_meta_click` no perfil junto do `salvarOrigemTikTokNoPerfil` (só se vazio)
+- [x] Lovable sincronizou as colunas `meta_*` em `types.ts` (merge c62356b0)
+- [x] Gravar `velo_meta_click` no perfil na criação da conta (só se vazio)
+- [ ] Conferir numa conta real criada por `?fbclid=` que as colunas `meta_*` foram preenchidas (RLS)
 - [ ] Ligar o envio do Purchase no `validapay-webhook`
 - [ ] `/assinatura/confirmada` dispara Purchase sem conferir o pagamento: avaliar conferir o status antes
 
