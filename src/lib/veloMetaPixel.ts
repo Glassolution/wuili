@@ -14,7 +14,8 @@
   - InitiateCheckout: dentro de startValidaPayCheckout, então vale para o
     /checkout e para o modal de planos do painel.
   - Purchase + Subscribe: chegada em /assinatura/confirmada, com plano e valor
-    guardados no InitiateCheckout (uma vez por checkout).
+    guardados no InitiateCheckout (uma vez por checkout). O Purchase usa
+    eventID purchase_<sid> (mesmo id do servidor) e não sai sem ?sid=.
   - Eventos personalizados do funil da landing (landingFunnel.ts).
 
   O ID do pixel é público (aparece no HTML de qualquer site que usa a Meta).
@@ -140,6 +141,18 @@ function lerCompraPendente(): CompraPendente | null {
  */
 export function metaVeloCompraConcluida(): void {
   if (typeof window === "undefined") return;
+  /*
+    O validapay-webhook manda o mesmo Purchase pelo servidor com
+    event_id = purchase_<subscription_id>. A ValidaPay devolve esse id em
+    ?sid=; com o mesmo eventID a Meta junta os dois e conta uma compra só.
+    Sem sid não há como deduplicar, então o navegador não manda.
+  */
+  const sid = new URLSearchParams(window.location.search).get("sid")?.trim();
+  if (!sid) {
+    console.warn("[Meta Velo] /assinatura/confirmada sem ?sid=: Purchase não enviado pelo navegador.");
+    return;
+  }
+  const eventIdCompra = `purchase_${sid}`;
   const pendente = lerCompraPendente();
   if (!pendente) return;
   try {
@@ -148,7 +161,7 @@ export function metaVeloCompraConcluida(): void {
     return; // Sem conseguir apagar, um F5 contaria a compra de novo.
   }
   const params = parametrosDoPlano(pendente.plano, pendente.ciclo, pendente.valor);
-  medirMetaVelo("Purchase", params, false, { forcar: true, eventId: pendente.eventId });
+  medirMetaVelo("Purchase", params, false, { forcar: true, eventId: eventIdCompra });
   // Vitalício é pagamento único: é compra, não assinatura.
   if (pendente.ciclo === "lifetime") return;
   medirMetaVelo(

@@ -14,6 +14,7 @@ import { ProfileProvider } from "@/lib/profileContext";
 import { captureOrigin } from "@/lib/signupFunnel";
 import { rotaTemPixelTikTok, tiktokVisualizacao } from "@/lib/tiktokPixel";
 import { medirMetaVelo } from "@/lib/veloMetaPixel";
+import { capturarCliqueMeta } from "@/lib/veloMetaClique";
 import AdminRoute from "@/components/AdminRoute";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
@@ -174,6 +175,8 @@ const MedicaoAnunciosTikTok = () => {
 
   useEffect(() => {
     if (pathname === "/auth" || rotaTemPixelTikTok(pathname)) captureOrigin();
+    // Clique de anúncio da Meta (fbclid): em qualquer página, não só nas do pixel.
+    capturarCliqueMeta();
     if (rotaTemPixelTikTok(pathname)) tiktokVisualizacao();
     medirMetaVelo("PageView");
   }, [pathname]);

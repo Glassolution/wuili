@@ -1,7 +1,14 @@
 ---
-atualizado: 2026-11-16
+atualizado: 2026-11-18
 ---
 # Próximos passos
+
+## Purchase da Meta pelo servidor (18/11)
+- [x] Navegador usa `purchase_<sid>` e guarda o clique (`velo_meta_click`) → [[Pixels e medição]]
+- [ ] Lovable sincronizar `meta_fbclid`, `meta_fbc`, `meta_fbp`, `meta_click_captured_at` em `src/integrations/supabase/types.ts`
+- [ ] Gravar `velo_meta_click` no perfil junto do `salvarOrigemTikTokNoPerfil` (só se vazio)
+- [ ] Ligar o envio do Purchase no `validapay-webhook`
+- [ ] `/assinatura/confirmada` dispara Purchase sem conferir o pagamento: avaliar conferir o status antes
 
 ## Founder Mode — proposta da etapa 1 (09/11)
 - [x] Reconferir histórico 0000–0050 e preparar recuperação seletiva, sem reaplicar

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { initMetaPixel, trackPixel } from "./metaPixel";
 import {
   medirMetaVelo,
@@ -77,7 +77,7 @@ describe("pixel dos anúncios da Velo", () => {
     metaVeloCadastroConcluido("user-1");
     window.history.replaceState({}, "", "/dashboard"); // modal de planos do painel
     metaVeloInicioCheckout({ plano: "pro", ciclo: "monthly", valor: 79.8 });
-    window.history.replaceState({}, "", "/assinatura/confirmada");
+    window.history.replaceState({}, "", "/assinatura/confirmada?plan=pro&cycle=monthly&sid=sub-123");
     metaVeloCompraConcluida();
     metaVeloCompraConcluida(); // F5
     expect(eventosVelo()).toEqual(["Lead", "CompleteRegistration", "InitiateCheckout", "Purchase", "Subscribe"]);
@@ -85,16 +85,28 @@ describe("pixel dos anúncios da Velo", () => {
     expect(cadastro[4]).toEqual({ eventID: "cadastro_user-1" });
     const compra = queue().find((a) => a[2] === "Purchase")!;
     expect(compra[3]).toMatchObject({ value: 79.8, currency: "BRL", content_ids: ["velo_pro_monthly"] });
+    expect(compra[4]).toEqual({ eventID: "purchase_sub-123" });
+  });
+
+  it("sem ?sid= não manda Purchase pelo navegador", () => {
+    metaVeloInicioCheckout({ plano: "pro", ciclo: "monthly", valor: 79.8 });
+    window.history.replaceState({}, "", "/assinatura/confirmada?plan=pro&cycle=monthly");
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    metaVeloCompraConcluida();
+    expect(aviso).toHaveBeenCalledTimes(1);
+    aviso.mockRestore();
+    expect(eventosVelo()).toEqual(["InitiateCheckout"]);
   });
 
   it("vitalício conta Purchase sem Subscribe", () => {
     metaVeloInicioCheckout({ plano: "base", ciclo: "lifetime", valor: 89.9 });
+    window.history.replaceState({}, "", "/assinatura/confirmada?cycle=lifetime&sid=sub-9");
     metaVeloCompraConcluida();
     expect(eventosVelo()).toEqual(["InitiateCheckout", "Purchase"]);
   });
 
   it("sem checkout iniciado não conta compra", () => {
-    window.history.replaceState({}, "", "/assinatura/confirmada");
+    window.history.replaceState({}, "", "/assinatura/confirmada?sid=sub-1");
     medirMetaVelo("PageView");
     metaVeloCompraConcluida();
     expect(eventosVelo()).toEqual(["PageView"]);
