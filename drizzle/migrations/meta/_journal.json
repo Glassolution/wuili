@@ -477,6 +477,13 @@
       "when": 1795027456883,
       "tag": "0067_get_checkout_resume_candidate",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1795029491756,
+      "tag": "0068_meta_capi_events",
+      "breakpoints": true
     }
   ]
 }

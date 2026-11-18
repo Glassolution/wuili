@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       primaryColor: "#000000",
       secondaryColor: "#FFFFFF",
       fontColor: "#111827",
-      successUrl: `${origin}/assinatura/confirmada?plan=${plan}&cycle=${cycle}`,
+      successUrl: `${origin}/assinatura/confirmada?plan=${plan}&cycle=${cycle}&sid=${purchaseId}`,
       failureUrl: `${origin}/dashboard/planos?checkout=falha`,
       // "Voltar para a Velo" no checkout hospedado — enviamos os nomes
       // aceitos pela API para garantir que o link de retorno apareça.

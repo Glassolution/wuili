@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       affiliate_applications: {
@@ -2101,6 +2096,57 @@ export type Database = {
           },
         ]
       }
+      meta_capi_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          currency: string | null
+          event_id: string
+          event_name: string
+          id: string
+          response_body: string | null
+          response_status: number | null
+          sent_at: string | null
+          status: string
+          subscription_id: string | null
+          test_event_code: string | null
+          user_id: string | null
+          value: number | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          currency?: string | null
+          event_id: string
+          event_name: string
+          id?: string
+          response_body?: string | null
+          response_status?: number | null
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          test_event_code?: string | null
+          user_id?: string | null
+          value?: number | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          currency?: string | null
+          event_id?: string
+          event_name?: string
+          id?: string
+          response_body?: string | null
+          response_status?: number | null
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          test_event_code?: string | null
+          user_id?: string | null
+          value?: number | null
+        }
+        Relationships: []
+      }
       ml_api_cache: {
         Row: {
           body: string
@@ -3029,6 +3075,10 @@ export type Database = {
           id: string
           is_admin: boolean
           loja_nome: string | null
+          meta_click_captured_at: string | null
+          meta_fbc: string | null
+          meta_fbclid: string | null
+          meta_fbp: string | null
           nicho: string | null
           objetivo: string | null
           onboarding_completed: boolean
@@ -3070,6 +3120,10 @@ export type Database = {
           id?: string
           is_admin?: boolean
           loja_nome?: string | null
+          meta_click_captured_at?: string | null
+          meta_fbc?: string | null
+          meta_fbclid?: string | null
+          meta_fbp?: string | null
           nicho?: string | null
           objetivo?: string | null
           onboarding_completed?: boolean
@@ -3111,6 +3165,10 @@ export type Database = {
           id?: string
           is_admin?: boolean
           loja_nome?: string | null
+          meta_click_captured_at?: string | null
+          meta_fbc?: string | null
+          meta_fbclid?: string | null
+          meta_fbp?: string | null
           nicho?: string | null
           objetivo?: string | null
           onboarding_completed?: boolean
@@ -6104,3 +6162,4 @@ export const Constants = {
     },
   },
 } as const
+
