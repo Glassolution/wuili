@@ -470,6 +470,13 @@
       "when": 1794943914679,
       "tag": "0066_remove_aliexpress_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1795027456883,
+      "tag": "0067_get_checkout_resume_candidate",
+      "breakpoints": true
     }
   ]
 }

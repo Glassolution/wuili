@@ -5392,6 +5392,16 @@ export type Database = {
           sellers_count: number
         }[]
       }
+      get_checkout_resume_candidate: {
+        Args: never
+        Returns: {
+          created_at: string
+          plan: string
+          purchase_kind: string
+          status: string
+          subscription_id: string
+        }[]
+      }
       get_customer_orders: {
         Args: { p_email: string; p_slug: string }
         Returns: {
