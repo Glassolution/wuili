@@ -1,7 +1,26 @@
 import { describe, it, expect, vi } from "vitest";
-import { paymentIsBlocked, preservesPaidAccess, confirmProviderCancellation, isPostCancellationPayment, refundExecutionRequested, renewalAfterTermination } from "./subscriptionLifecyclePolicy";
+import { paymentIsBlocked, preservesPaidAccess, confirmProviderCancellation, isPostCancellationPayment, refundExecutionRequested, renewalAfterTermination, providerCancellationConfirmed } from "./subscriptionLifecyclePolicy";
 const sub = { id: "46da48d0-d850-413d-a648-5d3036875754", user_id: "12287108-8160-45cf-b62e-f4c338cb7435", status: "expired", cancel_at_period_end: true, cancelled_at: "2026-10-06T23:18:29.137Z" };
 describe("cancelled recurring payment rules", () => {
+  it("confirms ACTIVE with cancelAtPeriodEnd true, including a data wrapper", () => {
+    expect(providerCancellationConfirmed({ status: "ACTIVE", cancelAtPeriodEnd: true })).toBe(true);
+    expect(providerCancellationConfirmed({ data: { status: "ACTIVE", cancelAtPeriodEnd: true } })).toBe(true);
+    expect(providerCancellationConfirmed({ status: "ACTIVE", cancelAtPeriodEnd: false })).toBe(false);
+  });
+  it("accepts the explicit already scheduled 400 as cancel_scheduled even if GET is unavailable", async () => {
+    const save = vi.fn();
+    await confirmProviderCancellation(async () => { throw new Error("GET failed"); }, async () => {
+      throw { status: 400, details: { message: "Cancelamento ao fim do período já está agendado" } };
+    }, save);
+    expect(save).toHaveBeenCalledWith("cancel_scheduled");
+  });
+  it("preserves the full original 400 body when the follow-up GET fails", async () => {
+    const failure = { status: 400, responseBody: '{"message":"Outra falha","details":"corpo integral"}' };
+    const read = vi.fn().mockResolvedValueOnce({ status: "ACTIVE" }).mockRejectedValueOnce(new Error("GET failed"));
+    const save = vi.fn();
+    await expect(confirmProviderCancellation(read, async () => { throw failure; }, save)).rejects.toBe(failure);
+    expect(save).not.toHaveBeenCalled();
+  });
   it("accepts the authorized November 13 renewal after the old October refund without cancelled_at", () => {
     const refunds = [{ status: "processed", keep_access: false, processed_at: "2026-10-25T05:25:15.640Z" }];
     expect(renewalAfterTermination("2026-11-13T13:05:23.078Z", null, refunds)).toBe(true);

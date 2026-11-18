@@ -35,13 +35,18 @@ export async function processProviderCancellation(admin: Admin, subscriptionId: 
   const scope = "checkouts/write checkouts/read subscriptions/write subscriptions/read accounts/read";
   try {
     await confirmProviderCancellation(
-      () => validaPayFetch(path, { method: "GET", scope }),
-      () => validaPayFetch(path, { method: "DELETE", scope }),
+      () => validaPayFetch(path, { method: "GET", scope, captureErrorBody: true }),
+      () => validaPayFetch(path, { method: "DELETE", scope, captureErrorBody: true }),
       async () => {
         const now = new Date().toISOString();
         const { error: saveError } = await admin.from("subscriptions").update({ provider_cancelled_at: now })
           .eq("id", subscriptionId).eq("validapay_subscription_id", job.provider_subscription_id);
         if (saveError) throw new Error(`provider_cancellation_confirmation_save:${saveError.message}`);
+        // Never replace refunded/cancelled/expired status or extend the paid period.
+        const { error: statusError } = await admin.from("subscriptions").update({ status: "cancel_scheduled" })
+          .eq("id", subscriptionId).eq("validapay_subscription_id", job.provider_subscription_id)
+          .in("status", ["active", "paid", "approved", "trialing"]);
+        if (statusError) throw new Error(`provider_cancellation_status_save:${statusError.message}`);
         const { error: jobError } = await admin.from("provider_cancellation_requests").update({ state: "confirmed",
           confirmed_at: now, next_retry_at: null, lease_until: null, last_error: null, updated_at: now }).eq("subscription_id", subscriptionId);
         if (jobError) throw new Error(`provider_cancellation_job_save:${jobError.message}`);
@@ -49,7 +54,8 @@ export async function processProviderCancellation(admin: Admin, subscriptionId: 
     );
     return true;
   } catch (err) {
-    const message = err instanceof ValidaPayError ? `${err.message}: ${JSON.stringify(err.details)}`
+    const message = err instanceof ValidaPayError ? JSON.stringify({ message: err.message, status: err.status,
+      response_body: err.responseBody ?? null, details: err.details ?? null })
       : err instanceof Error ? err.message : String(err);
     const exhausted = job.attempts >= 6;
     const delay = [1, 5, 15, 60, 180, 360][Math.min(job.attempts - 1, 5)];

@@ -491,6 +491,13 @@
       "when": 1795031405534,
       "tag": "0069_tighten_community_and_review_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1795036458021,
+      "tag": "0070_atomic_new_subscription_cancellation_queue",
+      "breakpoints": true
     }
   ]
 }

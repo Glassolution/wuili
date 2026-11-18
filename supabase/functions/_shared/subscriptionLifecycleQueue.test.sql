@@ -1,0 +1,20 @@
+DO $$ BEGIN
+ IF EXISTS(SELECT FROM provider_cancellation_requests) THEN RAISE EXCEPTION 'historical backfill'; END IF;
+ UPDATE subscriptions SET status='refunded' WHERE id='00000000-0000-0000-0000-000000000001';
+ IF EXISTS(SELECT FROM provider_cancellation_requests) THEN RAISE EXCEPTION 'historical unrelated update'; END IF;
+ INSERT INTO subscriptions(id,user_id,status,validapay_subscription_id) VALUES ('00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000009','active','sub_new');
+ UPDATE subscriptions SET cancel_at_period_end=true WHERE id='00000000-0000-0000-0000-000000000002';
+ IF (SELECT count(*) FROM provider_cancellation_requests WHERE provider_subscription_id='sub_new' AND state='pending') <> 1 THEN RAISE EXCEPTION 'new flag not queued'; END IF;
+ UPDATE subscriptions SET status='cancel_scheduled' WHERE id='00000000-0000-0000-0000-000000000002';
+ IF (SELECT count(*) FROM provider_cancellation_requests) <> 1 THEN RAISE EXCEPTION 'duplicate'; END IF;
+ INSERT INTO subscriptions(id,user_id,status,validapay_subscription_id) VALUES ('00000000-0000-0000-0000-000000000003','00000000-0000-0000-0000-000000000009','active','sub_status');
+ UPDATE subscriptions SET status='refunded' WHERE id='00000000-0000-0000-0000-000000000003';
+ IF NOT EXISTS(SELECT FROM provider_cancellation_requests WHERE provider_subscription_id='sub_status') THEN RAISE EXCEPTION 'terminal status not queued'; END IF;
+ INSERT INTO subscriptions(id,user_id,status) VALUES ('00000000-0000-0000-0000-000000000004','00000000-0000-0000-0000-000000000009','cancelled');
+ UPDATE subscriptions SET validapay_subscription_id='sub_late' WHERE id='00000000-0000-0000-0000-000000000004';
+ IF NOT EXISTS(SELECT FROM provider_cancellation_requests WHERE provider_subscription_id='sub_late') THEN RAISE EXCEPTION 'late link not queued'; END IF;
+ INSERT INTO subscriptions(id,user_id,status,validapay_subscription_id,purchase_kind) VALUES ('00000000-0000-0000-0000-000000000005','00000000-0000-0000-0000-000000000009','refunded','sub_lifetime','lifetime');
+ INSERT INTO subscriptions(id,user_id,status,validapay_subscription_id,provider) VALUES ('00000000-0000-0000-0000-000000000006','00000000-0000-0000-0000-000000000009','refunded','sub_sandbox','sandbox');
+ IF (SELECT count(*) FROM provider_cancellation_requests) <> 3 THEN RAISE EXCEPTION 'excluded contracts queued'; END IF;
+ RAISE NOTICE 'PASS: new cancellation, terminal status, late link, deduplication, no historical backfill, lifetime/sandbox excluded';
+END $$;

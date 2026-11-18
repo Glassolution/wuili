@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { cancelBeforeAccountDeletion } from "../_shared/subscriptionLifecycleAccountDeletion.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,10 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
 
     const admin = createClient(supabaseUrl, service);
+
+    if (!await cancelBeforeAccountDeletion(admin, userId)) {
+      return json({ error: "cancellation_pending", message: "O cancelamento da renovação está em processamento. Sua conta só será excluída depois da confirmação, para evitar novas cobranças." }, 409);
+    }
 
     // Best-effort: apagar dados relacionados que não caem em CASCADE do auth.users.
     // Tabelas com FK direta para auth.users(id) com ON DELETE CASCADE serão limpas

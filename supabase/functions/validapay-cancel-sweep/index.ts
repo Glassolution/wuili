@@ -6,6 +6,7 @@
 // POST { dry_run?: boolean, limit?: n }  -> reconcilia (dry_run padrão true)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { getValidaPayToken, VALIDAPAY_API_URL } from "../_shared/validapay.ts";
+import { requestProviderCancellation } from "../_shared/providerCancellation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,15 +47,6 @@ async function listGatewaySubs(token: string): Promise<GwSub[]> {
     lastKey = data.pagination.lastKey;
   }
   return all;
-}
-
-/** DELETE /v1/subscriptions/{id} — sem ?immediate, encerra ao fim do ciclo pago. */
-async function cancelAtGateway(token: string, subId: string) {
-  const resp = await fetch(`${VALIDAPAY_API_URL}/v1/subscriptions/${encodeURIComponent(subId)}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-  });
-  return { ok: resp.ok, status: resp.status, body: (await resp.text()).slice(0, 200) };
 }
 
 Deno.serve(async (req) => {
@@ -110,16 +102,21 @@ Deno.serve(async (req) => {
     let ok = 0;
     const falhas: unknown[] = [];
     for (const s of alvos.slice(0, limit)) {
-      const r = await cancelAtGateway(token, s.subscriptionId);
-      if (r.ok) {
+      const { data: sub, error: readError } = await admin.from("subscriptions").select("*")
+        .eq("validapay_subscription_id", s.subscriptionId).maybeSingle();
+      if (readError || !sub) {
+        falhas.push({ sub: s.subscriptionId, error: readError?.message ?? "Contrato local não encontrado; cancelamento não executado" });
+        continue;
+      }
+      const { error: saveError } = await admin.from("subscriptions").update({
+        cancel_at_period_end: true, cancelled_at: sub.cancelled_at ?? new Date().toISOString(),
+        cancellation_reason: sub.cancellation_reason ?? "Cancelamento administrativo solicitado",
+      }).eq("id", sub.id);
+      if (saveError) throw new Error(`sweep_cancellation_save:${saveError.message}`);
+      if (await requestProviderCancellation(admin, sub, "Cancelamento administrativo solicitado")) {
         ok++;
-        await admin
-          .from("subscriptions")
-          .update({ provider_cancelled_at: new Date().toISOString(), cancel_at_period_end: true })
-          .eq("user_id", s.metadata!.user_id!)
-          .in("status", [...ACTIVE_DB_STATUSES, "expired", "cancelled"]);
       } else {
-        falhas.push({ sub: s.subscriptionId, ...r });
+        falhas.push({ sub: s.subscriptionId, error: "Cancelamento pendente na fila" });
       }
     }
     return json({

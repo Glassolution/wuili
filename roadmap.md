@@ -1,5 +1,10 @@
 # Roadmap
 
+## Cancelamento ValidaPay — 18/11
+- [x] Reconhecer agendamento existente e conservar resposta completa; cinco funções de cancelamento/processamento publicadas
+- [x] Migration 0070 enfileira transições novas atomicamente, sem backfill; exclusão aguarda confirmação
+- [x] 27 testes passaram, migration exercitada em Postgres isolado; documentação não oferece veto pré-renovação, somente DELETE preventivo. Cron, checkout, Meta e reembolso automático inalterados; 28 falhas históricas não reiniciadas
+
 ## Tutorial após a compra — 17/11
 - [x] Oferecer o tutorial existente nas confirmações mensal e vitalícia, sem reprodução automática, com Assistir agora e Ver depois
 - [x] Conferir abertura, fechamento e acesso ao painel com a conta solicitante no computador/celular; fila ativa a cada 5 min, 175 publicados/24h e 83 pendentes. Vitalício conferido por código; conta testada possui plano mensal. Sem compra, alteração da fila ou publicação do site.

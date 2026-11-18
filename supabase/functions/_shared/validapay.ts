@@ -26,6 +26,7 @@ let cached: CachedToken | null = null;
 export class ValidaPayError extends Error {
   status: number;
   details: unknown;
+  responseBody?: string;
   constructor(message: string, status: number, details?: unknown) {
     super(message);
     this.name = "ValidaPayError";
@@ -92,9 +93,9 @@ export function clearValidaPayToken() {
 /** Chamada autenticada à API REST da ValidaPay, com retry automático em 401. */
 export async function validaPayFetch<T = unknown>(
   path: string,
-  init: RequestInit & { scope?: string; retryUnauthorized?: boolean } = {},
+  init: RequestInit & { scope?: string; retryUnauthorized?: boolean; captureErrorBody?: boolean } = {},
 ): Promise<T> {
-  const { scope, retryUnauthorized = true, ...rest } = init;
+  const { scope, retryUnauthorized = true, captureErrorBody = false, ...rest } = init;
   const call = async (token: string) =>
     await fetch(`${VALIDAPAY_API_URL}${path}`, {
       ...rest,
@@ -121,7 +122,9 @@ export async function validaPayFetch<T = unknown>(
 
   if (!resp.ok) {
     console.error("validapay: erro na API", path, resp.status, text.slice(0, 500));
-    throw new ValidaPayError(`ValidaPay ${path} respondeu ${resp.status}`, resp.status, data);
+    const error = new ValidaPayError(`ValidaPay ${path} respondeu ${resp.status}`, resp.status, data);
+    if (captureErrorBody) error.responseBody = text;
+    throw error;
   }
   return data as T;
 }

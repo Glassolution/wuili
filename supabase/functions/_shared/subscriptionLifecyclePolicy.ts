@@ -33,8 +33,20 @@ export function renewalAfterTermination(paidAt: string | null, cancelledAt: stri
 export function providerCancellationConfirmed(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
+  if (row.data && providerCancellationConfirmed(row.data)) return true;
   return ["CANCELED", "CANCELLED", "CANCEL_SCHEDULED"].includes(String(row.status ?? "").toUpperCase()) ||
+    row.cancelAtPeriodEnd === true ||
     (typeof row.canceledAt === "string" && Number.isFinite(Date.parse(row.canceledAt)));
+}
+
+/** Only this explicit provider acknowledgement is idempotent success, not an arbitrary 400. */
+export function providerCancellationAlreadyScheduled(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const value = error as { status?: number; details?: unknown; responseBody?: string };
+  if (value.status !== 400) return false;
+  const text = `${JSON.stringify(value.details) ?? ""} ${value.responseBody ?? ""}`
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return text.includes("cancelamento ao fim do periodo ja esta agendado");
 }
 
 export function refundExecutionRequested(body: { dry_run?: boolean; confirmation?: { user_id?: string; amount?: number; reason?: string } }): boolean {
@@ -43,15 +55,21 @@ export function refundExecutionRequested(body: { dry_run?: boolean; confirmation
 }
 
 export async function confirmProviderCancellation(
-  read: () => Promise<unknown>, cancel: () => Promise<unknown>, saveConfirmation: () => Promise<void>,
+  read: () => Promise<unknown>, cancel: () => Promise<unknown>, saveConfirmation: (status?: "cancel_scheduled") => Promise<void>,
 ): Promise<void> {
   let before: unknown;
   try { before = await read(); } catch { /* DELETE still must be attempted on a failed pre-read. */ }
   if (!providerCancellationConfirmed(before)) {
     let response: unknown;
     try { response = await cancel(); } catch (error) {
-      // Some providers reject a second DELETE after scheduling cancellation. Only a fresh read may confirm it.
-      if (!providerCancellationConfirmed(await read())) throw error;
+      if (providerCancellationAlreadyScheduled(error)) {
+        await saveConfirmation("cancel_scheduled");
+        return;
+      }
+      // Preserve the original DELETE response even when the diagnostic GET also fails.
+      let after: unknown;
+      try { after = await read(); } catch { throw error; }
+      if (!providerCancellationConfirmed(after)) throw error;
       await saveConfirmation();
       return;
     }
