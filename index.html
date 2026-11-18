@@ -66,16 +66,16 @@
         fotoTopo.rel = "preload";
         fotoTopo.as = "image";
         fotoTopo.type = "image/webp";
-        // Celular: foto de fundo do hero. Desktop: tela do catálogo no mockup.
+        // Celular: foto de fundo do hero. Desktop: primeira foto do carrossel.
         var celular = window.matchMedia("(max-width: 639px)").matches;
-        fotoTopo.href = celular ? "/landing/pessoa-03-640.webp" : "/landing/hero-painel-catalogo-720.webp";
+        fotoTopo.href = celular ? "/landing/pessoa-03-640.webp" : "/landing/pessoa-01-640.webp";
         fotoTopo.setAttribute(
           "imagesrcset",
           celular
             ? "/landing/pessoa-03-640.webp 640w, /landing/pessoa-03-960.webp 960w, /landing/pessoa-03-1280.webp 1280w"
-            : "/landing/hero-painel-catalogo-480.webp 480w, /landing/hero-painel-catalogo-720.webp 720w"
+            : "/landing/pessoa-01-640.webp 640w, /landing/pessoa-01-960.webp 960w, /landing/pessoa-01-1280.webp 1280w, /landing/pessoa-01-1672.webp 1672w"
         );
-        fotoTopo.setAttribute("imagesizes", celular ? "100vw" : "(min-width: 1024px) 324px, 284px");
+        fotoTopo.setAttribute("imagesizes", "100vw");
         document.head.appendChild(fotoTopo);
       }
     </script>
