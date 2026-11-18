@@ -32,9 +32,47 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+async function recordCheckoutFailure(input: {
+  severity: "critical" | "warning";
+  userId: string | null;
+  subscriptionId: string | null;
+  message: string;
+  details: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    const logAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
+    const safeMessage = input.message
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
+      .slice(0, 300);
+    const { error } = await logAdmin.from("payment_incidents").insert({
+      kind: "checkout_create_failed",
+      severity: input.severity,
+      user_id: input.userId,
+      subscription_id: input.subscriptionId,
+      message: safeMessage,
+      details: input.details,
+    });
+    if (error) throw error;
+  } catch (e) {
+    console.error("validapay-checkout: falha ao registrar incidente", String(e));
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+  const startedAt = Date.now();
+  let logUserId: string | null = null;
+  let logPlan: string | null = null;
+  let logCycle: string | null = null;
+  let logPurchaseId: string | null = null;
+  let pendingCreated = false;
+  let stage: "before_pending" | "pending_insert" | "session_create" | "session_save" = "before_pending";
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -51,6 +89,7 @@ Deno.serve(async (req) => {
     if (claimsError || !claimsData?.claims) return json({ error: "Não autenticado" }, 401);
 
     const userId = claimsData.claims.sub as string;
+    logUserId = userId;
     const email = claimsData.claims.email as string | undefined;
 
     let body: { plan?: string; cycle?: string; affiliate_code?: string; coupon?: string; action?: string; upgrade_id?: string; confirmed_amount?: number } = {};
@@ -60,10 +99,12 @@ Deno.serve(async (req) => {
       /* corpo vazio */
     }
     const plan = String(body.plan ?? "").toLowerCase();
+    logPlan = plan;
     const requestedCycle = String(body.cycle ?? "monthly").toLowerCase();
     if (!["monthly", "annual", "lifetime"].includes(requestedCycle)) return json({ error: "Ciclo inválido." }, 400);
     if (requestedCycle === "annual") return json({ error: "A opção anual foi substituída por Vitalício. Selecione novamente seu plano." }, 400);
     const cycle = requestedCycle;
+    logCycle = cycle;
     const upgradeAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", { auth: { persistSession: false } });
     if (body.action === "confirm_upgrade" || body.action === "upgrade_status") {
       if (typeof body.upgrade_id !== "string" || !/^[0-9a-f-]{36}$/i.test(body.upgrade_id) ||
@@ -338,6 +379,8 @@ Deno.serve(async (req) => {
     // era ignorado pelo checkout hospedado, por isso apenas o Pix aparecia.
     const refreshedQuote = await quoteUpgrade(admin, userId, plan, cycle);
     if (refreshedQuote.upgrade) return json({ ...refreshedQuote, error: "Encontramos seu plano pago. Confira a diferença antes de confirmar o upgrade." }, 409);
+    stage = "pending_insert";
+    logPurchaseId = purchaseId;
     const { error: pendingError } = await admin.from("subscriptions").insert({
       id: purchaseId,
       user_id: userId,
@@ -351,6 +394,8 @@ Deno.serve(async (req) => {
       purchase_kind: cycle === "lifetime" ? "lifetime" : "recurring",
     });
     if (pendingError) throw new Error("Não foi possível registrar seu pagamento. Tente novamente.");
+    pendingCreated = true;
+    stage = "session_create";
     const session = await createCheckoutSession({
       ...basePayload,
       allowedPaymentMethods: ["pix", "creditcard"],
@@ -359,6 +404,7 @@ Deno.serve(async (req) => {
       passFeesToCustomer: false,
     });
 
+    stage = "session_save";
     const { error: sessionError } = await admin.from("subscriptions")
       .update({ validapay_subscription_id: session.id }).eq("id", purchaseId);
     if (sessionError) throw new Error("Não foi possível registrar o checkout. Tente novamente.");
@@ -378,6 +424,23 @@ Deno.serve(async (req) => {
     const code = (err instanceof ValidaPayError
       ? (err.details as { error?: { code?: string } } | null)?.error?.code
       : null) ?? "";
+    await recordCheckoutFailure({
+      severity: code === "ACCOUNT_NOT_FOUND" ||
+          (err instanceof ValidaPayError && (err.status === 404 || err.status >= 500))
+        ? "critical"
+        : "warning",
+      userId: logUserId,
+      subscriptionId: pendingCreated ? logPurchaseId : null,
+      message,
+      details: {
+        plan: logPlan,
+        cycle: logCycle,
+        stage,
+        http_status: err instanceof ValidaPayError ? err.status : null,
+        gateway_code: code || null,
+        duration_ms: Date.now() - startedAt,
+      },
+    });
     if (code === "ACCOUNT_NOT_FOUND" || (err instanceof ValidaPayError && err.status === 404)) {
       return json(
         {
