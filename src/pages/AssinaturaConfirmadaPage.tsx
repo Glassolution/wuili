@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { metaVeloCompraConcluida } from "@/lib/veloMetaPixel";
+import { assinaturaEstaPaga } from "@/lib/assinaturaPaga";
 import PostPurchaseTutorial from "@/components/dashboard/PostPurchaseTutorial";
 import { VeloLogo } from "@/components/VeloLogo";
 import { useSearchParams } from "react-router-dom";
@@ -20,10 +21,11 @@ import SubscriptionConfirmedPage from "./SubscriptionConfirmedPage";
 const AssinaturaConfirmadaPage = () => {
   const [params] = useSearchParams();
 
-  // Pixel da Meta da Velo: Purchase (+ Subscribe), uma vez por checkout iniciado.
+  // Pixel da Meta da Velo: Purchase (+ Subscribe), uma vez por checkout iniciado,
+  // só depois de conferir que a assinatura do ?sid= está paga ("active").
   // Fica antes do retorno do vitalício para valer nas duas telas.
   useEffect(() => {
-    metaVeloCompraConcluida();
+    void metaVeloCompraConcluida(assinaturaEstaPaga);
   }, []);
 
   if (params.get("cycle") === "lifetime") return <SubscriptionConfirmedPage />;

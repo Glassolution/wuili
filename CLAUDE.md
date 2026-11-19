@@ -186,8 +186,9 @@ landing, `CompleteRegistration` na conta criada (e-mail no `LoginPage`, Google e
 de `startValidaPayCheckout` (cobre `/checkout` e o modal de planos do painel) e
 `Purchase` (+ `Subscribe`, menos no vitalício) em `/assinatura/confirmada`, com plano e
 valor guardados no InitiateCheckout, uma vez por checkout. O Purchase usa `eventID` =
-`purchase_<sid>` (`?sid=` = `subscription_id`, o mesmo do `validapay-webhook`) e não sai
-sem `sid`. O `fbclid` (com `_fbp`/`_fbc`) é guardado em `localStorage.velo_meta_click`
+`purchase_<sid>` (`?sid=` = `subscription_id`, o mesmo do `validapay-webhook`), não sai
+sem `sid` e só sai com a assinatura do `sid` em `active` (`src/lib/assinaturaPaga.ts`,
+`pending` espera até 30 s). O `fbclid` (com `_fbp`/`_fbc`) é guardado em `localStorage.velo_meta_click`
 em qualquer rota (`src/lib/veloMetaClique.ts`) e gravado no perfil (`meta_fbclid`, `meta_fbc`,
 `meta_fbp`, `meta_click_captured_at`) na criação da conta, sem sobrescrever. Divide o `fbq` com o pixel
 de cada seller (`src/lib/metaPixel.ts`), por isso a Velo só usa `trackSingle` e os

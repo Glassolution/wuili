@@ -9,7 +9,8 @@ atualizado: 2026-11-18
 - [x] Gravar `velo_meta_click` no perfil na criação da conta (só se vazio)
 - [ ] Conferir numa conta real criada por `?fbclid=` que as colunas `meta_*` foram preenchidas (RLS)
 - [ ] Ligar o envio do Purchase no `validapay-webhook`
-- [ ] `/assinatura/confirmada` dispara Purchase sem conferir o pagamento: avaliar conferir o status antes
+- [x] `/assinatura/confirmada` só dispara Purchase com a assinatura do `sid` em `active` (18/11)
+- [ ] Pix que demora mais de 30 s: Purchase do navegador não sai; fica só o do servidor (quando ligado)
 
 ## Founder Mode — proposta da etapa 1 (09/11)
 - [x] Reconferir histórico 0000–0050 e preparar recuperação seletiva, sem reaplicar

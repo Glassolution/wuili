@@ -11,6 +11,7 @@ import {
 } from "./veloMetaPixel";
 
 const w = window as unknown as Record<string, unknown>;
+const pago = async () => true;
 const queue = () => (w.fbq as { queue: unknown[][] }).queue;
 const eventosVelo = () =>
   queue().filter((a) => String(a[0]).startsWith("trackSingle") && a[1] === VELO_META_PIXEL_ID).map((a) => a[2]);
@@ -72,14 +73,14 @@ describe("pixel dos anúncios da Velo", () => {
     expect(queue()).toContainEqual(["trackSingleCustom", VELO_META_PIXEL_ID, "landing_clique_criar_conta", { local: "hero" }]);
   });
 
-  it("Lead, cadastro com eventID, checkout no painel e compra uma vez só", () => {
+  it("Lead, cadastro com eventID, checkout no painel e compra uma vez só", async () => {
     metaVeloCliqueCadastro("cta_hero_signup_click");
     metaVeloCadastroConcluido("user-1");
     window.history.replaceState({}, "", "/dashboard"); // modal de planos do painel
     metaVeloInicioCheckout({ plano: "pro", ciclo: "monthly", valor: 79.8 });
     window.history.replaceState({}, "", "/assinatura/confirmada?plan=pro&cycle=monthly&sid=sub-123");
-    metaVeloCompraConcluida();
-    metaVeloCompraConcluida(); // F5
+    await metaVeloCompraConcluida(pago);
+    await metaVeloCompraConcluida(pago); // F5
     expect(eventosVelo()).toEqual(["Lead", "CompleteRegistration", "InitiateCheckout", "Purchase", "Subscribe"]);
     const cadastro = queue().find((a) => a[2] === "CompleteRegistration")!;
     expect(cadastro[4]).toEqual({ eventID: "cadastro_user-1" });
@@ -88,28 +89,49 @@ describe("pixel dos anúncios da Velo", () => {
     expect(compra[4]).toEqual({ eventID: "purchase_sub-123" });
   });
 
-  it("sem ?sid= não manda Purchase pelo navegador", () => {
+  it("sem ?sid= não manda Purchase pelo navegador", async () => {
     metaVeloInicioCheckout({ plano: "pro", ciclo: "monthly", valor: 79.8 });
     window.history.replaceState({}, "", "/assinatura/confirmada?plan=pro&cycle=monthly");
     const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
-    metaVeloCompraConcluida();
+    await metaVeloCompraConcluida(pago);
     expect(aviso).toHaveBeenCalledTimes(1);
     aviso.mockRestore();
     expect(eventosVelo()).toEqual(["InitiateCheckout"]);
   });
 
-  it("vitalício conta Purchase sem Subscribe", () => {
+  it("vitalício conta Purchase sem Subscribe", async () => {
     metaVeloInicioCheckout({ plano: "base", ciclo: "lifetime", valor: 89.9 });
     window.history.replaceState({}, "", "/assinatura/confirmada?cycle=lifetime&sid=sub-9");
-    metaVeloCompraConcluida();
+    await metaVeloCompraConcluida(pago);
     expect(eventosVelo()).toEqual(["InitiateCheckout", "Purchase"]);
   });
 
-  it("sem checkout iniciado não conta compra", () => {
+  it("sem checkout iniciado não conta compra", async () => {
     window.history.replaceState({}, "", "/assinatura/confirmada?sid=sub-1");
     medirMetaVelo("PageView");
-    metaVeloCompraConcluida();
+    await metaVeloCompraConcluida(pago);
     expect(eventosVelo()).toEqual(["PageView"]);
+  });
+
+  it("assinatura não paga (pending que não virou, sid falso) não manda Purchase e guarda o checkout", async () => {
+    metaVeloInicioCheckout({ plano: "pro", ciclo: "monthly", valor: 79.8 });
+    window.history.replaceState({}, "", "/assinatura/confirmada?plan=pro&cycle=monthly&sid=sid-falso");
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const confirmar = vi.fn(async () => false);
+    await metaVeloCompraConcluida(confirmar);
+    expect(confirmar).toHaveBeenCalledWith("sid-falso");
+    expect(eventosVelo()).toEqual(["InitiateCheckout"]);
+    // Checkout continua guardado: se o pagamento entrar e a pessoa voltar, ainda conta.
+    await metaVeloCompraConcluida(pago);
+    aviso.mockRestore();
+    expect(eventosVelo()).toEqual(["InitiateCheckout", "Purchase", "Subscribe"]);
+  });
+
+  it("duas conferências ao mesmo tempo contam uma compra só", async () => {
+    metaVeloInicioCheckout({ plano: "pro", ciclo: "monthly", valor: 79.8 });
+    window.history.replaceState({}, "", "/assinatura/confirmada?plan=pro&cycle=monthly&sid=sub-2");
+    await Promise.all([metaVeloCompraConcluida(pago), metaVeloCompraConcluida(pago)]);
+    expect(eventosVelo().filter((e) => e === "Purchase")).toHaveLength(1);
   });
 
   it("cadastro pelo Google mede mesmo fora das rotas do pixel", () => {

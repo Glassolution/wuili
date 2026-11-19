@@ -15,7 +15,8 @@
     /checkout e para o modal de planos do painel.
   - Purchase + Subscribe: chegada em /assinatura/confirmada, com plano e valor
     guardados no InitiateCheckout (uma vez por checkout). O Purchase usa
-    eventID purchase_<sid> (mesmo id do servidor) e não sai sem ?sid=.
+    eventID purchase_<sid> (mesmo id do servidor), não sai sem ?sid= e só sai
+    com a assinatura do sid "active" (assinaturaPaga.ts).
   - Eventos personalizados do funil da landing (landingFunnel.ts).
 
   O ID do pixel é público (aparece no HTML de qualquer site que usa a Meta).
@@ -136,10 +137,11 @@ function lerCompraPendente(): CompraPendente | null {
 
 /**
  * Pagamento aprovado (chegada em /assinatura/confirmada). Só dispara se houver
- * um checkout iniciado neste navegador nos últimos 2 dias, e uma vez só:
- * recarregar a página não conta outra compra.
+ * um checkout iniciado neste navegador nos últimos 2 dias, se `confirmarPago`
+ * disser que a assinatura do sid está paga, e uma vez só: recarregar a página
+ * não conta outra compra.
  */
-export function metaVeloCompraConcluida(): void {
+export async function metaVeloCompraConcluida(confirmarPago: (sid: string) => Promise<boolean>): Promise<void> {
   if (typeof window === "undefined") return;
   /*
     O validapay-webhook manda o mesmo Purchase pelo servidor com
@@ -153,6 +155,18 @@ export function metaVeloCompraConcluida(): void {
     return;
   }
   const eventIdCompra = `purchase_${sid}`;
+  if (!lerCompraPendente()) return;
+  let pago = false;
+  try {
+    pago = await confirmarPago(sid);
+  } catch {
+    pago = false;
+  }
+  if (!pago) {
+    console.warn("[Meta Velo] assinatura do sid não está paga: Purchase não enviado pelo navegador.");
+    return;
+  }
+  // Relido depois da espera: outra chamada (StrictMode, outra aba) pode já ter contado.
   const pendente = lerCompraPendente();
   if (!pendente) return;
   try {
