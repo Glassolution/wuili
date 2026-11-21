@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-08
+atualizado: 2026-11-20
 fontes: [src/lib/planPricing.ts, src/lib/planLimits.ts]
 ---
 # Planos e preços
@@ -13,6 +13,7 @@ fontes: [src/lib/planPricing.ts, src/lib/planLimits.ts]
 | Business | R$ 189,90 | R$ 427,90 | R$ 513,48 |
 
 - Ciclo anual foi substituído pelo **vitalício** (pagamento único) → [[Vitalício com pagamento único]]. Assinaturas anuais antigas continuam como estão.
+- **Vitalício fora da venda (teste de 2 semanas, desde 2026-11-20):** `LIFETIME_PLAN_ENABLED = false` em `src/lib/planPricing.ts` esconde o seletor Mensal/Vitalício no modal de planos, no `/checkout` e na `PricingSection`, além do card "Base Vitalício" que ocupava o lugar do Business. Links `?cycle=lifetime|annual` ou `?plan|plano=vitalicio` voltam para `/checkout` só com o mensal. Quem já comprou continua vitalício (`subscriptions.purchase_kind = 'lifetime'`, status `active`). Para voltar a vender: `true`.
 
 ## Limites principais
 | | Base/Go | Pro | Business |

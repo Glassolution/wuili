@@ -17,7 +17,7 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
 import { Button } from "@/components/ui/button";
-import { billingCycleForPlan, formatPlanPriceBRL, VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { billingCycleForPlan, formatPlanPriceBRL, LIFETIME_PLAN_ENABLED, VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 
 
@@ -127,6 +127,9 @@ const getSavingsDisplay = (originalPrice: string | null, currentPrice: string) =
   return savings > 0 ? formatBRL(savings) : null;
 };
 
+// Valores de link que pedem o Vitalício direto (?cycle=lifetime, ?plano=vitalicio...).
+const LIFETIME_LINK_VALUES = ["lifetime", "annual", "vitalicio", "vitalício"];
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { session, role } = useAuth();
@@ -143,9 +146,26 @@ const CheckoutPage = () => {
   const [hoveredPlanId, setHoveredPlanId] = useState<string | null>(null);
   const skipSelect = searchParams.get("skipSelect") === "1";
   const directPaymentStep = searchParams.get("step") === "payment";
-  const [showPaymentStep, setShowPaymentStep] = useState(isTrial || skipSelect || directPaymentStep);
+  const requestedLifetime = ["cycle", "plan", "plano"].some((key) =>
+    LIFETIME_LINK_VALUES.includes((searchParams.get(key) ?? "").toLowerCase()),
+  );
+  // Com o Vitalício fora da venda, um link dele nunca pula direto para o pagamento.
+  const lifetimeLinkBlocked = !LIFETIME_PLAN_ENABLED && requestedLifetime;
+  const [showPaymentStep, setShowPaymentStep] = useState(!lifetimeLinkBlocked && (isTrial || skipSelect || directPaymentStep));
   const planId = selectedPlanId;
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>(searchParams.get("cycle") === "lifetime" || searchParams.get("cycle") === "annual" ? "lifetime" : "monthly");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(LIFETIME_PLAN_ENABLED && requestedLifetime ? "lifetime" : "monthly");
+
+  // Link direto para o Vitalício com a venda desligada: volta para a escolha de planos, só mensal.
+  useEffect(() => {
+    if (!lifetimeLinkBlocked) return;
+    const next = new URLSearchParams(searchParams);
+    ["cycle", "step", "skipSelect", "plano"].forEach((key) => next.delete(key));
+    if (!PLANS_DATA[next.get("plan") ?? ""]) next.delete("plan");
+    setShowPaymentStep(false);
+    const query = next.toString();
+    navigate(`/checkout${query ? `?${query}` : ""}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na chegada do link
+  }, []);
   const plan = PLANS_DATA[planId];
   const recurringPrice = getDisplayPrice(planId, billingCycle);
   const recurringCycleLabel = billingCycle === "lifetime" ? "vitalícia" : "mensal";
@@ -607,10 +627,10 @@ const CheckoutPage = () => {
                   Pagamento seguro via ValidaPay.
                 </p>
               </div>
-              <div className="flex gap-2" aria-label="Tipo de pagamento">
+              {LIFETIME_PLAN_ENABLED && <div className="flex gap-2" aria-label="Tipo de pagamento">
                 <Button variant={billingCycle === "monthly" ? "secondary" : "ghost"} aria-pressed={billingCycle === "monthly"} onClick={() => setBillingCycle("monthly")} disabled={checkingOutPlanId !== null}>Mensal</Button>
                 <Button variant={billingCycle === "lifetime" ? "secondary" : "ghost"} aria-pressed={billingCycle === "lifetime"} onClick={() => setBillingCycle("lifetime")} disabled={checkingOutPlanId !== null}>Vitalício</Button>
-              </div>
+              </div>}
             </div>
 
 

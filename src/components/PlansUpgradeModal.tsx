@@ -29,7 +29,7 @@ import { isAdminEmail } from "@/lib/adminAccess";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { createLocalSandboxSubscription } from "@/lib/localSandbox";
 import { Button } from "@/components/ui/button";
-import { VELO_PLAN_PRICES } from "@/lib/planPricing";
+import { LIFETIME_PLAN_ENABLED, VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
 
@@ -465,7 +465,7 @@ const MobilePlansSheet = ({
         })}
       </div>
 
-      <div className="mt-3 flex rounded-full bg-black/[0.06] p-[3px]">
+      {LIFETIME_PLAN_ENABLED && <div className="mt-3 flex rounded-full bg-black/[0.06] p-[3px]">
         {([
           { id: "monthly" as BillingCycle, label: "Mensal" },
           { id: "lifetime" as BillingCycle, label: "Vitalício" },
@@ -485,7 +485,7 @@ const MobilePlansSheet = ({
             </Button>
           );
         })}
-      </div>
+      </div>}
 
       <div className="relative mt-6">
         <div
@@ -682,7 +682,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   // Fluxo Velo v1: cria a sessão e segue direto para o checkout hospedado da ValidaPay.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
-    const checkoutCycle = cycle;
+    const checkoutCycle: BillingCycle = LIFETIME_PLAN_ENABLED ? cycle : "monthly";
     setCheckingOutPlanId(planId);
     trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${checkoutCycle}` });
     try {
@@ -820,7 +820,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
             </p>
           </div>
 
-          <div className="inline-flex rounded-full bg-black/[0.06] p-[3px]">
+          {LIFETIME_PLAN_ENABLED && <div className="inline-flex rounded-full bg-black/[0.06] p-[3px]">
             {([
               { id: "monthly" as BillingCycle, label: "Mensal" },
               { id: "lifetime" as BillingCycle, label: "Vitalício" },
@@ -840,13 +840,13 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                 </Button>
               );
             })}
-          </div>
+          </div>}
         </div>
 
         <div className="mx-auto mt-5 grid max-w-[980px] items-stretch gap-5 lg:grid-cols-3">
           {loadingPlans ? [0, 1, 2].map(skeletonCard) : PLANS.map((originalPlan) => {
             // No mensal, o lugar do Business mostra o Base vitalício, que leva para a aba Vitalício.
-            const isLifetimeTeaser = cycle === "monthly" && originalPlan.id === "business";
+            const isLifetimeTeaser = LIFETIME_PLAN_ENABLED && cycle === "monthly" && originalPlan.id === "business";
             const basePlan = PLANS.find((item) => item.id === "base") ?? originalPlan;
             const plan = isLifetimeTeaser
               ? { ...basePlan, name: "Base Vitalício", ribbon: "Pague uma vez" }

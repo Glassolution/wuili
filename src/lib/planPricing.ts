@@ -6,6 +6,12 @@ export const VELO_PLAN_PRICES: Record<VeloPaidPlanId, { monthly: number; annual:
   business: { monthly: 189.9, annual: 2278.8, lifetime: 427.9, compareAt: 513.48 },
 };
 
+// Teste de 2 semanas (desde 2026-11-20): Vitalício fora da venda.
+// Só esconde a oferta (modal de planos, checkout, landing). Quem já comprou
+// continua vitalício: a regra é subscriptions.purchase_kind, que não muda.
+// Para voltar a vender: true.
+export const LIFETIME_PLAN_ENABLED = false;
+
 export const billingCycleForPlan = (_plan: string): "monthly" => "monthly";
 
 export const VELO_STARTING_MONTHLY_PRICE = Math.min(

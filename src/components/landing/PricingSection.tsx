@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { VELO_PLAN_PRICES, formatPlanPriceBRL } from "@/lib/planPricing";
+import { LIFETIME_PLAN_ENABLED, VELO_PLAN_PRICES, formatPlanPriceBRL } from "@/lib/planPricing";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -130,10 +130,10 @@ const PricingSection = () => {
             Faça upgrade do seu plano
           </h2>
           {/* Toggle */}
-          <div className="inline-flex rounded-full border border-white/[0.12] bg-[#111] p-[3px]">
+          {LIFETIME_PLAN_ENABLED && <div className="inline-flex rounded-full border border-white/[0.12] bg-[#111] p-[3px]">
             <Button variant={cycle === "monthly" ? "secondary" : "ghost"} onClick={() => setCycle("monthly")} aria-pressed={cycle === "monthly"}>Mensal</Button>
             <Button variant={cycle === "lifetime" ? "secondary" : "ghost"} onClick={() => setCycle("lifetime")} aria-pressed={cycle === "lifetime"}>Vitalício</Button>
-          </div>
+          </div>}
         </div>
 
         {/* Cards */}

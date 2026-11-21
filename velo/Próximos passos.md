@@ -1,7 +1,11 @@
 ---
-atualizado: 2026-11-18
+atualizado: 2026-11-20
 ---
 # Próximos passos
+
+## Teste sem Vitalício (20/11 → ~04/12)
+- [x] Vitalício escondido da venda com `LIFETIME_PLAN_ENABLED = false` → [[Planos e preços]]
+- [ ] Em ~04/12, comparar a conversão com as 2 semanas anteriores e decidir: manter fora ou voltar para `true`
 
 ## Purchase da Meta pelo servidor (18/11)
 - [x] Navegador usa `purchase_<sid>` e guarda o clique (`velo_meta_click`) → [[Pixels e medição]]
