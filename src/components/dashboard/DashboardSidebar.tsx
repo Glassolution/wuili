@@ -15,7 +15,7 @@ import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
 import { useSandboxMode } from "@/lib/sandboxMode";
-import { bestAccessSubscription, hasAccessStatus, resolveAccessPlan } from "@/lib/subscriptionAccess";
+import { bestAccessSubscription, resolveAccessPlan } from "@/lib/subscriptionAccess";
 
 type NavItem = {
   id: string;
@@ -443,7 +443,7 @@ const DashboardSidebar = () => {
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .then(async (subscriptionResult) => {
+        .then((subscriptionResult) => {
         if (!active) return;
         if (subscriptionResult.error) return;
 
@@ -451,13 +451,7 @@ const DashboardSidebar = () => {
         const currentSubscription = bestAccessSubscription(subscriptions) ?? null;
         setSubscription(currentSubscription);
 
-        let profilePlan: string | null = null;
-        if (!hasAccessStatus(subscriptions)) {
-          const { data, error } = await supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle();
-          if (error || !active) return;
-          profilePlan = data?.plano ?? null;
-        }
-        if (active) setPlan(resolveAccessPlan(subscriptions, profilePlan));
+        if (active) setPlan(resolveAccessPlan(subscriptions));
       });
 
     return () => {

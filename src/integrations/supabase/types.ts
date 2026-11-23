@@ -3064,6 +3064,36 @@ export type Database = {
           },
         ]
       }
+      profile_plano_correction_backup: {
+        Row: {
+          applied_at: string | null
+          applied_profile_updated_at: string | null
+          backed_up_at: string
+          correction_id: string
+          plano_anterior: string
+          profile_updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_profile_updated_at?: string | null
+          backed_up_at?: string
+          correction_id: string
+          plano_anterior: string
+          profile_updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_profile_updated_at?: string | null
+          backed_up_at?: string
+          correction_id?: string
+          plano_anterior?: string
+          profile_updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           aliexpress_access_token: string | null

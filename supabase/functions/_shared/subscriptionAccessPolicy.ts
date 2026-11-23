@@ -25,18 +25,9 @@ export function bestAccessSubscription<T extends AccessSubscription>(subs: T[], 
     .sort((a, b) => (RANK[b.plan ?? ""] ?? 0) - (RANK[a.plan ?? ""] ?? 0))[0];
 }
 
-/** An expired ACTIVE ValidaPay row must not be rescued by the profile fallback. */
-export function hasAccessStatus(subs: AccessSubscription[]): boolean {
-  return subs.some(sub => ACCESS_STATUSES.includes(String(sub.status).toLowerCase()));
-}
-
-/** Temporary legacy bridge: profile is allowed only with no subscription in an access status. */
-export function resolveAccessPlan(subs: AccessSubscription[], profilePlan?: string | null, now = Date.now()): string {
-  const best = bestAccessSubscription(subs, now);
-  if (best) return best.plan ?? "gratis";
-  if (hasAccessStatus(subs)) return "gratis";
-  const legacy = String(profilePlan ?? "gratis").toLowerCase();
-  return legacy === "free" || !legacy ? "gratis" : legacy;
+/** Profiles are a display mirror, never a source of entitlement. */
+export function resolveAccessPlan(subs: AccessSubscription[], now = Date.now()): string {
+  return bestAccessSubscription(subs, now)?.plan ?? "gratis";
 }
 
 export type AuditCharge = {

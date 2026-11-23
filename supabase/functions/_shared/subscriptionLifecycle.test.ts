@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { guardPaidSubscription } from "./subscriptionLifecycle";
+import { guardPaidSubscription, syncPaidProfile } from "./subscriptionLifecycle";
 
 /** In-memory fluent provider for checking actual writes, not markup or copy. */
 function fakeAdmin(refunds: Array<Record<string, unknown>> = []) {
@@ -30,6 +30,17 @@ function fakeAdmin(refunds: Array<Record<string, unknown>> = []) {
 }
 
 describe("blocked payment integration", () => {
+  it.each(["base", "pro", "business"])("novo pagamento %s restaura o plano certo em um perfil gratis", async plan => {
+    const { admin, tables } = fakeAdmin();
+    tables.profiles[0].plano = "gratis";
+    tables.subscriptions[1] = { id: "new", user_id: "customer", status: "active", plan,
+      provider: "validapay", purchase_kind: "recurring",
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() };
+    await syncPaidProfile(admin, "customer");
+    expect(tables.profiles[0].plano).toBe(plan);
+    expect(tables.subscriptions[1].status).toBe("active");
+    expect(tables.payment_incidents).toHaveLength(0);
+  });
   it("records one incident on replay and preserves the separate lifetime plan", async () => {
     const { admin, tables } = fakeAdmin();
     const sub = { id: "old", user_id: "customer", status: "expired", cancel_at_period_end: true, cancelled_at: "2026-10-06T23:18:29Z" };

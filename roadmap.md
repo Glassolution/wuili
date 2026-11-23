@@ -1,5 +1,10 @@
 # Roadmap
 
+## Remoção definitiva do fallback — 23/11
+- [x] Gatilhos: proteção administrativa + updated_at, sem comunicações; confirmar 834 perfis e caminhos de ativação existentes
+- [x] Backup 2026-11-23-profile-plano; 834 perfis gratis (750 Base, 80 Pro, 4 Business), rechecagem de status/CAS; zero perfis pagos sem status de acesso restantes
+- [x] Remover todo fallback; 65 testes incluindo restauração após novo pagamento; validação Deno e diff preparados, sem publicação
+
 ## Ajuste de acesso antes de publicar — 23/11
 - [x] Limitar vencimento/tolerância à ValidaPay e preservar demais provedores
 - [x] SELECT: 834 perfis sem assinatura em status de acesso (Base 750, Pro 80, Business 4); fallback somente nesse grupo

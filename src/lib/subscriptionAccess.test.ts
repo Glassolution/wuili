@@ -36,31 +36,31 @@ describe("validade do plano", () => {
     expect(subscriptionHasAccess({ ...monthly, provider, current_period_end: null }, end)).toBe(true);
     expect(subscriptionHasAccess({ ...monthly, provider, status: "expired" }, end)).toBe(false);
   });
-  it("perfil pago sem nenhuma assinatura em status de acesso mantém o fallback", () => {
-    expect(resolveAccessPlan([], "pro", end)).toBe("pro");
-    expect(resolveAccessPlan([{ ...monthly, status: "expired" }], "business", end)).toBe("business");
-    expect(resolveAccessPlan([{ ...monthly, status: "past_due" }], "base", end)).toBe("base");
+  it("sem assinatura elegível o plano é gratis, sem fallback", () => {
+    expect(resolveAccessPlan([], end)).toBe("gratis");
+    expect(resolveAccessPlan([{ ...monthly, status: "expired" }], end)).toBe("gratis");
+    expect(resolveAccessPlan([{ ...monthly, status: "past_due" }], end)).toBe("gratis");
   });
   it("fallback não resgata ValidaPay ACTIVE com período vencido", () => {
-    expect(resolveAccessPlan([monthly], "business", end + 259200001)).toBe("gratis");
+    expect(resolveAccessPlan([monthly], end + 259200001)).toBe("gratis");
   });
   it("um contrato válido continua prevalecendo sobre profiles.plano", () => {
-    expect(resolveAccessPlan([monthly], "business", end)).toBe("pro");
-    expect(resolveAccessPlan([{ ...monthly, provider: "manual", plan: "base", current_period_end: null }], "business", end)).toBe("base");
+    expect(resolveAccessPlan([monthly], end)).toBe("pro");
+    expect(resolveAccessPlan([{ ...monthly, provider: "manual", plan: "base", current_period_end: null }], end)).toBe("base");
   });
   it("sandbox em status de acesso não habilita o fallback do perfil", () => {
-    expect(resolveAccessPlan([{ ...monthly, provider: "sandbox" }], "business", end)).toBe("gratis");
+    expect(resolveAccessPlan([{ ...monthly, provider: "sandbox" }], end)).toBe("gratis");
   });
-  it("servidor consulta perfil somente depois de confirmar ausência de status de acesso", async () => {
+  it("expired com perfil business retorna gratis e nunca consulta o perfil", async () => {
     const calls: string[] = [];
     const client = { from(table: string) {
       calls.push(table);
       return { select: () => ({ eq: () => table === "subscriptions"
         ? Promise.resolve({ data: [{ ...monthly, status: "expired" }], error: null })
-        : { maybeSingle: async () => ({ data: { plano: "pro" }, error: null }) } }) };
+        : { maybeSingle: async () => ({ data: { plano: "business" }, error: null }) } }) };
     } };
-    expect(await readAccessPlan(client, "internal-user", end)).toBe("pro");
-    expect(calls).toEqual(["subscriptions", "profiles"]);
+    expect(await readAccessPlan(client, "internal-user", end)).toBe("gratis");
+    expect(calls).toEqual(["subscriptions"]);
   });
   it("falha na leitura de assinaturas não é confundida com ausência para usar fallback", async () => {
     const client = { from(table: string) {
