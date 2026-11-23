@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { bestAccessSubscription } from "@/lib/subscriptionAccess";
+import { readAccessPlan } from "../../supabase/functions/_shared/subscriptionAccess";
 import { ShieldCheck, Truck, Star, Package, Rocket, Lock, X, CheckCircle2, Loader2 } from "lucide-react";
 
 type Page = {
@@ -51,12 +51,9 @@ export default function PreviewPage() {
   const handlePublish = async () => {
     if (!page || !user) return;
     // Checar assinatura ativa
-    const { data: subs } = await supabase
-      .from("subscriptions")
-      .select("status,plan,provider,purchase_kind,current_period_end")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    const active = Boolean(bestAccessSubscription(subs ?? []));
+    let active = false;
+    try { active = (await readAccessPlan(supabase, user.id)) !== "gratis"; }
+    catch { setShowPaywall(true); return; }
     if (!active) {
       setShowPaywall(true);
       return;

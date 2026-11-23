@@ -1,7 +1,7 @@
 import { subscriptionHasAccess } from "./subscriptionAccessPolicy.ts";
 
 export type LifecycleSubscription = {
-  id: string; user_id: string; status: string; plan?: string | null;
+  id: string; user_id: string; status: string; plan?: string | null; provider?: string | null;
   purchase_kind?: string | null; cancel_at_period_end?: boolean | null;
   cancelled_at?: string | null; current_period_end?: string | null;
 };

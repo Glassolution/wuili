@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { PLAN_LIMITS, normalizePlanName } from "@/lib/planLimits";
-import { bestAccessSubscription } from "@/lib/subscriptionAccess";
+import { readAccessPlan } from "../../supabase/functions/_shared/subscriptionAccess";
 
 /** Espelha o teto do plano grátis na edge function `generate-product-image`. */
 export const LIMITE_MENSAL_GRATUITO = PLAN_LIMITS.gratis.aiImagesPerMonth ?? 3;
@@ -43,12 +43,8 @@ export const useAiImageQuota = () => {
       return;
     }
 
-    const [assinatura, consumo] = await Promise.all([
-      supabase
-        .from("subscriptions")
-        .select("plan,status,provider,purchase_kind,current_period_end")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false, nullsFirst: false }),
+    const [accessPlan, consumo] = await Promise.all([
+      readAccessPlan(supabase, user.id),
       supabase
         .from("ai_image_generations")
         .select("id", { count: "exact", head: true })
@@ -56,7 +52,7 @@ export const useAiImageQuota = () => {
         .gte("created_at", inicioDoMesISO()),
     ]);
 
-    const plano = normalizePlanName(bestAccessSubscription(assinatura.data ?? [])?.plan);
+    const plano = normalizePlanName(accessPlan);
     const limite = PLAN_LIMITS[plano].aiImagesPerMonth;
     const usadas = consumo.count ?? 0;
 

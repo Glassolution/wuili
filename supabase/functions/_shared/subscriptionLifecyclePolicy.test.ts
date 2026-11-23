@@ -51,7 +51,7 @@ describe("cancelled recurring payment rules", () => {
     expect(paymentIsBlocked({ ...sub, id: "new-contract", status: "pending", cancel_at_period_end: false, cancelled_at: null }, false)).toBe(false);
   });
   it("keeps scheduled cancellation access through the three-day grace, not beyond it", () => {
-    const scheduled = { ...sub, status: "active", current_period_end: "2026-11-06T22:28:03.528Z" };
+    const scheduled = { ...sub, provider: "validapay", status: "active", current_period_end: "2026-11-06T22:28:03.528Z" };
     expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-06T13:05:23Z"))).toBe(true);
     expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-09T22:28:03.528Z"))).toBe(true);
     expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-09T22:28:03.529Z"))).toBe(false);

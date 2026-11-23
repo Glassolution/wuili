@@ -18,7 +18,7 @@ export async function hasTerminatingRefund(admin: LifecycleAdmin, subscriptionId
 /** Recompute entitlement rather than blindly removing another paid contract's access. */
 export async function syncPaidProfile(admin: LifecycleAdmin, userId: string): Promise<void> {
   const { data, error } = await admin.from("subscriptions")
-    .select("id,user_id,status,plan,purchase_kind,cancel_at_period_end,cancelled_at,current_period_end")
+    .select("id,user_id,status,plan,provider,purchase_kind,cancel_at_period_end,cancelled_at,current_period_end")
     .eq("user_id", userId).in("status", ["active", "paid", "approved", "cancel_scheduled"]);
   if (error) throw new Error(`lifecycle_entitlement_read:${error.message}`);
   const ranks: Record<string, number> = { base: 1, pro: 2, business: 3 };

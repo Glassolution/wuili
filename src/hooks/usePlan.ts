@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ACCESS_STATUSES, bestAccessSubscription } from "@/lib/subscriptionAccess";
+import { readAccessPlan } from "../../supabase/functions/_shared/subscriptionAccess";
 
 export type PlanName = "gratis" | "go" | "base" | "pro" | "business";
 
@@ -50,30 +50,13 @@ export const usePlan = (): PlanState => {
       // Pode haver mais de uma assinatura ativa (upgrade, cobrança recriada,
       // migração). Vale sempre o MAIOR plano ativo — pegar a mais recente
       // rebaixava quem tinha Pro ativo com uma linha Base criada depois.
-      const { data: subs, error: subsError } = await supabase
-        .from("subscriptions")
-        .select("plan,status,provider,purchase_kind,current_period_end")
-        .eq("user_id", user.id)
-        .in("status", ACCESS_STATUSES);
-
-      if (subsError) {
-        // Erro aqui antes caía direto no fallback de "profiles" sem nenhum
-        // aviso — uma falha transitória de rede fazia um assinante pago
-        // parecer "gratis" silenciosamente.
-        console.warn("[usePlan] failed to load subscriptions", subsError);
+      try {
+        const best = NORMALIZE[await readAccessPlan(supabase, user.id)] ?? "gratis";
+        if (!cancelled) setState({ plan: best, status: best === "gratis" ? "inactive" : "active", loading: false });
+      } catch (error) {
+        console.warn("[usePlan] failed to load access plan", error);
+        if (!cancelled) setState(current => ({ ...current, loading: false }));
       }
-
-      if (cancelled) return;
-
-      const best = NORMALIZE[bestAccessSubscription(subs ?? [])?.plan ?? "gratis"] ?? "gratis";
-
-      if (best && best !== "gratis") {
-        setState({ plan: best, status: "active", loading: false });
-        return;
-      }
-
-      // A cached profile plan cannot override an expired or missing subscription.
-      setState({ plan: "gratis", status: "inactive", loading: false });
     };
 
     void fetchPlan();

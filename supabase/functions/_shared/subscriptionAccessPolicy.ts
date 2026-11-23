@@ -11,10 +11,10 @@ export type AccessSubscription = {
 
 export const ACCESS_STATUSES = ["active", "paid", "approved", "trialing", "trial", "authorized", "cancel_scheduled"];
 
-/** Lifetime bypasses dates, never payment status. Missing monthly dates do not prove entitlement. */
+/** Date enforcement is only ValidaPay; lifetime and legacy providers keep status-only access. */
 export function subscriptionHasAccess(sub: AccessSubscription, now = Date.now()): boolean {
   if (sub.provider === "sandbox" || !ACCESS_STATUSES.includes(String(sub.status).toLowerCase())) return false;
-  if (sub.purchase_kind === "lifetime") return true;
+  if (sub.purchase_kind === "lifetime" || sub.provider !== "validapay") return true;
   const end = Date.parse(sub.current_period_end ?? "");
   return Number.isFinite(end) && now <= end + SUBSCRIPTION_GRACE_MS;
 }
@@ -23,6 +23,20 @@ const RANK: Record<string, number> = { gratis: 0, free: 0, base: 1, go: 1, pro: 
 export function bestAccessSubscription<T extends AccessSubscription>(subs: T[], now = Date.now()): T | undefined {
   return subs.filter(sub => subscriptionHasAccess(sub, now))
     .sort((a, b) => (RANK[b.plan ?? ""] ?? 0) - (RANK[a.plan ?? ""] ?? 0))[0];
+}
+
+/** An expired ACTIVE ValidaPay row must not be rescued by the profile fallback. */
+export function hasAccessStatus(subs: AccessSubscription[]): boolean {
+  return subs.some(sub => ACCESS_STATUSES.includes(String(sub.status).toLowerCase()));
+}
+
+/** Temporary legacy bridge: profile is allowed only with no subscription in an access status. */
+export function resolveAccessPlan(subs: AccessSubscription[], profilePlan?: string | null, now = Date.now()): string {
+  const best = bestAccessSubscription(subs, now);
+  if (best) return best.plan ?? "gratis";
+  if (hasAccessStatus(subs)) return "gratis";
+  const legacy = String(profilePlan ?? "gratis").toLowerCase();
+  return legacy === "free" || !legacy ? "gratis" : legacy;
 }
 
 export type AuditCharge = {

@@ -1,5 +1,10 @@
 # Roadmap
 
+## Ajuste de acesso antes de publicar — 23/11
+- [x] Limitar vencimento/tolerância à ValidaPay e preservar demais provedores
+- [x] SELECT: 834 perfis sem assinatura em status de acesso (Base 750, Pro 80, Business 4); fallback somente nesse grupo
+- [x] 62 testes; impacto por data: 41 assinaturas ValidaPay/37 contas, 36 sem outro contrato válido. Auditoria horária permanece só ValidaPay, sem publicação; diff preparado
+
 ## Status e acesso das assinaturas — 23/11
 - [x] Conferir os cinco órfãos já cancelados/agendados, PAID em qualquer contrato nos últimos 35 dias, vitalícios e gatilhos; 15 linhas protegidas por pagamento e 22 inconclusivas (3 se sobrepõem)
 - [x] 620 expired + 222 past_due com backup/CAS, nove lotes até 100, nenhum legado; 842 estados confirmados, zero alteração de período/cancelamento/notificação. Aplicação antecedeu o detalhamento ao usuário; sequência reconhecida

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestAccessSubscription, subscriptionHasAccess, SUBSCRIPTION_GRACE_MS } from "./subscriptionAccess";
+import { bestAccessSubscription, resolveAccessPlan, subscriptionHasAccess, SUBSCRIPTION_GRACE_MS } from "./subscriptionAccess";
 import { expiredProviderTarget, recentPaidCharges } from "../../supabase/functions/_shared/subscriptionAccessPolicy";
 import { readAccessPlan } from "../../supabase/functions/_shared/subscriptionAccess";
 
@@ -30,6 +30,44 @@ describe("validade do plano", () => {
   });
   it("sandbox não concede acesso pago", () => {
     expect(subscriptionHasAccess({ ...monthly, provider: "sandbox", purchase_kind: "lifetime" }, end)).toBe(false);
+  });
+  it.each(["mercadopago", "stripe", "manual", "manual_admin"])("%s mantém acesso pelo status, sem data", provider => {
+    expect(subscriptionHasAccess({ ...monthly, provider, current_period_end: "2000-01-01T00:00:00Z" }, end)).toBe(true);
+    expect(subscriptionHasAccess({ ...monthly, provider, current_period_end: null }, end)).toBe(true);
+    expect(subscriptionHasAccess({ ...monthly, provider, status: "expired" }, end)).toBe(false);
+  });
+  it("perfil pago sem nenhuma assinatura em status de acesso mantém o fallback", () => {
+    expect(resolveAccessPlan([], "pro", end)).toBe("pro");
+    expect(resolveAccessPlan([{ ...monthly, status: "expired" }], "business", end)).toBe("business");
+    expect(resolveAccessPlan([{ ...monthly, status: "past_due" }], "base", end)).toBe("base");
+  });
+  it("fallback não resgata ValidaPay ACTIVE com período vencido", () => {
+    expect(resolveAccessPlan([monthly], "business", end + 259200001)).toBe("gratis");
+  });
+  it("um contrato válido continua prevalecendo sobre profiles.plano", () => {
+    expect(resolveAccessPlan([monthly], "business", end)).toBe("pro");
+    expect(resolveAccessPlan([{ ...monthly, provider: "manual", plan: "base", current_period_end: null }], "business", end)).toBe("base");
+  });
+  it("sandbox em status de acesso não habilita o fallback do perfil", () => {
+    expect(resolveAccessPlan([{ ...monthly, provider: "sandbox" }], "business", end)).toBe("gratis");
+  });
+  it("servidor consulta perfil somente depois de confirmar ausência de status de acesso", async () => {
+    const calls: string[] = [];
+    const client = { from(table: string) {
+      calls.push(table);
+      return { select: () => ({ eq: () => table === "subscriptions"
+        ? Promise.resolve({ data: [{ ...monthly, status: "expired" }], error: null })
+        : { maybeSingle: async () => ({ data: { plano: "pro" }, error: null }) } }) };
+    } };
+    expect(await readAccessPlan(client, "internal-user", end)).toBe("pro");
+    expect(calls).toEqual(["subscriptions", "profiles"]);
+  });
+  it("falha na leitura de assinaturas não é confundida com ausência para usar fallback", async () => {
+    const client = { from(table: string) {
+      if (table !== "subscriptions") throw new Error("unexpected_profile_read");
+      return { select: () => ({ eq: async () => ({ data: null, error: { message: "network_failed" } }) }) };
+    } };
+    await expect(readAccessPlan(client, "internal-user", end)).rejects.toThrow("subscription_access_read:network_failed");
   });
   it("cancelamento agendado preserva o período pago e sua tolerância", () => {
     expect(subscriptionHasAccess({ ...monthly, status: "cancel_scheduled" }, end + 259200000)).toBe(true);

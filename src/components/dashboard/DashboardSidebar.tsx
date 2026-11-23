@@ -15,7 +15,7 @@ import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
 import { useSandboxMode } from "@/lib/sandboxMode";
-import { bestAccessSubscription } from "@/lib/subscriptionAccess";
+import { bestAccessSubscription, hasAccessStatus, resolveAccessPlan } from "@/lib/subscriptionAccess";
 
 type NavItem = {
   id: string;
@@ -441,21 +441,23 @@ const DashboardSidebar = () => {
         .from("subscriptions")
         .select("plan,status,provider,purchase_kind,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
         .eq("user_id", user.id)
-        .or("provider.is.null,provider.neq.sandbox")
         .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .then((subscriptionResult) => {
+        .then(async (subscriptionResult) => {
         if (!active) return;
+        if (subscriptionResult.error) return;
 
-        const currentSubscription = bestAccessSubscription((subscriptionResult.data ?? []) as SidebarSubscription[]) ?? null;
+        const subscriptions = (subscriptionResult.data ?? []) as SidebarSubscription[];
+        const currentSubscription = bestAccessSubscription(subscriptions) ?? null;
         setSubscription(currentSubscription);
 
-        if (currentSubscription?.plan && activeSubscriptionStatuses.has(String(currentSubscription.status))) {
-          setPlan(String(currentSubscription.plan));
-          return;
+        let profilePlan: string | null = null;
+        if (!hasAccessStatus(subscriptions)) {
+          const { data, error } = await supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle();
+          if (error || !active) return;
+          profilePlan = data?.plano ?? null;
         }
-
-        setPlan("gratis");
+        if (active) setPlan(resolveAccessPlan(subscriptions, profilePlan));
       });
 
     return () => {
