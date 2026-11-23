@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { ACCESS_STATUSES, bestAccessSubscription } from "@/lib/subscriptionAccess";
 
 export type PlanName = "gratis" | "go" | "base" | "pro" | "business";
 
@@ -51,9 +52,9 @@ export const usePlan = (): PlanState => {
       // rebaixava quem tinha Pro ativo com uma linha Base criada depois.
       const { data: subs, error: subsError } = await supabase
         .from("subscriptions")
-        .select("plan, status, provider")
+        .select("plan,status,provider,purchase_kind,current_period_end")
         .eq("user_id", user.id)
-        .in("status", ["active", "paid", "approved", "trialing"]);
+        .in("status", ACCESS_STATUSES);
 
       if (subsError) {
         // Erro aqui antes caía direto no fallback de "profiles" sem nenhum
@@ -64,44 +65,23 @@ export const usePlan = (): PlanState => {
 
       if (cancelled) return;
 
-      const RANK: Record<PlanName, number> = {
-        gratis: 0, base: 1, go: 1, pro: 2, business: 3,
-      };
-      const best = (subs ?? [])
-        .filter((s) => String((s as { provider?: string | null }).provider ?? "").toLowerCase() !== "sandbox")
-        .map((s) => NORMALIZE[s.plan] ?? "gratis")
-        .sort((a, b) => RANK[b] - RANK[a])[0];
+      const best = NORMALIZE[bestAccessSubscription(subs ?? [])?.plan ?? "gratis"] ?? "gratis";
 
       if (best && best !== "gratis") {
         setState({ plan: best, status: "active", loading: false });
         return;
       }
 
-      // 2. Fall back to profile plano field
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("plano")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.warn("[usePlan] failed to load profile plano", profileError);
-      }
-
-      if (cancelled) return;
-
-      const plan = NORMALIZE[profile?.plano ?? "gratis"] ?? "gratis";
-      setState({
-        plan,
-        status: plan === "gratis" ? "inactive" : "active",
-        loading: false,
-      });
+      // A cached profile plan cannot override an expired or missing subscription.
+      setState({ plan: "gratis", status: "inactive", loading: false });
     };
 
-    fetchPlan();
+    void fetchPlan();
+    const interval = window.setInterval(() => { void fetchPlan(); }, 60_000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [user, authLoading]);
 

@@ -6,6 +6,7 @@
 // guardar histórico, é só adicionar o upload aqui.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { PLAN_LIMITS, normalizePlanKey } from "../_shared/plan-limits.ts";
+import { readAccessPlan, type SubscriptionReadClient } from "../_shared/subscriptionAccess.ts";
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "../_shared/disposableEmail.ts";
 
 const corsHeaders = {
@@ -110,20 +111,8 @@ const inicioDoMes = () => {
  * inserir nem apagar linhas de consumo, então o número não é contornável pelo
  * navegador.
  */
-async function lerCota(admin: ReturnType<typeof createClient>, userId: string) {
-  const [assinatura, perfil] = await Promise.all([
-    admin
-      .from("subscriptions")
-      .select("plan,status")
-      .eq("user_id", userId)
-      .in("status", ["active", "authorized", "trialing", "trial"])
-      .order("updated_at", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle(),
-    admin.from("profiles").select("plano").eq("user_id", userId).maybeSingle(),
-  ]);
-
-  const plano = normalizePlanKey(assinatura.data?.plan ?? perfil.data?.plano);
+async function lerCota(admin: SubscriptionReadClient, userId: string) {
+  const plano = normalizePlanKey(await readAccessPlan(admin, userId));
   const limite = PLAN_LIMITS[plano].aiImagesPerMonth;
 
   const { count } = await admin

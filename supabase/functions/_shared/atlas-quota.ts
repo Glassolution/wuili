@@ -19,6 +19,7 @@ type Client = {
 } | null;
 
 import { PLAN_LIMITS, normalizePlanKey } from "./plan-limits.ts";
+import { readAccessPlan } from "./subscriptionAccess.ts";
 
 export const ATLAS_ETAPA_RESUMO = "resumo_contexto";
 
@@ -81,13 +82,7 @@ export const checarQuotaAtlas = async (supabase: Client, userId: string): Promis
   if (!supabase) return liberado();
 
   try {
-    const { data: perfil } = await supabase
-      .from("profiles")
-      .select("plano")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const plano = normalizarPlano((perfil as { plano?: unknown } | null)?.plano);
+    const plano = normalizarPlano(await readAccessPlan(supabase, userId));
     const limite = ATLAS_QUOTAS[plano] ?? null;
 
     const { count, error } = await supabase

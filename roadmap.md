@@ -1,5 +1,11 @@
 # Roadmap
 
+## Status e acesso das assinaturas — 23/11
+- [x] Conferir os cinco órfãos já cancelados/agendados, PAID em qualquer contrato nos últimos 35 dias, vitalícios e gatilhos; 15 linhas protegidas por pagamento e 22 inconclusivas (3 se sobrepõem)
+- [x] 620 expired + 222 past_due com backup/CAS, nove lotes até 100, nenhum legado; 842 estados confirmados, zero alteração de período/cancelamento/notificação. Aplicação antecedeu o detalhamento ao usuário; sequência reconhecida
+- [x] Vencimento + três dias no acesso mensal, vitalício isento; auditoria horária protegida e reversível, sem ação financeira. 52 testes passaram
+- [x] Preparar diff, relatório e lista de exceções; conferência autenticada da conta solicitante, sem publicar site ou funções
+
 ## Cancelamento ValidaPay — 18/11
 - [x] Reconhecer agendamento existente e conservar resposta completa; cinco funções de cancelamento/processamento publicadas
 - [x] Migration 0070 enfileira transições novas atomicamente, sem backfill; exclusão aguarda confirmação

@@ -3967,6 +3967,54 @@ export type Database = {
           },
         ]
       }
+      subscription_status_correction_backup: {
+        Row: {
+          applied_at: string | null
+          applied_status: string | null
+          atualizado_em: string | null
+          backed_up_at: string
+          batch_number: number
+          correction_id: string
+          current_period_end: string | null
+          evidence: Json
+          id: string
+          provider_status: string
+          status: string
+          target_status: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_status?: string | null
+          atualizado_em?: string | null
+          backed_up_at?: string
+          batch_number: number
+          correction_id: string
+          current_period_end?: string | null
+          evidence?: Json
+          id: string
+          provider_status: string
+          status: string
+          target_status: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_status?: string | null
+          atualizado_em?: string | null
+          backed_up_at?: string
+          batch_number?: number
+          correction_id?: string
+          current_period_end?: string | null
+          evidence?: Json
+          id?: string
+          provider_status?: string
+          status?: string
+          target_status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number

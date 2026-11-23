@@ -1,3 +1,5 @@
+import { subscriptionHasAccess } from "./subscriptionAccessPolicy.ts";
+
 export type LifecycleSubscription = {
   id: string; user_id: string; status: string; plan?: string | null;
   purchase_kind?: string | null; cancel_at_period_end?: boolean | null;
@@ -11,8 +13,7 @@ export function paymentIsBlocked(sub: LifecycleSubscription, hasRefund: boolean)
 
 export function preservesPaidAccess(sub: LifecycleSubscription, hasRefund: boolean, now: number): boolean {
   if (hasRefund || ["cancelled", "refunded", "refunded_duplicate"].includes(sub.status)) return false;
-  return ["active", "paid", "approved", "cancel_scheduled"].includes(sub.status) &&
-    (sub.purchase_kind === "lifetime" || Date.parse(sub.current_period_end ?? "") > now);
+  return subscriptionHasAccess(sub, now);
 }
 
 export function isPostCancellationPayment(paidAt: string | null, cancelledAt: string | null): boolean {

@@ -2,6 +2,7 @@
 // usuário (tabela ai_characters + bucket privado ai-characters).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { PLAN_LIMITS, normalizePlanKey } from "../_shared/plan-limits.ts";
+import { readAccessPlan } from "../_shared/subscriptionAccess.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -146,23 +147,7 @@ Deno.serve(async (req) => {
     // Limite de influencers por plano
     // Limites vindos da matriz única de planos (inclusive teto no Business:
     // cada personagem custa geração de imagem).
-    const { data: sub } = await admin
-      .from("subscriptions")
-      .select("plan, status")
-      .eq("user_id", userId)
-      .in("status", ["active", "authorized", "paused", "pending"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    let planKey = String(sub?.plan ?? "").toLowerCase();
-    if (!planKey) {
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("plano")
-        .eq("user_id", userId)
-        .maybeSingle();
-      planKey = String(profile?.plano ?? "gratis").toLowerCase();
-    }
+    const planKey = await readAccessPlan(admin, userId);
     const characterLimit = PLAN_LIMITS[normalizePlanKey(planKey)].aiCharacters;
     if (characterLimit !== null) {
       const { count } = await admin

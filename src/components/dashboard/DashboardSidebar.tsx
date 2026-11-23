@@ -15,6 +15,7 @@ import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
 import { useSandboxMode } from "@/lib/sandboxMode";
+import { bestAccessSubscription } from "@/lib/subscriptionAccess";
 
 type NavItem = {
   id: string;
@@ -144,6 +145,7 @@ type SidebarSubscription = {
   is_trial: boolean | null;
   trial_ends_at: string | null;
   current_period_end?: string | null;
+  purchase_kind?: string | null;
   next_charge_at?: string | null;
   created_at?: string | null;
 };
@@ -435,22 +437,17 @@ const DashboardSidebar = () => {
 
     let active = true;
 
-    Promise.all([
-      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
-      supabase
+    supabase
         .from("subscriptions")
-        .select("plan,status,provider,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
+        .select("plan,status,provider,purchase_kind,is_trial,trial_ends_at,current_period_end,next_charge_at,updated_at,created_at")
         .eq("user_id", user.id)
         .or("provider.is.null,provider.neq.sandbox")
-        .in("status", Array.from(activeSubscriptionStatuses))
         .order("updated_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]).then(([profileResult, subscriptionResult]) => {
+        .then((subscriptionResult) => {
         if (!active) return;
 
-        const currentSubscription = subscriptionResult.data as SidebarSubscription | null;
+        const currentSubscription = bestAccessSubscription((subscriptionResult.data ?? []) as SidebarSubscription[]) ?? null;
         setSubscription(currentSubscription);
 
         if (currentSubscription?.plan && activeSubscriptionStatuses.has(String(currentSubscription.status))) {
@@ -458,7 +455,7 @@ const DashboardSidebar = () => {
           return;
         }
 
-        if (profileResult.data?.plano) setPlan(String(profileResult.data.plano));
+        setPlan("gratis");
       });
 
     return () => {

@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-17
+atualizado: 2026-11-23
 fontes: [AGENTS.md, roadmap.md]
 ---
 # Assinatura e checkout
@@ -13,6 +13,7 @@ fontes: [AGENTS.md, roadmap.md]
 - Vitalício → [[Vitalício com pagamento único]].
 - **Gerenciar assinatura** (cancelar renovação): `/dashboard/configuracoes/central-da-assinatura` (`SubscriptionManageSection`). Sem botão/link no app; o link só vai na resposta fixa do suporte (`ORIENTAR_CANCELAMENTO`) → [[Cancelamento e reembolso]].
 - Lembretes de plano: `lembrete-planos`. Regularização de inadimplentes: `regularize-subscriptions` (`RegularizePaymentPage`).
-- Cálculo do plano no front: `src/hooks/usePlan.ts` (pode divergir da cota de IA em casos raros → [[Bugs conhecidos]]).
+- Acesso mensal: status válido e `current_period_end` com tolerância exata de três dias; vitalício ativo nunca vence. `subscriptionAccessPolicy.ts` é compartilhado pelo front, publicação, cotas e preservação de acesso. `profiles.plano` não comprova acesso. Código/testes preparados, sem publicação em 23/11.
+- Correção autorizada em 23/11: 620 linhas ValidaPay → `expired`, 222 → `past_due`, em nove lotes de até 100, com backup em `subscription_status_correction_backup`. PAID recente (qualquer contrato, 35 dias), vitalício e respostas não confirmadas ficam fora; nenhum provedor legado foi alterado. A prévia detalhada foi apresentada depois da aplicação, contrariando a ordem pedida; comunicado ao usuário.
 
 Ver também: [[ValidaPay]], [[Planos e preços]], [[Tabelas - Assinaturas e pagamentos]].

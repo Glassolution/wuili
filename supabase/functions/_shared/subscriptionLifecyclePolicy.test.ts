@@ -50,10 +50,11 @@ describe("cancelled recurring payment rules", () => {
   it("permits a different new paid contract", () => {
     expect(paymentIsBlocked({ ...sub, id: "new-contract", status: "pending", cancel_at_period_end: false, cancelled_at: null }, false)).toBe(false);
   });
-  it("keeps scheduled cancellation access until the end of the paid period, not beyond it", () => {
+  it("keeps scheduled cancellation access through the three-day grace, not beyond it", () => {
     const scheduled = { ...sub, status: "active", current_period_end: "2026-11-06T22:28:03.528Z" };
     expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-06T13:05:23Z"))).toBe(true);
-    expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-07T00:00:00Z"))).toBe(false);
+    expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-09T22:28:03.528Z"))).toBe(true);
+    expect(preservesPaidAccess(scheduled, false, Date.parse("2026-11-09T22:28:03.529Z"))).toBe(false);
     expect(preservesPaidAccess(scheduled, true, Date.parse("2026-11-06T13:05:23Z"))).toBe(false);
   });
   it("preserves another legitimate lifetime subscription", () => {

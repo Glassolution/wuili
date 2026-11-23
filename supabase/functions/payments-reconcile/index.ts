@@ -9,6 +9,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { processProviderCancellation } from "../_shared/providerCancellation.ts";
 import { auditProviderCancellations } from "../_shared/providerCancellationAudit.ts";
+import { auditExpiredProviderSubscriptions } from "../_shared/subscriptionExpiryAudit.ts";
 import { guardPaidSubscription } from "../_shared/subscriptionLifecycle.ts";
 import { handleUpgradePayment, recoverUpgrades } from "../_shared/planUpgrade.ts";
 import { getCharge, isConfirmedPayment, isPaidStatus, lookupPaymentStatus } from "../_shared/validapay.ts";
@@ -81,6 +82,11 @@ Deno.serve(async (req) => {
     for (const job of cancellationJobs ?? []) await processProviderCancellation(admin, job.subscription_id);
     // De hora em hora: confere na ValidaPay se algum contrato cancelado na Velo ainda vai renovar.
     if (new Date().getUTCMinutes() < 5) {
+      try {
+        console.log("subscription-expiry-audit:", JSON.stringify(await auditExpiredProviderSubscriptions(admin)));
+      } catch (e) {
+        console.error("subscription-expiry-audit falhou:", e instanceof Error ? e.message : String(e));
+      }
       try {
         console.log("provider-cancel-audit:", JSON.stringify(await auditProviderCancellations(admin)));
       } catch (e) {

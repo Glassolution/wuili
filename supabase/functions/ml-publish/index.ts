@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { PLAN_LIMITS } from '../_shared/plan-limits.ts'
+import { readAccessPlan } from '../_shared/subscriptionAccess.ts'
 import { canAccessCatalogProduct, CATALOG_ACCESS_ERROR } from '../_shared/catalogSourcePolicy.ts'
 import { resolveCatalogLink } from '../_shared/catalogLink.ts'
 import {
@@ -930,22 +931,7 @@ Deno.serve(async (req) => {
     // cobrança recriada, migração). Pegar só a mais recente rebaixava quem
     // tinha Pro ativo mas uma linha Base criada depois. Vale sempre o MAIOR
     // plano ativo.
-    const { data: activeSubs } = await supabase
-      .from('subscriptions')
-      .select('plan, status')
-      .eq('user_id', user_id)
-      .in('status', ['active', 'paid', 'approved', 'trialing'])
-
-    const PLAN_RANK: Record<string, number> = { gratis: 0, base: 1, go: 1, plus: 2, pro: 2, business: 3 }
-    const bestSubPlan = (activeSubs ?? [])
-      .map((s) => normalizePlanName(s.plan))
-      .sort((a, b) => (PLAN_RANK[b] ?? 0) - (PLAN_RANK[a] ?? 0))[0]
-
-    const profilePlan = normalizePlanName(profileCd?.plano)
-    const userPlan =
-      (PLAN_RANK[profilePlan] ?? 0) > (PLAN_RANK[bestSubPlan ?? 'gratis'] ?? 0)
-        ? profilePlan
-        : (bestSubPlan ?? profilePlan)
+    const userPlan = normalizePlanName(await readAccessPlan(supabase, user_id))
     const productLimit = PRODUCT_LIMITS[userPlan]
 
     // Modo teste (só validação, nada é publicado) liberado para admins.

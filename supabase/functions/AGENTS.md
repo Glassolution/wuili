@@ -1,6 +1,7 @@
 # Edge Functions — regras
 
 - Escritas em Deno/TypeScript; nunca instalar pacotes Node.js para elas.
+- Paid entitlement uses `subscriptionAccessPolicy.ts` in browser and functions; never trust `profiles.plano`, because a cached plan can outlive payment. Hourly expiry audit uses complete provider reads, recent-payment/lifetime guards and backup/CAS without financial actions.
 - Monthly upgrades reserve an explicit quote, charge a ONE_TIME difference and replace the existing recurring item without prorata; intercept adjustment events before activation and never resend uncertain mutations, preserving billing dates and preventing duplicate contracts.
 - Funções principais: `ml-publish`, `ml-connect`, `ml-callback` (salva token em `user_integrations`), `scrape-c7drop`, `catalog`, `chat` (Gemini).
 - Suporte: a IA (`support-assistant`) responde tickets via gatilho no banco; avisos internos usam `support_messages.internal` e ficam ocultos do cliente pelas regras de acesso. Motivo: cobre todas as telas de envio de ticket.

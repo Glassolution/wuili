@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { bestAccessSubscription } from "@/lib/subscriptionAccess";
 
 const SUSPENDED_STATUSES = ["pending_regularization", "cancelled_unpaid"];
 
@@ -47,16 +48,14 @@ export const useAccountSuspension = (): AccountSuspension => {
         // Quem regularizou (ou assinou de novo) tem assinatura ativa: libera na hora.
         supabase
           .from("subscriptions")
-          .select("id")
+          .select("plan,status,provider,purchase_kind,current_period_end")
           .eq("user_id", user.id)
-          .eq("status", "active")
-          .limit(1)
-          .maybeSingle(),
+          .eq("status", "active"),
       ]);
 
       if (cancelled) return;
       setState({
-        suspended: !!data && !activeSub,
+        suspended: !!data && !bestAccessSubscription(activeSub ?? []),
         status: data?.status ?? null,
         plan: data?.plan ?? null,
         loading: false,
