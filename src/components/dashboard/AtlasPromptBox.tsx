@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ElementType, type FormEvent, type KeyboardEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Globe, Lightbulb, Loader2, Telescope, Wand2 } from "lucide-react";
+import { ArrowUp, Globe, History, Lightbulb, Loader2, Telescope, Wand2 } from "lucide-react";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 
 // Atalhos da barra de baixo: preenchem a caixa com uma pergunta pronta (não enviam).
@@ -40,11 +41,12 @@ const BOX_CSS = `
 .velo-atlas-box { transition: border-color 180ms ease-out, box-shadow 180ms ease-out; }
 .velo-atlas-box:focus-within { border-color: #CACACA; box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.06); }
 .velo-atlas-icone { transition: background-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out; }
-.velo-atlas-icone:hover:not(:disabled) { background: #F1F1F4; color: #0B0D12; }
+.velo-atlas-icone:hover:not(:disabled) { background: #F1F1F1; color: #000000; }
 .velo-atlas-icone:active:not(:disabled) { transform: scale(0.94); }
 .velo-atlas-varinha:hover { background: #F3F0FF; color: #6A48F0; }
 .velo-atlas-enviar { transition: background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out; }
-.velo-atlas-enviar:hover:not(:disabled) { background: #23262E; }
+.velo-atlas-enviar:hover:not(:disabled) { background: #2A2A2A; }
+.velo-atlas-enviar:disabled { cursor: default; }
 .velo-atlas-enviar:active:not(:disabled) { transform: scale(0.96); }
 .velo-atlas-dica { opacity: 0; transform: translate(-50%, 4px); transition: opacity 140ms ease-out, transform 140ms ease-out; }
 .velo-atlas-com-dica:hover .velo-atlas-dica, .velo-atlas-com-dica:focus-visible .velo-atlas-dica { opacity: 1; transform: translate(-50%, 0); }
@@ -63,7 +65,7 @@ const BotaoIcone = ({
   icone: Icone,
   onClick,
   className = "",
-  tamanhoIcone = 17,
+  tamanhoIcone = 18,
 }: {
   rotulo: string;
   icone: ElementType;
@@ -75,9 +77,9 @@ const BotaoIcone = ({
     type="button"
     onClick={onClick}
     aria-label={rotulo}
-    className={`velo-atlas-icone velo-atlas-com-dica relative flex h-8 w-8 items-center justify-center rounded-[8px] text-[#4B5563] ${className}`}
+    className={`velo-atlas-icone velo-atlas-com-dica relative flex h-8 w-8 items-center justify-center rounded-[8px] text-[#303030] ${className}`}
   >
-    <Icone size={tamanhoIcone} strokeWidth={1.6} aria-hidden="true" />
+    <Icone size={tamanhoIcone} strokeWidth={2} aria-hidden="true" />
     <span
       aria-hidden="true"
       className="velo-atlas-dica pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 whitespace-nowrap rounded-[8px] bg-[#0B0D12] px-2 py-1 text-[12px] font-medium text-white"
@@ -92,6 +94,7 @@ const BotaoIcone = ({
  * AtlasChatProvider e é desenhada pelo AtlasDockPanel (lógica do Atlas intocada).
  */
 const AtlasPromptBox = () => {
+  const navigate = useNavigate();
   const { enviar, enviando } = useAtlasChat();
   const reduceMotion = useReducedMotion();
   const [mensagem, setMensagem] = useState("");
@@ -208,29 +211,32 @@ const AtlasPromptBox = () => {
           )}
         </div>
 
-        <div className="mt-2 flex items-center justify-between">
-          <div className="-ml-1.5 flex items-center gap-0.5">
-            {ATALHOS.map((atalho) => (
-              <BotaoIcone key={atalho.id} rotulo={atalho.rotulo} icone={atalho.icone} onClick={() => preencher(atalho.texto)} />
-            ))}
-          </div>
-          <div className="flex items-center">
-            <button
-              type="submit"
-              disabled={!podeEnviar}
-              aria-label={enviando ? "Enviando para o Atlas" : "Enviar para o Atlas"}
-              className={`velo-atlas-enviar flex h-8 w-8 items-center justify-center rounded-[9px] ${
-                podeEnviar ? "bg-[#0B0D12] text-white" : "bg-[#F1F1F1] text-[#B5B5B5]"
-              }`}
-              style={podeEnviar ? { boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 2px rgba(11,13,18,0.2)" } : undefined}
-            >
-              {enviando ? (
-                <Loader2 size={15} strokeWidth={2} aria-hidden="true" className="animate-spin" />
-              ) : (
-                <ArrowUp size={16} strokeWidth={1.9} aria-hidden="true" />
-              )}
-            </button>
-          </div>
+        {/* Barra de baixo no estilo da referência: tudo à direita, ícones escuros e traço firme. */}
+        <div className="mt-2 flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/atlas")}
+            className="velo-atlas-icone flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[14px] font-medium text-[#303030]"
+          >
+            <History size={17} strokeWidth={2} aria-hidden="true" />
+            Conversas
+          </button>
+          <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-[#E3E3E3]" />
+          {ATALHOS.map((atalho) => (
+            <BotaoIcone key={atalho.id} rotulo={atalho.rotulo} icone={atalho.icone} onClick={() => preencher(atalho.texto)} />
+          ))}
+          <button
+            type="submit"
+            disabled={!podeEnviar}
+            aria-label={enviando ? "Enviando para o Atlas" : "Enviar para o Atlas"}
+            className="velo-atlas-enviar ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#000000] text-white"
+          >
+            {enviando ? (
+              <Loader2 size={16} strokeWidth={2.4} aria-hidden="true" className="animate-spin" />
+            ) : (
+              <ArrowUp size={18} strokeWidth={2.6} aria-hidden="true" />
+            )}
+          </button>
         </div>
       </form>
     </div>
