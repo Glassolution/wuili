@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronUp, Image as ImageIcon, ClipboardList, CreditCard, Folder, FolderOpen, Gift, Grid2X2, Home, Info, LogOut, MoreVertical, NotebookText, PanelLeft, Plus, ScanFace, Settings2, ShieldCheck, ShoppingCart, Store, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { CreditCard, FolderOpen, Grid2X2, LogOut, MoreVertical, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound } from "lucide-react";
+// Ícones de traço fino e arredondado (Phosphor), no estilo da referência "Mova".
+import { CaretUp, ClipboardText, FileText, Folder, Gift, House, Image as ImageIcon, Info, Plus, SidebarSimple, Storefront, UserFocus, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,11 +36,11 @@ type NavItem = {
 
 // Seção "Principal": telas do dia a dia, sem agrupamento (como "Main" da referência).
 const mainNavItems: NavItem[] = [
-  { id: "inicio", label: "Início", icon: Home, to: "/dashboard", end: true },
-  { id: "pedidos", label: "Pedidos", icon: ClipboardList, to: "/dashboard/pedidos" },
-  { id: "publicacoes", label: "Publicações", icon: Archive, to: "/dashboard/publicacoes" },
+  { id: "inicio", label: "Início", icon: House, to: "/dashboard", end: true },
+  { id: "pedidos", label: "Pedidos", icon: ClipboardText, to: "/dashboard/pedidos" },
+  { id: "publicacoes", label: "Publicações", icon: FileText, to: "/dashboard/publicacoes" },
   { id: "imagens-ia", label: "Imagens com IA", icon: ImageIcon, to: "/dashboard/imagens-ia" },
-  { id: "avatares", label: "Avatares", icon: ScanFace, to: "/dashboard/avatares" },
+  { id: "avatares", label: "Avatares", icon: UserFocus, to: "/dashboard/avatares" },
   // { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
 
@@ -80,7 +82,7 @@ const lerRecolhida = () => {
 // A ROTA continua aberta de propósito — o callback do Mercado Pago devolve o
 // usuário em /dashboard/integracoes, e bloqueá-la quebraria a conexão de
 // pagamento de quem não é admin.
-const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: Store, to: "/dashboard/integracoes" };
+const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: Storefront, to: "/dashboard/integracoes" };
 
 const affiliatesNavItem: NavItem = { id: "afiliados", label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
 
@@ -91,6 +93,7 @@ const PILL_EASE = [0.4, 0, 0.2, 1] as const;
 
 // Hover/foco dos itens (inline styles não fazem :hover, então injetamos CSS).
 const NAV_CSS = `
+.velo-dashboard-sidebar.velo-fonte-inter, .velo-dashboard-sidebar.velo-fonte-inter * { font-feature-settings: normal !important; }
 .velo-nav-item, .velo-nav-sub { transition: background-color 150ms ease-out, color 150ms ease-out; }
 .velo-nav-item:hover:not([data-active="true"]) { background-color: #EFEFF1; color: #0B0D12; }
 .velo-nav-sub:hover:not([data-active="true"]) { background-color: #EFEFF1; color: #0B0D12; }
@@ -307,7 +310,7 @@ const SidebarNavLink = ({
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      {leading ?? <Icon className="velo-nav-ico" size={sub ? 17 : 18} strokeWidth={1.5} aria-hidden="true" />}
+      {leading ?? <Icon className="velo-nav-ico" size={sub ? 18 : 19} aria-hidden="true" />}
       {recolhida ? null : <span style={rotuloStyle}>{item.label}</span>}
     </Link>
   );
@@ -690,7 +693,7 @@ const DashboardSidebar = () => {
 
   return (
     <aside
-      className="velo-dashboard-sidebar"
+      className="velo-dashboard-sidebar velo-fonte-inter"
       data-recolhida={recolhida ? "true" : "false"}
       style={{ ...styles.sidebar, width: recolhida ? 72 : styles.sidebar.width, ...(recolhida ? { padding: "0 12px 16px" } : null) }}
     >
@@ -711,7 +714,7 @@ const DashboardSidebar = () => {
           className="velo-side-toggle"
           style={styles.collapseButton}
         >
-          <PanelLeft size={18} strokeWidth={1.5} aria-hidden="true" />
+          <SidebarSimple size={19} aria-hidden="true" />
         </button>
       </header>
 
@@ -740,7 +743,7 @@ const DashboardSidebar = () => {
                   className="velo-side-toggle"
                   style={styles.sectionToggle}
                 >
-                  <ChevronUp
+                  <CaretUp
                     size={15}
                     strokeWidth={1.75}
                     aria-hidden="true"
@@ -783,7 +786,7 @@ const DashboardSidebar = () => {
                     title={projeto.nome}
                     style={{ ...styles.navSubLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#2B2F36" }}
                   >
-                    <Folder className="velo-nav-ico" size={17} strokeWidth={1.5} aria-hidden="true" />
+                    <Folder className="velo-nav-ico" size={18} aria-hidden="true" />
                     <span style={rotuloStyle}>{projeto.nome}</span>
                   </button>
                 ))}
@@ -793,7 +796,7 @@ const DashboardSidebar = () => {
                   className="velo-nav-add"
                   style={styles.navAdd}
                 >
-                  <Plus size={15} strokeWidth={1.6} aria-hidden="true" />
+                  <Plus size={15} aria-hidden="true" />
                   Novo projeto
                 </button>
               </SidebarCategory>
@@ -840,7 +843,7 @@ const DashboardSidebar = () => {
             title={recolhida ? "Indique e ganhe" : "Ganhe 30% na primeira venda"}
             style={{ ...styles.navLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#2B2F36", ...(recolhida ? { justifyContent: "center", padding: 0 } : null) }}
           >
-            <Gift className="velo-nav-ico" size={18} strokeWidth={1.5} aria-hidden="true" />
+            <Gift className="velo-nav-ico" size={19} aria-hidden="true" />
             {recolhida ? null : <span style={rotuloStyle}>Indique e ganhe</span>}
           </button>
         </nav>

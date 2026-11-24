@@ -47,9 +47,9 @@ export const styles = {
     // Ocupa a largura toda (anula o padding da sidebar) para o filete de baixo
     // ir de ponta a ponta, como na referência.
     margin: "0 -10px 0 -20px",
-    height: 64,
+    height: 56,
     padding: "0 14px 0 30px",
-    borderBottom: "1px solid #ECEEF2",
+    borderBottom: "1px solid #E9E9EC",
     flexShrink: 0,
   } satisfies CSSProperties,
   collapseButton: {
@@ -70,10 +70,11 @@ export const styles = {
     alignItems: "center",
     justifyContent: "space-between",
     height: 28,
-    padding: "0 6px 0 10px",
-    marginTop: 4,
+    // Rótulo um pouco à esquerda da coluna de ícones, como na referência.
+    padding: "0 6px 0 0",
+    marginTop: 2,
     marginBottom: 2,
-    color: "#8A93A3",
+    color: "#71717A",
     fontSize: 13,
     lineHeight: "16px",
     fontWeight: 400,
@@ -92,8 +93,9 @@ export const styles = {
   } satisfies CSSProperties,
   sectionDivider: {
     height: 1,
-    margin: "12px -12px",
-    background: "#ECEEF2",
+    // De ponta a ponta (anula o padding da sidebar).
+    margin: "12px -10px 12px -20px",
+    background: "#E9E9EC",
     flexShrink: 0,
   } satisfies CSSProperties,
   navAdd: {
@@ -120,10 +122,10 @@ export const styles = {
   } satisfies CSSProperties,
   brandText: {
     fontFamily: '"Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    fontSize: 22,
-    lineHeight: "26px",
-    fontWeight: 700,
-    letterSpacing: "-0.05em",
+    fontSize: 20,
+    lineHeight: "24px",
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
   } satisfies CSSProperties,
   search: {
     marginTop: 22,
@@ -169,7 +171,7 @@ export const styles = {
   nav: {
     // Respiro entre o logo e o primeiro item, calibrado para bater com a
     // referência (PagePilot): ~24px no total com o paddingBottom: 6 do header.
-    marginTop: 12,
+    marginTop: 6,
     marginBottom: 6,
     minHeight: 0,
     display: "flex",
@@ -182,7 +184,7 @@ export const styles = {
     alignItems: "center",
     gap: 12,
     boxSizing: "border-box",
-    height: 38,
+    height: 37,
     borderRadius: 10,
     padding: "0 10px",
     textDecoration: "none",
