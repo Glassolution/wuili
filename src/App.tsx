@@ -111,6 +111,7 @@ const ChatFornecedoresPage = lazy(() => import("./pages/dashboard/ChatFornecedor
 const DocumentacaoComunidadePage = lazy(() => import("./pages/dashboard/DocumentacaoComunidadePage"));
 const SugestoesPage = lazy(() => import("./pages/dashboard/SugestoesPage"));
 const DashboardHomePage = lazy(() => import("./pages/dashboard/DashboardHomePage"));
+const ProjetosPage = lazy(() => import("./pages/dashboard/ProjetosPage"));
 const AtlasChatPage = lazy(() => import("./pages/dashboard/AtlasChatPage"));
 const IntegracoesPage = lazy(() => import("./pages/dashboard/IntegracoesPage"));
 const AdicionarLojaShopifyPage = lazy(() => import("./pages/dashboard/AdicionarLojaShopifyPage"));
@@ -400,6 +401,7 @@ const App = () => (
                 <Route path="planos" element={<OpenPlansModalRoute />} />
                 <Route path="clientes" element={<ClientesPage />} />
                 <Route path="produtos" element={<CatalogPage />} />
+                <Route path="projetos" element={<ProjetosPage />} />
                 <Route path="pedidos" element={<OrdersPage />} />
                 <Route path="orders/:id" element={<OrderDetailPage />} />
                 <Route path="publicacoes" element={<PublicationsPage />} />

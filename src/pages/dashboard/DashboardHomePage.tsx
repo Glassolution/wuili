@@ -1,39 +1,39 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ElementType, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ElementType } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { Archive, ArrowRight, BadgePercent, Check, ExternalLink, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, PenLine, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
+import {
+  Archive,
+  ArrowRight,
+  ArrowUpRight,
+  FileText,
+  Flame,
+  FolderOpen,
+  Image as ImageIcon,
+  LayoutTemplate,
+  Plus,
+  Rocket,
+  ScanFace,
+  Search,
+  ShoppingBag,
+  Sprout,
+  TrendingUp,
+  UserRound,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
+import { fetchUserProjects } from "@/lib/userProjects";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
-import { veloToast } from "@/components/ui/velo-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
-import cardTemasImg from "@/assets/home-card-temas.webp";
-import bannerResultados from "@/assets/home-banner-resultados.webp";
+import agenteEstrela from "@/assets/agentes/estrela.png";
 import agenteLua from "@/assets/agentes/lua.png";
+import agenteSino from "@/assets/agentes/sino.png";
+import agenteConcha from "@/assets/agentes/concha.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
-import agenteSino from "@/assets/agentes/sino.png";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
-import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
-
 import { useIsMobile } from "@/hooks/use-mobile";
-
-type OnboardingStatus = {
-  mlConnected: boolean;
-  hasPublication: boolean;
-};
-
-const TUTORIAL_INICIO = {
-  src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
-  aspectPadding: "62.5%",
-  title: "Tutorial de início",
-  description: "Veja como dar os primeiros passos na Velo.",
-} as const;
 
 // Curva das entradas: desaceleração suave, sem a cauda longa do ease-out exponencial.
 const INTRO = {
@@ -41,112 +41,151 @@ const INTRO = {
   revealDuration: 0.7,
 };
 
-const CARD_SHADOW = "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.04)";
-
-// Estados de hover/foco dos botões e cards desta tela (tokens do redesign).
+// Tokens da Início no layout de referência: fundo cinza-claro, cartões brancos
+// bem arredondados, um cartão de destaque azul na grade.
 const HOME_CSS = `
-.velo-home-card { background: #FFFFFF; border: 1px solid #ECEEF2; border-radius: 20px; box-shadow: ${CARD_SHADOW}; }
-.velo-home-dark { background: #0B0D12; transition: background-color 150ms ease-out, transform 150ms ease-out; }
-.velo-home-dark:hover { background: #1F232B; }
-.velo-home-accent { background: #2F5BEA; transition: background-color 150ms ease-out, opacity 150ms ease-out; }
-.velo-home-accent:hover:not(:disabled) { background: #2449C7; }
-/* "+" do header: sem brilho difuso; volume só com gradiente curto, filete de luz no topo e sombra rente. */
-.velo-home-plus {
+.velo-inicio-card { background: #FFFFFF; border-radius: 24px; transition: transform 180ms ease-out, box-shadow 180ms ease-out; }
+.velo-inicio-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(16,24,40,0.07); }
+.velo-inicio-card:focus-visible, .velo-inicio-tab:focus-visible, .velo-inicio-pill:focus-visible, .velo-inicio-search:focus-visible, .velo-inicio-plus:focus-visible, .velo-inicio-vendas:focus-visible {
+  outline: none; box-shadow: 0 0 0 2px #F2F3F6, 0 0 0 4px rgba(47,91,234,0.45);
+}
+.velo-inicio-tab { transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-inicio-tab:hover { color: #0B0D12; }
+.velo-inicio-pill { transition: background-color 150ms ease-out; }
+.velo-inicio-pill:hover { background: #F7F8FA; }
+.velo-inicio-search { transition: background-color 150ms ease-out; }
+.velo-inicio-search:hover { background: #FAFAFB; }
+.velo-inicio-plus {
   background: linear-gradient(180deg, #3A64EE 0%, #2A51DA 100%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), inset 0 0 0 1px rgba(11,13,18,0.06), 0 1px 2px rgba(16,24,40,0.10);
   transition: filter 150ms ease-out, transform 150ms ease-out;
 }
-.velo-home-plus:hover { filter: brightness(0.94); }
-.velo-home-plus:active { transform: scale(0.97); }
-.velo-home-plus:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45); }
-.velo-home-secondary { background: #FFFFFF; border: 1px solid #ECEEF2; transition: background-color 150ms ease-out, border-color 150ms ease-out; }
-.velo-home-secondary:hover:not(:disabled) { background: #F7F8FA; border-color: #DCE0E7; }
-.velo-home-ghost { background: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-home-ghost:hover { background: #F1F3F6; color: #0B0D12; }
-/* A exceção velo-fonte-inter liga números tabulares, que abrem o hífen de "Bem-vindo". */
-.dashboard-inter .velo-fonte-inter.velo-home-root, .dashboard-inter .velo-fonte-inter.velo-home-root * { font-feature-settings: normal !important; }
-/* O painel força Hanken Grotesk com !important; o título do destaque usa a serifa da referência. */
-.dashboard-inter .velo-fonte-inter .velo-home-serif, .velo-fonte-inter .velo-home-serif {
-  font-family: "Instrument Serif", ui-serif, Georgia, serif !important; font-weight: 400 !important; letter-spacing: -0.01em !important;
-  font-feature-settings: normal !important;
-}
-.dashboard-inter .velo-fonte-inter h1, .dashboard-inter .velo-fonte-inter h3 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -0.02em; }
-.velo-home-row { transition: background-color 150ms ease-out; }
-.velo-home-row:hover { background: #F7F8FA; }
-.velo-home-search { transition: background-color 150ms ease-out; }
-.velo-home-search:hover { background: #EEF0F3; }
-.velo-home-dark:focus-visible, .velo-home-accent:focus-visible, .velo-home-secondary:focus-visible, .velo-home-ghost:focus-visible, .velo-home-search:focus-visible {
-  outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45);
+.velo-inicio-plus:hover { filter: brightness(0.94); }
+.velo-inicio-plus:active { transform: scale(0.97); }
+.velo-inicio-vendas .velo-inicio-seta { transition: transform 150ms ease-out; }
+.velo-inicio-vendas:hover .velo-inicio-seta { transform: translateX(3px); }
+/* O painel força Hanken Grotesk com !important; a Início usa Inter sem números tabulares. */
+.dashboard-inter .velo-fonte-inter.velo-inicio-root, .dashboard-inter .velo-fonte-inter.velo-inicio-root * { font-feature-settings: normal !important; }
+.dashboard-inter .velo-fonte-inter h1, .dashboard-inter .velo-fonte-inter h2, .dashboard-inter .velo-fonte-inter h3 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -0.02em; }
+@media (prefers-reduced-motion: reduce) {
+  .velo-inicio-card, .velo-inicio-card:hover { transition: none; transform: none; }
 }
 `;
 
-// "há 5 min", "há 3 h", "há 2 d" — e a data curta para o que passou de uma semana.
-const tempoRelativo = (iso: string, agora = Date.now()) => {
-  const diff = Math.max(0, agora - new Date(iso).getTime());
-  const min = Math.floor(diff / 60_000);
-  if (min < 1) return "agora";
-  if (min < 60) return `há ${min} min`;
-  const horas = Math.floor(min / 60);
-  if (horas < 24) return `há ${horas} h`;
-  const dias = Math.floor(horas / 24);
-  if (dias < 7) return `há ${dias} d`;
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
-};
-
-type EventoDoSite = {
+type Ferramenta = {
   id: string;
-  projeto: UserProject;
-  acao: string;
-  quando: string;
-  /** Foto do agente responsável por esse tipo de trabalho no site. */
+  titulo: string;
+  categoria: string;
+  descricao: string;
+  etiquetas: string[];
+  destaque?: string;
+  icone: ElementType;
+  cor: string;
   agente: string;
+  to: string;
 };
 
-// Cada agente representa um tipo de trabalho no site. O banco ainda não grava
-// qual agente fez cada mudança, então a foto segue o tipo da mudança.
-// (Também há estrela.png e concha.png em src/assets/agentes para os próximos.)
-const AGENTE_POR_ACAO = {
-  criado: agenteLua,
-  editado: agenteCubo,
-  publicado: agenteFolha,
-} as const;
-
-/**
- * Atividade do site da loja, montada só com o que o banco registra de cada
- * projeto (criação, última edição e publicação). Ainda não existe registro de
- * qual agente fez cada mudança: a foto vem do tipo de trabalho e nenhuma linha
- * leva nome de agente.
- */
-const eventosDoSite = (projetos: UserProject[]): EventoDoSite[] => {
-  const eventos: EventoDoSite[] = [];
-  for (const projeto of projetos) {
-    const criado = new Date(projeto.created_at).getTime();
-    eventos.push({ id: `${projeto.id}-criado`, projeto, acao: "Criou o rascunho do site", quando: projeto.created_at, agente: AGENTE_POR_ACAO.criado });
-    const editado = projeto.last_edited_at ? new Date(projeto.last_edited_at).getTime() : 0;
-    if (editado - criado > 60_000) {
-      eventos.push({ id: `${projeto.id}-editado`, projeto, acao: "Atualizou o site", quando: projeto.last_edited_at, agente: AGENTE_POR_ACAO.editado });
-    }
-    if (projeto.published_at) {
-      eventos.push({ id: `${projeto.id}-publicado`, projeto, acao: "Publicou o site", quando: projeto.published_at, agente: AGENTE_POR_ACAO.publicado });
-    }
-  }
-  return eventos.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime()).slice(0, 5);
+// Cada cartão é uma tela que já existe no painel; nada de número inventado.
+const FERRAMENTAS: Record<"comecar" | "avancado", Ferramenta[]> = {
+  comecar: [
+    {
+      id: "catalogo",
+      titulo: "Catálogo",
+      categoria: "Produtos",
+      descricao: "Escolha produtos para vender na sua loja.",
+      destaque: "Comece aqui",
+      etiquetas: ["Produtos", "Fornecedor"],
+      icone: ShoppingBag,
+      cor: "#2F5BEA",
+      agente: agenteEstrela,
+      to: "/dashboard/catalogo",
+    },
+    {
+      id: "modelos",
+      titulo: "Templates",
+      categoria: "Loja",
+      descricao: "Escolha o visual do site da sua loja.",
+      destaque: "Comece aqui",
+      etiquetas: ["Site", "Visual"],
+      icone: LayoutTemplate,
+      cor: "#7C5CFA",
+      agente: agenteCubo,
+      to: "/dashboard/modelos",
+    },
+    {
+      id: "paginas-com-ia",
+      titulo: "Páginas com IA",
+      categoria: "Vendas",
+      descricao: "Gere a página de venda de um produto.",
+      etiquetas: ["IA", "Página de venda"],
+      icone: FileText,
+      cor: "#0E7C66",
+      agente: agenteFolha,
+      to: "/dashboard/paginas-com-ia",
+    },
+  ],
+  avancado: [
+    {
+      id: "produtos-em-alta",
+      titulo: "Produtos em Alta",
+      categoria: "Pesquisa",
+      descricao: "Veja os produtos que estão vendendo mais.",
+      destaque: "Tendências",
+      etiquetas: ["Mercado", "Ranking"],
+      icone: TrendingUp,
+      cor: "#E5484D",
+      agente: agenteLua,
+      to: "/dashboard/produtos-em-alta",
+    },
+    {
+      id: "imagens-ia",
+      titulo: "Imagens com IA",
+      categoria: "Criativos",
+      descricao: "Crie fotos de produto para anúncios e site.",
+      etiquetas: ["IA", "Fotos"],
+      icone: ImageIcon,
+      cor: "#D9469B",
+      agente: agenteConcha,
+      to: "/dashboard/imagens-ia",
+    },
+    {
+      id: "avatares",
+      titulo: "Avatares",
+      categoria: "Criativos",
+      descricao: "Vídeos com avatar apresentando o produto.",
+      etiquetas: ["IA", "Vídeo"],
+      icone: ScanFace,
+      cor: "#F08A24",
+      agente: agenteSino,
+      to: "/dashboard/avatares",
+    },
+    {
+      id: "publicacoes",
+      titulo: "Publicações",
+      categoria: "Anúncios",
+      descricao: "Acompanhe os produtos que você publicou.",
+      etiquetas: ["Anúncios", "Mercado Livre"],
+      icone: Archive,
+      cor: "#0B0D12",
+      agente: agenteEstrela,
+      to: "/dashboard/publicacoes",
+    },
+  ],
 };
 
-const slugDoProjeto = (projeto: UserProject) => {
-  const meta = projeto.metadata as Record<string, unknown> | null;
-  return meta && typeof meta.slug === "string" && meta.slug.trim() ? meta.slug.trim() : null;
-};
+const ABAS = [
+  { id: "comecar" as const, label: "Para começar", icone: Sprout },
+  { id: "avancado" as const, label: "Avançado", icone: Rocket },
+];
 
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { nomeCurto, foto } = useProfile();
+  const { foto } = useProfile();
   const [avatarFalhou, setAvatarFalhou] = useState(false);
-  const [menuMaisAberto, setMenuMaisAberto] = useState(false);
-  const [aba, setAba] = useState<"visao-geral" | "primeiros-passos" | "ferramentas" | "atividade">("visao-geral");
-  // Mesma leitura da tela "Minha loja" (RPC get_user_projects), sem consulta nova.
-  const projetosDaLoja = useQuery({
+  const [aba, setAba] = useState<"comecar" | "avancado">("comecar");
+  // Mesma leitura da página Projetos (RPC get_user_projects), sem consulta nova.
+  const projetos = useQuery({
     queryKey: ["home-projetos-da-loja", user?.id],
     enabled: Boolean(user?.id),
     staleTime: 60_000,
@@ -155,29 +194,8 @@ const DashboardHomePage = () => {
   const reduceMotion = useReducedMotion();
   const introDecisionMade = useRef<string | null>(null);
   // "waiting": o onboarding está na frente da home. A intro fica guardada para
-  // tocar quando ele fecha — antes ela rodava escondida atrás do modal e a pessoa
-  // caía numa tela já parada.
+  // tocar quando ele fecha — antes ela rodava escondida atrás do modal.
   const [introState, setIntroState] = useState<"pending" | "waiting" | "play" | "done">("pending");
-  const [tutorialOpen, setTutorialOpen] = useState(false);
-
-  const [conectandoMl, setConectandoMl] = useState(false);
-  
-  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
-  // Inicia o OAuth do Mercado Livre. O helper só
-  // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
-  // função não consegue mandar o usuário para outro domínio.
-  const conectarMercadoLivre = async () => {
-    if (conectandoMl) return;
-    setConectandoMl(true);
-    try {
-      // Nova aba: a Velo continua aberta enquanto o usuário conecta.
-      await startMercadoLivreOAuth({ novaAba: true });
-      setConectandoMl(false);
-    } catch (erro) {
-      setConectandoMl(false);
-      veloToast.error(erro instanceof Error ? erro.message : "Não foi possível abrir a conexão com o Mercado Livre");
-    }
-  };
 
   useLayoutEffect(() => {
     const userId = user?.id;
@@ -216,58 +234,6 @@ const DashboardHomePage = () => {
     };
   }, [introState, reduceMotion, user?.id]);
 
-  useEffect(() => {
-    if (!menuMaisAberto) return;
-    const fecharComEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuMaisAberto(false);
-    };
-    window.addEventListener("keydown", fecharComEsc);
-    return () => window.removeEventListener("keydown", fecharComEsc);
-  }, [menuMaisAberto]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setOnboardingStatus(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadOnboardingStatus = async () => {
-      const [integrationResult, publicationsResult] = await Promise.all([
-        supabase
-          .from("user_integrations")
-          .select("id,access_token")
-          .eq("user_id", user.id)
-          .eq("platform", "mercadolivre")
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("user_publications")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id),
-      ]);
-
-      if (cancelled) return;
-
-      if (integrationResult.error || publicationsResult.error) {
-        setOnboardingStatus(null);
-        return;
-      }
-
-      setOnboardingStatus({
-        mlConnected: Boolean(integrationResult.data?.access_token),
-        hasPublication: (publicationsResult.count ?? 0) > 0,
-      });
-    };
-
-    void loadOnboardingStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
   const playIntro = introState === "play";
   // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
   const revealProps = (delay: number, distance = 12) => playIntro
@@ -276,471 +242,234 @@ const DashboardHomePage = () => {
         animate: { opacity: 1, y: 0, filter: "blur(0px)" },
         transition: { delay, duration: INTRO.revealDuration, ease: INTRO.revealEase },
       }
-    : {
-        // Sem introdução não há blur a desfazer — evita criar camada de composição à toa.
-        initial: false as const,
-        animate: { opacity: 1, y: 0 },
-      };
+    : { initial: false as const, animate: { opacity: 1, y: 0 } };
 
-  const go = (path: string) => () => navigate(path);
-  const onboardingProgress = onboardingStatus
-    ? Math.round(
-        ([onboardingStatus.mlConnected, onboardingStatus.hasPublication].filter(Boolean).length / 2) * 100,
-      )
-    : null;
-  const nextStepCopy = !onboardingStatus
-    ? "Consulte suas integrações e continue a configuração da sua conta."
-    : !onboardingStatus.mlConnected
-      ? "Conecte o Mercado Livre para publicar produtos e receber seus pedidos na Velo."
-      : !onboardingStatus.hasPublication
-        ? "Sua conta está conectada. Agora escolha um produto e faça a primeira publicação."
-        : "Tudo pronto: acompanhe seus anúncios publicados e continue expandindo o catálogo.";
-  const nextStepLabel = !onboardingStatus
-    ? "Ver integrações"
-    : !onboardingStatus.mlConnected
-      ? "Conectar agora"
-      : !onboardingStatus.hasPublication
-        ? "Escolher produto"
-        : "Ver publicações";
-  const handleNextStep = () => {
-    if (!onboardingStatus) {
-      // Este passo é sobre o Mercado Livre, que mora nas configurações —
-      // /dashboard/integracoes é a tela de lojas Shopify.
-      navigate("/dashboard/configuracoes?tab=Integrações");
-      return;
-    }
-    if (!onboardingStatus.mlConnected) {
-      void conectarMercadoLivre();
-      return;
-    }
-    navigate(onboardingStatus.hasPublication ? "/dashboard/publicacoes" : "/dashboard/catalogo");
-  };
   if (introState === "pending" || introState === "waiting") {
     return (
       <main
         aria-hidden="true"
-        className="shrink-0 bg-white -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+        className="shrink-0 bg-[#F2F3F6] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       />
     );
   }
 
-  const primeiroNome = nomeCurto && nomeCurto !== "Usuario" ? nomeCurto.split(" ")[0] : null;
-  const mlConectado = Boolean(onboardingStatus?.mlConnected);
-  const temPublicacao = Boolean(onboardingStatus?.hasPublication);
+  const go = (path: string) => () => navigate(path);
   const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
-  const acaoMercadoLivre = mlConectado ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre;
-
-  // Linhas no estilo "Recent activity" da referência: miniatura, título,
-  // descrição, uma linha de apoio e ações em botões-ícone à direita.
-  type Linha = {
-    id: string;
-    thumb: ReactNode;
-    title: string;
-    description: string;
-    meta: string;
-    actions: { label: string; icon: ElementType; onClick: () => void; busy?: boolean }[];
-  };
-  const thumbIcone = (Icone: ElementType, cor: string, fundo: string) => (
-    <span className="flex h-full w-full items-center justify-center" style={{ background: fundo, color: cor }}>
-      <Icone size={18} strokeWidth={1.5} />
-    </span>
-  );
-  const thumbImagem = (src: string, extra = "object-cover") => (
-    <img src={src} alt="" className={`h-full w-full ${extra}`} draggable={false} />
-  );
-
-  const linhaProximoPasso: Linha = {
-    id: "proximo-passo",
-    thumb: thumbIcone(Sparkles, "#2F5BEA", "#EEF2FE"),
-    title: "Próximo passo",
-    description: nextStepCopy,
-    meta: onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`,
-    actions: [{ label: conectandoMl ? "Abrindo…" : nextStepLabel, icon: ArrowRight, onClick: handleNextStep, busy: conectandoMl }],
-  };
-  const linhaMercadoLivre: Linha = {
-    id: "mercado-livre",
-    thumb: (
-      <span className="flex h-full w-full items-center justify-center bg-[#FFF8CC]">
-        <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-6 w-6 object-contain" />
-      </span>
-    ),
-    title: "Venda no Mercado Livre",
-    description: "Conecte sua conta, publique anúncios e acompanhe os pedidos.",
-    meta: mlConectado ? "Conta conectada" : "Pronta para conectar",
-    actions: [{
-      label: conectandoMl ? "Conectando…" : mlConectado ? "Gerenciar conta" : "Conectar conta",
-      icon: mlConectado ? Settings2 : Link2,
-      onClick: acaoMercadoLivre,
-      busy: conectandoMl,
-    }],
-  };
-  const linhaPublicacao: Linha = {
-    id: "publicacao",
-    thumb: thumbIcone(temPublicacao ? Check : Archive, temPublicacao ? "#16A34A" : "#4B5563", temPublicacao ? "#E9F7EF" : "#F1F3F6"),
-    title: temPublicacao ? "Primeira publicação feita" : "Fazer a primeira publicação",
-    description: temPublicacao ? "Acompanhe seus anúncios publicados." : "Escolha um produto do catálogo e publique no Mercado Livre.",
-    meta: temPublicacao ? "Concluído" : "Pendente",
-    actions: [{
-      label: temPublicacao ? "Ver publicações" : "Escolher produto",
-      icon: temPublicacao ? FileText : ShoppingBag,
-      onClick: go(temPublicacao ? "/dashboard/publicacoes" : "/dashboard/catalogo"),
-    }],
-  };
-  const linhaTemas: Linha = {
-    id: "temas",
-    thumb: thumbImagem(cardTemasImg),
-    title: "Escolha o visual da sua loja",
-    description: "Selecione um template profissional e personalize para refletir a sua marca.",
-    meta: "Templates",
-    actions: [{ label: "Ver temas", icon: LayoutTemplate, onClick: go("/dashboard/modelos") }],
-  };
-  const linhaAfiliados: Linha = {
-    id: "afiliados",
-    thumb: thumbIcone(BadgePercent, "#6D28D9", "#F3EEFF"),
-    title: "Programa de afiliados",
-    description: "Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.",
-    meta: "30% de comissão · por novo cliente",
-    actions: [{ label: "Quero ser afiliado", icon: ArrowRight, onClick: go("/dashboard/comissoes") }],
-  };
-  const linhaPaginaIa: Linha = {
-    id: "pagina-ia",
-    thumb: thumbIcone(Wand2, "#0F766E", "#E6F6F3"),
-    title: "Página de vendas com IA",
-    description: "Crie uma página profissional para apresentar e vender seu produto.",
-    meta: "Velo IA · pronta para publicar",
-    actions: [{ label: "Criar página", icon: Plus, onClick: go("/dashboard/paginas-com-ia/criar") }],
-  };
-
-  const ABAS = [
-    { id: "visao-geral", label: "Visão geral" },
-    { id: "primeiros-passos", label: "Primeiros passos" },
-    { id: "ferramentas", label: "Ferramentas" },
-    { id: "atividade", label: "Atividade" },
-  ] as const;
-  const mostrarDestaque = aba === "visao-geral" || aba === "primeiros-passos";
-  const mostrarAtividade = aba === "visao-geral" || aba === "atividade";
-  const eventos = eventosDoSite(projetosDaLoja.data ?? []);
-  const abrirEditor = (projeto: UserProject) =>
-    navigate(`/minha-loja/editor/${projeto.id}`, { state: { projectId: projeto.id, sourceId: projeto.source_id } });
-  const listas: { titulo: string; linhas: Linha[] }[] =
-    aba === "visao-geral"
-      ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
-      : aba === "primeiros-passos"
-        ? [{ titulo: "Primeiros passos", linhas: [linhaProximoPasso, linhaTemas, linhaMercadoLivre, linhaPublicacao] }]
-        : aba === "ferramentas"
-          ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
-          : [];
+  const totalProjetos = projetos.data?.length;
+  const ferramentas = FERRAMENTAS[aba];
 
   return (
-    <main
-      className="velo-fonte-inter velo-home-root shrink-0 overflow-auto bg-white text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
-    >
+    <main className="velo-fonte-inter velo-inicio-root shrink-0 overflow-auto bg-[#F2F3F6] text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
       <style>{HOME_CSS}</style>
 
-      {/* Header: busca à esquerda, "+" azul e avatar à direita (como na referência). */}
-      <motion.header {...revealProps(0, -6)} className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center justify-between gap-4 px-4 md:px-10">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <button
-            type="button"
-            onClick={abrirBusca}
-            aria-label="Buscar produtos, lojas e telas"
-            className="velo-home-search flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-[#F5F6F8] px-4 text-left text-[14px] text-[#8A93A3]"
-          >
-            <Search size={16} strokeWidth={1.5} aria-hidden="true" />
-            <span className="flex-1 truncate">Buscar produtos, lojas...</span>
-          </button>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={go("/dashboard/catalogo")}
-            aria-label="Adicionar produto"
-            title="Adicionar produto"
-            className="velo-home-plus flex h-10 w-10 items-center justify-center rounded-full text-white"
-          >
-            <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={go("/dashboard/configuracoes")}
-            aria-label="Configurações da conta"
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#F1F3F6] text-[#8A93A3]"
-          >
-            {foto && !avatarFalhou ? (
-              <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
-            ) : (
-              <UserRound size={18} strokeWidth={1.5} aria-hidden="true" />
-            )}
-          </button>
-        </div>
+      {/* Barra do topo: busca, "+" e avatar. */}
+      <motion.header {...revealProps(0, -6)} className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center gap-3 px-4 md:px-10">
+        <button
+          type="button"
+          onClick={abrirBusca}
+          aria-label="Buscar produtos, lojas e telas"
+          className="velo-inicio-search flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-4 text-left text-[14px] text-[#8A93A3]"
+        >
+          <Search size={16} strokeWidth={1.5} aria-hidden="true" />
+          <span className="flex-1 truncate">Buscar produtos, lojas...</span>
+        </button>
+        <button
+          type="button"
+          onClick={go("/dashboard/catalogo")}
+          aria-label="Adicionar produto"
+          title="Adicionar produto"
+          className="velo-inicio-plus flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+        >
+          <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={go("/dashboard/configuracoes")}
+          aria-label="Configurações da conta"
+          className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[#8A93A3]"
+        >
+          {foto && !avatarFalhou ? (
+            <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
+          ) : (
+            <UserRound size={18} strokeWidth={1.5} aria-hidden="true" />
+          )}
+        </button>
       </motion.header>
 
-      <div className="mx-auto w-full max-w-[1120px] px-4 pb-14 md:px-10">
-        {/* Topo no desenho da referência: breadcrumb, título com ações à direita,
-            subtítulo e abas logo abaixo. */}
-        <motion.div {...revealProps(0.05, 10)} className="pt-4">
-          <p className="m-0 text-[13px] text-[#8A93A3]">Início /</p>
-          <div className="mt-3 flex items-center justify-between gap-6">
-            <h1 className="m-0 min-w-0 truncate text-[32px] font-semibold leading-tight tracking-[-0.02em]">
-              {primeiroNome ? `Bem-vindo, ${primeiroNome}` : "Bem-vindo à Velo"}
-            </h1>
-            <div className="relative flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setTutorialOpen(true)}
-                aria-label="Ver tutorial de início"
-                className="velo-home-ghost flex h-9 items-center rounded-full px-3.5 text-[14px] font-medium text-[#0B0D12]"
-              >
-                Ver tutorial
-              </button>
-              <button
-                type="button"
-                onClick={() => setMenuMaisAberto((aberto) => !aberto)}
-                aria-label="Mais opções"
-                aria-haspopup="menu"
-                aria-expanded={menuMaisAberto}
-                className="velo-home-ghost flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
-              >
-                <MoreHorizontal size={18} strokeWidth={1.5} aria-hidden="true" />
-              </button>
-              {menuMaisAberto && (
-                <>
+      <div className="mx-auto w-full max-w-[660px] px-4 pb-16 pt-4">
+        {/* Cartão de vendas: sem número por enquanto (não há leitura de vendas
+            pronta para a Início); leva para Pedidos. */}
+        <motion.button
+          {...revealProps(0.05, 10)}
+          type="button"
+          onClick={go("/dashboard/pedidos")}
+          data-dashboard-tour="home-primeiros-passos"
+          className="velo-inicio-vendas relative block w-full overflow-hidden rounded-[28px] bg-white p-6 text-left"
+        >
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-24 right-[-40px] h-[300px] w-[420px] rounded-full opacity-90 blur-[60px]"
+            style={{ background: "radial-gradient(closest-side, #F3B8EE 0%, #D9C2FF 45%, #BFD7FF 75%, transparent 100%)" }}
+          />
+          <span aria-hidden="true" className="relative flex items-center justify-between text-[13px] text-[#9AA1AE] blur-[2.5px] select-none">
+            <span>Suas vendas</span>
+            <span className="flex gap-4">
+              <span>7D</span>
+              <span>30D</span>
+              <span>3M</span>
+              <span>Tudo</span>
+            </span>
+          </span>
+          <span className="relative mt-12 flex items-end justify-between gap-6">
+            <span className="min-w-0">
+              <span className="block text-[26px] font-normal leading-[1.2] tracking-[-0.01em] text-[#2B2F36]">
+                Acompanhe as vendas da
+                <br />
+                sua loja em um só lugar
+              </span>
+              <span className="mt-3 flex items-center gap-1.5 text-[13px] text-[#8A93A3]">
+                Seus pedidos ficam em Pedidos
+                <ArrowRight size={14} strokeWidth={1.6} aria-hidden="true" className="velo-inicio-seta" />
+              </span>
+            </span>
+            <ShoppingBag size={76} strokeWidth={1} aria-hidden="true" className="mb-1 shrink-0 text-[#2B2F36]" />
+          </span>
+        </motion.button>
+
+        {/* Ferramentas: título, abas em pílula e atalho para Projetos. */}
+        <motion.div {...revealProps(0.15, 10)} className="mt-12">
+          <h2 className="m-0 px-1 text-[26px] font-normal text-[#2B2F36]">Ferramentas</h2>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div role="tablist" aria-label="Ferramentas" className="flex rounded-[14px] bg-white p-1">
+              {ABAS.map((item) => {
+                const Icone = item.icone;
+                const ativa = aba === item.id;
+                return (
                   <button
+                    key={item.id}
                     type="button"
-                    aria-label="Fechar menu"
-                    tabIndex={-1}
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setMenuMaisAberto(false)}
-                  />
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-11 z-50 w-56 rounded-[14px] border border-[#ECEEF2] bg-white p-1.5"
-                    style={{ boxShadow: CARD_SHADOW }}
+                    role="tab"
+                    aria-selected={ativa}
+                    onClick={() => setAba(item.id)}
+                    className={`velo-inicio-tab flex h-9 items-center gap-2 rounded-[10px] px-3.5 text-[14px] ${
+                      ativa ? "bg-[#F2F3F6] font-medium text-[#0B0D12]" : "text-[#6B7280]"
+                    }`}
                   >
-                    {[
-                      { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
-                      { label: "Integrações", icon: Link2, to: "/dashboard/configuracoes?tab=Integrações" },
-                      { label: "Comunidade e Ajuda", icon: Info, to: "/dashboard/comunidade" },
-                    ].map((item) => {
-                      const Icone = item.icon;
-                      return (
-                        <button
-                          key={item.to}
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuMaisAberto(false);
-                            navigate(item.to);
-                          }}
-                          className="velo-home-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-[#4B5563]"
-                        >
-                          <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+                    <Icone size={16} strokeWidth={1.6} aria-hidden="true" />
+                    {item.label}
+                  </button>
+                );
+              })}
             </div>
+            <button
+              type="button"
+              onClick={go("/dashboard/projetos")}
+              className="velo-inicio-pill flex h-11 items-center gap-2 rounded-[14px] bg-white px-4 text-[14px] text-[#6B7280]"
+            >
+              Seus projetos
+              <FolderOpen size={16} strokeWidth={1.6} aria-hidden="true" className="text-[#2F5BEA]" />
+            </button>
           </div>
-          <p className="m-0 mt-1.5 text-[15px] text-[#8A93A3]">Por onde você quer começar?</p>
         </motion.div>
 
-        {/* Abas */}
-        <motion.div {...revealProps(0.1, 8)} role="tablist" aria-label="Seções da Início" className="mt-7 flex gap-10">
-          {ABAS.map((item) => {
-            const ativa = aba === item.id;
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {ferramentas.map((ferramenta, indice) => {
+            const Icone = ferramenta.icone;
             return (
-              <button
-                key={item.id}
+              <motion.button
+                key={ferramenta.id}
+                {...revealProps(0.2 + indice * 0.05, 10)}
                 type="button"
-                role="tab"
-                aria-selected={ativa}
-                onClick={() => setAba(item.id)}
-                className="relative h-10 text-[14px] font-medium transition-colors duration-150 hover:text-[#4B5563]"
-                style={ativa ? { color: "#2F5BEA" } : { color: "#8A93A3" }}
+                onClick={go(ferramenta.to)}
+                className="velo-inicio-card flex min-h-[300px] flex-col p-4 text-left"
               >
-                {item.label}
-                {ativa && (
-                  <motion.span
-                    layoutId="home-aba-ativa"
-                    aria-hidden="true"
-                    className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#2F5BEA]"
-                    transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-                  />
-                )}
-              </button>
+                <span className="flex items-start justify-between">
+                  <span className="flex items-center">
+                    <span className="relative z-[1] flex h-10 w-10 items-center justify-center rounded-[14px] text-white" style={{ background: ferramenta.cor }}>
+                      <Icone size={18} strokeWidth={1.7} aria-hidden="true" />
+                    </span>
+                    <span className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#F2F3F6]">
+                      <img src={ferramenta.agente} alt="" className="h-8 w-8 object-contain" draggable={false} />
+                    </span>
+                  </span>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#ECEEF2] text-[#8A93A3]">
+                    <ArrowUpRight size={14} strokeWidth={1.6} aria-hidden="true" />
+                  </span>
+                </span>
+                <span className="mt-5 block text-[12px] text-[#8A93A3]">{ferramenta.categoria}</span>
+                <span className="mt-0.5 block text-[18px] font-medium leading-snug text-[#0B0D12]">{ferramenta.titulo}</span>
+                <span className="mt-3 flex flex-wrap gap-1.5">
+                  {ferramenta.destaque && (
+                    <span className="flex h-6 items-center gap-1 rounded-full border border-[#ECEEF2] px-2.5 text-[11.5px] text-[#4B5563]">
+                      <Flame size={11} strokeWidth={2} aria-hidden="true" className="text-[#0B0D12]" />
+                      {ferramenta.destaque}
+                    </span>
+                  )}
+                  {ferramenta.etiquetas.map((etiqueta) => (
+                    <span key={etiqueta} className="flex h-6 items-center rounded-full border border-[#ECEEF2] px-2.5 text-[11.5px] text-[#4B5563]">
+                      {etiqueta}
+                    </span>
+                  ))}
+                </span>
+                <span className="mt-auto block pt-5 text-[15px] font-light leading-snug text-[#2B2F36]">{ferramenta.descricao}</span>
+                <span className="mt-4 block h-[3px] w-full rounded-full bg-[#ECEEF2]">
+                  <span className="block h-full w-full rounded-full" style={{ background: ferramenta.cor }} />
+                </span>
+                <span className="mt-2 flex items-center justify-between text-[12px] text-[#8A93A3]">
+                  <span>Abrir</span>
+                  <ArrowRight size={13} strokeWidth={1.6} aria-hidden="true" />
+                </span>
+              </motion.button>
             );
           })}
-        </motion.div>
 
-        <div className="relative">
-          <div>
-            {/* Banner "Loja, Agentes, Resultados": imagem inteira (sem corte) numa faixa de 280px; o fundo da faixa tem a cor do fundo dela. */}
-            {mostrarDestaque && (
-              <motion.section
-                {...revealProps(0.3, 12)}
-                data-dashboard-tour="home-primeiros-passos"
-                aria-label="Destaque da Velo"
-                className="mt-6 overflow-hidden rounded-[20px] bg-[#F7F3ED]"
-              >
-                <img
-                  src={bannerResultados}
-                  alt="Loja, Agentes, Resultados. Você cria a loja. Os agentes cuidam dela."
-                  width={1672}
-                  height={941}
-                  className="mx-auto block h-[280px] w-auto select-none object-contain"
-                  draggable={false}
-                />
-              </motion.section>
-            )}
-
-            {/* Atividade recente: o trabalho dos agentes no site da loja, no desenho
-                "Recent activity" da referência. */}
-            {mostrarAtividade && (
-              <motion.section {...revealProps(0.38, 12)} aria-labelledby="home-atividade" className="mt-8">
-                <div className="flex items-baseline justify-between gap-4">
-                  <h3 id="home-atividade" className="m-0 text-[15px] font-semibold tracking-[-0.02em]">Atividade recente</h3>
-                  <span className="text-[13px] text-[#8A93A3]">Site da sua loja</span>
-                </div>
-                {projetosDaLoja.isLoading ? (
-                  <ul className="m-0 mt-2 list-none p-0" aria-label="Carregando atividade">
-                    {[0, 1, 2].map((i) => (
-                      <li key={i} className="flex min-h-16 items-center gap-3.5 px-2 py-2.5">
-                        <span className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[#F1F3F6]" />
-                        <span className="flex-1 space-y-2">
-                          <span className="block h-3 w-40 animate-pulse rounded-full bg-[#F1F3F6]" />
-                          <span className="block h-3 w-64 animate-pulse rounded-full bg-[#F5F6F8]" />
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : projetosDaLoja.isError ? (
-                  <p className="m-0 mt-3 px-2 text-[13px] text-[#8A93A3]">Não foi possível carregar a atividade da loja agora.</p>
-                ) : eventos.length === 0 ? (
-                  <div className="mt-2 flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                    <img src={agenteSino} alt="" aria-hidden="true" width={44} height={44} className="h-11 w-11 shrink-0 select-none object-contain" draggable={false} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-medium text-[#0B0D12]">Nenhuma atividade no site ainda</span>
-                      <span className="block text-[13px] text-[#8A93A3]">Crie o site da sua loja e acompanhe aqui cada mudança.</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={go("/dashboard/minha-loja")}
-                      className="velo-home-secondary flex h-9 shrink-0 items-center gap-2 rounded-[10px] px-3 text-[13px] font-medium text-[#0B0D12]"
-                    >
-                      Criar minha loja
-                      <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
-                    </button>
-                  </div>
-                ) : (
-                  <ul className="m-0 mt-2 list-none p-0">
-                    {eventos.map((evento) => {
-                      const slug = evento.projeto.status === "publicado" ? slugDoProjeto(evento.projeto) : null;
-                      return (
-                        <li key={evento.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                          {/* PNG do agente solto, sem moldura: fundo transparente como na referência. */}
-                          <img src={evento.agente} alt="" aria-hidden="true" width={44} height={44} className="h-11 w-11 shrink-0 select-none object-contain" draggable={false} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{evento.projeto.nome}</span>
-                            <span className="block truncate text-[13px] text-[#8A93A3]">
-                              {evento.acao} · {evento.projeto.tipo_projeto === "loja_completa" ? "Loja completa" : "Página de venda"}
-                            </span>
-                            <span className="block text-[12px] text-[#B4BBC6]">{tempoRelativo(evento.quando)}</span>
-                          </span>
-                          <span className="flex shrink-0 items-center gap-2">
-                            {slug && (
-                              <button
-                                type="button"
-                                onClick={go(`/loja/${slug}`)}
-                                aria-label="Ver site publicado"
-                                title="Ver site publicado"
-                                className="velo-home-secondary flex h-9 w-9 items-center justify-center rounded-[10px] text-[#4B5563]"
-                              >
-                                <ExternalLink size={16} strokeWidth={1.5} aria-hidden="true" />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => abrirEditor(evento.projeto)}
-                              aria-label="Abrir no editor"
-                              title="Abrir no editor"
-                              className="velo-home-secondary flex h-9 w-9 items-center justify-center rounded-[10px] text-[#4B5563]"
-                            >
-                              <PenLine size={16} strokeWidth={1.5} aria-hidden="true" />
-                            </button>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </motion.section>
-            )}
-
-            {/* Listas no estilo "Recent activity" */}
-            {listas.map((lista, indiceLista) => (
-              <motion.section
-                key={`${aba}-${lista.titulo}`}
-                {...revealProps(0.46 + indiceLista * 0.08, 12)}
-                aria-label={lista.titulo}
-                className="mt-8"
-              >
-                <h3 className="m-0 text-[15px] font-semibold tracking-[-0.02em]">{lista.titulo}</h3>
-                <ul className="m-0 mt-2 list-none p-0">
-                  {lista.linhas.map((linha) => (
-                    <li key={linha.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                      <span aria-hidden="true" className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#ECEEF2]">
-                        {linha.thumb}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{linha.title}</span>
-                        <span className="block truncate text-[13px] text-[#8A93A3]">{linha.description}</span>
-                        <span className="block truncate text-[12px] text-[#B4BBC6]">{linha.meta}</span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {linha.actions.map((acao) => {
-                          const Icone = acao.icon;
-                          return (
-                            <button
-                              key={acao.label}
-                              type="button"
-                              onClick={acao.onClick}
-                              disabled={acao.busy}
-                              aria-label={acao.label}
-                              title={acao.label}
-                              className="velo-home-secondary group flex h-9 items-center gap-2 rounded-[10px] px-2.5 text-[13px] font-medium text-[#4B5563] disabled:cursor-wait disabled:opacity-70"
-                            >
-                              <span className="velo-home-row-label hidden sm:inline">{acao.label}</span>
-                              <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
-                            </button>
-                          );
-                        })}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.section>
-            ))}
-          </div>
-
+          {/* Cartão de destaque (o colorido da referência): leva para Projetos. */}
+          <motion.button
+            {...revealProps(0.2 + ferramentas.length * 0.05, 10)}
+            type="button"
+            onClick={go("/dashboard/projetos")}
+            className="velo-inicio-card relative flex min-h-[300px] flex-col overflow-hidden p-4 text-left text-white"
+            style={{ background: "#2F5BEA" }}
+          >
+            <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+            <span aria-hidden="true" className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-white/[0.06]" />
+            <span className="relative flex items-start justify-between">
+              <span className="flex items-center">
+                <span className="relative z-[1] flex h-10 w-10 items-center justify-center rounded-[14px] bg-white text-[#2F5BEA]">
+                  <FolderOpen size={18} strokeWidth={1.7} aria-hidden="true" />
+                </span>
+                <span className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+                  <img src={agenteCubo} alt="" className="h-8 w-8 object-contain" draggable={false} />
+                </span>
+              </span>
+              {typeof totalProjetos === "number" && (
+                <span
+                  className="flex h-7 items-center gap-1 rounded-full border border-white/40 px-2.5 text-[12px]"
+                  aria-label={`${totalProjetos} ${totalProjetos === 1 ? "projeto" : "projetos"}`}
+                >
+                  <FolderOpen size={12} strokeWidth={1.8} aria-hidden="true" />
+                  {totalProjetos}
+                </span>
+              )}
+            </span>
+            <span className="relative mt-5 block text-[12px] text-white/70">Sua loja</span>
+            <span className="relative mt-0.5 block text-[18px] font-medium leading-snug">Projetos</span>
+            <span className="relative mt-auto block pt-5 text-[15px] font-light leading-snug text-white/90">
+              Veja os sites das suas lojas e o que os agentes estão fazendo neles.
+            </span>
+            <span className="relative mt-4 flex items-center justify-between text-[12px] text-white/80">
+              <span>Abrir projetos</span>
+              <ArrowRight size={13} strokeWidth={1.6} aria-hidden="true" />
+            </span>
+          </motion.button>
         </div>
       </div>
-      <VideoTutorialModal
-        open={tutorialOpen}
-        onClose={() => setTutorialOpen(false)}
-        title={TUTORIAL_INICIO.title}
-        description={TUTORIAL_INICIO.description}
-        src={TUTORIAL_INICIO.src}
-        aspectPadding={TUTORIAL_INICIO.aspectPadding}
-      />
     </main>
   );
 };
 
 // No celular a home volta ao estilo marketplace (busca, categorias e grade de
-// produtos), mais simples e direto do que o painel de onboarding do desktop.
+// produtos), mais simples e direto do que o painel do desktop.
 const DashboardHomeRoute = () => {
   const isMobile = useIsMobile();
 

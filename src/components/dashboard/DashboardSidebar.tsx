@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, Gift, Grid2X2, Home, Info, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Store, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
+import { Archive, ChevronRight, Image as ImageIcon, Copy, CreditCard, FolderOpen, Gift, Grid2X2, Home, Info, LogOut, MoreVertical, NotebookText, ScanFace, Settings2, ShieldCheck, ShoppingCart, Store, Sparkles, Tag, TrendingUp, Trophy, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,7 @@ type NavItem = {
 
 const baseNavItems: NavItem[] = [
   { id: "inicio", label: "Início", icon: Home, to: "/dashboard", end: true },
+  { id: "projetos", label: "Projetos", icon: FolderOpen, to: "/dashboard/projetos" },
   {
     // Categoria expansível (como "Products" da referência): agrupa catálogo,
     // páginas com IA e modelos de produto.
@@ -128,6 +129,7 @@ const NAV_CSS = `
 
 const tourTargetByLabel: Record<string, string> = {
   Início: "inicio",
+  Projetos: "projetos",
   Catálogo: "catalogo",
   "Produtos em Alta": "produtos-em-alta",
   Publicações: "publicacoes",
