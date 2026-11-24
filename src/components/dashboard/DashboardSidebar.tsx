@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, FolderOpen, Grid2X2, LogOut, MoreVertical, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound } from "lucide-react";
-// Ícones de traço fino e arredondado (Phosphor), no estilo da referência "Mova".
-import { CaretUp, ClipboardText, FileText, Folder, Gift, House, Image as ImageIcon, Info, Plus, SidebarSimple, Storefront, UserFocus, Users } from "@phosphor-icons/react";
+import { CreditCard, FolderOpen, Grid2X2, LogOut, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound } from "lucide-react";
+// Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
+import { ArrowUp01Icon, File01Icon, Folder01Icon, GiftIcon, Home01Icon, Image01Icon, InformationCircleIcon, MoreVerticalIcon, PlusSignIcon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon, UserSquareIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,11 +36,11 @@ type NavItem = {
 
 // Seção "Principal": telas do dia a dia, sem agrupamento (como "Main" da referência).
 const mainNavItems: NavItem[] = [
-  { id: "inicio", label: "Início", icon: House, to: "/dashboard", end: true },
-  { id: "pedidos", label: "Pedidos", icon: ClipboardText, to: "/dashboard/pedidos" },
-  { id: "publicacoes", label: "Publicações", icon: FileText, to: "/dashboard/publicacoes" },
-  { id: "imagens-ia", label: "Imagens com IA", icon: ImageIcon, to: "/dashboard/imagens-ia" },
-  { id: "avatares", label: "Avatares", icon: UserFocus, to: "/dashboard/avatares" },
+  { id: "inicio", label: "Início", icon: Home01Icon, to: "/dashboard", end: true },
+  { id: "pedidos", label: "Pedidos", icon: TaskDone01Icon, to: "/dashboard/pedidos" },
+  { id: "publicacoes", label: "Publicações", icon: File01Icon, to: "/dashboard/publicacoes" },
+  { id: "imagens-ia", label: "Imagens com IA", icon: Image01Icon, to: "/dashboard/imagens-ia" },
+  { id: "avatares", label: "Avatares", icon: UserSquareIcon, to: "/dashboard/avatares" },
   // { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
 
@@ -82,9 +82,9 @@ const lerRecolhida = () => {
 // A ROTA continua aberta de propósito — o callback do Mercado Pago devolve o
 // usuário em /dashboard/integracoes, e bloqueá-la quebraria a conexão de
 // pagamento de quem não é admin.
-const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: Storefront, to: "/dashboard/integracoes" };
+const storesNavItem: NavItem = { id: "lojas", label: "Lojas", icon: Store01Icon, to: "/dashboard/integracoes" };
 
-const affiliatesNavItem: NavItem = { id: "afiliados", label: "Afiliados", icon: Users, to: "/dashboard/comissoes", dimmed: true };
+const affiliatesNavItem: NavItem = { id: "afiliados", label: "Afiliados", icon: UserGroupIcon, to: "/dashboard/comissoes", dimmed: true };
 
 const normalizePath = (path: string) => path.split("?")[0].replace(/\/$/, "");
 
@@ -95,15 +95,15 @@ const PILL_EASE = [0.4, 0, 0.2, 1] as const;
 const NAV_CSS = `
 .velo-dashboard-sidebar.velo-fonte-inter, .velo-dashboard-sidebar.velo-fonte-inter * { font-feature-settings: normal !important; }
 .velo-nav-item, .velo-nav-sub { transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-nav-item:hover:not([data-active="true"]) { background-color: #EFEFF1; color: #0B0D12; }
-.velo-nav-sub:hover:not([data-active="true"]) { background-color: #EFEFF1; color: #0B0D12; }
+.velo-nav-item:hover:not([data-active="true"]) { background-color: #EFEFF1; }
+.velo-nav-sub:hover:not([data-active="true"]) { background-color: #EFEFF1; }
 .velo-nav-add { transition: color 150ms ease-out; }
-.velo-nav-add:hover { color: #0B0D12; }
+.velo-nav-add:hover { color: #52525B; }
 .velo-side-toggle { transition: background-color 150ms ease-out, color 150ms ease-out; }
 .velo-side-toggle:hover { background-color: #EFEFF1; color: #0B0D12; }
 .velo-nav-item:focus-visible, .velo-nav-sub:focus-visible, .velo-nav-add:focus-visible, .velo-side-toggle:focus-visible, .velo-side-card:focus-visible { outline: none; box-shadow: 0 0 0 2px #2F5BEA33, inset 0 0 0 1px #2F5BEA; }
 .velo-side-card { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
-.velo-side-card:hover { border-color: #DCE0E7; background-color: #FFFFFF; }
+.velo-side-card:hover { border-color: #DEDEE1; background-color: #FFFFFF; }
 .velo-nav-ico { transition: transform 150ms ease-out; }
 
 .velo-settings-row { transition: background-color 140ms ease-out; }
@@ -224,7 +224,7 @@ const VeloIconOnly = () => (
     src="/logo.png"
     alt=""
     // 38px mantém a presença da marca sem deixar o topo mais pesado que a referência.
-    style={{ width: 38, height: 38, objectFit: "contain", flexShrink: 0, display: "block" }}
+    style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0, display: "block" }}
   />
 );
 
@@ -244,7 +244,7 @@ const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
       zIndex: -1,
       borderRadius: 10,
       background: "#FFFFFF",
-      boxShadow: "0 1px 2px rgba(16,24,40,0.06), 0 0 0 1px rgba(16,24,40,0.05)",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)",
     }}
   />
 );
@@ -294,7 +294,8 @@ const SidebarNavLink = ({
     ...(sub ? styles.navSubLinkBase : styles.navLinkBase),
     position: "relative",
     isolation: "isolate",
-    color: active ? "#0B0D12" : "#2B2F36",
+    color: active ? "#18181B" : "#3F3F46",
+    fontWeight: active ? 500 : 400,
     ...(recolhida ? { justifyContent: "center", padding: 0 } : null),
   };
 
@@ -310,7 +311,15 @@ const SidebarNavLink = ({
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      {leading ?? <Icon className="velo-nav-ico" size={sub ? 18 : 19} aria-hidden="true" />}
+      {leading ?? (
+        <Icon
+          className="velo-nav-ico"
+          size={sub ? 16 : 18}
+          strokeWidth={1.5}
+          color={sub ? "#71717A" : "#52525B"}
+          aria-hidden="true"
+        />
+      )}
       {recolhida ? null : <span style={rotuloStyle}>{item.label}</span>}
     </Link>
   );
@@ -344,7 +353,7 @@ const SidebarCategory = ({
     textAlign: "left",
     position: "relative",
     isolation: "isolate",
-    color: "#2B2F36",
+    color: "#3F3F46",
     background: "transparent",
     ...(recolhida ? { justifyContent: "center", padding: 0 } : null),
   };
@@ -699,13 +708,11 @@ const DashboardSidebar = () => {
         ...styles.sidebar,
         width: recolhida ? 72 : styles.sidebar.width,
         ...(recolhida ? { padding: "0 12px 16px" } : null),
-        // Na Início não há moldura: volta o filete que separa a sidebar da página.
-        ...(location.pathname === "/dashboard" || location.pathname === "/dashboard/" ? { borderRight: "1px solid #ECEEF2" } : null),
       }}
     >
       <style>{NAV_CSS}</style>
       {/* Topo: marca e botão de recolher, com filete embaixo (como na referência). */}
-      <header style={{ ...styles.header, justifyContent: recolhida ? "center" : "space-between", ...(recolhida ? { margin: "0 -12px", padding: "0 14px 0 22px" } : null) }}>
+      <header style={{ ...styles.header, justifyContent: recolhida ? "center" : "space-between", ...(recolhida ? { padding: "0 14px" } : null) }}>
         {recolhida ? null : (
           <Link to="/dashboard" style={styles.brand}>
             <VeloIconOnly />
@@ -720,7 +727,7 @@ const DashboardSidebar = () => {
           className="velo-side-toggle"
           style={styles.collapseButton}
         >
-          <SidebarSimple size={19} aria-hidden="true" />
+          <SidebarLeftIcon size={18} strokeWidth={1.5} color="#A1A1AA" aria-hidden="true" />
         </button>
       </header>
 
@@ -749,9 +756,10 @@ const DashboardSidebar = () => {
                   className="velo-side-toggle"
                   style={styles.sectionToggle}
                 >
-                  <CaretUp
-                    size={15}
-                    strokeWidth={1.75}
+                  <ArrowUp01Icon
+                    size={14}
+                    strokeWidth={1.5}
+                    color="#A1A1AA"
                     aria-hidden="true"
                     style={{ transform: espacoAberto ? "none" : "rotate(180deg)", transition: reduce ? "none" : "transform 200ms ease-out" }}
                   />
@@ -778,7 +786,7 @@ const DashboardSidebar = () => {
                 recolhida={recolhida}
               >
                 <SidebarNavLink
-                  item={{ id: "projetos-todos", label: "Todos os projetos", icon: Folder, to: "/dashboard/projetos" }}
+                  item={{ id: "projetos-todos", label: "Todos os projetos", icon: Folder01Icon, to: "/dashboard/projetos" }}
                   active={isActive(projetosItem)}
                   sub
                   reduce={reduce}
@@ -790,9 +798,9 @@ const DashboardSidebar = () => {
                     onClick={() => abrirProjeto(projeto)}
                     className="velo-nav-sub"
                     title={projeto.nome}
-                    style={{ ...styles.navSubLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#2B2F36" }}
+                    style={{ ...styles.navSubLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#3F3F46" }}
                   >
-                    <Folder className="velo-nav-ico" size={18} aria-hidden="true" />
+                    <Folder01Icon className="velo-nav-ico" size={16} strokeWidth={1.5} color="#71717A" aria-hidden="true" />
                     <span style={rotuloStyle}>{projeto.nome}</span>
                   </button>
                 ))}
@@ -802,7 +810,7 @@ const DashboardSidebar = () => {
                   className="velo-nav-add"
                   style={styles.navAdd}
                 >
-                  <Plus size={15} aria-hidden="true" />
+                  <PlusSignIcon size={14} strokeWidth={1.5} aria-hidden="true" />
                   Novo projeto
                 </button>
               </SidebarCategory>
@@ -836,8 +844,8 @@ const DashboardSidebar = () => {
           {recolhida ? null : <SectionLabel>Suporte</SectionLabel>}
           {/* A Central de Ajuda (/ajuda) não aparece em menus: só por link direto. */}
           <SidebarNavLink
-            item={{ id: "comunidade", label: "Comunidade e Ajuda", icon: Info, to: "/dashboard/comunidade" }}
-            active={isActive({ id: "comunidade", label: "", icon: Info, to: "/dashboard/comunidade" })}
+            item={{ id: "comunidade", label: "Comunidade e Ajuda", icon: InformationCircleIcon, to: "/dashboard/comunidade" }}
+            active={isActive({ id: "comunidade", label: "", icon: InformationCircleIcon, to: "/dashboard/comunidade" })}
             reduce={reduce}
             recolhida={recolhida}
           />
@@ -847,9 +855,9 @@ const DashboardSidebar = () => {
             className="velo-nav-item"
             aria-label={recolhida ? "Indique e ganhe" : undefined}
             title={recolhida ? "Indique e ganhe" : "Ganhe 30% na primeira venda"}
-            style={{ ...styles.navLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#2B2F36", ...(recolhida ? { justifyContent: "center", padding: 0 } : null) }}
+            style={{ ...styles.navLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#3F3F46", ...(recolhida ? { justifyContent: "center", padding: 0 } : null) }}
           >
-            <Gift className="velo-nav-ico" size={19} aria-hidden="true" />
+            <GiftIcon className="velo-nav-ico" size={18} strokeWidth={1.5} color="#52525B" aria-hidden="true" />
             {recolhida ? null : <span style={rotuloStyle}>Indique e ganhe</span>}
           </button>
         </nav>
@@ -923,7 +931,7 @@ const DashboardSidebar = () => {
                   <span style={styles.profileEmail}>{visibleProfileEmail}</span>
                 </span>
                 <span aria-hidden="true" style={styles.profileChevrons}>
-                  <MoreVertical size={16} strokeWidth={2} />
+                  <MoreVerticalIcon size={16} strokeWidth={1.5} color="#A1A1AA" />
                 </span>
               </>
             )}
