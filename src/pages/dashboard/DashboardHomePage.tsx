@@ -1,40 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ElementType } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import {
-  Archive,
-  ArrowRight,
-  Flame,
-  FolderOpen,
-  Image as ImageIcon,
-  LayoutTemplate,
-  Info,
-  Link2,
-  Menu,
-  Plus,
-  SlidersHorizontal,
-  Settings2,
-  Rocket,
-  ScanFace,
-  Search,
-  ShoppingBag,
-  Sprout,
-  TrendingUp,
-  UserRound,
-} from "lucide-react";
+import { ArrowUp, Folder, History, Plus, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAtlasChat } from "@/contexts/AtlasChatContext";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { fetchUserProjects } from "@/lib/userProjects";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
+import cardTemasImg from "@/assets/home-card-temas.webp";
 import agenteEstrela from "@/assets/agentes/estrela.png";
 import agenteLua from "@/assets/agentes/lua.png";
 import agenteSino from "@/assets/agentes/sino.png";
 import agenteConcha from "@/assets/agentes/concha.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
-import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
-import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -44,186 +25,79 @@ const INTRO = {
   revealDuration: 0.7,
 };
 
-// Tokens da Início no layout de referência: fundo cinza-claro, cartões brancos
-// bem arredondados, um cartão de destaque azul na grade.
+// Início no desenho de "primeiros passos" (boas-vindas centralizada, caixa do
+// assistente e grade de cartões com ilustração). Fundo branco, Inter.
 const HOME_CSS = `
-.velo-inicio-card { background: #FFFFFF; border-radius: 24px; transition: transform 180ms ease-out, box-shadow 180ms ease-out; }
-.velo-inicio-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(16,24,40,0.07); }
-.velo-inicio-card:focus-visible, .velo-inicio-tab:focus-visible, .velo-inicio-pill:focus-visible, .velo-inicio-search:focus-visible, .velo-inicio-link:focus-visible, .velo-inicio-conta:focus-visible, .velo-inicio-item:focus-visible, .velo-inicio-novo:focus-visible, .velo-inicio-vendas:focus-visible {
-  outline: none; box-shadow: 0 0 0 2px #F2F3F6, 0 0 0 4px rgba(47,91,234,0.45);
-}
-.velo-inicio-tab { transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-inicio-tab:hover { color: #0B0D12; }
-.velo-inicio-pill { transition: background-color 150ms ease-out; }
-.velo-inicio-pill:hover { background: #F7F8FA; }
-.velo-inicio-search { transition: background-color 150ms ease-out; }
-.velo-inicio-search:hover { background: #FAFAFB; }
-.velo-inicio-link { transition: color 150ms ease-out; }
-.velo-inicio-link:hover { color: #0B0D12; }
-.velo-inicio-conta { transition: background-color 150ms ease-out; }
-.velo-inicio-conta:hover { background: #FAFAFB; }
-.velo-inicio-novo { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
-.velo-inicio-novo:hover { border-color: #AEB6C3; background: rgba(255,255,255,0.5); }
+.velo-inicio-card { background: #FFFFFF; border: 1px solid #E6E7EA; border-radius: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04); transition: box-shadow 180ms ease-out, border-color 180ms ease-out; }
+.velo-inicio-card:hover { border-color: #DADCE0; box-shadow: 0 6px 20px rgba(16,24,40,0.06); }
+.velo-inicio-botao { background: #FFFFFF; border: 1px solid #E3E4E8; box-shadow: 0 1px 2px rgba(16,24,40,0.06); transition: background-color 150ms ease-out, border-color 150ms ease-out; }
+.velo-inicio-botao:hover { background: #F6F6F7; border-color: #D5D7DC; }
+.velo-inicio-icone { transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-inicio-ghost { transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-inicio-ghost:hover { background: #F1F1F2; color: #0B0D12; }
 .velo-inicio-item { transition: background-color 150ms ease-out; }
 .velo-inicio-item:hover { background: #F5F6F8; }
-.velo-inicio-vendas .velo-inicio-seta { transition: transform 150ms ease-out; }
-.velo-inicio-vendas:hover .velo-inicio-seta { transform: translateX(3px); }
+.velo-inicio-novo { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
+.velo-inicio-novo:hover { border-color: #AEB6C3; background: #FAFAFB; }
+.velo-inicio-loja { text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 6px; text-decoration-color: #9AA1AE; transition: text-decoration-color 150ms ease-out; }
+.velo-inicio-loja:hover { text-decoration-color: #0B0D12; }
+.velo-inicio-caixa { transition: border-color 150ms ease-out, box-shadow 150ms ease-out; }
+.velo-inicio-caixa:focus-within { border-color: #C9CDD4; box-shadow: 0 2px 12px rgba(16,24,40,0.08); }
+.velo-inicio-botao:focus-visible, .velo-inicio-icone:focus-visible, .velo-inicio-ghost:focus-visible, .velo-inicio-item:focus-visible, .velo-inicio-novo:focus-visible, .velo-inicio-loja:focus-visible, .velo-inicio-link:focus-visible {
+  outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45);
+}
 /* O painel força Hanken Grotesk com !important; a Início usa Inter sem números tabulares. */
 .dashboard-inter .velo-fonte-inter.velo-inicio-root, .dashboard-inter .velo-fonte-inter.velo-inicio-root * { font-feature-settings: normal !important; }
 .dashboard-inter .velo-fonte-inter h1, .dashboard-inter .velo-fonte-inter h2, .dashboard-inter .velo-fonte-inter h3 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -0.02em; }
-@media (prefers-reduced-motion: reduce) {
-  .velo-inicio-card, .velo-inicio-card:hover { transition: none; transform: none; }
-}
 `;
 
-type AbaId = "comecar" | "avancado";
+type CartaoId = "produto" | "visual" | "mercado-livre" | "imagens" | "projetos";
 
-type Ferramenta = {
-  id: string;
-  aba: AbaId;
+type Cartao = {
+  id: CartaoId;
   titulo: string;
-  categoria: string;
   descricao: string;
-  selo: string;
-  destaque?: string;
-  etiquetas: string[];
-  rotuloAcao: string;
-  acao: string;
-  icone?: ElementType;
-  logo?: string;
-  cor: string;
-  fundoIcone: string;
-  agente: string;
+  botao: string;
   to: string;
 };
 
-// Cada cartão é uma tela que já existe no painel; nada de número inventado.
-// Em "Para começar" a ordem é o caminho sugerido (etapa 1, 2, 3).
-const FERRAMENTAS: Ferramenta[] = [
+// Cada cartão leva a uma tela que já existe; nada de número inventado.
+const CARTOES: Cartao[] = [
   {
-    id: "catalogo",
-    aba: "comecar",
-    titulo: "Catálogo",
-    categoria: "Produtos",
-    descricao: "Escolha produtos para vender na sua loja.",
-    selo: "Fornecedor",
-    destaque: "Comece aqui",
-    etiquetas: ["Produtos", "Estoque"],
-    rotuloAcao: "Ação",
-    acao: "Escolher",
-    icone: ShoppingBag,
-    cor: "#2F5BEA",
-    fundoIcone: "linear-gradient(160deg, #5B7FF2 0%, #2F5BEA 100%)",
-    agente: agenteEstrela,
+    id: "produto",
+    titulo: "Adicione seu primeiro produto",
+    descricao: "Escolha um produto do catálogo para vender. Dá para ajustar preço e detalhes depois.",
+    botao: "Adicionar produto",
     to: "/dashboard/catalogo",
   },
   {
-    id: "modelos",
-    aba: "comecar",
-    titulo: "Templates",
-    categoria: "Loja",
-    descricao: "Escolha o visual do site da sua loja.",
-    selo: "Site",
-    destaque: "Comece aqui",
-    etiquetas: ["Visual", "Tema"],
-    rotuloAcao: "Ação",
-    acao: "Montar",
-    icone: LayoutTemplate,
-    cor: "#7C5CFA",
-    fundoIcone: "linear-gradient(160deg, #9C84FF 0%, #7C5CFA 100%)",
-    agente: agenteCubo,
+    id: "visual",
+    titulo: "Escolha o visual da loja",
+    descricao: "Escolha um tema que combine com sua marca e personalize a partir dele.",
+    botao: "Escolher tema",
     to: "/dashboard/modelos",
   },
   {
     id: "mercado-livre",
-    aba: "comecar",
-    titulo: "Mercado Livre",
-    categoria: "Vendas",
-    descricao: "Conecte sua conta para publicar e receber pedidos.",
-    selo: "Integração",
-    destaque: "Essencial",
-    etiquetas: ["Anúncios", "Pedidos"],
-    rotuloAcao: "Ação",
-    acao: "Conectar",
-    logo: "/brand/mercado-livre.png",
-    cor: "#E6C600",
-    fundoIcone: "linear-gradient(160deg, #FFF06A 0%, #FFE600 100%)",
-    agente: agenteFolha,
+    titulo: "Conecte o Mercado Livre",
+    descricao: "Conecte sua conta para publicar os produtos e receber os pedidos na Velo.",
+    botao: "Conectar conta",
     to: "/dashboard/configuracoes?tab=Integrações",
   },
   {
-    id: "produtos-em-alta",
-    aba: "avancado",
-    titulo: "Produtos em Alta",
-    categoria: "Pesquisa",
-    descricao: "Veja os produtos que estão vendendo mais.",
-    selo: "Ranking",
-    destaque: "Tendências",
-    etiquetas: ["Mercado"],
-    rotuloAcao: "Ação",
-    acao: "Descobrir",
-    icone: TrendingUp,
-    cor: "#E5484D",
-    fundoIcone: "linear-gradient(160deg, #F37A7E 0%, #E5484D 100%)",
-    agente: agenteLua,
-    to: "/dashboard/produtos-em-alta",
-  },
-  {
-    id: "imagens-ia",
-    aba: "avancado",
-    titulo: "Imagens com IA",
-    categoria: "Criativos",
-    descricao: "Crie fotos de produto para anúncios e site.",
-    selo: "IA",
-    destaque: "Com IA",
-    etiquetas: ["Fotos"],
-    rotuloAcao: "Ação",
-    acao: "Criar",
-    icone: ImageIcon,
-    cor: "#D9469B",
-    fundoIcone: "linear-gradient(160deg, #EC78B9 0%, #D9469B 100%)",
-    agente: agenteConcha,
+    id: "imagens",
+    titulo: "Crie imagens com IA",
+    descricao: "Gere fotos de produto para o site e para os anúncios em poucos minutos.",
+    botao: "Criar imagem",
     to: "/dashboard/imagens-ia",
   },
   {
-    id: "avatares",
-    aba: "avancado",
-    titulo: "Avatares",
-    categoria: "Criativos",
-    descricao: "Vídeos com avatar apresentando o produto.",
-    selo: "Vídeo",
-    destaque: "Com IA",
-    etiquetas: ["Vídeo"],
-    rotuloAcao: "Ação",
-    acao: "Gravar",
-    icone: ScanFace,
-    cor: "#F08A24",
-    fundoIcone: "linear-gradient(160deg, #F7AE62 0%, #F08A24 100%)",
-    agente: agenteSino,
-    to: "/dashboard/avatares",
+    id: "projetos",
+    titulo: "Acompanhe seus projetos",
+    descricao: "Veja os sites das suas lojas e o que os agentes estão fazendo neles.",
+    botao: "Ver projetos",
+    to: "/dashboard/projetos",
   },
-  {
-    id: "publicacoes",
-    aba: "avancado",
-    titulo: "Publicações",
-    categoria: "Anúncios",
-    descricao: "Acompanhe os produtos que você publicou.",
-    selo: "Anúncios",
-    destaque: "Mercado Livre",
-    etiquetas: [],
-    rotuloAcao: "Ação",
-    acao: "Acompanhar",
-    icone: Archive,
-    cor: "#0B0D12",
-    fundoIcone: "linear-gradient(160deg, #3A3F4A 0%, #0B0D12 100%)",
-    agente: agenteEstrela,
-    to: "/dashboard/publicacoes",
-  },
-];
-
-const ABAS = [
-  { id: "comecar" as const, label: "Para começar", icone: Sprout },
-  { id: "avancado" as const, label: "Avançado", icone: Rocket },
 ];
 
 // Quais cartões a pessoa escondeu: preferência deste navegador, por usuário.
@@ -245,25 +119,86 @@ const salvarCartoesOcultos = (userId: string, ids: string[]) => {
   }
 };
 
-// Selo colorido da ferramenta (ícone ou logo), com gradiente curto e filete de luz.
-const IconeFerramenta = ({ ferramenta, tamanho }: { ferramenta: Ferramenta; tamanho: number }) => {
-  const Icone = ferramenta.icone;
+const Agente = ({ src, className }: { src: string; className: string }) => (
+  <img src={src} alt="" draggable={false} className={`pointer-events-none absolute select-none object-contain ${className}`} />
+);
+
+const Selo = ({ children }: { children: ReactNode }) => (
+  <span className="absolute left-2 top-2 z-[2] flex h-7 items-center gap-1.5 rounded-[8px] bg-[#5C5F66] px-2.5 text-[12.5px] font-medium text-white">
+    {children}
+  </span>
+);
+
+// Ilustrações dos cartões: fundo cinza-claro com elementos da Velo (agentes,
+// logos e telas), no lugar das fotos de produto da referência.
+const Ilustracao = ({ id, totalProjetos }: { id: CartaoId; totalProjetos?: number }) => {
+  const base = "relative block h-[140px] overflow-hidden rounded-[12px] bg-[#F3F3F4]";
+  if (id === "produto") {
+    return (
+      <span className={base}>
+        <Agente src={agenteEstrela} className="-left-1 top-1 h-[86px] w-[86px] -rotate-12" />
+        <span className="absolute left-1/2 top-1/2 flex h-[92px] w-[92px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[10px] border border-dashed border-[#C9CCD2] bg-white text-[#2B2F36] shadow-[0_6px_18px_rgba(16,24,40,0.08)]">
+          <Plus size={18} strokeWidth={1.6} aria-hidden="true" />
+        </span>
+        <Agente src={agenteCubo} className="-right-1 top-3 h-[92px] w-[92px] rotate-6" />
+        <Agente src={agenteLua} className="bottom-[-18px] left-[18%] h-[64px] w-[64px] rotate-12" />
+      </span>
+    );
+  }
+  if (id === "visual") {
+    return (
+      <span className={base}>
+        <img src={cardTemasImg} alt="" draggable={false} className="absolute left-[8%] top-[10%] h-[120%] w-auto max-w-none select-none object-contain" />
+        <span className="absolute right-[18%] top-[30%] flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-[#0B0D12] text-[19px] font-medium text-white shadow-[0_6px_18px_rgba(16,24,40,0.18)]">
+          Aa
+        </span>
+      </span>
+    );
+  }
+  if (id === "mercado-livre") {
+    return (
+      <span className={base}>
+        <span className="absolute left-[26%] top-[20%] flex h-[58px] w-[120px] items-center justify-center rounded-[12px] bg-[#FFE600] shadow-[0_8px_20px_rgba(16,24,40,0.12)]">
+          <img src="/brand/mercado-livre-handshake.svg" alt="" className="h-[40px] w-auto object-contain" draggable={false} />
+        </span>
+        <span className="absolute left-[44%] top-[50%] flex h-[40px] items-center gap-2 rounded-[10px] bg-white px-3 text-[12.5px] font-medium text-[#2B2F36] shadow-[0_6px_18px_rgba(16,24,40,0.10)]">
+          <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#9AA1AE]" />
+          Sua conta
+        </span>
+        <Agente src={agenteFolha} className="bottom-[-6px] left-[6%] h-[72px] w-[72px] -rotate-6" />
+      </span>
+    );
+  }
+  if (id === "imagens") {
+    return (
+      <span className={base}>
+        <Selo>
+          <Sparkles size={12} strokeWidth={2} aria-hidden="true" />
+          Com IA
+        </Selo>
+        <span className="absolute left-1/2 top-[54%] flex h-[46px] w-[76%] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-[14px] bg-white px-4 text-[13px] shadow-[0_8px_22px_rgba(16,24,40,0.10)]">
+          <span className="h-2 flex-1 rounded-full bg-[#E6E7EA]" />
+          <span className="text-[#0B0D12]">.jpg</span>
+        </span>
+        <Agente src={agenteConcha} className="bottom-[-8px] right-[6%] h-[62px] w-[62px] rotate-6" />
+      </span>
+    );
+  }
   return (
-    <span
-      className="relative z-[1] flex shrink-0 items-center justify-center text-white"
-      style={{
-        width: tamanho,
-        height: tamanho,
-        borderRadius: tamanho * 0.34,
-        background: ferramenta.fundoIcone,
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 2px rgba(16,24,40,0.10)",
-      }}
-    >
-      {ferramenta.logo ? (
-        <img src={ferramenta.logo} alt="" className="object-contain" style={{ width: tamanho * 0.62, height: tamanho * 0.62 }} draggable={false} />
-      ) : Icone ? (
-        <Icone size={Math.round(tamanho * 0.42)} strokeWidth={1.7} aria-hidden="true" />
-      ) : null}
+    <span className={base}>
+      {typeof totalProjetos === "number" && (
+        <Selo>
+          <span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-white/70" />
+          {totalProjetos} {totalProjetos === 1 ? "projeto" : "projetos"}
+        </Selo>
+      )}
+      <span className="absolute left-[28%] top-[34%] flex h-[64px] w-[96px] -rotate-6 items-end rounded-[10px] bg-white/90 p-2 shadow-[0_6px_18px_rgba(16,24,40,0.08)]">
+        <Folder size={16} strokeWidth={1.6} aria-hidden="true" className="text-[#9AA1AE]" />
+      </span>
+      <span className="absolute left-[42%] top-[42%] flex h-[64px] w-[96px] rotate-3 items-end rounded-[10px] bg-white p-2 shadow-[0_8px_20px_rgba(16,24,40,0.10)]">
+        <Folder size={16} strokeWidth={1.6} aria-hidden="true" className="text-[#2B2F36]" />
+      </span>
+      <Agente src={agenteSino} className="right-[10%] top-[12%] h-[58px] w-[58px] rotate-12" />
     </span>
   );
 };
@@ -271,10 +206,8 @@ const IconeFerramenta = ({ ferramenta, tamanho }: { ferramenta: Ferramenta; tama
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { nomeCurto, foto } = useProfile();
-  const [avatarFalhou, setAvatarFalhou] = useState(false);
-  const [menuContaAberto, setMenuContaAberto] = useState(false);
-  const [aba, setAba] = useState<AbaId>("comecar");
+  const { enviar: enviarParaAtlas } = useAtlasChat();
+  const [mensagem, setMensagem] = useState("");
   const [personalizarAberto, setPersonalizarAberto] = useState(false);
   const [ocultos, setOcultos] = useState<string[]>([]);
   // Mesma leitura da página Projetos (RPC get_user_projects), sem consulta nova.
@@ -328,15 +261,13 @@ const DashboardHomePage = () => {
   }, [introState, reduceMotion, user?.id]);
 
   useEffect(() => {
-    if (!menuContaAberto && !personalizarAberto) return;
+    if (!personalizarAberto) return;
     const fecharComEsc = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setMenuContaAberto(false);
-      setPersonalizarAberto(false);
+      if (event.key === "Escape") setPersonalizarAberto(false);
     };
     window.addEventListener("keydown", fecharComEsc);
     return () => window.removeEventListener("keydown", fecharComEsc);
-  }, [menuContaAberto, personalizarAberto]);
+  }, [personalizarAberto]);
 
   useEffect(() => {
     setOcultos(user?.id ? lerCartoesOcultos(user.id) : []);
@@ -356,403 +287,222 @@ const DashboardHomePage = () => {
     return (
       <main
         aria-hidden="true"
-        className="shrink-0 bg-[#F2F3F6] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+        className="shrink-0 bg-white -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       />
     );
   }
 
   const go = (path: string) => () => navigate(path);
-  const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
-  const totalProjetos = projetos.data?.length;
+  const listaProjetos = projetos.data ?? [];
+  const totalProjetos = projetos.data ? listaProjetos.length : undefined;
+  // Nome da loja no título: o projeto mais recente; sem projeto, "sua loja".
+  const lojaRecente = [...listaProjetos].sort(
+    (a, b) => new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime(),
+  )[0];
+  const nomeDaLoja = lojaRecente?.nome?.trim() || "sua loja";
   const atualizarOcultos = (ids: string[]) => {
     setOcultos(ids);
     if (user?.id) salvarCartoesOcultos(user.id, ids);
   };
   const alternarCartao = (id: string) =>
     atualizarOcultos(ocultos.includes(id) ? ocultos.filter((item) => item !== id) : [...ocultos, id]);
-  const caminho = FERRAMENTAS.filter((f) => f.aba === "comecar");
-  const ferramentas = FERRAMENTAS.filter((f) => f.aba === aba && !ocultos.includes(f.id));
-  const ocultasNaAba = FERRAMENTAS.filter((f) => f.aba === aba && ocultos.includes(f.id)).length;
-  const primeiroNome = nomeCurto && nomeCurto !== "Usuario" ? nomeCurto.split(" ")[0] : "Sua conta";
+  const cartoes = CARTOES.filter((cartao) => !ocultos.includes(cartao.id));
+  const podeEnviar = mensagem.trim().length > 0;
+
+  // A conversa vive no AtlasChatProvider e é desenhada pelo AtlasDockPanel;
+  // aqui a caixa só dispara a primeira mensagem.
+  const enviarMensagem = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const texto = mensagem.trim();
+    if (!texto) return;
+    setMensagem("");
+    void enviarParaAtlas(texto);
+  };
 
   return (
-    <main className="velo-fonte-inter velo-inicio-root shrink-0 overflow-auto bg-[#F2F3F6] text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
+    <main className="velo-fonte-inter velo-inicio-root shrink-0 overflow-auto bg-white text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
       <style>{HOME_CSS}</style>
 
-      {/* Barra do topo no desenho da referência: links centralizados; à direita,
-          botão redondo de busca e pílula da conta com menu. */}
-      <motion.header {...revealProps(0, -6)} className="grid h-[72px] w-full grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
-        <span aria-hidden="true" />
-        <nav aria-label="Atalhos" className="flex items-center gap-10">
-          {[
-            { label: "Projetos", to: "/dashboard/projetos" },
-            { label: "Pedidos", to: "/dashboard/pedidos" },
-            { label: "Comunidade", to: "/dashboard/comunidade" },
-          ].map((link) => (
-            <button
-              key={link.to}
-              type="button"
-              onClick={go(link.to)}
-              className="velo-inicio-link rounded-md text-[15px] text-[#2B2F36]"
-            >
-              {link.label}
+      {/* Linha do topo: atalho de ajuda à direita, discreto. */}
+      <motion.div {...revealProps(0, -6)} className="flex h-14 items-center justify-end px-6 text-[13px] text-[#4B5563]">
+        Dúvidas?&nbsp;
+        <button
+          type="button"
+          onClick={go("/dashboard/comunidade")}
+          className="velo-inicio-link rounded font-medium text-[#0B0D12] underline underline-offset-2"
+        >
+          Comunidade e Ajuda
+        </button>
+      </motion.div>
+
+      <div className="mx-auto w-full max-w-[940px] px-4 pb-16">
+        {/* Boas-vindas centralizada, com o nome da loja sublinhado. */}
+        <motion.div {...revealProps(0.05, 10)} className="pt-12 text-center">
+          <h1 className="m-0 text-[30px] font-normal leading-[1.2] tracking-[-0.02em] text-[#0B0D12]">
+            Bem-vindo à Velo
+            <br />
+            Vamos montar{" "}
+            <button type="button" onClick={go("/dashboard/projetos")} className="velo-inicio-loja rounded-sm">
+              {nomeDaLoja}
             </button>
-          ))}
-        </nav>
-        <div className="relative flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={abrirBusca}
-            aria-label="Buscar produtos, lojas e telas"
-            title="Buscar"
-            className="velo-inicio-search flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#2F5BEA]"
-          >
-            <Search size={17} strokeWidth={1.7} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMenuContaAberto((aberto) => !aberto)}
-            aria-label="Menu da conta"
-            aria-haspopup="menu"
-            aria-expanded={menuContaAberto}
-            className="velo-inicio-conta flex h-10 items-center gap-2.5 rounded-full bg-white pl-2 pr-3.5 text-[15px] text-[#2B2F36]"
-          >
-            <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#F2F3F6] text-[#8A93A3]">
-              {foto && !avatarFalhou ? (
-                <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
-              ) : (
-                <UserRound size={14} strokeWidth={1.6} aria-hidden="true" />
-              )}
+          </h1>
+        </motion.div>
+
+        {/* Caixa do Atlas: envia a primeira mensagem; a conversa abre no painel do Atlas. */}
+        <motion.form
+          {...revealProps(0.1, 10)}
+          onSubmit={enviarMensagem}
+          className="velo-inicio-caixa mx-auto mt-8 w-full max-w-[620px] rounded-[18px] border border-[#E6E7EA] bg-white px-4 pb-3 pt-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.05)]"
+        >
+          <label htmlFor="inicio-atlas" className="sr-only">
+            Mensagem para o Atlas
+          </label>
+          <input
+            id="inicio-atlas"
+            value={mensagem}
+            onChange={(event) => setMensagem(event.target.value)}
+            placeholder="Trabalhe com o Atlas"
+            autoComplete="off"
+            className="w-full border-0 bg-transparent p-0 text-[14px] text-[#0B0D12] outline-none placeholder:text-[#8A93A3]"
+          />
+          <div className="mt-7 flex items-center justify-between">
+            <span className="block h-6 w-6" aria-hidden="true">
+              <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
             </span>
-            <span className="max-w-[140px] truncate">{primeiroNome}</span>
-            <Menu size={18} strokeWidth={1.7} aria-hidden="true" className="ml-1.5" />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={go("/dashboard/atlas")}
+                className="velo-inicio-ghost flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] font-medium text-[#2B2F36]"
+              >
+                <History size={15} strokeWidth={1.7} aria-hidden="true" />
+                Conversas
+              </button>
+              <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-[#E3E4E8]" />
+              <button
+                type="submit"
+                disabled={!podeEnviar}
+                aria-label="Enviar para o Atlas"
+                className={`velo-inicio-icone flex h-8 w-8 items-center justify-center rounded-[8px] ${
+                  podeEnviar ? "bg-[#0B0D12] text-white" : "text-[#9AA1AE]"
+                }`}
+              >
+                <ArrowUp size={16} strokeWidth={1.9} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        </motion.form>
+
+        {/* Comece a montar sua loja: grade de cartões com ilustração. */}
+        <motion.div {...revealProps(0.15, 10)} className="relative mt-20 flex items-center justify-between">
+          <h2 className="m-0 text-[15px] font-medium text-[#0B0D12]">Comece a montar sua loja</h2>
+          <button
+            type="button"
+            onClick={() => setPersonalizarAberto((aberto) => !aberto)}
+            aria-haspopup="dialog"
+            aria-expanded={personalizarAberto}
+            className="velo-inicio-ghost flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] font-medium text-[#4B5563]"
+          >
+            <SlidersHorizontal size={14} strokeWidth={1.8} aria-hidden="true" />
+            Personalizar
           </button>
-          {menuContaAberto && (
+
+          {personalizarAberto && (
             <>
               <button
                 type="button"
-                aria-label="Fechar menu"
+                aria-label="Fechar personalização"
                 tabIndex={-1}
                 className="fixed inset-0 z-40 cursor-default"
-                onClick={() => setMenuContaAberto(false)}
+                onClick={() => setPersonalizarAberto(false)}
               />
               <div
-                role="menu"
-                className="absolute right-0 top-12 z-50 w-56 rounded-[16px] bg-white p-1.5"
-                style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 12px 32px rgba(16,24,40,0.10)" }}
+                role="dialog"
+                aria-label="Personalizar cartões"
+                className="absolute right-0 top-10 z-50 w-[300px] rounded-[16px] border border-[#E6E7EA] bg-white p-3"
+                style={{ boxShadow: "0 16px 40px rgba(16,24,40,0.12)" }}
               >
-                {[
-                  { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
-                  { label: "Integrações", icon: Link2, to: "/dashboard/configuracoes?tab=Integrações" },
-                  { label: "Comunidade e Ajuda", icon: Info, to: "/dashboard/comunidade" },
-                ].map((item) => {
-                  const Icone = item.icon;
-                  return (
-                    <button
-                      key={item.to}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMenuContaAberto(false);
-                        navigate(item.to);
-                      }}
-                      className="velo-inicio-item flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-[#4B5563]"
-                    >
-                      <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
-                      {item.label}
-                    </button>
-                  );
-                })}
+                <p className="m-0 px-1 text-[14px] font-medium text-[#0B0D12]">Seus cartões</p>
+                <p className="m-0 mt-0.5 px-1 text-[12.5px] text-[#8A93A3]">Escolha o que aparece na sua Início.</p>
+                <ul className="m-0 mt-2 list-none p-0">
+                  {CARTOES.map((cartao) => {
+                    const visivel = !ocultos.includes(cartao.id);
+                    return (
+                      <li key={cartao.id}>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={visivel}
+                          onClick={() => alternarCartao(cartao.id)}
+                          className="velo-inicio-item flex w-full items-center justify-between gap-3 rounded-[10px] px-2 py-2 text-left text-[13.5px] text-[#0B0D12]"
+                        >
+                          <span className="min-w-0 truncate">{cartao.titulo}</span>
+                          <span
+                            aria-hidden="true"
+                            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ${visivel ? "bg-[#0B0D12]" : "bg-[#DCE0E7]"}`}
+                          >
+                            <span
+                              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 ${visivel ? "translate-x-[18px]" : "translate-x-0.5"}`}
+                            />
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {ocultos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => atualizarOcultos([])}
+                    className="velo-inicio-item mt-1 h-9 w-full rounded-[10px] text-[13px] font-medium text-[#2F5BEA]"
+                  >
+                    Mostrar todos
+                  </button>
+                )}
               </div>
             </>
           )}
-        </div>
-      </motion.header>
-
-      <div className="mx-auto w-full max-w-[720px] px-4 pb-16 pt-4">
-        {/* Cartão de vendas: sem número por enquanto (não há leitura de vendas
-            pronta para a Início); leva para Pedidos. */}
-        <motion.button
-          {...revealProps(0.05, 10)}
-          type="button"
-          onClick={go("/dashboard/pedidos")}
-          data-dashboard-tour="home-primeiros-passos"
-          className="velo-inicio-vendas relative block w-full overflow-hidden rounded-[28px] bg-white p-6 text-left"
-        >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute -bottom-24 right-[-40px] h-[300px] w-[420px] rounded-full opacity-90 blur-[60px]"
-            style={{ background: "radial-gradient(closest-side, #F3B8EE 0%, #D9C2FF 45%, #BFD7FF 75%, transparent 100%)" }}
-          />
-          <span aria-hidden="true" className="relative flex items-center justify-between text-[13px] text-[#9AA1AE] blur-[2.5px] select-none">
-            <span>Suas vendas</span>
-            <span className="flex gap-4">
-              <span>7D</span>
-              <span>30D</span>
-              <span>3M</span>
-              <span>Tudo</span>
-            </span>
-          </span>
-          <span className="relative mt-12 flex items-end justify-between gap-6">
-            <span className="min-w-0">
-              <span className="block text-[26px] font-normal leading-[1.2] tracking-[-0.01em] text-[#2B2F36]">
-                Acompanhe as vendas da
-                <br />
-                sua loja em um só lugar
-              </span>
-              <span className="mt-3 flex items-center gap-1.5 text-[13px] text-[#8A93A3]">
-                Seus pedidos ficam em Pedidos
-                <ArrowRight size={14} strokeWidth={1.6} aria-hidden="true" className="velo-inicio-seta" />
-              </span>
-            </span>
-            <ShoppingBag size={76} strokeWidth={1} aria-hidden="true" className="mb-1 shrink-0 text-[#2B2F36]" />
-          </span>
-        </motion.button>
-
-        {/* Ferramentas: título, abas em pílula e, à direita, personalizar os
-            cartões e atalho para Projetos (no desenho do seletor da referência). */}
-        <motion.div {...revealProps(0.15, 10)} className="mt-12">
-          <h2 className="m-0 px-1 text-[28px] font-normal text-[#2B2F36]">Ferramentas</h2>
-          <div className="relative mt-5 flex flex-wrap items-center justify-between gap-3">
-            <div role="tablist" aria-label="Ferramentas" className="flex rounded-[16px] bg-white p-1">
-              {ABAS.map((item) => {
-                const Icone = item.icone;
-                const ativa = aba === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={ativa}
-                    onClick={() => setAba(item.id)}
-                    className={`velo-inicio-tab flex h-10 items-center gap-2 rounded-[12px] px-4 text-[15px] ${
-                      ativa ? "bg-[#F2F3F6] text-[#0B0D12]" : "text-[#4B5563]"
-                    }`}
-                  >
-                    <Icone size={17} strokeWidth={1.7} aria-hidden="true" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[15px] text-[#9AA1AE]">Seus cards</span>
-              <div className="flex rounded-[16px] bg-white p-1">
-                <button
-                  type="button"
-                  onClick={() => setPersonalizarAberto((aberto) => !aberto)}
-                  aria-label="Personalizar cards"
-                  aria-haspopup="dialog"
-                  aria-expanded={personalizarAberto}
-                  title="Personalizar cards"
-                  className={`velo-inicio-tab flex h-10 w-10 items-center justify-center rounded-[12px] ${
-                    personalizarAberto ? "bg-[#F2F3F6] text-[#0B0D12]" : "text-[#0B0D12]"
-                  }`}
-                >
-                  <SlidersHorizontal size={17} strokeWidth={1.7} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={go("/dashboard/projetos")}
-                  aria-label="Abrir projetos"
-                  title="Projetos"
-                  className="velo-inicio-tab flex h-10 w-10 items-center justify-center rounded-[12px] text-[#2F5BEA]"
-                >
-                  <FolderOpen size={17} strokeWidth={1.7} aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-
-            {personalizarAberto && (
-              <>
-                <button
-                  type="button"
-                  aria-label="Fechar personalização"
-                  tabIndex={-1}
-                  className="fixed inset-0 z-40 cursor-default"
-                  onClick={() => setPersonalizarAberto(false)}
-                />
-                <div
-                  role="dialog"
-                  aria-label="Personalizar cards"
-                  className="absolute right-0 top-[52px] z-50 w-[320px] rounded-[20px] bg-white p-4"
-                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 16px 40px rgba(16,24,40,0.12)" }}
-                >
-                  <p className="m-0 text-[15px] font-medium text-[#0B0D12]">Seus cards</p>
-                  <p className="m-0 mt-0.5 text-[13px] text-[#8A93A3]">Escolha o que aparece na sua Início.</p>
-                  {ABAS.map((grupo) => (
-                    <div key={grupo.id} className="mt-4">
-                      <p className="m-0 mb-1.5 text-[12px] text-[#9AA1AE]">{grupo.label}</p>
-                      <ul className="m-0 list-none p-0">
-                        {FERRAMENTAS.filter((f) => f.aba === grupo.id).map((f) => {
-                          const visivel = !ocultos.includes(f.id);
-                          return (
-                            <li key={f.id}>
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={visivel}
-                                onClick={() => alternarCartao(f.id)}
-                                className="velo-inicio-item flex w-full items-center gap-3 rounded-[12px] px-2 py-2 text-left"
-                              >
-                                <IconeFerramenta ferramenta={f} tamanho={28} />
-                                <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-[14px] text-[#0B0D12]">{f.titulo}</span>
-                                  <span className="block truncate text-[12px] text-[#8A93A3]">{f.descricao}</span>
-                                </span>
-                                <span
-                                  aria-hidden="true"
-                                  className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ${visivel ? "bg-[#2F5BEA]" : "bg-[#DCE0E7]"}`}
-                                >
-                                  <span
-                                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 ${visivel ? "translate-x-[18px]" : "translate-x-0.5"}`}
-                                  />
-                                </span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ))}
-                  {ocultos.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => atualizarOcultos([])}
-                      className="velo-inicio-item mt-3 h-9 w-full rounded-[12px] text-[13px] font-medium text-[#2F5BEA]"
-                    >
-                      Mostrar todos
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
         </motion.div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {ferramentas.map((ferramenta, indice) => {
-            const etapa = ferramenta.aba === "comecar" ? caminho.findIndex((f) => f.id === ferramenta.id) + 1 : null;
-            return (
-              <motion.button
-                key={ferramenta.id}
-                {...revealProps(0.2 + indice * 0.05, 10)}
-                type="button"
-                onClick={go(ferramenta.to)}
-                aria-label={`${ferramenta.titulo}: ${ferramenta.descricao}`}
-                className="velo-inicio-card flex min-h-[330px] flex-col p-5 text-left"
-              >
-                <span className="flex items-start justify-between">
-                  <span className="flex items-center">
-                    <IconeFerramenta ferramenta={ferramenta} tamanho={48} />
-                    <span className="-ml-2.5 flex h-12 w-12 items-center justify-center rounded-full bg-[#F2F3F6]">
-                      <img src={ferramenta.agente} alt="" className="h-10 w-10 object-contain" draggable={false} />
-                    </span>
-                  </span>
-                  <span className="flex h-7 items-center gap-1.5 rounded-full border border-[#ECEEF2] px-2.5 text-[12px] text-[#4B5563]">
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: ferramenta.cor }} />
-                    {ferramenta.selo}
-                  </span>
-                </span>
-                <span className="mt-6 block text-[13px] text-[#9AA1AE]">{ferramenta.categoria}</span>
-                <span className="mt-0.5 block text-[21px] font-medium leading-tight tracking-[-0.01em] text-[#2B2F36]">{ferramenta.titulo}</span>
-                <span className="mt-3.5 flex flex-wrap gap-1.5">
-                  {ferramenta.destaque && (
-                    <span className="flex h-7 items-center gap-1.5 rounded-full bg-[#F2F3F6] px-2.5 text-[12.5px] text-[#2B2F36]">
-                      <Flame size={12} strokeWidth={2.2} aria-hidden="true" className="text-[#0B0D12]" />
-                      {ferramenta.destaque}
-                    </span>
-                  )}
-                  {ferramenta.etiquetas.map((etiqueta) => (
-                    <span key={etiqueta} className="flex h-7 items-center rounded-full border border-[#ECEEF2] px-2.5 text-[12.5px] text-[#4B5563]">
-                      {etiqueta}
-                    </span>
-                  ))}
-                </span>
-                <span className="mt-auto block pt-6 text-[13px] text-[#9AA1AE]">{ferramenta.rotuloAcao}</span>
-                <span className="block text-[32px] font-light leading-tight tracking-[-0.02em] text-[#2B2F36]">{ferramenta.acao}</span>
-                <span className="mt-4 block h-1 w-full overflow-hidden rounded-full bg-[#ECEEF2]">
-                  <span
-                    className="block h-full rounded-full"
-                    style={{ background: ferramenta.cor, width: etapa ? `${(etapa / caminho.length) * 100}%` : "100%" }}
-                  />
-                </span>
-                <span className="mt-2 flex items-center justify-between text-[13px] text-[#9AA1AE]">
-                  {etapa ? (
-                    <>
-                      <span>Etapa {etapa}</span>
-                      <span>de {caminho.length}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Abrir</span>
-                      <ArrowRight size={14} strokeWidth={1.6} aria-hidden="true" />
-                    </>
-                  )}
-                </span>
-              </motion.button>
-            );
-          })}
-
-          {/* Cartão de destaque (o colorido da referência): leva para Projetos. */}
-          <motion.button
-            {...revealProps(0.2 + ferramentas.length * 0.05, 10)}
-            type="button"
-            onClick={go("/dashboard/projetos")}
-            className="velo-inicio-card relative flex min-h-[330px] flex-col overflow-hidden p-5 text-left text-white"
-            style={{ background: "linear-gradient(160deg, #4A72F0 0%, #2F5BEA 55%, #2449C7 100%)" }}
-          >
-            <span aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
-            <span aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-12 h-52 w-52 rounded-full bg-white/[0.06]" />
-            <span className="relative flex items-start justify-between">
-              <span className="flex items-center">
-                <span className="relative z-[3] flex h-12 w-12 items-center justify-center rounded-[16px] bg-white text-[#2F5BEA]">
-                  <FolderOpen size={20} strokeWidth={1.7} aria-hidden="true" />
-                </span>
-                {[agenteCubo, agenteLua, agenteFolha].map((foto, i) => (
-                  <span
-                    key={foto}
-                    className="-ml-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/15"
-                    style={{ zIndex: 2 - i }}
+        <div
+          className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          data-dashboard-tour="home-primeiros-passos"
+        >
+          {cartoes.map((cartao, indice) => (
+            <motion.article
+              key={cartao.id}
+              {...revealProps(0.2 + indice * 0.05, 10)}
+              className="velo-inicio-card flex min-h-[340px] flex-col p-2"
+            >
+              <Ilustracao id={cartao.id} totalProjetos={totalProjetos} />
+              <div className="flex flex-1 flex-col px-3 pb-3 pt-4">
+                <h3 className="m-0 text-[15px] font-medium text-[#0B0D12]">{cartao.titulo}</h3>
+                <p className="m-0 mt-2 text-[13.5px] leading-[1.45] text-[#6B7280]">{cartao.descricao}</p>
+                <div className="mt-auto pt-6">
+                  <button
+                    type="button"
+                    onClick={go(cartao.to)}
+                    className="velo-inicio-botao inline-flex h-8 items-center rounded-full px-3.5 text-[13px] font-medium text-[#0B0D12]"
                   >
-                    <img src={foto} alt="" className="h-10 w-10 object-contain" draggable={false} />
-                  </span>
-                ))}
-              </span>
-            </span>
-            <span className="relative mt-6 block text-[13px] text-white/70">Sua loja</span>
-            <span className="relative mt-0.5 block text-[21px] font-medium leading-tight tracking-[-0.01em]">Projetos</span>
-            <span className="relative mt-3.5 flex flex-wrap gap-1.5">
-              <span className="flex h-7 items-center rounded-full bg-white/15 px-2.5 text-[12.5px]">Sites</span>
-              <span className="flex h-7 items-center rounded-full border border-white/30 px-2.5 text-[12.5px]">Agentes</span>
-            </span>
-            <span className="relative mt-auto block pt-6 text-[13px] text-white/70">Projetos criados</span>
-            <span className="relative block text-[32px] font-light leading-tight tracking-[-0.02em]">
-              {typeof totalProjetos === "number" ? totalProjetos : "—"}
-            </span>
-            <span className="relative mt-4 block h-1 w-full rounded-full bg-white/25">
-              <span className="block h-full w-full rounded-full bg-white" />
-            </span>
-            <span className="relative mt-2 flex items-center justify-between text-[13px] text-white/75">
-              <span>Abrir projetos</span>
-              <ArrowRight size={14} strokeWidth={1.6} aria-hidden="true" />
-            </span>
-          </motion.button>
+                    {cartao.botao}
+                  </button>
+                </div>
+              </div>
+            </motion.article>
+          ))}
 
-          {/* Cartões escondidos na aba: um atalho para trazê-los de volta. */}
-          {ocultasNaAba > 0 && (
+          {/* Cartões escondidos: um atalho para trazê-los de volta. */}
+          {ocultos.length > 0 && (
             <motion.button
-              {...revealProps(0.25 + ferramentas.length * 0.05, 10)}
+              {...revealProps(0.25 + cartoes.length * 0.05, 10)}
               type="button"
               onClick={() => setPersonalizarAberto(true)}
-              className="velo-inicio-novo flex min-h-[330px] flex-col items-center justify-center gap-3 rounded-[24px] border-[1.5px] border-dashed border-[#D5D9E0] text-[14px] text-[#6B7280]"
+              className="velo-inicio-novo flex min-h-[340px] flex-col items-center justify-center gap-2 rounded-[16px] border-[1.5px] border-dashed border-[#D5D9E0] text-[14px] text-[#4B5563]"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#2F5BEA]">
-                <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
-              </span>
-              Adicionar card
+              <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
+              Adicionar cartão
               <span className="text-[12px] text-[#9AA1AE]">
-                {ocultasNaAba} {ocultasNaAba === 1 ? "escondido" : "escondidos"}
+                {ocultos.length} {ocultos.length === 1 ? "escondido" : "escondidos"}
               </span>
             </motion.button>
           )}
