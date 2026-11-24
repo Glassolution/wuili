@@ -692,11 +692,11 @@ const DashboardSidebar = () => {
     <aside
       className="velo-dashboard-sidebar"
       data-recolhida={recolhida ? "true" : "false"}
-      style={{ ...styles.sidebar, width: recolhida ? 72 : styles.sidebar.width }}
+      style={{ ...styles.sidebar, width: recolhida ? 72 : styles.sidebar.width, ...(recolhida ? { padding: "0 12px 16px" } : null) }}
     >
       <style>{NAV_CSS}</style>
       {/* Topo: marca e botão de recolher, com filete embaixo (como na referência). */}
-      <header style={{ ...styles.header, justifyContent: recolhida ? "center" : "space-between" }}>
+      <header style={{ ...styles.header, justifyContent: recolhida ? "center" : "space-between", ...(recolhida ? { margin: "0 -12px", padding: "0 14px 0 22px" } : null) }}>
         {recolhida ? null : (
           <Link to="/dashboard" style={styles.brand}>
             <VeloIconOnly />

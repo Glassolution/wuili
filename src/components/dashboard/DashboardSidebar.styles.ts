@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 export const styles = {
   sidebar: {
-    width: 248,
+    width: 256,
     height: "100dvh",
     maxHeight: "100dvh",
     minHeight: 0,
@@ -12,7 +12,8 @@ export const styles = {
     overflow: "hidden",
     position: "relative",
     boxSizing: "border-box",
-    padding: "0 12px 16px",
+    // Recuo maior à esquerda: os itens ficam mais afastados da borda da tela.
+    padding: "0 10px 16px 20px",
     borderRadius: 0,
     border: 0,
     // Sem borda: a página fica numa moldura branca ao lado, sobre o mesmo cinza.
@@ -45,9 +46,9 @@ export const styles = {
     gap: 11,
     // Ocupa a largura toda (anula o padding da sidebar) para o filete de baixo
     // ir de ponta a ponta, como na referência.
-    margin: "0 -12px",
+    margin: "0 -10px 0 -20px",
     height: 64,
-    padding: "0 14px 0 22px",
+    padding: "0 14px 0 30px",
     borderBottom: "1px solid #ECEEF2",
     flexShrink: 0,
   } satisfies CSSProperties,
@@ -400,7 +401,7 @@ export const styles = {
   } satisfies CSSProperties,
   profileSidePanel: {
     position: "fixed",
-    left: 258,
+    left: 266,
     bottom: 22,
     width: 214,
     boxSizing: "border-box",

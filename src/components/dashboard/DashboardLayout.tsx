@@ -1010,7 +1010,7 @@ const DashboardLayoutInner = () => {
         {/* Área principal com header e conteúdo, dentro de uma moldura branca
             arredondada que acompanha a sidebar (estilo da referência do Shopify). */}
         <div
-          className="relative my-2 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-black/[0.07] bg-white"
+          className="relative my-3.5 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-black/[0.07] bg-white"
           style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)" }}
         >
           {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
