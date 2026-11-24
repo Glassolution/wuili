@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ElementType, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Archive, ArrowRight, ArrowUp, BadgePercent, Check, FileText, LayoutTemplate, Link2, PlayCircle, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
+import { Archive, ArrowRight, ArrowUp, BadgePercent, Check, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -244,6 +244,7 @@ const DashboardHomePage = () => {
   const { user } = useAuth();
   const { nomeCurto, foto } = useProfile();
   const [avatarFalhou, setAvatarFalhou] = useState(false);
+  const [menuMaisAberto, setMenuMaisAberto] = useState(false);
   const [aba, setAba] = useState<"visao-geral" | "primeiros-passos" | "ferramentas" | "atividade">("visao-geral");
   const {
     enviar: enviarParaAtlas,
@@ -346,6 +347,15 @@ const DashboardHomePage = () => {
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [introState, reduceMotion, user?.id]);
+
+  useEffect(() => {
+    if (!menuMaisAberto) return;
+    const fecharComEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuMaisAberto(false);
+    };
+    window.addEventListener("keydown", fecharComEsc);
+    return () => window.removeEventListener("keydown", fecharComEsc);
+  }, [menuMaisAberto]);
 
   useEffect(() => {
     if (!chatActive) return;
@@ -638,7 +648,7 @@ const DashboardHomePage = () => {
       <style>{HOME_CSS}</style>
 
       {/* Header: busca à esquerda, "+" azul e avatar à direita (como na referência). */}
-      <motion.header {...revealProps(0, -6)} className="flex h-[72px] items-center justify-between gap-4 px-4 md:px-10">
+      <motion.header {...revealProps(0, -6)} className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center justify-between gap-4 px-4 md:px-10">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
@@ -697,27 +707,104 @@ const DashboardHomePage = () => {
         </div>
       </motion.header>
 
-      <div className="w-full max-w-[1120px] px-4 pb-14 md:px-10">
-        {/* Título da página */}
+      <div className="mx-auto w-full max-w-[1120px] px-4 pb-14 md:px-10">
+        {/* Topo no desenho da referência: breadcrumb, título com ações à direita,
+            subtítulo e abas logo abaixo. */}
         <motion.div {...revealProps(0.05, 10)} className="pt-4">
           <p className="m-0 text-[13px] text-[#8A93A3]">Início /</p>
-          <div className="mt-3 flex items-start justify-between gap-6">
-            <div className="min-w-0">
-              <h1 className="m-0 text-[32px] font-semibold leading-tight tracking-[-0.02em]">
-                {primeiroNome ? `Bem-vindo, ${primeiroNome}` : "Bem-vindo à Velo"}
-              </h1>
-              <p className="m-0 mt-1.5 text-[15px] text-[#8A93A3]">Por onde você quer começar?</p>
+          <div className="mt-3 flex items-center justify-between gap-6">
+            <h1 className="m-0 min-w-0 truncate text-[32px] font-semibold leading-tight tracking-[-0.02em]">
+              {primeiroNome ? `Bem-vindo, ${primeiroNome}` : "Bem-vindo à Velo"}
+            </h1>
+            <div className="relative flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setTutorialOpen(true)}
+                aria-label="Ver tutorial de início"
+                className="velo-home-ghost flex h-9 items-center rounded-full px-3.5 text-[14px] font-medium text-[#0B0D12]"
+              >
+                Ver tutorial
+              </button>
+              <button
+                type="button"
+                onClick={() => setMenuMaisAberto((aberto) => !aberto)}
+                aria-label="Mais opções"
+                aria-haspopup="menu"
+                aria-expanded={menuMaisAberto}
+                className="velo-home-ghost flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
+              >
+                <MoreHorizontal size={18} strokeWidth={1.5} aria-hidden="true" />
+              </button>
+              {menuMaisAberto && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Fechar menu"
+                    tabIndex={-1}
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setMenuMaisAberto(false)}
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-11 z-50 w-56 rounded-[14px] border border-[#ECEEF2] bg-white p-1.5"
+                    style={{ boxShadow: CARD_SHADOW }}
+                  >
+                    {[
+                      { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
+                      { label: "Integrações", icon: Link2, to: "/dashboard/configuracoes?tab=Integrações" },
+                      { label: "Comunidade e Ajuda", icon: Info, to: "/dashboard/comunidade" },
+                    ].map((item) => {
+                      const Icone = item.icon;
+                      return (
+                        <button
+                          key={item.to}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuMaisAberto(false);
+                            navigate(item.to);
+                          }}
+                          className="velo-home-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-[#4B5563]"
+                        >
+                          <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => setTutorialOpen(true)}
-              aria-label="Ver tutorial de início"
-              className="velo-home-ghost mt-1 flex h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-[#0B0D12]"
-            >
-              <PlayCircle size={16} strokeWidth={1.5} aria-hidden="true" />
-              Ver tutorial
-            </button>
           </div>
+          <p className="m-0 mt-1.5 text-[15px] text-[#8A93A3]">Por onde você quer começar?</p>
+        </motion.div>
+
+        {/* Abas */}
+        <motion.div {...revealProps(0.1, 8)} role="tablist" aria-label="Seções da Início" className="mt-7 flex gap-10">
+          {ABAS.map((item) => {
+            const ativa = aba === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={ativa}
+                onClick={() => setAba(item.id)}
+                className="relative h-10 text-[14px] font-medium transition-colors duration-150 hover:text-[#4B5563]"
+                style={ativa ? { color: "#2F5BEA" } : { color: "#8A93A3" }}
+              >
+                {item.label}
+                {ativa && (
+                  <motion.span
+                    layoutId="home-aba-ativa"
+                    aria-hidden="true"
+                    className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#2F5BEA]"
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </motion.div>
 
         {/* Barra do Atlas (mesma lógica de antes) */}
@@ -801,34 +888,6 @@ const DashboardHomePage = () => {
             transition={{ duration: reduceMotion ? 0 : 0.36, ease: [0.22, 1, 0.36, 1] }}
             style={{ pointerEvents: chatActive ? "none" : "auto" }}
           >
-            {/* Abas */}
-            <motion.div {...revealProps(0.22, 8)} role="tablist" aria-label="Seções da Início" className="flex gap-7 border-b border-[#ECEEF2]">
-              {ABAS.map((item) => {
-                const ativa = aba === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={ativa}
-                    onClick={() => setAba(item.id)}
-                    className="relative -mb-px h-10 text-[14px] font-medium transition-colors duration-150"
-                    style={{ color: ativa ? "#2F5BEA" : "#8A93A3" }}
-                  >
-                    {item.label}
-                    {ativa && (
-                      <motion.span
-                        layoutId="home-aba-ativa"
-                        aria-hidden="true"
-                        className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#2F5BEA]"
-                        transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </motion.div>
-
             {/* Destaque: prévia grande, como o card do site na referência */}
             {mostrarDestaque && (
               <motion.section
