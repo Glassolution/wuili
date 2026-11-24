@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type ElementType, type FormEvent, type KeyboardEvent } from "react";
-import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Globe, History, Lightbulb, Loader2, SquarePen, Telescope, Wand2 } from "lucide-react";
+import { ArrowUp, Globe, Lightbulb, Loader2, Telescope, Wand2 } from "lucide-react";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
-import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 
 // Atalhos da barra de baixo: preenchem a caixa com uma pergunta pronta (não enviam).
 const ATALHOS: { id: string; rotulo: string; icone: ElementType; texto: string }[] = [
@@ -41,7 +39,6 @@ const ALTURA_MAXIMA = 140;
 const BOX_CSS = `
 .velo-atlas-box { transition: border-color 180ms ease-out, box-shadow 180ms ease-out; }
 .velo-atlas-box:focus-within { border-color: #CACACA; box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.06); }
-.velo-atlas-chip { transition: background-color 150ms ease-out; }
 .velo-atlas-icone { transition: background-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out; }
 .velo-atlas-icone:hover:not(:disabled) { background: #F1F1F4; color: #0B0D12; }
 .velo-atlas-icone:active:not(:disabled) { transform: scale(0.94); }
@@ -51,7 +48,7 @@ const BOX_CSS = `
 .velo-atlas-enviar:active:not(:disabled) { transform: scale(0.96); }
 .velo-atlas-dica { opacity: 0; transform: translate(-50%, 4px); transition: opacity 140ms ease-out, transform 140ms ease-out; }
 .velo-atlas-com-dica:hover .velo-atlas-dica, .velo-atlas-com-dica:focus-visible .velo-atlas-dica { opacity: 1; transform: translate(-50%, 0); }
-.velo-atlas-icone:focus-visible, .velo-atlas-enviar:focus-visible, .velo-atlas-chip:focus-visible {
+.velo-atlas-icone:focus-visible, .velo-atlas-enviar:focus-visible {
   outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(124,92,250,0.45);
 }
 .velo-atlas-texto::placeholder { color: transparent; }
@@ -95,8 +92,7 @@ const BotaoIcone = ({
  * AtlasChatProvider e é desenhada pelo AtlasDockPanel (lógica do Atlas intocada).
  */
 const AtlasPromptBox = () => {
-  const navigate = useNavigate();
-  const { enviar, enviando, novaConversa } = useAtlasChat();
+  const { enviar, enviando } = useAtlasChat();
   const reduceMotion = useReducedMotion();
   const [mensagem, setMensagem] = useState("");
   const [focada, setFocada] = useState(false);
@@ -155,22 +151,6 @@ const AtlasPromptBox = () => {
   return (
     <div className="mx-auto w-full max-w-[620px]">
       <style>{BOX_CSS}</style>
-
-      {/* Linha de cima: quem responde (Atlas) e ações da conversa. */}
-      <div className="mb-2.5 flex items-center justify-between">
-        <div className="velo-atlas-chip flex h-9 items-center gap-2 rounded-[10px] bg-[#F4F4F6] pl-2 pr-3">
-          <span className="block h-5 w-5" aria-hidden="true">
-            <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
-          </span>
-          <span className="text-[13.5px] font-medium text-[#0B0D12]">Atlas</span>
-          <span aria-hidden="true" className="h-3.5 w-px bg-[#DCDDE2]" />
-          <span className="text-[13px] text-[#6B7280]">Assistente da sua loja</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <BotaoIcone rotulo="Nova conversa" icone={SquarePen} onClick={novaConversa} />
-          <BotaoIcone rotulo="Conversas anteriores" icone={History} onClick={() => navigate("/dashboard/atlas")} />
-        </div>
-      </div>
 
       <form
         onSubmit={enviarMensagem}
