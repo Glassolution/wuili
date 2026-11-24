@@ -81,7 +81,7 @@ type OnboardingStatus = {
 const IMAGE_WIDTH = 1536;
 const CONTENT_SLICE_TOP = 300;
 const CONTENT_OFFSET = 100;
-const HERO_OFFSET = 45;
+const HERO_OFFSET = 17;
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -703,8 +703,10 @@ const DashboardHomePage = () => {
               zIndex: 32,
               left: "50%",
               top: y(226 + HERO_OFFSET),
+              // Mesma proporção da caixa do Shopify (~6:1): mais alta, com respiro
+              // entre o texto e a barra de baixo.
               width: x(860),
-              height: y(106),
+              height: y(144),
               x: "-50%",
               borderRadius: fs(20),
               border: chatActive ? "1px solid #CACACA" : "1px solid #E3E3E3",
@@ -715,7 +717,7 @@ const DashboardHomePage = () => {
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: `${fs(18)} ${fs(14)} ${fs(12)} ${fs(18)}`,
+              padding: `${fs(20)} ${fs(14)} ${fs(16)} ${fs(18)}`,
               cursor: "text",
               transition: "border-color 200ms ease, box-shadow 240ms ease",
             }}
@@ -1449,7 +1451,7 @@ const DashboardHomePage = () => {
                     zIndex: 24,
                     left: 0,
                     right: 0,
-                    top: y(344 + HERO_OFFSET),
+                    top: y(382 + HERO_OFFSET),
                     bottom: 0,
                     background: "#F5F4F1",
                     pointerEvents: "none",
@@ -1465,7 +1467,7 @@ const DashboardHomePage = () => {
                     position: "absolute",
                     zIndex: 33,
                     left: "50%",
-                    top: y(354 + HERO_OFFSET),
+                    top: y(392 + HERO_OFFSET),
                     width: x(900),
                     x: "-50%",
                     display: "flex",
