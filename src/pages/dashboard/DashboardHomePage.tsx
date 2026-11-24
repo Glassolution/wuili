@@ -1,12 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ElementType, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ElementType, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Archive, ArrowRight, ArrowUp, BadgePercent, Check, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useAtlasChat } from "@/contexts/AtlasChatContext";
+import { motion, useReducedMotion } from "framer-motion";
+import { Archive, ArrowRight, BadgePercent, Check, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
-import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -18,83 +14,13 @@ import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
 import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
-import { Button } from "@/components/ui/button";
 
 import { useIsMobile } from "@/hooks/use-mobile";
-
-type AtlasMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  created_at: string;
-  product_data?: AtlasMessageData | null;
-};
-
-type AtlasNavigationAction = {
-  type: "navigation";
-  label: string;
-  route: string;
-  /** "primary" usa o Botão Pilot (fundo escuro sólido). */
-  variant?: "primary";
-  reason?: string;
-};
-
-type AtlasProductCardAction = {
-  type: "product_card";
-  product_id: string;
-  reason?: string;
-  product?: {
-    id?: string;
-    title?: string;
-    image_url?: string | null;
-    margin_percent?: number | null;
-    suggested_price?: number | null;
-    route?: string;
-  };
-};
-
-type AtlasQuickReplyAction = {
-  type: "quick_reply";
-  label: string;
-  message: string;
-};
-
-type AtlasConnectMlAction = {
-  type: "connect_ml";
-  label: string;
-};
-
-type AtlasAction =
-  | AtlasNavigationAction
-  | AtlasProductCardAction
-  | AtlasQuickReplyAction
-  | AtlasConnectMlAction;
-
-type AtlasMessageData = {
-  actions?: AtlasAction[];
-};
 
 type OnboardingStatus = {
   mlConnected: boolean;
   hasPublication: boolean;
 };
-
-const CHAT_SUGGESTIONS = [
-  "Crie um anúncio de produto",
-  "Ajude-me a encontrar produtos",
-  "Ajude-me a começar",
-  "Gere imagens para um produto",
-  "Escreva uma descrição de produto",
-  "Ajude-me a encontrar uma ideia de negócio",
-];
-const CHAT_PROMPT_SUGGESTIONS = [
-  "Ajude-me a começar",
-  "Encontre produtos vencedores",
-  "Crie um anúncio para meu produto",
-  "Gere imagens para meu produto",
-  "Escreva uma descrição persuasiva",
-  "Me dê uma ideia de negócio",
-];
 
 const TUTORIAL_INICIO = {
   src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
@@ -110,7 +36,6 @@ const INTRO = {
 };
 
 const CARD_SHADOW = "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.04)";
-const CARD_SHADOW_FOCO = "0 1px 2px rgba(16,24,40,0.05), 0 12px 32px rgba(47,91,234,0.10)";
 
 // Estados de hover/foco dos botões e cards desta tela (tokens do redesign).
 const HOME_CSS = `
@@ -149,105 +74,6 @@ const HOME_CSS = `
 }
 `;
 
-const AssistantAvatar = () => (
-  <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
-);
-
-const AnimatedPromptText = ({
-  text,
-  reduceMotion,
-}: {
-  text: string;
-  reduceMotion: boolean;
-}) => {
-  const containerVariants = reduceMotion
-    ? {
-        hidden: { opacity: 0 },
-        visible: { opacity: 1 },
-      }
-    : {
-        hidden: {
-          opacity: 1,
-          transition: { staggerChildren: 0.008, staggerDirection: -1 },
-        },
-        visible: {
-          opacity: 1,
-          transition: { staggerChildren: 0.012 },
-        },
-      };
-  const letterVariants = reduceMotion
-    ? {
-        hidden: { opacity: 0 },
-        visible: { opacity: 1 },
-      }
-    : {
-        hidden: { opacity: 0, filter: "blur(5px)" },
-        visible: { opacity: 1, filter: "blur(0px)" },
-      };
-
-  return (
-    <motion.span
-      aria-hidden="true"
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      variants={containerVariants}
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        textAlign: "left",
-        color: "#8A93A3",
-        fontSize: 15,
-        fontWeight: 400,
-        lineHeight: 1,
-        overflow: "hidden",
-        pointerEvents: "none",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        willChange: "opacity, filter",
-      }}
-    >
-      {Array.from(text).map((letter, index) => (
-        <motion.span
-          key={`${text}-${index}`}
-          variants={letterVariants}
-          transition={{
-            duration: reduceMotion ? 0.14 : 0.22,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-          style={{ display: "inline-block", whiteSpace: letter === " " ? "pre" : "normal" }}
-        >
-          {letter}
-        </motion.span>
-      ))}
-    </motion.span>
-  );
-};
-
-const isAtlasAction = (action: unknown): action is AtlasAction => {
-  if (!action || typeof action !== "object") return false;
-  const candidate = action as Record<string, unknown>;
-  if (candidate.type === "navigation") {
-    return typeof candidate.label === "string" && typeof candidate.route === "string";
-  }
-  if (candidate.type === "product_card") {
-    return typeof candidate.product_id === "string";
-  }
-  if (candidate.type === "quick_reply") {
-    return typeof candidate.label === "string" && typeof candidate.message === "string";
-  }
-  if (candidate.type === "connect_ml") {
-    return typeof candidate.label === "string";
-  }
-  return false;
-};
-
-const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
-  if (!Array.isArray(value)) return [];
-  return value.filter(isAtlasAction).slice(0, 12);
-};
-
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -255,60 +81,25 @@ const DashboardHomePage = () => {
   const [avatarFalhou, setAvatarFalhou] = useState(false);
   const [menuMaisAberto, setMenuMaisAberto] = useState(false);
   const [aba, setAba] = useState<"visao-geral" | "primeiros-passos" | "ferramentas" | "atividade">("visao-geral");
-  const {
-    enviar: enviarParaAtlas,
-    mensagens: chatMessages,
-    threadId,
-    abrirConversa,
-    aoApagarConversa,
-  } = useAtlasChat();
   const reduceMotion = useReducedMotion();
   const introDecisionMade = useRef<string | null>(null);
-  const chatInputRef = useRef<HTMLInputElement>(null);
-  const welcomeChatRef = useRef<HTMLDivElement>(null);
-  const historyMenuRef = useRef<HTMLDivElement>(null);
-  const suggestionListRef = useRef<HTMLDivElement>(null);
-  const conversationScrollRef = useRef<HTMLDivElement>(null);
   // "waiting": o onboarding está na frente da home. A intro fica guardada para
   // tocar quando ele fecha — antes ela rodava escondida atrás do modal e a pessoa
   // caía numa tela já parada.
   const [introState, setIntroState] = useState<"pending" | "waiting" | "play" | "done">("pending");
-  const [chatActive, setChatActive] = useState(false);
-  const [chatInput, setChatInput] = useState("");
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
-  /**
-   * Existe conversa anterior para mostrar no histórico?
-   *
-   * A contagem é de mensagens, não de threads, de propósito: abrir o chat em
-   * tela cheia cria uma thread vazia, e uma lista só de "Nova conversa" não é
-   * histórico nenhum. Se a pessoa já escreveu alguma coisa, aí sim tem o que
-   * reabrir. Só consulta quando o chat abre — antes disso o botão nem existe.
-   */
-  const { data: temHistorico = false } = useQuery({
-    queryKey: ["atlas-tem-historico", user?.id],
-    enabled: Boolean(user?.id) && chatActive,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("atlas_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user!.id);
-      if (error) throw new Error(error.message);
-      return (count ?? 0) > 0;
-    },
-  });
   const [conectandoMl, setConectandoMl] = useState(false);
   
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
-  // Inicia o OAuth do Mercado Livre a partir do próprio chat. O helper só
+  // Inicia o OAuth do Mercado Livre. O helper só
   // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
   // função não consegue mandar o usuário para outro domínio.
   const conectarMercadoLivre = async () => {
     if (conectandoMl) return;
     setConectandoMl(true);
     try {
-      // Nova aba: o guia do Atlas continua aberto enquanto o usuário conecta.
+      // Nova aba: a Velo continua aberta enquanto o usuário conecta.
       await startMercadoLivreOAuth({ novaAba: true });
       setConectandoMl(false);
     } catch (erro) {
@@ -316,9 +107,6 @@ const DashboardHomePage = () => {
       veloToast.error(erro instanceof Error ? erro.message : "Não foi possível abrir a conexão com o Mercado Livre");
     }
   };
-
-  const [hoveredSuggestion, setHoveredSuggestion] = useState<string | null>(null);
-  const [promptSuggestionIndex, setPromptSuggestionIndex] = useState(0);
 
   useLayoutEffect(() => {
     const userId = user?.id;
@@ -367,56 +155,6 @@ const DashboardHomePage = () => {
   }, [menuMaisAberto]);
 
   useEffect(() => {
-    if (!chatActive) return;
-
-    const focusTimer = window.setTimeout(() => chatInputRef.current?.focus(), reduceMotion ? 0 : 180);
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && chatMessages.length === 0) {
-        setChatActive(false);
-        setChatInput("");
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [chatActive, chatMessages.length, reduceMotion]);
-
-  useEffect(() => {
-    if (!chatActive || chatMessages.length > 0) return;
-
-    const closeWelcomeChat = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (
-        welcomeChatRef.current?.contains(target) ||
-        historyMenuRef.current?.contains(target) ||
-        suggestionListRef.current?.contains(target)
-      ) return;
-
-      setChatActive(false);
-      setChatInput("");
-      setHoveredSuggestion(null);
-      chatInputRef.current?.blur();
-    };
-
-    window.addEventListener("pointerdown", closeWelcomeChat);
-    return () => window.removeEventListener("pointerdown", closeWelcomeChat);
-  }, [chatActive, chatMessages.length]);
-
-  useEffect(() => {
-    if (chatActive || chatInput.trim()) return;
-
-    const suggestionTimer = window.setInterval(() => {
-      setPromptSuggestionIndex((current) => (current + 1) % CHAT_PROMPT_SUGGESTIONS.length);
-    }, 2600);
-
-    return () => window.clearInterval(suggestionTimer);
-  }, [chatActive, chatInput]);
-
-  useEffect(() => {
     if (!user?.id) {
       setOnboardingStatus(null);
       return;
@@ -458,17 +196,6 @@ const DashboardHomePage = () => {
       cancelled = true;
     };
   }, [user?.id]);
-
-  useEffect(() => {
-    const scrollArea = conversationScrollRef.current;
-    if (!scrollArea) return;
-    if (scrollArea.scrollHeight <= scrollArea.clientHeight) return;
-
-    scrollArea.scrollTo({
-      top: scrollArea.scrollHeight,
-      behavior: "auto",
-    });
-  }, [chatMessages.length]);
 
   const playIntro = introState === "play";
   // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
@@ -517,20 +244,6 @@ const DashboardHomePage = () => {
     }
     navigate(onboardingStatus.hasPublication ? "/dashboard/publicacoes" : "/dashboard/catalogo");
   };
-  // Toda a conversa (mensagens, ações, envio) vive no AtlasChatProvider e é
-  // desenhada pelo AtlasDockPanel. Aqui sobrou só disparar a primeira mensagem.
-  const handleChatSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!chatActive) {
-      setChatActive(true);
-      return;
-    }
-    const texto = chatInput.trim();
-    if (!texto) return;
-    setChatInput("");
-    void enviarParaAtlas(texto);
-  };
-
   if (introState === "pending" || introState === "waiting") {
     return (
       <main
@@ -539,10 +252,6 @@ const DashboardHomePage = () => {
       />
     );
   }
-
-  // A conversa não vive mais aqui: ela é renderizada pelo AtlasDockPanel, que
-  // fica no layout e por isso sobrevive à navegação. Esta página cuida só da
-  // tela de boas-vindas e de disparar a primeira mensagem.
 
   const primeiroNome = nomeCurto && nomeCurto !== "Usuario" ? nomeCurto.split(" ")[0] : null;
   const mlConectado = Boolean(onboardingStatus?.mlConnected);
@@ -668,28 +377,6 @@ const DashboardHomePage = () => {
             <Search size={16} strokeWidth={1.5} aria-hidden="true" />
             <span className="flex-1 truncate">Buscar produtos, lojas...</span>
           </button>
-          {/* Histórico das conversas: só com o chat aberto e com conversa anterior. */}
-          <AnimatePresence>
-            {chatActive && temHistorico && (
-              <motion.div
-                ref={historyMenuRef}
-                key="atalho-historico"
-                initial={reduceMotion ? false : { opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <AtlasHistoryMenu
-                  userId={user?.id}
-                  activeThreadId={threadId}
-                  onSelectThread={abrirConversa}
-                  onThreadDeleted={aoApagarConversa}
-                  triggerLabel="Suas conversas"
-                  triggerStyle={{ height: 36, borderRadius: 999, border: "1px solid #ECEEF2", background: "#FFFFFF", boxShadow: "none", color: "#0B0D12", fontSize: 13 }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <button
@@ -816,87 +503,8 @@ const DashboardHomePage = () => {
           })}
         </motion.div>
 
-        {/* Barra do Atlas (mesma lógica de antes) */}
-        <motion.div
-          {...revealProps(0.14, 10)}
-          ref={welcomeChatRef}
-          data-dashboard-tour="home-atlas-chat"
-          role="search"
-          aria-label="Assistente Atlas"
-          aria-expanded={chatActive}
-          onClick={() => setChatActive(true)}
-          className="relative z-[32] mt-6 flex h-14 w-full items-center rounded-full border bg-white pl-3 pr-2.5"
-          style={{
-            borderColor: chatActive ? "rgba(47, 91, 234, 0.28)" : "#ECEEF2",
-            boxShadow: chatActive ? CARD_SHADOW_FOCO : CARD_SHADOW,
-            transition: "border-color 320ms ease, box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1)",
-          }}
-        >
-          <form onSubmit={handleChatSubmit} className="flex min-w-0 flex-1 items-center">
-            <span aria-hidden="true" className="mr-3 inline-flex h-8 w-8 shrink-0 items-center justify-center">
-              <AssistantAvatar />
-            </span>
-            <span className="relative flex h-full min-w-0 flex-1 items-center">
-              <AnimatePresence mode="wait" initial={false}>
-                {!chatActive && !chatInput.trim() && (
-                  <AnimatedPromptText
-                    key={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
-                    text={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
-                    reduceMotion={Boolean(reduceMotion)}
-                  />
-                )}
-              </AnimatePresence>
-              <input
-                ref={chatInputRef}
-                value={chatInput}
-                onFocus={() => setChatActive(true)}
-                onChange={(event) => setChatInput(event.target.value)}
-                aria-label="Mensagem para o Atlas"
-                placeholder={chatActive ? "Pergunte qualquer coisa..." : ""}
-                className="relative z-[1] w-full min-w-0 border-0 bg-transparent text-left text-[15px] text-[#0B0D12] outline-none placeholder:text-[#8A93A3]"
-                style={{ caretColor: "#2F5BEA" }}
-              />
-            </span>
-          </form>
-          <button
-            type="button"
-            aria-label="Escolher produto"
-            onClick={(event) => {
-              event.stopPropagation();
-              navigate("/dashboard/catalogo");
-            }}
-            className="velo-home-ghost mr-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
-          >
-            <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label="Enviar"
-            disabled={chatActive && !chatInput.trim()}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (!chatActive) {
-                setChatActive(true);
-                return;
-              }
-              void enviarParaAtlas(chatInput);
-            }}
-            className="velo-home-accent flex h-9 w-9 items-center justify-center rounded-full text-white disabled:cursor-default disabled:opacity-40"
-          >
-            <ArrowUp size={18} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </motion.div>
-
-        <div className="relative mt-6">
-          <motion.div
-            aria-hidden={chatActive}
-            initial={false}
-            animate={chatActive
-              ? { opacity: 0, y: reduceMotion ? 0 : 16, filter: "blur(6px)" }
-              : { opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: reduceMotion ? 0 : 0.36, ease: [0.22, 1, 0.36, 1] }}
-            style={{ pointerEvents: chatActive ? "none" : "auto" }}
-          >
+        <div className="relative">
+          <div>
             {/* Destaque: prévia grande, como o card do site na referência */}
             {mostrarDestaque && (
               <motion.section
@@ -996,56 +604,8 @@ const DashboardHomePage = () => {
                 </ul>
               </motion.section>
             ))}
-          </motion.div>
+          </div>
 
-          {/* Sugestões do Atlas: ocupam o lugar do conteúdo enquanto o chat está aberto. */}
-          <AnimatePresence>
-            {chatActive && (
-              <motion.div
-                ref={suggestionListRef}
-                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ delay: reduceMotion ? 0 : 0.16, duration: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-x-0 top-0 z-[33] flex w-full flex-col"
-              >
-                {CHAT_SUGGESTIONS.map((suggestion, index) => (
-                  <motion.button
-                    key={suggestion}
-                    type="button"
-                    initial={reduceMotion ? false : { opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -6 }}
-                    transition={{
-                      delay: reduceMotion ? 0 : 0.22 + index * 0.06,
-                      duration: reduceMotion ? 0 : 0.38,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    onClick={() => void enviarParaAtlas(suggestion)}
-                    onMouseEnter={() => setHoveredSuggestion(suggestion)}
-                    onMouseLeave={() => setHoveredSuggestion(null)}
-                    onFocus={() => setHoveredSuggestion(suggestion)}
-                    onBlur={() => setHoveredSuggestion(null)}
-                    className="flex h-12 items-center gap-3.5 rounded-xl border-0 px-4 text-left text-[15px] focus-visible:outline-none"
-                    style={{
-                      background: hoveredSuggestion === suggestion ? "#F5F6F8" : "transparent",
-                      color: hoveredSuggestion === suggestion ? "#0B0D12" : "#4B5563",
-                      transition: "background-color 160ms ease, color 160ms ease",
-                    }}
-                    whileTap={reduceMotion ? undefined : { scale: 0.995 }}
-                  >
-                    <ArrowRight
-                      size={18}
-                      strokeWidth={1.5}
-                      aria-hidden="true"
-                      style={{ opacity: hoveredSuggestion === suggestion ? 0.9 : 0.5, transition: "opacity 150ms ease" }}
-                    />
-                    <span>{suggestion}</span>
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
       <VideoTutorialModal
