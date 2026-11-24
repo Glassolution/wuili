@@ -36,11 +36,11 @@ const PERGUNTAS = [
   "Como conecto minha conta do Mercado Livre?",
 ];
 
-const ALTURA_MAXIMA = 168;
+const ALTURA_MAXIMA = 140;
 
 const BOX_CSS = `
 .velo-atlas-box { transition: border-color 180ms ease-out, box-shadow 180ms ease-out; }
-.velo-atlas-box:focus-within { border-color: #CFC8F3; box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 12px 36px rgba(91,72,214,0.10), 0 0 0 4px rgba(124,92,250,0.08); }
+.velo-atlas-box:focus-within { border-color: #CACACA; box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.06); }
 .velo-atlas-chip { transition: background-color 150ms ease-out; }
 .velo-atlas-icone { transition: background-color 150ms ease-out, color 150ms ease-out, transform 150ms ease-out; }
 .velo-atlas-icone:hover:not(:disabled) { background: #F1F1F4; color: #0B0D12; }
@@ -66,7 +66,7 @@ const BotaoIcone = ({
   icone: Icone,
   onClick,
   className = "",
-  tamanhoIcone = 20,
+  tamanhoIcone = 17,
 }: {
   rotulo: string;
   icone: ElementType;
@@ -78,7 +78,7 @@ const BotaoIcone = ({
     type="button"
     onClick={onClick}
     aria-label={rotulo}
-    className={`velo-atlas-icone velo-atlas-com-dica relative flex h-10 w-10 items-center justify-center rounded-full text-[#4B5563] ${className}`}
+    className={`velo-atlas-icone velo-atlas-com-dica relative flex h-8 w-8 items-center justify-center rounded-[8px] text-[#4B5563] ${className}`}
   >
     <Icone size={tamanhoIcone} strokeWidth={1.6} aria-hidden="true" />
     <span
@@ -153,18 +153,18 @@ const AtlasPromptBox = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[720px]">
+    <div className="mx-auto w-full max-w-[620px]">
       <style>{BOX_CSS}</style>
 
       {/* Linha de cima: quem responde (Atlas) e ações da conversa. */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="velo-atlas-chip flex h-11 items-center gap-2.5 rounded-[14px] bg-[#F4F4F6] pl-2.5 pr-4">
-          <span className="block h-6 w-6" aria-hidden="true">
+      <div className="mb-2.5 flex items-center justify-between">
+        <div className="velo-atlas-chip flex h-9 items-center gap-2 rounded-[10px] bg-[#F4F4F6] pl-2 pr-3">
+          <span className="block h-5 w-5" aria-hidden="true">
             <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
           </span>
-          <span className="text-[15px] font-medium text-[#0B0D12]">Atlas</span>
-          <span aria-hidden="true" className="h-4 w-px bg-[#DCDDE2]" />
-          <span className="text-[14px] text-[#6B7280]">Assistente da sua loja</span>
+          <span className="text-[13.5px] font-medium text-[#0B0D12]">Atlas</span>
+          <span aria-hidden="true" className="h-3.5 w-px bg-[#DCDDE2]" />
+          <span className="text-[13px] text-[#6B7280]">Assistente da sua loja</span>
         </div>
         <div className="flex items-center gap-1">
           <BotaoIcone rotulo="Nova conversa" icone={SquarePen} onClick={novaConversa} />
@@ -174,16 +174,16 @@ const AtlasPromptBox = () => {
 
       <form
         onSubmit={enviarMensagem}
-        className="velo-atlas-box relative rounded-[26px] border border-[#E6E3F4] bg-white px-5 pb-4 pt-5"
-        style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgba(91,72,214,0.06)" }}
+        className="velo-atlas-box relative rounded-[16px] border border-[#E3E3E3] bg-white px-4 pb-3 pt-3.5"
+        style={{ boxShadow: "0 1px 0 rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04)" }}
       >
         <button
           type="button"
           onClick={sugerirPergunta}
           aria-label="Sugerir uma pergunta"
-          className="velo-atlas-icone velo-atlas-varinha velo-atlas-com-dica absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-[#7C5CFA]"
+          className="velo-atlas-icone velo-atlas-varinha velo-atlas-com-dica absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-[8px] text-[#7C5CFA]"
         >
-          <Wand2 size={19} strokeWidth={1.7} aria-hidden="true" />
+          <Wand2 size={16} strokeWidth={1.7} aria-hidden="true" />
           <span
             aria-hidden="true"
             className="velo-atlas-dica pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 whitespace-nowrap rounded-[8px] bg-[#0B0D12] px-2 py-1 text-[12px] font-medium text-white"
@@ -192,7 +192,7 @@ const AtlasPromptBox = () => {
           </span>
         </button>
 
-        <div className="relative pr-12">
+        <div className="relative pr-9">
           <label htmlFor="inicio-atlas" className="sr-only">
             Mensagem para o Atlas
           </label>
@@ -206,12 +206,12 @@ const AtlasPromptBox = () => {
             onFocus={() => setFocada(true)}
             onBlur={() => setFocada(false)}
             placeholder={PERGUNTAS[indicePergunta]}
-            className="velo-atlas-texto block w-full resize-none border-0 bg-transparent p-0 text-[18px] leading-[1.45] text-[#0B0D12] outline-none"
-            style={{ minHeight: 52, maxHeight: ALTURA_MAXIMA }}
+            className="velo-atlas-texto block w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-[1.5] text-[#0B0D12] outline-none"
+            style={{ minHeight: 44, maxHeight: ALTURA_MAXIMA }}
           />
           {/* Placeholder animado (o nativo fica transparente para não piscar). */}
           {!mensagem && (
-            <span aria-hidden="true" className="pointer-events-none absolute left-0 top-0 text-[18px] leading-[1.45] text-[#9AA1AE]">
+            <span aria-hidden="true" className="pointer-events-none absolute left-0 top-0 text-[15px] leading-[1.5] text-[#8A8A8A]">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
                   key={indicePergunta}
@@ -228,27 +228,26 @@ const AtlasPromptBox = () => {
           )}
         </div>
 
-        <div className="mt-5 flex items-center justify-between">
-          <div className="flex items-center gap-1">
+        <div className="mt-2 flex items-center justify-between">
+          <div className="-ml-1.5 flex items-center gap-0.5">
             {ATALHOS.map((atalho) => (
               <BotaoIcone key={atalho.id} rotulo={atalho.rotulo} icone={atalho.icone} onClick={() => preencher(atalho.texto)} />
             ))}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-[12px] text-[#9AA1AE] lg:inline">Shift + Enter quebra a linha</span>
+          <div className="flex items-center">
             <button
               type="submit"
               disabled={!podeEnviar}
               aria-label={enviando ? "Enviando para o Atlas" : "Enviar para o Atlas"}
-              className={`velo-atlas-enviar flex h-12 w-12 items-center justify-center rounded-[14px] ${
-                podeEnviar ? "bg-[#0B0D12] text-white" : "bg-[#F1F1F4] text-[#B4B9C2]"
+              className={`velo-atlas-enviar flex h-8 w-8 items-center justify-center rounded-[9px] ${
+                podeEnviar ? "bg-[#0B0D12] text-white" : "bg-[#F1F1F1] text-[#B5B5B5]"
               }`}
-              style={podeEnviar ? { boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12), 0 4px 12px rgba(11,13,18,0.18)" } : undefined}
+              style={podeEnviar ? { boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 2px rgba(11,13,18,0.2)" } : undefined}
             >
               {enviando ? (
-                <Loader2 size={18} strokeWidth={2} aria-hidden="true" className="animate-spin" />
+                <Loader2 size={15} strokeWidth={2} aria-hidden="true" className="animate-spin" />
               ) : (
-                <ArrowUp size={20} strokeWidth={1.9} aria-hidden="true" />
+                <ArrowUp size={16} strokeWidth={1.9} aria-hidden="true" />
               )}
             </button>
           </div>
