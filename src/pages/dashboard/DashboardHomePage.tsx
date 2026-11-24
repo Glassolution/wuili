@@ -9,7 +9,10 @@ import {
   FolderOpen,
   Image as ImageIcon,
   LayoutTemplate,
-  Plus,
+  Info,
+  Link2,
+  Menu,
+  Settings2,
   Rocket,
   ScanFace,
   Search,
@@ -44,7 +47,7 @@ const INTRO = {
 const HOME_CSS = `
 .velo-inicio-card { background: #FFFFFF; border-radius: 24px; transition: transform 180ms ease-out, box-shadow 180ms ease-out; }
 .velo-inicio-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(16,24,40,0.07); }
-.velo-inicio-card:focus-visible, .velo-inicio-tab:focus-visible, .velo-inicio-pill:focus-visible, .velo-inicio-search:focus-visible, .velo-inicio-plus:focus-visible, .velo-inicio-vendas:focus-visible {
+.velo-inicio-card:focus-visible, .velo-inicio-tab:focus-visible, .velo-inicio-pill:focus-visible, .velo-inicio-search:focus-visible, .velo-inicio-link:focus-visible, .velo-inicio-conta:focus-visible, .velo-inicio-item:focus-visible, .velo-inicio-vendas:focus-visible {
   outline: none; box-shadow: 0 0 0 2px #F2F3F6, 0 0 0 4px rgba(47,91,234,0.45);
 }
 .velo-inicio-tab { transition: background-color 150ms ease-out, color 150ms ease-out; }
@@ -53,13 +56,12 @@ const HOME_CSS = `
 .velo-inicio-pill:hover { background: #F7F8FA; }
 .velo-inicio-search { transition: background-color 150ms ease-out; }
 .velo-inicio-search:hover { background: #FAFAFB; }
-.velo-inicio-plus {
-  background: linear-gradient(180deg, #3A64EE 0%, #2A51DA 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), inset 0 0 0 1px rgba(11,13,18,0.06), 0 1px 2px rgba(16,24,40,0.10);
-  transition: filter 150ms ease-out, transform 150ms ease-out;
-}
-.velo-inicio-plus:hover { filter: brightness(0.94); }
-.velo-inicio-plus:active { transform: scale(0.97); }
+.velo-inicio-link { transition: color 150ms ease-out; }
+.velo-inicio-link:hover { color: #0B0D12; }
+.velo-inicio-conta { transition: background-color 150ms ease-out; }
+.velo-inicio-conta:hover { background: #FAFAFB; }
+.velo-inicio-item { transition: background-color 150ms ease-out; }
+.velo-inicio-item:hover { background: #F5F6F8; }
 .velo-inicio-vendas .velo-inicio-seta { transition: transform 150ms ease-out; }
 .velo-inicio-vendas:hover .velo-inicio-seta { transform: translateX(3px); }
 /* O painel força Hanken Grotesk com !important; a Início usa Inter sem números tabulares. */
@@ -169,8 +171,9 @@ const ABAS = [
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { foto } = useProfile();
+  const { nomeCurto, foto } = useProfile();
   const [avatarFalhou, setAvatarFalhou] = useState(false);
+  const [menuContaAberto, setMenuContaAberto] = useState(false);
   const [aba, setAba] = useState<"comecar" | "avancado">("comecar");
   // Mesma leitura da página Projetos (RPC get_user_projects), sem consulta nova.
   const projetos = useQuery({
@@ -222,6 +225,15 @@ const DashboardHomePage = () => {
     };
   }, [introState, reduceMotion, user?.id]);
 
+  useEffect(() => {
+    if (!menuContaAberto) return;
+    const fecharComEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuContaAberto(false);
+    };
+    window.addEventListener("keydown", fecharComEsc);
+    return () => window.removeEventListener("keydown", fecharComEsc);
+  }, [menuContaAberto]);
+
   const playIntro = introState === "play";
   // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
   const revealProps = (delay: number, distance = 12) => playIntro
@@ -245,43 +257,100 @@ const DashboardHomePage = () => {
   const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
   const totalProjetos = projetos.data?.length;
   const ferramentas = FERRAMENTAS[aba];
+  const primeiroNome = nomeCurto && nomeCurto !== "Usuario" ? nomeCurto.split(" ")[0] : "Sua conta";
 
   return (
     <main className="velo-fonte-inter velo-inicio-root shrink-0 overflow-auto bg-[#F2F3F6] text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
       <style>{HOME_CSS}</style>
 
-      {/* Barra do topo: busca, "+" e avatar. */}
-      <motion.header {...revealProps(0, -6)} className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center gap-3 px-4 md:px-10">
-        <button
-          type="button"
-          onClick={abrirBusca}
-          aria-label="Buscar produtos, lojas e telas"
-          className="velo-inicio-search flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-white px-4 text-left text-[14px] text-[#8A93A3]"
-        >
-          <Search size={16} strokeWidth={1.5} aria-hidden="true" />
-          <span className="flex-1 truncate">Buscar produtos, lojas...</span>
-        </button>
-        <button
-          type="button"
-          onClick={go("/dashboard/catalogo")}
-          aria-label="Adicionar produto"
-          title="Adicionar produto"
-          className="velo-inicio-plus flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-        >
-          <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          onClick={go("/dashboard/configuracoes")}
-          aria-label="Configurações da conta"
-          className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-[#8A93A3]"
-        >
-          {foto && !avatarFalhou ? (
-            <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
-          ) : (
-            <UserRound size={18} strokeWidth={1.5} aria-hidden="true" />
+      {/* Barra do topo no desenho da referência: links centralizados; à direita,
+          botão redondo de busca e pílula da conta com menu. */}
+      <motion.header {...revealProps(0, -6)} className="grid h-[72px] w-full grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:px-8">
+        <span aria-hidden="true" />
+        <nav aria-label="Atalhos" className="flex items-center gap-10">
+          {[
+            { label: "Projetos", to: "/dashboard/projetos" },
+            { label: "Pedidos", to: "/dashboard/pedidos" },
+            { label: "Comunidade", to: "/dashboard/comunidade" },
+          ].map((link) => (
+            <button
+              key={link.to}
+              type="button"
+              onClick={go(link.to)}
+              className="velo-inicio-link rounded-md text-[15px] text-[#2B2F36]"
+            >
+              {link.label}
+            </button>
+          ))}
+        </nav>
+        <div className="relative flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={abrirBusca}
+            aria-label="Buscar produtos, lojas e telas"
+            title="Buscar"
+            className="velo-inicio-search flex h-10 w-10 items-center justify-center rounded-full bg-white text-[#2F5BEA]"
+          >
+            <Search size={17} strokeWidth={1.7} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMenuContaAberto((aberto) => !aberto)}
+            aria-label="Menu da conta"
+            aria-haspopup="menu"
+            aria-expanded={menuContaAberto}
+            className="velo-inicio-conta flex h-10 items-center gap-2.5 rounded-full bg-white pl-2 pr-3.5 text-[15px] text-[#2B2F36]"
+          >
+            <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#F2F3F6] text-[#8A93A3]">
+              {foto && !avatarFalhou ? (
+                <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
+              ) : (
+                <UserRound size={14} strokeWidth={1.6} aria-hidden="true" />
+              )}
+            </span>
+            <span className="max-w-[140px] truncate">{primeiroNome}</span>
+            <Menu size={18} strokeWidth={1.7} aria-hidden="true" className="ml-1.5" />
+          </button>
+          {menuContaAberto && (
+            <>
+              <button
+                type="button"
+                aria-label="Fechar menu"
+                tabIndex={-1}
+                className="fixed inset-0 z-40 cursor-default"
+                onClick={() => setMenuContaAberto(false)}
+              />
+              <div
+                role="menu"
+                className="absolute right-0 top-12 z-50 w-56 rounded-[16px] bg-white p-1.5"
+                style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 12px 32px rgba(16,24,40,0.10)" }}
+              >
+                {[
+                  { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
+                  { label: "Integrações", icon: Link2, to: "/dashboard/configuracoes?tab=Integrações" },
+                  { label: "Comunidade e Ajuda", icon: Info, to: "/dashboard/comunidade" },
+                ].map((item) => {
+                  const Icone = item.icon;
+                  return (
+                    <button
+                      key={item.to}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuContaAberto(false);
+                        navigate(item.to);
+                      }}
+                      className="velo-inicio-item flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-[#4B5563]"
+                    >
+                      <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
-        </button>
+        </div>
       </motion.header>
 
       <div className="mx-auto w-full max-w-[660px] px-4 pb-16 pt-4">
