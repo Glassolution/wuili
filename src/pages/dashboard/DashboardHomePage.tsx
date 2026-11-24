@@ -10,8 +10,8 @@ import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/o
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
-import cardProdutoImg from "@/assets/home-card-produto.webp";
 import cardTemasImg from "@/assets/home-card-temas.webp";
+import bannerAgentes from "@/assets/home-banner-agentes.webp";
 import agenteLua from "@/assets/agentes/lua.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
@@ -577,58 +577,22 @@ const DashboardHomePage = () => {
 
         <div className="relative">
           <div>
-            {/* Destaque: prévia grande, como o card do site na referência */}
+            {/* Banner dos agentes: a imagem inteira, na proporção original (1672×941). */}
             {mostrarDestaque && (
               <motion.section
                 {...revealProps(0.3, 12)}
                 data-dashboard-tour="home-primeiros-passos"
-                aria-labelledby="home-destaque"
-                className="mt-6 overflow-hidden rounded-[20px] bg-[#F5F6F8] p-2"
+                aria-label="Agentes da Velo"
+                className="mt-6 overflow-hidden rounded-[20px]"
               >
-                <div className="grid min-h-[300px] grid-cols-1 overflow-hidden rounded-[16px] bg-[#FAFAF9] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <div className="flex min-w-0 flex-col p-7">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-[11px] font-semibold tracking-[0.24em] text-[#0B0D12]">VELO</span>
-                      <nav aria-label="Atalhos" className="flex gap-4 text-[11px] text-[#4B5563]">
-                        <button type="button" onClick={go("/dashboard/catalogo")} className="hover:text-[#0B0D12]">Catálogo</button>
-                        <button type="button" onClick={go("/dashboard/modelos")} className="hover:text-[#0B0D12]">Templates</button>
-                        <button type="button" onClick={go("/dashboard/publicacoes")} className="hover:text-[#0B0D12]">Publicações</button>
-                      </nav>
-                    </div>
-                    <span className="mt-6 text-[12px] font-medium text-[#8A93A3]">01 · Primeiro passo</span>
-                    <h2
-                      id="home-destaque"
-                      className="velo-home-serif m-0 mt-2 text-[46px] font-normal leading-[1.02] text-[#0B0D12]"
-                    >
-                      Adicione seu
-                      <br />
-                      primeiro produto
-                    </h2>
-                    <p className="m-0 mt-3 max-w-[280px] text-[13px] leading-relaxed text-[#4B5563]">
-                      Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={go("/dashboard/catalogo")}
-                      className="velo-home-dark mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-white"
-                    >
-                      Adicionar produto
-                      <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="relative min-h-[240px]">
-                    <img src={cardProdutoImg} alt="" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
-                    {/* O "+" é parte da foto: este botão fica por cima e leva ao mesmo destino. */}
-                    <button
-                      type="button"
-                      onClick={go("/dashboard/catalogo")}
-                      aria-label="Adicionar produto"
-                      title="Adicionar produto"
-                      className="absolute rounded-[16%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(11,13,18,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5BEA]/60"
-                      style={{ left: "30%", top: "65%", width: "23%", height: "28.6%" }}
-                    />
-                  </div>
-                </div>
+                <img
+                  src={bannerAgentes}
+                  alt="Pessoa de costas sob o céu azul, com os agentes da Velo e ícones de loja, imagens, ofertas e clientes em arco"
+                  width={1672}
+                  height={941}
+                  className="block aspect-[1672/941] h-auto w-full select-none object-cover"
+                  draggable={false}
+                />
               </motion.section>
             )}
 
