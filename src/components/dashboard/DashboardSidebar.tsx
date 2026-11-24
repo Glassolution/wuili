@@ -695,7 +695,13 @@ const DashboardSidebar = () => {
     <aside
       className="velo-dashboard-sidebar velo-fonte-inter"
       data-recolhida={recolhida ? "true" : "false"}
-      style={{ ...styles.sidebar, width: recolhida ? 72 : styles.sidebar.width, ...(recolhida ? { padding: "0 12px 16px" } : null) }}
+      style={{
+        ...styles.sidebar,
+        width: recolhida ? 72 : styles.sidebar.width,
+        ...(recolhida ? { padding: "0 12px 16px" } : null),
+        // Na Início não há moldura: volta o filete que separa a sidebar da página.
+        ...(location.pathname === "/dashboard" || location.pathname === "/dashboard/" ? { borderRight: "1px solid #ECEEF2" } : null),
+      }}
     >
       <style>{NAV_CSS}</style>
       {/* Topo: marca e botão de recolher, com filete embaixo (como na referência). */}

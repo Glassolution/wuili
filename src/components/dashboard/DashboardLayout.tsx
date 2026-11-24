@@ -832,6 +832,8 @@ const DashboardLayoutInner = () => {
     (rota) => location.pathname === rota || location.pathname.startsWith(`${rota}/`),
   );
   const isCatalogRoute = location.pathname.startsWith("/dashboard/catalogo");
+  // A Início fica sem a moldura branca (tela cheia, como era antes); as outras páginas têm moldura.
+  const isHomeRoute = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
   const isCatalogProductDetailRoute = /^\/dashboard\/catalogo\/[^/]+$/.test(location.pathname);
   const isHelpCenterRoute = location.pathname.startsWith("/dashboard/ajuda");
   // Imagens com IA usa um cinza neutro em vez do bege do `body`: o painel da tela
@@ -1010,8 +1012,10 @@ const DashboardLayoutInner = () => {
         {/* Área principal com header e conteúdo, dentro de uma moldura branca
             arredondada que acompanha a sidebar (estilo da referência do Shopify). */}
         <div
-          className="relative my-3.5 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-black/[0.07] bg-white"
-          style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)" }}
+          className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white ${
+            isHomeRoute ? "" : "my-3.5 mr-2 rounded-[14px] border border-black/[0.07]"
+          }`}
+          style={isHomeRoute ? undefined : { boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)" }}
         >
           {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
               da sidebar (a sidebar continua ocupando a altura total). */}
