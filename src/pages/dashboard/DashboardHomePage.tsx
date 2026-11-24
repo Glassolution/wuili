@@ -119,6 +119,15 @@ const HOME_CSS = `
 .velo-home-dark:hover { background: #1F232B; }
 .velo-home-accent { background: #2F5BEA; transition: background-color 150ms ease-out, opacity 150ms ease-out; }
 .velo-home-accent:hover:not(:disabled) { background: #2449C7; }
+/* "+" do header: sem brilho difuso; volume só com gradiente curto, filete de luz no topo e sombra rente. */
+.velo-home-plus {
+  background: linear-gradient(180deg, #3A64EE 0%, #2A51DA 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), inset 0 0 0 1px rgba(11,13,18,0.06), 0 1px 2px rgba(16,24,40,0.10);
+  transition: filter 150ms ease-out, transform 150ms ease-out;
+}
+.velo-home-plus:hover { filter: brightness(0.94); }
+.velo-home-plus:active { transform: scale(0.97); }
+.velo-home-plus:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45); }
 .velo-home-secondary { background: #FFFFFF; border: 1px solid #ECEEF2; transition: background-color 150ms ease-out, border-color 150ms ease-out; }
 .velo-home-secondary:hover:not(:disabled) { background: #F7F8FA; border-color: #DCE0E7; }
 .velo-home-ghost { background: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
@@ -688,9 +697,9 @@ const DashboardHomePage = () => {
             onClick={go("/dashboard/catalogo")}
             aria-label="Adicionar produto"
             title="Adicionar produto"
-            className="velo-home-accent flex h-10 w-10 items-center justify-center rounded-full text-white shadow-[0_6px_16px_rgba(47,91,234,0.28)]"
+            className="velo-home-plus flex h-10 w-10 items-center justify-center rounded-full text-white"
           >
-            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
           </button>
           <button
             type="button"
