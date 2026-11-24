@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BadgePercent, Check, LayoutTemplate, PlayCircle, Sparkles } from "lucide-react";
+import { ArrowRight, PlayCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,12 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
-import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
+import agenteLua from "@/assets/agentes/lua.png";
+import agenteCubo from "@/assets/agentes/cubo.png";
+import agenteFolha from "@/assets/agentes/folha.png";
+import agenteEstrela from "@/assets/agentes/estrela.png";
+import agenteConcha from "@/assets/agentes/concha.png";
+import agenteSino from "@/assets/agentes/sino.png";
 import MobileHome from "@/components/dashboard/MobileHome";
 import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import { Button } from "@/components/ui/button";
@@ -82,6 +87,8 @@ const IMAGE_WIDTH = 1536;
 const CONTENT_SLICE_TOP = 300;
 const CONTENT_OFFSET = 100;
 const HERO_OFFSET = 17;
+// Quanto os cards (e a faixa "Próximo passo") descem em relação ao desenho original.
+const CARDS_SHIFT = 28;
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -138,6 +145,120 @@ const MAX_CANVAS_WIDTH = 1280;
 const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
 const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
 const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
+
+// Os seis agentes do card "Coloque os agentes para trabalhar": fileira de trás
+// menor, fileira da frente maior, cada um balançando num ritmo diferente.
+const AGENTES_HOME = [
+  { nome: "lua", src: agenteLua, x: 34, y: 34, tamanho: 96, balanco: 4, frente: false },
+  { nome: "estrela", src: agenteEstrela, x: 150, y: 16, tamanho: 96, balanco: 5, frente: false },
+  { nome: "sino", src: agenteSino, x: 268, y: 34, tamanho: 96, balanco: 4, frente: false },
+  { nome: "cubo", src: agenteCubo, x: 22, y: 140, tamanho: 118, balanco: 3, frente: true },
+  { nome: "concha", src: agenteConcha, x: 140, y: 128, tamanho: 118, balanco: 4, frente: true },
+  { nome: "folha", src: agenteFolha, x: 258, y: 140, tamanho: 118, balanco: 3, frente: true },
+];
+
+const HOME_CARDS_CSS = `
+.velo-home-area .velo-home-area-agente { transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-home-area:hover .velo-home-area-agente { transform: translateY(-6px) rotate(-3deg); }
+.velo-home-area .velo-home-area-botao { transition: transform 200ms ease-out, background-color 200ms ease-out, border-color 200ms ease-out; }
+.velo-home-area .velo-home-area-botao:hover:not(:disabled) { transform: translateY(-1px); background-color: #F7F7F5; border-color: #C9C9C5; }
+@media (prefers-reduced-motion: reduce) {
+  .velo-home-area .velo-home-area-agente, .velo-home-area .velo-home-area-botao { transition: none; }
+  .velo-home-area:hover .velo-home-area-agente { transform: none; }
+}
+`;
+
+type CardAreaProps = {
+  id: string;
+  left: number;
+  width: number;
+  rotulo: string;
+  /** Só no card do Mercado Livre: bolinha verde (conectado) ou cinza. */
+  rotuloAtivo?: boolean;
+  titulo: string;
+  texto: string;
+  acao: string;
+  onClick: () => void;
+  desabilitado?: boolean;
+  agente: string;
+  fundo: string;
+};
+
+// Card da segunda linha da Início: texto e botão à esquerda, um agente à direita.
+const CardArea = ({ id, left, width, rotulo, rotuloAtivo, titulo, texto, acao, onClick, desabilitado, agente, fundo }: CardAreaProps) => (
+  <section
+    aria-labelledby={id}
+    className="velo-home-area"
+    style={{
+      position: "absolute",
+      left: x(left),
+      top: y(649),
+      width: x(width),
+      height: y(246),
+      zIndex: 2,
+      boxSizing: "border-box",
+      display: "grid",
+      gridTemplateColumns: "minmax(0, 1fr) 40%",
+      gap: fs(14),
+      overflow: "hidden",
+      padding: `${fs(14)} ${fs(14)} ${fs(14)} ${fs(22)}`,
+      border: "1px solid rgba(17,17,20,0.08)",
+      borderRadius: fs(24),
+      background: "#FFFFFF",
+      boxShadow: "0 12px 28px rgba(26,26,26,0.045)",
+    }}
+  >
+    <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", padding: `${fs(8)} 0` }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: fs(6), color: "rgba(17,17,20,0.5)", fontSize: fs(10.5), fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+        {rotuloAtivo !== undefined && (
+          <span aria-hidden="true" style={{ width: fs(7), height: fs(7), borderRadius: "50%", background: rotuloAtivo ? "#20B875" : "#C9C6B2", boxShadow: rotuloAtivo ? "0 0 0 3px rgba(32,184,117,0.14)" : "none" }} />
+        )}
+        {rotulo}
+      </span>
+      <h3 id={id} style={{ margin: `${fs(12)} 0 0`, color: "#111114", fontSize: fs(19.5), fontWeight: 820, lineHeight: 1.12, letterSpacing: "-0.03em" }}>
+        {titulo}
+      </h3>
+      <p style={{ margin: `${fs(9)} 0 0`, color: "rgba(17,17,20,0.62)", fontSize: fs(12.4), fontWeight: 500, lineHeight: 1.42 }}>
+        {texto}
+      </p>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={desabilitado}
+        className="velo-home-area-botao focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2 disabled:opacity-70"
+        style={{
+          marginTop: "auto",
+          height: fs(40),
+          display: "flex",
+          alignItems: "center",
+          gap: fs(10),
+          padding: `0 ${fs(13)} 0 ${fs(15)}`,
+          border: "1px solid #DDDDD9",
+          borderRadius: fs(11),
+          background: "rgba(255,255,255,0.96)",
+          color: "#171719",
+          cursor: desabilitado ? "wait" : "pointer",
+          fontSize: fs(12.3),
+          fontWeight: 780,
+          whiteSpace: "nowrap",
+          boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
+        }}
+      >
+        <span>{acao}</span>
+        <ArrowRight aria-hidden="true" style={{ width: fs(17), height: fs(17) }} strokeWidth={2.1} />
+      </button>
+    </div>
+    <div aria-hidden="true" style={{ position: "relative", borderRadius: fs(18), background: fundo, overflow: "hidden", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <img
+        src={agente}
+        alt=""
+        draggable={false}
+        className="velo-home-area-agente"
+        style={{ width: fs(132), height: fs(132), marginBottom: fs(6), objectFit: "contain", filter: "drop-shadow(0 10px 12px rgba(0,0,0,0.12))", userSelect: "none" }}
+      />
+    </div>
+  </section>
+);
 
 const AssistantAvatar = () => (
   <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
@@ -577,7 +698,7 @@ const DashboardHomePage = () => {
           className="block h-auto w-full select-none"
           draggable={false}
         />
-        <div aria-hidden="true" style={{ height: y(CONTENT_OFFSET) }} />
+        <div aria-hidden="true" style={{ height: y(CONTENT_OFFSET + CARDS_SHIFT) }} />
         <div
           aria-hidden="true"
           style={{
@@ -586,17 +707,8 @@ const DashboardHomePage = () => {
             background: "#F5F4F1",
           }}
         />
-        <img
-          aria-hidden="true"
-          src={dashboardHomeBase}
-          alt=""
-          className="pointer-events-none absolute left-0 w-full select-none"
-          style={{
-            top: y(CONTENT_OFFSET),
-            clipPath: `inset(${(CONTENT_SLICE_TOP / 1024) * 100}% 0 0 0)`,
-          }}
-          draggable={false}
-        />
+        {/* A segunda cópia recortada da imagem base (com os cards desenhados) saiu:
+            os cards agora são componentes. A primeira imagem só dá a altura do canvas. */}
 
         <div className="absolute inset-0 font-sans">
           <div
@@ -874,460 +986,232 @@ const DashboardHomePage = () => {
               position: "absolute",
               left: 0,
               right: 0,
-              top: y(CONTENT_OFFSET),
+              top: y(CONTENT_OFFSET + CARDS_SHIFT),
               bottom: 0,
               pointerEvents: chatActive ? "none" : "auto",
             }}
           >
-          <span style={textStyle(117, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>01</span>
-          <h2 style={textStyle(111, 384, 22, 260, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>
-            Adicione seu primeiro
-            <br />
-            produto
-          </h2>
-          <p style={textStyle(111, 460, 12.4, 276, { color: "rgba(0,0,0,0.62)", lineHeight: 1.42 })}>
-            Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
-          </p>
-          <button
-            type="button"
-            onClick={go("/dashboard/catalogo")}
-            className="group transition-[transform,filter,box-shadow] duration-200 ease-out hover:-translate-y-px hover:brightness-110 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/45 focus-visible:ring-offset-2"
-            style={buttonStyle(116, 541, 170, 47, 13.4, {
-              ...getPremiumActionButtonStyle(),
-              borderRadius: fs(11),
-              fontWeight: 800,
-              justifyContent: "space-between",
-              paddingLeft: fs(18),
-              paddingRight: fs(16),
-              textAlign: "left",
-            })}
+          <style>{HOME_CARDS_CSS}</style>
+          {/* Linha 1 — os dois primeiros passos do novo caminho: criar o site e
+              colocar os agentes para cuidar dele. */}
+          <section
+            aria-labelledby="home-card-site"
+            className="velo-home-card"
+            style={{
+              position: "absolute",
+              left: x(78),
+              top: y(314),
+              width: x(688),
+              height: y(322),
+              zIndex: 2,
+              // Recorte do card da vitrine que já vinha desenhado na imagem base
+              // (o mesmo da antiga "Escolha o visual da sua loja"), agora como 01.
+              backgroundImage: `url(${dashboardHomeBase})`,
+              backgroundRepeat: "no-repeat",
+              backgroundSize: `${fs(1536)} auto`,
+              backgroundPosition: `-${fs(772)} -${fs(314)}`,
+            }}
           >
-            <span>Adicionar produto</span>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              style={{ width: fs(22), height: fs(22), flex: "0 0 auto" }}
+            <span style={{ position: "absolute", left: fs(35), top: fs(37), color: "rgba(0,0,0,0.45)", fontSize: fs(11), fontWeight: 800 }}>01</span>
+            <h2 id="home-card-site" style={{ position: "absolute", left: fs(28), top: fs(70), width: fs(250), margin: 0, fontSize: fs(22), fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" }}>
+              Crie o site
+              <br />
+              da sua loja
+            </h2>
+            <p style={{ position: "absolute", left: fs(28), top: fs(146), width: fs(238), margin: 0, color: "rgba(0,0,0,0.62)", fontSize: fs(12.4), lineHeight: 1.42 }}>
+              Escolha um modelo, coloque seus produtos e publique. Tudo dentro da Velo.
+            </p>
+            <button
+              type="button"
+              onClick={go("/dashboard/minha-loja")}
+              className="group transition-[transform,filter,box-shadow] duration-200 ease-out hover:-translate-y-px hover:brightness-110 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/45 focus-visible:ring-offset-2"
+              style={{
+                ...buttonStyle(0, 0, 0, 47, 13.4),
+                left: fs(28),
+                top: fs(222),
+                width: fs(170),
+                height: fs(47),
+                ...getPremiumActionButtonStyle(),
+                borderRadius: fs(11),
+                fontWeight: 800,
+                justifyContent: "space-between",
+                paddingLeft: fs(18),
+                paddingRight: fs(16),
+                textAlign: "left",
+              }}
             >
-              <path
-                d="M5 12h13M13 7l5 5-5 5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+              <span>Criar meu site</span>
+              <ArrowRight aria-hidden="true" style={{ width: fs(20), height: fs(20), flex: "0 0 auto" }} strokeWidth={1.8} />
+            </button>
+            {/* A vitrine desenhada também leva para o editor do site. */}
+            <button
+              type="button"
+              onClick={go("/dashboard/minha-loja")}
+              aria-label="Abrir o editor do site"
+              title="Abrir o editor do site"
+              className="velo-home-vitrine rounded-[4%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
+              style={{ ...buttonStyle(0, 0, 0, 0, 0), left: fs(258), top: fs(40), width: fs(410), height: fs(250), background: "transparent" }}
+            />
+          </section>
 
-          {/* O "+" sobre a foto do produto é desenho da imagem de fundo, não um
-              elemento real — clicar nele não fazia nada. Este botão transparente
-              fica exatamente por cima e leva ao mesmo destino do "Adicionar
-              produto", que é o que a pessoa espera ao tocar num "+". */}
-          <button
-            type="button"
-            onClick={go("/dashboard/catalogo")}
-            aria-label="Adicionar produto"
-            title="Adicionar produto"
-            className="rounded-[18%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(10,10,10,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
-            style={buttonStyle(500, 520, 80, 79, 0, { background: "transparent" })}
-          />
+          <section
+            aria-labelledby="home-card-agentes"
+            className="velo-home-card"
+            style={{
+              position: "absolute",
+              left: x(778),
+              top: y(320),
+              width: x(676),
+              height: y(310),
+              zIndex: 2,
+              boxSizing: "border-box",
+              padding: fs(10),
+              border: "1px solid rgba(17,17,20,0.07)",
+              borderRadius: fs(24),
+              background: "#FFFFFF",
+              boxShadow: "0 12px 28px rgba(26,26,26,0.045)",
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
+                height: "100%",
+                overflow: "hidden",
+                borderRadius: fs(18),
+                background: "linear-gradient(100deg, #FFFFFF 0%, #FBFAF8 42%, #F4F0EA 100%)",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  left: fs(15),
+                  top: fs(8),
+                  width: fs(40),
+                  height: fs(40),
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: fs(10),
+                  background: "#F3F2F0",
+                  color: "rgba(0,0,0,0.45)",
+                  fontSize: fs(11),
+                  fontWeight: 800,
+                }}
+              >
+                02
+              </span>
+              <h2 id="home-card-agentes" style={{ position: "absolute", left: fs(18), top: fs(60), width: fs(250), margin: 0, fontSize: fs(22), fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" }}>
+                Coloque os agentes
+                <br />
+                para trabalhar
+              </h2>
+              <p style={{ position: "absolute", left: fs(18), top: fs(136), width: fs(236), margin: 0, color: "rgba(0,0,0,0.62)", fontSize: fs(12.4), lineHeight: 1.42 }}>
+                Você cria a loja, os agentes cuidam dela. No seu projeto você vê tudo o que mudou no site.
+              </p>
+              <button
+                type="button"
+                onClick={go("/dashboard/projetos")}
+                className="transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
+                style={{
+                  position: "absolute",
+                  left: fs(18),
+                  top: fs(212),
+                  height: fs(46),
+                  display: "flex",
+                  alignItems: "center",
+                  gap: fs(12),
+                  padding: `0 ${fs(14)} 0 ${fs(16)}`,
+                  border: "1px solid #DDDDD9",
+                  borderRadius: fs(11),
+                  background: "rgba(255,255,255,0.96)",
+                  color: "#101114",
+                  cursor: "pointer",
+                  fontSize: fs(13.4),
+                  fontWeight: 800,
+                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
+                }}
+              >
+                <span>Ver meus projetos</span>
+                <ArrowRight aria-hidden="true" style={{ width: fs(18), height: fs(18) }} strokeWidth={2} />
+              </button>
 
-          {/* Alvo do tour do Atlas: moldura invisível sobre os dois cards de
-              primeiros passos, que são desenho da imagem de fundo. */}
+              {/* Os agentes da Velo (as mesmas fotos da página de projetos). Só
+                  decoração: balançam de leve e pulam quando o mouse passa. */}
+              <div aria-hidden="true" style={{ position: "absolute", left: fs(268), top: 0, right: 0, bottom: 0 }}>
+                {AGENTES_HOME.map((agente, index) => (
+                  <motion.img
+                    key={agente.nome}
+                    src={agente.src}
+                    alt=""
+                    draggable={false}
+                    className="velo-home-agente"
+                    initial={false}
+                    animate={reduceMotion ? undefined : { y: [0, -agente.balanco, 0] }}
+                    whileHover={reduceMotion ? undefined : { scale: 1.08, rotate: -4 }}
+                    transition={reduceMotion ? undefined : { duration: 3.2 + index * 0.35, delay: index * 0.4, repeat: Infinity, ease: "easeInOut" }}
+                    style={{
+                      position: "absolute",
+                      left: fs(agente.x),
+                      top: fs(agente.y),
+                      width: fs(agente.tamanho),
+                      height: fs(agente.tamanho),
+                      zIndex: agente.frente ? 2 : 1,
+                      filter: "drop-shadow(0 10px 12px rgba(60,40,20,0.13))",
+                      userSelect: "none",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Alvo do tour do Atlas: moldura invisível sobre os dois primeiros passos. */}
           <div
             aria-hidden="true"
             data-dashboard-tour="home-primeiros-passos"
             style={{ position: "absolute", left: x(84), top: y(318), width: x(1372), height: y(312), pointerEvents: "none" }}
           />
 
-          <span style={textStyle(813, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>02</span>
-          <h2 style={textStyle(806, 384, 22, 245, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>
-            Escolha o visual
-            <br />
-            da sua loja
-          </h2>
-          <p style={textStyle(806, 460, 12.4, 270, { color: "rgba(0,0,0,0.62)", lineHeight: 1.42 })}>
-            Selecione um template profissional e personalize para refletir a sua marca.
-          </p>
-          <button
-            type="button"
-            onClick={go("/dashboard/modelos")}
-            style={buttonStyle(806, 541, 132, 47, 13.4, {
-              color: "#101114",
-              fontWeight: 800,
-              paddingLeft: x(14),
-              textAlign: "left",
-            })}
-          >
-            Ver temas
-          </button>
-
-          <section
-            aria-labelledby="affiliate-card-title"
-            style={{
-              position: "absolute",
-              left: x(84),
-              top: y(649),
-              width: x(460),
-              height: y(246),
-              zIndex: 2,
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 39%",
-              gap: fs(18),
-              overflow: "hidden",
-              padding: fs(20),
-              border: "1px solid rgba(35, 31, 45, 0.09)",
-              borderRadius: fs(24),
-              background: "linear-gradient(145deg, #FFFFFF 0%, #FDFCFF 55%, #F7F4FF 100%)",
-              boxShadow: "0 12px 28px rgba(31, 24, 48, 0.055), inset 0 1px 0 rgba(255,255,255,0.92)",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(43),
-                  height: fs(43),
-                  flex: "0 0 auto",
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(13),
-                  color: "#FFFFFF",
-                  background: "linear-gradient(145deg, #6D5AEF 0%, #4736C7 100%)",
-                  boxShadow: "0 8px 18px rgba(79, 61, 201, 0.24), inset 0 1px 0 rgba(255,255,255,0.28)",
-                }}
-              >
-                <BadgePercent size={fs(22)} strokeWidth={1.9} />
-              </span>
-
-              <h3
-                id="affiliate-card-title"
-                style={{
-                  margin: `${fs(17)} 0 0`,
-                  color: "#111114",
-                  fontSize: fs(20.5),
-                  fontWeight: 820,
-                  lineHeight: 1.12,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Programa de afiliados
-              </h3>
-              <p
-                style={{
-                  margin: `${fs(9)} 0 0`,
-                  maxWidth: fs(230),
-                  color: "rgba(17,17,20,0.62)",
-                  fontSize: fs(12.7),
-                  fontWeight: 500,
-                  lineHeight: 1.42,
-                }}
-              >
-                Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.
-              </p>
-
-              <button
-                type="button"
-                onClick={go("/dashboard/comissoes")}
-                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  width: fs(177),
-                  height: fs(40),
-                  marginTop: "auto",
-                  flex: "0 0 auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#171719",
-                  cursor: "pointer",
-                  fontSize: fs(12.3),
-                  fontWeight: 780,
-                  letterSpacing: "-0.015em",
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>Quero ser afiliado</span>
-                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-            </div>
-
-            <div
-              style={{
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                padding: `${fs(17)} ${fs(15)}`,
-                border: "1px solid rgba(91, 71, 205, 0.11)",
-                borderRadius: fs(18),
-                background: "linear-gradient(155deg, rgba(239,235,255,0.92) 0%, rgba(250,249,255,0.96) 100%)",
-              }}
-            >
-              <span style={{ color: "#4B3AC1", fontSize: fs(10), fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Primeira venda
-              </span>
-              <div style={{ marginTop: fs(5), display: "flex", alignItems: "baseline", gap: fs(4) }}>
-                <strong style={{ color: "#17131F", fontSize: fs(32), fontWeight: 850, lineHeight: 1, letterSpacing: "-0.055em" }}>30%</strong>
-                <span style={{ color: "rgba(23,19,31,0.5)", fontSize: fs(9.8), fontWeight: 650 }}>de comissão</span>
-              </div>
-              <div style={{ height: 1, margin: `${fs(14)} 0 ${fs(12)}`, background: "rgba(75,58,193,0.12)" }} />
-              {["Por novo cliente", "Ganhos acompanhados"].map((benefit) => (
-                <span
-                  key={benefit}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: fs(7),
-                    marginBottom: fs(10),
-                    color: "rgba(23,19,31,0.72)",
-                    fontSize: fs(10.4),
-                    fontWeight: 670,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: fs(17),
-                      height: fs(17),
-                      flex: "0 0 auto",
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: "50%",
-                      background: "rgba(91,71,205,0.11)",
-                      color: "#5B47CD",
-                    }}
-                  >
-                    <Check size={fs(10.5)} strokeWidth={2.5} />
-                  </span>
-                  {benefit}
-                </span>
-              ))}
-            </div>
-          </section>
-
-          <section
-            aria-labelledby="ai-page-card-title"
-            style={{
-              position: "absolute",
-              left: x(560),
-              top: y(649),
-              width: x(432),
-              height: y(246),
-              zIndex: 2,
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 42%",
-              gap: fs(16),
-              overflow: "hidden",
-              padding: fs(20),
-              border: "1px solid rgba(23, 60, 45, 0.09)",
-              borderRadius: fs(24),
-              background: "linear-gradient(145deg, #FFFFFF 0%, #FBFEFC 58%, #F0FAF4 100%)",
-              boxShadow: "0 12px 28px rgba(20, 55, 41, 0.05), inset 0 1px 0 rgba(255,255,255,0.92)",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(43),
-                  height: fs(43),
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(13),
-                  color: "#116149",
-                  background: "linear-gradient(145deg, #E4F8ED 0%, #D5F2E2 100%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
-                }}
-              >
-                <LayoutTemplate size={fs(21)} strokeWidth={1.85} />
-              </span>
-              <h3
-                id="ai-page-card-title"
-                style={{
-                  margin: `${fs(17)} 0 0`,
-                  color: "#101613",
-                  fontSize: fs(19.2),
-                  fontWeight: 820,
-                  lineHeight: 1.12,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Página de vendas com IA
-              </h3>
-              <p style={{ margin: `${fs(9)} 0 0`, maxWidth: fs(205), color: "rgba(16,22,19,0.62)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.4 }}>
-                Crie uma página profissional para apresentar e vender seu produto.
-              </p>
-              <button
-                type="button"
-                onClick={go("/dashboard/paginas-com-ia/criar")}
-                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  width: fs(143),
-                  height: fs(40),
-                  marginTop: "auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#171719",
-                  cursor: "pointer",
-                  fontSize: fs(12.3),
-                  fontWeight: 780,
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>Criar página</span>
-                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              aria-hidden="true"
-              style={{
-                minWidth: 0,
-                alignSelf: "center",
-                padding: fs(13),
-                border: "1px solid rgba(27, 119, 85, 0.11)",
-                borderRadius: fs(17),
-                background: "rgba(255,255,255,0.86)",
-                boxShadow: "0 12px 24px rgba(20, 72, 51, 0.08)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: fs(8) }}>
-                <span style={{ display: "flex", alignItems: "center", gap: fs(6), color: "#143B2E", fontSize: fs(9.7), fontWeight: 800 }}>
-                  <Sparkles size={fs(12)} /> Velo IA
-                </span>
-                <span style={{ width: fs(7), height: fs(7), borderRadius: "50%", background: "#2CC68B", boxShadow: "0 0 0 3px rgba(44,198,139,0.12)" }} />
-              </div>
-              <div style={{ height: fs(7), marginTop: fs(15), borderRadius: 999, background: "#DDE7E1" }} />
-              <div style={{ width: "72%", height: fs(7), marginTop: fs(7), borderRadius: 999, background: "#EDF2EF" }} />
-              <div style={{ marginTop: fs(17), display: "flex", alignItems: "center", gap: fs(6), color: "#166747", fontSize: fs(9.7), fontWeight: 780 }}>
-                <span style={{ display: "grid", placeItems: "center", width: fs(17), height: fs(17), borderRadius: "50%", background: "#DCF7E9" }}>
-                  <Check size={fs(10)} strokeWidth={2.5} />
-                </span>
-                Pronta para publicar
-              </div>
-            </div>
-          </section>
-
-          <section
-            aria-labelledby="ml-card-title"
-            style={{
-              position: "absolute",
-              left: x(1008),
-              top: y(649),
-              width: x(448),
-              height: y(246),
-              zIndex: 2,
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 39%",
-              gap: fs(16),
-              overflow: "hidden",
-              padding: fs(20),
-              border: "1px solid rgba(44, 43, 29, 0.09)",
-              borderRadius: fs(24),
-              background: "linear-gradient(145deg, #FFFFFF 0%, #FFFEFA 58%, #FFFBE3 100%)",
-              boxShadow: "0 12px 28px rgba(62, 54, 15, 0.05), inset 0 1px 0 rgba(255,255,255,0.92)",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(43),
-                  height: fs(43),
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(13),
-                  background: "transparent",
-                }}
-              >
-                <img src={mercadoLivreLogo.url} alt="" style={{ width: fs(43), height: fs(35), objectFit: "contain" }} />
-              </span>
-              <h3
-                id="ml-card-title"
-                style={{
-                  margin: `${fs(17)} 0 0`,
-                  color: "#17170F",
-                  fontSize: fs(19.4),
-                  fontWeight: 820,
-                  lineHeight: 1.12,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Venda no Mercado Livre
-              </h3>
-              <p style={{ margin: `${fs(9)} 0 0`, maxWidth: fs(220), color: "rgba(23,23,15,0.62)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.4 }}>
-                Conecte sua conta, publique anúncios e acompanhe os pedidos.
-              </p>
-              <button
-                type="button"
-                // /dashboard/integracoes é a tela de lojas Shopify; a conta do
-                // Mercado Livre se gerencia na aba Integrações das configurações.
-                onClick={onboardingStatus?.mlConnected ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre}
-                disabled={conectandoMl}
-                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  minWidth: fs(145),
-                  height: fs(40),
-                  marginTop: "auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: fs(10),
-                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#171719",
-                  cursor: "pointer",
-                  fontSize: fs(11.9),
-                  fontWeight: 800,
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>{conectandoMl ? "Conectando…" : onboardingStatus?.mlConnected ? "Gerenciar conta" : "Conectar conta"}</span>
-                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              style={{
-                minWidth: 0,
-                alignSelf: "center",
-                padding: fs(14),
-                border: "1px solid rgba(107, 97, 20, 0.11)",
-                borderRadius: fs(17),
-                background: "rgba(255,255,255,0.88)",
-                boxShadow: "0 12px 24px rgba(77, 68, 13, 0.07)",
-              }}
-            >
-              <span style={{ color: "rgba(23,23,15,0.5)", fontSize: fs(9.4), fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Integração
-              </span>
-              <div style={{ marginTop: fs(7), display: "flex", alignItems: "center", gap: fs(7) }}>
-                <span aria-hidden="true" style={{ width: fs(9), height: fs(9), borderRadius: "50%", background: onboardingStatus?.mlConnected ? "#20B875" : "#C9C6B2", boxShadow: onboardingStatus?.mlConnected ? "0 0 0 3px rgba(32,184,117,0.12)" : "none" }} />
-                <strong style={{ color: "#232316", fontSize: fs(11), fontWeight: 800 }}>
-                  {onboardingStatus?.mlConnected ? "Conta conectada" : "Pronta para conectar"}
-                </strong>
-              </div>
-              <div style={{ height: 1, margin: `${fs(13)} 0 ${fs(11)}`, background: "rgba(94,85,21,0.11)" }} />
-              {["Publicação simplificada", "Pedidos sincronizados"].map((benefit) => (
-                <span key={benefit} style={{ display: "flex", alignItems: "center", gap: fs(6), marginBottom: fs(9), color: "rgba(35,35,22,0.68)", fontSize: fs(9.3), fontWeight: 680, whiteSpace: "nowrap" }}>
-                  <Check size={fs(11)} strokeWidth={2.3} color="#8B7F00" />
-                  {benefit}
-                </span>
-              ))}
-            </div>
-          </section>
+          {/* Linha 2 — as áreas do negócio que o site movimenta. */}
+          <CardArea
+            id="home-card-produtos"
+            left={84}
+            width={460}
+            rotulo="Produtos"
+            titulo="Monte a sua vitrine"
+            texto="Escolha no catálogo Velo os produtos que vão para o seu site."
+            acao="Ver catálogo"
+            onClick={go("/dashboard/catalogo")}
+            agente={agenteCubo}
+            fundo="linear-gradient(160deg, #FFF4EA 0%, #FFE4CC 100%)"
+          />
+          <CardArea
+            id="home-card-pedidos"
+            left={560}
+            width={432}
+            rotulo="Pedidos"
+            titulo="Acompanhe as vendas"
+            texto="Veja os pedidos da sua loja e o andamento de cada um."
+            acao="Ver pedidos"
+            onClick={go("/dashboard/pedidos")}
+            agente={agenteFolha}
+            fundo="linear-gradient(160deg, #F3FAE8 0%, #E2F2CB 100%)"
+          />
+          <CardArea
+            id="home-card-mercado-livre"
+            left={1008}
+            width={448}
+            rotulo={onboardingStatus?.mlConnected ? "Mercado Livre · conectado" : "Mercado Livre"}
+            rotuloAtivo={Boolean(onboardingStatus?.mlConnected)}
+            titulo="Venda também por lá"
+            texto="Conecte sua conta e publique seus produtos no Mercado Livre."
+            acao={conectandoMl ? "Conectando…" : onboardingStatus?.mlConnected ? "Gerenciar conta" : "Conectar conta"}
+            // /dashboard/integracoes é a tela de lojas Shopify; a conta do
+            // Mercado Livre se gerencia na aba Integrações das configurações.
+            onClick={onboardingStatus?.mlConnected ? go("/dashboard/configuracoes?tab=Integrações") : () => void conectarMercadoLivre()}
+            desabilitado={conectandoMl}
+            agente={agenteConcha}
+            fundo="linear-gradient(160deg, #F5F1FF 0%, #E7DEFD 100%)"
+          />
 
           <div
             style={{
@@ -1535,9 +1419,9 @@ const DashboardHomePage = () => {
           </AnimatePresence>
 
           {[
-            { top: CONTENT_SLICE_TOP + CONTENT_OFFSET, height: 350, delay: INTRO.bandDelays[0] },
-            { top: 750, height: 270, delay: INTRO.bandDelays[1] },
-            { top: 1020, height: 104, delay: INTRO.bandDelays[2] },
+            { top: CONTENT_SLICE_TOP + CONTENT_OFFSET + CARDS_SHIFT, height: 350, delay: INTRO.bandDelays[0] },
+            { top: 750 + CARDS_SHIFT, height: 270, delay: INTRO.bandDelays[1] },
+            { top: 1020 + CARDS_SHIFT, height: 104, delay: INTRO.bandDelays[2] },
           ].map((band) => (
             <motion.div
               key={band.top}
