@@ -4,19 +4,27 @@ const now = Date.parse("2026-11-23T21:25:00Z");
 const sub = { id: "internal-sub", user_id: "internal-user", plan: "base", status: "active", provider: "validapay", purchase_kind: "recurring", current_period_end: "2026-10-01T00:00:00Z", updated_at: "2026-09-01T00:00:00Z", validapay_subscription_id: "sub_test" };
 
 function client(rows = [sub], concurrent = false) {
+  rows = rows.map(row => ({ ...row }));
   const operations: Array<{ table: string; operation: string; values: Record<string, unknown> }> = [];
   return { operations, from(table: string) {
     let operation = "read";
     let values: Record<string, unknown> = {};
     let account = false;
-    const response = () => ({
-      data: operation === "read" ? (table === "profiles" ? [{ user_id: sub.user_id, email: "test@example.com" }] : rows) : (concurrent ? null : { id: sub.id }),
-      error: null,
-    });
+    let statuses: string[] | undefined;
+    const response = () => {
+      if (operation === "update" && table === "subscriptions" && !concurrent) Object.assign(rows[0], values);
+      return {
+        data: operation === "read" ? (table === "profiles" ? [{ user_id: sub.user_id, email: "test@example.com" }]
+          : table === "refund_requests" ? [] : rows.filter(row => !statuses || statuses.includes(row.status)))
+          : (concurrent ? null : { id: sub.id }),
+        error: null,
+      };
+    };
     const builder = {
       select: () => builder,
       eq: () => builder, neq: () => builder, lt: () => builder, order: () => builder, is: () => builder,
-      in: () => { account = true; return builder; },
+      in: (column: string, list: string[]) => { account = true; if (column === "status") statuses = list; return builder; },
+      limit: () => builder,
       range: async (start: number) => ({ data: start ? [] : (account ? rows : rows.filter(r => r.status === "active" && r.purchase_kind !== "lifetime")), error: null }),
       upsert: (v: Record<string, unknown>) => { operation = "backup"; values = v; operations.push({ table, operation, values }); return builder; },
       update: (v: Record<string, unknown>) => { operation = "update"; values = v; operations.push({ table, operation, values }); return builder; },
@@ -36,9 +44,10 @@ describe("execução horária limitada e reversível", () => {
   it.each([["EXPIRED", "expired"], ["DEFAULT", "past_due"]])("%s guarda backup antes de alterar para %s", async (provider, target) => {
     const db = client();
     const result = await (await audit())(db, now, { charges: async () => [], provider: async () => ({ status: provider }) });
-    expect(db.operations.map(o => o.table)).toEqual(["subscription_status_correction_backup", "subscriptions", "subscription_status_correction_backup"]);
+    expect(db.operations.map(o => o.table)).toEqual(["subscription_status_correction_backup", "subscriptions", "profiles", "subscription_status_correction_backup"]);
     expect(db.operations[0].values).toMatchObject({ status: "active", current_period_end: sub.current_period_end, atualizado_em: sub.updated_at });
     expect(db.operations[1].values).toEqual({ status: target, updated_at: new Date(now).toISOString() });
+    expect(db.operations[2].values).toEqual({ plano: "gratis" });
     expect(target === "expired" ? result.expired : result.past_due).toBe(1);
   });
   it("pagamento recente em outro contrato não grava nada", async () => {
@@ -70,5 +79,6 @@ describe("execução horária limitada e reversível", () => {
     expect(result.conflicts).toBe(1);
     expect(result.expired).toBe(0);
     expect(db.operations).toHaveLength(2);
+    expect(db.operations.some(o => o.table === "profiles")).toBe(false);
   });
 });

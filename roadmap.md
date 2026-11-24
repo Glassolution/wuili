@@ -1,5 +1,10 @@
 # Roadmap
 
+## Publicação da regra de acesso — 24/11
+- [ ] Topo e Planos sem fallback; sincronizar perfil após CAS da auditoria e rodar testes
+- [ ] Publicar site e todas as funções afetadas pela regra compartilhada
+- [ ] Confirmar impacto por data, conta paga no painel/publicação e primeira execução horária nos logs
+
 ## Remoção definitiva do fallback — 23/11
 - [x] Gatilhos: proteção administrativa + updated_at, sem comunicações; confirmar 834 perfis e caminhos de ativação existentes
 - [x] Backup 2026-11-23-profile-plano; 834 perfis gratis (750 Base, 80 Pro, 4 Business), rechecagem de status/CAS; zero perfis pagos sem status de acesso restantes

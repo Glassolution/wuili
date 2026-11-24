@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useProfile } from "@/lib/profileContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { readAccessPlan } from "@/lib/subscriptionAccess";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import {
@@ -58,29 +59,15 @@ const DashboardTopbar = () => {
   const upgradeModal = useUpgradeModal();
 
   useEffect(() => {
+    setPlano("gratis");
     if (!user) return;
     let active = true;
-    Promise.all([
-      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
-      supabase
-        .from("subscriptions")
-        .select("plan,status")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]).then(([profileResult, subResult]) => {
+    readAccessPlan(supabase, user.id).then((plan) => {
       if (!active) return;
-      const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
-      // Prefer active subscription plan over profiles.plano (which pode ficar
-      // desatualizado quando o webhook do MP falha em sincronizar o perfil).
-      if (sub?.plan) {
-        const p = sub.plan === "plus" ? "pro" : sub.plan;
-        setPlano(String(p));
-        return;
-      }
-      if (profileResult.data?.plano) setPlano(String(profileResult.data.plano));
+      setPlano(plan === "plus" ? "pro" : plan);
+    }).catch((error) => {
+      console.error("Não foi possível consultar o plano atual", error);
+      if (active) setPlano("gratis");
     });
     return () => { active = false; };
   }, [user]);

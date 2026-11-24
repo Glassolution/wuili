@@ -7,7 +7,7 @@ export type LifecycleAdmin = {
   rpc(name: string, args: Record<string, unknown>): any;
 };
 
-export async function hasTerminatingRefund(admin: LifecycleAdmin, subscriptionId: string): Promise<boolean> {
+export async function hasTerminatingRefund(admin: Pick<LifecycleAdmin, "from">, subscriptionId: string): Promise<boolean> {
   const { data, error } = await admin.from("refund_requests").select("id")
     .eq("subscription_id", subscriptionId).in("status", ["processed", "approved", "refunded_by_mp"])
     .eq("keep_access", false).limit(1);
@@ -16,7 +16,7 @@ export async function hasTerminatingRefund(admin: LifecycleAdmin, subscriptionId
 }
 
 /** Recompute entitlement rather than blindly removing another paid contract's access. */
-export async function syncPaidProfile(admin: LifecycleAdmin, userId: string): Promise<void> {
+export async function syncPaidProfile(admin: Pick<LifecycleAdmin, "from">, userId: string): Promise<void> {
   const { data, error } = await admin.from("subscriptions")
     .select("id,user_id,status,plan,provider,purchase_kind,cancel_at_period_end,cancelled_at,current_period_end")
     .eq("user_id", userId).in("status", ["active", "paid", "approved", "cancel_scheduled"]);

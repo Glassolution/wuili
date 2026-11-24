@@ -2,6 +2,7 @@ import { validaPayFetch } from "./validapay.ts";
 import { bestAccessSubscription, expiredProviderTarget, recentPaidCharges, SUBSCRIPTION_GRACE_MS,
   type AccessSubscription, type AuditCharge } from "./subscriptionAccessPolicy.ts";
 import type { SubscriptionReadClient } from "./subscriptionAccess.ts";
+import { syncPaidProfile } from "./subscriptionLifecycle.ts";
 
 type LocalSubscription = AccessSubscription & { id: string; user_id: string; updated_at: string | null; validapay_subscription_id: string | null };
 type ProviderSubscription = { status?: string; email?: string; customer?: { email?: string } };
@@ -106,6 +107,7 @@ export async function auditExpiredProviderSubscriptions(admin: SubscriptionReadC
       if (updateError) throw new Error(`expiry_update:${updateError.message}`);
       if (!changed) { result.conflicts++; continue; }
       result[target]++;
+      await syncPaidProfile(admin, sub.user_id);
       const { error: markError } = await admin.from("subscription_status_correction_backup")
         .update({ applied_at: new Date(now).toISOString(), applied_status: target })
         .eq("correction_id", correctionId).eq("id", sub.id);
