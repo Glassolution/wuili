@@ -12,6 +12,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import cardProdutoImg from "@/assets/home-card-produto.webp";
 import cardTemasImg from "@/assets/home-card-temas.webp";
+import agenteLua from "@/assets/agentes/lua.webp";
+import agenteCubo from "@/assets/agentes/cubo.webp";
+import agenteFolha from "@/assets/agentes/folha.webp";
+import agenteSino from "@/assets/agentes/sino.webp";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
@@ -67,6 +71,7 @@ const HOME_CSS = `
   font-feature-settings: normal !important;
 }
 .dashboard-inter .velo-fonte-inter h1, .dashboard-inter .velo-fonte-inter h3 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -0.02em; }
+.velo-home-agente { background: #F8F1EE; box-shadow: inset 0 0 0 1px rgba(11,13,18,0.04); }
 .velo-home-row { transition: background-color 150ms ease-out; }
 .velo-home-row:hover { background: #F7F8FA; }
 .velo-home-search { transition: background-color 150ms ease-out; }
@@ -94,24 +99,36 @@ type EventoDoSite = {
   projeto: UserProject;
   acao: string;
   quando: string;
+  /** Foto do agente responsável por esse tipo de trabalho no site. */
+  agente: string;
 };
+
+// Cada agente representa um tipo de trabalho no site. O banco ainda não grava
+// qual agente fez cada mudança, então a foto segue o tipo da mudança.
+// (Também há estrela.webp e concha.webp em src/assets/agentes para os próximos.)
+const AGENTE_POR_ACAO = {
+  criado: agenteLua,
+  editado: agenteCubo,
+  publicado: agenteFolha,
+} as const;
 
 /**
  * Atividade do site da loja, montada só com o que o banco registra de cada
  * projeto (criação, última edição e publicação). Ainda não existe registro de
- * qual agente fez cada mudança, então nenhuma linha leva nome ou foto de agente.
+ * qual agente fez cada mudança: a foto vem do tipo de trabalho e nenhuma linha
+ * leva nome de agente.
  */
 const eventosDoSite = (projetos: UserProject[]): EventoDoSite[] => {
   const eventos: EventoDoSite[] = [];
   for (const projeto of projetos) {
     const criado = new Date(projeto.created_at).getTime();
-    eventos.push({ id: `${projeto.id}-criado`, projeto, acao: "Criou o rascunho do site", quando: projeto.created_at });
+    eventos.push({ id: `${projeto.id}-criado`, projeto, acao: "Criou o rascunho do site", quando: projeto.created_at, agente: AGENTE_POR_ACAO.criado });
     const editado = projeto.last_edited_at ? new Date(projeto.last_edited_at).getTime() : 0;
     if (editado - criado > 60_000) {
-      eventos.push({ id: `${projeto.id}-editado`, projeto, acao: "Atualizou o site", quando: projeto.last_edited_at });
+      eventos.push({ id: `${projeto.id}-editado`, projeto, acao: "Atualizou o site", quando: projeto.last_edited_at, agente: AGENTE_POR_ACAO.editado });
     }
     if (projeto.published_at) {
-      eventos.push({ id: `${projeto.id}-publicado`, projeto, acao: "Publicou o site", quando: projeto.published_at });
+      eventos.push({ id: `${projeto.id}-publicado`, projeto, acao: "Publicou o site", quando: projeto.published_at, agente: AGENTE_POR_ACAO.publicado });
     }
   }
   return eventos.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime()).slice(0, 5);
@@ -616,8 +633,8 @@ const DashboardHomePage = () => {
               </motion.section>
             )}
 
-            {/* Atividade recente: o trabalho no site da loja, no desenho "Recent
-                activity" da referência. Sem foto: os agentes ainda não têm imagem. */}
+            {/* Atividade recente: o trabalho dos agentes no site da loja, no desenho
+                "Recent activity" da referência. */}
             {mostrarAtividade && (
               <motion.section {...revealProps(0.38, 12)} aria-labelledby="home-atividade" className="mt-8">
                 <div className="flex items-baseline justify-between gap-4">
@@ -640,7 +657,9 @@ const DashboardHomePage = () => {
                   <p className="m-0 mt-3 px-2 text-[13px] text-[#8A93A3]">Não foi possível carregar a atividade da loja agora.</p>
                 ) : eventos.length === 0 ? (
                   <div className="mt-2 flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                    <span aria-hidden="true" className="h-10 w-10 shrink-0 rounded-full border border-dashed border-[#DCE0E7] bg-[#F7F8FA]" />
+                    <span aria-hidden="true" className="velo-home-agente h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                      <img src={agenteSino} alt="" width={40} height={40} className="h-full w-full scale-[1.22] object-cover object-[50%_35%]" draggable={false} />
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[14px] font-medium text-[#0B0D12]">Nenhuma atividade no site ainda</span>
                       <span className="block text-[13px] text-[#8A93A3]">Crie o site da sua loja e acompanhe aqui cada mudança.</span>
@@ -660,8 +679,9 @@ const DashboardHomePage = () => {
                       const slug = evento.projeto.status === "publicado" ? slugDoProjeto(evento.projeto) : null;
                       return (
                         <li key={evento.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                          {/* Lugar da foto do agente: vazio até existirem as imagens. */}
-                          <span aria-hidden="true" className="h-10 w-10 shrink-0 rounded-full border border-[#ECEEF2] bg-[#F1F3F6]" />
+                          <span aria-hidden="true" className="velo-home-agente h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                            <img src={evento.agente} alt="" width={40} height={40} className="h-full w-full scale-[1.22] object-cover object-[50%_35%]" draggable={false} />
+                          </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{evento.projeto.nome}</span>
                             <span className="block truncate text-[13px] text-[#8A93A3]">
