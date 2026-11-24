@@ -1,11 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Folder, History, Plus, SlidersHorizontal, Sparkles } from "lucide-react";
+import { Folder, Plus, SlidersHorizontal, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAtlasChat } from "@/contexts/AtlasChatContext";
-import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import AtlasPromptBox from "@/components/dashboard/AtlasPromptBox";
 import { fetchUserProjects } from "@/lib/userProjects";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
@@ -206,8 +205,6 @@ const Ilustracao = ({ id, totalProjetos }: { id: CartaoId; totalProjetos?: numbe
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { enviar: enviarParaAtlas } = useAtlasChat();
-  const [mensagem, setMensagem] = useState("");
   const [personalizarAberto, setPersonalizarAberto] = useState(false);
   const [ocultos, setOcultos] = useState<string[]>([]);
   // Mesma leitura da página Projetos (RPC get_user_projects), sem consulta nova.
@@ -307,17 +304,6 @@ const DashboardHomePage = () => {
   const alternarCartao = (id: string) =>
     atualizarOcultos(ocultos.includes(id) ? ocultos.filter((item) => item !== id) : [...ocultos, id]);
   const cartoes = CARTOES.filter((cartao) => !ocultos.includes(cartao.id));
-  const podeEnviar = mensagem.trim().length > 0;
-
-  // A conversa vive no AtlasChatProvider e é desenhada pelo AtlasDockPanel;
-  // aqui a caixa só dispara a primeira mensagem.
-  const enviarMensagem = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const texto = mensagem.trim();
-    if (!texto) return;
-    setMensagem("");
-    void enviarParaAtlas(texto);
-  };
 
   return (
     <main className="velo-fonte-inter velo-inicio-root shrink-0 overflow-auto bg-white text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
@@ -349,49 +335,9 @@ const DashboardHomePage = () => {
         </motion.div>
 
         {/* Caixa do Atlas: envia a primeira mensagem; a conversa abre no painel do Atlas. */}
-        <motion.form
-          {...revealProps(0.1, 10)}
-          onSubmit={enviarMensagem}
-          className="velo-inicio-caixa mx-auto mt-8 w-full max-w-[620px] rounded-[18px] border border-[#E6E7EA] bg-white px-4 pb-3 pt-3.5 shadow-[0_1px_3px_rgba(16,24,40,0.05)]"
-        >
-          <label htmlFor="inicio-atlas" className="sr-only">
-            Mensagem para o Atlas
-          </label>
-          <input
-            id="inicio-atlas"
-            value={mensagem}
-            onChange={(event) => setMensagem(event.target.value)}
-            placeholder="Trabalhe com o Atlas"
-            autoComplete="off"
-            className="w-full border-0 bg-transparent p-0 text-[14px] text-[#0B0D12] outline-none placeholder:text-[#8A93A3]"
-          />
-          <div className="mt-7 flex items-center justify-between">
-            <span className="block h-6 w-6" aria-hidden="true">
-              <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={go("/dashboard/atlas")}
-                className="velo-inicio-ghost flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] font-medium text-[#2B2F36]"
-              >
-                <History size={15} strokeWidth={1.7} aria-hidden="true" />
-                Conversas
-              </button>
-              <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-[#E3E4E8]" />
-              <button
-                type="submit"
-                disabled={!podeEnviar}
-                aria-label="Enviar para o Atlas"
-                className={`velo-inicio-icone flex h-8 w-8 items-center justify-center rounded-[8px] ${
-                  podeEnviar ? "bg-[#0B0D12] text-white" : "text-[#9AA1AE]"
-                }`}
-              >
-                <ArrowUp size={16} strokeWidth={1.9} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </motion.form>
+        <motion.div {...revealProps(0.1, 10)} className="mt-10">
+          <AtlasPromptBox />
+        </motion.div>
 
         {/* Comece a montar sua loja: grade de cartões com ilustração. */}
         <motion.div {...revealProps(0.15, 10)} className="relative mt-20 flex items-center justify-between">
