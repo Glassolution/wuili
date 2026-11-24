@@ -335,7 +335,7 @@ const DashboardHomePage = () => {
         </motion.div>
 
         {/* Caixa do Atlas: envia a primeira mensagem; a conversa abre no painel do Atlas. */}
-        <motion.div {...revealProps(0.1, 10)} className="mt-10">
+        <motion.div {...revealProps(0.1, 10)} className="mt-16">
           <AtlasPromptBox />
         </motion.div>
 

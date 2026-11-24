@@ -1,11 +1,32 @@
-import { useEffect, useRef, useState, type ElementType, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ElementType,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, Globe, History, Lightbulb, Loader2, Telescope, Wand2 } from "lucide-react";
+import {
+  ArrowUp,
+  Globe,
+  History,
+  Lightbulb,
+  Loader2,
+  Telescope,
+  Wand2,
+} from "lucide-react";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
+import mascoteImg from "@/assets/mascote-velo-acenando.webp";
 
 // Atalhos da barra de baixo: preenchem a caixa com uma pergunta pronta (não enviam).
-const ATALHOS: { id: string; rotulo: string; icone: ElementType; texto: string }[] = [
+const ATALHOS: {
+  id: string;
+  rotulo: string;
+  icone: ElementType;
+  texto: string;
+}[] = [
   {
     id: "ideias",
     rotulo: "Ideias de produto",
@@ -22,7 +43,8 @@ const ATALHOS: { id: string; rotulo: string; icone: ElementType; texto: string }
     id: "site",
     rotulo: "Melhorar meu site",
     icone: Globe,
-    texto: "Como posso deixar o site da minha loja mais atraente para vender mais?",
+    texto:
+      "Como posso deixar o site da minha loja mais atraente para vender mais?",
   },
 ];
 
@@ -106,7 +128,10 @@ const AtlasPromptBox = () => {
   // Placeholder que alterna entre perguntas enquanto a caixa está vazia e sem foco.
   useEffect(() => {
     if (reduceMotion || focada || mensagem) return;
-    const timer = window.setInterval(() => setIndicePergunta((i) => (i + 1) % PERGUNTAS.length), 3500);
+    const timer = window.setInterval(
+      () => setIndicePergunta((i) => (i + 1) % PERGUNTAS.length),
+      3500,
+    );
     return () => window.clearInterval(timer);
   }, [reduceMotion, focada, mensagem]);
 
@@ -130,7 +155,8 @@ const AtlasPromptBox = () => {
 
   const sugerirPergunta = () => {
     // Pula a primeira (é só o convite genérico) e avança a cada clique.
-    const proximo = indicePergunta + 1 >= PERGUNTAS.length ? 1 : indicePergunta + 1;
+    const proximo =
+      indicePergunta + 1 >= PERGUNTAS.length ? 1 : indicePergunta + 1;
     setIndicePergunta(proximo);
     preencher(PERGUNTAS[proximo]);
   };
@@ -145,7 +171,11 @@ const AtlasPromptBox = () => {
 
   const aoTeclar = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter envia; Shift+Enter quebra a linha.
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
       event.preventDefault();
       enviarMensagem();
     }
@@ -155,90 +185,138 @@ const AtlasPromptBox = () => {
     <div className="mx-auto w-full max-w-[620px]">
       <style>{BOX_CSS}</style>
 
-      <form
-        onSubmit={enviarMensagem}
-        className="velo-atlas-box relative rounded-[16px] border border-[#E3E3E3] bg-white px-4 pb-3 pt-3.5"
-        style={{ boxShadow: "0 1px 0 rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04)" }}
-      >
-        <button
-          type="button"
-          onClick={sugerirPergunta}
-          aria-label="Sugerir uma pergunta"
-          className="velo-atlas-icone velo-atlas-varinha velo-atlas-com-dica absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-[8px] text-[#7C5CFA]"
+      {/* Mascote espiando por trás da caixa: só o topo aparece; sobe um pouco quando a caixa ganha foco. */}
+      <div className="relative">
+        <motion.img
+          src={mascoteImg}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          width={104}
+          height={141}
+          className="pointer-events-none absolute right-5 z-0 select-none"
+          style={{
+            bottom: "calc(100% - 78px)",
+            width: 104,
+            height: "auto",
+            filter: "drop-shadow(0 6px 10px rgba(20,30,120,0.10))",
+          }}
+          initial={reduceMotion ? false : { y: 48, opacity: 0 }}
+          animate={{ y: focada || mensagem ? -8 : 0, opacity: 1 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : {
+                  type: "spring",
+                  stiffness: 260,
+                  damping: 22,
+                  delay: 0,
+                  opacity: { duration: 0.2 },
+                }
+          }
+        />
+        <form
+          onSubmit={enviarMensagem}
+          className="velo-atlas-box relative z-[1] rounded-[16px] border border-[#E3E3E3] bg-white px-4 pb-3 pt-3.5"
+          style={{
+            boxShadow: "0 1px 0 rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04)",
+          }}
         >
-          <Wand2 size={16} strokeWidth={1.7} aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="velo-atlas-dica pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 whitespace-nowrap rounded-[8px] bg-[#0B0D12] px-2 py-1 text-[12px] font-medium text-white"
-          >
-            Sugerir uma pergunta
-          </span>
-        </button>
-
-        <div className="relative pr-9">
-          <label htmlFor="inicio-atlas" className="sr-only">
-            Mensagem para o Atlas
-          </label>
-          <textarea
-            id="inicio-atlas"
-            ref={textoRef}
-            rows={2}
-            value={mensagem}
-            onChange={(event) => setMensagem(event.target.value)}
-            onKeyDown={aoTeclar}
-            onFocus={() => setFocada(true)}
-            onBlur={() => setFocada(false)}
-            placeholder={PERGUNTAS[indicePergunta]}
-            className="velo-atlas-texto block w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-[1.5] text-[#0B0D12] outline-none"
-            style={{ minHeight: 44, maxHeight: ALTURA_MAXIMA }}
-          />
-          {/* Placeholder animado (o nativo fica transparente para não piscar). */}
-          {!mensagem && (
-            <span aria-hidden="true" className="pointer-events-none absolute left-0 top-0 text-[15px] leading-[1.5] text-[#8A8A8A]">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.span
-                  key={indicePergunta}
-                  className="block"
-                  initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  {PERGUNTAS[indicePergunta]}
-                </motion.span>
-              </AnimatePresence>
-            </span>
-          )}
-        </div>
-
-        {/* Barra de baixo no estilo da referência: tudo à direita, ícones escuros e traço firme. */}
-        <div className="mt-2 flex items-center justify-end gap-1">
           <button
             type="button"
-            onClick={() => navigate("/dashboard/atlas")}
-            className="velo-atlas-icone flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[14px] font-medium text-[#303030]"
+            onClick={sugerirPergunta}
+            aria-label="Sugerir uma pergunta"
+            className="velo-atlas-icone velo-atlas-varinha velo-atlas-com-dica absolute right-2.5 top-2.5 flex h-8 w-8 items-center justify-center rounded-[8px] text-[#7C5CFA]"
           >
-            <History size={17} strokeWidth={2} aria-hidden="true" />
-            Conversas
+            <Wand2 size={16} strokeWidth={1.7} aria-hidden="true" />
+            <span
+              aria-hidden="true"
+              className="velo-atlas-dica pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 whitespace-nowrap rounded-[8px] bg-[#0B0D12] px-2 py-1 text-[12px] font-medium text-white"
+            >
+              Sugerir uma pergunta
+            </span>
           </button>
-          <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-[#E3E3E3]" />
-          {ATALHOS.map((atalho) => (
-            <BotaoIcone key={atalho.id} rotulo={atalho.rotulo} icone={atalho.icone} onClick={() => preencher(atalho.texto)} />
-          ))}
-          <button
-            type="submit"
-            disabled={!podeEnviar}
-            aria-label={enviando ? "Enviando para o Atlas" : "Enviar para o Atlas"}
-            className="velo-atlas-enviar ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#000000] text-white"
-          >
-            {enviando ? (
-              <Loader2 size={16} strokeWidth={2.4} aria-hidden="true" className="animate-spin" />
-            ) : (
-              <ArrowUp size={18} strokeWidth={2.6} aria-hidden="true" />
+
+          <div className="relative pr-9">
+            <label htmlFor="inicio-atlas" className="sr-only">
+              Mensagem para o Atlas
+            </label>
+            <textarea
+              id="inicio-atlas"
+              ref={textoRef}
+              rows={2}
+              value={mensagem}
+              onChange={(event) => setMensagem(event.target.value)}
+              onKeyDown={aoTeclar}
+              onFocus={() => setFocada(true)}
+              onBlur={() => setFocada(false)}
+              placeholder={PERGUNTAS[indicePergunta]}
+              className="velo-atlas-texto block w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-[1.5] text-[#0B0D12] outline-none"
+              style={{ minHeight: 44, maxHeight: ALTURA_MAXIMA }}
+            />
+            {/* Placeholder animado (o nativo fica transparente para não piscar). */}
+            {!mensagem && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0 top-0 text-[15px] leading-[1.5] text-[#8A8A8A]"
+              >
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.span
+                    key={indicePergunta}
+                    className="block"
+                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {PERGUNTAS[indicePergunta]}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
             )}
-          </button>
-        </div>
-      </form>
+          </div>
+
+          {/* Barra de baixo no estilo da referência: tudo à direita, ícones escuros e traço firme. */}
+          <div className="mt-2 flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard/atlas")}
+              className="velo-atlas-icone flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[14px] font-medium text-[#303030]"
+            >
+              <History size={17} strokeWidth={2} aria-hidden="true" />
+              Conversas
+            </button>
+            <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-[#E3E3E3]" />
+            {ATALHOS.map((atalho) => (
+              <BotaoIcone
+                key={atalho.id}
+                rotulo={atalho.rotulo}
+                icone={atalho.icone}
+                onClick={() => preencher(atalho.texto)}
+              />
+            ))}
+            <button
+              type="submit"
+              disabled={!podeEnviar}
+              aria-label={
+                enviando ? "Enviando para o Atlas" : "Enviar para o Atlas"
+              }
+              className="velo-atlas-enviar ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#000000] text-white"
+            >
+              {enviando ? (
+                <Loader2
+                  size={16}
+                  strokeWidth={2.4}
+                  aria-hidden="true"
+                  className="animate-spin"
+                />
+              ) : (
+                <ArrowUp size={18} strokeWidth={2.6} aria-hidden="true" />
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
