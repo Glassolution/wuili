@@ -1,20 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BadgePercent, Check, LayoutTemplate, PlayCircle, Sparkles } from "lucide-react";
+import { Archive, ArrowRight, ArrowUp, BadgePercent, Check, LayoutTemplate, PlayCircle, Plus, Search, Sparkles, Store, UserRound } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
-import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
-import dashboardHomeBase from "@/assets/dashboard-home-base.png";
-import mercadoLivreLogo from "@/assets/mercado-livre-logo.png.asset.json";
+import cardProdutoImg from "@/assets/home-card-produto.webp";
+import cardTemasImg from "@/assets/home-card-temas.webp";
+import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
+import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
 import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import { Button } from "@/components/ui/button";
@@ -78,10 +79,6 @@ type OnboardingStatus = {
   hasPublication: boolean;
 };
 
-const IMAGE_WIDTH = 1536;
-const CONTENT_SLICE_TOP = 300;
-const CONTENT_OFFSET = 100;
-const HERO_OFFSET = 45;
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -106,38 +103,32 @@ const TUTORIAL_INICIO = {
   description: "Veja como dar os primeiros passos na Velo.",
 } as const;
 
-// Coreografia da introdução, em segundos. Os blocos entram enquanto o título ainda
-// está subindo: a sobreposição é o que faz a sequência ler como um movimento só,
-// em vez de uma fila de elementos esperando a vez.
+// Curva das entradas: desaceleração suave, sem a cauda longa do ease-out exponencial.
 const INTRO = {
-  // Desaceleração suave, sem a cauda longa do ease-out exponencial.
-  travelEase: [0.32, 0.72, 0, 1] as const,
   revealEase: [0.22, 1, 0.36, 1] as const,
-  titleFade: 0.66,
-  titleTravelDelay: 0.56,
-  titleTravel: 1.05,
-  revealDuration: 0.9,
-  // O chat vem logo depois do título; o atalho do tutorial entra junto dos cards.
-  chatDelay: 1.28,
-  promoDelay: 1.5,
-  // As faixas são o que descobre os cards de baixo: é aqui que mais se percebia
-  // a pressa. Fade mais longo e mais espaço entre elas, para revelarem em cascata
-  // em vez de quase juntas.
-  bandDuration: 1,
-  bandDelays: [1.4, 1.68, 1.96],
+  revealDuration: 0.7,
 };
 
-// Todo o layout desta tela é dimensionado em cqw (relativo à largura do
-// container), então sem um teto ele cresce junto com o monitor e no desktop
-// fica desproporcional. Travamos a largura do canvas: acima disso o conteúdo
-// para de inflar e apenas ganha margem lateral (do mesmo #F5F4F1 do fundo).
-// Abaixo desse valor o comportamento responsivo continua exatamente o mesmo.
-// Este é o único número a mexer para calibrar a escala geral da página.
-const MAX_CANVAS_WIDTH = 1280;
+const CARD_SHADOW = "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.04)";
+const CARD_SHADOW_FOCO = "0 1px 2px rgba(16,24,40,0.05), 0 12px 32px rgba(47,91,234,0.10)";
 
-const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
-const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
-const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
+// Estados de hover/foco dos botões e cards desta tela (tokens do redesign).
+const HOME_CSS = `
+.velo-home-card { background: #FFFFFF; border: 1px solid #ECEEF2; border-radius: 20px; box-shadow: ${CARD_SHADOW}; }
+.velo-home-dark { background: #0B0D12; transition: background-color 150ms ease-out, transform 150ms ease-out; }
+.velo-home-dark:hover { background: #1F232B; }
+.velo-home-accent { background: #2F5BEA; transition: background-color 150ms ease-out, opacity 150ms ease-out; }
+.velo-home-accent:hover:not(:disabled) { background: #2449C7; }
+.velo-home-secondary { background: #FFFFFF; border: 1px solid #ECEEF2; transition: background-color 150ms ease-out, border-color 150ms ease-out; }
+.velo-home-secondary:hover:not(:disabled) { background: #F7F8FA; border-color: #DCE0E7; }
+.velo-home-ghost { background: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-home-ghost:hover { background: #F1F3F6; color: #0B0D12; }
+.velo-home-search { transition: background-color 150ms ease-out; }
+.velo-home-search:hover { background: #ECEEF2; }
+.velo-home-dark:focus-visible, .velo-home-accent:focus-visible, .velo-home-secondary:focus-visible, .velo-home-ghost:focus-visible, .velo-home-search:focus-visible {
+  outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45);
+}
+`;
 
 const AssistantAvatar = () => (
   <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
@@ -186,8 +177,9 @@ const AnimatedPromptText = ({
         position: "absolute",
         left: 0,
         right: 0,
-        color: "rgba(0,0,0,0.56)",
-        fontSize: fs(18),
+        textAlign: "left",
+        color: "#8A93A3",
+        fontSize: 15,
         fontWeight: 400,
         lineHeight: 1,
         overflow: "hidden",
@@ -240,6 +232,8 @@ const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { nomeCurto, foto } = useProfile();
+  const [avatarFalhou, setAvatarFalhou] = useState(false);
   const {
     enviar: enviarParaAtlas,
     mensagens: chatMessages,
@@ -447,9 +441,6 @@ const DashboardHomePage = () => {
   }, [chatMessages.length]);
 
   const playIntro = introState === "play";
-  const introTitleOffset = typeof window === "undefined"
-    ? 240
-    : Math.max(190, Math.min(window.innerHeight * 0.3, 300));
   // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
   const revealProps = (delay: number, distance = 12) => playIntro
     ? {
@@ -510,51 +501,11 @@ const DashboardHomePage = () => {
     void enviarParaAtlas(texto);
   };
 
-  const textStyle = (
-    left: number,
-    top: number,
-    size: number,
-    width?: number,
-    extra?: CSSProperties,
-  ): CSSProperties => ({
-    position: "absolute",
-    left: x(left),
-    top: y(top),
-    width: width ? x(width) : undefined,
-    fontSize: fs(size),
-    ...extra,
-  });
-
-  const buttonStyle = (
-    left: number,
-    top: number,
-    width: number,
-    height: number,
-    size: number,
-    extra?: CSSProperties,
-  ): CSSProperties => ({
-    position: "absolute",
-    left: x(left),
-    top: y(top),
-    width: x(width),
-    height: y(height),
-    border: 0,
-    background: "transparent",
-    cursor: "pointer",
-    fontSize: fs(size),
-    display: "flex",
-    alignItems: "center",
-    lineHeight: 1,
-    padding: 0,
-    ...extra,
-  });
-
-
   if (introState === "pending" || introState === "waiting") {
     return (
       <main
         aria-hidden="true"
-        className="shrink-0 bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+        className="shrink-0 bg-[#F7F8FA] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       />
     );
   }
@@ -563,85 +514,60 @@ const DashboardHomePage = () => {
   // fica no layout e por isso sobrevive à navegação. Esta página cuida só da
   // tela de boas-vindas e de disparar a primeira mensagem.
 
+  const primeiroNome = nomeCurto && nomeCurto !== "Usuario" ? nomeCurto.split(" ")[0] : null;
+  const mlConectado = Boolean(onboardingStatus?.mlConnected);
+  const temPublicacao = Boolean(onboardingStatus?.hasPublication);
+  const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
+  const acaoMercadoLivre = mlConectado ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre;
+  const atividades = [
+    {
+      id: "proximo-passo",
+      icon: Sparkles,
+      title: "Próximo passo",
+      description: nextStepCopy,
+      label: conectandoMl ? "Abrindo…" : nextStepLabel,
+      onClick: handleNextStep,
+      done: false,
+    },
+    {
+      id: "mercado-livre",
+      icon: Store,
+      title: mlConectado ? "Mercado Livre conectado" : "Conectar o Mercado Livre",
+      description: mlConectado
+        ? "Sua conta está pronta para publicar e receber pedidos."
+        : "Conecte sua conta para publicar produtos e receber pedidos.",
+      label: conectandoMl ? "Conectando…" : mlConectado ? "Gerenciar conta" : "Conectar conta",
+      onClick: acaoMercadoLivre,
+      done: mlConectado,
+    },
+    {
+      id: "publicacao",
+      icon: Archive,
+      title: temPublicacao ? "Primeira publicação feita" : "Fazer a primeira publicação",
+      description: temPublicacao
+        ? "Acompanhe seus anúncios publicados."
+        : "Escolha um produto do catálogo e publique no Mercado Livre.",
+      label: temPublicacao ? "Ver publicações" : "Escolher produto",
+      onClick: go(temPublicacao ? "/dashboard/publicacoes" : "/dashboard/catalogo"),
+      done: temPublicacao,
+    },
+  ];
+
   return (
     <main
-      className="shrink-0 overflow-auto bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      className="shrink-0 overflow-auto bg-[#F7F8FA] text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
     >
-      <div
-        className="relative mx-auto w-full text-[#101114]"
-        style={{ containerType: "inline-size", maxWidth: MAX_CANVAS_WIDTH }}
+      <style>{HOME_CSS}</style>
+
+      {/* Header da área principal */}
+      <motion.header
+        {...revealProps(0, -6)}
+        className="flex h-[72px] items-center justify-between gap-4 px-4 md:px-10"
       >
-        <img
-          src={dashboardHomeBase}
-          alt="Tela inicial da Velo"
-          className="block h-auto w-full select-none"
-          draggable={false}
-        />
-        <div aria-hidden="true" style={{ height: y(CONTENT_OFFSET) }} />
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: `${y(CONTENT_SLICE_TOP)} 0 0`,
-            background: "#F5F4F1",
-          }}
-        />
-        <img
-          aria-hidden="true"
-          src={dashboardHomeBase}
-          alt=""
-          className="pointer-events-none absolute left-0 w-full select-none"
-          style={{
-            top: y(CONTENT_OFFSET),
-            clipPath: `inset(${(CONTENT_SLICE_TOP / 1024) * 100}% 0 0 0)`,
-          }}
-          draggable={false}
-        />
-
-        <div className="absolute inset-0 font-sans">
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              inset: 0,
-              bottom: "auto",
-              height: y(320),
-              background: "#F5F4F1",
-            }}
-          />
-
-          <motion.div
-            {...revealProps(INTRO.promoDelay, -6)}
-            style={{
-              position: "absolute",
-              right: x(30),
-              top: y(20),
-              zIndex: 40,
-            }}
-          >
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setTutorialOpen(true)}
-              aria-label="Ver tutorial de início"
-              className="gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
-              style={{
-                height: y(56),
-                minHeight: 40,
-                borderRadius: fs(18),
-                paddingLeft: fs(15),
-                paddingRight: fs(17),
-                fontSize: fs(11.8),
-              }}
-            >
-              <PlayCircle aria-hidden="true" style={{ width: fs(17), height: fs(17) }} />
-              Ver tutorial
-            </Button>
-          </motion.div>
-
-          {/* Histórico das conversas, espelhando o bloco de suporte do canto
-              oposto. Só aparece com o chat aberto e com conversa anterior de
-              verdade: num primeiro acesso o botão abriria uma lista vazia. */}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="text-[13px] font-medium text-[#8A93A3]">Início</span>
+          {/* Histórico das conversas: só com o chat aberto e com conversa
+              anterior de verdade — num primeiro acesso abriria uma lista vazia. */}
           <AnimatePresence>
             {chatActive && temHistorico && (
               <motion.div
@@ -651,141 +577,108 @@ const DashboardHomePage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
                 transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-                style={{
-                  position: "absolute",
-                  left: x(30),
-                  top: y(20),
-                  zIndex: 40,
-                }}
               >
                 <AtlasHistoryMenu
                   userId={user?.id}
                   activeThreadId={threadId}
                   onSelectThread={abrirConversa}
                   onThreadDeleted={aoApagarConversa}
-                   triggerLabel="Suas conversas"
-                   triggerStyle={{
-                     height: y(56),
-                     minHeight: 40,
-                     borderRadius: fs(18),
-                     border: "1px solid rgba(17, 24, 39, 0.09)",
-                     background: "rgba(255, 255, 255, 0.97)",
-                     boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-                     color: "#101114",
-                     fontSize: fs(11.8),
-                   }}
+                  triggerLabel="Suas conversas"
+                  triggerStyle={{
+                    height: 36,
+                    borderRadius: 999,
+                    border: "1px solid #ECEEF2",
+                    background: "#FFFFFF",
+                    boxShadow: "none",
+                    color: "#0B0D12",
+                    fontSize: 13,
+                  }}
                 />
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
 
-          <motion.h1
-            initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            // Transições por propriedade em vez de keyframes com `times`: o título
-            // aparece parado, depois sobe. Separar as curvas evita a pausa morta e a
-            // frenagem arrastada que a sequência única produzia.
-            transition={playIntro
-              ? {
-                  opacity: { duration: INTRO.titleFade, ease: "easeOut" },
-                  scale: { duration: INTRO.titleFade, ease: INTRO.travelEase },
-                  y: {
-                    delay: INTRO.titleTravelDelay,
-                    duration: INTRO.titleTravel,
-                    ease: INTRO.travelEase,
-                  },
-                }
-              : { duration: 0 }}
-            style={{
-              position: "absolute",
-              zIndex: 30,
-              left: "50%",
-              top: y(128 + HERO_OFFSET),
-              width: x(900),
-              x: "-50%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: fs(6),
-              margin: 0,
-              lineHeight: 1.04,
-              letterSpacing: 0,
-              textAlign: "center",
-              whiteSpace: "nowrap",
-            }}
+        <div className="flex shrink-0 items-center gap-2.5">
+          <button
+            type="button"
+            onClick={abrirBusca}
+            aria-label="Buscar produtos, lojas e telas"
+            className="velo-home-search hidden h-10 w-[320px] items-center gap-2.5 rounded-full bg-[#F1F3F6] px-4 text-left text-[14px] text-[#8A93A3] lg:flex"
           >
-            <span style={{ color: "#666666", fontSize: fs(31), fontWeight: 600 }}>
-              Bem-vindo à Velo!
-            </span>
-            <span style={{ color: "#303030", fontSize: fs(34), fontWeight: 600 }}>
-              Por onde você quer começar?
-            </span>
+            <Search size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span className="flex-1 truncate">Buscar produtos, lojas...</span>
+            <kbd className="rounded-md bg-white px-1.5 text-[11px] font-medium text-[#8A93A3]">/</kbd>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTutorialOpen(true)}
+            aria-label="Ver tutorial de início"
+            className="velo-home-ghost flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-[#4B5563]"
+          >
+            <PlayCircle size={18} strokeWidth={1.5} aria-hidden="true" />
+            Ver tutorial
+          </button>
+          <button
+            type="button"
+            onClick={go("/dashboard/catalogo")}
+            aria-label="Adicionar produto"
+            title="Adicionar produto"
+            className="velo-home-accent flex h-10 w-10 items-center justify-center rounded-full text-white"
+          >
+            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={go("/dashboard/configuracoes")}
+            aria-label="Configurações da conta"
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#ECEEF2] bg-[#F1F3F6] text-[#8A93A3]"
+          >
+            {foto && !avatarFalhou ? (
+              <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
+            ) : (
+              <UserRound size={18} strokeWidth={1.5} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      </motion.header>
+
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-12 md:px-10">
+        {/* Hero */}
+        <div className="flex flex-col items-center pt-8 text-center md:pt-12">
+          <motion.h1
+            {...revealProps(0.05, 10)}
+            className="m-0 text-[28px] font-semibold leading-tight tracking-[-0.02em] text-[#0B0D12] md:text-[32px]"
+          >
+            {primeiroNome ? `Bem-vindo, ${primeiroNome}` : "Bem-vindo à Velo"}
           </motion.h1>
+          <motion.p
+            {...revealProps(0.12, 10)}
+            className="m-0 mt-1.5 text-[15px] text-[#8A93A3]"
+          >
+            Por onde você quer começar?
+          </motion.p>
 
           <motion.div
-            {...revealProps(INTRO.chatDelay, 14)}
+            {...revealProps(0.22, 12)}
             ref={welcomeChatRef}
             data-dashboard-tour="home-atlas-chat"
             role="search"
             aria-label="Assistente Atlas"
             aria-expanded={chatActive}
             onClick={() => setChatActive(true)}
+            className="relative z-[32] mt-7 flex h-14 w-full max-w-[720px] items-center rounded-full border bg-white pl-3 pr-2.5"
             style={{
-              position: "absolute",
-              zIndex: 32,
-              left: "50%",
-              top: y(238 + HERO_OFFSET),
-              width: x(948),
-              height: y(60),
-              x: "-50%",
-              borderRadius: 999,
-              border: chatActive
-                ? "1px solid rgba(106, 124, 190, 0.18)"
-                : "1px solid rgba(17, 24, 39, 0.09)",
-              background: "#FFFFFF",
-              boxShadow: chatActive
-                ? "-14px 0 34px rgba(97, 169, 255, 0.07), 14px 0 34px rgba(255, 174, 116, 0.06), 0 8px 22px rgba(45, 55, 85, 0.08), 0 1px 4px rgba(15, 23, 42, 0.05)"
-                : "0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 18px rgba(15, 23, 42, 0.035)",
-              display: "flex",
-              alignItems: "center",
-              padding: `0 ${x(14)} 0 ${x(22)}`,
-              transition: "border-color 520ms ease, box-shadow 620ms cubic-bezier(0.22, 1, 0.36, 1)",
+              borderColor: chatActive ? "rgba(47, 91, 234, 0.28)" : "#ECEEF2",
+              boxShadow: chatActive ? CARD_SHADOW_FOCO : CARD_SHADOW,
+              transition: "border-color 320ms ease, box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
           >
-            <form
-              onSubmit={handleChatSubmit}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(40),
-                  height: fs(40),
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flex: "0 0 auto",
-                  marginRight: fs(15),
-                }}
-              >
+            <form onSubmit={handleChatSubmit} className="flex min-w-0 flex-1 items-center">
+              <span aria-hidden="true" className="mr-3 inline-flex h-8 w-8 shrink-0 items-center justify-center">
                 <AssistantAvatar />
               </span>
-              <span
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  flex: 1,
-                  minWidth: 0,
-                  height: "100%",
-                }}
-              >
+              <span className="relative flex h-full min-w-0 flex-1 items-center">
                 <AnimatePresence mode="wait" initial={false}>
                   {!chatActive && !chatInput.trim() && (
                     <AnimatedPromptText
@@ -802,20 +695,8 @@ const DashboardHomePage = () => {
                   onChange={(event) => setChatInput(event.target.value)}
                   aria-label="Mensagem para o Atlas"
                   placeholder={chatActive ? "Pergunte qualquer coisa..." : ""}
-                  style={{
-                    width: "100%",
-                    minWidth: 0,
-                    border: 0,
-                    outline: 0,
-                    background: "transparent",
-                    color: "rgba(0,0,0,0.72)",
-                    caretColor: "#2563EB",
-                    fontSize: fs(18),
-                    fontWeight: 400,
-                    lineHeight: 1,
-                    position: "relative",
-                    zIndex: 1,
-                  }}
+                  className="relative z-[1] w-full min-w-0 border-0 bg-transparent text-left text-[15px] text-[#0B0D12] outline-none placeholder:text-[#8A93A3]"
+                  style={{ caretColor: "#2F5BEA" }}
                 />
               </span>
             </form>
@@ -826,23 +707,9 @@ const DashboardHomePage = () => {
                 event.stopPropagation();
                 navigate("/dashboard/catalogo");
               }}
-              style={{
-                border: 0,
-                background: "transparent",
-                color: "rgba(0,0,0,0.70)",
-                cursor: "pointer",
-                width: fs(38),
-                height: fs(38),
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: fs(5),
-                padding: 0,
-              }}
+              className="velo-home-ghost mr-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
             >
-              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
-                <path d="M12 4.5v15M4.5 12h15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
+              <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -856,723 +723,305 @@ const DashboardHomePage = () => {
                 }
                 void enviarParaAtlas(chatInput);
               }}
-              style={{
-                border: 0,
-                borderRadius: "50%",
-                color: chatActive && chatInput.trim() ? "#FFFFFF" : "rgba(0,0,0,0.16)",
-                cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
-                background: chatActive && chatInput.trim() ? "#2563EB" : "#F0F0F0",
-                width: fs(40),
-                height: fs(40),
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                transition: "color 180ms ease, background-color 180ms ease, transform 180ms ease",
-              }}
+              className="velo-home-accent flex h-9 w-9 items-center justify-center rounded-full text-white disabled:cursor-default disabled:opacity-40"
             >
-              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
-                <path d="M12 19V5M6.7 10.3 12 5l5.3 5.3" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ArrowUp size={18} strokeWidth={2} aria-hidden="true" />
             </button>
           </motion.div>
+        </div>
 
+        <div className="relative mx-auto mt-10 w-full max-w-[1120px]">
           <motion.div
             aria-hidden={chatActive}
             initial={false}
             animate={chatActive
-              ? { opacity: 0, y: reduceMotion ? 0 : 22, scale: reduceMotion ? 1 : 0.992, filter: "blur(7px)" }
-              : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: reduceMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: y(CONTENT_OFFSET),
-              bottom: 0,
-              pointerEvents: chatActive ? "none" : "auto",
-            }}
+              ? { opacity: 0, y: reduceMotion ? 0 : 16, filter: "blur(6px)" }
+              : { opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: reduceMotion ? 0 : 0.36, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-4"
+            style={{ pointerEvents: chatActive ? "none" : "auto" }}
           >
-          <span style={textStyle(117, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>01</span>
-          <h2 style={textStyle(111, 384, 22, 260, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>
-            Adicione seu primeiro
-            <br />
-            produto
-          </h2>
-          <p style={textStyle(111, 460, 12.4, 276, { color: "rgba(0,0,0,0.62)", lineHeight: 1.42 })}>
-            Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
-          </p>
-          <button
-            type="button"
-            onClick={go("/dashboard/catalogo")}
-            className="group transition-[transform,filter,box-shadow] duration-200 ease-out hover:-translate-y-px hover:brightness-110 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/45 focus-visible:ring-offset-2"
-            style={buttonStyle(116, 541, 170, 47, 13.4, {
-              ...getPremiumActionButtonStyle(),
-              borderRadius: fs(11),
-              fontWeight: 800,
-              justifyContent: "space-between",
-              paddingLeft: fs(18),
-              paddingRight: fs(16),
-              textAlign: "left",
-            })}
-          >
-            <span>Adicionar produto</span>
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              style={{ width: fs(22), height: fs(22), flex: "0 0 auto" }}
+            {/* Linha 1: primeiros passos */}
+            <motion.div
+              {...revealProps(0.34, 14)}
+              data-dashboard-tour="home-primeiros-passos"
+              className="grid grid-cols-1 gap-4 lg:grid-cols-2"
             >
-              <path
-                d="M5 12h13M13 7l5 5-5 5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+              <section aria-labelledby="home-card-produto" className="velo-home-card grid grid-cols-1 gap-6 p-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+                <div className="flex min-w-0 flex-col items-start">
+                  <span className="text-[12px] font-medium text-[#8A93A3]">01</span>
+                  <h2 id="home-card-produto" className="m-0 mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">
+                    Adicione seu primeiro produto
+                  </h2>
+                  <p className="m-0 mt-2 text-[14px] leading-relaxed text-[#4B5563]">
+                    Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={go("/dashboard/catalogo")}
+                    className="velo-home-dark mt-6 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-medium text-white sm:mt-auto"
+                  >
+                    Adicionar produto
+                    <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="relative min-h-[200px] overflow-hidden rounded-[14px] bg-[#F7F8FA]">
+                  <img src={cardProdutoImg} alt="" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
+                  {/* O "+" é parte da foto: este botão fica por cima e leva ao mesmo destino. */}
+                  <button
+                    type="button"
+                    onClick={go("/dashboard/catalogo")}
+                    aria-label="Adicionar produto"
+                    title="Adicionar produto"
+                    className="absolute rounded-[16%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(11,13,18,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5BEA]/60"
+                    style={{ left: "30%", top: "65%", width: "23%", height: "28.6%" }}
+                  />
+                </div>
+              </section>
 
-          {/* O "+" sobre a foto do produto é desenho da imagem de fundo, não um
-              elemento real — clicar nele não fazia nada. Este botão transparente
-              fica exatamente por cima e leva ao mesmo destino do "Adicionar
-              produto", que é o que a pessoa espera ao tocar num "+". */}
-          <button
-            type="button"
-            onClick={go("/dashboard/catalogo")}
-            aria-label="Adicionar produto"
-            title="Adicionar produto"
-            className="rounded-[18%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(10,10,10,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
-            style={buttonStyle(500, 520, 80, 79, 0, { background: "transparent" })}
-          />
+              <section aria-labelledby="home-card-temas" className="velo-home-card grid grid-cols-1 gap-6 p-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+                <div className="flex min-w-0 flex-col items-start">
+                  <span className="text-[12px] font-medium text-[#8A93A3]">02</span>
+                  <h2 id="home-card-temas" className="m-0 mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">
+                    Escolha o visual da sua loja
+                  </h2>
+                  <p className="m-0 mt-2 text-[14px] leading-relaxed text-[#4B5563]">
+                    Selecione um template profissional e personalize para refletir a sua marca.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={go("/dashboard/modelos")}
+                    className="velo-home-secondary mt-6 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12] sm:mt-auto"
+                  >
+                    Ver temas
+                    <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="relative min-h-[200px] overflow-hidden rounded-[14px] bg-[#F7F8FA]">
+                  <img src={cardTemasImg} alt="" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
+                </div>
+              </section>
+            </motion.div>
 
-          {/* Alvo do tour do Atlas: moldura invisível sobre os dois cards de
-              primeiros passos, que são desenho da imagem de fundo. */}
-          <div
-            aria-hidden="true"
-            data-dashboard-tour="home-primeiros-passos"
-            style={{ position: "absolute", left: x(84), top: y(318), width: x(1372), height: y(312), pointerEvents: "none" }}
-          />
+            {/* Linha 2: atalhos */}
+            <motion.div {...revealProps(0.46, 14)} className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <section aria-labelledby="affiliate-card-title" className="velo-home-card flex flex-col p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F1F3F6] text-[#2F5BEA]">
+                    <BadgePercent size={18} strokeWidth={1.5} />
+                  </span>
+                  <span className="rounded-full bg-[#EEF2FE] px-2.5 py-1 text-[12px] font-medium text-[#2F5BEA]">
+                    30% na primeira venda
+                  </span>
+                </div>
+                <h3 id="affiliate-card-title" className="m-0 mt-5 text-[16px] font-semibold tracking-[-0.02em]">
+                  Programa de afiliados
+                </h3>
+                <p className="m-0 mt-1.5 text-[14px] leading-relaxed text-[#4B5563]">
+                  Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.
+                </p>
+                <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
+                  {["Por novo cliente", "Ganhos acompanhados"].map((benefit) => (
+                    <li key={benefit} className="flex items-center gap-2 text-[13px] text-[#4B5563]">
+                      <Check size={14} strokeWidth={1.75} className="text-[#2F5BEA]" aria-hidden="true" />
+                      {benefit}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={go("/dashboard/comissoes")}
+                  className="velo-home-secondary mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12]"
+                >
+                  Quero ser afiliado
+                  <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              </section>
 
-          <span style={textStyle(813, 350, 11, undefined, { color: "rgba(0,0,0,0.45)", fontWeight: 800 })}>02</span>
-          <h2 style={textStyle(806, 384, 22, 245, { fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" })}>
-            Escolha o visual
-            <br />
-            da sua loja
-          </h2>
-          <p style={textStyle(806, 460, 12.4, 270, { color: "rgba(0,0,0,0.62)", lineHeight: 1.42 })}>
-            Selecione um template profissional e personalize para refletir a sua marca.
-          </p>
-          <button
-            type="button"
-            onClick={go("/dashboard/modelos")}
-            style={buttonStyle(806, 541, 132, 47, 13.4, {
-              color: "#101114",
-              fontWeight: 800,
-              paddingLeft: x(14),
-              textAlign: "left",
-            })}
-          >
-            Ver temas
-          </button>
+              <section aria-labelledby="ai-page-card-title" className="velo-home-card flex flex-col p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F1F3F6] text-[#2F5BEA]">
+                    <LayoutTemplate size={18} strokeWidth={1.5} />
+                  </span>
+                  <span className="flex items-center gap-1.5 rounded-full bg-[#F1F3F6] px-2.5 py-1 text-[12px] font-medium text-[#4B5563]">
+                    <Sparkles size={12} strokeWidth={1.75} aria-hidden="true" /> Velo IA
+                  </span>
+                </div>
+                <h3 id="ai-page-card-title" className="m-0 mt-5 text-[16px] font-semibold tracking-[-0.02em]">
+                  Página de vendas com IA
+                </h3>
+                <p className="m-0 mt-1.5 text-[14px] leading-relaxed text-[#4B5563]">
+                  Crie uma página profissional para apresentar e vender seu produto.
+                </p>
+                <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
+                  <li className="flex items-center gap-2 text-[13px] text-[#4B5563]">
+                    <Check size={14} strokeWidth={1.75} className="text-[#2F5BEA]" aria-hidden="true" />
+                    Pronta para publicar
+                  </li>
+                </ul>
+                <button
+                  type="button"
+                  onClick={go("/dashboard/paginas-com-ia/criar")}
+                  className="velo-home-secondary mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12] xl:mt-auto"
+                >
+                  Criar página
+                  <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              </section>
 
-          <section
-            aria-labelledby="affiliate-card-title"
-            style={{
-              position: "absolute",
-              left: x(84),
-              top: y(649),
-              width: x(460),
-              height: y(246),
-              zIndex: 2,
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 39%",
-              gap: fs(18),
-              overflow: "hidden",
-              padding: fs(20),
-              border: "1px solid rgba(35, 31, 45, 0.09)",
-              borderRadius: fs(24),
-              background: "linear-gradient(145deg, #FFFFFF 0%, #FDFCFF 55%, #F7F4FF 100%)",
-              boxShadow: "0 12px 28px rgba(31, 24, 48, 0.055), inset 0 1px 0 rgba(255,255,255,0.92)",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(43),
-                  height: fs(43),
-                  flex: "0 0 auto",
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(13),
-                  color: "#FFFFFF",
-                  background: "linear-gradient(145deg, #6D5AEF 0%, #4736C7 100%)",
-                  boxShadow: "0 8px 18px rgba(79, 61, 201, 0.24), inset 0 1px 0 rgba(255,255,255,0.28)",
-                }}
-              >
-                <BadgePercent size={fs(22)} strokeWidth={1.9} />
-              </span>
+              <section aria-labelledby="ml-card-title" className="velo-home-card flex flex-col p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F1F3F6]">
+                    <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-6 w-6 object-contain" />
+                  </span>
+                  <span className="flex items-center gap-1.5 rounded-full bg-[#F1F3F6] px-2.5 py-1 text-[12px] font-medium text-[#4B5563]">
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ background: mlConectado ? "#16A34A" : "#B4BBC6" }}
+                    />
+                    {mlConectado ? "Conta conectada" : "Pronta para conectar"}
+                  </span>
+                </div>
+                <h3 id="ml-card-title" className="m-0 mt-5 text-[16px] font-semibold tracking-[-0.02em]">
+                  Venda no Mercado Livre
+                </h3>
+                <p className="m-0 mt-1.5 text-[14px] leading-relaxed text-[#4B5563]">
+                  Conecte sua conta, publique anúncios e acompanhe os pedidos.
+                </p>
+                <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
+                  {["Publicação simplificada", "Pedidos sincronizados"].map((benefit) => (
+                    <li key={benefit} className="flex items-center gap-2 text-[13px] text-[#4B5563]">
+                      <Check size={14} strokeWidth={1.75} className="text-[#2F5BEA]" aria-hidden="true" />
+                      {benefit}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  // /dashboard/integracoes é a tela de lojas Shopify; a conta do
+                  // Mercado Livre se gerencia na aba Integrações das configurações.
+                  onClick={acaoMercadoLivre}
+                  disabled={conectandoMl}
+                  className="velo-home-secondary mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12] disabled:cursor-wait disabled:opacity-70"
+                >
+                  {conectandoMl ? "Conectando…" : mlConectado ? "Gerenciar conta" : "Conectar conta"}
+                  <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              </section>
+            </motion.div>
 
-              <h3
-                id="affiliate-card-title"
-                style={{
-                  margin: `${fs(17)} 0 0`,
-                  color: "#111114",
-                  fontSize: fs(20.5),
-                  fontWeight: 820,
-                  lineHeight: 1.12,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Programa de afiliados
-              </h3>
-              <p
-                style={{
-                  margin: `${fs(9)} 0 0`,
-                  maxWidth: fs(230),
-                  color: "rgba(17,17,20,0.62)",
-                  fontSize: fs(12.7),
-                  fontWeight: 500,
-                  lineHeight: 1.42,
-                }}
-              >
-                Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.
-              </p>
-
-              <button
-                type="button"
-                onClick={go("/dashboard/comissoes")}
-                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  width: fs(177),
-                  height: fs(40),
-                  marginTop: "auto",
-                  flex: "0 0 auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#171719",
-                  cursor: "pointer",
-                  fontSize: fs(12.3),
-                  fontWeight: 780,
-                  letterSpacing: "-0.015em",
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>Quero ser afiliado</span>
-                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-            </div>
-
-            <div
-              style={{
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                padding: `${fs(17)} ${fs(15)}`,
-                border: "1px solid rgba(91, 71, 205, 0.11)",
-                borderRadius: fs(18),
-                background: "linear-gradient(155deg, rgba(239,235,255,0.92) 0%, rgba(250,249,255,0.96) 100%)",
-              }}
-            >
-              <span style={{ color: "#4B3AC1", fontSize: fs(10), fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Primeira venda
-              </span>
-              <div style={{ marginTop: fs(5), display: "flex", alignItems: "baseline", gap: fs(4) }}>
-                <strong style={{ color: "#17131F", fontSize: fs(32), fontWeight: 850, lineHeight: 1, letterSpacing: "-0.055em" }}>30%</strong>
-                <span style={{ color: "rgba(23,19,31,0.5)", fontSize: fs(9.8), fontWeight: 650 }}>de comissão</span>
-              </div>
-              <div style={{ height: 1, margin: `${fs(14)} 0 ${fs(12)}`, background: "rgba(75,58,193,0.12)" }} />
-              {["Por novo cliente", "Ganhos acompanhados"].map((benefit) => (
+            {/* Atividade recente (antes "Próximo passo") */}
+            <motion.section {...revealProps(0.58, 14)} aria-labelledby="home-atividade" className="velo-home-card px-6 pb-2 pt-5">
+              <div className="flex items-center justify-between gap-4 pb-2">
+                <h3 id="home-atividade" className="m-0 text-[15px] font-semibold tracking-[-0.02em]">
+                  Atividade recente
+                </h3>
                 <span
-                  key={benefit}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: fs(7),
-                    marginBottom: fs(10),
-                    color: "rgba(23,19,31,0.72)",
-                    fontSize: fs(10.4),
-                    fontWeight: 670,
-                    whiteSpace: "nowrap",
-                  }}
+                  aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
+                  className="flex items-center gap-2 text-[13px] text-[#8A93A3]"
                 >
                   <span
                     aria-hidden="true"
+                    className="block h-5 w-5 rounded-full p-[2.5px]"
                     style={{
-                      width: fs(17),
-                      height: fs(17),
-                      flex: "0 0 auto",
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: "50%",
-                      background: "rgba(91,71,205,0.11)",
-                      color: "#5B47CD",
+                      background: onboardingProgress === null
+                        ? "#ECEEF2"
+                        : `conic-gradient(#2F5BEA ${onboardingProgress}%, #ECEEF2 0)`,
                     }}
                   >
-                    <Check size={fs(10.5)} strokeWidth={2.5} />
+                    <span className="block h-full w-full rounded-full bg-white" />
                   </span>
-                  {benefit}
-                </span>
-              ))}
-            </div>
-          </section>
-
-          <section
-            aria-labelledby="ai-page-card-title"
-            style={{
-              position: "absolute",
-              left: x(560),
-              top: y(649),
-              width: x(432),
-              height: y(246),
-              zIndex: 2,
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 42%",
-              gap: fs(16),
-              overflow: "hidden",
-              padding: fs(20),
-              border: "1px solid rgba(23, 60, 45, 0.09)",
-              borderRadius: fs(24),
-              background: "linear-gradient(145deg, #FFFFFF 0%, #FBFEFC 58%, #F0FAF4 100%)",
-              boxShadow: "0 12px 28px rgba(20, 55, 41, 0.05), inset 0 1px 0 rgba(255,255,255,0.92)",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(43),
-                  height: fs(43),
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(13),
-                  color: "#116149",
-                  background: "linear-gradient(145deg, #E4F8ED 0%, #D5F2E2 100%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
-                }}
-              >
-                <LayoutTemplate size={fs(21)} strokeWidth={1.85} />
-              </span>
-              <h3
-                id="ai-page-card-title"
-                style={{
-                  margin: `${fs(17)} 0 0`,
-                  color: "#101613",
-                  fontSize: fs(19.2),
-                  fontWeight: 820,
-                  lineHeight: 1.12,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Página de vendas com IA
-              </h3>
-              <p style={{ margin: `${fs(9)} 0 0`, maxWidth: fs(205), color: "rgba(16,22,19,0.62)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.4 }}>
-                Crie uma página profissional para apresentar e vender seu produto.
-              </p>
-              <button
-                type="button"
-                onClick={go("/dashboard/paginas-com-ia/criar")}
-                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  width: fs(143),
-                  height: fs(40),
-                  marginTop: "auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#171719",
-                  cursor: "pointer",
-                  fontSize: fs(12.3),
-                  fontWeight: 780,
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>Criar página</span>
-                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              aria-hidden="true"
-              style={{
-                minWidth: 0,
-                alignSelf: "center",
-                padding: fs(13),
-                border: "1px solid rgba(27, 119, 85, 0.11)",
-                borderRadius: fs(17),
-                background: "rgba(255,255,255,0.86)",
-                boxShadow: "0 12px 24px rgba(20, 72, 51, 0.08)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: fs(8) }}>
-                <span style={{ display: "flex", alignItems: "center", gap: fs(6), color: "#143B2E", fontSize: fs(9.7), fontWeight: 800 }}>
-                  <Sparkles size={fs(12)} /> Velo IA
-                </span>
-                <span style={{ width: fs(7), height: fs(7), borderRadius: "50%", background: "#2CC68B", boxShadow: "0 0 0 3px rgba(44,198,139,0.12)" }} />
-              </div>
-              <div style={{ height: fs(7), marginTop: fs(15), borderRadius: 999, background: "#DDE7E1" }} />
-              <div style={{ width: "72%", height: fs(7), marginTop: fs(7), borderRadius: 999, background: "#EDF2EF" }} />
-              <div style={{ marginTop: fs(17), display: "flex", alignItems: "center", gap: fs(6), color: "#166747", fontSize: fs(9.7), fontWeight: 780 }}>
-                <span style={{ display: "grid", placeItems: "center", width: fs(17), height: fs(17), borderRadius: "50%", background: "#DCF7E9" }}>
-                  <Check size={fs(10)} strokeWidth={2.5} />
-                </span>
-                Pronta para publicar
-              </div>
-            </div>
-          </section>
-
-          <section
-            aria-labelledby="ml-card-title"
-            style={{
-              position: "absolute",
-              left: x(1008),
-              top: y(649),
-              width: x(448),
-              height: y(246),
-              zIndex: 2,
-              boxSizing: "border-box",
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) 39%",
-              gap: fs(16),
-              overflow: "hidden",
-              padding: fs(20),
-              border: "1px solid rgba(44, 43, 29, 0.09)",
-              borderRadius: fs(24),
-              background: "linear-gradient(145deg, #FFFFFF 0%, #FFFEFA 58%, #FFFBE3 100%)",
-              boxShadow: "0 12px 28px rgba(62, 54, 15, 0.05), inset 0 1px 0 rgba(255,255,255,0.92)",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(43),
-                  height: fs(43),
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(13),
-                  background: "transparent",
-                }}
-              >
-                <img src={mercadoLivreLogo.url} alt="" style={{ width: fs(43), height: fs(35), objectFit: "contain" }} />
-              </span>
-              <h3
-                id="ml-card-title"
-                style={{
-                  margin: `${fs(17)} 0 0`,
-                  color: "#17170F",
-                  fontSize: fs(19.4),
-                  fontWeight: 820,
-                  lineHeight: 1.12,
-                  letterSpacing: "-0.03em",
-                }}
-              >
-                Venda no Mercado Livre
-              </h3>
-              <p style={{ margin: `${fs(9)} 0 0`, maxWidth: fs(220), color: "rgba(23,23,15,0.62)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.4 }}>
-                Conecte sua conta, publique anúncios e acompanhe os pedidos.
-              </p>
-              <button
-                type="button"
-                // /dashboard/integracoes é a tela de lojas Shopify; a conta do
-                // Mercado Livre se gerencia na aba Integrações das configurações.
-                onClick={onboardingStatus?.mlConnected ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre}
-                disabled={conectandoMl}
-                className="group transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  minWidth: fs(145),
-                  height: fs(40),
-                  marginTop: "auto",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: fs(10),
-                  padding: `0 ${fs(13)} 0 ${fs(15)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#171719",
-                  cursor: "pointer",
-                  fontSize: fs(11.9),
-                  fontWeight: 800,
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>{conectandoMl ? "Conectando…" : onboardingStatus?.mlConnected ? "Gerenciar conta" : "Conectar conta"}</span>
-                <ArrowRight size={fs(17)} strokeWidth={2.1} aria-hidden="true" />
-              </button>
-            </div>
-            <div
-              style={{
-                minWidth: 0,
-                alignSelf: "center",
-                padding: fs(14),
-                border: "1px solid rgba(107, 97, 20, 0.11)",
-                borderRadius: fs(17),
-                background: "rgba(255,255,255,0.88)",
-                boxShadow: "0 12px 24px rgba(77, 68, 13, 0.07)",
-              }}
-            >
-              <span style={{ color: "rgba(23,23,15,0.5)", fontSize: fs(9.4), fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Integração
-              </span>
-              <div style={{ marginTop: fs(7), display: "flex", alignItems: "center", gap: fs(7) }}>
-                <span aria-hidden="true" style={{ width: fs(9), height: fs(9), borderRadius: "50%", background: onboardingStatus?.mlConnected ? "#20B875" : "#C9C6B2", boxShadow: onboardingStatus?.mlConnected ? "0 0 0 3px rgba(32,184,117,0.12)" : "none" }} />
-                <strong style={{ color: "#232316", fontSize: fs(11), fontWeight: 800 }}>
-                  {onboardingStatus?.mlConnected ? "Conta conectada" : "Pronta para conectar"}
-                </strong>
-              </div>
-              <div style={{ height: 1, margin: `${fs(13)} 0 ${fs(11)}`, background: "rgba(94,85,21,0.11)" }} />
-              {["Publicação simplificada", "Pedidos sincronizados"].map((benefit) => (
-                <span key={benefit} style={{ display: "flex", alignItems: "center", gap: fs(6), marginBottom: fs(9), color: "rgba(35,35,22,0.68)", fontSize: fs(9.3), fontWeight: 680, whiteSpace: "nowrap" }}>
-                  <Check size={fs(11)} strokeWidth={2.3} color="#8B7F00" />
-                  {benefit}
-                </span>
-              ))}
-            </div>
-          </section>
-
-          <div
-            style={{
-              position: "absolute",
-              left: x(80),
-              top: y(920),
-              width: x(1376),
-              height: y(72),
-              border: "1px solid rgba(17,17,17,0.08)",
-              borderRadius: fs(18),
-              background: "rgba(255,255,255,0.98)",
-              boxShadow: "0 10px 30px rgba(26,26,26,0.045)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: fs(24),
-              boxSizing: "border-box",
-              padding: `0 ${fs(22)} 0 ${fs(26)}`,
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: fs(15), flex: "1 1 auto" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(35),
-                  height: fs(35),
-                  flex: "0 0 auto",
-                  borderRadius: fs(11),
-                  background: "#F4F1FF",
-                  color: "#351078",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <svg viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20) }}>
-                  <path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3Zm6.2 10.2.7 2.3 2.1 1-.1.1-2 1-.7 2.2-.7-2.2-2.1-1 2.1-1 .7-2.4Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <h3 style={{ margin: 0, color: "#101114", fontSize: fs(15.5), fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
-                  Próximo passo
-                </h3>
-                <p style={{ margin: `${fs(5)} 0 0`, maxWidth: x(760), color: "rgba(0,0,0,0.56)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {nextStepCopy}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: fs(15), flex: "0 0 auto" }}>
-              <button
-                type="button"
-                onClick={handleNextStep}
-                disabled={conectandoMl}
-                className="transition-[transform,background-color,box-shadow] duration-200 ease-out hover:-translate-y-px hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
-                style={{
-                  width: fs(164),
-                  height: fs(42),
-                  border: "1px solid rgba(17,17,17,0.1)",
-                  borderRadius: fs(12),
-                  background: "#FFFFFF",
-                  boxShadow: "0 4px 12px rgba(17,17,17,0.05)",
-                  color: "#101114",
-                  cursor: conectandoMl ? "wait" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: `0 ${fs(14)}`,
-                  fontSize: fs(12.5),
-                  fontWeight: 800,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {conectandoMl ? "Abrindo…" : nextStepLabel}
-              </button>
-
-              <div
-                aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
-                style={{
-                  width: fs(48),
-                  height: fs(48),
-                  borderRadius: "50%",
-                  padding: fs(3),
-                  boxSizing: "border-box",
-                  background: onboardingProgress === null
-                    ? "#ECECE8"
-                    : `conic-gradient(#351078 ${onboardingProgress}%, #ECECE8 0)`,
-                }}
-              >
-                <span
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: "50%",
-                    background: "#FFFFFF",
-                    color: "rgba(0,0,0,0.58)",
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: fs(11.5),
-                    fontWeight: 800,
-                  }}
-                >
-                  {onboardingProgress === null ? "—" : `${onboardingProgress}%`}
+                  {onboardingProgress === null ? "—" : `${onboardingProgress}% concluído`}
                 </span>
               </div>
-            </div>
-          </div>
-          </motion.div>
-
-          <AnimatePresence>
-            {chatActive && (
-              <>
-                <motion.div
-                  aria-hidden="true"
-                  initial={reduceMotion ? false : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.48, ease: "easeOut" }}
-                  style={{
-                    position: "absolute",
-                    zIndex: 24,
-                    left: 0,
-                    right: 0,
-                    top: y(341 + HERO_OFFSET),
-                    bottom: 0,
-                    background: "#F5F4F1",
-                    pointerEvents: "none",
-                  }}
-                />
-                <motion.div
-                  ref={suggestionListRef}
-                  initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ delay: reduceMotion ? 0 : 0.22, duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    position: "absolute",
-                    zIndex: 33,
-                    left: "50%",
-                    top: y(328 + HERO_OFFSET),
-                    width: x(900),
-                    x: "-50%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "stretch",
-                    paddingLeft: fs(10),
-                  }}
-                >
-                  {CHAT_SUGGESTIONS.map((suggestion, index) => (
-                    <motion.button
-                      key={suggestion}
-                      type="button"
-                      initial={reduceMotion ? false : { opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -6 }}
-                      transition={{
-                        delay: reduceMotion ? 0 : 0.3 + index * 0.075,
-                        duration: reduceMotion ? 0 : 0.42,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                      onClick={() => void enviarParaAtlas(suggestion)}
-                      onMouseEnter={() => setHoveredSuggestion(suggestion)}
-                      onMouseLeave={() => setHoveredSuggestion(null)}
-                      onFocus={() => setHoveredSuggestion(suggestion)}
-                      onBlur={() => setHoveredSuggestion(null)}
-                      className="focus-visible:outline-none"
-                      style={{
-                        height: y(60),
-                        border: 0,
-                        borderRadius: fs(12),
-                        background: hoveredSuggestion === suggestion ? "#ECECEB" : "transparent",
-                        color: hoveredSuggestion === suggestion ? "#343434" : "rgba(0,0,0,0.57)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: fs(18),
-                        padding: `0 ${fs(10)}`,
-                        fontSize: fs(18),
-                        fontWeight: 500,
-                        lineHeight: 1,
-                        textAlign: "left",
-                        transition: "background-color 180ms ease, color 180ms ease, transform 180ms ease",
-                      }}
-                      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+              <ul className="m-0 list-none p-0">
+                {atividades.map((atividade) => {
+                  const Icone = atividade.icon;
+                  return (
+                    <li
+                      key={atividade.id}
+                      className="flex min-h-16 items-center gap-3.5 py-3"
+                      style={{ borderTop: "1px solid #F1F3F6" }}
                     >
-                      <svg
+                      <span
                         aria-hidden="true"
-                        viewBox="0 0 24 24"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                         style={{
-                          width: fs(25),
-                          height: fs(25),
-                          flex: "0 0 auto",
-                          opacity: hoveredSuggestion === suggestion ? 0.9 : 0.55,
-                          transition: "opacity 150ms ease",
+                          background: atividade.done ? "#EEF2FE" : "#F1F3F6",
+                          color: atividade.done ? "#2F5BEA" : "#4B5563",
                         }}
                       >
-                        <path d="M4 12h14M13 7l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span>{suggestion}</span>
-                    </motion.button>
-                  ))}
-                </motion.div>
-              </>
+                        {atividade.done ? <Check size={16} strokeWidth={1.75} /> : <Icone size={16} strokeWidth={1.5} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{atividade.title}</span>
+                        <span className="block truncate text-[13px] text-[#8A93A3]">{atividade.description}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={atividade.onClick}
+                        disabled={conectandoMl && atividade.id !== "publicacao"}
+                        className="velo-home-secondary flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-medium text-[#0B0D12] disabled:cursor-wait disabled:opacity-70"
+                      >
+                        {atividade.label}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.section>
+          </motion.div>
+
+          {/* Sugestões do Atlas: ocupam o lugar dos cards enquanto o chat está aberto. */}
+          <AnimatePresence>
+            {chatActive && (
+              <motion.div
+                ref={suggestionListRef}
+                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ delay: reduceMotion ? 0 : 0.16, duration: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute inset-x-0 top-[-16px] z-[33] mx-auto flex w-full max-w-[720px] flex-col"
+              >
+                {CHAT_SUGGESTIONS.map((suggestion, index) => (
+                  <motion.button
+                    key={suggestion}
+                    type="button"
+                    initial={reduceMotion ? false : { opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    transition={{
+                      delay: reduceMotion ? 0 : 0.22 + index * 0.06,
+                      duration: reduceMotion ? 0 : 0.38,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    onClick={() => void enviarParaAtlas(suggestion)}
+                    onMouseEnter={() => setHoveredSuggestion(suggestion)}
+                    onMouseLeave={() => setHoveredSuggestion(null)}
+                    onFocus={() => setHoveredSuggestion(suggestion)}
+                    onBlur={() => setHoveredSuggestion(null)}
+                    className="flex h-12 items-center gap-3.5 rounded-xl border-0 px-4 text-left text-[15px] focus-visible:outline-none"
+                    style={{
+                      background: hoveredSuggestion === suggestion ? "#FFFFFF" : "transparent",
+                      boxShadow: hoveredSuggestion === suggestion ? "0 1px 2px rgba(16,24,40,0.04)" : "none",
+                      color: hoveredSuggestion === suggestion ? "#0B0D12" : "#4B5563",
+                      transition: "background-color 160ms ease, color 160ms ease",
+                    }}
+                    whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+                  >
+                    <ArrowRight
+                      size={18}
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                      style={{ opacity: hoveredSuggestion === suggestion ? 0.9 : 0.5, transition: "opacity 150ms ease" }}
+                    />
+                    <span>{suggestion}</span>
+                  </motion.button>
+                ))}
+              </motion.div>
             )}
           </AnimatePresence>
-
-          {[
-            { top: CONTENT_SLICE_TOP + CONTENT_OFFSET, height: 350, delay: INTRO.bandDelays[0] },
-            { top: 750, height: 270, delay: INTRO.bandDelays[1] },
-            { top: 1020, height: 104, delay: INTRO.bandDelays[2] },
-          ].map((band) => (
-            <motion.div
-              key={band.top}
-              aria-hidden="true"
-              initial={playIntro ? { opacity: 1 } : false}
-              animate={{ opacity: 0 }}
-              transition={playIntro
-                ? { delay: band.delay, duration: INTRO.bandDuration, ease: INTRO.revealEase }
-                : { duration: 0 }}
-              style={{
-                position: "absolute",
-                zIndex: 20,
-                left: 0,
-                right: 0,
-                top: y(band.top),
-                height: y(band.height),
-                background: "#F5F4F1",
-                pointerEvents: "none",
-              }}
-            />
-          ))}
         </div>
       </div>
       <VideoTutorialModal

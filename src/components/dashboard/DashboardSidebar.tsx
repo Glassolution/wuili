@@ -14,6 +14,7 @@ import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
+import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { bestAccessSubscription, resolveAccessPlan } from "@/lib/subscriptionAccess";
 
@@ -75,10 +76,12 @@ const PILL_EASE = [0.4, 0, 0.2, 1] as const;
 // Hover/foco dos itens (inline styles não fazem :hover, então injetamos CSS).
 const NAV_CSS = `
 .velo-nav-item, .velo-nav-sub { transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-nav-item:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.05); }
-.velo-nav-sub:hover:not([data-active="true"]) { background-color: rgba(10,10,10,0.045); }
+.velo-nav-item:hover:not([data-active="true"]) { background-color: #F5F6F8; color: #0B0D12; }
+.velo-nav-sub:hover:not([data-active="true"]) { background-color: #F5F6F8; color: #0B0D12; }
+.velo-side-card { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
+.velo-side-card:hover { border-color: #DCE0E7; background-color: #FAFBFC; }
 .velo-nav-ico { transition: transform 150ms ease-out; }
-.velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.09); }
+.velo-nav-item:hover .velo-nav-ico, .velo-nav-sub:hover .velo-nav-ico { transform: scale(1.06); }
 .velo-settings-row { transition: background-color 140ms ease-out; }
 .velo-settings-row:hover { background-color: rgba(10,10,10,0.05); }
 .velo-profile-menu-row { transition: background-color 140ms ease-out, transform 140ms ease-out; }
@@ -211,9 +214,9 @@ const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
       position: "absolute",
       inset: 0,
       zIndex: -1,
-      borderRadius: sub ? 8 : 8,
-      background: sub ? "rgba(37,99,235,0.10)" : "linear-gradient(90deg, #4F7FFF, #1D4ED8)",
-      boxShadow: sub ? "none" : "0 1px 2px rgba(0,0,0,0.08)",
+      borderRadius: 10,
+      background: "#EEF2FE",
+      boxShadow: "none",
     }}
   />
 );
@@ -224,7 +227,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
     ...(sub ? styles.navSubLinkBase : styles.navLinkBase),
     position: "relative",
     isolation: "isolate",
-    color: active ? (sub ? "#1D4ED8" : "#FFFFFF") : "#0A0A0A",
+    color: active ? "#2F5BEA" : "#4B5563",
   };
 
   return (
@@ -237,7 +240,7 @@ const SidebarNavLink = ({ item, active, sub = false, reduce }: { item: NavItem; 
       style={linkStyle}
     >
       {active ? <ActivePill sub={sub} reduce={reduce} /> : null}
-      <Icon className="velo-nav-ico" size={sub ? 15 : 18} strokeWidth={sub ? 1.9 : 2} aria-hidden="true" />
+      <Icon className="velo-nav-ico" size={sub ? 16 : 18} strokeWidth={1.5} aria-hidden="true" />
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
     </Link>
   );
@@ -271,7 +274,7 @@ const SidebarCategory = ({
     textAlign: "left",
     position: "relative",
     isolation: "isolate",
-    color: childActive ? "#FFFFFF" : "#0A0A0A",
+    color: childActive ? "#2F5BEA" : "#4B5563",
     justifyContent: "space-between",
   };
 
@@ -291,8 +294,8 @@ const SidebarCategory = ({
         style={btnStyle}
       >
         {childActive ? <ActivePill reduce={reduce} /> : null}
-        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <Icon className="velo-nav-ico" size={18} strokeWidth={2} aria-hidden="true" />
+        <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <Icon className="velo-nav-ico" size={18} strokeWidth={1.5} aria-hidden="true" />
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
         </span>
         <ChevronRight
@@ -428,8 +431,13 @@ const DashboardSidebar = () => {
       event.preventDefault();
       setSearchOpen(true);
     };
+    const abrirBusca = () => setSearchOpen(true);
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener(ABRIR_BUSCA_EVENT, abrirBusca);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener(ABRIR_BUSCA_EVENT, abrirBusca);
+    };
   }, []);
 
   useEffect(() => {
@@ -667,30 +675,31 @@ const DashboardSidebar = () => {
         <button
           type="button"
           onClick={() => navigate("/dashboard/comunidade")}
-          style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", border: 0, background: "transparent", padding: "6px 9px", marginBottom: 7, cursor: "pointer", textAlign: "left", color: "#0A0A0A", borderRadius: 8 }}
+          className="velo-nav-item"
+          style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", height: 40, border: 0, background: "transparent", padding: "0 12px", marginBottom: 8, cursor: "pointer", textAlign: "left", color: "#4B5563", borderRadius: 10 }}
         >
-          <Info size={17} strokeWidth={2} aria-hidden="true" />
-          <span style={{ fontSize: 14, lineHeight: "19px", fontWeight: 500, letterSpacing: "-0.02em" }}>Comunidade e Ajuda</span>
+          <Info className="velo-nav-ico" size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span style={{ fontSize: 14, lineHeight: "19px", fontWeight: 500, letterSpacing: "-0.01em" }}>Comunidade e Ajuda</span>
         </button>
 
         {/* Blocos finais ancorados no rodapé da sidebar, como na referência. */}
         <div style={styles.footerBottom}>
-          <button type="button" onClick={() => setInviteOpen(true)} style={{ ...styles.promoCard, background: "#E8EFFF" }}>
-            <span style={{ ...styles.promoIcon, background: "#D6E4FF", color: "#2563EB" }} aria-hidden="true">
-              <Gift size={20} strokeWidth={2} />
+          <button type="button" className="velo-side-card" onClick={() => setInviteOpen(true)} style={styles.promoCard}>
+            <span style={styles.promoIcon} aria-hidden="true">
+              <Gift size={18} strokeWidth={1.5} />
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ ...styles.promoTitle, fontSize: 14, fontWeight: 500 }}>Indique e ganhe</span>
+              <span style={{ ...styles.promoTitle, fontSize: 13.5, fontWeight: 500 }}>Indique e ganhe</span>
               <span style={styles.promoSub}>Ganhe 30% na primeira venda</span>
             </span>
           </button>
 
-          <button type="button" onClick={() => navigate("/dashboard/paginas-com-ia")} style={{ ...styles.promoCard, background: "#E7F5EC" }}>
-            <span style={{ ...styles.promoIcon, background: "#D6EEDF", color: "#16A34A" }} aria-hidden="true">
-              <Sparkles size={20} strokeWidth={2} />
+          <button type="button" className="velo-side-card" onClick={() => navigate("/dashboard/paginas-com-ia")} style={styles.promoCard}>
+            <span style={styles.promoIcon} aria-hidden="true">
+              <Sparkles size={18} strokeWidth={1.5} />
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ ...styles.promoTitle, fontSize: 14, fontWeight: 500 }}>Páginas com IA</span>
+              <span style={{ ...styles.promoTitle, fontSize: 13.5, fontWeight: 500 }}>Páginas com IA</span>
               <span style={styles.promoSub}>Crie páginas em minutos</span>
             </span>
           </button>
@@ -702,6 +711,7 @@ const DashboardSidebar = () => {
             aria-haspopup="menu"
             aria-expanded={profileMenuOpen}
             onClick={() => setProfileMenuOpen((current) => !current)}
+            className="velo-side-card"
             style={styles.profileCard}
           >
             <span style={styles.avatar}>
