@@ -975,7 +975,8 @@ const DashboardLayoutInner = () => {
     <div 
       className="dashboard-inter flex h-screen min-h-0 w-full max-w-full overflow-x-hidden flex-col" 
       style={{ 
-        background: isStartMode ? "#FFA640" : "linear-gradient(135deg, #F7F6F4 0%, #EFEDEA 48%, #E8E7E4 100%)",
+        // Fundo do mesmo cinza da sidebar: a página fica numa moldura branca por cima.
+        background: isStartMode ? "#FFA640" : "#F7F7F8",
         paddingTop: 0,
         transition: "background-color 280ms ease"
       }}
@@ -1006,8 +1007,12 @@ const DashboardLayoutInner = () => {
           <DashboardSidebar />
         </motion.div>
 
-        {/* Área principal com header e conteúdo */}
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Área principal com header e conteúdo, dentro de uma moldura branca
+            arredondada que acompanha a sidebar (estilo da referência do Shopify). */}
+        <div
+          className="relative my-2 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-black/[0.07] bg-white"
+          style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)" }}
+        >
           {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
               da sidebar (a sidebar continua ocupando a altura total). */}
           <motion.div className="shrink-0" {...molduraAnimada(ENTRADA_POS_ONBOARDING.banner, { y: -12 })}>

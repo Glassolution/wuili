@@ -3,16 +3,16 @@ import { motion, useReducedMotion, useSpring } from "framer-motion";
 import mascoteImg from "@/assets/mascote-velo-espiando.webp";
 
 // Medidas tiradas da imagem recortada (mascote-velo-espiando.webp, 264x214).
-const LARGURA = 112;
-const ALTURA = 91;
+const LARGURA = 100;
+const ALTURA = 81;
 // A parte de baixo dos dedos passa da borda reta do corpo: é o quanto "segura" a caixa.
 const DEDOS = 6;
 const OLHOS = [
   { x: 39.46, y: 59.15 },
   { x: 69.45, y: 51.52 },
 ];
-const TAMANHO_OLHO = 8.5;
-const DESVIO_MAXIMO = 2;
+const TAMANHO_OLHO = 7.6;
+const DESVIO_MAXIMO = 1.8;
 
 type Props = {
   focada: boolean;
@@ -86,7 +86,7 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
   }, [reduceMotion]);
 
   // Altura do corpo: escondido até a entrada, espia mais com foco, pula ao clicar, balança enviando.
-  const subida = focada || digitando ? -10 : 0;
+  const subida = focada || digitando ? -6 : 0;
   const animacaoCorpo = reduceMotion
     ? { y: 0 }
     : enviando
@@ -152,7 +152,7 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
             >
               <span
                 className="absolute rounded-full bg-white"
-                style={{ width: 2.5, height: 2.5, right: 1.6, top: 1.3, opacity: piscando ? 0 : 0.95 }}
+                style={{ width: 2.2, height: 2.2, right: 1.4, top: 1.2, opacity: piscando ? 0 : 0.95 }}
               />
             </motion.span>
           ))}

@@ -323,7 +323,7 @@ const DashboardHomePage = () => {
 
       <div className="mx-auto w-full max-w-[940px] px-4 pb-16">
         {/* Boas-vindas centralizada, com o nome da loja sublinhado. */}
-        <motion.div {...revealProps(0.05, 10)} className="pt-12 text-center">
+        <motion.div {...revealProps(0.05, 10)} className="pt-24 text-center">
           <h1 className="m-0 text-[30px] font-normal leading-[1.2] tracking-[-0.02em] text-[#0B0D12]">
             Bem-vindo à Velo
             <br />
@@ -335,7 +335,7 @@ const DashboardHomePage = () => {
         </motion.div>
 
         {/* Caixa do Atlas: envia a primeira mensagem; a conversa abre no painel do Atlas. */}
-        <motion.div {...revealProps(0.1, 10)} className="mt-16">
+        <motion.div {...revealProps(0.1, 10)} className="mt-20">
           <AtlasPromptBox />
         </motion.div>
 

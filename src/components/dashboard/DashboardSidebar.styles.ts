@@ -15,7 +15,8 @@ export const styles = {
     padding: "0 12px 16px",
     borderRadius: 0,
     border: 0,
-    borderRight: "1px solid #ECEEF2",
+    // Sem borda: a página fica numa moldura branca ao lado, sobre o mesmo cinza.
+    borderRight: "none",
     // Fundo cinza bem claro, como na referência ("Mova"); a pílula ativa é branca.
     background: "#F7F7F8",
     transition: "width 220ms ease-out",
