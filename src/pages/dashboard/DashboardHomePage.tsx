@@ -11,7 +11,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import cardTemasImg from "@/assets/home-card-temas.webp";
-import bannerAgentes from "@/assets/home-banner-agentes.webp";
+import bannerBusca from "@/assets/home-banner-busca.webp";
 import agenteLua from "@/assets/agentes/lua.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
@@ -577,20 +577,20 @@ const DashboardHomePage = () => {
 
         <div className="relative">
           <div>
-            {/* Banner dos agentes: faixa baixa (280px), recortada no arco dos agentes. */}
+            {/* Banner da busca: imagem inteira (sem corte) numa faixa de 340px; as laterais usam a cor do fundo dela. */}
             {mostrarDestaque && (
               <motion.section
                 {...revealProps(0.3, 12)}
                 data-dashboard-tour="home-primeiros-passos"
-                aria-label="Agentes da Velo"
-                className="mt-6 overflow-hidden rounded-[20px]"
+                aria-label="Destaque da Velo"
+                className="mt-6 overflow-hidden rounded-[20px] bg-[#FBF2F2]"
               >
                 <img
-                  src={bannerAgentes}
-                  alt="Pessoa de costas sob o céu azul, com os agentes da Velo e ícones de loja, imagens, ofertas e clientes em arco"
-                  width={1672}
-                  height={941}
-                  className="block h-[280px] w-full select-none object-cover object-[center_18%]"
+                  src={bannerBusca}
+                  alt="Barra de busca por projetos entre fotos de produtos, com etiquetas de vendas, catálogo e preços"
+                  width={1642}
+                  height={958}
+                  className="mx-auto block h-[340px] w-auto select-none object-contain [mask-image:linear-gradient(to_right,transparent,#000_6%,#000_94%,transparent)]"
                   draggable={false}
                 />
               </motion.section>
