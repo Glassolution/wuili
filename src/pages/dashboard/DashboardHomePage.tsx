@@ -5,7 +5,6 @@ import {
   Archive,
   ArrowRight,
   ArrowUpRight,
-  FileText,
   Flame,
   FolderOpen,
   Image as ImageIcon,
@@ -29,7 +28,6 @@ import agenteLua from "@/assets/agentes/lua.png";
 import agenteSino from "@/assets/agentes/sino.png";
 import agenteConcha from "@/assets/agentes/concha.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
-import agenteFolha from "@/assets/agentes/folha.png";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
@@ -112,17 +110,7 @@ const FERRAMENTAS: Record<"comecar" | "avancado", Ferramenta[]> = {
       agente: agenteCubo,
       to: "/dashboard/modelos",
     },
-    {
-      id: "paginas-com-ia",
-      titulo: "Páginas com IA",
-      categoria: "Vendas",
-      descricao: "Gere a página de venda de um produto.",
-      etiquetas: ["IA", "Página de venda"],
-      icone: FileText,
-      cor: "#0E7C66",
-      agente: agenteFolha,
-      to: "/dashboard/paginas-com-ia",
-    },
+    // "Páginas com IA" não entra: as páginas geradas ficam no cartão Projetos.
   ],
   avancado: [
     {
