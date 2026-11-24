@@ -577,7 +577,7 @@ const DashboardHomePage = () => {
 
         <div className="relative">
           <div>
-            {/* Banner "Loja, Agentes, Resultados": imagem inteira (sem corte) numa faixa de 400px; o fundo da faixa tem a cor do fundo dela. */}
+            {/* Banner "Loja, Agentes, Resultados": imagem inteira (sem corte) numa faixa de 280px; o fundo da faixa tem a cor do fundo dela. */}
             {mostrarDestaque && (
               <motion.section
                 {...revealProps(0.3, 12)}
@@ -590,7 +590,7 @@ const DashboardHomePage = () => {
                   alt="Loja, Agentes, Resultados. Você cria a loja. Os agentes cuidam dela."
                   width={1672}
                   height={941}
-                  className="mx-auto block h-[400px] w-auto select-none object-contain"
+                  className="mx-auto block h-[280px] w-auto select-none object-contain"
                   draggable={false}
                 />
               </motion.section>
