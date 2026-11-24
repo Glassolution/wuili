@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ElementType, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { Archive, ArrowRight, BadgePercent, Check, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
+import { Archive, ArrowRight, BadgePercent, Check, ExternalLink, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, PenLine, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -74,6 +76,52 @@ const HOME_CSS = `
 }
 `;
 
+// "há 5 min", "há 3 h", "há 2 d" — e a data curta para o que passou de uma semana.
+const tempoRelativo = (iso: string, agora = Date.now()) => {
+  const diff = Math.max(0, agora - new Date(iso).getTime());
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const horas = Math.floor(min / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  if (dias < 7) return `há ${dias} d`;
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+};
+
+type EventoDoSite = {
+  id: string;
+  projeto: UserProject;
+  acao: string;
+  quando: string;
+};
+
+/**
+ * Atividade do site da loja, montada só com o que o banco registra de cada
+ * projeto (criação, última edição e publicação). Ainda não existe registro de
+ * qual agente fez cada mudança, então nenhuma linha leva nome ou foto de agente.
+ */
+const eventosDoSite = (projetos: UserProject[]): EventoDoSite[] => {
+  const eventos: EventoDoSite[] = [];
+  for (const projeto of projetos) {
+    const criado = new Date(projeto.created_at).getTime();
+    eventos.push({ id: `${projeto.id}-criado`, projeto, acao: "Criou o rascunho do site", quando: projeto.created_at });
+    const editado = projeto.last_edited_at ? new Date(projeto.last_edited_at).getTime() : 0;
+    if (editado - criado > 60_000) {
+      eventos.push({ id: `${projeto.id}-editado`, projeto, acao: "Atualizou o site", quando: projeto.last_edited_at });
+    }
+    if (projeto.published_at) {
+      eventos.push({ id: `${projeto.id}-publicado`, projeto, acao: "Publicou o site", quando: projeto.published_at });
+    }
+  }
+  return eventos.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime()).slice(0, 5);
+};
+
+const slugDoProjeto = (projeto: UserProject) => {
+  const meta = projeto.metadata as Record<string, unknown> | null;
+  return meta && typeof meta.slug === "string" && meta.slug.trim() ? meta.slug.trim() : null;
+};
+
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -81,6 +129,13 @@ const DashboardHomePage = () => {
   const [avatarFalhou, setAvatarFalhou] = useState(false);
   const [menuMaisAberto, setMenuMaisAberto] = useState(false);
   const [aba, setAba] = useState<"visao-geral" | "primeiros-passos" | "ferramentas" | "atividade">("visao-geral");
+  // Mesma leitura da tela "Minha loja" (RPC get_user_projects), sem consulta nova.
+  const projetosDaLoja = useQuery({
+    queryKey: ["home-projetos-da-loja", user?.id],
+    enabled: Boolean(user?.id),
+    staleTime: 60_000,
+    queryFn: fetchUserProjects,
+  });
   const reduceMotion = useReducedMotion();
   const introDecisionMade = useRef<string | null>(null);
   // "waiting": o onboarding está na frente da home. A intro fica guardada para
@@ -347,17 +402,18 @@ const DashboardHomePage = () => {
     { id: "atividade", label: "Atividade" },
   ] as const;
   const mostrarDestaque = aba === "visao-geral" || aba === "primeiros-passos";
+  const mostrarAtividade = aba === "visao-geral" || aba === "atividade";
+  const eventos = eventosDoSite(projetosDaLoja.data ?? []);
+  const abrirEditor = (projeto: UserProject) =>
+    navigate(`/minha-loja/editor/${projeto.id}`, { state: { projectId: projeto.id, sourceId: projeto.source_id } });
   const listas: { titulo: string; linhas: Linha[] }[] =
     aba === "visao-geral"
-      ? [
-          { titulo: "Atividade recente", linhas: [linhaProximoPasso, linhaMercadoLivre, linhaPublicacao] },
-          { titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] },
-        ]
+      ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
       : aba === "primeiros-passos"
-        ? [{ titulo: "Primeiros passos", linhas: [linhaTemas, linhaMercadoLivre, linhaPublicacao] }]
+        ? [{ titulo: "Primeiros passos", linhas: [linhaProximoPasso, linhaTemas, linhaMercadoLivre, linhaPublicacao] }]
         : aba === "ferramentas"
           ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
-          : [{ titulo: "Atividade recente", linhas: [linhaProximoPasso, linhaMercadoLivre, linhaPublicacao] }];
+          : [];
 
   return (
     <main
@@ -560,11 +616,94 @@ const DashboardHomePage = () => {
               </motion.section>
             )}
 
+            {/* Atividade recente: o trabalho no site da loja, no desenho "Recent
+                activity" da referência. Sem foto: os agentes ainda não têm imagem. */}
+            {mostrarAtividade && (
+              <motion.section {...revealProps(0.38, 12)} aria-labelledby="home-atividade" className="mt-8">
+                <div className="flex items-baseline justify-between gap-4">
+                  <h3 id="home-atividade" className="m-0 text-[15px] font-semibold tracking-[-0.02em]">Atividade recente</h3>
+                  <span className="text-[13px] text-[#8A93A3]">Site da sua loja</span>
+                </div>
+                {projetosDaLoja.isLoading ? (
+                  <ul className="m-0 mt-2 list-none p-0" aria-label="Carregando atividade">
+                    {[0, 1, 2].map((i) => (
+                      <li key={i} className="flex min-h-16 items-center gap-3.5 px-2 py-2.5">
+                        <span className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[#F1F3F6]" />
+                        <span className="flex-1 space-y-2">
+                          <span className="block h-3 w-40 animate-pulse rounded-full bg-[#F1F3F6]" />
+                          <span className="block h-3 w-64 animate-pulse rounded-full bg-[#F5F6F8]" />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : projetosDaLoja.isError ? (
+                  <p className="m-0 mt-3 px-2 text-[13px] text-[#8A93A3]">Não foi possível carregar a atividade da loja agora.</p>
+                ) : eventos.length === 0 ? (
+                  <div className="mt-2 flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
+                    <span aria-hidden="true" className="h-10 w-10 shrink-0 rounded-full border border-dashed border-[#DCE0E7] bg-[#F7F8FA]" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-medium text-[#0B0D12]">Nenhuma atividade no site ainda</span>
+                      <span className="block text-[13px] text-[#8A93A3]">Crie o site da sua loja e acompanhe aqui cada mudança.</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={go("/dashboard/minha-loja")}
+                      className="velo-home-secondary flex h-9 shrink-0 items-center gap-2 rounded-[10px] px-3 text-[13px] font-medium text-[#0B0D12]"
+                    >
+                      Criar minha loja
+                      <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <ul className="m-0 mt-2 list-none p-0">
+                    {eventos.map((evento) => {
+                      const slug = evento.projeto.status === "publicado" ? slugDoProjeto(evento.projeto) : null;
+                      return (
+                        <li key={evento.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
+                          {/* Lugar da foto do agente: vazio até existirem as imagens. */}
+                          <span aria-hidden="true" className="h-10 w-10 shrink-0 rounded-full border border-[#ECEEF2] bg-[#F1F3F6]" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{evento.projeto.nome}</span>
+                            <span className="block truncate text-[13px] text-[#8A93A3]">
+                              {evento.acao} · {evento.projeto.tipo_projeto === "loja_completa" ? "Loja completa" : "Página de venda"}
+                            </span>
+                            <span className="block text-[12px] text-[#B4BBC6]">{tempoRelativo(evento.quando)}</span>
+                          </span>
+                          <span className="flex shrink-0 items-center gap-2">
+                            {slug && (
+                              <button
+                                type="button"
+                                onClick={go(`/loja/${slug}`)}
+                                aria-label="Ver site publicado"
+                                title="Ver site publicado"
+                                className="velo-home-secondary flex h-9 w-9 items-center justify-center rounded-[10px] text-[#4B5563]"
+                              >
+                                <ExternalLink size={16} strokeWidth={1.5} aria-hidden="true" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => abrirEditor(evento.projeto)}
+                              aria-label="Abrir no editor"
+                              title="Abrir no editor"
+                              className="velo-home-secondary flex h-9 w-9 items-center justify-center rounded-[10px] text-[#4B5563]"
+                            >
+                              <PenLine size={16} strokeWidth={1.5} aria-hidden="true" />
+                            </button>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </motion.section>
+            )}
+
             {/* Listas no estilo "Recent activity" */}
             {listas.map((lista, indiceLista) => (
               <motion.section
                 key={`${aba}-${lista.titulo}`}
-                {...revealProps(0.38 + indiceLista * 0.08, 12)}
+                {...revealProps(0.46 + indiceLista * 0.08, 12)}
                 aria-label={lista.titulo}
                 className="mt-8"
               >
