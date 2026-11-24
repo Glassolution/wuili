@@ -1,9 +1,11 @@
 # Roadmap
 
 ## Publicação da regra de acesso — 24/11
-- [ ] Topo e Planos sem fallback; sincronizar perfil após CAS da auditoria e rodar testes
-- [ ] Publicar site e todas as funções afetadas pela regra compartilhada
-- [ ] Confirmar impacto por data, conta paga no painel/publicação e primeira execução horária nos logs
+- [x] Topo e Planos usam readAccessPlan sem fallback; syncPaidProfile após CAS; 72 testes e Deno check das 16 funções passaram
+- [x] Site Lovable e 16 funções publicados; Vercel HTTP 200 serve regra por subscriptions sem fallback
+- [x] Na publicação: 41 assinaturas/37 contas vencidas por data, 36 sem outro acesso; conta solicitante exibe BASE no menu autenticado
+- [x] 01:01:01 UTC: checked=36, expired=0, past_due=1, protected=12, unconfirmed=23, conflicts=0; perfil da linha alterada confirmado gratis com backup. Rodada seguinte abortou por HTTP 500 na listagem ValidaPay, sem presumir ausência de pagamento
+- [ ] Publicação autenticada ponta a ponta: conta solicitante precisa reconectar Mercado Livre; nenhum anúncio criado nem sessão de outro cliente usada
 
 ## Remoção definitiva do fallback — 23/11
 - [x] Gatilhos: proteção administrativa + updated_at, sem comunicações; confirmar 834 perfis e caminhos de ativação existentes
