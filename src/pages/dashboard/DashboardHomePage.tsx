@@ -577,7 +577,7 @@ const DashboardHomePage = () => {
 
         <div className="relative">
           <div>
-            {/* Banner dos agentes: a imagem inteira, na proporção original (1672×941). */}
+            {/* Banner dos agentes: faixa baixa (280px), recortada no arco dos agentes. */}
             {mostrarDestaque && (
               <motion.section
                 {...revealProps(0.3, 12)}
@@ -590,7 +590,7 @@ const DashboardHomePage = () => {
                   alt="Pessoa de costas sob o céu azul, com os agentes da Velo e ícones de loja, imagens, ofertas e clientes em arco"
                   width={1672}
                   height={941}
-                  className="block aspect-[1672/941] h-auto w-full select-none object-cover"
+                  className="block h-[280px] w-full select-none object-cover object-[center_18%]"
                   draggable={false}
                 />
               </motion.section>
