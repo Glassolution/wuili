@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CreditCard, FolderOpen, Grid2X2, LogOut, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound } from "lucide-react";
 // Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
-import { ArrowUp01Icon, File01Icon, Folder01Icon, GiftIcon, Home01Icon, Image01Icon, InformationCircleIcon, MoreVerticalIcon, PlusSignIcon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon, UserSquareIcon } from "hugeicons-react";
+import { ArrowUp01Icon, File01Icon, Folder01Icon, Home01Icon, MoreVerticalIcon, PlusSignIcon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,6 @@ import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { AFFILIATE_APPLICATION_EVENT } from "@/pages/dashboard/AffiliateQuizPage";
 import SearchPalette from "@/components/dashboard/SearchPalette";
-import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
@@ -39,8 +38,8 @@ const mainNavItems: NavItem[] = [
   { id: "inicio", label: "Início", icon: Home01Icon, to: "/dashboard", end: true },
   { id: "pedidos", label: "Pedidos", icon: TaskDone01Icon, to: "/dashboard/pedidos" },
   { id: "publicacoes", label: "Publicações", icon: File01Icon, to: "/dashboard/publicacoes" },
-  { id: "imagens-ia", label: "Imagens com IA", icon: Image01Icon, to: "/dashboard/imagens-ia" },
-  { id: "avatares", label: "Avatares", icon: UserSquareIcon, to: "/dashboard/avatares" },
+  // Imagens com IA e Avatares saíram do menu (24/11/2026, a pedido do dono); as
+  // rotas /dashboard/imagens-ia e /dashboard/avatares continuam funcionando.
   // { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
 
@@ -405,7 +404,6 @@ const DashboardSidebar = () => {
   const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
   const reduce = !!useReducedMotion();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
   // Evita ícone quebrado/circulo vazio quando a foto do perfil não existe ou
   // falha ao carregar (ex.: URL de storage inválida). Nesses casos cai para o
   // ícone genérico de usuário em vez de depender de um asset externo.
@@ -734,7 +732,6 @@ const DashboardSidebar = () => {
       {/* Barra de busca removida da sidebar. A paleta de busca continua
           acessível pelo atalho de teclado "/". */}
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} isAdmin={isAdmin} />
-      <InviteFriendModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <div className="velo-sidebar-scroll" style={styles.scrollArea}>
         <nav aria-label="Navegação principal" style={styles.nav}>
@@ -839,27 +836,8 @@ const DashboardSidebar = () => {
             </>
           )}
 
-          <div style={styles.sectionDivider} />
-
-          {recolhida ? null : <SectionLabel>Suporte</SectionLabel>}
-          {/* A Central de Ajuda (/ajuda) não aparece em menus: só por link direto. */}
-          <SidebarNavLink
-            item={{ id: "comunidade", label: "Comunidade e Ajuda", icon: InformationCircleIcon, to: "/dashboard/comunidade" }}
-            active={isActive({ id: "comunidade", label: "", icon: InformationCircleIcon, to: "/dashboard/comunidade" })}
-            reduce={reduce}
-            recolhida={recolhida}
-          />
-          <button
-            type="button"
-            onClick={() => setInviteOpen(true)}
-            className="velo-nav-item"
-            aria-label={recolhida ? "Indique e ganhe" : undefined}
-            title={recolhida ? "Indique e ganhe" : "Ganhe 30% na primeira venda"}
-            style={{ ...styles.navLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#3F3F46", ...(recolhida ? { justifyContent: "center", padding: 0 } : null) }}
-          >
-            <GiftIcon className="velo-nav-ico" size={18} strokeWidth={1.5} color="#52525B" aria-hidden="true" />
-            {recolhida ? null : <span style={rotuloStyle}>Indique e ganhe</span>}
-          </button>
+          {/* Seção "Suporte" (Comunidade e Ajuda, Indique e ganhe) saiu da sidebar por
+              enquanto (24/11/2026): vai para outro lugar. /dashboard/comunidade segue no ar. */}
         </nav>
 
       {/* Bloco inferior: segue a navegação no mesmo fluxo, evitando o vão
