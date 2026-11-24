@@ -18,7 +18,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
-import mascoteImg from "@/assets/mascote-velo-acenando.webp";
+import AtlasMascote from "@/components/dashboard/AtlasMascote";
 
 // Atalhos da barra de baixo: preenchem a caixa com uma pergunta pronta (não enviam).
 const ATALHOS: {
@@ -188,35 +188,13 @@ const AtlasPromptBox = () => {
     <div className="mx-auto w-full max-w-[620px]">
       <style>{BOX_CSS}</style>
 
-      {/* Mascote espiando por trás da caixa: só o topo aparece; sobe um pouco quando a caixa ganha foco. */}
+      {/* Mascote com as mãos na borda da caixa: olhos seguem o cursor, pisca, espia mais com foco e pula ao clicar. */}
       <div className="relative">
-        <motion.img
-          src={mascoteImg}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          width={104}
-          height={141}
-          className="pointer-events-none absolute right-5 z-0 select-none"
-          style={{
-            bottom: "calc(100% - 78px)",
-            width: 104,
-            height: "auto",
-            filter: "drop-shadow(0 6px 10px rgba(20,30,120,0.10))",
-          }}
-          initial={reduceMotion ? false : { y: 48, opacity: 0 }}
-          animate={{ y: focada || mensagem ? -8 : 0, opacity: 1 }}
-          transition={
-            reduceMotion
-              ? { duration: 0 }
-              : {
-                  type: "spring",
-                  stiffness: 260,
-                  damping: 22,
-                  delay: 0,
-                  opacity: { duration: 0.2 },
-                }
-          }
+        <AtlasMascote
+          focada={focada}
+          digitando={mensagem.length > 0}
+          enviando={enviando}
+          onClick={() => textoRef.current?.focus()}
         />
         <form
           onSubmit={enviarMensagem}
