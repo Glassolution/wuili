@@ -69,10 +69,13 @@ const BOX_CSS = `
 .velo-atlas-enviar { transition: background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out; }
 .velo-atlas-enviar:hover:not(:disabled) { background: #2A2A2A; }
 .velo-atlas-enviar:disabled { cursor: default; }
+/* O dashboard dá brilho/sombra a todo botão; aqui os botões ficam lisos como na referência. */
+.velo-atlas-box .velo-atlas-enviar, .velo-atlas-box .velo-atlas-icone { box-shadow: none; }
+.velo-atlas-enviar.vazio { background: transparent; color: #303030; }
 .velo-atlas-enviar:active:not(:disabled) { transform: scale(0.96); }
 .velo-atlas-dica { opacity: 0; transform: translate(-50%, 4px); transition: opacity 140ms ease-out, transform 140ms ease-out; }
 .velo-atlas-com-dica:hover .velo-atlas-dica, .velo-atlas-com-dica:focus-visible .velo-atlas-dica { opacity: 1; transform: translate(-50%, 0); }
-.velo-atlas-icone:focus-visible, .velo-atlas-enviar:focus-visible {
+.velo-atlas-box .velo-atlas-icone:focus-visible, .velo-atlas-box .velo-atlas-enviar:focus-visible {
   outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(124,92,250,0.45);
 }
 .velo-atlas-texto::placeholder { color: transparent; }
@@ -301,7 +304,9 @@ const AtlasPromptBox = () => {
               aria-label={
                 enviando ? "Enviando para o Atlas" : "Enviar para o Atlas"
               }
-              className="velo-atlas-enviar ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#000000] text-white"
+              className={`velo-atlas-enviar ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-[#000000] text-white ${
+                podeEnviar || enviando ? "" : "vazio"
+              }`}
             >
               {enviando ? (
                 <Loader2
@@ -311,7 +316,11 @@ const AtlasPromptBox = () => {
                   className="animate-spin"
                 />
               ) : (
-                <ArrowUp size={18} strokeWidth={2.6} aria-hidden="true" />
+                <ArrowUp
+                  size={18}
+                  strokeWidth={podeEnviar ? 2.6 : 2}
+                  aria-hidden="true"
+                />
               )}
             </button>
           </div>
