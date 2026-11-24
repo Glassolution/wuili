@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ElementType, type FormEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Archive, ArrowRight, ArrowUp, BadgePercent, Check, LayoutTemplate, PlayCircle, Plus, Search, Sparkles, Store, UserRound } from "lucide-react";
+import { Archive, ArrowRight, ArrowUp, BadgePercent, Check, FileText, LayoutTemplate, Link2, PlayCircle, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -123,8 +123,18 @@ const HOME_CSS = `
 .velo-home-secondary:hover:not(:disabled) { background: #F7F8FA; border-color: #DCE0E7; }
 .velo-home-ghost { background: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .velo-home-ghost:hover { background: #F1F3F6; color: #0B0D12; }
+/* A exceção velo-fonte-inter liga números tabulares, que abrem o hífen de "Bem-vindo". */
+.dashboard-inter .velo-fonte-inter.velo-home-root, .dashboard-inter .velo-fonte-inter.velo-home-root * { font-feature-settings: normal !important; }
+/* O painel força Hanken Grotesk com !important; o título do destaque usa a serifa da referência. */
+.dashboard-inter .velo-fonte-inter .velo-home-serif, .velo-fonte-inter .velo-home-serif {
+  font-family: "Instrument Serif", ui-serif, Georgia, serif !important; font-weight: 400 !important; letter-spacing: -0.01em !important;
+  font-feature-settings: normal !important;
+}
+.dashboard-inter .velo-fonte-inter h1, .dashboard-inter .velo-fonte-inter h3 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -0.02em; }
+.velo-home-row { transition: background-color 150ms ease-out; }
+.velo-home-row:hover { background: #F7F8FA; }
 .velo-home-search { transition: background-color 150ms ease-out; }
-.velo-home-search:hover { background: #ECEEF2; }
+.velo-home-search:hover { background: #EEF0F3; }
 .velo-home-dark:focus-visible, .velo-home-accent:focus-visible, .velo-home-secondary:focus-visible, .velo-home-ghost:focus-visible, .velo-home-search:focus-visible {
   outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45);
 }
@@ -234,6 +244,7 @@ const DashboardHomePage = () => {
   const { user } = useAuth();
   const { nomeCurto, foto } = useProfile();
   const [avatarFalhou, setAvatarFalhou] = useState(false);
+  const [aba, setAba] = useState<"visao-geral" | "primeiros-passos" | "ferramentas" | "atividade">("visao-geral");
   const {
     enviar: enviarParaAtlas,
     mensagens: chatMessages,
@@ -505,7 +516,7 @@ const DashboardHomePage = () => {
     return (
       <main
         aria-hidden="true"
-        className="shrink-0 bg-[#F7F8FA] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+        className="shrink-0 bg-white -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
       />
     );
   }
@@ -519,55 +530,126 @@ const DashboardHomePage = () => {
   const temPublicacao = Boolean(onboardingStatus?.hasPublication);
   const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
   const acaoMercadoLivre = mlConectado ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre;
-  const atividades = [
-    {
-      id: "proximo-passo",
-      icon: Sparkles,
-      title: "Próximo passo",
-      description: nextStepCopy,
-      label: conectandoMl ? "Abrindo…" : nextStepLabel,
-      onClick: handleNextStep,
-      done: false,
-    },
-    {
-      id: "mercado-livre",
-      icon: Store,
-      title: mlConectado ? "Mercado Livre conectado" : "Conectar o Mercado Livre",
-      description: mlConectado
-        ? "Sua conta está pronta para publicar e receber pedidos."
-        : "Conecte sua conta para publicar produtos e receber pedidos.",
+
+  // Linhas no estilo "Recent activity" da referência: miniatura, título,
+  // descrição, uma linha de apoio e ações em botões-ícone à direita.
+  type Linha = {
+    id: string;
+    thumb: ReactNode;
+    title: string;
+    description: string;
+    meta: string;
+    actions: { label: string; icon: ElementType; onClick: () => void; busy?: boolean }[];
+  };
+  const thumbIcone = (Icone: ElementType, cor: string, fundo: string) => (
+    <span className="flex h-full w-full items-center justify-center" style={{ background: fundo, color: cor }}>
+      <Icone size={18} strokeWidth={1.5} />
+    </span>
+  );
+  const thumbImagem = (src: string, extra = "object-cover") => (
+    <img src={src} alt="" className={`h-full w-full ${extra}`} draggable={false} />
+  );
+
+  const linhaProximoPasso: Linha = {
+    id: "proximo-passo",
+    thumb: thumbIcone(Sparkles, "#2F5BEA", "#EEF2FE"),
+    title: "Próximo passo",
+    description: nextStepCopy,
+    meta: onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`,
+    actions: [{ label: conectandoMl ? "Abrindo…" : nextStepLabel, icon: ArrowRight, onClick: handleNextStep, busy: conectandoMl }],
+  };
+  const linhaMercadoLivre: Linha = {
+    id: "mercado-livre",
+    thumb: (
+      <span className="flex h-full w-full items-center justify-center bg-[#FFF8CC]">
+        <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-6 w-6 object-contain" />
+      </span>
+    ),
+    title: "Venda no Mercado Livre",
+    description: "Conecte sua conta, publique anúncios e acompanhe os pedidos.",
+    meta: mlConectado ? "Conta conectada" : "Pronta para conectar",
+    actions: [{
       label: conectandoMl ? "Conectando…" : mlConectado ? "Gerenciar conta" : "Conectar conta",
+      icon: mlConectado ? Settings2 : Link2,
       onClick: acaoMercadoLivre,
-      done: mlConectado,
-    },
-    {
-      id: "publicacao",
-      icon: Archive,
-      title: temPublicacao ? "Primeira publicação feita" : "Fazer a primeira publicação",
-      description: temPublicacao
-        ? "Acompanhe seus anúncios publicados."
-        : "Escolha um produto do catálogo e publique no Mercado Livre.",
+      busy: conectandoMl,
+    }],
+  };
+  const linhaPublicacao: Linha = {
+    id: "publicacao",
+    thumb: thumbIcone(temPublicacao ? Check : Archive, temPublicacao ? "#16A34A" : "#4B5563", temPublicacao ? "#E9F7EF" : "#F1F3F6"),
+    title: temPublicacao ? "Primeira publicação feita" : "Fazer a primeira publicação",
+    description: temPublicacao ? "Acompanhe seus anúncios publicados." : "Escolha um produto do catálogo e publique no Mercado Livre.",
+    meta: temPublicacao ? "Concluído" : "Pendente",
+    actions: [{
       label: temPublicacao ? "Ver publicações" : "Escolher produto",
+      icon: temPublicacao ? FileText : ShoppingBag,
       onClick: go(temPublicacao ? "/dashboard/publicacoes" : "/dashboard/catalogo"),
-      done: temPublicacao,
-    },
-  ];
+    }],
+  };
+  const linhaTemas: Linha = {
+    id: "temas",
+    thumb: thumbImagem(cardTemasImg),
+    title: "Escolha o visual da sua loja",
+    description: "Selecione um template profissional e personalize para refletir a sua marca.",
+    meta: "Templates",
+    actions: [{ label: "Ver temas", icon: LayoutTemplate, onClick: go("/dashboard/modelos") }],
+  };
+  const linhaAfiliados: Linha = {
+    id: "afiliados",
+    thumb: thumbIcone(BadgePercent, "#6D28D9", "#F3EEFF"),
+    title: "Programa de afiliados",
+    description: "Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.",
+    meta: "30% de comissão · por novo cliente",
+    actions: [{ label: "Quero ser afiliado", icon: ArrowRight, onClick: go("/dashboard/comissoes") }],
+  };
+  const linhaPaginaIa: Linha = {
+    id: "pagina-ia",
+    thumb: thumbIcone(Wand2, "#0F766E", "#E6F6F3"),
+    title: "Página de vendas com IA",
+    description: "Crie uma página profissional para apresentar e vender seu produto.",
+    meta: "Velo IA · pronta para publicar",
+    actions: [{ label: "Criar página", icon: Plus, onClick: go("/dashboard/paginas-com-ia/criar") }],
+  };
+
+  const ABAS = [
+    { id: "visao-geral", label: "Visão geral" },
+    { id: "primeiros-passos", label: "Primeiros passos" },
+    { id: "ferramentas", label: "Ferramentas" },
+    { id: "atividade", label: "Atividade" },
+  ] as const;
+  const mostrarDestaque = aba === "visao-geral" || aba === "primeiros-passos";
+  const listas: { titulo: string; linhas: Linha[] }[] =
+    aba === "visao-geral"
+      ? [
+          { titulo: "Atividade recente", linhas: [linhaProximoPasso, linhaMercadoLivre, linhaPublicacao] },
+          { titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] },
+        ]
+      : aba === "primeiros-passos"
+        ? [{ titulo: "Primeiros passos", linhas: [linhaTemas, linhaMercadoLivre, linhaPublicacao] }]
+        : aba === "ferramentas"
+          ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
+          : [{ titulo: "Atividade recente", linhas: [linhaProximoPasso, linhaMercadoLivre, linhaPublicacao] }];
 
   return (
     <main
-      className="shrink-0 overflow-auto bg-[#F7F8FA] text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      className="velo-fonte-inter velo-home-root shrink-0 overflow-auto bg-white text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
     >
       <style>{HOME_CSS}</style>
 
-      {/* Header da área principal */}
-      <motion.header
-        {...revealProps(0, -6)}
-        className="flex h-[72px] items-center justify-between gap-4 px-4 md:px-10"
-      >
+      {/* Header: busca à esquerda, "+" azul e avatar à direita (como na referência). */}
+      <motion.header {...revealProps(0, -6)} className="flex h-[72px] items-center justify-between gap-4 px-4 md:px-10">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="text-[13px] font-medium text-[#8A93A3]">Início</span>
-          {/* Histórico das conversas: só com o chat aberto e com conversa
-              anterior de verdade — num primeiro acesso abriria uma lista vazia. */}
+          <button
+            type="button"
+            onClick={abrirBusca}
+            aria-label="Buscar produtos, lojas e telas"
+            className="velo-home-search flex h-10 w-[320px] max-w-full items-center gap-2.5 rounded-full bg-[#F5F6F8] px-4 text-left text-[14px] text-[#8A93A3]"
+          >
+            <Search size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span className="flex-1 truncate">Buscar produtos, lojas...</span>
+          </button>
+          {/* Histórico das conversas: só com o chat aberto e com conversa anterior. */}
           <AnimatePresence>
             {chatActive && temHistorico && (
               <motion.div
@@ -584,47 +666,19 @@ const DashboardHomePage = () => {
                   onSelectThread={abrirConversa}
                   onThreadDeleted={aoApagarConversa}
                   triggerLabel="Suas conversas"
-                  triggerStyle={{
-                    height: 36,
-                    borderRadius: 999,
-                    border: "1px solid #ECEEF2",
-                    background: "#FFFFFF",
-                    boxShadow: "none",
-                    color: "#0B0D12",
-                    fontSize: 13,
-                  }}
+                  triggerStyle={{ height: 36, borderRadius: 999, border: "1px solid #ECEEF2", background: "#FFFFFF", boxShadow: "none", color: "#0B0D12", fontSize: 13 }}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-
-        <div className="flex shrink-0 items-center gap-2.5">
-          <button
-            type="button"
-            onClick={abrirBusca}
-            aria-label="Buscar produtos, lojas e telas"
-            className="velo-home-search hidden h-10 w-[320px] items-center gap-2.5 rounded-full bg-[#F1F3F6] px-4 text-left text-[14px] text-[#8A93A3] lg:flex"
-          >
-            <Search size={16} strokeWidth={1.5} aria-hidden="true" />
-            <span className="flex-1 truncate">Buscar produtos, lojas...</span>
-            <kbd className="rounded-md bg-white px-1.5 text-[11px] font-medium text-[#8A93A3]">/</kbd>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTutorialOpen(true)}
-            aria-label="Ver tutorial de início"
-            className="velo-home-ghost flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-[#4B5563]"
-          >
-            <PlayCircle size={18} strokeWidth={1.5} aria-hidden="true" />
-            Ver tutorial
-          </button>
+        <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
             onClick={go("/dashboard/catalogo")}
             aria-label="Adicionar produto"
             title="Adicionar produto"
-            className="velo-home-accent flex h-10 w-10 items-center justify-center rounded-full text-white"
+            className="velo-home-accent flex h-10 w-10 items-center justify-center rounded-full text-white shadow-[0_6px_16px_rgba(47,91,234,0.28)]"
           >
             <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
           </button>
@@ -632,7 +686,7 @@ const DashboardHomePage = () => {
             type="button"
             onClick={go("/dashboard/configuracoes")}
             aria-label="Configurações da conta"
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#ECEEF2] bg-[#F1F3F6] text-[#8A93A3]"
+            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#F1F3F6] text-[#8A93A3]"
           >
             {foto && !avatarFalhou ? (
               <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
@@ -643,94 +697,101 @@ const DashboardHomePage = () => {
         </div>
       </motion.header>
 
-      <div className="mx-auto w-full max-w-[1200px] px-4 pb-12 md:px-10">
-        {/* Hero */}
-        <div className="flex flex-col items-center pt-8 text-center md:pt-12">
-          <motion.h1
-            {...revealProps(0.05, 10)}
-            className="m-0 text-[28px] font-semibold leading-tight tracking-[-0.02em] text-[#0B0D12] md:text-[32px]"
-          >
-            {primeiroNome ? `Bem-vindo, ${primeiroNome}` : "Bem-vindo à Velo"}
-          </motion.h1>
-          <motion.p
-            {...revealProps(0.12, 10)}
-            className="m-0 mt-1.5 text-[15px] text-[#8A93A3]"
-          >
-            Por onde você quer começar?
-          </motion.p>
+      <div className="w-full max-w-[1120px] px-4 pb-14 md:px-10">
+        {/* Título da página */}
+        <motion.div {...revealProps(0.05, 10)} className="pt-4">
+          <p className="m-0 text-[13px] text-[#8A93A3]">Início /</p>
+          <div className="mt-3 flex items-start justify-between gap-6">
+            <div className="min-w-0">
+              <h1 className="m-0 text-[32px] font-semibold leading-tight tracking-[-0.02em]">
+                {primeiroNome ? `Bem-vindo, ${primeiroNome}` : "Bem-vindo à Velo"}
+              </h1>
+              <p className="m-0 mt-1.5 text-[15px] text-[#8A93A3]">Por onde você quer começar?</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(true)}
+              aria-label="Ver tutorial de início"
+              className="velo-home-ghost mt-1 flex h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium text-[#0B0D12]"
+            >
+              <PlayCircle size={16} strokeWidth={1.5} aria-hidden="true" />
+              Ver tutorial
+            </button>
+          </div>
+        </motion.div>
 
-          <motion.div
-            {...revealProps(0.22, 12)}
-            ref={welcomeChatRef}
-            data-dashboard-tour="home-atlas-chat"
-            role="search"
-            aria-label="Assistente Atlas"
-            aria-expanded={chatActive}
-            onClick={() => setChatActive(true)}
-            className="relative z-[32] mt-7 flex h-14 w-full max-w-[720px] items-center rounded-full border bg-white pl-3 pr-2.5"
-            style={{
-              borderColor: chatActive ? "rgba(47, 91, 234, 0.28)" : "#ECEEF2",
-              boxShadow: chatActive ? CARD_SHADOW_FOCO : CARD_SHADOW,
-              transition: "border-color 320ms ease, box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+        {/* Barra do Atlas (mesma lógica de antes) */}
+        <motion.div
+          {...revealProps(0.14, 10)}
+          ref={welcomeChatRef}
+          data-dashboard-tour="home-atlas-chat"
+          role="search"
+          aria-label="Assistente Atlas"
+          aria-expanded={chatActive}
+          onClick={() => setChatActive(true)}
+          className="relative z-[32] mt-6 flex h-14 w-full items-center rounded-full border bg-white pl-3 pr-2.5"
+          style={{
+            borderColor: chatActive ? "rgba(47, 91, 234, 0.28)" : "#ECEEF2",
+            boxShadow: chatActive ? CARD_SHADOW_FOCO : CARD_SHADOW,
+            transition: "border-color 320ms ease, box-shadow 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+        >
+          <form onSubmit={handleChatSubmit} className="flex min-w-0 flex-1 items-center">
+            <span aria-hidden="true" className="mr-3 inline-flex h-8 w-8 shrink-0 items-center justify-center">
+              <AssistantAvatar />
+            </span>
+            <span className="relative flex h-full min-w-0 flex-1 items-center">
+              <AnimatePresence mode="wait" initial={false}>
+                {!chatActive && !chatInput.trim() && (
+                  <AnimatedPromptText
+                    key={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
+                    text={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
+                    reduceMotion={Boolean(reduceMotion)}
+                  />
+                )}
+              </AnimatePresence>
+              <input
+                ref={chatInputRef}
+                value={chatInput}
+                onFocus={() => setChatActive(true)}
+                onChange={(event) => setChatInput(event.target.value)}
+                aria-label="Mensagem para o Atlas"
+                placeholder={chatActive ? "Pergunte qualquer coisa..." : ""}
+                className="relative z-[1] w-full min-w-0 border-0 bg-transparent text-left text-[15px] text-[#0B0D12] outline-none placeholder:text-[#8A93A3]"
+                style={{ caretColor: "#2F5BEA" }}
+              />
+            </span>
+          </form>
+          <button
+            type="button"
+            aria-label="Escolher produto"
+            onClick={(event) => {
+              event.stopPropagation();
+              navigate("/dashboard/catalogo");
             }}
+            className="velo-home-ghost mr-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
           >
-            <form onSubmit={handleChatSubmit} className="flex min-w-0 flex-1 items-center">
-              <span aria-hidden="true" className="mr-3 inline-flex h-8 w-8 shrink-0 items-center justify-center">
-                <AssistantAvatar />
-              </span>
-              <span className="relative flex h-full min-w-0 flex-1 items-center">
-                <AnimatePresence mode="wait" initial={false}>
-                  {!chatActive && !chatInput.trim() && (
-                    <AnimatedPromptText
-                      key={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
-                      text={CHAT_PROMPT_SUGGESTIONS[promptSuggestionIndex]}
-                      reduceMotion={Boolean(reduceMotion)}
-                    />
-                  )}
-                </AnimatePresence>
-                <input
-                  ref={chatInputRef}
-                  value={chatInput}
-                  onFocus={() => setChatActive(true)}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  aria-label="Mensagem para o Atlas"
-                  placeholder={chatActive ? "Pergunte qualquer coisa..." : ""}
-                  className="relative z-[1] w-full min-w-0 border-0 bg-transparent text-left text-[15px] text-[#0B0D12] outline-none placeholder:text-[#8A93A3]"
-                  style={{ caretColor: "#2F5BEA" }}
-                />
-              </span>
-            </form>
-            <button
-              type="button"
-              aria-label="Escolher produto"
-              onClick={(event) => {
-                event.stopPropagation();
-                navigate("/dashboard/catalogo");
-              }}
-              className="velo-home-ghost mr-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
-            >
-              <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              aria-label="Enviar"
-              disabled={chatActive && !chatInput.trim()}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (!chatActive) {
-                  setChatActive(true);
-                  return;
-                }
-                void enviarParaAtlas(chatInput);
-              }}
-              className="velo-home-accent flex h-9 w-9 items-center justify-center rounded-full text-white disabled:cursor-default disabled:opacity-40"
-            >
-              <ArrowUp size={18} strokeWidth={2} aria-hidden="true" />
-            </button>
-          </motion.div>
-        </div>
+            <Plus size={18} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Enviar"
+            disabled={chatActive && !chatInput.trim()}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!chatActive) {
+                setChatActive(true);
+                return;
+              }
+              void enviarParaAtlas(chatInput);
+            }}
+            className="velo-home-accent flex h-9 w-9 items-center justify-center rounded-full text-white disabled:cursor-default disabled:opacity-40"
+          >
+            <ArrowUp size={18} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </motion.div>
 
-        <div className="relative mx-auto mt-10 w-full max-w-[1120px]">
+        <div className="relative mt-6">
           <motion.div
             aria-hidden={chatActive}
             initial={false}
@@ -738,242 +799,138 @@ const DashboardHomePage = () => {
               ? { opacity: 0, y: reduceMotion ? 0 : 16, filter: "blur(6px)" }
               : { opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: reduceMotion ? 0 : 0.36, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col gap-4"
             style={{ pointerEvents: chatActive ? "none" : "auto" }}
           >
-            {/* Linha 1: primeiros passos */}
-            <motion.div
-              {...revealProps(0.34, 14)}
-              data-dashboard-tour="home-primeiros-passos"
-              className="grid grid-cols-1 gap-4 lg:grid-cols-2"
-            >
-              <section aria-labelledby="home-card-produto" className="velo-home-card grid grid-cols-1 gap-6 p-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-                <div className="flex min-w-0 flex-col items-start">
-                  <span className="text-[12px] font-medium text-[#8A93A3]">01</span>
-                  <h2 id="home-card-produto" className="m-0 mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">
-                    Adicione seu primeiro produto
-                  </h2>
-                  <p className="m-0 mt-2 text-[14px] leading-relaxed text-[#4B5563]">
-                    Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
-                  </p>
+            {/* Abas */}
+            <motion.div {...revealProps(0.22, 8)} role="tablist" aria-label="Seções da Início" className="flex gap-7 border-b border-[#ECEEF2]">
+              {ABAS.map((item) => {
+                const ativa = aba === item.id;
+                return (
                   <button
+                    key={item.id}
                     type="button"
-                    onClick={go("/dashboard/catalogo")}
-                    className="velo-home-dark mt-6 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-medium text-white sm:mt-auto"
+                    role="tab"
+                    aria-selected={ativa}
+                    onClick={() => setAba(item.id)}
+                    className="relative -mb-px h-10 text-[14px] font-medium transition-colors duration-150"
+                    style={{ color: ativa ? "#2F5BEA" : "#8A93A3" }}
                   >
-                    Adicionar produto
-                    <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="relative min-h-[200px] overflow-hidden rounded-[14px] bg-[#F7F8FA]">
-                  <img src={cardProdutoImg} alt="" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
-                  {/* O "+" é parte da foto: este botão fica por cima e leva ao mesmo destino. */}
-                  <button
-                    type="button"
-                    onClick={go("/dashboard/catalogo")}
-                    aria-label="Adicionar produto"
-                    title="Adicionar produto"
-                    className="absolute rounded-[16%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(11,13,18,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5BEA]/60"
-                    style={{ left: "30%", top: "65%", width: "23%", height: "28.6%" }}
-                  />
-                </div>
-              </section>
-
-              <section aria-labelledby="home-card-temas" className="velo-home-card grid grid-cols-1 gap-6 p-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-                <div className="flex min-w-0 flex-col items-start">
-                  <span className="text-[12px] font-medium text-[#8A93A3]">02</span>
-                  <h2 id="home-card-temas" className="m-0 mt-3 text-[20px] font-semibold leading-tight tracking-[-0.02em]">
-                    Escolha o visual da sua loja
-                  </h2>
-                  <p className="m-0 mt-2 text-[14px] leading-relaxed text-[#4B5563]">
-                    Selecione um template profissional e personalize para refletir a sua marca.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={go("/dashboard/modelos")}
-                    className="velo-home-secondary mt-6 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12] sm:mt-auto"
-                  >
-                    Ver temas
-                    <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="relative min-h-[200px] overflow-hidden rounded-[14px] bg-[#F7F8FA]">
-                  <img src={cardTemasImg} alt="" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
-                </div>
-              </section>
-            </motion.div>
-
-            {/* Linha 2: atalhos */}
-            <motion.div {...revealProps(0.46, 14)} className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-              <section aria-labelledby="affiliate-card-title" className="velo-home-card flex flex-col p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F1F3F6] text-[#2F5BEA]">
-                    <BadgePercent size={18} strokeWidth={1.5} />
-                  </span>
-                  <span className="rounded-full bg-[#EEF2FE] px-2.5 py-1 text-[12px] font-medium text-[#2F5BEA]">
-                    30% na primeira venda
-                  </span>
-                </div>
-                <h3 id="affiliate-card-title" className="m-0 mt-5 text-[16px] font-semibold tracking-[-0.02em]">
-                  Programa de afiliados
-                </h3>
-                <p className="m-0 mt-1.5 text-[14px] leading-relaxed text-[#4B5563]">
-                  Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.
-                </p>
-                <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
-                  {["Por novo cliente", "Ganhos acompanhados"].map((benefit) => (
-                    <li key={benefit} className="flex items-center gap-2 text-[13px] text-[#4B5563]">
-                      <Check size={14} strokeWidth={1.75} className="text-[#2F5BEA]" aria-hidden="true" />
-                      {benefit}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={go("/dashboard/comissoes")}
-                  className="velo-home-secondary mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12]"
-                >
-                  Quero ser afiliado
-                  <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                </button>
-              </section>
-
-              <section aria-labelledby="ai-page-card-title" className="velo-home-card flex flex-col p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F1F3F6] text-[#2F5BEA]">
-                    <LayoutTemplate size={18} strokeWidth={1.5} />
-                  </span>
-                  <span className="flex items-center gap-1.5 rounded-full bg-[#F1F3F6] px-2.5 py-1 text-[12px] font-medium text-[#4B5563]">
-                    <Sparkles size={12} strokeWidth={1.75} aria-hidden="true" /> Velo IA
-                  </span>
-                </div>
-                <h3 id="ai-page-card-title" className="m-0 mt-5 text-[16px] font-semibold tracking-[-0.02em]">
-                  Página de vendas com IA
-                </h3>
-                <p className="m-0 mt-1.5 text-[14px] leading-relaxed text-[#4B5563]">
-                  Crie uma página profissional para apresentar e vender seu produto.
-                </p>
-                <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
-                  <li className="flex items-center gap-2 text-[13px] text-[#4B5563]">
-                    <Check size={14} strokeWidth={1.75} className="text-[#2F5BEA]" aria-hidden="true" />
-                    Pronta para publicar
-                  </li>
-                </ul>
-                <button
-                  type="button"
-                  onClick={go("/dashboard/paginas-com-ia/criar")}
-                  className="velo-home-secondary mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12] xl:mt-auto"
-                >
-                  Criar página
-                  <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                </button>
-              </section>
-
-              <section aria-labelledby="ml-card-title" className="velo-home-card flex flex-col p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#F1F3F6]">
-                    <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-6 w-6 object-contain" />
-                  </span>
-                  <span className="flex items-center gap-1.5 rounded-full bg-[#F1F3F6] px-2.5 py-1 text-[12px] font-medium text-[#4B5563]">
-                    <span
-                      aria-hidden="true"
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ background: mlConectado ? "#16A34A" : "#B4BBC6" }}
-                    />
-                    {mlConectado ? "Conta conectada" : "Pronta para conectar"}
-                  </span>
-                </div>
-                <h3 id="ml-card-title" className="m-0 mt-5 text-[16px] font-semibold tracking-[-0.02em]">
-                  Venda no Mercado Livre
-                </h3>
-                <p className="m-0 mt-1.5 text-[14px] leading-relaxed text-[#4B5563]">
-                  Conecte sua conta, publique anúncios e acompanhe os pedidos.
-                </p>
-                <ul className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
-                  {["Publicação simplificada", "Pedidos sincronizados"].map((benefit) => (
-                    <li key={benefit} className="flex items-center gap-2 text-[13px] text-[#4B5563]">
-                      <Check size={14} strokeWidth={1.75} className="text-[#2F5BEA]" aria-hidden="true" />
-                      {benefit}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  // /dashboard/integracoes é a tela de lojas Shopify; a conta do
-                  // Mercado Livre se gerencia na aba Integrações das configurações.
-                  onClick={acaoMercadoLivre}
-                  disabled={conectandoMl}
-                  className="velo-home-secondary mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-[#0B0D12] disabled:cursor-wait disabled:opacity-70"
-                >
-                  {conectandoMl ? "Conectando…" : mlConectado ? "Gerenciar conta" : "Conectar conta"}
-                  <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
-                </button>
-              </section>
-            </motion.div>
-
-            {/* Atividade recente (antes "Próximo passo") */}
-            <motion.section {...revealProps(0.58, 14)} aria-labelledby="home-atividade" className="velo-home-card px-6 pb-2 pt-5">
-              <div className="flex items-center justify-between gap-4 pb-2">
-                <h3 id="home-atividade" className="m-0 text-[15px] font-semibold tracking-[-0.02em]">
-                  Atividade recente
-                </h3>
-                <span
-                  aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
-                  className="flex items-center gap-2 text-[13px] text-[#8A93A3]"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="block h-5 w-5 rounded-full p-[2.5px]"
-                    style={{
-                      background: onboardingProgress === null
-                        ? "#ECEEF2"
-                        : `conic-gradient(#2F5BEA ${onboardingProgress}%, #ECEEF2 0)`,
-                    }}
-                  >
-                    <span className="block h-full w-full rounded-full bg-white" />
-                  </span>
-                  {onboardingProgress === null ? "—" : `${onboardingProgress}% concluído`}
-                </span>
-              </div>
-              <ul className="m-0 list-none p-0">
-                {atividades.map((atividade) => {
-                  const Icone = atividade.icon;
-                  return (
-                    <li
-                      key={atividade.id}
-                      className="flex min-h-16 items-center gap-3.5 py-3"
-                      style={{ borderTop: "1px solid #F1F3F6" }}
-                    >
-                      <span
+                    {item.label}
+                    {ativa && (
+                      <motion.span
+                        layoutId="home-aba-ativa"
                         aria-hidden="true"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                        style={{
-                          background: atividade.done ? "#EEF2FE" : "#F1F3F6",
-                          color: atividade.done ? "#2F5BEA" : "#4B5563",
-                        }}
-                      >
-                        {atividade.done ? <Check size={16} strokeWidth={1.75} /> : <Icone size={16} strokeWidth={1.5} />}
+                        className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#2F5BEA]"
+                        transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </motion.div>
+
+            {/* Destaque: prévia grande, como o card do site na referência */}
+            {mostrarDestaque && (
+              <motion.section
+                {...revealProps(0.3, 12)}
+                data-dashboard-tour="home-primeiros-passos"
+                aria-labelledby="home-destaque"
+                className="mt-6 overflow-hidden rounded-[20px] bg-[#F5F6F8] p-2"
+              >
+                <div className="grid min-h-[300px] grid-cols-1 overflow-hidden rounded-[16px] bg-[#FAFAF9] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                  <div className="flex min-w-0 flex-col p-7">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-[11px] font-semibold tracking-[0.24em] text-[#0B0D12]">VELO</span>
+                      <nav aria-label="Atalhos" className="flex gap-4 text-[11px] text-[#4B5563]">
+                        <button type="button" onClick={go("/dashboard/catalogo")} className="hover:text-[#0B0D12]">Catálogo</button>
+                        <button type="button" onClick={go("/dashboard/modelos")} className="hover:text-[#0B0D12]">Templates</button>
+                        <button type="button" onClick={go("/dashboard/publicacoes")} className="hover:text-[#0B0D12]">Publicações</button>
+                      </nav>
+                    </div>
+                    <span className="mt-6 text-[12px] font-medium text-[#8A93A3]">01 · Primeiro passo</span>
+                    <h2
+                      id="home-destaque"
+                      className="velo-home-serif m-0 mt-2 text-[46px] font-normal leading-[1.02] text-[#0B0D12]"
+                    >
+                      Adicione seu
+                      <br />
+                      primeiro produto
+                    </h2>
+                    <p className="m-0 mt-3 max-w-[280px] text-[13px] leading-relaxed text-[#4B5563]">
+                      Comece com nome, preço e fotos. Você pode adicionar mais detalhes depois.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={go("/dashboard/catalogo")}
+                      className="velo-home-dark mt-6 flex h-10 w-fit items-center gap-2 rounded-full px-5 text-[14px] font-medium text-white"
+                    >
+                      Adicionar produto
+                      <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="relative min-h-[240px]">
+                    <img src={cardProdutoImg} alt="" className="absolute inset-0 h-full w-full select-none object-cover" draggable={false} />
+                    {/* O "+" é parte da foto: este botão fica por cima e leva ao mesmo destino. */}
+                    <button
+                      type="button"
+                      onClick={go("/dashboard/catalogo")}
+                      aria-label="Adicionar produto"
+                      title="Adicionar produto"
+                      className="absolute rounded-[16%] transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(11,13,18,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5BEA]/60"
+                      style={{ left: "30%", top: "65%", width: "23%", height: "28.6%" }}
+                    />
+                  </div>
+                </div>
+              </motion.section>
+            )}
+
+            {/* Listas no estilo "Recent activity" */}
+            {listas.map((lista, indiceLista) => (
+              <motion.section
+                key={`${aba}-${lista.titulo}`}
+                {...revealProps(0.38 + indiceLista * 0.08, 12)}
+                aria-label={lista.titulo}
+                className="mt-8"
+              >
+                <h3 className="m-0 text-[15px] font-semibold tracking-[-0.02em]">{lista.titulo}</h3>
+                <ul className="m-0 mt-2 list-none p-0">
+                  {lista.linhas.map((linha) => (
+                    <li key={linha.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
+                      <span aria-hidden="true" className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#ECEEF2]">
+                        {linha.thumb}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{atividade.title}</span>
-                        <span className="block truncate text-[13px] text-[#8A93A3]">{atividade.description}</span>
+                        <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{linha.title}</span>
+                        <span className="block truncate text-[13px] text-[#8A93A3]">{linha.description}</span>
+                        <span className="block truncate text-[12px] text-[#B4BBC6]">{linha.meta}</span>
                       </span>
-                      <button
-                        type="button"
-                        onClick={atividade.onClick}
-                        disabled={conectandoMl && atividade.id !== "publicacao"}
-                        className="velo-home-secondary flex h-9 shrink-0 items-center rounded-full px-4 text-[13px] font-medium text-[#0B0D12] disabled:cursor-wait disabled:opacity-70"
-                      >
-                        {atividade.label}
-                      </button>
+                      <span className="flex shrink-0 items-center gap-2">
+                        {linha.actions.map((acao) => {
+                          const Icone = acao.icon;
+                          return (
+                            <button
+                              key={acao.label}
+                              type="button"
+                              onClick={acao.onClick}
+                              disabled={acao.busy}
+                              aria-label={acao.label}
+                              title={acao.label}
+                              className="velo-home-secondary group flex h-9 items-center gap-2 rounded-[10px] px-2.5 text-[13px] font-medium text-[#4B5563] disabled:cursor-wait disabled:opacity-70"
+                            >
+                              <span className="velo-home-row-label hidden sm:inline">{acao.label}</span>
+                              <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
+                            </button>
+                          );
+                        })}
+                      </span>
                     </li>
-                  );
-                })}
-              </ul>
-            </motion.section>
+                  ))}
+                </ul>
+              </motion.section>
+            ))}
           </motion.div>
 
-          {/* Sugestões do Atlas: ocupam o lugar dos cards enquanto o chat está aberto. */}
+          {/* Sugestões do Atlas: ocupam o lugar do conteúdo enquanto o chat está aberto. */}
           <AnimatePresence>
             {chatActive && (
               <motion.div
@@ -982,7 +939,7 @@ const DashboardHomePage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
                 transition={{ delay: reduceMotion ? 0 : 0.16, duration: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="absolute inset-x-0 top-[-16px] z-[33] mx-auto flex w-full max-w-[720px] flex-col"
+                className="absolute inset-x-0 top-0 z-[33] flex w-full flex-col"
               >
                 {CHAT_SUGGESTIONS.map((suggestion, index) => (
                   <motion.button
@@ -1003,8 +960,7 @@ const DashboardHomePage = () => {
                     onBlur={() => setHoveredSuggestion(null)}
                     className="flex h-12 items-center gap-3.5 rounded-xl border-0 px-4 text-left text-[15px] focus-visible:outline-none"
                     style={{
-                      background: hoveredSuggestion === suggestion ? "#FFFFFF" : "transparent",
-                      boxShadow: hoveredSuggestion === suggestion ? "0 1px 2px rgba(16,24,40,0.04)" : "none",
+                      background: hoveredSuggestion === suggestion ? "#F5F6F8" : "transparent",
                       color: hoveredSuggestion === suggestion ? "#0B0D12" : "#4B5563",
                       transition: "background-color 160ms ease, color 160ms ease",
                     }}
