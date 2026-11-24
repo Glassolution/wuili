@@ -4,7 +4,6 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   Archive,
   ArrowRight,
-  ArrowUpRight,
   Flame,
   FolderOpen,
   Image as ImageIcon,
@@ -12,6 +11,8 @@ import {
   Info,
   Link2,
   Menu,
+  Plus,
+  SlidersHorizontal,
   Settings2,
   Rocket,
   ScanFace,
@@ -31,6 +32,7 @@ import agenteLua from "@/assets/agentes/lua.png";
 import agenteSino from "@/assets/agentes/sino.png";
 import agenteConcha from "@/assets/agentes/concha.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
+import agenteFolha from "@/assets/agentes/folha.png";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useProfile } from "@/lib/profileContext";
 import MobileHome from "@/components/dashboard/MobileHome";
@@ -47,7 +49,7 @@ const INTRO = {
 const HOME_CSS = `
 .velo-inicio-card { background: #FFFFFF; border-radius: 24px; transition: transform 180ms ease-out, box-shadow 180ms ease-out; }
 .velo-inicio-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(16,24,40,0.07); }
-.velo-inicio-card:focus-visible, .velo-inicio-tab:focus-visible, .velo-inicio-pill:focus-visible, .velo-inicio-search:focus-visible, .velo-inicio-link:focus-visible, .velo-inicio-conta:focus-visible, .velo-inicio-item:focus-visible, .velo-inicio-vendas:focus-visible {
+.velo-inicio-card:focus-visible, .velo-inicio-tab:focus-visible, .velo-inicio-pill:focus-visible, .velo-inicio-search:focus-visible, .velo-inicio-link:focus-visible, .velo-inicio-conta:focus-visible, .velo-inicio-item:focus-visible, .velo-inicio-novo:focus-visible, .velo-inicio-vendas:focus-visible {
   outline: none; box-shadow: 0 0 0 2px #F2F3F6, 0 0 0 4px rgba(47,91,234,0.45);
 }
 .velo-inicio-tab { transition: background-color 150ms ease-out, color 150ms ease-out; }
@@ -60,6 +62,8 @@ const HOME_CSS = `
 .velo-inicio-link:hover { color: #0B0D12; }
 .velo-inicio-conta { transition: background-color 150ms ease-out; }
 .velo-inicio-conta:hover { background: #FAFAFB; }
+.velo-inicio-novo { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
+.velo-inicio-novo:hover { border-color: #AEB6C3; background: rgba(255,255,255,0.5); }
 .velo-inicio-item { transition: background-color 150ms ease-out; }
 .velo-inicio-item:hover { background: #F5F6F8; }
 .velo-inicio-vendas .velo-inicio-seta { transition: transform 150ms ease-out; }
@@ -72,101 +76,197 @@ const HOME_CSS = `
 }
 `;
 
+type AbaId = "comecar" | "avancado";
+
 type Ferramenta = {
   id: string;
+  aba: AbaId;
   titulo: string;
   categoria: string;
   descricao: string;
-  etiquetas: string[];
+  selo: string;
   destaque?: string;
-  icone: ElementType;
+  etiquetas: string[];
+  rotuloAcao: string;
+  acao: string;
+  icone?: ElementType;
+  logo?: string;
   cor: string;
+  fundoIcone: string;
   agente: string;
   to: string;
 };
 
 // Cada cartão é uma tela que já existe no painel; nada de número inventado.
-const FERRAMENTAS: Record<"comecar" | "avancado", Ferramenta[]> = {
-  comecar: [
-    {
-      id: "catalogo",
-      titulo: "Catálogo",
-      categoria: "Produtos",
-      descricao: "Escolha produtos para vender na sua loja.",
-      destaque: "Comece aqui",
-      etiquetas: ["Produtos", "Fornecedor"],
-      icone: ShoppingBag,
-      cor: "#2F5BEA",
-      agente: agenteEstrela,
-      to: "/dashboard/catalogo",
-    },
-    {
-      id: "modelos",
-      titulo: "Templates",
-      categoria: "Loja",
-      descricao: "Escolha o visual do site da sua loja.",
-      destaque: "Comece aqui",
-      etiquetas: ["Site", "Visual"],
-      icone: LayoutTemplate,
-      cor: "#7C5CFA",
-      agente: agenteCubo,
-      to: "/dashboard/modelos",
-    },
-    // "Páginas com IA" não entra: as páginas geradas ficam no cartão Projetos.
-  ],
-  avancado: [
-    {
-      id: "produtos-em-alta",
-      titulo: "Produtos em Alta",
-      categoria: "Pesquisa",
-      descricao: "Veja os produtos que estão vendendo mais.",
-      destaque: "Tendências",
-      etiquetas: ["Mercado", "Ranking"],
-      icone: TrendingUp,
-      cor: "#E5484D",
-      agente: agenteLua,
-      to: "/dashboard/produtos-em-alta",
-    },
-    {
-      id: "imagens-ia",
-      titulo: "Imagens com IA",
-      categoria: "Criativos",
-      descricao: "Crie fotos de produto para anúncios e site.",
-      etiquetas: ["IA", "Fotos"],
-      icone: ImageIcon,
-      cor: "#D9469B",
-      agente: agenteConcha,
-      to: "/dashboard/imagens-ia",
-    },
-    {
-      id: "avatares",
-      titulo: "Avatares",
-      categoria: "Criativos",
-      descricao: "Vídeos com avatar apresentando o produto.",
-      etiquetas: ["IA", "Vídeo"],
-      icone: ScanFace,
-      cor: "#F08A24",
-      agente: agenteSino,
-      to: "/dashboard/avatares",
-    },
-    {
-      id: "publicacoes",
-      titulo: "Publicações",
-      categoria: "Anúncios",
-      descricao: "Acompanhe os produtos que você publicou.",
-      etiquetas: ["Anúncios", "Mercado Livre"],
-      icone: Archive,
-      cor: "#0B0D12",
-      agente: agenteEstrela,
-      to: "/dashboard/publicacoes",
-    },
-  ],
-};
+// Em "Para começar" a ordem é o caminho sugerido (etapa 1, 2, 3).
+const FERRAMENTAS: Ferramenta[] = [
+  {
+    id: "catalogo",
+    aba: "comecar",
+    titulo: "Catálogo",
+    categoria: "Produtos",
+    descricao: "Escolha produtos para vender na sua loja.",
+    selo: "Fornecedor",
+    destaque: "Comece aqui",
+    etiquetas: ["Produtos", "Estoque"],
+    rotuloAcao: "Ação",
+    acao: "Escolher",
+    icone: ShoppingBag,
+    cor: "#2F5BEA",
+    fundoIcone: "linear-gradient(160deg, #5B7FF2 0%, #2F5BEA 100%)",
+    agente: agenteEstrela,
+    to: "/dashboard/catalogo",
+  },
+  {
+    id: "modelos",
+    aba: "comecar",
+    titulo: "Templates",
+    categoria: "Loja",
+    descricao: "Escolha o visual do site da sua loja.",
+    selo: "Site",
+    destaque: "Comece aqui",
+    etiquetas: ["Visual", "Tema"],
+    rotuloAcao: "Ação",
+    acao: "Montar",
+    icone: LayoutTemplate,
+    cor: "#7C5CFA",
+    fundoIcone: "linear-gradient(160deg, #9C84FF 0%, #7C5CFA 100%)",
+    agente: agenteCubo,
+    to: "/dashboard/modelos",
+  },
+  {
+    id: "mercado-livre",
+    aba: "comecar",
+    titulo: "Mercado Livre",
+    categoria: "Vendas",
+    descricao: "Conecte sua conta para publicar e receber pedidos.",
+    selo: "Integração",
+    destaque: "Essencial",
+    etiquetas: ["Anúncios", "Pedidos"],
+    rotuloAcao: "Ação",
+    acao: "Conectar",
+    logo: "/brand/mercado-livre.png",
+    cor: "#E6C600",
+    fundoIcone: "linear-gradient(160deg, #FFF06A 0%, #FFE600 100%)",
+    agente: agenteFolha,
+    to: "/dashboard/configuracoes?tab=Integrações",
+  },
+  {
+    id: "produtos-em-alta",
+    aba: "avancado",
+    titulo: "Produtos em Alta",
+    categoria: "Pesquisa",
+    descricao: "Veja os produtos que estão vendendo mais.",
+    selo: "Ranking",
+    destaque: "Tendências",
+    etiquetas: ["Mercado"],
+    rotuloAcao: "Ação",
+    acao: "Descobrir",
+    icone: TrendingUp,
+    cor: "#E5484D",
+    fundoIcone: "linear-gradient(160deg, #F37A7E 0%, #E5484D 100%)",
+    agente: agenteLua,
+    to: "/dashboard/produtos-em-alta",
+  },
+  {
+    id: "imagens-ia",
+    aba: "avancado",
+    titulo: "Imagens com IA",
+    categoria: "Criativos",
+    descricao: "Crie fotos de produto para anúncios e site.",
+    selo: "IA",
+    destaque: "Com IA",
+    etiquetas: ["Fotos"],
+    rotuloAcao: "Ação",
+    acao: "Criar",
+    icone: ImageIcon,
+    cor: "#D9469B",
+    fundoIcone: "linear-gradient(160deg, #EC78B9 0%, #D9469B 100%)",
+    agente: agenteConcha,
+    to: "/dashboard/imagens-ia",
+  },
+  {
+    id: "avatares",
+    aba: "avancado",
+    titulo: "Avatares",
+    categoria: "Criativos",
+    descricao: "Vídeos com avatar apresentando o produto.",
+    selo: "Vídeo",
+    destaque: "Com IA",
+    etiquetas: ["Vídeo"],
+    rotuloAcao: "Ação",
+    acao: "Gravar",
+    icone: ScanFace,
+    cor: "#F08A24",
+    fundoIcone: "linear-gradient(160deg, #F7AE62 0%, #F08A24 100%)",
+    agente: agenteSino,
+    to: "/dashboard/avatares",
+  },
+  {
+    id: "publicacoes",
+    aba: "avancado",
+    titulo: "Publicações",
+    categoria: "Anúncios",
+    descricao: "Acompanhe os produtos que você publicou.",
+    selo: "Anúncios",
+    destaque: "Mercado Livre",
+    etiquetas: [],
+    rotuloAcao: "Ação",
+    acao: "Acompanhar",
+    icone: Archive,
+    cor: "#0B0D12",
+    fundoIcone: "linear-gradient(160deg, #3A3F4A 0%, #0B0D12 100%)",
+    agente: agenteEstrela,
+    to: "/dashboard/publicacoes",
+  },
+];
 
 const ABAS = [
   { id: "comecar" as const, label: "Para começar", icone: Sprout },
   { id: "avancado" as const, label: "Avançado", icone: Rocket },
 ];
+
+// Quais cartões a pessoa escondeu: preferência deste navegador, por usuário.
+const chaveCartoesOcultos = (userId: string) => `velo:inicio:cartoes-ocultos:${userId}`;
+const lerCartoesOcultos = (userId: string): string[] => {
+  try {
+    const bruto = window.localStorage.getItem(chaveCartoesOcultos(userId));
+    const lista: unknown = bruto ? JSON.parse(bruto) : [];
+    return Array.isArray(lista) ? lista.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+};
+const salvarCartoesOcultos = (userId: string, ids: string[]) => {
+  try {
+    window.localStorage.setItem(chaveCartoesOcultos(userId), JSON.stringify(ids));
+  } catch {
+    // Sem armazenamento (aba anônima, bloqueio): a escolha vale só nesta visita.
+  }
+};
+
+// Selo colorido da ferramenta (ícone ou logo), com gradiente curto e filete de luz.
+const IconeFerramenta = ({ ferramenta, tamanho }: { ferramenta: Ferramenta; tamanho: number }) => {
+  const Icone = ferramenta.icone;
+  return (
+    <span
+      className="relative z-[1] flex shrink-0 items-center justify-center text-white"
+      style={{
+        width: tamanho,
+        height: tamanho,
+        borderRadius: tamanho * 0.34,
+        background: ferramenta.fundoIcone,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 2px rgba(16,24,40,0.10)",
+      }}
+    >
+      {ferramenta.logo ? (
+        <img src={ferramenta.logo} alt="" className="object-contain" style={{ width: tamanho * 0.62, height: tamanho * 0.62 }} draggable={false} />
+      ) : Icone ? (
+        <Icone size={Math.round(tamanho * 0.42)} strokeWidth={1.7} aria-hidden="true" />
+      ) : null}
+    </span>
+  );
+};
 
 const DashboardHomePage = () => {
   const navigate = useNavigate();
@@ -174,7 +274,9 @@ const DashboardHomePage = () => {
   const { nomeCurto, foto } = useProfile();
   const [avatarFalhou, setAvatarFalhou] = useState(false);
   const [menuContaAberto, setMenuContaAberto] = useState(false);
-  const [aba, setAba] = useState<"comecar" | "avancado">("comecar");
+  const [aba, setAba] = useState<AbaId>("comecar");
+  const [personalizarAberto, setPersonalizarAberto] = useState(false);
+  const [ocultos, setOcultos] = useState<string[]>([]);
   // Mesma leitura da página Projetos (RPC get_user_projects), sem consulta nova.
   const projetos = useQuery({
     queryKey: ["home-projetos-da-loja", user?.id],
@@ -226,13 +328,19 @@ const DashboardHomePage = () => {
   }, [introState, reduceMotion, user?.id]);
 
   useEffect(() => {
-    if (!menuContaAberto) return;
+    if (!menuContaAberto && !personalizarAberto) return;
     const fecharComEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuContaAberto(false);
+      if (event.key !== "Escape") return;
+      setMenuContaAberto(false);
+      setPersonalizarAberto(false);
     };
     window.addEventListener("keydown", fecharComEsc);
     return () => window.removeEventListener("keydown", fecharComEsc);
-  }, [menuContaAberto]);
+  }, [menuContaAberto, personalizarAberto]);
+
+  useEffect(() => {
+    setOcultos(user?.id ? lerCartoesOcultos(user.id) : []);
+  }, [user?.id]);
 
   const playIntro = introState === "play";
   // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
@@ -256,7 +364,15 @@ const DashboardHomePage = () => {
   const go = (path: string) => () => navigate(path);
   const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
   const totalProjetos = projetos.data?.length;
-  const ferramentas = FERRAMENTAS[aba];
+  const atualizarOcultos = (ids: string[]) => {
+    setOcultos(ids);
+    if (user?.id) salvarCartoesOcultos(user.id, ids);
+  };
+  const alternarCartao = (id: string) =>
+    atualizarOcultos(ocultos.includes(id) ? ocultos.filter((item) => item !== id) : [...ocultos, id]);
+  const caminho = FERRAMENTAS.filter((f) => f.aba === "comecar");
+  const ferramentas = FERRAMENTAS.filter((f) => f.aba === aba && !ocultos.includes(f.id));
+  const ocultasNaAba = FERRAMENTAS.filter((f) => f.aba === aba && ocultos.includes(f.id)).length;
   const primeiroNome = nomeCurto && nomeCurto !== "Usuario" ? nomeCurto.split(" ")[0] : "Sua conta";
 
   return (
@@ -353,7 +469,7 @@ const DashboardHomePage = () => {
         </div>
       </motion.header>
 
-      <div className="mx-auto w-full max-w-[660px] px-4 pb-16 pt-4">
+      <div className="mx-auto w-full max-w-[720px] px-4 pb-16 pt-4">
         {/* Cartão de vendas: sem número por enquanto (não há leitura de vendas
             pronta para a Início); leva para Pedidos. */}
         <motion.button
@@ -393,11 +509,12 @@ const DashboardHomePage = () => {
           </span>
         </motion.button>
 
-        {/* Ferramentas: título, abas em pílula e atalho para Projetos. */}
+        {/* Ferramentas: título, abas em pílula e, à direita, personalizar os
+            cartões e atalho para Projetos (no desenho do seletor da referência). */}
         <motion.div {...revealProps(0.15, 10)} className="mt-12">
-          <h2 className="m-0 px-1 text-[26px] font-normal text-[#2B2F36]">Ferramentas</h2>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <div role="tablist" aria-label="Ferramentas" className="flex rounded-[14px] bg-white p-1">
+          <h2 className="m-0 px-1 text-[28px] font-normal text-[#2B2F36]">Ferramentas</h2>
+          <div className="relative mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div role="tablist" aria-label="Ferramentas" className="flex rounded-[16px] bg-white p-1">
               {ABAS.map((item) => {
                 const Icone = item.icone;
                 const ativa = aba === item.id;
@@ -408,73 +525,170 @@ const DashboardHomePage = () => {
                     role="tab"
                     aria-selected={ativa}
                     onClick={() => setAba(item.id)}
-                    className={`velo-inicio-tab flex h-9 items-center gap-2 rounded-[10px] px-3.5 text-[14px] ${
-                      ativa ? "bg-[#F2F3F6] font-medium text-[#0B0D12]" : "text-[#6B7280]"
+                    className={`velo-inicio-tab flex h-10 items-center gap-2 rounded-[12px] px-4 text-[15px] ${
+                      ativa ? "bg-[#F2F3F6] text-[#0B0D12]" : "text-[#4B5563]"
                     }`}
                   >
-                    <Icone size={16} strokeWidth={1.6} aria-hidden="true" />
+                    <Icone size={17} strokeWidth={1.7} aria-hidden="true" />
                     {item.label}
                   </button>
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={go("/dashboard/projetos")}
-              className="velo-inicio-pill flex h-11 items-center gap-2 rounded-[14px] bg-white px-4 text-[14px] text-[#6B7280]"
-            >
-              Seus projetos
-              <FolderOpen size={16} strokeWidth={1.6} aria-hidden="true" className="text-[#2F5BEA]" />
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-[15px] text-[#9AA1AE]">Seus cards</span>
+              <div className="flex rounded-[16px] bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setPersonalizarAberto((aberto) => !aberto)}
+                  aria-label="Personalizar cards"
+                  aria-haspopup="dialog"
+                  aria-expanded={personalizarAberto}
+                  title="Personalizar cards"
+                  className={`velo-inicio-tab flex h-10 w-10 items-center justify-center rounded-[12px] ${
+                    personalizarAberto ? "bg-[#F2F3F6] text-[#0B0D12]" : "text-[#0B0D12]"
+                  }`}
+                >
+                  <SlidersHorizontal size={17} strokeWidth={1.7} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={go("/dashboard/projetos")}
+                  aria-label="Abrir projetos"
+                  title="Projetos"
+                  className="velo-inicio-tab flex h-10 w-10 items-center justify-center rounded-[12px] text-[#2F5BEA]"
+                >
+                  <FolderOpen size={17} strokeWidth={1.7} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            {personalizarAberto && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Fechar personalização"
+                  tabIndex={-1}
+                  className="fixed inset-0 z-40 cursor-default"
+                  onClick={() => setPersonalizarAberto(false)}
+                />
+                <div
+                  role="dialog"
+                  aria-label="Personalizar cards"
+                  className="absolute right-0 top-[52px] z-50 w-[320px] rounded-[20px] bg-white p-4"
+                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 16px 40px rgba(16,24,40,0.12)" }}
+                >
+                  <p className="m-0 text-[15px] font-medium text-[#0B0D12]">Seus cards</p>
+                  <p className="m-0 mt-0.5 text-[13px] text-[#8A93A3]">Escolha o que aparece na sua Início.</p>
+                  {ABAS.map((grupo) => (
+                    <div key={grupo.id} className="mt-4">
+                      <p className="m-0 mb-1.5 text-[12px] text-[#9AA1AE]">{grupo.label}</p>
+                      <ul className="m-0 list-none p-0">
+                        {FERRAMENTAS.filter((f) => f.aba === grupo.id).map((f) => {
+                          const visivel = !ocultos.includes(f.id);
+                          return (
+                            <li key={f.id}>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={visivel}
+                                onClick={() => alternarCartao(f.id)}
+                                className="velo-inicio-item flex w-full items-center gap-3 rounded-[12px] px-2 py-2 text-left"
+                              >
+                                <IconeFerramenta ferramenta={f} tamanho={28} />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-[14px] text-[#0B0D12]">{f.titulo}</span>
+                                  <span className="block truncate text-[12px] text-[#8A93A3]">{f.descricao}</span>
+                                </span>
+                                <span
+                                  aria-hidden="true"
+                                  className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-150 ${visivel ? "bg-[#2F5BEA]" : "bg-[#DCE0E7]"}`}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-150 ${visivel ? "translate-x-[18px]" : "translate-x-0.5"}`}
+                                  />
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                  {ocultos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => atualizarOcultos([])}
+                      className="velo-inicio-item mt-3 h-9 w-full rounded-[12px] text-[13px] font-medium text-[#2F5BEA]"
+                    >
+                      Mostrar todos
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </motion.div>
 
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {ferramentas.map((ferramenta, indice) => {
-            const Icone = ferramenta.icone;
+            const etapa = ferramenta.aba === "comecar" ? caminho.findIndex((f) => f.id === ferramenta.id) + 1 : null;
             return (
               <motion.button
                 key={ferramenta.id}
                 {...revealProps(0.2 + indice * 0.05, 10)}
                 type="button"
                 onClick={go(ferramenta.to)}
-                className="velo-inicio-card flex min-h-[300px] flex-col p-4 text-left"
+                aria-label={`${ferramenta.titulo}: ${ferramenta.descricao}`}
+                className="velo-inicio-card flex min-h-[330px] flex-col p-5 text-left"
               >
                 <span className="flex items-start justify-between">
                   <span className="flex items-center">
-                    <span className="relative z-[1] flex h-10 w-10 items-center justify-center rounded-[14px] text-white" style={{ background: ferramenta.cor }}>
-                      <Icone size={18} strokeWidth={1.7} aria-hidden="true" />
-                    </span>
-                    <span className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#F2F3F6]">
-                      <img src={ferramenta.agente} alt="" className="h-8 w-8 object-contain" draggable={false} />
+                    <IconeFerramenta ferramenta={ferramenta} tamanho={48} />
+                    <span className="-ml-2.5 flex h-12 w-12 items-center justify-center rounded-full bg-[#F2F3F6]">
+                      <img src={ferramenta.agente} alt="" className="h-10 w-10 object-contain" draggable={false} />
                     </span>
                   </span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#ECEEF2] text-[#8A93A3]">
-                    <ArrowUpRight size={14} strokeWidth={1.6} aria-hidden="true" />
+                  <span className="flex h-7 items-center gap-1.5 rounded-full border border-[#ECEEF2] px-2.5 text-[12px] text-[#4B5563]">
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: ferramenta.cor }} />
+                    {ferramenta.selo}
                   </span>
                 </span>
-                <span className="mt-5 block text-[12px] text-[#8A93A3]">{ferramenta.categoria}</span>
-                <span className="mt-0.5 block text-[18px] font-medium leading-snug text-[#0B0D12]">{ferramenta.titulo}</span>
-                <span className="mt-3 flex flex-wrap gap-1.5">
+                <span className="mt-6 block text-[13px] text-[#9AA1AE]">{ferramenta.categoria}</span>
+                <span className="mt-0.5 block text-[21px] font-medium leading-tight tracking-[-0.01em] text-[#2B2F36]">{ferramenta.titulo}</span>
+                <span className="mt-3.5 flex flex-wrap gap-1.5">
                   {ferramenta.destaque && (
-                    <span className="flex h-6 items-center gap-1 rounded-full border border-[#ECEEF2] px-2.5 text-[11.5px] text-[#4B5563]">
-                      <Flame size={11} strokeWidth={2} aria-hidden="true" className="text-[#0B0D12]" />
+                    <span className="flex h-7 items-center gap-1.5 rounded-full bg-[#F2F3F6] px-2.5 text-[12.5px] text-[#2B2F36]">
+                      <Flame size={12} strokeWidth={2.2} aria-hidden="true" className="text-[#0B0D12]" />
                       {ferramenta.destaque}
                     </span>
                   )}
                   {ferramenta.etiquetas.map((etiqueta) => (
-                    <span key={etiqueta} className="flex h-6 items-center rounded-full border border-[#ECEEF2] px-2.5 text-[11.5px] text-[#4B5563]">
+                    <span key={etiqueta} className="flex h-7 items-center rounded-full border border-[#ECEEF2] px-2.5 text-[12.5px] text-[#4B5563]">
                       {etiqueta}
                     </span>
                   ))}
                 </span>
-                <span className="mt-auto block pt-5 text-[15px] font-light leading-snug text-[#2B2F36]">{ferramenta.descricao}</span>
-                <span className="mt-4 block h-[3px] w-full rounded-full bg-[#ECEEF2]">
-                  <span className="block h-full w-full rounded-full" style={{ background: ferramenta.cor }} />
+                <span className="mt-auto block pt-6 text-[13px] text-[#9AA1AE]">{ferramenta.rotuloAcao}</span>
+                <span className="block text-[32px] font-light leading-tight tracking-[-0.02em] text-[#2B2F36]">{ferramenta.acao}</span>
+                <span className="mt-4 block h-1 w-full overflow-hidden rounded-full bg-[#ECEEF2]">
+                  <span
+                    className="block h-full rounded-full"
+                    style={{ background: ferramenta.cor, width: etapa ? `${(etapa / caminho.length) * 100}%` : "100%" }}
+                  />
                 </span>
-                <span className="mt-2 flex items-center justify-between text-[12px] text-[#8A93A3]">
-                  <span>Abrir</span>
-                  <ArrowRight size={13} strokeWidth={1.6} aria-hidden="true" />
+                <span className="mt-2 flex items-center justify-between text-[13px] text-[#9AA1AE]">
+                  {etapa ? (
+                    <>
+                      <span>Etapa {etapa}</span>
+                      <span>de {caminho.length}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Abrir</span>
+                      <ArrowRight size={14} strokeWidth={1.6} aria-hidden="true" />
+                    </>
+                  )}
                 </span>
               </motion.button>
             );
@@ -485,40 +699,63 @@ const DashboardHomePage = () => {
             {...revealProps(0.2 + ferramentas.length * 0.05, 10)}
             type="button"
             onClick={go("/dashboard/projetos")}
-            className="velo-inicio-card relative flex min-h-[300px] flex-col overflow-hidden p-4 text-left text-white"
-            style={{ background: "#2F5BEA" }}
+            className="velo-inicio-card relative flex min-h-[330px] flex-col overflow-hidden p-5 text-left text-white"
+            style={{ background: "linear-gradient(160deg, #4A72F0 0%, #2F5BEA 55%, #2449C7 100%)" }}
           >
-            <span aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
-            <span aria-hidden="true" className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-white/[0.06]" />
+            <span aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-white/10" />
+            <span aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-12 h-52 w-52 rounded-full bg-white/[0.06]" />
             <span className="relative flex items-start justify-between">
               <span className="flex items-center">
-                <span className="relative z-[1] flex h-10 w-10 items-center justify-center rounded-[14px] bg-white text-[#2F5BEA]">
-                  <FolderOpen size={18} strokeWidth={1.7} aria-hidden="true" />
+                <span className="relative z-[3] flex h-12 w-12 items-center justify-center rounded-[16px] bg-white text-[#2F5BEA]">
+                  <FolderOpen size={20} strokeWidth={1.7} aria-hidden="true" />
                 </span>
-                <span className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
-                  <img src={agenteCubo} alt="" className="h-8 w-8 object-contain" draggable={false} />
-                </span>
+                {[agenteCubo, agenteLua, agenteFolha].map((foto, i) => (
+                  <span
+                    key={foto}
+                    className="-ml-3 flex h-12 w-12 items-center justify-center rounded-full border border-white/25 bg-white/15"
+                    style={{ zIndex: 2 - i }}
+                  >
+                    <img src={foto} alt="" className="h-10 w-10 object-contain" draggable={false} />
+                  </span>
+                ))}
               </span>
-              {typeof totalProjetos === "number" && (
-                <span
-                  className="flex h-7 items-center gap-1 rounded-full border border-white/40 px-2.5 text-[12px]"
-                  aria-label={`${totalProjetos} ${totalProjetos === 1 ? "projeto" : "projetos"}`}
-                >
-                  <FolderOpen size={12} strokeWidth={1.8} aria-hidden="true" />
-                  {totalProjetos}
-                </span>
-              )}
             </span>
-            <span className="relative mt-5 block text-[12px] text-white/70">Sua loja</span>
-            <span className="relative mt-0.5 block text-[18px] font-medium leading-snug">Projetos</span>
-            <span className="relative mt-auto block pt-5 text-[15px] font-light leading-snug text-white/90">
-              Veja os sites das suas lojas e o que os agentes estão fazendo neles.
+            <span className="relative mt-6 block text-[13px] text-white/70">Sua loja</span>
+            <span className="relative mt-0.5 block text-[21px] font-medium leading-tight tracking-[-0.01em]">Projetos</span>
+            <span className="relative mt-3.5 flex flex-wrap gap-1.5">
+              <span className="flex h-7 items-center rounded-full bg-white/15 px-2.5 text-[12.5px]">Sites</span>
+              <span className="flex h-7 items-center rounded-full border border-white/30 px-2.5 text-[12.5px]">Agentes</span>
             </span>
-            <span className="relative mt-4 flex items-center justify-between text-[12px] text-white/80">
+            <span className="relative mt-auto block pt-6 text-[13px] text-white/70">Projetos criados</span>
+            <span className="relative block text-[32px] font-light leading-tight tracking-[-0.02em]">
+              {typeof totalProjetos === "number" ? totalProjetos : "—"}
+            </span>
+            <span className="relative mt-4 block h-1 w-full rounded-full bg-white/25">
+              <span className="block h-full w-full rounded-full bg-white" />
+            </span>
+            <span className="relative mt-2 flex items-center justify-between text-[13px] text-white/75">
               <span>Abrir projetos</span>
-              <ArrowRight size={13} strokeWidth={1.6} aria-hidden="true" />
+              <ArrowRight size={14} strokeWidth={1.6} aria-hidden="true" />
             </span>
           </motion.button>
+
+          {/* Cartões escondidos na aba: um atalho para trazê-los de volta. */}
+          {ocultasNaAba > 0 && (
+            <motion.button
+              {...revealProps(0.25 + ferramentas.length * 0.05, 10)}
+              type="button"
+              onClick={() => setPersonalizarAberto(true)}
+              className="velo-inicio-novo flex min-h-[330px] flex-col items-center justify-center gap-3 rounded-[24px] border-[1.5px] border-dashed border-[#D5D9E0] text-[14px] text-[#6B7280]"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#2F5BEA]">
+                <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
+              </span>
+              Adicionar card
+              <span className="text-[12px] text-[#9AA1AE]">
+                {ocultasNaAba} {ocultasNaAba === 1 ? "escondido" : "escondidos"}
+              </span>
+            </motion.button>
+          )}
         </div>
       </div>
     </main>
