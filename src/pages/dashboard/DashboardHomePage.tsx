@@ -11,7 +11,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import cardTemasImg from "@/assets/home-card-temas.webp";
-import bannerAgentesLoja from "@/assets/home-banner-agentes-loja.webp";
+import bannerResultados from "@/assets/home-banner-resultados.webp";
 import agenteLua from "@/assets/agentes/lua.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
@@ -577,20 +577,20 @@ const DashboardHomePage = () => {
 
         <div className="relative">
           <div>
-            {/* Banner "Você cria a loja. Os agentes cuidam dela.": faixa de 340px, recortada no centro (a frase fica inteira). */}
+            {/* Banner "Loja, Agentes, Resultados": imagem inteira (sem corte) numa faixa de 400px; o fundo da faixa tem a cor do fundo dela. */}
             {mostrarDestaque && (
               <motion.section
                 {...revealProps(0.3, 12)}
                 data-dashboard-tour="home-primeiros-passos"
                 aria-label="Destaque da Velo"
-                className="mt-6 overflow-hidden rounded-[20px] bg-[#EDE6D8]"
+                className="mt-6 overflow-hidden rounded-[20px] bg-[#F7F3ED]"
               >
                 <img
-                  src={bannerAgentesLoja}
-                  alt="Você cria a loja. Os agentes cuidam dela."
+                  src={bannerResultados}
+                  alt="Loja, Agentes, Resultados. Você cria a loja. Os agentes cuidam dela."
                   width={1672}
                   height={941}
-                  className="block h-[340px] w-full select-none object-cover object-center"
+                  className="mx-auto block h-[400px] w-auto select-none object-contain"
                   draggable={false}
                 />
               </motion.section>
