@@ -3,16 +3,16 @@ import { motion, useReducedMotion, useSpring } from "framer-motion";
 import mascoteImg from "@/assets/mascote-velo-espiando.webp";
 
 // Medidas tiradas da imagem recortada (mascote-velo-espiando.webp, 264x214).
-const LARGURA = 100;
-const ALTURA = 81;
+const LARGURA = 120;
+const ALTURA = 97;
 // A parte de baixo dos dedos passa da borda reta do corpo: é o quanto "segura" a caixa.
-const DEDOS = 6;
+const DEDOS = 7;
 const OLHOS = [
   { x: 39.46, y: 59.15 },
   { x: 69.45, y: 51.52 },
 ];
-const TAMANHO_OLHO = 7.6;
-const DESVIO_MAXIMO = 1.8;
+const TAMANHO_OLHO = 9;
+const DESVIO_MAXIMO = 2.1;
 
 type Props = {
   focada: boolean;
@@ -37,8 +37,9 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
   useEffect(() => {
     if (reduceMotion) return;
     if (digitando) {
-      olhoX.set(-DESVIO_MAXIMO);
-      olhoY.set(DESVIO_MAXIMO * 0.8);
+      // O texto fica embaixo e à direita do mascote.
+      olhoX.set(DESVIO_MAXIMO * 0.6);
+      olhoY.set(DESVIO_MAXIMO * 0.9);
       return;
     }
     let quadro = 0;
@@ -86,7 +87,7 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
   }, [reduceMotion]);
 
   // Altura do corpo: escondido até a entrada, espia mais com foco, pula ao clicar, balança enviando.
-  const subida = focada || digitando ? -6 : 0;
+  const subida = focada || digitando ? -4 : 0;
   const animacaoCorpo = reduceMotion
     ? { y: 0 }
     : enviando
@@ -96,7 +97,7 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
   return (
     // Janela com overflow escondido: o mascote "sai" de trás da borda da caixa.
     <div
-      className="pointer-events-none absolute right-5 z-[2] overflow-hidden"
+      className="pointer-events-none absolute left-4 z-[2] overflow-hidden"
       style={{ bottom: `calc(100% - ${DEDOS}px)`, width: LARGURA, height: ALTURA + 30 }}
     >
       <motion.div
@@ -152,7 +153,7 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
             >
               <span
                 className="absolute rounded-full bg-white"
-                style={{ width: 2.2, height: 2.2, right: 1.4, top: 1.2, opacity: piscando ? 0 : 0.95 }}
+                style={{ width: 2.6, height: 2.6, right: 1.7, top: 1.4, opacity: piscando ? 0 : 0.95 }}
               />
             </motion.span>
           ))}
