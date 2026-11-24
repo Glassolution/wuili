@@ -639,45 +639,6 @@ const DashboardHomePage = () => {
             </Button>
           </motion.div>
 
-          {/* Histórico das conversas, espelhando o bloco de suporte do canto
-              oposto. Só aparece com o chat aberto e com conversa anterior de
-              verdade: num primeiro acesso o botão abriria uma lista vazia. */}
-          <AnimatePresence>
-            {chatActive && temHistorico && (
-              <motion.div
-                ref={historyMenuRef}
-                key="atalho-historico"
-                initial={reduceMotion ? false : { opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                transition={{ duration: reduceMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-                style={{
-                  position: "absolute",
-                  left: x(30),
-                  top: y(20),
-                  zIndex: 40,
-                }}
-              >
-                <AtlasHistoryMenu
-                  userId={user?.id}
-                  activeThreadId={threadId}
-                  onSelectThread={abrirConversa}
-                  onThreadDeleted={aoApagarConversa}
-                   triggerLabel="Suas conversas"
-                   triggerStyle={{
-                     height: y(56),
-                     minHeight: 40,
-                     borderRadius: fs(18),
-                     border: "1px solid rgba(17, 24, 39, 0.09)",
-                     background: "rgba(255, 255, 255, 0.97)",
-                     boxShadow: "0 3px 8px rgba(15, 23, 42, 0.07)",
-                     color: "#101114",
-                     fontSize: fs(11.8),
-                   }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <motion.h1
             initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
@@ -723,6 +684,8 @@ const DashboardHomePage = () => {
             </span>
           </motion.h1>
 
+          {/* Caixa do Atlas no formato do Shopify: texto em cima; avatar à esquerda e
+              Conversas / + / enviar à direita, embaixo. A lógica do chat não mudou. */}
           <motion.div
             {...revealProps(INTRO.chatDelay, 14)}
             ref={welcomeChatRef}
@@ -730,60 +693,47 @@ const DashboardHomePage = () => {
             role="search"
             aria-label="Assistente Atlas"
             aria-expanded={chatActive}
-            onClick={() => setChatActive(true)}
+            onClick={() => {
+              setChatActive(true);
+              chatInputRef.current?.focus();
+            }}
+            className="velo-home-atlas"
             style={{
               position: "absolute",
               zIndex: 32,
               left: "50%",
-              top: y(238 + HERO_OFFSET),
-              width: x(948),
-              height: y(60),
+              top: y(226 + HERO_OFFSET),
+              width: x(860),
+              height: y(106),
               x: "-50%",
-              borderRadius: 999,
-              border: chatActive
-                ? "1px solid rgba(106, 124, 190, 0.18)"
-                : "1px solid rgba(17, 24, 39, 0.09)",
+              borderRadius: fs(20),
+              border: chatActive ? "1px solid #CACACA" : "1px solid #E3E3E3",
               background: "#FFFFFF",
               boxShadow: chatActive
-                ? "-14px 0 34px rgba(97, 169, 255, 0.07), 14px 0 34px rgba(255, 174, 116, 0.06), 0 8px 22px rgba(45, 55, 85, 0.08), 0 1px 4px rgba(15, 23, 42, 0.05)"
-                : "0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 18px rgba(15, 23, 42, 0.035)",
+                ? "0 1px 0 rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.06)"
+                : "0 1px 0 rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04)",
               display: "flex",
-              alignItems: "center",
-              padding: `0 ${x(14)} 0 ${x(22)}`,
-              transition: "border-color 520ms ease, box-shadow 620ms cubic-bezier(0.22, 1, 0.36, 1)",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              padding: `${fs(18)} ${fs(14)} ${fs(12)} ${fs(18)}`,
+              cursor: "text",
+              transition: "border-color 200ms ease, box-shadow 240ms ease",
             }}
           >
-            <form
-              onSubmit={handleChatSubmit}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(40),
-                  height: fs(40),
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flex: "0 0 auto",
-                  marginRight: fs(15),
-                }}
-              >
-                <AssistantAvatar />
-              </span>
+            <style>{`
+              .velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
+              .velo-home-atlas .velo-home-atlas-btn { transition: background-color 150ms ease-out, color 150ms ease-out; }
+              .velo-home-atlas .velo-home-atlas-btn:hover:not(:disabled) { background-color: rgba(0,0,0,0.05); }
+              .velo-home-atlas .velo-home-atlas-enviar:hover:not(:disabled) { background-color: #2A2A2A; }
+            `}</style>
+            <form onSubmit={handleChatSubmit} style={{ display: "block", minWidth: 0 }}>
               <span
                 style={{
                   position: "relative",
                   display: "flex",
                   alignItems: "center",
-                  flex: 1,
                   minWidth: 0,
-                  height: "100%",
+                  height: fs(24),
                 }}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -801,15 +751,16 @@ const DashboardHomePage = () => {
                   onFocus={() => setChatActive(true)}
                   onChange={(event) => setChatInput(event.target.value)}
                   aria-label="Mensagem para o Atlas"
-                  placeholder={chatActive ? "Pergunte qualquer coisa..." : ""}
+                  placeholder={chatActive ? "Trabalhe com o Atlas" : ""}
                   style={{
                     width: "100%",
                     minWidth: 0,
                     border: 0,
                     outline: 0,
+                    padding: 0,
                     background: "transparent",
-                    color: "rgba(0,0,0,0.72)",
-                    caretColor: "#2563EB",
+                    color: "#303030",
+                    caretColor: "#303030",
                     fontSize: fs(18),
                     fontWeight: 400,
                     lineHeight: 1,
@@ -819,62 +770,95 @@ const DashboardHomePage = () => {
                 />
               </span>
             </form>
-            <button
-              type="button"
-              aria-label="Escolher produto"
-              onClick={(event) => {
-                event.stopPropagation();
-                navigate("/dashboard/catalogo");
-              }}
-              style={{
-                border: 0,
-                background: "transparent",
-                color: "rgba(0,0,0,0.70)",
-                cursor: "pointer",
-                width: fs(38),
-                height: fs(38),
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: fs(5),
-                padding: 0,
-              }}
-            >
-              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
-                <path d="M12 4.5v15M4.5 12h15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              aria-label="Enviar"
-              disabled={chatActive && !chatInput.trim()}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (!chatActive) {
-                  setChatActive(true);
-                  return;
-                }
-                void enviarParaAtlas(chatInput);
-              }}
-              style={{
-                border: 0,
-                borderRadius: "50%",
-                color: chatActive && chatInput.trim() ? "#FFFFFF" : "rgba(0,0,0,0.16)",
-                cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
-                background: chatActive && chatInput.trim() ? "#2563EB" : "#F0F0F0",
-                width: fs(40),
-                height: fs(40),
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                transition: "color 180ms ease, background-color 180ms ease, transform 180ms ease",
-              }}
-            >
-              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
-                <path d="M12 19V5M6.7 10.3 12 5l5.3 5.3" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span
+                aria-hidden="true"
+                style={{ width: fs(26), height: fs(26), display: "inline-flex", flex: "0 0 auto" }}
+              >
+                <AssistantAvatar />
+              </span>
+
+              <div style={{ display: "flex", alignItems: "center", gap: fs(6) }} onClick={(event) => event.stopPropagation()}>
+                {temHistorico && (
+                  <>
+                    <div ref={historyMenuRef} className="velo-home-atlas-conversas">
+                      <AtlasHistoryMenu
+                        userId={user?.id}
+                        activeThreadId={threadId}
+                        onSelectThread={abrirConversa}
+                        onThreadDeleted={aoApagarConversa}
+                        triggerLabel="Conversas"
+                        triggerStyle={{
+                          height: fs(36),
+                          minHeight: 30,
+                          borderRadius: fs(10),
+                          color: "#303030",
+                          fontSize: fs(16),
+                        }}
+                      />
+                    </div>
+                    <span aria-hidden="true" style={{ width: 1, height: fs(18), background: "#E3E3E3", margin: `0 ${fs(6)}` }} />
+                  </>
+                )}
+                <button
+                  type="button"
+                  aria-label="Escolher produto"
+                  className="velo-home-atlas-btn"
+                  onClick={() => navigate("/dashboard/catalogo")}
+                  style={{
+                    border: 0,
+                    borderRadius: fs(10),
+                    background: "transparent",
+                    color: "#303030",
+                    cursor: "pointer",
+                    width: fs(36),
+                    height: fs(36),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                  }}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
+                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Enviar"
+                  className={chatInput.trim() ? "velo-home-atlas-enviar" : "velo-home-atlas-btn"}
+                  disabled={chatActive && !chatInput.trim()}
+                  onClick={() => {
+                    if (!chatActive) {
+                      setChatActive(true);
+                      chatInputRef.current?.focus();
+                      return;
+                    }
+                    void enviarParaAtlas(chatInput);
+                  }}
+                  style={{
+                    border: 0,
+                    borderRadius: "50%",
+                    color: chatInput.trim() ? "#FFFFFF" : "#303030",
+                    cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
+                    background: chatInput.trim() ? "#000000" : "transparent",
+                    boxShadow: "none",
+                    width: fs(36),
+                    height: fs(36),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    transition: "color 160ms ease, background-color 160ms ease",
+                  }}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
+                    <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </motion.div>
 
           <motion.div
@@ -1465,7 +1449,7 @@ const DashboardHomePage = () => {
                     zIndex: 24,
                     left: 0,
                     right: 0,
-                    top: y(341 + HERO_OFFSET),
+                    top: y(344 + HERO_OFFSET),
                     bottom: 0,
                     background: "#F5F4F1",
                     pointerEvents: "none",
@@ -1481,7 +1465,7 @@ const DashboardHomePage = () => {
                     position: "absolute",
                     zIndex: 33,
                     left: "50%",
-                    top: y(328 + HERO_OFFSET),
+                    top: y(354 + HERO_OFFSET),
                     width: x(900),
                     x: "-50%",
                     display: "flex",
