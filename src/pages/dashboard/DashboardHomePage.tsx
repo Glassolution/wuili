@@ -649,12 +649,12 @@ const DashboardHomePage = () => {
 
       {/* Header: busca à esquerda, "+" azul e avatar à direita (como na referência). */}
       <motion.header {...revealProps(0, -6)} className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center justify-between gap-4 px-4 md:px-10">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
             type="button"
             onClick={abrirBusca}
             aria-label="Buscar produtos, lojas e telas"
-            className="velo-home-search flex h-10 w-[320px] max-w-full items-center gap-2.5 rounded-full bg-[#F5F6F8] px-4 text-left text-[14px] text-[#8A93A3]"
+            className="velo-home-search flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-[#F5F6F8] px-4 text-left text-[14px] text-[#8A93A3]"
           >
             <Search size={16} strokeWidth={1.5} aria-hidden="true" />
             <span className="flex-1 truncate">Buscar produtos, lojas...</span>
