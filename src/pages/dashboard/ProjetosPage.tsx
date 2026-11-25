@@ -1,7 +1,7 @@
 import { useMemo, useState, type ElementType, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { Activity, ChevronRight, Clock3, FilePlus2, FileText, FolderOpen, Globe, PenLine } from "lucide-react";
+import { ChevronRight, FilePlus2, FileText, Globe, PenLine } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
@@ -15,7 +15,7 @@ import agenteEstrela from "@/assets/agentes/estrela.png";
 
 /*
   Projetos (`/dashboard/projetos`), copiando o painel de agentes da referência do dono
-  (25/11/2026), sem o chat de IA: data e saudação, quatro números, "Precisa de você",
+  (25/11/2026), sem o chat de IA: data e saudação, três cards dos agentes, "Precisa de você",
   "Em andamento", "Atividade recente" e "Atalhos". Fundo cinza claro e cartões brancos.
 
   Tudo vem do RPC `get_user_projects` (`fetchUserProjects`, a mesma leitura da sidebar),
@@ -38,6 +38,10 @@ const PAGINA_CSS = `
 .velo-proj-azul:hover { background: #1D4ED8 !important; }
 .velo-proj-bloco { transition: background-color 150ms ease-out, box-shadow 150ms ease-out; }
 .velo-proj-bloco:hover { background: #EFEFF1 !important; }
+.velo-proj-card-agente { transition: border-color 150ms ease-out, box-shadow 200ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-proj-card-agente:hover { border-color: #C7D2FE !important; box-shadow: 0 10px 24px -14px rgba(37,99,235,0.35) !important; transform: translateY(-1px); }
+.velo-proj-card-agente-img { transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-proj-card-agente:hover .velo-proj-card-agente-img { transform: translateY(-2px) scale(1.04); }
 .velo-proj-root button:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(37,99,235,0.45) !important; }
 `;
 
@@ -167,20 +171,6 @@ const Painel = ({
   </motion.section>
 );
 
-// Cartão de número ("Time saved this week").
-const Numero = ({ Icone, rotulo, valor, legenda, entrada }: { Icone: ElementType; rotulo: string; valor: string; legenda: string; entrada: Entrada }) => (
-  <motion.div {...entrada} className="rounded-[14px] border border-[#E7E7EA] bg-white px-5 pb-5 pt-4" style={SOMBRA}>
-    <div className="flex items-center gap-3">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[#F1F1F3] text-[#3F3F46]">
-        <Icone aria-hidden="true" className="h-4 w-4" strokeWidth={1.9} />
-      </span>
-      <span className="truncate text-[12.5px] text-[#52525B]">{rotulo}</span>
-    </div>
-    <p className="m-0 mt-4 text-[26px] font-semibold leading-8 tracking-[-0.02em] text-[#18181B]">{valor}</p>
-    <p className="m-0 mt-2.5 truncate text-[11.5px] text-[#8A8A93]">{legenda}</p>
-  </motion.div>
-);
-
 const Carregando = ({ quantas = 3 }: { quantas?: number }) => (
   <div aria-hidden="true" className="pb-1">
     {Array.from({ length: quantas }, (_, i) => (
@@ -222,14 +212,7 @@ const ProjetosPage = () => {
     return lista;
   }, [projetosDaLoja.data]);
 
-  const publicados = projetos.filter((p) => p.status === "publicado").length;
   const rascunhos = projetos.filter((p) => p.status !== "publicado").sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const lojas = projetos.filter((p) => p.tipo_projeto === "loja_completa").length;
-  const paginas = projetos.length - lojas;
-  const ultimaPublicacao = projetos
-    .map((p) => p.published_at)
-    .filter((d): d is string => Boolean(d))
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
   const eventos = eventosDoSite(projetos);
   const mudancasDaSemana = eventos.filter((e) => Date.now() - new Date(e.quando).getTime() < SEMANA_MS);
 
@@ -245,6 +228,30 @@ const ProjetosPage = () => {
           animate: { opacity: 1, y: 0 },
           transition: { delay: atraso, duration: 0.35, ease: [0.22, 1, 0.36, 1] },
         };
+
+  const cardsDosAgentes: { titulo: string; texto: string; imagem: string; fundo: string; acao: () => void }[] = [
+    {
+      titulo: "Crie um novo projeto",
+      texto: "Comece o site de uma loja ou uma página de venda.",
+      imagem: agenteLua,
+      fundo: "linear-gradient(180deg, #EEF2FF 0%, #C7D2FE 100%)",
+      acao: criarProjeto,
+    },
+    {
+      titulo: "Personalize o visual",
+      texto: "Escolha um modelo da Velo e deixe com a cara da sua marca.",
+      imagem: agenteCubo,
+      fundo: "linear-gradient(180deg, #FFF7ED 0%, #FED7AA 100%)",
+      acao: () => navigate("/dashboard/modelos"),
+    },
+    {
+      titulo: "Página com IA",
+      texto: "Os agentes montam uma página pronta para vender um produto.",
+      imagem: agenteFolha,
+      fundo: "linear-gradient(180deg, #F0FDF4 0%, #BBF7D0 100%)",
+      acao: () => navigate("/dashboard/paginas-com-ia/criar"),
+    },
+  ];
 
   // No lugar de "Your agents": seis atalhos, cada um com um agente e um selo.
   const atalhos: { titulo: string; selo: string; imagem: string; acao: () => void }[] = [
@@ -281,36 +288,31 @@ const ProjetosPage = () => {
           <p className="m-0 mt-1.5 text-[13px] text-[#71717A]">{resumo}</p>
         </motion.div>
 
-        {/* Quatro números. */}
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Numero
-            entrada={entrada(0.04)}
-            Icone={FolderOpen}
-            rotulo="Seus projetos"
-            valor={carregando ? "–" : String(projetos.length)}
-            legenda={`${lojas} ${lojas === 1 ? "loja" : "lojas"} · ${paginas} ${paginas === 1 ? "página de venda" : "páginas de venda"}`}
-          />
-          <Numero
-            entrada={entrada(0.07)}
-            Icone={Globe}
-            rotulo="Sites no ar"
-            valor={carregando ? "–" : String(publicados)}
-            legenda={ultimaPublicacao ? `Última publicação ${tempoRelativo(ultimaPublicacao)}` : "Nenhum site publicado ainda"}
-          />
-          <Numero
-            entrada={entrada(0.1)}
-            Icone={Clock3}
-            rotulo="Esperando você"
-            valor={carregando ? "–" : String(rascunhos.length)}
-            legenda={rascunhos[0] ? `O mais antigo é de ${dataCurta(rascunhos[0].created_at)}` : "Nada pendente"}
-          />
-          <Numero
-            entrada={entrada(0.13)}
-            Icone={Activity}
-            rotulo="Mudanças na semana"
-            valor={carregando ? "–" : String(mudancasDaSemana.length)}
-            legenda={mudancasDaSemana[0] ? `A última ${tempoRelativo(mudancasDaSemana[0].quando)}` : "Nenhuma nos últimos 7 dias"}
-          />
+        {/* Três cards com os agentes (atalhos principais). */}
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {cardsDosAgentes.map((card, i) => (
+            <motion.button
+              key={card.titulo}
+              type="button"
+              onClick={card.acao}
+              {...entrada(0.04 + i * 0.04)}
+              className="velo-proj-card-agente flex min-h-[104px] overflow-hidden rounded-[14px] border border-[#E7E7EA] bg-white text-left"
+              style={SOMBRA}
+            >
+              <span className="grid w-[100px] shrink-0 place-items-center border-r border-[#EDEDF0] bg-[#FAFAFB]">
+                <span
+                  className="grid h-[68px] w-[68px] place-items-center overflow-hidden rounded-full"
+                  style={{ background: card.fundo, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.7), 0 4px 10px -4px rgba(16,24,40,0.15)" }}
+                >
+                  <img src={card.imagem} alt="" aria-hidden="true" draggable={false} className="velo-proj-card-agente-img h-11 w-11 select-none object-contain" />
+                </span>
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col justify-center px-4 py-3">
+                <span className="text-[15px] font-semibold leading-5 tracking-[-0.01em] text-[#18181B]">{card.titulo}</span>
+                <span className="mt-1 text-[13px] leading-[19px] text-[#71717A]">{card.texto}</span>
+              </span>
+            </motion.button>
+          ))}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
