@@ -5,7 +5,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { CircleDotDashed, CreditCard, Inbox, Link, LogOut, Plus, Search, Settings2, ShieldCheck } from "lucide-react";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
-import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
@@ -22,7 +21,8 @@ import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
   os mesmos ícones da referência, sem moldura em volta (só um fundo leve no
   hover), e o perfil na ponta com o menu da conta. Cada ícone é uma função real:
   busca, novo projeto, Comunidade e Ajuda, notificações (caixa de entrada),
-  Indique e ganhe (link), Atlas (o quadrado colorido) e a conta.
+  Indique e ganhe (link) e a conta. O quadrado colorido da referência (Atlas)
+  saiu a pedido do dono.
 */
 
 const BARRA_CSS = `
@@ -37,8 +37,6 @@ const BARRA_CSS = `
 .velo-topo-sino > div > button:first-child:hover { background: rgba(24,24,27,0.06); }
 .velo-topo-sino > div > button:first-child > svg { opacity: 0; }
 .velo-topo-sino > div > button:first-child > span { right: 7px; top: 7px; width: 8px; height: 8px; --tw-ring-color: #F7F7F8; }
-.velo-topo-atlas { transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
-.velo-topo-atlas:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(17,17,20,0.10) !important; }
 .velo-topo-avatar { transition: box-shadow 150ms ease-out; }
 .velo-topo-avatar:hover, .velo-topo-avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(24,24,27,0.08) !important; }
 .velo-topo-item { transition: background-color 120ms ease-out; }
@@ -88,7 +86,7 @@ const BarraDoTopo = () => {
   const upgradeModal = useUpgradeModal();
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
-  const { quota, abrir: abrirAtlas } = useAtlasChat();
+  const { quota } = useAtlasChat();
   const { plano, ehAdmin } = useContaNoPainel();
   const fimDoTeste = useFimDoTeste();
   const [sandboxLigado] = useSandboxMode(user?.id ?? user?.email ?? null);
@@ -214,20 +212,6 @@ const BarraDoTopo = () => {
       <BotaoDoTopo rotulo="Indique e ganhe" onClick={() => setConvidarAberto(true)}>
         <Link size={19} strokeWidth={1.6} />
       </BotaoDoTopo>
-      {/* O quadrado colorido da referência é o Atlas. */}
-      <button
-        type="button"
-        aria-label="Abrir o Atlas"
-        title="Atlas"
-        onClick={abrirAtlas}
-        className="velo-topo-atlas grid h-9 w-9 shrink-0 place-items-center rounded-[10px]"
-        style={{
-          background: "linear-gradient(135deg, #DCFCE7 0%, #DBEAFE 45%, #FCE7F3 100%)",
-          boxShadow: "0 0 0 1px rgba(17,17,20,0.06)",
-        }}
-      >
-        <AtlasAvatarIcon size={22} animated={false} />
-      </button>
 
       <div ref={menuRef} className="relative shrink-0">
         <button
