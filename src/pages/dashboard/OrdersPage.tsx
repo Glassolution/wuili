@@ -32,6 +32,7 @@ import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
 import { MobileOrdersView } from "@/components/dashboard/MobileOrdersView";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { usePlan, type PlanName } from "@/hooks/usePlan";
+import MascoteVelo from "@/components/MascoteVelo";
 
 
 type MlOrderRow = Database["public"]["Views"]["ml_orders_view"]["Row"];
@@ -1629,11 +1630,9 @@ const StoreOrdersList = ({ userId, useBotPurchase }: { userId: string; useBotPur
   if (isLoading) return <OrderSkeleton />;
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
-          <ShoppingBag size={21} strokeWidth={1.7} />
-        </div>
-        <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido da sua loja ainda</p>
+      <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+        <MascoteVelo pose="sentado" altura={76} />
+        <p className="mt-3 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido da sua loja ainda</p>
         <p className="mt-1 max-w-md text-[12px] font-medium text-[#777771]">
           Quando um cliente comprar em uma das suas páginas de vendas, o pedido aparece aqui automaticamente.
         </p>
@@ -2109,11 +2108,9 @@ const OrdersPage = () => {
         ) : isLoading ? (
           <OrderSkeleton />
         ) : isEmpty ? (
-          <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
-            <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
-              <ShoppingBag size={21} strokeWidth={1.7} />
-            </div>
-            <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido encontrado</p>
+          <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+            <MascoteVelo pose="sentado" altura={76} />
+            <p className="mt-3 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhum pedido encontrado</p>
             <p className="mt-1 max-w-md text-[12px] font-medium text-[#777771]">
               Seus pedidos do Mercado Livre aparecerão aqui quando a sincronização registrar vendas na view.
             </p>

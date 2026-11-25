@@ -61,6 +61,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { trackPrimeiroProdutoVisto } from "@/lib/signupFunnel";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
+import MascoteVelo from "@/components/MascoteVelo";
 
 const TUTORIAL_CATALOGO = {
   src: "https://www.youtube.com/embed/CtU-zqb0SM4?rel=0&modestbranding=1",
@@ -1634,7 +1635,8 @@ const CatalogoPage = () => {
                 </button>
               </div>
             ) : products.length === 0 ? (
-              <div className="flex h-40 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-50/30 p-6 text-center text-gray-500 w-full col-span-full">
+              <div className="flex min-h-40 flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-50/30 p-6 text-center text-gray-500 w-full col-span-full">
+                <MascoteVelo pose={activeCategory === "favoritos" ? "pulando" : "deitado"} altura={activeCategory === "favoritos" ? 70 : 58} className="mb-3" />
                 {activeCategory === "favoritos" ? (
                   <>
                     <p className="font-medium text-[#111111]">Você ainda não favoritou nenhum produto.</p>

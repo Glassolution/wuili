@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import DashboardPageShell from "@/components/dashboard/DashboardPageShell";
 import PerfilPerguntaCard from "@/components/dashboard/PerfilPerguntaCard";
 import { veloToast } from "@/components/ui/velo-toast";
+import MascoteVelo from "@/components/MascoteVelo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Publication = {
@@ -249,11 +250,9 @@ const PublicationsPage = () => {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
-          <div className="grid h-11 w-11 place-items-center rounded-full bg-white text-[#9CA3AF] shadow-[0_10px_24px_rgba(17,17,17,0.06)]">
-            <Package size={21} strokeWidth={1.7} />
-          </div>
-          <p className="mt-4 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhuma publicação encontrada</p>
+        <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8]/45 p-6 text-center">
+          <MascoteVelo pose="timido" altura={76} />
+          <p className="mt-3 text-[14px] font-semibold tracking-[-0.03em] text-[#111111]">Nenhuma publicação encontrada</p>
           <p className="mt-1 text-[12px] font-medium text-[#777771]">Ajuste os filtros ou publique um produto pelo Catálogo Velo.</p>
         </div>
       ) : viewMode === "list" ? (

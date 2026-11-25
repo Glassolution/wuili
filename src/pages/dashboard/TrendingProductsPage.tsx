@@ -17,7 +17,6 @@ import {
   List,
   Loader2,
   Lock,
-  PackageOpen,
   Search,
   SlidersHorizontal,
   Star,
@@ -40,6 +39,7 @@ import type { ExampleProduct } from "@/types/onboarding";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { displayOrdersCountFor, displayRatingFor } from "@/lib/catalogFilters";
 import { formatReviewCount } from "@/components/dashboard/ProductCard";
+import MascoteVelo from "@/components/MascoteVelo";
 
 type Period = "today" | "week" | "month";
 type SortBy = "score" | "demand" | "margin" | "rating" | "recent" | "price_asc" | "price_desc";
@@ -1102,9 +1102,7 @@ const TrendingProductsPage = () => {
             </div>
           ) : visibleProducts.length === 0 ? (
             <div className="flex min-h-[430px] flex-col items-center justify-center px-6 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F3F1] text-[#111111]">
-                <PackageOpen size={23} strokeWidth={1.5} />
-              </div>
+              <MascoteVelo pose="andando" altura={88} />
               <h3 className="mt-4 text-[18px] font-semibold tracking-[-0.03em]">
                 {appliedSearchQuery ? "Nenhum produto encontrado para a busca" : "Nenhum produto encontrado"}
               </h3>
