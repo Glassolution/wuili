@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, PlayCircle } from "lucide-react";
-import { PlusSignIcon, SearchAreaIcon } from "hugeicons-react";
+import { ArrowUpRight, ChevronDown, PlayCircle, X } from "lucide-react";
+import { useProfile } from "@/lib/profileContext";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,18 +76,36 @@ type OnboardingStatus = {
   hasPublication: boolean;
 };
 
-const IMAGE_WIDTH = 1536;
-// Layout da Início no estilo da referência (unidades de 1536 de largura).
+// Início desktop com as medidas da referência (Base44), em px fixos.
 const PAGE_BG = "#FFFFFF";
-const LAYOUT = {
-  canvas: 940,
-  title: 262,
-  box: 342,
-  boxHeight: 232,
-  cards: 618,
-  cardsHeight: 196,
-  width: 920,
-} as const;
+
+// Menu "Criar" da caixa do Atlas: só páginas que já existem.
+const ACOES_CRIAR = [
+  { id: "site", rotulo: "Site da loja", rota: "/dashboard/minha-loja" },
+  { id: "produtos", rotulo: "Encontrar produtos", rota: "/dashboard/catalogo" },
+  { id: "agentes", rotulo: "Agentes", rota: "/dashboard/projetos" },
+] as const;
+
+const HOME_CSS = `
+.velo-home-btn { transition: background-color 150ms ease-out, border-color 150ms ease-out; }
+.velo-home-btn:hover:not(:disabled) { background-color: #F4F4F5; }
+.velo-home-menu-item { transition: background-color 120ms ease-out; }
+.velo-home-menu-item:hover, .velo-home-menu-item:focus-visible { background-color: #F4F4F5; outline: none; }
+.velo-home-enviar { transition: background-color 150ms ease-out, transform 150ms ease-out; }
+.velo-home-enviar:hover:not(:disabled) { filter: brightness(0.95); }
+.velo-home-enviar:active:not(:disabled) { transform: scale(0.95); }
+.velo-home-fechar { transition: background-color 150ms ease-out; }
+.velo-home-fechar:hover { background-color: #EDEDEF; }
+.velo-home-aba { transition: color 150ms ease-out; }
+.velo-home-aba:hover { color: #18181B; }
+.velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
+.velo-home-atlas button { box-shadow: none; }
+.velo-home-atlas button:focus-visible, .velo-home-aba:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(37,99,235,0.4); }
+@media (prefers-reduced-motion: reduce) {
+  .velo-home-btn, .velo-home-menu-item, .velo-home-enviar, .velo-home-fechar, .velo-home-aba { transition: none; }
+}
+`;
+
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -132,58 +150,6 @@ const INTRO = {
   bandDuration: 1,
   bandDelays: [1.4, 1.68, 1.96],
 };
-
-// Todo o layout desta tela é dimensionado em cqw (relativo à largura do
-// container), então sem um teto ele cresce junto com o monitor e no desktop
-// fica desproporcional. Travamos a largura do canvas: acima disso o conteúdo
-// para de inflar e apenas ganha margem lateral (da mesma cor do fundo, PAGE_BG).
-// Abaixo desse valor o comportamento responsivo continua exatamente o mesmo.
-// Este é o único número a mexer para calibrar a escala geral da página.
-const MAX_CANVAS_WIDTH = 1280;
-
-const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
-const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
-const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
-
-// Globo com o cursor (o ícone "Research" da referência), no mesmo traço dos
-// Hugeicons. Não existe pronto no pacote, então é desenhado aqui.
-const GloboCursorIcon = ({ strokeWidth = 1.5, style, className }: { strokeWidth?: number; style?: CSSProperties; className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style} className={className} aria-hidden="true">
-    <path d="M20 11a9 9 0 1 0-9 9" />
-    <path d="M11 2c-2.4 2.5-3.6 5.5-3.6 9s1.2 6.5 3.6 9" />
-    <path d="M11 2c2.4 2.5 3.6 5.5 3.6 9" />
-    <path d="M2.6 8h16.8M2.6 14H10" />
-    <path d="M13.8 13.8l7.2 2.7-3.2 1.2-1.2 3.2-2.8-7.1Z" />
-  </svg>
-);
-
-// Os três atalhos embaixo da caixa do Atlas, no estilo da referência (ícone,
-// título e uma linha curta). Só levam para páginas que já existem.
-const ATALHOS_HOME = [
-  { id: "criar", icone: PlusSignIcon, titulo: "Criar", texto: "Site da sua loja", rota: "/dashboard/minha-loja" },
-  { id: "encontrar", icone: SearchAreaIcon, titulo: "Encontrar", texto: "Produtos do catálogo", rota: "/dashboard/catalogo" },
-  { id: "agentes", icone: GloboCursorIcon, titulo: "Agentes", texto: "Projetos e mudanças", rota: "/dashboard/projetos" },
-] as const;
-
-const HOME_CSS = `
-.velo-home-atalho { transition: background-color 180ms ease-out, border-color 180ms ease-out, transform 160ms ease-out; }
-.velo-home-atalho:hover { background-color: #FAFAFA; border-color: #E0E0E3; }
-.velo-home-atalho:active { transform: scale(0.99); }
-.velo-home-atalho .velo-home-atalho-icone { transition: color 180ms ease-out; }
-.velo-home-atalho:hover .velo-home-atalho-icone { color: #18181B; }
-.velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
-.velo-home-atlas .velo-home-atlas-btn { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
-.velo-home-atlas .velo-home-atlas-btn:hover:not(:disabled) { background-color: #F4F4F5; color: #18181B; }
-.velo-home-atlas .velo-home-atlas-enviar { transition: background-color 150ms ease-out, transform 150ms ease-out, opacity 150ms ease-out; }
-.velo-home-atlas .velo-home-atlas-enviar:hover:not(:disabled) { background-color: #1D4ED8; }
-.velo-home-atlas .velo-home-atlas-enviar:active:not(:disabled) { transform: scale(0.95); }
-.velo-home-proximo-btn { transition: color 150ms ease-out; }
-.velo-home-proximo-btn:hover:not(:disabled) { color: #1D4ED8; }
-@media (prefers-reduced-motion: reduce) {
-  .velo-home-atalho, .velo-home-atalho .velo-home-atalho-icone, .velo-home-atlas .velo-home-atlas-enviar { transition: none; }
-  .velo-home-atalho:active { transform: none; }
-}
-`;
 
 const AssistantAvatar = () => (
   <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
@@ -233,7 +199,7 @@ const AnimatedPromptText = ({
         left: 0,
         right: 0,
         color: "#A1A1AA",
-        fontSize: fs(21),
+        fontSize: 15,
         fontWeight: 400,
         lineHeight: 1,
         overflow: "hidden",
@@ -307,6 +273,33 @@ const DashboardHomePage = () => {
   const [chatActive, setChatActive] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [menuCriarAberto, setMenuCriarAberto] = useState(false);
+  // "Fechar" do card de próximo passo vale só para esta visita.
+  const [proximoDispensado, setProximoDispensado] = useState(false);
+  const menuCriarRef = useRef<HTMLDivElement>(null);
+  const { nomeCurto } = useProfile();
+  const primeiroNome = (() => {
+    const primeiro = (nomeCurto ?? "").trim().split(" ")[0] ?? "";
+    return /^usu[aá]rio$/i.test(primeiro) ? "" : primeiro;
+  })();
+
+  // Menu "Criar": fecha ao clicar fora ou com Escape.
+  useEffect(() => {
+    if (!menuCriarAberto) return;
+    const aoClicarFora = (event: PointerEvent) => {
+      if (event.target instanceof Node && menuCriarRef.current?.contains(event.target)) return;
+      setMenuCriarAberto(false);
+    };
+    const aoTeclar = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuCriarAberto(false);
+    };
+    window.addEventListener("pointerdown", aoClicarFora);
+    window.addEventListener("keydown", aoTeclar);
+    return () => {
+      window.removeEventListener("pointerdown", aoClicarFora);
+      window.removeEventListener("keydown", aoTeclar);
+    };
+  }, [menuCriarAberto]);
 
   /**
    * Existe conversa anterior para mostrar no histórico?
@@ -510,6 +503,9 @@ const DashboardHomePage = () => {
       };
 
   const go = (path: string) => () => navigate(path);
+  const onboardingProgress = onboardingStatus
+    ? Math.round(([onboardingStatus.mlConnected, onboardingStatus.hasPublication].filter(Boolean).length / 2) * 100)
+    : null;
   const nextStepCopy = !onboardingStatus
     ? "Consulte suas integrações e continue a configuração da sua conta."
     : !onboardingStatus.mlConnected
@@ -567,112 +563,52 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="shrink-0 overflow-auto -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
-      style={{ background: PAGE_BG }}
+      className="relative flex shrink-0 flex-col -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      style={{ background: PAGE_BG, color: "#18181B" }}
     >
       <style>{HOME_CSS}</style>
-      <div
-        className="relative mx-auto w-full text-[#101114]"
-        style={{ containerType: "inline-size", maxWidth: MAX_CANVAS_WIDTH }}
-      >
-        {/* Só dá a altura do canvas: tudo abaixo é posicionado em cima dele. */}
-        <div aria-hidden="true" style={{ height: y(LAYOUT.canvas) }} />
 
-        <div className="absolute inset-0 font-sans">
-          {/* Textura de pontinhos no topo, como na referência, sumindo para baixo. */}
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: 0,
-              height: y(230),
-              backgroundImage: "radial-gradient(rgba(17,17,20,0.11) 1px, transparent 1.2px)",
-              backgroundSize: `${fs(14)} ${fs(14)}`,
-              WebkitMaskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.5) 45%, transparent 100%)",
-              maskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.5) 45%, transparent 100%)",
-              pointerEvents: "none",
-            }}
-          />
+      <motion.div {...revealProps(INTRO.promoDelay, -6)} className="absolute right-5 top-4 z-40">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setTutorialOpen(true)}
+          aria-label="Ver tutorial de início"
+          className="h-9 gap-2 rounded-[8px] border-[#E4E4E7] bg-white px-3 text-[13px] font-medium text-[#18181B] shadow-none hover:bg-[#F4F4F5]"
+        >
+          <PlayCircle aria-hidden="true" className="h-4 w-4" />
+          Ver tutorial
+        </Button>
+      </motion.div>
 
-          <motion.div
-            {...revealProps(INTRO.promoDelay, -6)}
-            style={{
-              position: "absolute",
-              right: x(30),
-              top: y(20),
-              zIndex: 40,
-            }}
-          >
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setTutorialOpen(true)}
-              aria-label="Ver tutorial de início"
-              className="gap-2 border-black/[0.09] bg-white/95 font-semibold text-[#101114] shadow-[0_3px_8px_rgba(15,23,42,0.07)] hover:bg-white"
-              style={{
-                height: y(56),
-                minHeight: 40,
-                borderRadius: fs(18),
-                paddingLeft: fs(15),
-                paddingRight: fs(17),
-                fontSize: fs(11.8),
-              }}
-            >
-              <PlayCircle aria-hidden="true" style={{ width: fs(17), height: fs(17) }} />
-              Ver tutorial
-            </Button>
-          </motion.div>
+      {/* Medidas da referência: título de 48px, caixa de 720 × 128 a 58px dele e
+          o card de próximo passo 40px abaixo. Bloco um pouco abaixo do centro. */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-12 pt-28">
+        <motion.h1
+          initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          // Transições por propriedade em vez de keyframes com `times`: o título
+          // aparece parado, depois sobe.
+          transition={playIntro
+            ? {
+                opacity: { duration: INTRO.titleFade, ease: "easeOut" },
+                scale: { duration: INTRO.titleFade, ease: INTRO.travelEase },
+                y: { delay: INTRO.titleTravelDelay, duration: INTRO.titleTravel, ease: INTRO.travelEase },
+              }
+            : { duration: 0 }}
+          className="m-0 text-center"
+          style={{ fontSize: 48, fontWeight: 600, lineHeight: 1.08, letterSpacing: "-0.035em", color: "#18181B" }}
+        >
+          <span className="block">
+            {primeiroNome ? `Olá ${primeiroNome}` : "Olá"}
+            <span style={{ color: "#2563EB" }}>.</span>
+          </span>
+          <span className="block">Por onde você quer começar?</span>
+        </motion.h1>
 
-          <motion.h1
-            initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            // Transições por propriedade em vez de keyframes com `times`: o título
-            // aparece parado, depois sobe. Separar as curvas evita a pausa morta e a
-            // frenagem arrastada que a sequência única produzia.
-            transition={playIntro
-              ? {
-                  opacity: { duration: INTRO.titleFade, ease: "easeOut" },
-                  scale: { duration: INTRO.titleFade, ease: INTRO.travelEase },
-                  y: {
-                    delay: INTRO.titleTravelDelay,
-                    duration: INTRO.titleTravel,
-                    ease: INTRO.travelEase,
-                  },
-                }
-              : { duration: 0 }}
-            style={{
-              position: "absolute",
-              zIndex: 30,
-              left: "50%",
-              top: y(LAYOUT.title),
-              x: "-50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: fs(16),
-              margin: 0,
-              color: "#18181B",
-              fontSize: fs(36),
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: "-0.015em",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <img
-              src="/logo.png"
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              style={{ width: fs(38), height: fs(38), objectFit: "contain", userSelect: "none" }}
-            />
-            Por onde você quer começar?
-          </motion.h1>
-
-          {/* Caixa do Atlas no estilo da referência: texto em cima; à esquerda "+"
-              e o Atlas, à direita Conversas e o enviar azul. A lógica do chat não mudou. */}
+        <div className="relative mt-[58px] w-full max-w-[720px]">
+          {/* Caixa do Atlas: texto em cima; "+" e Atlas à esquerda; Conversas,
+              Criar e enviar à direita. A lógica do chat não mudou. */}
           <motion.div
             {...revealProps(INTRO.chatDelay, 14)}
             ref={welcomeChatRef}
@@ -684,40 +620,21 @@ const DashboardHomePage = () => {
               setChatActive(true);
               chatInputRef.current?.focus();
             }}
-            className="velo-home-atlas"
+            className="velo-home-atlas relative z-[32] flex flex-col justify-between"
             style={{
-              position: "absolute",
-              zIndex: 32,
-              left: "50%",
-              top: y(LAYOUT.box),
-              width: x(LAYOUT.width),
-              height: y(LAYOUT.boxHeight),
-              x: "-50%",
+              height: 128,
               boxSizing: "border-box",
-              borderRadius: fs(28),
+              padding: "20px 12px 12px 20px",
+              borderRadius: 10,
               border: chatActive ? "1px solid #D4D4D8" : "1px solid #E4E4E7",
               background: "#FFFFFF",
-              boxShadow: chatActive
-                ? "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(17,17,20,0.07)"
-                : "0 1px 2px rgba(0,0,0,0.04), 0 10px 30px rgba(17,17,20,0.07)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              padding: `${fs(28)} ${fs(22)} ${fs(22)} ${fs(28)}`,
+              boxShadow: chatActive ? "0 1px 2px rgba(0,0,0,0.04), 0 6px 18px rgba(17,17,20,0.06)" : "0 1px 2px rgba(0,0,0,0.04)",
               cursor: "text",
               transition: "border-color 200ms ease, box-shadow 240ms ease",
             }}
           >
             <form onSubmit={handleChatSubmit} style={{ display: "block", minWidth: 0 }}>
-              <span
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  minWidth: 0,
-                  height: fs(28),
-                }}
-              >
+              <span style={{ position: "relative", display: "flex", alignItems: "center", minWidth: 0, height: 22 }}>
                 <AnimatePresence mode="wait" initial={false}>
                   {!chatActive && !chatInput.trim() && (
                     <AnimatedPromptText
@@ -734,6 +651,7 @@ const DashboardHomePage = () => {
                   onChange={(event) => setChatInput(event.target.value)}
                   aria-label="Mensagem para o Atlas"
                   placeholder={chatActive ? "Trabalhe com o Atlas" : ""}
+                  className="velo-home-atlas-texto"
                   style={{
                     width: "100%",
                     minWidth: 0,
@@ -743,9 +661,8 @@ const DashboardHomePage = () => {
                     background: "transparent",
                     color: "#18181B",
                     caretColor: "#18181B",
-                    fontSize: fs(21),
-                    fontWeight: 400,
-                    lineHeight: 1,
+                    fontSize: 15,
+                    lineHeight: "22px",
                     position: "relative",
                     zIndex: 1,
                   }}
@@ -753,90 +670,87 @@ const DashboardHomePage = () => {
               </span>
             </form>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: fs(12) }} onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
                 <button
                   type="button"
                   aria-label="Escolher produto"
                   title="Escolher produto"
-                  className="velo-home-atlas-btn"
+                  className="velo-home-btn flex h-[30px] w-[30px] items-center justify-center rounded-[6px] border border-[#E4E4E7] bg-white text-[#3F3F46]"
                   onClick={() => navigate("/dashboard/catalogo")}
-                  style={{
-                    border: "1px solid #E4E4E7",
-                    borderRadius: fs(12),
-                    background: "#FFFFFF",
-                    color: "#52525B",
-                    cursor: "pointer",
-                    width: fs(46),
-                    height: fs(46),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                    boxShadow: "none",
-                  }}
                 >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(22), height: fs(22), display: "block" }}>
-                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="block h-4 w-4">
+                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </button>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: fs(10),
-                    marginLeft: fs(6),
-                    color: "#3F3F46",
-                    fontSize: fs(18),
-                    fontWeight: 500,
-                  }}
-                >
-                  <span aria-hidden="true" style={{ width: fs(24), height: fs(24), display: "inline-flex", flex: "0 0 auto" }}>
+                <span className="flex h-[30px] items-center gap-1.5 rounded-[6px] border border-[#E4E4E7] bg-white px-2 text-[14px] font-medium text-[#18181B]">
+                  <span aria-hidden="true" className="inline-flex h-4 w-4 shrink-0">
                     <AssistantAvatar />
                   </span>
                   Atlas
-                  <span
-                    style={{
-                      padding: `${fs(4)} ${fs(9)}`,
-                      borderRadius: fs(8),
-                      background: "#EEF3FF",
-                      color: "#2563EB",
-                      fontSize: fs(14),
-                      fontWeight: 600,
-                      lineHeight: 1,
-                    }}
-                  >
-                    IA
-                  </span>
                 </span>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: fs(10) }} onClick={(event) => event.stopPropagation()}>
+              <div className="flex items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
                 {temHistorico && (
-                  <>
-                    <div ref={historyMenuRef} className="velo-home-atlas-conversas">
-                      <AtlasHistoryMenu
-                        userId={user?.id}
-                        activeThreadId={threadId}
-                        onSelectThread={abrirConversa}
-                        onThreadDeleted={aoApagarConversa}
-                        triggerLabel="Conversas"
-                        triggerStyle={{
-                          height: fs(40),
-                          minHeight: 30,
-                          borderRadius: fs(10),
-                          color: "#3F3F46",
-                          fontSize: fs(17),
-                        }}
-                      />
-                    </div>
-                    <span aria-hidden="true" style={{ width: 1, height: fs(20), background: "#E4E4E7", margin: `0 ${fs(4)}` }} />
-                  </>
+                  <div ref={historyMenuRef} className="velo-home-atlas-conversas">
+                    <AtlasHistoryMenu
+                      userId={user?.id}
+                      activeThreadId={threadId}
+                      onSelectThread={abrirConversa}
+                      onThreadDeleted={aoApagarConversa}
+                      triggerLabel="Conversas"
+                      triggerStyle={{ height: 30, minHeight: 30, borderRadius: 6, color: "#3F3F46", fontSize: 14 }}
+                    />
+                  </div>
                 )}
+
+                {/* "Criar": atalhos para começar (as páginas que já existem). */}
+                <div ref={menuCriarRef} className="relative">
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={menuCriarAberto}
+                    onClick={() => setMenuCriarAberto((aberto) => !aberto)}
+                    className="velo-home-btn flex h-[30px] items-center gap-1.5 rounded-[6px] border border-[#E4E4E7] bg-white pl-2.5 pr-2 text-[14px] font-medium text-[#18181B]"
+                  >
+                    Criar
+                    <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 text-[#52525B]" strokeWidth={2} />
+                  </button>
+                  <AnimatePresence>
+                    {menuCriarAberto && (
+                      <motion.div
+                        role="menu"
+                        initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: reduceMotion ? 0 : 0.14, ease: "easeOut" }}
+                        className="absolute right-0 top-[calc(100%+6px)] z-50 w-[220px] rounded-[10px] border border-[#E4E4E7] bg-white p-1"
+                        style={{ boxShadow: "0 10px 30px rgba(17,17,20,0.10)" }}
+                      >
+                        {ACOES_CRIAR.map((acao) => (
+                          <button
+                            key={acao.id}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setMenuCriarAberto(false);
+                              navigate(acao.rota);
+                            }}
+                            className="velo-home-menu-item flex h-9 w-full items-center rounded-[6px] px-2.5 text-left text-[14px] text-[#18181B]"
+                          >
+                            {acao.rotulo}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
                 <button
                   type="button"
                   aria-label="Enviar"
-                  className="velo-home-atlas-enviar"
+                  className="velo-home-enviar flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-white"
                   disabled={chatActive && !chatInput.trim()}
                   onClick={() => {
                     if (!chatActive) {
@@ -847,22 +761,11 @@ const DashboardHomePage = () => {
                     void enviarParaAtlas(chatInput);
                   }}
                   style={{
-                    border: 0,
-                    borderRadius: "50%",
-                    color: "#FFFFFF",
+                    background: chatInput.trim() ? "#2563EB" : "#C9D7FA",
                     cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
-                    background: "#2563EB",
-                    opacity: chatActive && !chatInput.trim() ? 0.5 : 1,
-                    boxShadow: "none",
-                    width: fs(48),
-                    height: fs(48),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
                   }}
                 >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(22), height: fs(22), display: "block" }}>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="block h-4 w-4">
                     <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
@@ -870,253 +773,141 @@ const DashboardHomePage = () => {
             </div>
           </motion.div>
 
-          {/* Atalhos e próximo passo: somem quando o chat abre. */}
-          <motion.div
-            aria-hidden={chatActive}
-            initial={false}
-            animate={chatActive
-              ? { opacity: 0, y: reduceMotion ? 0 : 22, scale: reduceMotion ? 1 : 0.992, filter: "blur(7px)" }
-              : { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: reduceMotion ? 0 : 0.42, ease: [0.22, 1, 0.36, 1] }}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: y(LAYOUT.cards),
-              bottom: 0,
-              pointerEvents: chatActive ? "none" : "auto",
-            }}
-          >
-            <nav
-              aria-label="Atalhos"
-              data-dashboard-tour="home-primeiros-passos"
-              style={{
-                position: "absolute",
-                left: "50%",
-                top: 0,
-                width: x(LAYOUT.width),
-                transform: "translateX(-50%)",
-                display: "grid",
-                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                gap: fs(24),
-              }}
-            >
-              {ATALHOS_HOME.map((atalho) => {
-                const Icone = atalho.icone;
-                return (
-                  <button
-                    key={atalho.id}
-                    type="button"
-                    onClick={go(atalho.rota)}
-                    className="velo-home-atalho focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:ring-offset-2"
-                    style={{
-                      height: y(LAYOUT.cardsHeight),
-                      boxSizing: "border-box",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      // Medidas da referência: cantos ~10% da largura, respiro de ~10%
-                      // à esquerda e em cima, ícone fino, título médio e linha cinza.
-                      padding: `${fs(30)} ${fs(29)} ${fs(30)}`,
-                      border: "1px solid #EAEAEC",
-                      borderRadius: fs(29),
-                      background: "#FFFFFF",
-                      color: "#18181B",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      boxShadow: "none",
-                    }}
-                  >
-                    <Icone
-                      aria-hidden="true"
-                      className="velo-home-atalho-icone"
-                      strokeWidth={1.4}
-                      style={{ width: fs(30), height: fs(30), color: "#52525B" }}
-                    />
-                    <span style={{ display: "flex", flexDirection: "column", gap: fs(12) }}>
-                      <span style={{ fontSize: fs(24), fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.005em" }}>
-                        {atalho.titulo}
-                      </span>
-                      <span style={{ color: "#8A8A90", fontSize: fs(21), fontWeight: 400, lineHeight: 1.2, letterSpacing: "0.01em" }}>
-                        {atalho.texto}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* Próximo passo (dados reais do Mercado Livre), numa linha discreta. */}
+          {/* Próximo passo (dados reais do Mercado Livre), no formato do card
+              "Mostre o que você criou" da referência. Some quando o chat abre. */}
+          {!proximoDispensado && (
+            <motion.div {...revealProps(INTRO.bandDelays[0], 10)} className="mt-10">
             <div
+              aria-hidden={chatActive}
+              className="relative flex items-center gap-4 rounded-[10px] border border-[#EDEDEF] bg-[#FAFAFA] py-4 pl-4 pr-10"
               style={{
-                position: "absolute",
-                left: "50%",
-                top: y(LAYOUT.cardsHeight + 34),
-                width: x(LAYOUT.width),
-                transform: "translateX(-50%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: fs(10),
-                color: "#71717A",
-                fontSize: fs(15),
-                lineHeight: 1.3,
-                whiteSpace: "nowrap",
+                opacity: chatActive ? 0 : 1,
+                pointerEvents: chatActive ? "none" : "auto",
+                transition: "opacity 260ms ease",
               }}
             >
-              <span style={{ color: "#3F3F46", fontWeight: 600 }}>Próximo passo:</span>
-              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{nextStepCopy}</span>
+              <div
+                aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
+                className="flex h-[58px] w-[86px] shrink-0 items-center justify-center rounded-[6px] border border-[#EDEDEF] bg-white"
+              >
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-full p-[3px]"
+                  style={{
+                    background: onboardingProgress === null
+                      ? "#ECECEE"
+                      : `conic-gradient(#2563EB ${onboardingProgress}%, #ECECEE 0)`,
+                  }}
+                >
+                  <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#3F3F46]">
+                    {onboardingProgress === null ? "—" : `${onboardingProgress}%`}
+                  </span>
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="m-0 text-[14px] font-semibold leading-5 text-[#18181B]">Próximo passo</p>
+                <p className="m-0 text-[14px] leading-5 text-[#52525B]">{nextStepCopy}</p>
+              </div>
               <button
                 type="button"
                 onClick={handleNextStep}
                 disabled={conectandoMl}
-                className="velo-home-proximo-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: fs(4),
-                  border: 0,
-                  padding: 0,
-                  background: "transparent",
-                  boxShadow: "none",
-                  color: "#2563EB",
-                  cursor: conectandoMl ? "wait" : "pointer",
-                  fontSize: fs(15),
-                  fontWeight: 600,
-                  flex: "0 0 auto",
-                }}
+                className="velo-home-btn h-9 shrink-0 rounded-[6px] border border-[#D4D4D8] bg-white px-4 text-[14px] font-medium text-[#18181B]"
+                style={{ cursor: conectandoMl ? "wait" : "pointer" }}
               >
                 {conectandoMl ? "Abrindo…" : nextStepLabel}
-                <ArrowRight aria-hidden="true" style={{ width: fs(15), height: fs(15) }} strokeWidth={2.2} />
+              </button>
+              <button
+                type="button"
+                aria-label="Fechar próximo passo"
+                onClick={() => setProximoDispensado(true)}
+                className="velo-home-fechar absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-[6px] text-[#52525B]"
+              >
+                <X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.2} />
               </button>
             </div>
-          </motion.div>
+            </motion.div>
+          )}
 
           <AnimatePresence>
             {chatActive && (
-              <>
-                <motion.div
-                  aria-hidden="true"
-                  initial={reduceMotion ? false : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.48, ease: "easeOut" }}
-                  style={{
-                    position: "absolute",
-                    zIndex: 24,
-                    left: 0,
-                    right: 0,
-                    top: y(LAYOUT.box + LAYOUT.boxHeight + 6),
-                    bottom: 0,
-                    background: PAGE_BG,
-                    pointerEvents: "none",
-                  }}
-                />
-                <motion.div
-                  ref={suggestionListRef}
-                  initial={reduceMotion ? false : { opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ delay: reduceMotion ? 0 : 0.22, duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    position: "absolute",
-                    zIndex: 33,
-                    left: "50%",
-                    top: y(LAYOUT.box + LAYOUT.boxHeight + 16),
-                    width: x(LAYOUT.width),
-                    x: "-50%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "stretch",
-                  }}
-                >
-                  {CHAT_SUGGESTIONS.map((suggestion, index) => (
-                    <motion.button
-                      key={suggestion}
-                      type="button"
-                      initial={reduceMotion ? false : { opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -6 }}
-                      transition={{
-                        delay: reduceMotion ? 0 : 0.3 + index * 0.075,
-                        duration: reduceMotion ? 0 : 0.42,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                      onClick={() => void enviarParaAtlas(suggestion)}
-                      onMouseEnter={() => setHoveredSuggestion(suggestion)}
-                      onMouseLeave={() => setHoveredSuggestion(null)}
-                      onFocus={() => setHoveredSuggestion(suggestion)}
-                      onBlur={() => setHoveredSuggestion(null)}
-                      className="focus-visible:outline-none"
-                      style={{
-                        height: y(58),
-                        border: 0,
-                        borderRadius: fs(14),
-                        background: hoveredSuggestion === suggestion ? "#F4F4F5" : "transparent",
-                        color: hoveredSuggestion === suggestion ? "#18181B" : "#71717A",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: fs(18),
-                        padding: `0 ${fs(18)}`,
-                        fontSize: fs(18),
-                        fontWeight: 500,
-                        lineHeight: 1,
-                        textAlign: "left",
-                        boxShadow: "none",
-                        transition: "background-color 180ms ease, color 180ms ease, transform 180ms ease",
-                      }}
-                      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
-                    >
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        style={{
-                          width: fs(24),
-                          height: fs(24),
-                          flex: "0 0 auto",
-                          opacity: hoveredSuggestion === suggestion ? 0.9 : 0.55,
-                          transition: "opacity 150ms ease",
-                        }}
-                      >
-                        <path d="M4 12h14M13 7l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span>{suggestion}</span>
-                    </motion.button>
-                  ))}
-                </motion.div>
-              </>
+              <motion.div
+                ref={suggestionListRef}
+                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ delay: reduceMotion ? 0 : 0.12, duration: reduceMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
+                className="absolute left-0 right-0 top-[140px] z-[33] flex flex-col"
+                style={{ background: PAGE_BG }}
+              >
+                {CHAT_SUGGESTIONS.map((suggestion, index) => (
+                  <motion.button
+                    key={suggestion}
+                    type="button"
+                    initial={reduceMotion ? false : { opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    transition={{ delay: reduceMotion ? 0 : 0.18 + index * 0.06, duration: reduceMotion ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}
+                    onClick={() => void enviarParaAtlas(suggestion)}
+                    onMouseEnter={() => setHoveredSuggestion(suggestion)}
+                    onMouseLeave={() => setHoveredSuggestion(null)}
+                    onFocus={() => setHoveredSuggestion(suggestion)}
+                    onBlur={() => setHoveredSuggestion(null)}
+                    className="flex h-11 items-center gap-3 rounded-[8px] px-3 text-left text-[15px] focus-visible:outline-none"
+                    style={{
+                      background: hoveredSuggestion === suggestion ? "#F4F4F5" : "transparent",
+                      color: hoveredSuggestion === suggestion ? "#18181B" : "#71717A",
+                      transition: "background-color 160ms ease, color 160ms ease",
+                    }}
+                    whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0" style={{ opacity: hoveredSuggestion === suggestion ? 0.9 : 0.55 }}>
+                      <path d="M4 12h14M13 7l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span>{suggestion}</span>
+                  </motion.button>
+                ))}
+              </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Faixas da introdução: descobrem os atalhos e o próximo passo em cascata. */}
-          {[
-            { top: LAYOUT.cards - 10, height: LAYOUT.cardsHeight + 20, delay: INTRO.bandDelays[0] },
-            { top: LAYOUT.cards + LAYOUT.cardsHeight + 10, height: LAYOUT.canvas - LAYOUT.cards - LAYOUT.cardsHeight - 10, delay: INTRO.bandDelays[1] },
-          ].map((band) => (
-            <motion.div
-              key={band.top}
-              aria-hidden="true"
-              initial={playIntro ? { opacity: 1 } : false}
-              animate={{ opacity: 0 }}
-              transition={playIntro
-                ? { delay: band.delay, duration: INTRO.bandDuration, ease: INTRO.revealEase }
-                : { duration: 0 }}
-              style={{
-                position: "absolute",
-                zIndex: 20,
-                left: 0,
-                right: 0,
-                top: y(band.top),
-                height: y(band.height),
-                background: PAGE_BG,
-                pointerEvents: "none",
-              }}
-            />
-          ))}
         </div>
       </div>
+
+      {/* Barra de baixo, como "Aplicativos recentes / Modelos / Explorar tudo" da referência. */}
+      <motion.nav
+        {...revealProps(INTRO.bandDelays[1], 8)}
+        aria-label="Projetos e modelos"
+        data-dashboard-tour="home-primeiros-passos"
+        // pr maior: o balão de suporte (fixo no canto) não cobre o "Explorar tudo".
+        className="flex h-[66px] shrink-0 items-stretch justify-between border-t border-[#EDEDEF] pl-7 pr-[92px]"
+        style={{ background: PAGE_BG }}
+      >
+        <div className="flex items-stretch gap-1">
+          <button
+            type="button"
+            onClick={go("/dashboard/minha-loja")}
+            className="velo-home-aba relative px-2.5 text-[14px] font-semibold text-[#18181B]"
+          >
+            Projetos recentes
+            <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#2563EB]" />
+          </button>
+          <button
+            type="button"
+            onClick={go("/dashboard/modelos")}
+            className="velo-home-aba px-2.5 text-[14px] font-medium text-[#3F3F46]"
+          >
+            Modelos da Velo
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={go("/dashboard/projetos")}
+          className="velo-home-aba flex items-center gap-1.5 px-2.5 text-[14px] font-medium text-[#18181B]"
+        >
+          Explorar tudo
+          <ArrowUpRight aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+        </button>
+      </motion.nav>
+
       <VideoTutorialModal
         open={tutorialOpen}
         onClose={() => setTutorialOpen(false)}
