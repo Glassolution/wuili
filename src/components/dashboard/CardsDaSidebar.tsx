@@ -74,11 +74,12 @@ const CSS = `
 .velo-card-icone { animation: velo-card-flutua 4.2s ease-in-out infinite; }
 .velo-card-barra-ativa { transform-origin: left center; animation: velo-card-barra ${DURACAO_MS}ms linear forwards; }
 .velo-card-pausado .velo-card-barra-ativa, .velo-card-pausado .velo-card-icone { animation-play-state: paused; }
-.velo-card-botao { transition: background-color 150ms ease-out, border-color 150ms ease-out; }
-.velo-card-botao:hover { background: #F4F4F5 !important; border-color: #D4D4D8 !important; }
-.velo-card-botao:focus-visible, .velo-card-pausa:focus-visible, .velo-card-segmento:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
+.velo-card-botao { transition: background-color 150ms ease-out, transform 120ms ease-out; }
+.velo-card-botao:hover { background: #EFF6FF !important; }
+.velo-card-botao:active { transform: scale(0.98); }
+.velo-card-botao:focus-visible, .velo-card-pausa:focus-visible, .velo-card-segmento:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(255,255,255,0.85) !important; }
 .velo-card-pausa { transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-card-pausa:hover { background: #F4F4F5 !important; color: #18181B !important; }
+.velo-card-pausa:hover { background: rgba(255,255,255,0.16) !important; color: #FFFFFF !important; }
 @media (prefers-reduced-motion: reduce) {
   .velo-card-icone { animation: none; transform: rotate(var(--giro)); }
   .velo-card-barra-ativa { animation: none; transform: scaleX(1); }
@@ -87,12 +88,12 @@ const CSS = `
 
 const DesenhoDoIcone = ({ icone, tamanho }: { icone: Icone; tamanho: number }) => {
   if (icone.tipo === "solto") {
-    return <img src={icone.src} alt="" draggable={false} className="h-full w-full select-none object-contain drop-shadow-[0_6px_10px_rgba(17,17,20,0.18)]" />;
+    return <img src={icone.src} alt="" draggable={false} className="h-full w-full select-none object-contain drop-shadow-[0_8px_12px_rgba(15,23,42,0.35)]" />;
   }
   const raio = Math.round(tamanho * 0.28);
   const moldura: CSSProperties = {
     borderRadius: raio,
-    boxShadow: "0 6px 14px rgba(17,17,20,0.14), 0 1px 2px rgba(17,17,20,0.10), inset 0 0 0 1px rgba(255,255,255,0.35)",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.28), 0 1px 2px rgba(15,23,42,0.18), inset 0 0 0 1px rgba(255,255,255,0.35)",
   };
   if (icone.tipo === "imagem") {
     return (
@@ -108,8 +109,17 @@ const DesenhoDoIcone = ({ icone, tamanho }: { icone: Icone; tamanho: number }) =
     );
   }
   const { Icone: Desenho } = icone;
+  // "vidro": quadradinho translúcido sobre o azul do card, com o ícone branco.
+  const vidro: CSSProperties =
+    icone.fundo === "vidro"
+      ? {
+          background: "linear-gradient(180deg, rgba(255,255,255,0.26), rgba(255,255,255,0.12))",
+          boxShadow: "0 6px 14px rgba(15,23,42,0.18), inset 0 0 0 1px rgba(255,255,255,0.32)",
+          backdropFilter: "blur(6px)",
+        }
+      : { background: icone.fundo };
   return (
-    <span className="grid h-full w-full place-items-center" style={{ ...moldura, background: icone.fundo, color: icone.cor }}>
+    <span className="grid h-full w-full place-items-center" style={{ ...moldura, ...vidro, color: icone.cor }}>
       <Desenho aria-hidden="true" style={{ width: tamanho * 0.48, height: tamanho * 0.48 }} strokeWidth={2.1} />
     </span>
   );
@@ -138,10 +148,10 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
             botao: "Fazer upgrade",
             acao: cardDoPlano.acao,
             icones: [
-              { tipo: "icone", Icone: Trophy, fundo: "#2563EB", cor: "#FFFFFF" },
-              { tipo: "icone", Icone: Sparkles, fundo: "#EEF2FF", cor: "#4F46E5" },
-              { tipo: "icone", Icone: Star, fundo: "#FEF3C7", cor: "#D97706" },
-              { tipo: "icone", Icone: TrendingUp, fundo: "#18181B", cor: "#FFFFFF" },
+              { tipo: "icone", Icone: Trophy, fundo: "#FFFFFF", cor: "#2563EB" },
+              { tipo: "icone", Icone: Sparkles, fundo: "vidro", cor: "#FFFFFF" },
+              { tipo: "icone", Icone: Star, fundo: "vidro", cor: "#FFFFFF" },
+              { tipo: "icone", Icone: TrendingUp, fundo: "#FFFFFF", cor: "#1E3A8A" },
             ],
           } satisfies CardDaSidebar,
         ]
@@ -154,8 +164,8 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
       acao: () => navigate("/dashboard/configuracoes?tab=Integrações"),
       icones: [
         { tipo: "imagem", src: "/logo.png", fundo: "#FFFFFF", ajuste: 70 },
-        { tipo: "icone", Icone: Link2, fundo: "#18181B", cor: "#FFFFFF" },
-        { tipo: "icone", Icone: Store, fundo: "#ECFDF5", cor: "#059669" },
+        { tipo: "icone", Icone: Link2, fundo: "vidro", cor: "#FFFFFF" },
+        { tipo: "icone", Icone: Store, fundo: "vidro", cor: "#FFFFFF" },
         { tipo: "imagem", src: "/mercado-livre-logo.svg", fundo: "#FFE600" },
       ],
     },
@@ -179,10 +189,10 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
       botao: "Explorar catálogo",
       acao: () => navigate("/dashboard/catalogo"),
       icones: [
-        { tipo: "icone", Icone: ShoppingBag, fundo: "#2563EB", cor: "#FFFFFF" },
-        { tipo: "icone", Icone: Tag, fundo: "#FEF3C7", cor: "#D97706" },
-        { tipo: "icone", Icone: Truck, fundo: "#ECFDF5", cor: "#059669" },
-        { tipo: "icone", Icone: TrendingUp, fundo: "#F5F3FF", cor: "#7C3AED" },
+        { tipo: "icone", Icone: ShoppingBag, fundo: "#FFFFFF", cor: "#2563EB" },
+        { tipo: "icone", Icone: Tag, fundo: "vidro", cor: "#FFFFFF" },
+        { tipo: "icone", Icone: Truck, fundo: "vidro", cor: "#FFFFFF" },
+        { tipo: "icone", Icone: TrendingUp, fundo: "#FFFFFF", cor: "#1E3A8A" },
       ],
     },
     {
@@ -192,10 +202,10 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
       botao: "Convidar amigo",
       acao: () => setConvidarAberto(true),
       icones: [
-        { tipo: "icone", Icone: Gift, fundo: "#FCE7F3", cor: "#DB2777" },
-        { tipo: "icone", Icone: Percent, fundo: "#ECFDF5", cor: "#059669" },
-        { tipo: "icone", Icone: Mail, fundo: "#FEF3C7", cor: "#D97706" },
-        { tipo: "icone", Icone: Users, fundo: "#2563EB", cor: "#FFFFFF" },
+        { tipo: "icone", Icone: Gift, fundo: "#FFFFFF", cor: "#2563EB" },
+        { tipo: "icone", Icone: Percent, fundo: "vidro", cor: "#FFFFFF" },
+        { tipo: "icone", Icone: Mail, fundo: "vidro", cor: "#FFFFFF" },
+        { tipo: "icone", Icone: Users, fundo: "#FFFFFF", cor: "#1E3A8A" },
       ],
     },
   ];
@@ -216,12 +226,31 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
     <section
       aria-roledescription="carrossel"
       aria-label="Novidades da Velo"
-      className={`relative overflow-hidden rounded-[16px] border border-[#E4E4E7] bg-white px-3.5 pb-3.5 pt-3 ${parado ? "velo-card-pausado" : ""}`}
-      style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.05)" }}
+      className={`relative isolate overflow-hidden rounded-[16px] px-3.5 pb-3.5 pt-3 ${parado ? "velo-card-pausado" : ""}`}
+      style={{
+        background: "linear-gradient(165deg, #3B82F6 0%, #2563EB 38%, #1D4ED8 70%, #1E3A8A 100%)",
+        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.22), 0 10px 24px -8px rgba(30,58,138,0.45)",
+      }}
       onMouseEnter={() => setMouseEmCima(true)}
       onMouseLeave={() => setMouseEmCima(false)}
     >
       <style>{CSS}</style>
+      {/* Luz suave no canto de cima e grade bem leve, para o azul não ficar chapado. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-12 -z-10 h-40 w-40 rounded-full"
+        style={{ background: "radial-gradient(closest-side, rgba(147,197,253,0.45), transparent)" }}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+          maskImage: "linear-gradient(180deg, rgba(0,0,0,0.9), transparent 55%)",
+          WebkitMaskImage: "linear-gradient(180deg, rgba(0,0,0,0.9), transparent 55%)",
+        }}
+      />
 
       {/* Barras de progresso (clicáveis) e o botão de pausa. */}
       <div className="flex items-center gap-2">
@@ -236,10 +265,10 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
               className="velo-card-segmento relative h-3 flex-1 rounded-full"
               style={{ background: "transparent", boxShadow: "none" }}
             >
-              <span className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 overflow-hidden rounded-full bg-[#E4E4E7]">
-                {i < indice ? <span className="absolute inset-0 bg-[#18181B]" /> : null}
+              <span className="absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2 overflow-hidden rounded-full bg-white/25">
+                {i < indice ? <span className="absolute inset-0 bg-white" /> : null}
                 {i === indice ? (
-                  <span key={`${c.id}-${atual}`} className="velo-card-barra-ativa absolute inset-0 bg-[#18181B]" />
+                  <span key={`${c.id}-${atual}`} className="velo-card-barra-ativa absolute inset-0 bg-white" />
                 ) : null}
               </span>
             </button>
@@ -249,7 +278,7 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
           type="button"
           aria-label={pausado ? "Continuar a passar os cards" : "Pausar os cards"}
           onClick={() => setPausado((p) => !p)}
-          className="velo-card-pausa grid h-5 w-5 shrink-0 place-items-center rounded-full text-[#71717A]"
+          className="velo-card-pausa grid h-5 w-5 shrink-0 place-items-center rounded-full text-white/75"
           style={{ background: "transparent", boxShadow: "none" }}
         >
           {pausado ? <Play className="h-2.5 w-2.5" fill="currentColor" /> : <Pause className="h-2.5 w-2.5" fill="currentColor" />}
@@ -267,18 +296,18 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
           {/* Ilustração: ícones flutuando, pontinhos, filetes e o brilho embaixo. */}
           <div aria-hidden="true" className="relative mt-2 h-[92px]">
             {["22%", "50%", "76%"].map((left) => (
-              <span key={left} className="absolute top-[34px] h-[40px] w-px bg-gradient-to-b from-transparent via-[#E4E4E7] to-transparent" style={{ left }} />
+              <span key={left} className="absolute top-[34px] h-[40px] w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" style={{ left }} />
             ))}
             {PONTOS.map((p, i) => (
-              <span key={i} className="absolute h-[2px] w-[2px] rounded-full bg-[#A1A1AA]" style={{ left: p.left, top: p.top }} />
+              <span key={i} className="absolute h-[2px] w-[2px] rounded-full bg-white/60" style={{ left: p.left, top: p.top }} />
             ))}
             <span
               className="absolute inset-x-2 bottom-0 h-8"
-              style={{ background: "radial-gradient(60% 100% at 50% 100%, rgba(124,58,237,0.16), rgba(37,99,235,0.08) 45%, transparent 75%)" }}
+              style={{ background: "radial-gradient(60% 100% at 50% 100%, rgba(191,219,254,0.45), rgba(96,165,250,0.18) 45%, transparent 75%)" }}
             />
             <span
               className="absolute inset-x-5 bottom-0 h-px"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(124,58,237,0.55) 30%, rgba(37,99,235,0.7) 55%, transparent)" }}
+              style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.75) 40%, rgba(191,219,254,0.9) 60%, transparent)" }}
             />
             {card.icones.map((icone, i) => {
               const pos = POSICOES[i];
@@ -303,13 +332,13 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
             })}
           </div>
 
-          <p className="m-0 mt-3 text-[15px] font-semibold leading-5 tracking-[-0.01em] text-[#18181B]">{card.titulo}</p>
-          <p className="m-0 mt-1 text-[13px] leading-[19px] text-[#71717A]">{card.texto}</p>
+          <p className="m-0 mt-3 text-[15px] font-semibold leading-5 tracking-[-0.01em] text-white">{card.titulo}</p>
+          <p className="m-0 mt-1 text-[13px] leading-[19px] text-white/80">{card.texto}</p>
           <button
             type="button"
             onClick={card.acao}
-            className="velo-card-botao mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded-full border border-[#E4E4E7] text-[13px] font-medium text-[#18181B]"
-            style={{ background: "#FAFAFA", boxShadow: "0 1px 2px rgba(16,24,40,0.05)" }}
+            className="velo-card-botao mt-3 flex h-9 w-full items-center justify-center gap-1.5 rounded-full text-[13px] font-semibold text-[#1E3A8A]"
+            style={{ background: "#FFFFFF", boxShadow: "0 1px 2px rgba(15,23,42,0.12), 0 6px 14px -6px rgba(15,23,42,0.35)" }}
           >
             {card.botao}
             <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
