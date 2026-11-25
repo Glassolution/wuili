@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 // Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
-import { ArrowUp01Icon, ChartIncreaseIcon, DashboardSquare01Icon, File01Icon, Folder01Icon, Home01Icon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
+import { ArrowUp01Icon, ChartIncreaseIcon, File01Icon, Folder01Icon, Home01Icon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,7 +34,7 @@ const mainNavItems: NavItem[] = [
   // Ordem pedida pelo dono (25/11/2026): Início, Projetos (a página dos agentes),
   // Catálogo, Pedidos, Publicações e Produtos em alta.
   { id: "inicio", label: "Início", icon: Home01Icon, to: "/dashboard", end: true },
-  { id: "projetos", label: "Projetos", icon: DashboardSquare01Icon, to: "/dashboard/projetos" },
+  { id: "projetos", label: "Projetos", icon: Folder01Icon, to: "/dashboard/projetos" },
   { id: "catalogo", label: "Catálogo", icon: ShoppingBag01Icon, to: "/dashboard/catalogo" },
   { id: "pedidos", label: "Pedidos", icon: TaskDone01Icon, to: "/dashboard/pedidos" },
   { id: "publicacoes", label: "Publicações", icon: File01Icon, to: "/dashboard/publicacoes" },
