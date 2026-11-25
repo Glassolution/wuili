@@ -86,13 +86,15 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [reduceMotion]);
 
-  // Altura do corpo: escondido até a entrada, espia mais com foco, pula ao clicar, balança enviando.
-  const subida = focada || digitando ? -4 : 0;
+  // O corpo nunca sobe: as mãos ficam sempre presas na borda da caixa (25/11/2026).
+  // Foco, clique, hover e "enviando" só esticam o corpo a partir da base (scaleY com
+  // origem embaixo), então os dedos, a 7px do pé, se mexem menos de 1px.
+  const esticado = focada || digitando ? 1.045 : 1;
   const animacaoCorpo = reduceMotion
-    ? { y: 0 }
+    ? { y: 0, scaleY: 1 }
     : enviando
-      ? { y: [subida, subida - 7, subida], transition: { duration: 0.7, repeat: Infinity, ease: "easeInOut" as const } }
-      : { y: subida };
+      ? { y: 0, scaleY: [esticado, esticado + 0.05, esticado], transition: { duration: 0.7, repeat: Infinity, ease: "easeInOut" as const } }
+      : { y: 0, scaleY: esticado };
 
   return (
     // Janela com overflow escondido: o mascote "sai" de trás da borda da caixa.
@@ -102,7 +104,7 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
     >
       <motion.div
         className="absolute bottom-0 left-0"
-        style={{ width: LARGURA, height: ALTURA }}
+        style={{ width: LARGURA, height: ALTURA, transformOrigin: "50% 100%" }}
         initial={reduceMotion ? false : { y: ALTURA }}
         animate={animacaoCorpo}
         transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 240, damping: 20, delay: 0.35 }}
@@ -117,11 +119,11 @@ const AtlasMascote = ({ focada, digitando, enviando, onClick }: Props) => {
           }}
           aria-label="Falar com o Atlas"
           className="pointer-events-auto relative block h-full w-full cursor-pointer rounded-t-[60px] outline-none focus-visible:ring-2 focus-visible:ring-[#7C5CFA]/40"
-          style={{ background: "transparent", boxShadow: "none" }}
-          initial={reduceMotion || pulo === 0 ? false : { y: 0 }}
-          animate={reduceMotion || pulo === 0 ? undefined : { y: [0, -12, 0], scaleY: [1, 1.04, 1] }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          whileHover={reduceMotion ? undefined : { y: -4 }}
+          style={{ background: "transparent", boxShadow: "none", transformOrigin: "50% 100%" }}
+          initial={reduceMotion || pulo === 0 ? false : { scaleY: 1 }}
+          animate={reduceMotion || pulo === 0 ? undefined : { scaleY: [1, 1.09, 0.97, 1], scaleX: [1, 0.97, 1.02, 1] }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={reduceMotion ? undefined : { scaleY: 1.03 }}
         >
           <img
             src={mascoteImg}
