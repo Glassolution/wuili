@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, ChevronDown, PlayCircle, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Link2, PlayCircle, Settings2, Upload, X } from "lucide-react";
+import imagemDaLoja from "@/assets/home-card-temas.webp";
 import { useProfile } from "@/lib/profileContext";
 import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
 import { OFERTA_BOAS_VINDAS, fimDaOferta, ofertaValendo } from "@/lib/ofertaBoasVindas";
@@ -548,6 +549,24 @@ const DashboardHomePage = () => {
       : !onboardingStatus.hasPublication
         ? "Sua conta está conectada. Agora escolha um produto e faça a primeira publicação."
         : "Tudo pronto: acompanhe seus anúncios publicados e continue expandindo o catálogo.";
+  // Título e ícone do passo, no formato do card da referência ("Mostre o que você criou").
+  const nextStepTitle = !onboardingStatus
+    ? "Termine a configuração"
+    : !onboardingStatus.mlConnected
+      ? "Conecte o Mercado Livre"
+      : !onboardingStatus.hasPublication
+        ? "Publique seu primeiro produto"
+        : "Sua loja está no ar";
+  const NextStepIcon = !onboardingStatus
+    ? Settings2
+    : !onboardingStatus.mlConnected
+      ? Link2
+      : !onboardingStatus.hasPublication
+        ? Upload
+        : Check;
+  const passosConcluidos = onboardingStatus
+    ? [onboardingStatus.mlConnected, onboardingStatus.hasPublication].filter(Boolean).length
+    : null;
   const nextStepLabel = !onboardingStatus
     ? "Ver integrações"
     : !onboardingStatus.mlConnected
@@ -862,39 +881,51 @@ const DashboardHomePage = () => {
             <motion.div {...revealProps(INTRO.bandDelays[0], 10)} className="mt-10">
             <div
               aria-hidden={chatActive}
-              className="relative flex items-center gap-4 rounded-[10px] border border-[#EDEDEF] bg-[#FAFAFA] py-4 pl-4 pr-10"
+              className="relative flex items-center gap-[18px] rounded-[10px] border border-[#EDEDEF] bg-[#FAFAFA] py-[18px] pl-[18px] pr-12"
               style={{
                 opacity: chatActive ? 0 : 1,
                 pointerEvents: chatActive ? "none" : "auto",
                 transition: "opacity 260ms ease",
               }}
             >
+              {/* Miniatura como na referência: prévia de loja, o ícone do passo no meio
+                  e a barra de progresso (dados reais) na base. */}
               <div
                 aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
-                className="flex h-[58px] w-[86px] shrink-0 items-center justify-center rounded-[6px] border border-[#EDEDEF] bg-white"
+                className="relative h-[62px] w-[100px] shrink-0 overflow-hidden rounded-[6px] border border-black/[0.06] bg-white"
               >
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-full p-[3px]"
-                  style={{
-                    background: onboardingProgress === null
-                      ? "#ECECEE"
-                      : `conic-gradient(#2563EB ${onboardingProgress}%, #ECECEE 0)`,
-                  }}
-                >
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#3F3F46]">
-                    {onboardingProgress === null ? "—" : `${onboardingProgress}%`}
-                  </span>
+                <img
+                  src={imagemDaLoja}
+                  alt=""
+                  draggable={false}
+                  className="h-full w-full select-none object-cover"
+                  // A imagem tem margem branca: aproxima na tela principal da loja.
+                  style={{ transform: "scale(1.9)", transformOrigin: "30% 46%" }}
+                />
+                <span className="absolute left-1/2 top-1/2 flex h-[22px] w-[22px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[5px] bg-[#2563EB] text-white shadow-[0_2px_6px_rgba(37,99,235,0.35)]">
+                  <NextStepIcon aria-hidden="true" className="h-3 w-3" strokeWidth={2.6} />
+                </span>
+                <span className="absolute inset-x-0 bottom-0 h-[3px] bg-black/[0.08]">
+                  <span
+                    className="block h-full bg-[#2563EB]"
+                    style={{ width: `${onboardingProgress ?? 0}%`, transition: "width 400ms ease" }}
+                  />
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="m-0 text-[14px] font-semibold leading-5 text-[#18181B]">Próximo passo</p>
-                <p className="m-0 text-[14px] leading-5 text-[#52525B]">{nextStepCopy}</p>
+                <p className="m-0 text-[15px] font-semibold leading-[22px] tracking-[-0.01em] text-[#18181B]">{nextStepTitle}</p>
+                <p className="m-0 text-[14px] leading-[21px] text-[#52525B]">{nextStepCopy}</p>
+                {passosConcluidos !== null ? (
+                  <p className="m-0 text-[14px] italic leading-[21px] text-[#71717A]">
+                    {passosConcluidos} de 2 passos concluídos.
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
                 onClick={handleNextStep}
                 disabled={conectandoMl}
-                className="velo-home-btn h-9 shrink-0 rounded-[6px] border border-[#D4D4D8] bg-white px-4 text-[14px] font-medium text-[#18181B]"
+                className="velo-home-btn h-10 shrink-0 rounded-[8px] border border-[#D4D4D8] bg-white px-4 text-[14px] font-medium text-[#18181B]"
                 style={{ cursor: conectandoMl ? "wait" : "pointer" }}
               >
                 {conectandoMl ? "Abrindo…" : nextStepLabel}
@@ -903,7 +934,7 @@ const DashboardHomePage = () => {
                 type="button"
                 aria-label="Fechar próximo passo"
                 onClick={() => setProximoDispensado(true)}
-                className="velo-home-fechar absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-[6px] text-[#52525B]"
+                className="velo-home-fechar absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-[6px] text-[#52525B]"
               >
                 <X aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.2} />
               </button>
