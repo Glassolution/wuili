@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, LogOut, Settings2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { BellIcon, Cog6ToothIcon, QuestionMarkCircleIcon, StarIcon } from "@heroicons/react/20/solid";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
@@ -41,10 +41,13 @@ const BARRA_CSS = `
 .velo-topo-upgrade:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
 .velo-topo-avatar { transition: box-shadow 150ms ease-out; }
 .velo-topo-avatar:hover, .velo-topo-avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(24,24,27,0.08) !important; }
-.velo-topo-item { transition: background-color 120ms ease-out; }
-.velo-topo-item:hover, .velo-topo-item:focus-visible { background: #F4F4F5; outline: none; }
-.velo-topo-cta { transition: filter 150ms ease-out; }
-.velo-topo-cta:hover { filter: brightness(0.94); }
+.velo-topo-item { transition: background-color 120ms ease-out, color 120ms ease-out; }
+.velo-topo-item:hover, .velo-topo-item:focus-visible { background: #F4F4F5 !important; color: #18181B !important; outline: none; }
+.velo-topo-sair:hover, .velo-topo-sair:focus-visible { background: #FEF2F2 !important; color: #B91C1C !important; }
+.velo-topo-cta { transition: background-color 150ms ease-out, transform 120ms ease-out; }
+.velo-topo-cta:hover { background: #27272A !important; }
+.velo-topo-cta:active { transform: scale(0.99); }
+.velo-topo-cta:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(24,24,27,0.35) !important; }
 `;
 
 // Só o ícone, cheio e cinza: sem borda nem fundo (o fundo aparece no hover).
@@ -178,9 +181,9 @@ const BarraDoTopo = () => {
   );
 
   const itens = [
-    { rotulo: "Configurações", icone: Settings2, acao: () => irPara("/dashboard/configuracoes") },
-    { rotulo: "Assinatura", icone: CreditCard, acao: () => irPara("/dashboard/configuracoes?tab=Plano") },
-    ...(ehAdmin ? [{ rotulo: "Painel Admin", icone: ShieldCheck, acao: () => irPara("/admin/painel") }] : []),
+    { rotulo: "Configurações", acao: () => irPara("/dashboard/configuracoes") },
+    { rotulo: "Assinatura", acao: () => irPara("/dashboard/configuracoes?tab=Plano") },
+    ...(ehAdmin ? [{ rotulo: "Painel Admin", acao: () => irPara("/admin/painel") }] : []),
   ];
 
   return (
@@ -232,9 +235,9 @@ const BarraDoTopo = () => {
               key="menu-da-conta"
               role="menu"
               aria-label="Opções da conta"
-              className="absolute right-0 top-[44px] z-50 w-[300px] p-2"
+              className="absolute right-0 top-[46px] z-50 w-[320px] p-2"
               style={{
-                borderRadius: 16,
+                borderRadius: 20,
                 border: "1px solid #E4E4E7",
                 background: "#FFFFFF",
                 color: "#18181B",
@@ -247,33 +250,33 @@ const BarraDoTopo = () => {
               transition={reduce ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             >
               {/* Identidade */}
-              <div className="flex items-center gap-3 px-2.5 pb-3 pt-2.5">
-                {avatar(44, 22)}
+              <div className="flex items-center gap-3.5 px-3 pb-4 pt-3">
+                {avatar(46, 23)}
                 <div className="min-w-0">
-                  <p className="m-0 truncate text-[15px] font-semibold leading-5 tracking-[-0.01em]">{nomeVisivel}</p>
-                  <p className="m-0 truncate text-[13px] leading-5 text-[#71717A]">{emailVisivel}</p>
+                  <p className="m-0 truncate text-[17px] font-semibold leading-6 tracking-[-0.015em]">{nomeVisivel}</p>
+                  <p className="m-0 mt-0.5 truncate text-[14px] leading-5 text-[#71717A]">{emailVisivel}</p>
                 </div>
               </div>
 
               {/* Cartão da assinatura: só dados reais (plano, prazo do teste e mensagens
                   do Atlas, quando o servidor já informou a cota nesta visita). */}
-              <div className="rounded-[12px] border border-[#EDEDF0] bg-[#FAFAFA] p-3.5">
-                <p className="m-0 text-[13px] font-medium text-[#52525B]">Sua assinatura</p>
-                <dl className="m-0 mt-2.5 space-y-1.5 text-[14px]">
+              <div className="rounded-[16px] border border-[#E4E4E7] bg-white px-4 pb-2 pt-4">
+                <p className="m-0 text-[15px] font-medium text-[#52525B]">Sua assinatura</p>
+                <dl className="m-0 mt-3 space-y-2 text-[15px]">
                   <div className="flex items-center justify-between gap-3">
                     <dt className="text-[#71717A]">Plano</dt>
-                    <dd className="m-0 font-semibold">{nomeDoPlano}</dd>
+                    <dd className="m-0 font-medium text-[#18181B]">{nomeDoPlano}</dd>
                   </div>
                   {emTeste ? (
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-[#71717A]">Teste termina em</dt>
-                      <dd className="m-0 font-semibold tabular-nums">{formatarContagem(restanteDoTeste)}</dd>
+                      <dd className="m-0 font-medium tabular-nums text-[#18181B]">{formatarContagem(restanteDoTeste)}</dd>
                     </div>
                   ) : null}
                   {quota && quota.limite !== null && quota.restantes !== null ? (
                     <div className="flex items-center justify-between gap-3">
                       <dt className="text-[#71717A]">Mensagens do Atlas</dt>
-                      <dd className="m-0 font-semibold tabular-nums">
+                      <dd className="m-0 font-medium tabular-nums text-[#18181B]">
                         {quota.restantes} de {quota.limite}
                       </dd>
                     </div>
@@ -281,8 +284,8 @@ const BarraDoTopo = () => {
                 </dl>
                 <button
                   type="button"
-                  className="velo-topo-cta mt-3.5 h-10 w-full rounded-[10px] text-[14px] font-semibold"
-                  style={{ background: "#2563EB", color: "#FFFFFF", boxShadow: "none" }}
+                  className="velo-topo-cta -mx-2 mt-4 h-11 w-[calc(100%+16px)] rounded-full text-[15px] font-semibold"
+                  style={{ background: "#18181B", color: "#FFFFFF", boxShadow: "0 1px 2px rgba(17,17,20,0.12)" }}
                   onClick={() => {
                     if (temTopo) {
                       irPara("/dashboard/configuracoes?tab=Plano");
@@ -296,32 +299,28 @@ const BarraDoTopo = () => {
                 </button>
               </div>
 
-              <div className="my-2 h-px bg-[#F0F0F2]" />
+              {/* Filete de ponta a ponta, como na referência. */}
+              <div className="-mx-2 my-2 h-px bg-[#EFEFF1]" />
 
-              {itens.map(({ rotulo, icone: Icone, acao }) => (
+              {itens.map(({ rotulo, acao }) => (
                 <button
                   key={rotulo}
                   type="button"
                   role="menuitem"
                   onClick={acao}
-                  className="velo-topo-item flex h-10 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[14px] text-[#27272A]"
+                  className="velo-topo-item flex h-11 w-full items-center rounded-[12px] px-3 text-left text-[15px] text-[#52525B]"
                   style={{ background: "transparent", boxShadow: "none" }}
                 >
-                  <Icone size={16} strokeWidth={1.8} className="text-[#71717A]" />
                   {rotulo}
                 </button>
               ))}
-
-              <div className="my-2 h-px bg-[#F0F0F2]" />
-
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => void sair()}
-                className="velo-topo-item flex h-10 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[14px] text-[#DC2626]"
+                className="velo-topo-item velo-topo-sair flex h-11 w-full items-center rounded-[12px] px-3 text-left text-[15px] text-[#DC2626]"
                 style={{ background: "transparent", boxShadow: "none" }}
               >
-                <LogOut size={16} strokeWidth={1.8} />
                 Sair
               </button>
             </motion.div>
