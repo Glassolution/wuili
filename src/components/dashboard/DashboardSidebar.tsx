@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, FolderOpen, Grid2X2, LogOut, NotebookText, Settings2, ShieldCheck, ShoppingCart, Sparkles, Tag, TrendingUp, Trophy, UserRound } from "lucide-react";
+import { CreditCard, LogOut, Settings2, ShieldCheck, Sparkles, Trophy, UserRound } from "lucide-react";
 // Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
-import { ArrowUp01Icon, File01Icon, Folder01Icon, Home01Icon, MoreVerticalIcon, PlusSignIcon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
+import { ArrowUp01Icon, ChartIncreaseIcon, File01Icon, Folder01Icon, Home01Icon, MoreVerticalIcon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,8 +28,6 @@ type NavItem = {
   to?: string;
   end?: boolean;
   dimmed?: boolean;
-  /** Cor do logo redondo dos grupos do "Espaço de trabalho". */
-  cor?: string;
   children?: NavItem[];
 };
 
@@ -38,35 +36,39 @@ const mainNavItems: NavItem[] = [
   { id: "inicio", label: "Início", icon: Home01Icon, to: "/dashboard", end: true },
   { id: "pedidos", label: "Pedidos", icon: TaskDone01Icon, to: "/dashboard/pedidos" },
   { id: "publicacoes", label: "Publicações", icon: File01Icon, to: "/dashboard/publicacoes" },
+  // Catálogo e Produtos em alta vieram do antigo "Espaço de trabalho" (24/11/2026).
+  { id: "catalogo", label: "Catálogo", icon: ShoppingBag01Icon, to: "/dashboard/catalogo" },
+  { id: "produtos-em-alta", label: "Produtos em alta", icon: ChartIncreaseIcon, to: "/dashboard/produtos-em-alta" },
   // Imagens com IA e Avatares saíram do menu (24/11/2026, a pedido do dono); as
   // rotas /dashboard/imagens-ia e /dashboard/avatares continuam funcionando.
   // { id: "cursos-ecommerce", label: "Cursos Ecommerce", icon: GraduationCap, to: "/dashboard/cursos-ecommerce" },
 ];
 
-// Seção "Espaço de trabalho": grupos com logo colorido e subitens (como os
-// workspaces da referência). Os subitens de Projetos são os projetos reais.
-const produtosGroup: NavItem = {
-  id: "produtos",
-  label: "Produtos",
-  icon: Tag,
-  cor: "#2F5BEA",
-  children: [
-    { id: "catalogo", label: "Catálogo", icon: ShoppingCart, to: "/dashboard/catalogo" },
-    { id: "paginas-com-ia", label: "Páginas com IA", icon: NotebookText, to: "/dashboard/paginas-com-ia" },
-    { id: "modelos", label: "Templates", icon: Grid2X2, to: "/dashboard/modelos" },
-  ],
+// Seção "Espaço de trabalho": cada workspace é um projeto (loja) da pessoa, com o
+// logo e o nome dele. Ao abrir, mostra as pastas com as áreas da loja.
+// Páginas com IA e Templates (antes no grupo Produtos) saíram do menu; as rotas
+// /dashboard/paginas-com-ia e /dashboard/modelos continuam no ar.
+const MAX_WORKSPACES = 5;
+type PastaWorkspace = { id: string; label: string; to?: string };
+const PASTAS_WORKSPACE: PastaWorkspace[] = [
+  { id: "site", label: "Site" },
+  { id: "produtos", label: "Produtos", to: "/dashboard/catalogo" },
+  { id: "pedidos", label: "Pedidos", to: "/dashboard/pedidos" },
+  { id: "agentes", label: "Agentes", to: "/dashboard/projetos" },
+];
+// Cores do logo de letra, para o workspace que ainda não tem logo da loja.
+const CORES_WORKSPACE = ["#F0507A", "#3B82F6", "#0F5132", "#7C5CFA", "#F08A24", "#0E9F6E"];
+const corDoWorkspace = (id: string) => {
+  let soma = 0;
+  for (const letra of id) soma = (soma + letra.charCodeAt(0)) % 9973;
+  return CORES_WORKSPACE[soma % CORES_WORKSPACE.length];
 };
-const vencedoresGroup: NavItem = {
-  id: "produtos-vencedores",
-  label: "Produtos vencedores",
-  icon: Trophy,
-  cor: "#F08A24",
-  children: [{ id: "produtos-em-alta", label: "Produtos em Alta", icon: TrendingUp, to: "/dashboard/produtos-em-alta" }],
+const logoDoProjeto = (projeto: UserProject) => {
+  const metadata = projeto.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const logo = (metadata as Record<string, unknown>).logoImage;
+  return typeof logo === "string" && logo.trim() ? logo : null;
 };
-const projetosItem: NavItem = { id: "projetos", label: "Projetos", icon: FolderOpen, to: "/dashboard/projetos", cor: "#0E9F6E" };
-
-// Quantos projetos aparecem como subitens; o resto fica na página Projetos.
-const MAX_PROJETOS_NA_SIDEBAR = 3;
 const SIDEBAR_RECOLHIDA_KEY = "velo:sidebar:recolhida";
 const lerRecolhida = () => {
   try {
@@ -97,7 +99,7 @@ const NAV_CSS = `
 .velo-nav-item:hover:not([data-active="true"]) { background-color: #EFEFF1; }
 .velo-nav-sub:hover:not([data-active="true"]) { background-color: #EFEFF1; }
 .velo-nav-add { transition: color 150ms ease-out; }
-.velo-nav-add:hover { color: #52525B; }
+.velo-nav-add:hover { color: #3F3F46; }
 .velo-side-toggle { transition: background-color 150ms ease-out, color 150ms ease-out; }
 .velo-side-toggle:hover { background-color: #EFEFF1; color: #0B0D12; }
 .velo-nav-item:focus-visible, .velo-nav-sub:focus-visible, .velo-nav-add:focus-visible, .velo-side-toggle:focus-visible, .velo-side-card:focus-visible { outline: none; box-shadow: 0 0 0 2px #2F5BEA33, inset 0 0 0 1px #2F5BEA; }
@@ -156,7 +158,7 @@ const tourTargetByLabel: Record<string, string> = {
   Início: "inicio",
   Projetos: "projetos",
   Catálogo: "catalogo",
-  "Produtos em Alta": "produtos-em-alta",
+  "Produtos em alta": "produtos-em-alta",
   Publicações: "publicacoes",
   Pedidos: "pedidos",
   "Imagens com IA": "imagens-ia",
@@ -248,25 +250,41 @@ const ActivePill = ({ sub, reduce }: { sub?: boolean; reduce: boolean }) => (
   />
 );
 
-// Logo redondo colorido dos grupos do "Espaço de trabalho".
-const LogoGrupo = ({ item }: { item: NavItem }) => {
-  const Icon = item.icon;
+// Logo redondo do workspace: o logo da loja (metadata.logoImage) ou, sem ele,
+// a inicial do nome num círculo colorido, como os logos da referência.
+const LogoWorkspace = ({ projeto }: { projeto: UserProject }) => {
+  const [falhou, setFalhou] = useState(false);
+  const logo = falhou ? null : logoDoProjeto(projeto);
+  const base: CSSProperties = { width: 20, height: 20, flexShrink: 0, borderRadius: 999, overflow: "hidden" };
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        onError={() => setFalhou(true)}
+        style={{ ...base, objectFit: "cover", background: "#FFFFFF", boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.06)" }}
+      />
+    );
+  }
+  const inicial = (projeto.nome || "?").trim().charAt(0).toUpperCase() || "?";
   return (
     <span
       aria-hidden="true"
       style={{
-        width: 20,
-        height: 20,
-        flexShrink: 0,
-        borderRadius: 999,
+        ...base,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: item.cor,
+        background: corDoWorkspace(projeto.id),
         color: "#FFFFFF",
+        fontSize: 11,
+        fontWeight: 600,
+        lineHeight: 1,
       }}
     >
-      <Icon size={11} strokeWidth={2.2} />
+      {inicial}
     </span>
   );
 };
@@ -328,6 +346,7 @@ const SidebarNavLink = ({
 // subitens logo abaixo, recuados e com ícone de pasta (como na referência).
 const SidebarCategory = ({
   item,
+  logo,
   open,
   childActive,
   onOpenChange,
@@ -335,7 +354,8 @@ const SidebarCategory = ({
   recolhida,
   children,
 }: {
-  item: NavItem;
+  item: { id: string; label: string };
+  logo: ReactNode;
   open: boolean;
   childActive: boolean;
   onOpenChange: (open: boolean) => void;
@@ -374,7 +394,7 @@ const SidebarCategory = ({
         style={btnStyle}
       >
         {recolhida && childActive ? <ActivePill reduce={reduce} /> : null}
-        <LogoGrupo item={item} />
+        {logo}
         {recolhida ? null : <span style={rotuloStyle}>{item.label}</span>}
       </button>
       {recolhida ? null : (
@@ -431,7 +451,7 @@ const DashboardSidebar = () => {
   const visibleProfileName = sandboxIdentityEnabled ? "Conta Sandbox" : profileName;
   const visibleProfileEmail = sandboxIdentityEnabled ? "sandbox@velo.test" : profileEmail;
 
-  const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set(["projetos"]));
+  const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
   const [recolhida, setRecolhida] = useState(lerRecolhida);
   const [espacoAberto, setEspacoAberto] = useState(true);
   // Mesma leitura da Início e da página Projetos (RPC get_user_projects), sem consulta nova.
@@ -441,13 +461,21 @@ const DashboardSidebar = () => {
     staleTime: 60_000,
     queryFn: fetchUserProjects,
   });
-  const projetosRecentes = useMemo(
+  const projetosOrdenados = useMemo(
     () =>
-      [...(projetosQuery.data ?? [])]
-        .sort((a, b) => new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime())
-        .slice(0, MAX_PROJETOS_NA_SIDEBAR),
+      [...(projetosQuery.data ?? [])].sort(
+        (a, b) => new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime(),
+      ),
     [projetosQuery.data],
   );
+  const workspaces = projetosOrdenados.slice(0, MAX_WORKSPACES);
+  // O workspace mais recente já vem aberto, uma vez, quando a lista chega.
+  const primeiroAberto = useRef(false);
+  useEffect(() => {
+    if (primeiroAberto.current || workspaces.length === 0) return;
+    primeiroAberto.current = true;
+    setOpenCategories((atual) => new Set(atual).add(workspaces[0].id));
+  }, [workspaces]);
   const alternarRecolhida = () =>
     setRecolhida((atual) => {
       const proxima = !atual;
@@ -487,7 +515,6 @@ const DashboardSidebar = () => {
     return item.end ? currentPath === itemPath : currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
   };
 
-  const isChildActive = (item: NavItem) => !!item.children?.some(isActive);
   const setCategoryOpen = (id: string, isOpen: boolean) =>
     setOpenCategories((current) => {
       const next = new Set(current);
@@ -495,26 +522,6 @@ const DashboardSidebar = () => {
       else next.delete(id);
       return next;
     });
-
-  // Abre automaticamente a categoria que contém a rota ativa.
-  useEffect(() => {
-    const currentPath = normalizePath(location.pathname);
-    const activeCat = [produtosGroup, vencedoresGroup].find((i) =>
-      i.children?.some((c) => {
-        if (!c.to) return false;
-        const p = normalizePath(c.to);
-        return currentPath === p || currentPath.startsWith(`${p}/`);
-      }),
-    );
-    if (activeCat) {
-      setOpenCategories((current) => {
-        if (current.has(activeCat.id)) return current;
-        const next = new Set(current);
-        next.add(activeCat.id);
-        return next;
-      });
-    }
-  }, [location.pathname]);
 
   useEffect(() => {
     setProfileMenuOpen(false);
@@ -768,71 +775,59 @@ const DashboardSidebar = () => {
           )}
           {(espacoAberto || recolhida) && (
             <>
-              <SidebarCategory
-                item={projetosItem}
-                open={openCategories.has("projetos")}
-                childActive={isActive(projetosItem)}
-                onOpenChange={(aberto) => {
-                  if (recolhida) {
-                    navigate("/dashboard/projetos");
-                    return;
-                  }
-                  setCategoryOpen("projetos", aberto);
-                }}
-                reduce={reduce}
-                recolhida={recolhida}
-              >
-                <SidebarNavLink
-                  item={{ id: "projetos-todos", label: "Todos os projetos", icon: Folder01Icon, to: "/dashboard/projetos" }}
-                  active={isActive(projetosItem)}
-                  sub
-                  reduce={reduce}
-                />
-                {projetosRecentes.map((projeto) => (
-                  <button
-                    key={projeto.id}
-                    type="button"
-                    onClick={() => abrirProjeto(projeto)}
-                    className="velo-nav-sub"
-                    title={projeto.nome}
-                    style={{ ...styles.navSubLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#3F3F46" }}
-                  >
-                    <Folder01Icon className="velo-nav-ico" size={16} strokeWidth={1.5} color="#71717A" aria-hidden="true" />
-                    <span style={rotuloStyle}>{projeto.nome}</span>
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard/minha-loja")}
-                  className="velo-nav-add"
-                  style={styles.navAdd}
-                >
-                  <PlusSignIcon size={14} strokeWidth={1.5} aria-hidden="true" />
-                  Novo projeto
-                </button>
-              </SidebarCategory>
-
-              {[produtosGroup, vencedoresGroup].map((grupo) => (
+              {workspaces.map((projeto) => (
                 <SidebarCategory
-                  key={grupo.id}
-                  item={grupo}
-                  open={openCategories.has(grupo.id)}
-                  childActive={isChildActive(grupo)}
+                  key={projeto.id}
+                  item={{ id: `workspace-${projeto.id}`, label: projeto.nome }}
+                  logo={<LogoWorkspace projeto={projeto} />}
+                  open={openCategories.has(projeto.id)}
+                  childActive={false}
                   onOpenChange={(aberto) => {
                     if (recolhida) {
-                      navigate(grupo.children![0].to!);
+                      abrirProjeto(projeto);
                       return;
                     }
-                    setCategoryOpen(grupo.id, aberto);
+                    setCategoryOpen(projeto.id, aberto);
                   }}
                   reduce={reduce}
                   recolhida={recolhida}
                 >
-                  {grupo.children!.map((child) => (
-                    <SidebarNavLink key={child.id} item={child} active={isActive(child)} sub reduce={reduce} />
+                  {PASTAS_WORKSPACE.map((pasta) => (
+                    <button
+                      key={pasta.id}
+                      type="button"
+                      onClick={() => (pasta.to ? navigate(pasta.to) : abrirProjeto(projeto))}
+                      className="velo-nav-sub"
+                      title={`${pasta.label} · ${projeto.nome}`}
+                      style={{ ...styles.navSubLinkBase, width: "100%", border: 0, background: "transparent", cursor: "pointer", textAlign: "left", color: "#3F3F46" }}
+                    >
+                      <Folder01Icon className="velo-nav-ico" size={18} strokeWidth={1.5} color="#52525B" aria-hidden="true" />
+                      <span style={rotuloStyle}>{pasta.label}</span>
+                    </button>
                   ))}
                 </SidebarCategory>
               ))}
+
+              {recolhida ? null : (
+                <>
+                  {projetosOrdenados.length > MAX_WORKSPACES && (
+                    <button type="button" onClick={() => navigate("/dashboard/minha-loja")} className="velo-nav-add" style={styles.navAdd}>
+                      <Folder01Icon size={16} strokeWidth={1.5} aria-hidden="true" />
+                      Ver todos os projetos
+                    </button>
+                  )}
+                  {/* Cria um workspace (projeto) pelo criador que já existe, com nome e logo. */}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/dashboard/minha-loja", { state: { abrirCriacao: true } })}
+                    className="velo-nav-add"
+                    style={styles.navAdd}
+                  >
+                    <PlusSignIcon size={16} strokeWidth={1.5} aria-hidden="true" />
+                    Adicionar workspace
+                  </button>
+                </>
+              )}
             </>
           )}
 

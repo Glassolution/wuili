@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box,
   FileText,
@@ -164,6 +164,15 @@ const StoreProjectsPage = () => {
   const requestCreate = () => {
     setWizardOpen(true);
   };
+  // "Adicionar workspace" da sidebar chega aqui com { abrirCriacao: true }: abre o
+  // criador de projeto (nome + logo) e limpa o state para não reabrir ao voltar.
+  const location = useLocation();
+  const abrirCriacao = Boolean((location.state as { abrirCriacao?: boolean } | null)?.abrirCriacao);
+  useEffect(() => {
+    if (!abrirCriacao) return;
+    setWizardOpen(true);
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [abrirCriacao, location.pathname, location.search, navigate]);
   const visibleProjects = projects;
   const displayedProjects = useMemo(
     () => (filter === "all" ? visibleProjects : visibleProjects.filter((project) => project.tipo === filter)),

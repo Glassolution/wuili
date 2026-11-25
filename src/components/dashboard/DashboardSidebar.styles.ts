@@ -100,13 +100,13 @@ export const styles = {
   navAdd: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    height: 34,
+    gap: 12,
+    height: 36,
     padding: "0 10px",
     border: 0,
     background: "transparent",
-    color: "#A1A1AA",
-    fontSize: 14,
+    color: "#71717A",
+    fontSize: 15,
     fontWeight: 400,
     cursor: "pointer",
     textAlign: "left",
@@ -196,12 +196,9 @@ export const styles = {
   // Sub-itens de uma categoria: recuados, com linha vertical à esquerda, um
   // pouco menores que os itens de topo (como na referência).
   subWrap: {
-    // Subitens recuados, sem linha guia (como as pastas da referência).
-    // Linha-guia no centro do ícone do item-pai (10px de padding + metade de 20px);
-    // subitens a 28px da borda do item.
+    // Pastas recuadas ~20px em relação ao logo do workspace, sem linha guia
+    // (como na referência).
     marginLeft: 20,
-    paddingLeft: 7,
-    borderLeft: "1px solid #E4E4E7",
     marginTop: 2,
     marginBottom: 2,
     display: "flex",
@@ -213,12 +210,12 @@ export const styles = {
     alignItems: "center",
     gap: 10,
     boxSizing: "border-box",
-    height: 34,
+    height: 36,
     borderRadius: 10,
     padding: "0 10px",
     textDecoration: "none",
-    fontSize: 14,
-    lineHeight: "18px",
+    fontSize: 15,
+    lineHeight: "20px",
     fontWeight: 400,
     letterSpacing: "-0.01em",
   } satisfies CSSProperties,
