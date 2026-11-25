@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ChevronDown, PlayCircle, X } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
+import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
+import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -97,6 +99,9 @@ const HOME_CSS = `
 .velo-home-fechar { transition: background-color 150ms ease-out; }
 .velo-home-fechar:hover { background-color: #EDEDEF; }
 .velo-home-aba { transition: color 150ms ease-out; }
+.velo-home-oferta { transition: filter 150ms ease-out; }
+.velo-home-oferta:hover { filter: brightness(0.95); }
+.velo-home-oferta:focus-visible { outline: none; box-shadow: 0 0 0 2px #FBD3BC, 0 0 0 4px rgba(24,24,27,0.5) !important; }
 .velo-home-aba:hover { color: #18181B; }
 .velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
 .velo-home-atlas button { box-shadow: none; }
@@ -282,6 +287,19 @@ const DashboardHomePage = () => {
     const primeiro = (nomeCurto ?? "").trim().split(" ")[0] ?? "";
     return /^usu[aá]rio$/i.test(primeiro) ? "" : primeiro;
   })();
+
+  // Banner do topo: contagem real do período de teste (só para quem está em teste).
+  const upgradeModal = useUpgradeModal();
+  const fimDoTeste = useFimDoTeste();
+  const [agora, setAgora] = useState(() => Date.now());
+  const restanteDoTeste = fimDoTeste ? new Date(fimDoTeste).getTime() - agora : 0;
+  const mostrarBannerTeste = restanteDoTeste > 0;
+  useEffect(() => {
+    if (!fimDoTeste) return;
+    setAgora(Date.now());
+    const timer = window.setInterval(() => setAgora(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [fimDoTeste]);
 
   // Menu "Criar": fecha ao clicar fora ou com Escape.
   useEffect(() => {
@@ -580,6 +598,35 @@ const DashboardHomePage = () => {
           Ver tutorial
         </Button>
       </motion.div>
+
+      {/* Banner do topo (medidas da referência: 780 × 62, a 35px do topo), com o
+          prazo real do teste. Não aparece para quem não está em teste. */}
+      {mostrarBannerTeste && (
+        <motion.div {...revealProps(INTRO.promoDelay, -8)} className="flex justify-center px-[150px] pt-[35px]">
+          <div
+            role="status"
+            aria-label="Prazo do período de teste"
+            className="flex h-[62px] w-full max-w-[780px] items-center justify-between gap-6 rounded-[6px] px-6"
+            style={{ background: "#FBD3BC", color: "#18181B" }}
+          >
+            <div className="flex min-w-0 items-center gap-6">
+              <span className="truncate text-[16px] font-semibold tracking-[-0.01em]">Seu período de teste termina em</span>
+              <span className="shrink-0 text-[26px] font-bold tabular-nums tracking-[-0.02em]">
+                {formatarContagem(restanteDoTeste)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => upgradeModal.open({ origin: "inicio-banner-teste" })}
+              className="velo-home-oferta flex h-[30px] shrink-0 items-center gap-2 rounded-[6px] px-3 text-[14px] font-medium"
+              style={{ background: "#F58142", color: "#18181B", boxShadow: "none" }}
+            >
+              Ver planos
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Medidas da referência: título de 48px, caixa de 720 × 128 a 58px dele e
           o card de próximo passo 40px abaixo. Bloco um pouco abaixo do centro. */}

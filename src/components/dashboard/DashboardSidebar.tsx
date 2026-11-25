@@ -20,6 +20,7 @@ import { styles } from "@/components/dashboard/DashboardSidebar.styles";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useSandboxMode } from "@/lib/sandboxMode";
 import { bestAccessSubscription, resolveAccessPlan } from "@/lib/subscriptionAccess";
+import { definirFimDoTeste } from "@/lib/prazoDoTeste";
 
 type NavItem = {
   id: string;
@@ -571,6 +572,11 @@ const DashboardSidebar = () => {
       active = false;
     };
   }, [user]);
+
+  // Publica o fim do teste para o banner da Início (sem outra consulta).
+  useEffect(() => {
+    definirFimDoTeste(getTrialEndsAt(subscription));
+  }, [subscription]);
 
   useEffect(() => {
     const trialEndsAt = getTrialEndsAt(subscription);
