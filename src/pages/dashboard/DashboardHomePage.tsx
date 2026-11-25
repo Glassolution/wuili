@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
-import { getPremiumActionButtonStyle } from "@/components/PremiumActionButton";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
@@ -14,6 +13,7 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
 import dashboardHomeBase from "@/assets/dashboard-home-base.png";
+import homeCardTemas from "@/assets/home-card-temas.webp";
 import agenteLua from "@/assets/agentes/lua.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
@@ -162,9 +162,17 @@ const HOME_CARDS_CSS = `
 .velo-home-area:hover .velo-home-area-agente { transform: translateY(-6px) rotate(-3deg); }
 .velo-home-area .velo-home-area-botao { transition: transform 200ms ease-out, background-color 200ms ease-out, border-color 200ms ease-out; }
 .velo-home-area .velo-home-area-botao:hover:not(:disabled) { transform: translateY(-1px); background-color: #F7F7F5; border-color: #C9C9C5; }
+.velo-home-site .velo-home-site-vitrine { transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-home-site:hover .velo-home-site-vitrine { transform: translateY(-4px) scale(1.015); }
+.velo-home-site-botao { transition: background-color 180ms ease-out, transform 180ms ease-out; }
+.velo-home-site-botao:hover { background-color: #2A2A2E !important; }
+.velo-home-site-botao:active { transform: scale(0.98); }
+.velo-home-site-seta { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-home-site-botao:hover .velo-home-site-seta { transform: translateX(2px) rotate(-45deg); }
 @media (prefers-reduced-motion: reduce) {
-  .velo-home-area .velo-home-area-agente, .velo-home-area .velo-home-area-botao { transition: none; }
-  .velo-home-area:hover .velo-home-area-agente { transform: none; }
+  .velo-home-area .velo-home-area-agente, .velo-home-area .velo-home-area-botao,
+  .velo-home-site .velo-home-site-vitrine, .velo-home-site-botao, .velo-home-site-seta { transition: none; }
+  .velo-home-area:hover .velo-home-area-agente, .velo-home-site:hover .velo-home-site-vitrine { transform: none; }
 }
 `;
 
@@ -994,64 +1002,132 @@ const DashboardHomePage = () => {
           <style>{HOME_CARDS_CSS}</style>
           {/* Linha 1 — os dois primeiros passos do novo caminho: criar o site e
               colocar os agentes para cuidar dele. */}
+          {/* Card 01: mesma moldura do card 02 (branco + painel interno), com a
+              vitrine de modelos à direita, sem encostar no texto. */}
           <section
             aria-labelledby="home-card-site"
-            className="velo-home-card"
+            className="velo-home-card velo-home-site"
             style={{
               position: "absolute",
               left: x(78),
-              top: y(314),
+              top: y(320),
               width: x(688),
-              height: y(322),
+              height: y(310),
               zIndex: 2,
-              // Recorte do card da vitrine que já vinha desenhado na imagem base
-              // (o mesmo da antiga "Escolha o visual da sua loja"), agora como 01.
-              backgroundImage: `url(${dashboardHomeBase})`,
-              backgroundRepeat: "no-repeat",
-              backgroundSize: `${fs(1536)} auto`,
-              backgroundPosition: `-${fs(772)} -${fs(314)}`,
+              boxSizing: "border-box",
+              padding: fs(10),
+              border: "1px solid rgba(17,17,20,0.07)",
+              borderRadius: fs(24),
+              background: "#FFFFFF",
+              boxShadow: "0 12px 28px rgba(26,26,26,0.045)",
             }}
           >
-            <span style={{ position: "absolute", left: fs(35), top: fs(37), color: "rgba(0,0,0,0.45)", fontSize: fs(11), fontWeight: 800 }}>01</span>
-            <h2 id="home-card-site" style={{ position: "absolute", left: fs(28), top: fs(70), width: fs(250), margin: 0, fontSize: fs(22), fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" }}>
-              Crie o site
-              <br />
-              da sua loja
-            </h2>
-            <p style={{ position: "absolute", left: fs(28), top: fs(146), width: fs(238), margin: 0, color: "rgba(0,0,0,0.62)", fontSize: fs(12.4), lineHeight: 1.42 }}>
-              Escolha um modelo, coloque seus produtos e publique. Tudo dentro da Velo.
-            </p>
-            <button
-              type="button"
-              onClick={go("/dashboard/minha-loja")}
-              className="group transition-[transform,filter,box-shadow] duration-200 ease-out hover:-translate-y-px hover:brightness-110 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/45 focus-visible:ring-offset-2"
+            <div
               style={{
-                ...buttonStyle(0, 0, 0, 47, 13.4),
-                left: fs(28),
-                top: fs(222),
-                width: fs(170),
-                height: fs(47),
-                ...getPremiumActionButtonStyle(),
-                borderRadius: fs(11),
-                fontWeight: 800,
-                justifyContent: "space-between",
-                paddingLeft: fs(18),
-                paddingRight: fs(16),
-                textAlign: "left",
+                position: "relative",
+                height: "100%",
+                overflow: "hidden",
+                borderRadius: fs(18),
+                background: "linear-gradient(100deg, #FFFFFF 0%, #FAFAF9 40%, #F1F0EC 100%)",
               }}
             >
-              <span>Criar meu site</span>
-              <ArrowRight aria-hidden="true" style={{ width: fs(20), height: fs(20), flex: "0 0 auto" }} strokeWidth={1.8} />
-            </button>
-            {/* A vitrine desenhada também leva para o editor do site. */}
-            <button
-              type="button"
-              onClick={go("/dashboard/minha-loja")}
-              aria-label="Abrir o editor do site"
-              title="Abrir o editor do site"
-              className="velo-home-vitrine rounded-[4%] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/60"
-              style={{ ...buttonStyle(0, 0, 0, 0, 0), left: fs(258), top: fs(40), width: fs(410), height: fs(250), background: "transparent" }}
-            />
+              <span
+                style={{
+                  position: "absolute",
+                  left: fs(15),
+                  top: fs(8),
+                  width: fs(40),
+                  height: fs(40),
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: fs(10),
+                  background: "#F3F2F0",
+                  color: "rgba(0,0,0,0.45)",
+                  fontSize: fs(11),
+                  fontWeight: 800,
+                }}
+              >
+                01
+              </span>
+              <h2 id="home-card-site" style={{ position: "absolute", left: fs(18), top: fs(60), width: fs(230), margin: 0, fontSize: fs(22), fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" }}>
+                Crie o site
+                <br />
+                da sua loja
+              </h2>
+              <p style={{ position: "absolute", left: fs(18), top: fs(136), width: fs(214), margin: 0, color: "rgba(0,0,0,0.62)", fontSize: fs(12.4), lineHeight: 1.42 }}>
+                Escolha um modelo, coloque seus produtos e publique. Tudo dentro da Velo.
+              </p>
+              <button
+                type="button"
+                onClick={go("/dashboard/minha-loja")}
+                className="velo-home-site-botao focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 focus-visible:ring-offset-2"
+                style={{
+                  position: "absolute",
+                  left: fs(18),
+                  top: fs(212),
+                  height: fs(46),
+                  display: "flex",
+                  alignItems: "center",
+                  gap: fs(14),
+                  padding: `0 ${fs(6)} 0 ${fs(20)}`,
+                  border: 0,
+                  borderRadius: 999,
+                  background: "#111114",
+                  color: "#FFFFFF",
+                  cursor: "pointer",
+                  fontSize: fs(13.4),
+                  fontWeight: 700,
+                  letterSpacing: "-0.005em",
+                  boxShadow: "none",
+                }}
+              >
+                <span>Criar meu site</span>
+                <span
+                  aria-hidden="true"
+                  className="velo-home-site-seta"
+                  style={{
+                    width: fs(34),
+                    height: fs(34),
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 999,
+                    background: "#FFFFFF",
+                    color: "#111114",
+                  }}
+                >
+                  <ArrowRight style={{ width: fs(16), height: fs(16) }} strokeWidth={2.2} />
+                </span>
+              </button>
+              {/* A vitrine de modelos também leva para o editor do site. O
+                  multiply some com o fundo branco da imagem sobre o painel. */}
+              <button
+                type="button"
+                onClick={go("/dashboard/minha-loja")}
+                aria-label="Abrir o editor do site"
+                title="Abrir o editor do site"
+                className="velo-home-site-vitrine focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                style={{
+                  position: "absolute",
+                  left: fs(250),
+                  top: fs(22),
+                  width: fs(412),
+                  height: fs(245),
+                  padding: 0,
+                  border: 0,
+                  borderRadius: fs(12),
+                  background: "transparent",
+                  cursor: "pointer",
+                  boxShadow: "none",
+                }}
+              >
+                <img
+                  src={homeCardTemas}
+                  alt=""
+                  draggable={false}
+                  style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "multiply", userSelect: "none" }}
+                />
+              </button>
+            </div>
           </section>
 
           <section
