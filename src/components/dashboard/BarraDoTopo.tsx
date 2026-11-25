@@ -30,12 +30,12 @@ const BARRA_CSS = `
 .velo-topo-sino { position: relative; color: #8E8E93; }
 .velo-topo-sino:hover { color: #3F3F46; }
 .velo-topo-sino > div > button:first-child {
-  width: 32px; height: 32px; border-radius: 8px; background: transparent;
+  width: 38px; height: 38px; border-radius: 10px; background: transparent;
   transition: background-color 150ms ease-out;
 }
 .velo-topo-sino > div > button:first-child:hover { background: rgba(24,24,27,0.06); }
 .velo-topo-sino > div > button:first-child > svg { opacity: 0; }
-.velo-topo-sino > div > button:first-child > span { right: 7px; top: 6px; width: 7px; height: 7px; --tw-ring-color: #F7F7F8; }
+.velo-topo-sino > div > button:first-child > span { right: 8px; top: 7px; width: 8px; height: 8px; --tw-ring-color: #F7F7F8; }
 .velo-topo-upgrade { transition: background-color 150ms ease-out, box-shadow 150ms ease-out; }
 .velo-topo-upgrade:hover { background: #FAFAFA !important; box-shadow: 0 1px 3px rgba(17,17,20,0.10) !important; }
 .velo-topo-upgrade:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
@@ -48,11 +48,11 @@ const BARRA_CSS = `
 `;
 
 // Só o ícone, cheio e cinza: sem borda nem fundo (o fundo aparece no hover).
-// 32px de área de clique, ícone de 18px e 8px entre um e outro (proporção da referência).
+// 38px de área de clique, ícone de 22px e 8px entre um e outro (proporção da referência).
 const ESTILO_BOTAO = {
-  width: 32,
-  height: 32,
-  borderRadius: 8,
+  width: 38,
+  height: 38,
+  borderRadius: 10,
   border: 0,
   background: "transparent",
   color: "#8E8E93",
@@ -184,20 +184,20 @@ const BarraDoTopo = () => {
   ];
 
   return (
-    <div className="velo-fonte-inter flex h-12 shrink-0 items-center justify-end gap-2 pr-3">
+    <div className="velo-fonte-inter flex h-12 shrink-0 items-center justify-end gap-2 pr-8">
       <style>{BARRA_CSS}</style>
 
       {/* Notificações: o popover é o de sempre; o sino dele fica invisível e o sino
           cheio da referência é desenhado por cima (o pontinho continua). */}
       <div className="velo-topo-sino shrink-0" title="Notificações">
         <NotificacoesPopover variante="redondo" />
-        <BellIcon aria-hidden="true" className="pointer-events-none absolute left-[7px] top-[7px] h-[18px] w-[18px]" />
+        <BellIcon aria-hidden="true" className="pointer-events-none absolute left-[8px] top-[8px] h-[22px] w-[22px]" />
       </div>
       <BotaoDoTopo rotulo="Central de ajuda" onClick={() => navigate("/dashboard/ajuda")}>
-        <QuestionMarkCircleIcon className="h-[18px] w-[18px]" />
+        <QuestionMarkCircleIcon className="h-[22px] w-[22px]" />
       </BotaoDoTopo>
       <BotaoDoTopo rotulo="Configurações" onClick={() => navigate("/dashboard/configuracoes")}>
-        <Cog6ToothIcon className="h-[18px] w-[18px]" />
+        <Cog6ToothIcon className="h-[22px] w-[22px]" />
       </BotaoDoTopo>
 
       {/* Pílula "Upgrade" da referência: some só para quem já está no Business pago. */}
@@ -205,10 +205,10 @@ const BarraDoTopo = () => {
         <button
           type="button"
           onClick={() => upgradeModal.open({ origin: "barra-do-topo" })}
-          className="velo-topo-upgrade ml-2 flex h-[30px] shrink-0 items-center gap-1.5 rounded-full pl-3 pr-3.5 text-[13px] font-semibold text-[#18181B]"
+          className="velo-topo-upgrade ml-2 flex h-[36px] shrink-0 items-center gap-2 rounded-full pl-3.5 pr-4 text-[14px] font-semibold text-[#18181B]"
           style={{ background: "#FFFFFF", border: "1px solid #E4E4E7", boxShadow: "0 1px 2px rgba(17,17,20,0.06)" }}
         >
-          <StarIcon aria-hidden="true" className="h-3.5 w-3.5" />
+          <StarIcon aria-hidden="true" className="h-4 w-4" />
           Upgrade
         </button>
       ) : null}
@@ -220,10 +220,10 @@ const BarraDoTopo = () => {
           aria-haspopup="menu"
           aria-expanded={aberto}
           onClick={() => setAberto((atual) => !atual)}
-          className="velo-topo-avatar ml-0.5 grid h-[30px] w-[30px] place-items-center rounded-full"
+          className="velo-topo-avatar ml-1 grid h-9 w-9 place-items-center rounded-full"
           style={{ padding: 0, border: 0, background: "transparent", boxShadow: "none" }}
         >
-          {avatar(30, 15)}
+          {avatar(36, 18)}
         </button>
 
         <AnimatePresence>
@@ -232,7 +232,7 @@ const BarraDoTopo = () => {
               key="menu-da-conta"
               role="menu"
               aria-label="Opções da conta"
-              className="absolute right-0 top-[40px] z-50 w-[300px] p-2"
+              className="absolute right-0 top-[44px] z-50 w-[300px] p-2"
               style={{
                 borderRadius: 16,
                 border: "1px solid #E4E4E7",
