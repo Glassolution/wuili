@@ -102,8 +102,8 @@ const HOME_CSS = `
 .velo-home-fechar:hover { background-color: #EDEDEF; }
 .velo-home-aba { transition: color 150ms ease-out; }
 .velo-home-oferta { transition: filter 150ms ease-out; }
-.velo-home-oferta:hover { filter: brightness(0.95); }
-.velo-home-oferta:focus-visible { outline: none; box-shadow: 0 0 0 2px #FBD3BC, 0 0 0 4px rgba(24,24,27,0.5) !important; }
+.velo-home-oferta:hover { filter: brightness(0.92); }
+.velo-home-oferta:focus-visible { outline: none; box-shadow: 0 0 0 2px #DBEAFE, 0 0 0 4px rgba(30,58,138,0.55) !important; }
 .velo-home-aba:hover { color: #18181B; }
 .velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
 .velo-home-atlas button { box-shadow: none; }
@@ -618,7 +618,7 @@ const DashboardHomePage = () => {
             role="status"
             aria-label={comOferta ? "Oferta de boas-vindas" : "Prazo do período de teste"}
             className="flex h-[62px] w-full max-w-[780px] items-center justify-between gap-6 rounded-[6px] px-6"
-            style={{ background: "#FBD3BC", color: "#18181B" }}
+            style={{ background: "#DBEAFE", color: "#1E3A8A" }}
           >
             <div className="flex min-w-0 items-center gap-6">
               <span className="truncate text-[16px] font-semibold tracking-[-0.01em]">
@@ -636,7 +636,7 @@ const DashboardHomePage = () => {
                   : upgradeModal.open({ origin: "inicio-banner-teste" })
               }
               className="velo-home-oferta flex h-[30px] shrink-0 items-center gap-2 rounded-[6px] px-3 text-[14px] font-medium"
-              style={{ background: "#F58142", color: "#18181B", boxShadow: "none" }}
+              style={{ background: "#2563EB", color: "#FFFFFF", boxShadow: "none" }}
             >
               {comOferta ? `${OFERTA_BOAS_VINDAS.percentOff}% de desconto em planos anuais` : "Ver planos"}
               <span aria-hidden="true">→</span>
