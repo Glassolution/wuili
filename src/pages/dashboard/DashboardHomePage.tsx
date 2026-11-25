@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, PlayCircle } from "lucide-react";
-import { AiMagicIcon, PlusSignIcon, Search01Icon } from "hugeicons-react";
+import { PlusSignIcon, SearchAreaIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -145,18 +145,30 @@ const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
 const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
 const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
 
+// Globo com o cursor (o ícone "Research" da referência), no mesmo traço dos
+// Hugeicons. Não existe pronto no pacote, então é desenhado aqui.
+const GloboCursorIcon = ({ strokeWidth = 1.5, style, className }: { strokeWidth?: number; style?: CSSProperties; className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style} className={className} aria-hidden="true">
+    <path d="M20 11a9 9 0 1 0-9 9" />
+    <path d="M11 2c-2.4 2.5-3.6 5.5-3.6 9s1.2 6.5 3.6 9" />
+    <path d="M11 2c2.4 2.5 3.6 5.5 3.6 9" />
+    <path d="M2.6 8h16.8M2.6 14H10" />
+    <path d="M13.8 13.8l7.2 2.7-3.2 1.2-1.2 3.2-2.8-7.1Z" />
+  </svg>
+);
+
 // Os três atalhos embaixo da caixa do Atlas, no estilo da referência (ícone,
 // título e uma linha curta). Só levam para páginas que já existem.
 const ATALHOS_HOME = [
   { id: "criar", icone: PlusSignIcon, titulo: "Criar", texto: "Site da sua loja", rota: "/dashboard/minha-loja" },
-  { id: "encontrar", icone: Search01Icon, titulo: "Encontrar", texto: "Produtos do catálogo", rota: "/dashboard/catalogo" },
-  { id: "agentes", icone: AiMagicIcon, titulo: "Agentes", texto: "Projetos e mudanças", rota: "/dashboard/projetos" },
+  { id: "encontrar", icone: SearchAreaIcon, titulo: "Encontrar", texto: "Produtos do catálogo", rota: "/dashboard/catalogo" },
+  { id: "agentes", icone: GloboCursorIcon, titulo: "Agentes", texto: "Projetos e mudanças", rota: "/dashboard/projetos" },
 ] as const;
 
 const HOME_CSS = `
-.velo-home-atalho { transition: background-color 180ms ease-out, border-color 180ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease-out; }
-.velo-home-atalho:hover { background-color: #FAFAFA; border-color: #DCDCE0; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(17,17,20,0.05); }
-.velo-home-atalho:active { transform: translateY(0) scale(0.99); }
+.velo-home-atalho { transition: background-color 180ms ease-out, border-color 180ms ease-out, transform 160ms ease-out; }
+.velo-home-atalho:hover { background-color: #FAFAFA; border-color: #E0E0E3; }
+.velo-home-atalho:active { transform: scale(0.99); }
 .velo-home-atalho .velo-home-atalho-icone { transition: color 180ms ease-out; }
 .velo-home-atalho:hover .velo-home-atalho-icone { color: #18181B; }
 .velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
@@ -169,7 +181,7 @@ const HOME_CSS = `
 .velo-home-proximo-btn:hover:not(:disabled) { color: #1D4ED8; }
 @media (prefers-reduced-motion: reduce) {
   .velo-home-atalho, .velo-home-atalho .velo-home-atalho-icone, .velo-home-atlas .velo-home-atlas-enviar { transition: none; }
-  .velo-home-atalho:hover, .velo-home-atalho:active { transform: none; }
+  .velo-home-atalho:active { transform: none; }
 }
 `;
 
@@ -687,7 +699,7 @@ const DashboardHomePage = () => {
               background: "#FFFFFF",
               boxShadow: chatActive
                 ? "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(17,17,20,0.07)"
-                : "0 1px 2px rgba(0,0,0,0.03), 0 8px 24px rgba(17,17,20,0.04)",
+                : "0 1px 2px rgba(0,0,0,0.04), 0 10px 30px rgba(17,17,20,0.07)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
@@ -904,9 +916,11 @@ const DashboardHomePage = () => {
                       flexDirection: "column",
                       alignItems: "flex-start",
                       justifyContent: "space-between",
-                      padding: `${fs(28)} ${fs(28)} ${fs(30)}`,
-                      border: "1px solid #E9E9EC",
-                      borderRadius: fs(24),
+                      // Medidas da referência: cantos ~10% da largura, respiro de ~10%
+                      // à esquerda e em cima, ícone fino, título médio e linha cinza.
+                      padding: `${fs(30)} ${fs(29)} ${fs(30)}`,
+                      border: "1px solid #EAEAEC",
+                      borderRadius: fs(29),
                       background: "#FFFFFF",
                       color: "#18181B",
                       cursor: "pointer",
@@ -917,14 +931,14 @@ const DashboardHomePage = () => {
                     <Icone
                       aria-hidden="true"
                       className="velo-home-atalho-icone"
-                      strokeWidth={1.5}
-                      style={{ width: fs(30), height: fs(30), color: "#71717A" }}
+                      strokeWidth={1.4}
+                      style={{ width: fs(30), height: fs(30), color: "#52525B" }}
                     />
-                    <span style={{ display: "flex", flexDirection: "column", gap: fs(10) }}>
-                      <span style={{ fontSize: fs(21), fontWeight: 600, lineHeight: 1.1, letterSpacing: "-0.01em" }}>
+                    <span style={{ display: "flex", flexDirection: "column", gap: fs(12) }}>
+                      <span style={{ fontSize: fs(24), fontWeight: 500, lineHeight: 1.15, letterSpacing: "-0.005em" }}>
                         {atalho.titulo}
                       </span>
-                      <span style={{ color: "#71717A", fontSize: fs(18), fontWeight: 400, lineHeight: 1.2 }}>
+                      <span style={{ color: "#8A8A90", fontSize: fs(21), fontWeight: 400, lineHeight: 1.2, letterSpacing: "0.01em" }}>
                         {atalho.texto}
                       </span>
                     </span>
