@@ -4,6 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ChevronDown, PlayCircle, X } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
+import { OFERTA_BOAS_VINDAS, fimDaOferta, ofertaValendo } from "@/lib/ofertaBoasVindas";
+import { usePlan } from "@/hooks/usePlan";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
@@ -289,17 +291,26 @@ const DashboardHomePage = () => {
   })();
 
   // Banner do topo: contagem real do período de teste (só para quem está em teste).
+  // Com a oferta de boas-vindas valendo (conta com menos de 48h, sem plano pago),
+  // o banner mostra a oferta e o contador dela; senão, o prazo do teste.
   const upgradeModal = useUpgradeModal();
   const fimDoTeste = useFimDoTeste();
+  const { plan: planoAtual } = usePlan();
   const [agora, setAgora] = useState(() => Date.now());
-  const restanteDoTeste = fimDoTeste ? new Date(fimDoTeste).getTime() - agora : 0;
-  const mostrarBannerTeste = restanteDoTeste > 0;
+  const comOferta = ofertaValendo({
+    contaCriadaEm: user?.created_at,
+    jaPagou: planoAtual !== "gratis" && !fimDoTeste,
+    agora,
+  });
+  const fimDoBanner = comOferta ? fimDaOferta(user?.created_at) : fimDoTeste ? new Date(fimDoTeste).getTime() : null;
+  const restanteDoBanner = fimDoBanner ? fimDoBanner - agora : 0;
+  const mostrarBanner = restanteDoBanner > 0;
   useEffect(() => {
-    if (!fimDoTeste) return;
+    if (!fimDoBanner) return;
     setAgora(Date.now());
     const timer = window.setInterval(() => setAgora(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [fimDoTeste]);
+  }, [fimDoBanner]);
 
   // Menu "Criar": fecha ao clicar fora ou com Escape.
   useEffect(() => {
@@ -599,29 +610,35 @@ const DashboardHomePage = () => {
         </Button>
       </motion.div>
 
-      {/* Banner do topo (medidas da referência: 780 × 62, a 35px do topo), com o
-          prazo real do teste. Não aparece para quem não está em teste. */}
-      {mostrarBannerTeste && (
+      {/* Banner do topo (medidas da referência: 780 × 62, a 35px do topo): a oferta
+          de boas-vindas ou o prazo real do teste. Sem nenhum dos dois, não aparece. */}
+      {mostrarBanner && (
         <motion.div {...revealProps(INTRO.promoDelay, -8)} className="flex justify-center px-[150px] pt-[35px]">
           <div
             role="status"
-            aria-label="Prazo do período de teste"
+            aria-label={comOferta ? "Oferta de boas-vindas" : "Prazo do período de teste"}
             className="flex h-[62px] w-full max-w-[780px] items-center justify-between gap-6 rounded-[6px] px-6"
             style={{ background: "#FBD3BC", color: "#18181B" }}
           >
             <div className="flex min-w-0 items-center gap-6">
-              <span className="truncate text-[16px] font-semibold tracking-[-0.01em]">Seu período de teste termina em</span>
+              <span className="truncate text-[16px] font-semibold tracking-[-0.01em]">
+                {comOferta ? "Oferta de boas-vindas por tempo limitado" : "Seu período de teste termina em"}
+              </span>
               <span className="shrink-0 text-[26px] font-bold tabular-nums tracking-[-0.02em]">
-                {formatarContagem(restanteDoTeste)}
+                {formatarContagem(restanteDoBanner)}
               </span>
             </div>
             <button
               type="button"
-              onClick={() => upgradeModal.open({ origin: "inicio-banner-teste" })}
+              onClick={() =>
+                comOferta
+                  ? upgradeModal.open({ origin: "inicio-banner-oferta", ciclo: "annual" })
+                  : upgradeModal.open({ origin: "inicio-banner-teste" })
+              }
               className="velo-home-oferta flex h-[30px] shrink-0 items-center gap-2 rounded-[6px] px-3 text-[14px] font-medium"
               style={{ background: "#F58142", color: "#18181B", boxShadow: "none" }}
             >
-              Ver planos
+              {comOferta ? `${OFERTA_BOAS_VINDAS.percentOff}% de desconto em planos anuais` : "Ver planos"}
               <span aria-hidden="true">→</span>
             </button>
           </div>

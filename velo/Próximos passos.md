@@ -1,7 +1,12 @@
 ---
-atualizado: 2026-11-20
+atualizado: 2026-11-24
 ---
 # Próximos passos
+
+## Oferta de boas-vindas no anual (24/11)
+- [x] Frontend pronto e desligado (`OFERTA_BOAS_VINDAS.ativa = false`, `src/lib/ofertaBoasVindas.ts`) → [[Frontend]]
+- [ ] Lovable: liberar `cycle: "annual"` na `validapay-checkout` e criar o cupom `BOASVINDAS` (30%, só anual, 1ª cobrança, conta < 48h e sem pagamento anterior; 400 quando não tiver direito)
+- [ ] Depois do deploy: virar `ativa` para `true` e testar um checkout anual no sandbox
 
 ## Teste sem Vitalício (20/11 → ~04/12)
 - [x] Vitalício escondido da venda com `LIFETIME_PLAN_ENABLED = false` → [[Planos e preços]]

@@ -32,10 +32,27 @@ import { Button } from "@/components/ui/button";
 import { LIFETIME_PLAN_ENABLED, VELO_PLAN_PRICES } from "@/lib/planPricing";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { MonthlyRenewalNotice } from "@/components/MonthlyRenewalNotice";
+import { OFERTA_BOAS_VINDAS, ofertaValendo, precoAnualComOferta } from "@/lib/ofertaBoasVindas";
+import { usePlan } from "@/hooks/usePlan";
+import { useFimDoTeste } from "@/lib/prazoDoTeste";
 
 
 
-type BillingCycle = "monthly" | "lifetime";
+// "annual" só aparece com a oferta de boas-vindas (30% no 1º ano, ver ofertaBoasVindas.ts).
+type BillingCycle = "monthly" | "annual" | "lifetime";
+
+// Preço, unidade e linha de cobrança de cada ciclo, iguais no desktop e no celular.
+const precoDoCiclo = (plan: { id: PlanId; monthly: number; lifetime: number }, cycle: BillingCycle) =>
+  cycle === "lifetime" ? plan.lifetime : cycle === "annual" ? precoAnualComOferta(plan.id) : plan.monthly;
+const unidadeDoCiclo = (cycle: BillingCycle) => (cycle === "lifetime" ? "uma vez" : cycle === "annual" ? "/ano" : "/mês");
+const linhaDeCobranca = (plan: { id: PlanId; lifetime: number }, cycle: BillingCycle, formatar: (v: number) => string) =>
+  cycle === "lifetime"
+    ? `Pagamento único de ${formatar(plan.lifetime)} · acesso vitalício`
+    : cycle === "annual"
+      ? `Cobrança anual · ${OFERTA_BOAS_VINDAS.percentOff}% só no 1º ano`
+      : "Cobrança mensal";
+const avisoAnual = (plan: { id: PlanId }, formatar: (v: number) => string) =>
+  `Depois do 1º ano, renova por ${formatar(VELO_PLAN_PRICES[plan.id].annual)}/ano. Cancele quando quiser.`;
 
 type PlanId = "base" | "pro" | "business";
 
@@ -356,7 +373,7 @@ export const PlanBadgeIcon = ({ variant, className = "" }: { variant: PlanId; cl
 export type PlanBadgeId = PlanId;
 
 type UpgradeCtx = {
-  open: (opts?: { defaultPlan?: PlanId; origin?: string; productId?: string }) => void;
+  open: (opts?: { defaultPlan?: PlanId; origin?: string; productId?: string; ciclo?: "annual" }) => void;
   close: () => void;
 };
 
@@ -372,11 +389,13 @@ export const UpgradeModalProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [defaultPlan, setDefaultPlan] = useState<PlanId | undefined>();
   const [trackingContext, setTrackingContext] = useState<{ origin?: string; productId?: string }>({});
+  const [defaultCycle, setDefaultCycle] = useState<"annual" | undefined>();
 
   const value = useMemo<UpgradeCtx>(
     () => ({
       open: (opts) => {
         setDefaultPlan(opts?.defaultPlan);
+        setDefaultCycle(opts?.ciclo);
         setTrackingContext({ origin: opts?.origin, productId: opts?.productId });
         setIsOpen(true);
       },
@@ -388,7 +407,7 @@ export const UpgradeModalProvider = ({ children }: { children: ReactNode }) => {
   return (
     <UpgradeModalContext.Provider value={value}>
       {children}
-      <PlansUpgradeModal open={isOpen} onClose={() => setIsOpen(false)} defaultPlan={defaultPlan} trackingContext={trackingContext} />
+      <PlansUpgradeModal open={isOpen} onClose={() => setIsOpen(false)} defaultPlan={defaultPlan} defaultCycle={defaultCycle} trackingContext={trackingContext} />
     </UpgradeModalContext.Provider>
   );
 };
@@ -397,12 +416,14 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   defaultPlan?: PlanId;
+  defaultCycle?: "annual";
   trackingContext?: { origin?: string; productId?: string };
 };
 
 const MobilePlansSheet = ({
   cycle,
   setCycle,
+  opcoesDeCiclo,
   selectedPlanId,
   setSelectedPlanId,
   loadingPlans,
@@ -413,6 +434,7 @@ const MobilePlansSheet = ({
 }: {
   cycle: BillingCycle;
   setCycle: (value: BillingCycle | ((current: BillingCycle) => BillingCycle)) => void;
+  opcoesDeCiclo: { id: BillingCycle; label: string }[];
   selectedPlanId: PlanId;
   setSelectedPlanId: (id: PlanId) => void;
   loadingPlans: boolean;
@@ -423,9 +445,13 @@ const MobilePlansSheet = ({
 }) => {
   const plan = PLANS.find((item) => item.id === selectedPlanId) ?? PLANS[0];
   const highlights = MOBILE_HIGHLIGHTS[plan.id];
-  const price = cycle === "lifetime" ? plan.lifetime : plan.monthly;
+  const price = precoDoCiclo(plan, cycle);
   const priceParts = splitBRL(price);
-  const originalPrice = cycle === "lifetime" ? formatBRL(VELO_PLAN_PRICES[plan.id].compareAt) : null;
+  const originalPrice = cycle === "lifetime"
+    ? formatBRL(VELO_PLAN_PRICES[plan.id].compareAt)
+    : cycle === "annual"
+      ? formatBRL(VELO_PLAN_PRICES[plan.id].annual)
+      : null;
   const nomeDoPlano = plan.name.replace("Plano ", "");
   const escolherPlano = (id: PlanId) => {
     setSelectedPlanId(id);
@@ -465,11 +491,8 @@ const MobilePlansSheet = ({
         })}
       </div>
 
-      {LIFETIME_PLAN_ENABLED && <div className="mt-3 flex rounded-full bg-black/[0.06] p-[3px]">
-        {([
-          { id: "monthly" as BillingCycle, label: "Mensal" },
-          { id: "lifetime" as BillingCycle, label: "Vitalício" },
-        ]).map((opcao) => {
+      {opcoesDeCiclo.length > 1 && <div className="mt-3 flex rounded-full bg-black/[0.06] p-[3px]">
+        {opcoesDeCiclo.map((opcao) => {
           const ativo = cycle === opcao.id;
           return (
             <Button variant="ghost"
@@ -561,7 +584,7 @@ const MobilePlansSheet = ({
 
                 <div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   {originalPrice ? (
-                    <span className="text-sm text-muted-foreground"><s>{originalPrice}</s> · Com desconto</span>
+                    <span className="text-sm text-muted-foreground"><s>{originalPrice}</s> · {cycle === "annual" ? `${OFERTA_BOAS_VINDAS.percentOff}% de boas-vindas` : "Com desconto"}</span>
                   ) : null}
                   <span className="text-[36px] font-semibold leading-none tracking-[-0.05em] text-[#111111]">
                     {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
@@ -569,13 +592,11 @@ const MobilePlansSheet = ({
                       {sandboxPurchaseEnabled ? ",00" : priceParts.cents}
                     </span>
                   </span>
-                  <span className="text-[15px] text-[#9AA0A8]">{cycle === "lifetime" ? "uma vez" : "/mês"}</span>
+                  <span className="text-[15px] text-[#9AA0A8]">{unidadeDoCiclo(cycle)}</span>
                 </div>
 
                 <p className="mt-2 text-[13px] font-medium text-[#2B6DE8]">
-                  {cycle === "lifetime"
-                    ? `Pagamento único de ${formatBRL(plan.lifetime)} · acesso vitalício`
-                    : "Cobrança mensal"}
+                  {linhaDeCobranca(plan, cycle, formatBRL)}
                 </p>
 
                 <button
@@ -596,7 +617,7 @@ const MobilePlansSheet = ({
                   ) : (
                     <>
                       <Sparkle className="h-3.5 w-3.5" fill="currentColor" strokeWidth={0} />
-                      {sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {nomeDoPlano}
+                      {sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {nomeDoPlano}{cycle === "annual" ? " anual" : ""}
                     </>
                   )}
                 </button>
@@ -620,7 +641,9 @@ const MobilePlansSheet = ({
                     ? "Sandbox ligado: este plano é ativado sem cobrança real."
                     : cycle === "lifetime"
                       ? "Pagamento único. Acesso vitalício, sem renovação."
-                      : "Cobrança mensal. Cancele quando quiser."}
+                      : cycle === "annual"
+                        ? avisoAnual(plan, formatBRL)
+                        : "Cobrança mensal. Cancele quando quiser."}
                 </p>
               </>
             )}
@@ -631,8 +654,20 @@ const MobilePlansSheet = ({
   );
 };
 
-const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: ModalProps) => {
+const PlansUpgradeModal = ({ open, onClose, defaultPlan, defaultCycle, trackingContext }: ModalProps) => {
   const { session, role } = useAuth();
+  // Oferta de boas-vindas (30% no anual): só a vitrine; quem confere é o checkout.
+  const { plan: planoAtual } = usePlan();
+  const fimDoTeste = useFimDoTeste();
+  const ofertaAnual = ofertaValendo({
+    contaCriadaEm: session?.user?.created_at,
+    jaPagou: planoAtual !== "gratis" && !fimDoTeste,
+  });
+  const opcoesDeCiclo: { id: BillingCycle; label: string }[] = [
+    { id: "monthly", label: "Mensal" },
+    ...(ofertaAnual ? [{ id: "annual" as BillingCycle, label: `Anual −${OFERTA_BOAS_VINDAS.percentOff}%` }] : []),
+    ...(LIFETIME_PLAN_ENABLED ? [{ id: "lifetime" as BillingCycle, label: "Vitalício" }] : []),
+  ];
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlan ?? "base");
   const [loadingPlans, setLoadingPlans] = useState(false);
@@ -672,7 +707,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
     trackMobileHomeEvent(session?.user?.id, "plans_open", { productId: trackingContext?.productId, detail: trackingContext?.origin ?? "unknown" });
     setLoadingPlans(true);
     setSelectedPlanId(defaultPlan ?? "base");
-    setCycle("monthly");
+    setCycle(defaultCycle === "annual" && ofertaAnual ? "annual" : "monthly");
     const timer = window.setTimeout(() => setLoadingPlans(false), 720);
     return () => window.clearTimeout(timer);
   }, [open]);
@@ -682,7 +717,10 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
   // Fluxo Velo v1: cria a sessão e segue direto para o checkout hospedado da ValidaPay.
   const handleChoose = async (planId: PlanId) => {
     if (checkingOutPlanId) return;
-    const checkoutCycle: BillingCycle = LIFETIME_PLAN_ENABLED ? cycle : "monthly";
+    const checkoutCycle: BillingCycle =
+      cycle === "annual" ? (ofertaAnual ? "annual" : "monthly") : LIFETIME_PLAN_ENABLED ? cycle : "monthly";
+    // O anual só existe com a oferta: o cupom vai junto e o servidor confere a conta.
+    const cupom = checkoutCycle === "annual" ? OFERTA_BOAS_VINDAS.cupom : null;
     setCheckingOutPlanId(planId);
     trackMobileHomeEvent(session?.user?.id, "plan_checkout_clicked", { productId: trackingContext?.productId, detail: `${trackingContext?.origin ?? "unknown"}:${planId}:${checkoutCycle}` });
     try {
@@ -708,7 +746,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
         setCheckingOutPlanId(null);
         return;
       }
-      const res = await startValidaPayCheckout(planId as VelloPlanId, checkoutCycle);
+      const res = await startValidaPayCheckout(planId as VelloPlanId, checkoutCycle, cupom);
       if (res.ok) return;
       setCheckingOutPlanId(null);
       toast.error(res.error ?? "Não foi possível gerar o pagamento.");
@@ -767,6 +805,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
       <MobilePlansSheet
         cycle={cycle}
         setCycle={setCycle}
+        opcoesDeCiclo={opcoesDeCiclo}
         selectedPlanId={selectedPlanId}
         setSelectedPlanId={setSelectedPlanId}
         loadingPlans={loadingPlans}
@@ -820,11 +859,8 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
             </p>
           </div>
 
-          {LIFETIME_PLAN_ENABLED && <div className="inline-flex rounded-full bg-black/[0.06] p-[3px]">
-            {([
-              { id: "monthly" as BillingCycle, label: "Mensal" },
-              { id: "lifetime" as BillingCycle, label: "Vitalício" },
-            ]).map((opcao) => {
+          {opcoesDeCiclo.length > 1 && <div className="inline-flex rounded-full bg-black/[0.06] p-[3px]">
+            {opcoesDeCiclo.map((opcao) => {
               const ativo = cycle === opcao.id;
               return (
                 <Button variant="ghost"
@@ -852,7 +888,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
               ? { ...basePlan, name: "Base Vitalício", ribbon: "Pague uma vez" }
               : originalPlan;
             const cardCycle: BillingCycle = isLifetimeTeaser ? "lifetime" : cycle;
-            const price = cardCycle === "lifetime" ? plan.lifetime : plan.monthly;
+            const price = precoDoCiclo(plan, cardCycle);
             const priceParts = splitBRL(price);
             const isHighlighted = !isLifetimeTeaser && (plan.id === defaultPlan || (!defaultPlan && plan.highlighted));
             const choose = () => (isLifetimeTeaser ? setCycle("lifetime") : void handleChoose(plan.id));
@@ -890,15 +926,16 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
 
                 <div className="mt-6">
                   {cardCycle === "lifetime" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].compareAt)}</s> · Com desconto</p>}
+                  {cardCycle === "annual" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].annual)}</s> · {OFERTA_BOAS_VINDAS.percentOff}% de boas-vindas</p>}
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-['Manrope','Inter',ui-sans-serif,system-ui]">
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
                       {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
                       <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
                     </span>
-                    <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">{cardCycle === "lifetime" ? "uma vez" : "/mês"}</span>
+                    <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">{unidadeDoCiclo(cardCycle)}</span>
                   </div>
                   <p className="mt-1.5 text-[12px] font-medium text-[#2563EB]">
-                    {cardCycle === "lifetime" ? `Pagamento único de ${formatBRL(plan.lifetime)} · acesso vitalício` : "Cobrança mensal"}
+                    {linhaDeCobranca(plan, cardCycle, formatBRL)}
                   </p>
                 </div>
 
@@ -914,11 +951,12 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, trackingContext }: Moda
                       {sandboxPurchaseEnabled ? "Ativando..." : "Redirecionando..."}
                     </span>
                   ) : (
-                    <>{isLifetimeTeaser ? "Ver planos vitalícios" : <>{sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {plan.name.replace("Plano ", "")}</>}</>
+                    <>{isLifetimeTeaser ? "Ver planos vitalícios" : <>{sandboxPurchaseEnabled ? "Testar" : cycle === "lifetime" ? "Comprar vitalício" : "Assinar"} {plan.name.replace("Plano ", "")}{cycle === "annual" ? " anual" : ""}</>}</>
                   )}
                 </PremiumActionButton>
 
                 {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={cardCycle} />}
+                {!sandboxPurchaseEnabled && cardCycle === "annual" && <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{avisoAnual(plan, formatBRL)}</p>}
                 <p className="mb-3 mt-6 border-t border-black/[0.08] pt-5 text-[14px] font-semibold text-black">O que está incluído:</p>
                 <ul className="space-y-2.5">
                   {plan.features.map((feature) => {
