@@ -12,6 +12,7 @@ import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AtlasHistoryMenu from "@/components/dashboard/AtlasHistoryMenu";
 import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
+import AtlasMascote from "@/components/dashboard/AtlasMascote";
 import { ENTRADA_POS_ONBOARDING, hasPlayedDashboardIntro, markDashboardIntroAsPlayed } from "@/lib/dashboardIntro";
 import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/onboarding/OnboardingModal";
 import { veloToast } from "@/components/ui/velo-toast";
@@ -261,6 +262,7 @@ const DashboardHomePage = () => {
   const { user } = useAuth();
   const {
     enviar: enviarParaAtlas,
+    enviando: atlasEnviando,
     mensagens: chatMessages,
     threadId,
     abrirConversa,
@@ -645,7 +647,7 @@ const DashboardHomePage = () => {
         </motion.div>
       )}
 
-      {/* Medidas da referência: título de 48px, caixa de 720 × 128 a 58px dele e
+      {/* Medidas da referência: título de 48px, caixa de 720 × 128 a 104px dele (58px da referência + espaço do mascote) e
           o card de próximo passo 40px abaixo. Bloco um pouco abaixo do centro. */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-12 pt-28">
         <motion.h1
@@ -670,7 +672,20 @@ const DashboardHomePage = () => {
           <span className="block">Por onde você quer começar?</span>
         </motion.h1>
 
-        <div className="relative mt-[58px] w-full max-w-[720px]">
+        <div className="relative mt-[104px] w-full max-w-[720px]">
+          {/* Mascote da Velo espiando por cima da borda da caixa, à esquerda, com as
+              mãos na borda. Fica acima da caixa (z 33) para os dedos passarem dela. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[33] h-0">
+            <AtlasMascote
+              focada={chatActive}
+              digitando={Boolean(chatInput.trim())}
+              enviando={atlasEnviando}
+              onClick={() => {
+                setChatActive(true);
+                chatInputRef.current?.focus();
+              }}
+            />
+          </div>
           {/* Caixa do Atlas: texto em cima; "+" e Atlas à esquerda; Conversas,
               Criar e enviar à direita. A lógica do chat não mudou. */}
           <motion.div
