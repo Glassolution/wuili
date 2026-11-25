@@ -3,11 +3,24 @@ import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ShieldCheck } from "lucide-react";
-import { BellIcon, Cog6ToothIcon, QuestionMarkCircleIcon, StarIcon } from "@heroicons/react/20/solid";
+import {
+  BellIcon,
+  BoltIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  ClipboardDocumentListIcon,
+  Cog6ToothIcon,
+  CreditCardIcon,
+  FolderIcon,
+  HomeIcon,
+  QuestionMarkCircleIcon,
+  ShieldCheckIcon,
+  ShoppingBagIcon,
+  StarIcon,
+  UserCircleIcon,
+} from "@heroicons/react/20/solid";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useProfile } from "@/lib/profileContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
@@ -41,13 +54,12 @@ const BARRA_CSS = `
 .velo-topo-upgrade:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
 .velo-topo-avatar { transition: box-shadow 150ms ease-out; }
 .velo-topo-avatar:hover, .velo-topo-avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(24,24,27,0.08) !important; }
-.velo-topo-item { transition: background-color 120ms ease-out, color 120ms ease-out; }
-.velo-topo-item:hover, .velo-topo-item:focus-visible { background: #F4F4F5 !important; color: #18181B !important; outline: none; }
-.velo-topo-sair:hover, .velo-topo-sair:focus-visible { background: #FEF2F2 !important; color: #B91C1C !important; }
-.velo-topo-cta { transition: background-color 150ms ease-out, transform 120ms ease-out; }
-.velo-topo-cta:hover { background: #27272A !important; }
-.velo-topo-cta:active { transform: scale(0.99); }
-.velo-topo-cta:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(24,24,27,0.35) !important; }
+.velo-topo-item { transition: background-color 120ms ease-out; }
+.velo-topo-item:hover, .velo-topo-item:focus-visible { background: #262626 !important; outline: none; }
+.velo-topo-link { transition: color 120ms ease-out; }
+.velo-topo-link:hover, .velo-topo-link:focus-visible { color: #F4F4F5 !important; outline: none; }
+.velo-topo-sair { transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
+.velo-topo-sair:hover, .velo-topo-sair:focus-visible { background: #262626 !important; border-color: #3A3A3A !important; color: #FFFFFF !important; outline: none; }
 `;
 
 // Só o ícone, cheio e cinza: sem borda nem fundo (o fundo aparece no hover).
@@ -84,6 +96,30 @@ const NOME_DO_PLANO: Record<string, string> = {
   gratis: "Sem plano",
 };
 
+// Menu da conta no modelo escuro da referência (25/11/2026): dois cartões, ícones cheios.
+const ESTILO_CARTAO_ESCURO = {
+  background: "#1A1A1A",
+  border: "1px solid #2A2A2A",
+  boxShadow: "0 18px 44px rgba(0,0,0,0.28), 0 2px 6px rgba(0,0,0,0.18)",
+} as const;
+
+type ItemDoMenu = { rotulo: string; Icone: typeof HomeIcon; rota: string };
+const GRUPOS_DO_MENU = (ehAdmin: boolean): ItemDoMenu[][] => [
+  [
+    { rotulo: "Início", Icone: HomeIcon, rota: "/dashboard" },
+    { rotulo: "Projetos", Icone: FolderIcon, rota: "/dashboard/projetos" },
+    { rotulo: "Catálogo", Icone: ShoppingBagIcon, rota: "/dashboard/catalogo" },
+    { rotulo: "Pedidos", Icone: ClipboardDocumentListIcon, rota: "/dashboard/pedidos" },
+  ],
+  [
+    { rotulo: "Configurações", Icone: Cog6ToothIcon, rota: "/dashboard/configuracoes" },
+    { rotulo: "Meu perfil e preferências", Icone: UserCircleIcon, rota: "/dashboard/configuracoes?tab=Perfil" },
+    { rotulo: "Assinatura", Icone: CreditCardIcon, rota: "/dashboard/configuracoes?tab=Plano" },
+    { rotulo: "Central de ajuda", Icone: ChatBubbleOvalLeftEllipsisIcon, rota: "/dashboard/ajuda" },
+    ...(ehAdmin ? [{ rotulo: "Painel Admin", Icone: ShieldCheckIcon, rota: "/admin/painel" }] : []),
+  ],
+];
+
 const BarraDoTopo = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,7 +127,6 @@ const BarraDoTopo = () => {
   const upgradeModal = useUpgradeModal();
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
-  const { quota } = useAtlasChat();
   const { plano, ehAdmin } = useContaNoPainel();
   const fimDoTeste = useFimDoTeste();
   const [sandboxLigado] = useSandboxMode(user?.id ?? user?.email ?? null);
@@ -180,12 +215,6 @@ const BarraDoTopo = () => {
     </span>
   );
 
-  const itens = [
-    { rotulo: "Configurações", acao: () => irPara("/dashboard/configuracoes") },
-    { rotulo: "Assinatura", acao: () => irPara("/dashboard/configuracoes?tab=Plano") },
-    ...(ehAdmin ? [{ rotulo: "Painel Admin", acao: () => irPara("/admin/painel") }] : []),
-  ];
-
   return (
     <div className="velo-fonte-inter flex h-12 shrink-0 items-center justify-end gap-2 pr-8">
       <style>{BARRA_CSS}</style>
@@ -235,94 +264,89 @@ const BarraDoTopo = () => {
               key="menu-da-conta"
               role="menu"
               aria-label="Opções da conta"
-              className="absolute right-0 top-[46px] z-50 w-[320px] p-2"
-              style={{
-                borderRadius: 20,
-                border: "1px solid #E4E4E7",
-                background: "#FFFFFF",
-                color: "#18181B",
-                boxShadow: "0 16px 40px rgba(17,17,20,0.12), 0 2px 6px rgba(17,17,20,0.06)",
-                transformOrigin: "top right",
-              }}
+              className="absolute right-0 top-[46px] z-50 w-[320px]"
+              style={{ transformOrigin: "top right" }}
               initial={reduce ? false : { opacity: 0, y: -6, scale: 0.98 }}
               animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.99 }}
               transition={reduce ? { duration: 0 } : { duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             >
-              {/* Identidade */}
-              <div className="flex items-center gap-3.5 px-3 pb-4 pt-3">
-                {avatar(46, 23)}
-                <div className="min-w-0">
-                  <p className="m-0 truncate text-[17px] font-semibold leading-6 tracking-[-0.015em]">{nomeVisivel}</p>
-                  <p className="m-0 mt-0.5 truncate text-[14px] leading-5 text-[#71717A]">{emailVisivel}</p>
+              {/* Cartão da identidade, separado (como na referência): foto com o ponto
+                  verde de "online", nome, e-mail e o selo do plano real. */}
+              <div className="flex items-center gap-3 rounded-[18px] px-3 py-3" style={ESTILO_CARTAO_ESCURO}>
+                <span className="relative shrink-0">
+                  {avatar(44, 22)}
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-0 right-0 h-3 w-3 rounded-full"
+                    style={{ background: "#22C55E", boxShadow: "0 0 0 2.5px #1A1A1A" }}
+                  />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="m-0 truncate text-[16px] font-medium leading-5 text-[#FAFAFA]">{nomeVisivel}</p>
+                  <p className="m-0 mt-1 truncate text-[13.5px] leading-5 text-[#A1A1AA]">{emailVisivel}</p>
+                </div>
+                <span
+                  className="flex h-[26px] shrink-0 items-center gap-1 rounded-full px-2.5 text-[11.5px] font-semibold uppercase tracking-[0.02em]"
+                  style={
+                    planoNormalizado === "gratis" && !identidadeSandbox
+                      ? { background: "#27272A", color: "#D4D4D8" }
+                      : { background: "#86EFAC", color: "#14532D", boxShadow: "inset 0 0 0 1px rgba(20,83,45,0.12)" }
+                  }
+                >
+                  <BoltIcon aria-hidden="true" className="h-3 w-3" />
+                  {emTeste && !identidadeSandbox ? "Teste" : nomeDoPlano}
+                </span>
+              </div>
+
+              {/* Cartão do menu: lista com ícones cheios, filete de ponta a ponta e rodapé. */}
+              <div className="mt-2.5 overflow-hidden rounded-[20px]" style={{ ...ESTILO_CARTAO_ESCURO, background: "#222222" }}>
+                <div className="rounded-[20px] p-2" style={{ background: "#1A1A1A", boxShadow: "0 1px 0 #2A2A2A" }}>
+                  {GRUPOS_DO_MENU(ehAdmin).map((grupo, g) => (
+                    <div key={g}>
+                      {g > 0 ? <div className="-mx-2 my-2 h-px bg-[#2A2A2A]" /> : null}
+                      {grupo.map(({ rotulo, Icone, rota }) => {
+                        const atual = location.pathname === rota.split("?")[0] && (!rota.includes("?") || location.search === `?${rota.split("?")[1]}`);
+                        const detalhe = rotulo === "Assinatura" && emTeste ? formatarContagem(restanteDoTeste) : null;
+                        return (
+                          <button
+                            key={rotulo}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => irPara(rota)}
+                            className="velo-topo-item flex h-10 w-full items-center gap-3 rounded-[10px] px-2.5 text-left text-[15px] font-medium text-[#F4F4F5]"
+                            style={{ background: atual ? "#262626" : "transparent", boxShadow: "none" }}
+                          >
+                            <Icone aria-hidden="true" className="h-5 w-5 shrink-0 text-[#A1A1AA]" />
+                            <span className="min-w-0 flex-1 truncate">{rotulo}</span>
+                            {detalhe ? <span className="shrink-0 text-[12px] font-normal tabular-nums text-[#A1A1AA]">{detalhe}</span> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => irPara("/dashboard/sugestoes")}
+                    className="velo-topo-link text-[14px] text-[#A1A1AA]"
+                    style={{ background: "transparent", boxShadow: "none", padding: 0 }}
+                  >
+                    Sugestões
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void sair()}
+                    className="velo-topo-sair h-9 rounded-[10px] px-4 text-[14px] font-medium text-[#E4E4E7]"
+                    style={{ background: "#171717", border: "1px solid #2E2E2E", boxShadow: "none" }}
+                  >
+                    Sair
+                  </button>
                 </div>
               </div>
-
-              {/* Cartão da assinatura: só dados reais (plano, prazo do teste e mensagens
-                  do Atlas, quando o servidor já informou a cota nesta visita). */}
-              <div className="rounded-[16px] border border-[#E4E4E7] bg-white px-4 pb-2 pt-4">
-                <p className="m-0 text-[15px] font-medium text-[#52525B]">Sua assinatura</p>
-                <dl className="m-0 mt-3 space-y-2 text-[15px]">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-[#71717A]">Plano</dt>
-                    <dd className="m-0 font-medium text-[#18181B]">{nomeDoPlano}</dd>
-                  </div>
-                  {emTeste ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-[#71717A]">Teste termina em</dt>
-                      <dd className="m-0 font-medium tabular-nums text-[#18181B]">{formatarContagem(restanteDoTeste)}</dd>
-                    </div>
-                  ) : null}
-                  {quota && quota.limite !== null && quota.restantes !== null ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <dt className="text-[#71717A]">Mensagens do Atlas</dt>
-                      <dd className="m-0 font-medium tabular-nums text-[#18181B]">
-                        {quota.restantes} de {quota.limite}
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-                <button
-                  type="button"
-                  className="velo-topo-cta -mx-2 mt-4 h-11 w-[calc(100%+16px)] rounded-full text-[15px] font-semibold"
-                  style={{ background: "#18181B", color: "#FFFFFF", boxShadow: "0 1px 2px rgba(17,17,20,0.12)" }}
-                  onClick={() => {
-                    if (temTopo) {
-                      irPara("/dashboard/configuracoes?tab=Plano");
-                      return;
-                    }
-                    fecharAgora();
-                    upgradeModal.open({ origin: "barra-do-topo" });
-                  }}
-                >
-                  {temTopo ? "Gerenciar assinatura" : "Fazer upgrade"}
-                </button>
-              </div>
-
-              {/* Filete de ponta a ponta, como na referência. */}
-              <div className="-mx-2 my-2 h-px bg-[#EFEFF1]" />
-
-              {itens.map(({ rotulo, acao }) => (
-                <button
-                  key={rotulo}
-                  type="button"
-                  role="menuitem"
-                  onClick={acao}
-                  className="velo-topo-item flex h-11 w-full items-center rounded-[12px] px-3 text-left text-[15px] text-[#52525B]"
-                  style={{ background: "transparent", boxShadow: "none" }}
-                >
-                  {rotulo}
-                </button>
-              ))}
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => void sair()}
-                className="velo-topo-item velo-topo-sair flex h-11 w-full items-center rounded-[12px] px-3 text-left text-[15px] text-[#DC2626]"
-                style={{ background: "transparent", boxShadow: "none" }}
-              >
-                Sair
-              </button>
             </motion.div>
           ) : null}
         </AnimatePresence>
