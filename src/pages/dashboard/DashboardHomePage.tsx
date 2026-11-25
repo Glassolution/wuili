@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, PlayCircle } from "lucide-react";
+import { AiMagicIcon, PlusSignIcon, Search01Icon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,14 +13,6 @@ import { ONBOARDING_COMPLETED_EVENT, shouldShowOnboarding } from "@/components/o
 import { veloToast } from "@/components/ui/velo-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
-import dashboardHomeBase from "@/assets/dashboard-home-base.png";
-import homeCardTemas from "@/assets/home-card-temas.webp";
-import agenteLua from "@/assets/agentes/lua.png";
-import agenteCubo from "@/assets/agentes/cubo.png";
-import agenteFolha from "@/assets/agentes/folha.png";
-import agenteEstrela from "@/assets/agentes/estrela.png";
-import agenteConcha from "@/assets/agentes/concha.png";
-import agenteSino from "@/assets/agentes/sino.png";
 import MobileHome from "@/components/dashboard/MobileHome";
 import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 import { Button } from "@/components/ui/button";
@@ -84,11 +77,17 @@ type OnboardingStatus = {
 };
 
 const IMAGE_WIDTH = 1536;
-const CONTENT_SLICE_TOP = 300;
-const CONTENT_OFFSET = 100;
-const HERO_OFFSET = 17;
-// Quanto os cards (e a faixa "Próximo passo") descem em relação ao desenho original.
-const CARDS_SHIFT = 28;
+// Layout da Início no estilo da referência (unidades de 1536 de largura).
+const PAGE_BG = "#FFFFFF";
+const LAYOUT = {
+  canvas: 940,
+  title: 262,
+  box: 342,
+  boxHeight: 232,
+  cards: 618,
+  cardsHeight: 196,
+  width: 920,
+} as const;
 const CHAT_SUGGESTIONS = [
   "Crie um anúncio de produto",
   "Ajude-me a encontrar produtos",
@@ -137,7 +136,7 @@ const INTRO = {
 // Todo o layout desta tela é dimensionado em cqw (relativo à largura do
 // container), então sem um teto ele cresce junto com o monitor e no desktop
 // fica desproporcional. Travamos a largura do canvas: acima disso o conteúdo
-// para de inflar e apenas ganha margem lateral (do mesmo #F5F4F1 do fundo).
+// para de inflar e apenas ganha margem lateral (da mesma cor do fundo, PAGE_BG).
 // Abaixo desse valor o comportamento responsivo continua exatamente o mesmo.
 // Este é o único número a mexer para calibrar a escala geral da página.
 const MAX_CANVAS_WIDTH = 1280;
@@ -146,127 +145,33 @@ const x = (value: number) => `${(value / IMAGE_WIDTH) * 100}%`;
 const y = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
 const fs = (value: number) => `${(value / IMAGE_WIDTH) * 100}cqw`;
 
-// Os seis agentes do card "Coloque os agentes para trabalhar": fileira de trás
-// menor, fileira da frente maior, cada um balançando num ritmo diferente.
-const AGENTES_HOME = [
-  { nome: "lua", src: agenteLua, x: 34, y: 34, tamanho: 96, balanco: 4, frente: false },
-  { nome: "estrela", src: agenteEstrela, x: 150, y: 16, tamanho: 96, balanco: 5, frente: false },
-  { nome: "sino", src: agenteSino, x: 268, y: 34, tamanho: 96, balanco: 4, frente: false },
-  { nome: "cubo", src: agenteCubo, x: 22, y: 140, tamanho: 118, balanco: 3, frente: true },
-  { nome: "concha", src: agenteConcha, x: 140, y: 128, tamanho: 118, balanco: 4, frente: true },
-  { nome: "folha", src: agenteFolha, x: 258, y: 140, tamanho: 118, balanco: 3, frente: true },
-];
+// Os três atalhos embaixo da caixa do Atlas, no estilo da referência (ícone,
+// título e uma linha curta). Só levam para páginas que já existem.
+const ATALHOS_HOME = [
+  { id: "criar", icone: PlusSignIcon, titulo: "Criar", texto: "Site da sua loja", rota: "/dashboard/minha-loja" },
+  { id: "encontrar", icone: Search01Icon, titulo: "Encontrar", texto: "Produtos do catálogo", rota: "/dashboard/catalogo" },
+  { id: "agentes", icone: AiMagicIcon, titulo: "Agentes", texto: "Projetos e mudanças", rota: "/dashboard/projetos" },
+] as const;
 
-const HOME_CARDS_CSS = `
-.velo-home-area .velo-home-area-agente { transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1); }
-.velo-home-area:hover .velo-home-area-agente { transform: translateY(-6px) rotate(-3deg); }
-.velo-home-area .velo-home-area-botao { transition: transform 200ms ease-out, background-color 200ms ease-out, border-color 200ms ease-out; }
-.velo-home-area .velo-home-area-botao:hover:not(:disabled) { transform: translateY(-1px); background-color: #F7F7F5; border-color: #C9C9C5; }
-.velo-home-site .velo-home-site-vitrine { transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1); }
-.velo-home-site:hover .velo-home-site-vitrine { transform: translateY(-4px) scale(1.015); }
-.velo-home-site-botao { transition: background-color 180ms ease-out, transform 180ms ease-out; }
-.velo-home-site-botao:hover { background-color: #2A2A2E !important; }
-.velo-home-site-botao:active { transform: scale(0.98); }
-.velo-home-site-seta { transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
-.velo-home-site-botao:hover .velo-home-site-seta { transform: translateX(2px) rotate(-45deg); }
+const HOME_CSS = `
+.velo-home-atalho { transition: background-color 180ms ease-out, border-color 180ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms ease-out; }
+.velo-home-atalho:hover { background-color: #FAFAFA; border-color: #DCDCE0; transform: translateY(-2px); box-shadow: 0 6px 18px rgba(17,17,20,0.05); }
+.velo-home-atalho:active { transform: translateY(0) scale(0.99); }
+.velo-home-atalho .velo-home-atalho-icone { transition: color 180ms ease-out; }
+.velo-home-atalho:hover .velo-home-atalho-icone { color: #18181B; }
+.velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
+.velo-home-atlas .velo-home-atlas-btn { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
+.velo-home-atlas .velo-home-atlas-btn:hover:not(:disabled) { background-color: #F4F4F5; color: #18181B; }
+.velo-home-atlas .velo-home-atlas-enviar { transition: background-color 150ms ease-out, transform 150ms ease-out, opacity 150ms ease-out; }
+.velo-home-atlas .velo-home-atlas-enviar:hover:not(:disabled) { background-color: #1D4ED8; }
+.velo-home-atlas .velo-home-atlas-enviar:active:not(:disabled) { transform: scale(0.95); }
+.velo-home-proximo-btn { transition: color 150ms ease-out; }
+.velo-home-proximo-btn:hover:not(:disabled) { color: #1D4ED8; }
 @media (prefers-reduced-motion: reduce) {
-  .velo-home-area .velo-home-area-agente, .velo-home-area .velo-home-area-botao,
-  .velo-home-site .velo-home-site-vitrine, .velo-home-site-botao, .velo-home-site-seta { transition: none; }
-  .velo-home-area:hover .velo-home-area-agente, .velo-home-site:hover .velo-home-site-vitrine { transform: none; }
+  .velo-home-atalho, .velo-home-atalho .velo-home-atalho-icone, .velo-home-atlas .velo-home-atlas-enviar { transition: none; }
+  .velo-home-atalho:hover, .velo-home-atalho:active { transform: none; }
 }
 `;
-
-type CardAreaProps = {
-  id: string;
-  left: number;
-  width: number;
-  rotulo: string;
-  /** Só no card do Mercado Livre: bolinha verde (conectado) ou cinza. */
-  rotuloAtivo?: boolean;
-  titulo: string;
-  texto: string;
-  acao: string;
-  onClick: () => void;
-  desabilitado?: boolean;
-  agente: string;
-  fundo: string;
-};
-
-// Card da segunda linha da Início: texto e botão à esquerda, um agente à direita.
-const CardArea = ({ id, left, width, rotulo, rotuloAtivo, titulo, texto, acao, onClick, desabilitado, agente, fundo }: CardAreaProps) => (
-  <section
-    aria-labelledby={id}
-    className="velo-home-area"
-    style={{
-      position: "absolute",
-      left: x(left),
-      top: y(649),
-      width: x(width),
-      height: y(246),
-      zIndex: 2,
-      boxSizing: "border-box",
-      display: "grid",
-      gridTemplateColumns: "minmax(0, 1fr) 40%",
-      gap: fs(14),
-      overflow: "hidden",
-      padding: `${fs(14)} ${fs(14)} ${fs(14)} ${fs(22)}`,
-      border: "1px solid rgba(17,17,20,0.08)",
-      borderRadius: fs(24),
-      background: "#FFFFFF",
-      boxShadow: "0 12px 28px rgba(26,26,26,0.045)",
-    }}
-  >
-    <div style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", padding: `${fs(8)} 0` }}>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: fs(6), color: "rgba(17,17,20,0.5)", fontSize: fs(10.5), fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-        {rotuloAtivo !== undefined && (
-          <span aria-hidden="true" style={{ width: fs(7), height: fs(7), borderRadius: "50%", background: rotuloAtivo ? "#20B875" : "#C9C6B2", boxShadow: rotuloAtivo ? "0 0 0 3px rgba(32,184,117,0.14)" : "none" }} />
-        )}
-        {rotulo}
-      </span>
-      <h3 id={id} style={{ margin: `${fs(12)} 0 0`, color: "#111114", fontSize: fs(19.5), fontWeight: 820, lineHeight: 1.12, letterSpacing: "-0.03em" }}>
-        {titulo}
-      </h3>
-      <p style={{ margin: `${fs(9)} 0 0`, color: "rgba(17,17,20,0.62)", fontSize: fs(12.4), fontWeight: 500, lineHeight: 1.42 }}>
-        {texto}
-      </p>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={desabilitado}
-        className="velo-home-area-botao focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2 disabled:opacity-70"
-        style={{
-          marginTop: "auto",
-          height: fs(40),
-          display: "flex",
-          alignItems: "center",
-          gap: fs(10),
-          padding: `0 ${fs(13)} 0 ${fs(15)}`,
-          border: "1px solid #DDDDD9",
-          borderRadius: fs(11),
-          background: "rgba(255,255,255,0.96)",
-          color: "#171719",
-          cursor: desabilitado ? "wait" : "pointer",
-          fontSize: fs(12.3),
-          fontWeight: 780,
-          whiteSpace: "nowrap",
-          boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-        }}
-      >
-        <span>{acao}</span>
-        <ArrowRight aria-hidden="true" style={{ width: fs(17), height: fs(17) }} strokeWidth={2.1} />
-      </button>
-    </div>
-    <div aria-hidden="true" style={{ position: "relative", borderRadius: fs(18), background: fundo, overflow: "hidden", display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <img
-        src={agente}
-        alt=""
-        draggable={false}
-        className="velo-home-area-agente"
-        style={{ width: fs(132), height: fs(132), marginBottom: fs(6), objectFit: "contain", filter: "drop-shadow(0 10px 12px rgba(0,0,0,0.12))", userSelect: "none" }}
-      />
-    </div>
-  </section>
-);
 
 const AssistantAvatar = () => (
   <AtlasAvatarIcon style={{ display: "block", width: "100%", height: "100%" }} />
@@ -315,8 +220,8 @@ const AnimatedPromptText = ({
         position: "absolute",
         left: 0,
         right: 0,
-        color: "rgba(0,0,0,0.56)",
-        fontSize: fs(18),
+        color: "#A1A1AA",
+        fontSize: fs(21),
         fontWeight: 400,
         lineHeight: 1,
         overflow: "hidden",
@@ -593,11 +498,6 @@ const DashboardHomePage = () => {
       };
 
   const go = (path: string) => () => navigate(path);
-  const onboardingProgress = onboardingStatus
-    ? Math.round(
-        ([onboardingStatus.mlConnected, onboardingStatus.hasPublication].filter(Boolean).length / 2) * 100,
-      )
-    : null;
   const nextStepCopy = !onboardingStatus
     ? "Consulte suas integrações e continue a configuração da sua conta."
     : !onboardingStatus.mlConnected
@@ -639,51 +539,12 @@ const DashboardHomePage = () => {
     void enviarParaAtlas(texto);
   };
 
-  const textStyle = (
-    left: number,
-    top: number,
-    size: number,
-    width?: number,
-    extra?: CSSProperties,
-  ): CSSProperties => ({
-    position: "absolute",
-    left: x(left),
-    top: y(top),
-    width: width ? x(width) : undefined,
-    fontSize: fs(size),
-    ...extra,
-  });
-
-  const buttonStyle = (
-    left: number,
-    top: number,
-    width: number,
-    height: number,
-    size: number,
-    extra?: CSSProperties,
-  ): CSSProperties => ({
-    position: "absolute",
-    left: x(left),
-    top: y(top),
-    width: x(width),
-    height: y(height),
-    border: 0,
-    background: "transparent",
-    cursor: "pointer",
-    fontSize: fs(size),
-    display: "flex",
-    alignItems: "center",
-    lineHeight: 1,
-    padding: 0,
-    ...extra,
-  });
-
-
   if (introState === "pending" || introState === "waiting") {
     return (
       <main
         aria-hidden="true"
-        className="shrink-0 bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+        className="shrink-0 -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+        style={{ background: PAGE_BG }}
       />
     );
   }
@@ -694,39 +555,32 @@ const DashboardHomePage = () => {
 
   return (
     <main
-      className="shrink-0 overflow-auto bg-[#F5F4F1] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      className="shrink-0 overflow-auto -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
+      style={{ background: PAGE_BG }}
     >
+      <style>{HOME_CSS}</style>
       <div
         className="relative mx-auto w-full text-[#101114]"
         style={{ containerType: "inline-size", maxWidth: MAX_CANVAS_WIDTH }}
       >
-        <img
-          src={dashboardHomeBase}
-          alt="Tela inicial da Velo"
-          className="block h-auto w-full select-none"
-          draggable={false}
-        />
-        <div aria-hidden="true" style={{ height: y(CONTENT_OFFSET + CARDS_SHIFT) }} />
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: `${y(CONTENT_SLICE_TOP)} 0 0`,
-            background: "#F5F4F1",
-          }}
-        />
-        {/* A segunda cópia recortada da imagem base (com os cards desenhados) saiu:
-            os cards agora são componentes. A primeira imagem só dá a altura do canvas. */}
+        {/* Só dá a altura do canvas: tudo abaixo é posicionado em cima dele. */}
+        <div aria-hidden="true" style={{ height: y(LAYOUT.canvas) }} />
 
         <div className="absolute inset-0 font-sans">
+          {/* Textura de pontinhos no topo, como na referência, sumindo para baixo. */}
           <div
             aria-hidden="true"
             style={{
               position: "absolute",
-              inset: 0,
-              bottom: "auto",
-              height: y(320),
-              background: "#F5F4F1",
+              left: 0,
+              right: 0,
+              top: 0,
+              height: y(230),
+              backgroundImage: "radial-gradient(rgba(17,17,20,0.11) 1px, transparent 1.2px)",
+              backgroundSize: `${fs(14)} ${fs(14)}`,
+              WebkitMaskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.5) 45%, transparent 100%)",
+              maskImage: "linear-gradient(180deg, #000 0%, rgba(0,0,0,0.5) 45%, transparent 100%)",
+              pointerEvents: "none",
             }}
           />
 
@@ -759,7 +613,6 @@ const DashboardHomePage = () => {
             </Button>
           </motion.div>
 
-
           <motion.h1
             initial={playIntro ? { opacity: 0, y: introTitleOffset, scale: 0.985 } : false}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -781,31 +634,33 @@ const DashboardHomePage = () => {
               position: "absolute",
               zIndex: 30,
               left: "50%",
-              top: y(128 + HERO_OFFSET),
-              width: x(900),
+              top: y(LAYOUT.title),
               x: "-50%",
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: fs(6),
+              gap: fs(16),
               margin: 0,
-              lineHeight: 1.04,
-              letterSpacing: 0,
-              textAlign: "center",
+              color: "#18181B",
+              fontSize: fs(36),
+              fontWeight: 500,
+              lineHeight: 1.1,
+              letterSpacing: "-0.015em",
               whiteSpace: "nowrap",
             }}
           >
-            <span style={{ color: "#666666", fontSize: fs(31), fontWeight: 600 }}>
-              Bem-vindo à Velo!
-            </span>
-            <span style={{ color: "#303030", fontSize: fs(34), fontWeight: 600 }}>
-              Por onde você quer começar?
-            </span>
+            <img
+              src="/logo.png"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              style={{ width: fs(38), height: fs(38), objectFit: "contain", userSelect: "none" }}
+            />
+            Por onde você quer começar?
           </motion.h1>
 
-          {/* Caixa do Atlas no formato do Shopify: texto em cima; avatar à esquerda e
-              Conversas / + / enviar à direita, embaixo. A lógica do chat não mudou. */}
+          {/* Caixa do Atlas no estilo da referência: texto em cima; à esquerda "+"
+              e o Atlas, à direita Conversas e o enviar azul. A lógica do chat não mudou. */}
           <motion.div
             {...revealProps(INTRO.chatDelay, 14)}
             ref={welcomeChatRef}
@@ -822,32 +677,25 @@ const DashboardHomePage = () => {
               position: "absolute",
               zIndex: 32,
               left: "50%",
-              top: y(226 + HERO_OFFSET),
-              // Mesma proporção da caixa do Shopify (~6:1): mais alta, com respiro
-              // entre o texto e a barra de baixo.
-              width: x(860),
-              height: y(144),
+              top: y(LAYOUT.box),
+              width: x(LAYOUT.width),
+              height: y(LAYOUT.boxHeight),
               x: "-50%",
-              borderRadius: fs(20),
-              border: chatActive ? "1px solid #CACACA" : "1px solid #E3E3E3",
+              boxSizing: "border-box",
+              borderRadius: fs(28),
+              border: chatActive ? "1px solid #D4D4D8" : "1px solid #E4E4E7",
               background: "#FFFFFF",
               boxShadow: chatActive
-                ? "0 1px 0 rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.06)"
-                : "0 1px 0 rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04)",
+                ? "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(17,17,20,0.07)"
+                : "0 1px 2px rgba(0,0,0,0.03), 0 8px 24px rgba(17,17,20,0.04)",
               display: "flex",
               flexDirection: "column",
               justifyContent: "space-between",
-              padding: `${fs(20)} ${fs(14)} ${fs(16)} ${fs(18)}`,
+              padding: `${fs(28)} ${fs(22)} ${fs(22)} ${fs(28)}`,
               cursor: "text",
               transition: "border-color 200ms ease, box-shadow 240ms ease",
             }}
           >
-            <style>{`
-              .velo-home-atlas .velo-home-atlas-conversas span.font-bold { font-weight: 500 !important; }
-              .velo-home-atlas .velo-home-atlas-btn { transition: background-color 150ms ease-out, color 150ms ease-out; }
-              .velo-home-atlas .velo-home-atlas-btn:hover:not(:disabled) { background-color: rgba(0,0,0,0.05); }
-              .velo-home-atlas .velo-home-atlas-enviar:hover:not(:disabled) { background-color: #2A2A2A; }
-            `}</style>
             <form onSubmit={handleChatSubmit} style={{ display: "block", minWidth: 0 }}>
               <span
                 style={{
@@ -855,7 +703,7 @@ const DashboardHomePage = () => {
                   display: "flex",
                   alignItems: "center",
                   minWidth: 0,
-                  height: fs(24),
+                  height: fs(28),
                 }}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -881,9 +729,9 @@ const DashboardHomePage = () => {
                     outline: 0,
                     padding: 0,
                     background: "transparent",
-                    color: "#303030",
-                    caretColor: "#303030",
-                    fontSize: fs(18),
+                    color: "#18181B",
+                    caretColor: "#18181B",
+                    fontSize: fs(21),
                     fontWeight: 400,
                     lineHeight: 1,
                     position: "relative",
@@ -894,14 +742,64 @@ const DashboardHomePage = () => {
             </form>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span
-                aria-hidden="true"
-                style={{ width: fs(26), height: fs(26), display: "inline-flex", flex: "0 0 auto" }}
-              >
-                <AssistantAvatar />
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: fs(12) }} onClick={(event) => event.stopPropagation()}>
+                <button
+                  type="button"
+                  aria-label="Escolher produto"
+                  title="Escolher produto"
+                  className="velo-home-atlas-btn"
+                  onClick={() => navigate("/dashboard/catalogo")}
+                  style={{
+                    border: "1px solid #E4E4E7",
+                    borderRadius: fs(12),
+                    background: "#FFFFFF",
+                    color: "#52525B",
+                    cursor: "pointer",
+                    width: fs(46),
+                    height: fs(46),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                    boxShadow: "none",
+                  }}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(22), height: fs(22), display: "block" }}>
+                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                  </svg>
+                </button>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: fs(10),
+                    marginLeft: fs(6),
+                    color: "#3F3F46",
+                    fontSize: fs(18),
+                    fontWeight: 500,
+                  }}
+                >
+                  <span aria-hidden="true" style={{ width: fs(24), height: fs(24), display: "inline-flex", flex: "0 0 auto" }}>
+                    <AssistantAvatar />
+                  </span>
+                  Atlas
+                  <span
+                    style={{
+                      padding: `${fs(4)} ${fs(9)}`,
+                      borderRadius: fs(8),
+                      background: "#EEF3FF",
+                      color: "#2563EB",
+                      fontSize: fs(14),
+                      fontWeight: 600,
+                      lineHeight: 1,
+                    }}
+                  >
+                    IA
+                  </span>
+                </span>
+              </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: fs(6) }} onClick={(event) => event.stopPropagation()}>
+              <div style={{ display: "flex", alignItems: "center", gap: fs(10) }} onClick={(event) => event.stopPropagation()}>
                 {temHistorico && (
                   <>
                     <div ref={historyMenuRef} className="velo-home-atlas-conversas">
@@ -912,44 +810,21 @@ const DashboardHomePage = () => {
                         onThreadDeleted={aoApagarConversa}
                         triggerLabel="Conversas"
                         triggerStyle={{
-                          height: fs(36),
+                          height: fs(40),
                           minHeight: 30,
                           borderRadius: fs(10),
-                          color: "#303030",
-                          fontSize: fs(16),
+                          color: "#3F3F46",
+                          fontSize: fs(17),
                         }}
                       />
                     </div>
-                    <span aria-hidden="true" style={{ width: 1, height: fs(18), background: "#E3E3E3", margin: `0 ${fs(6)}` }} />
+                    <span aria-hidden="true" style={{ width: 1, height: fs(20), background: "#E4E4E7", margin: `0 ${fs(4)}` }} />
                   </>
                 )}
                 <button
                   type="button"
-                  aria-label="Escolher produto"
-                  className="velo-home-atlas-btn"
-                  onClick={() => navigate("/dashboard/catalogo")}
-                  style={{
-                    border: 0,
-                    borderRadius: fs(10),
-                    background: "transparent",
-                    color: "#303030",
-                    cursor: "pointer",
-                    width: fs(36),
-                    height: fs(36),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 0,
-                  }}
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
-                    <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
                   aria-label="Enviar"
-                  className={chatInput.trim() ? "velo-home-atlas-enviar" : "velo-home-atlas-btn"}
+                  className="velo-home-atlas-enviar"
                   disabled={chatActive && !chatInput.trim()}
                   onClick={() => {
                     if (!chatActive) {
@@ -962,20 +837,20 @@ const DashboardHomePage = () => {
                   style={{
                     border: 0,
                     borderRadius: "50%",
-                    color: chatInput.trim() ? "#FFFFFF" : "#303030",
+                    color: "#FFFFFF",
                     cursor: chatActive && !chatInput.trim() ? "default" : "pointer",
-                    background: chatInput.trim() ? "#000000" : "transparent",
+                    background: "#2563EB",
+                    opacity: chatActive && !chatInput.trim() ? 0.5 : 1,
                     boxShadow: "none",
-                    width: fs(36),
-                    height: fs(36),
+                    width: fs(48),
+                    height: fs(48),
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 0,
-                    transition: "color 160ms ease, background-color 160ms ease",
                   }}
                 >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20), display: "block" }}>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: fs(22), height: fs(22), display: "block" }}>
                     <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
@@ -983,6 +858,7 @@ const DashboardHomePage = () => {
             </div>
           </motion.div>
 
+          {/* Atalhos e próximo passo: somem quando o chat abre. */}
           <motion.div
             aria-hidden={chatActive}
             initial={false}
@@ -994,407 +870,113 @@ const DashboardHomePage = () => {
               position: "absolute",
               left: 0,
               right: 0,
-              top: y(CONTENT_OFFSET + CARDS_SHIFT),
+              top: y(LAYOUT.cards),
               bottom: 0,
               pointerEvents: chatActive ? "none" : "auto",
             }}
           >
-          <style>{HOME_CARDS_CSS}</style>
-          {/* Linha 1 — os dois primeiros passos do novo caminho: criar o site e
-              colocar os agentes para cuidar dele. */}
-          {/* Card 01: mesma moldura do card 02 (branco + painel interno), com a
-              vitrine de modelos à direita, sem encostar no texto. */}
-          <section
-            aria-labelledby="home-card-site"
-            className="velo-home-card velo-home-site"
-            style={{
-              position: "absolute",
-              left: x(78),
-              top: y(320),
-              width: x(688),
-              height: y(310),
-              zIndex: 2,
-              boxSizing: "border-box",
-              padding: fs(10),
-              border: "1px solid rgba(17,17,20,0.07)",
-              borderRadius: fs(24),
-              background: "#FFFFFF",
-              boxShadow: "0 12px 28px rgba(26,26,26,0.045)",
-            }}
-          >
-            <div
+            <nav
+              aria-label="Atalhos"
+              data-dashboard-tour="home-primeiros-passos"
               style={{
-                position: "relative",
-                height: "100%",
-                overflow: "hidden",
-                borderRadius: fs(18),
-                background: "linear-gradient(100deg, #FFFFFF 0%, #FAFAF9 40%, #F1F0EC 100%)",
+                position: "absolute",
+                left: "50%",
+                top: 0,
+                width: x(LAYOUT.width),
+                transform: "translateX(-50%)",
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: fs(24),
               }}
             >
-              <span
-                style={{
-                  position: "absolute",
-                  left: fs(15),
-                  top: fs(8),
-                  width: fs(40),
-                  height: fs(40),
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(10),
-                  background: "#F3F2F0",
-                  color: "rgba(0,0,0,0.45)",
-                  fontSize: fs(11),
-                  fontWeight: 800,
-                }}
-              >
-                01
-              </span>
-              <h2 id="home-card-site" style={{ position: "absolute", left: fs(18), top: fs(60), width: fs(230), margin: 0, fontSize: fs(22), fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" }}>
-                Crie o site
-                <br />
-                da sua loja
-              </h2>
-              <p style={{ position: "absolute", left: fs(18), top: fs(136), width: fs(214), margin: 0, color: "rgba(0,0,0,0.62)", fontSize: fs(12.4), lineHeight: 1.42 }}>
-                Escolha um modelo, coloque seus produtos e publique. Tudo dentro da Velo.
-              </p>
-              <button
-                type="button"
-                onClick={go("/dashboard/minha-loja")}
-                className="velo-home-site-botao focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 focus-visible:ring-offset-2"
-                style={{
-                  position: "absolute",
-                  left: fs(18),
-                  top: fs(212),
-                  height: fs(46),
-                  display: "flex",
-                  alignItems: "center",
-                  gap: fs(14),
-                  padding: `0 ${fs(6)} 0 ${fs(20)}`,
-                  border: 0,
-                  borderRadius: 999,
-                  background: "#111114",
-                  color: "#FFFFFF",
-                  cursor: "pointer",
-                  fontSize: fs(13.4),
-                  fontWeight: 700,
-                  letterSpacing: "-0.005em",
-                  boxShadow: "none",
-                }}
-              >
-                <span>Criar meu site</span>
-                <span
-                  aria-hidden="true"
-                  className="velo-home-site-seta"
-                  style={{
-                    width: fs(34),
-                    height: fs(34),
-                    display: "grid",
-                    placeItems: "center",
-                    borderRadius: 999,
-                    background: "#FFFFFF",
-                    color: "#111114",
-                  }}
-                >
-                  <ArrowRight style={{ width: fs(16), height: fs(16) }} strokeWidth={2.2} />
-                </span>
-              </button>
-              {/* A vitrine de modelos também leva para o editor do site. O
-                  multiply some com o fundo branco da imagem sobre o painel. */}
-              <button
-                type="button"
-                onClick={go("/dashboard/minha-loja")}
-                aria-label="Abrir o editor do site"
-                title="Abrir o editor do site"
-                className="velo-home-site-vitrine focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
-                style={{
-                  position: "absolute",
-                  left: fs(250),
-                  top: fs(22),
-                  width: fs(412),
-                  height: fs(245),
-                  padding: 0,
-                  border: 0,
-                  borderRadius: fs(12),
-                  background: "transparent",
-                  cursor: "pointer",
-                  boxShadow: "none",
-                }}
-              >
-                <img
-                  src={homeCardTemas}
-                  alt=""
-                  draggable={false}
-                  style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "multiply", userSelect: "none" }}
-                />
-              </button>
-            </div>
-          </section>
-
-          <section
-            aria-labelledby="home-card-agentes"
-            className="velo-home-card"
-            style={{
-              position: "absolute",
-              left: x(778),
-              top: y(320),
-              width: x(676),
-              height: y(310),
-              zIndex: 2,
-              boxSizing: "border-box",
-              padding: fs(10),
-              border: "1px solid rgba(17,17,20,0.07)",
-              borderRadius: fs(24),
-              background: "#FFFFFF",
-              boxShadow: "0 12px 28px rgba(26,26,26,0.045)",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                height: "100%",
-                overflow: "hidden",
-                borderRadius: fs(18),
-                background: "linear-gradient(100deg, #FFFFFF 0%, #FBFAF8 42%, #F4F0EA 100%)",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  left: fs(15),
-                  top: fs(8),
-                  width: fs(40),
-                  height: fs(40),
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: fs(10),
-                  background: "#F3F2F0",
-                  color: "rgba(0,0,0,0.45)",
-                  fontSize: fs(11),
-                  fontWeight: 800,
-                }}
-              >
-                02
-              </span>
-              <h2 id="home-card-agentes" style={{ position: "absolute", left: fs(18), top: fs(60), width: fs(250), margin: 0, fontSize: fs(22), fontWeight: 800, lineHeight: 1.12, letterSpacing: "-0.02em" }}>
-                Coloque os agentes
-                <br />
-                para trabalhar
-              </h2>
-              <p style={{ position: "absolute", left: fs(18), top: fs(136), width: fs(236), margin: 0, color: "rgba(0,0,0,0.62)", fontSize: fs(12.4), lineHeight: 1.42 }}>
-                Você cria a loja, os agentes cuidam dela. No seu projeto você vê tudo o que mudou no site.
-              </p>
-              <button
-                type="button"
-                onClick={go("/dashboard/projetos")}
-                className="transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-px hover:border-[#C9C9C5] hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 focus-visible:ring-offset-2"
-                style={{
-                  position: "absolute",
-                  left: fs(18),
-                  top: fs(212),
-                  height: fs(46),
-                  display: "flex",
-                  alignItems: "center",
-                  gap: fs(12),
-                  padding: `0 ${fs(14)} 0 ${fs(16)}`,
-                  border: "1px solid #DDDDD9",
-                  borderRadius: fs(11),
-                  background: "rgba(255,255,255,0.96)",
-                  color: "#101114",
-                  cursor: "pointer",
-                  fontSize: fs(13.4),
-                  fontWeight: 800,
-                  boxShadow: "0 2px 5px rgba(17,17,20,0.035)",
-                }}
-              >
-                <span>Ver meus projetos</span>
-                <ArrowRight aria-hidden="true" style={{ width: fs(18), height: fs(18) }} strokeWidth={2} />
-              </button>
-
-              {/* Os agentes da Velo (as mesmas fotos da página de projetos). Só
-                  decoração: balançam de leve e pulam quando o mouse passa. */}
-              <div aria-hidden="true" style={{ position: "absolute", left: fs(268), top: 0, right: 0, bottom: 0 }}>
-                {AGENTES_HOME.map((agente, index) => (
-                  <motion.img
-                    key={agente.nome}
-                    src={agente.src}
-                    alt=""
-                    draggable={false}
-                    className="velo-home-agente"
-                    initial={false}
-                    animate={reduceMotion ? undefined : { y: [0, -agente.balanco, 0] }}
-                    whileHover={reduceMotion ? undefined : { scale: 1.08, rotate: -4 }}
-                    transition={reduceMotion ? undefined : { duration: 3.2 + index * 0.35, delay: index * 0.4, repeat: Infinity, ease: "easeInOut" }}
+              {ATALHOS_HOME.map((atalho) => {
+                const Icone = atalho.icone;
+                return (
+                  <button
+                    key={atalho.id}
+                    type="button"
+                    onClick={go(atalho.rota)}
+                    className="velo-home-atalho focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/40 focus-visible:ring-offset-2"
                     style={{
-                      position: "absolute",
-                      left: fs(agente.x),
-                      top: fs(agente.y),
-                      width: fs(agente.tamanho),
-                      height: fs(agente.tamanho),
-                      zIndex: agente.frente ? 2 : 1,
-                      filter: "drop-shadow(0 10px 12px rgba(60,40,20,0.13))",
-                      userSelect: "none",
+                      height: y(LAYOUT.cardsHeight),
+                      boxSizing: "border-box",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      padding: `${fs(28)} ${fs(28)} ${fs(30)}`,
+                      border: "1px solid #E9E9EC",
+                      borderRadius: fs(24),
+                      background: "#FFFFFF",
+                      color: "#18181B",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      boxShadow: "none",
                     }}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
+                  >
+                    <Icone
+                      aria-hidden="true"
+                      className="velo-home-atalho-icone"
+                      strokeWidth={1.5}
+                      style={{ width: fs(30), height: fs(30), color: "#71717A" }}
+                    />
+                    <span style={{ display: "flex", flexDirection: "column", gap: fs(10) }}>
+                      <span style={{ fontSize: fs(21), fontWeight: 600, lineHeight: 1.1, letterSpacing: "-0.01em" }}>
+                        {atalho.titulo}
+                      </span>
+                      <span style={{ color: "#71717A", fontSize: fs(18), fontWeight: 400, lineHeight: 1.2 }}>
+                        {atalho.texto}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
 
-          {/* Alvo do tour do Atlas: moldura invisível sobre os dois primeiros passos. */}
-          <div
-            aria-hidden="true"
-            data-dashboard-tour="home-primeiros-passos"
-            style={{ position: "absolute", left: x(84), top: y(318), width: x(1372), height: y(312), pointerEvents: "none" }}
-          />
-
-          {/* Linha 2 — as áreas do negócio que o site movimenta. */}
-          <CardArea
-            id="home-card-produtos"
-            left={84}
-            width={460}
-            rotulo="Produtos"
-            titulo="Monte a sua vitrine"
-            texto="Escolha no catálogo Velo os produtos que vão para o seu site."
-            acao="Ver catálogo"
-            onClick={go("/dashboard/catalogo")}
-            agente={agenteCubo}
-            fundo="linear-gradient(160deg, #FFF4EA 0%, #FFE4CC 100%)"
-          />
-          <CardArea
-            id="home-card-pedidos"
-            left={560}
-            width={432}
-            rotulo="Pedidos"
-            titulo="Acompanhe as vendas"
-            texto="Veja os pedidos da sua loja e o andamento de cada um."
-            acao="Ver pedidos"
-            onClick={go("/dashboard/pedidos")}
-            agente={agenteFolha}
-            fundo="linear-gradient(160deg, #F3FAE8 0%, #E2F2CB 100%)"
-          />
-          <CardArea
-            id="home-card-mercado-livre"
-            left={1008}
-            width={448}
-            rotulo={onboardingStatus?.mlConnected ? "Mercado Livre · conectado" : "Mercado Livre"}
-            rotuloAtivo={Boolean(onboardingStatus?.mlConnected)}
-            titulo="Venda também por lá"
-            texto="Conecte sua conta e publique seus produtos no Mercado Livre."
-            acao={conectandoMl ? "Conectando…" : onboardingStatus?.mlConnected ? "Gerenciar conta" : "Conectar conta"}
-            // /dashboard/integracoes é a tela de lojas Shopify; a conta do
-            // Mercado Livre se gerencia na aba Integrações das configurações.
-            onClick={onboardingStatus?.mlConnected ? go("/dashboard/configuracoes?tab=Integrações") : () => void conectarMercadoLivre()}
-            desabilitado={conectandoMl}
-            agente={agenteConcha}
-            fundo="linear-gradient(160deg, #F5F1FF 0%, #E7DEFD 100%)"
-          />
-
-          <div
-            style={{
-              position: "absolute",
-              left: x(80),
-              top: y(920),
-              width: x(1376),
-              height: y(72),
-              border: "1px solid rgba(17,17,17,0.08)",
-              borderRadius: fs(18),
-              background: "rgba(255,255,255,0.98)",
-              boxShadow: "0 10px 30px rgba(26,26,26,0.045)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: fs(24),
-              boxSizing: "border-box",
-              padding: `0 ${fs(22)} 0 ${fs(26)}`,
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: fs(15), flex: "1 1 auto" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: fs(35),
-                  height: fs(35),
-                  flex: "0 0 auto",
-                  borderRadius: fs(11),
-                  background: "#F4F1FF",
-                  color: "#351078",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <svg viewBox="0 0 24 24" style={{ width: fs(20), height: fs(20) }}>
-                  <path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3Zm6.2 10.2.7 2.3 2.1 1-.1.1-2 1-.7 2.2-.7-2.2-2.1-1 2.1-1 .7-2.4Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <h3 style={{ margin: 0, color: "#101114", fontSize: fs(15.5), fontWeight: 800, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
-                  Próximo passo
-                </h3>
-                <p style={{ margin: `${fs(5)} 0 0`, maxWidth: x(760), color: "rgba(0,0,0,0.56)", fontSize: fs(12.2), fontWeight: 500, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {nextStepCopy}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: fs(15), flex: "0 0 auto" }}>
+            {/* Próximo passo (dados reais do Mercado Livre), numa linha discreta. */}
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: y(LAYOUT.cardsHeight + 34),
+                width: x(LAYOUT.width),
+                transform: "translateX(-50%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: fs(10),
+                color: "#71717A",
+                fontSize: fs(15),
+                lineHeight: 1.3,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span style={{ color: "#3F3F46", fontWeight: 600 }}>Próximo passo:</span>
+              <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{nextStepCopy}</span>
               <button
                 type="button"
                 onClick={handleNextStep}
                 disabled={conectandoMl}
-                className="transition-[transform,background-color,box-shadow] duration-200 ease-out hover:-translate-y-px hover:bg-[#F7F7F5] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
+                className="velo-home-proximo-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]/35"
                 style={{
-                  width: fs(164),
-                  height: fs(42),
-                  border: "1px solid rgba(17,17,17,0.1)",
-                  borderRadius: fs(12),
-                  background: "#FFFFFF",
-                  boxShadow: "0 4px 12px rgba(17,17,17,0.05)",
-                  color: "#101114",
-                  cursor: conectandoMl ? "wait" : "pointer",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  padding: `0 ${fs(14)}`,
-                  fontSize: fs(12.5),
-                  fontWeight: 800,
-                  whiteSpace: "nowrap",
+                  gap: fs(4),
+                  border: 0,
+                  padding: 0,
+                  background: "transparent",
+                  boxShadow: "none",
+                  color: "#2563EB",
+                  cursor: conectandoMl ? "wait" : "pointer",
+                  fontSize: fs(15),
+                  fontWeight: 600,
+                  flex: "0 0 auto",
                 }}
               >
                 {conectandoMl ? "Abrindo…" : nextStepLabel}
+                <ArrowRight aria-hidden="true" style={{ width: fs(15), height: fs(15) }} strokeWidth={2.2} />
               </button>
-
-              <div
-                aria-label={onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`}
-                style={{
-                  width: fs(48),
-                  height: fs(48),
-                  borderRadius: "50%",
-                  padding: fs(3),
-                  boxSizing: "border-box",
-                  background: onboardingProgress === null
-                    ? "#ECECE8"
-                    : `conic-gradient(#351078 ${onboardingProgress}%, #ECECE8 0)`,
-                }}
-              >
-                <span
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: "50%",
-                    background: "#FFFFFF",
-                    color: "rgba(0,0,0,0.58)",
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: fs(11.5),
-                    fontWeight: 800,
-                  }}
-                >
-                  {onboardingProgress === null ? "—" : `${onboardingProgress}%`}
-                </span>
-              </div>
             </div>
-          </div>
           </motion.div>
 
           <AnimatePresence>
@@ -1411,9 +993,9 @@ const DashboardHomePage = () => {
                     zIndex: 24,
                     left: 0,
                     right: 0,
-                    top: y(382 + HERO_OFFSET),
+                    top: y(LAYOUT.box + LAYOUT.boxHeight + 6),
                     bottom: 0,
-                    background: "#F5F4F1",
+                    background: PAGE_BG,
                     pointerEvents: "none",
                   }}
                 />
@@ -1427,13 +1009,12 @@ const DashboardHomePage = () => {
                     position: "absolute",
                     zIndex: 33,
                     left: "50%",
-                    top: y(392 + HERO_OFFSET),
-                    width: x(900),
+                    top: y(LAYOUT.box + LAYOUT.boxHeight + 16),
+                    width: x(LAYOUT.width),
                     x: "-50%",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "stretch",
-                    paddingLeft: fs(10),
                   }}
                 >
                   {CHAT_SUGGESTIONS.map((suggestion, index) => (
@@ -1455,20 +1036,21 @@ const DashboardHomePage = () => {
                       onBlur={() => setHoveredSuggestion(null)}
                       className="focus-visible:outline-none"
                       style={{
-                        height: y(60),
+                        height: y(58),
                         border: 0,
-                        borderRadius: fs(12),
-                        background: hoveredSuggestion === suggestion ? "#ECECEB" : "transparent",
-                        color: hoveredSuggestion === suggestion ? "#343434" : "rgba(0,0,0,0.57)",
+                        borderRadius: fs(14),
+                        background: hoveredSuggestion === suggestion ? "#F4F4F5" : "transparent",
+                        color: hoveredSuggestion === suggestion ? "#18181B" : "#71717A",
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         gap: fs(18),
-                        padding: `0 ${fs(10)}`,
+                        padding: `0 ${fs(18)}`,
                         fontSize: fs(18),
                         fontWeight: 500,
                         lineHeight: 1,
                         textAlign: "left",
+                        boxShadow: "none",
                         transition: "background-color 180ms ease, color 180ms ease, transform 180ms ease",
                       }}
                       whileTap={reduceMotion ? undefined : { scale: 0.995 }}
@@ -1477,8 +1059,8 @@ const DashboardHomePage = () => {
                         aria-hidden="true"
                         viewBox="0 0 24 24"
                         style={{
-                          width: fs(25),
-                          height: fs(25),
+                          width: fs(24),
+                          height: fs(24),
                           flex: "0 0 auto",
                           opacity: hoveredSuggestion === suggestion ? 0.9 : 0.55,
                           transition: "opacity 150ms ease",
@@ -1494,10 +1076,10 @@ const DashboardHomePage = () => {
             )}
           </AnimatePresence>
 
+          {/* Faixas da introdução: descobrem os atalhos e o próximo passo em cascata. */}
           {[
-            { top: CONTENT_SLICE_TOP + CONTENT_OFFSET + CARDS_SHIFT, height: 350, delay: INTRO.bandDelays[0] },
-            { top: 750 + CARDS_SHIFT, height: 270, delay: INTRO.bandDelays[1] },
-            { top: 1020 + CARDS_SHIFT, height: 104, delay: INTRO.bandDelays[2] },
+            { top: LAYOUT.cards - 10, height: LAYOUT.cardsHeight + 20, delay: INTRO.bandDelays[0] },
+            { top: LAYOUT.cards + LAYOUT.cardsHeight + 10, height: LAYOUT.canvas - LAYOUT.cards - LAYOUT.cardsHeight - 10, delay: INTRO.bandDelays[1] },
           ].map((band) => (
             <motion.div
               key={band.top}
@@ -1514,7 +1096,7 @@ const DashboardHomePage = () => {
                 right: 0,
                 top: y(band.top),
                 height: y(band.height),
-                background: "#F5F4F1",
+                background: PAGE_BG,
                 pointerEvents: "none",
               }}
             />

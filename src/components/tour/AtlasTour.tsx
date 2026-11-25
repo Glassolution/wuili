@@ -45,7 +45,7 @@ const STEPS: AtlasTourStep[] = [
   },
   {
     target: "home-primeiros-passos",
-    text: "Esses são os seus primeiros passos: criar o site da sua loja e colocar os agentes para cuidar dele.",
+    text: "Esses são os seus atalhos: criar o site da sua loja, encontrar produtos no catálogo e acompanhar o que os agentes mudaram nos seus projetos.",
     radius: 24,
     placement: "below",
     route: INICIO,
