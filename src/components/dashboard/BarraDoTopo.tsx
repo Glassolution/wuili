@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal, flushSync } from "react-dom";
+import { flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CircleDotDashed, CreditCard, Inbox, Link, LogOut, Plus, Search, Settings2, ShieldCheck } from "lucide-react";
+import { CreditCard, LogOut, Settings2, ShieldCheck } from "lucide-react";
+import { BellIcon, Cog6ToothIcon, QuestionMarkCircleIcon, StarIcon } from "@heroicons/react/20/solid";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
-import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
@@ -12,31 +12,33 @@ import { useProfile } from "@/lib/profileContext";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { useSandboxMode } from "@/lib/sandboxMode";
-import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { useContaNoPainel } from "@/lib/contaNoPainel";
 import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
 
 /*
-  Barra do topo do painel (desktop), na borda cinza acima da moldura branca, com
-  os mesmos ícones da referência, sem moldura em volta (só um fundo leve no
-  hover), e o perfil na ponta com o menu da conta. Cada ícone é uma função real:
-  busca, novo projeto, Comunidade e Ajuda, notificações (caixa de entrada),
-  Indique e ganhe (link) e a conta. O quadrado colorido da referência (Atlas)
-  saiu a pedido do dono.
+  Barra do topo do painel (desktop), na borda cinza acima da moldura branca, no
+  modelo da referência (24/11/2026): ícones cheios e cinza sem moldura
+  (notificações, central de ajuda, configurações), a pílula "Upgrade" com
+  estrela e a foto do perfil na ponta, que abre o menu da conta. O "x" redondo
+  da referência ficou de fora: não há nada para fechar ali na Velo.
 */
 
 const BARRA_CSS = `
 .velo-topo-botao { transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-topo-botao:hover { background: rgba(24,24,27,0.06) !important; color: #18181B !important; }
+.velo-topo-botao:hover { background: rgba(24,24,27,0.06) !important; color: #3F3F46 !important; }
 .velo-topo-botao:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
-.velo-topo-sino { position: relative; }
+.velo-topo-sino { position: relative; color: #8E8E93; }
+.velo-topo-sino:hover { color: #3F3F46; }
 .velo-topo-sino > div > button:first-child {
-  width: 36px; height: 36px; border-radius: 10px; background: transparent; color: #3F3F46;
+  width: 32px; height: 32px; border-radius: 8px; background: transparent;
   transition: background-color 150ms ease-out;
 }
 .velo-topo-sino > div > button:first-child:hover { background: rgba(24,24,27,0.06); }
 .velo-topo-sino > div > button:first-child > svg { opacity: 0; }
-.velo-topo-sino > div > button:first-child > span { right: 7px; top: 7px; width: 8px; height: 8px; --tw-ring-color: #F7F7F8; }
+.velo-topo-sino > div > button:first-child > span { right: 7px; top: 6px; width: 7px; height: 7px; --tw-ring-color: #F7F7F8; }
+.velo-topo-upgrade { transition: background-color 150ms ease-out, box-shadow 150ms ease-out; }
+.velo-topo-upgrade:hover { background: #FAFAFA !important; box-shadow: 0 1px 3px rgba(17,17,20,0.10) !important; }
+.velo-topo-upgrade:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
 .velo-topo-avatar { transition: box-shadow 150ms ease-out; }
 .velo-topo-avatar:hover, .velo-topo-avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(24,24,27,0.08) !important; }
 .velo-topo-item { transition: background-color 120ms ease-out; }
@@ -45,15 +47,15 @@ const BARRA_CSS = `
 .velo-topo-cta:hover { filter: brightness(0.94); }
 `;
 
-// Só o ícone: sem borda nem fundo (o fundo aparece no hover). 36px de área de
-// clique, ícone de 20px e 12px entre um e outro, na proporção da referência.
+// Só o ícone, cheio e cinza: sem borda nem fundo (o fundo aparece no hover).
+// 32px de área de clique, ícone de 18px e 8px entre um e outro (proporção da referência).
 const ESTILO_BOTAO = {
-  width: 36,
-  height: 36,
-  borderRadius: 10,
+  width: 32,
+  height: 32,
+  borderRadius: 8,
   border: 0,
   background: "transparent",
-  color: "#3F3F46",
+  color: "#8E8E93",
   boxShadow: "none",
 } as const;
 
@@ -92,7 +94,6 @@ const BarraDoTopo = () => {
   const [sandboxLigado] = useSandboxMode(user?.id ?? user?.email ?? null);
   const [aberto, setAberto] = useState(false);
   const [fotoFalhou, setFotoFalhou] = useState(false);
-  const [convidarAberto, setConvidarAberto] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -183,35 +184,34 @@ const BarraDoTopo = () => {
   ];
 
   return (
-    <div className="velo-fonte-inter flex h-12 shrink-0 items-center justify-end gap-3 pr-3">
+    <div className="velo-fonte-inter flex h-12 shrink-0 items-center justify-end gap-2 pr-3">
       <style>{BARRA_CSS}</style>
 
-      <BotaoDoTopo rotulo="Buscar (atalho /)" onClick={() => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT))}>
-        <Search size={20} strokeWidth={1.6} />
-      </BotaoDoTopo>
-      <BotaoDoTopo
-        rotulo="Novo projeto"
-        onClick={() => navigate("/dashboard/minha-loja", { state: { abrirCriacao: true } })}
-      >
-        <Plus size={20} strokeWidth={1.6} />
-      </BotaoDoTopo>
-      <BotaoDoTopo rotulo="Comunidade e Ajuda" onClick={() => navigate("/dashboard/comunidade")}>
-        <CircleDotDashed size={20} strokeWidth={1.6} />
-      </BotaoDoTopo>
-      {/* Notificações: o popover é o de sempre; o sino dele fica invisível e a
-          caixa de entrada da referência é desenhada por cima (o pontinho continua). */}
+      {/* Notificações: o popover é o de sempre; o sino dele fica invisível e o sino
+          cheio da referência é desenhado por cima (o pontinho continua). */}
       <div className="velo-topo-sino shrink-0" title="Notificações">
         <NotificacoesPopover variante="redondo" />
-        <Inbox
-          aria-hidden="true"
-          size={20}
-          strokeWidth={1.6}
-          className="pointer-events-none absolute left-[8px] top-[8px] text-[#3F3F46]"
-        />
+        <BellIcon aria-hidden="true" className="pointer-events-none absolute left-[7px] top-[7px] h-[18px] w-[18px]" />
       </div>
-      <BotaoDoTopo rotulo="Indique e ganhe" onClick={() => setConvidarAberto(true)}>
-        <Link size={19} strokeWidth={1.6} />
+      <BotaoDoTopo rotulo="Central de ajuda" onClick={() => navigate("/dashboard/ajuda")}>
+        <QuestionMarkCircleIcon className="h-[18px] w-[18px]" />
       </BotaoDoTopo>
+      <BotaoDoTopo rotulo="Configurações" onClick={() => navigate("/dashboard/configuracoes")}>
+        <Cog6ToothIcon className="h-[18px] w-[18px]" />
+      </BotaoDoTopo>
+
+      {/* Pílula "Upgrade" da referência: some só para quem já está no Business pago. */}
+      {!temTopo ? (
+        <button
+          type="button"
+          onClick={() => upgradeModal.open({ origin: "barra-do-topo" })}
+          className="velo-topo-upgrade ml-2 flex h-[30px] shrink-0 items-center gap-1.5 rounded-full pl-3 pr-3.5 text-[13px] font-semibold text-[#18181B]"
+          style={{ background: "#FFFFFF", border: "1px solid #E4E4E7", boxShadow: "0 1px 2px rgba(17,17,20,0.06)" }}
+        >
+          <StarIcon aria-hidden="true" className="h-3.5 w-3.5" />
+          Upgrade
+        </button>
+      ) : null}
 
       <div ref={menuRef} className="relative shrink-0">
         <button
@@ -220,10 +220,10 @@ const BarraDoTopo = () => {
           aria-haspopup="menu"
           aria-expanded={aberto}
           onClick={() => setAberto((atual) => !atual)}
-          className="velo-topo-avatar grid h-9 w-9 place-items-center rounded-full"
+          className="velo-topo-avatar ml-0.5 grid h-[30px] w-[30px] place-items-center rounded-full"
           style={{ padding: 0, border: 0, background: "transparent", boxShadow: "none" }}
         >
-          {avatar(36, 18)}
+          {avatar(30, 15)}
         </button>
 
         <AnimatePresence>
@@ -232,7 +232,7 @@ const BarraDoTopo = () => {
               key="menu-da-conta"
               role="menu"
               aria-label="Opções da conta"
-              className="absolute right-0 top-[44px] z-50 w-[300px] p-2"
+              className="absolute right-0 top-[40px] z-50 w-[300px] p-2"
               style={{
                 borderRadius: 16,
                 border: "1px solid #E4E4E7",
@@ -328,9 +328,6 @@ const BarraDoTopo = () => {
           ) : null}
         </AnimatePresence>
       </div>
-
-      {/* No body: dentro da barra (que anima com transform) o modal fixo ficaria preso. */}
-      {createPortal(<InviteFriendModal open={convidarAberto} onClose={() => setConvidarAberto(false)} />, document.body)}
     </div>
   );
 };
