@@ -18,6 +18,7 @@ import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
 import { bestAccessSubscription, resolveAccessPlan } from "@/lib/subscriptionAccess";
 import { definirFimDoTeste } from "@/lib/prazoDoTeste";
 import { definirContaNoPainel } from "@/lib/contaNoPainel";
+import { useContaSandbox } from "@/lib/contaSandbox";
 
 type NavItem = {
   id: string;
@@ -447,7 +448,10 @@ const DashboardSidebar = () => {
       ),
     [projetosQuery.data],
   );
-  const workspaces = projetosOrdenados.slice(0, MAX_WORKSPACES);
+  // Na conta Sandbox a seção fica vazia (só "Adicionar workspace"), para o dono ver
+  // o estado de quem ainda não criou nenhum projeto. Os projetos continuam salvos.
+  const contaSandbox = useContaSandbox();
+  const workspaces = contaSandbox ? [] : projetosOrdenados.slice(0, MAX_WORKSPACES);
   // O workspace mais recente já vem aberto, uma vez, quando a lista chega.
   const primeiroAberto = useRef(false);
   useEffect(() => {
@@ -746,7 +750,7 @@ const DashboardSidebar = () => {
 
               {recolhida ? null : (
                 <>
-                  {projetosOrdenados.length > MAX_WORKSPACES && (
+                  {!contaSandbox && projetosOrdenados.length > MAX_WORKSPACES && (
                     <button type="button" onClick={() => navigate("/dashboard/minha-loja")} className="velo-nav-add" style={styles.navAdd}>
                       <Folder01Icon size={16} strokeWidth={1.5} aria-hidden="true" />
                       Ver todos os projetos
