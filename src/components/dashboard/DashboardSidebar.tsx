@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Trophy } from "lucide-react";
 // Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
 import { ArrowUp01Icon, ChartIncreaseIcon, File01Icon, Folder01Icon, Home01Icon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +10,6 @@ import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { AFFILIATE_APPLICATION_EVENT } from "@/pages/dashboard/AffiliateQuizPage";
 import SearchPalette from "@/components/dashboard/SearchPalette";
-import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
@@ -19,6 +17,7 @@ import { bestAccessSubscription, resolveAccessPlan } from "@/lib/subscriptionAcc
 import { definirFimDoTeste } from "@/lib/prazoDoTeste";
 import { definirContaNoPainel } from "@/lib/contaNoPainel";
 import { useContaSandbox } from "@/lib/contaSandbox";
+import CardsDaSidebar from "@/components/dashboard/CardsDaSidebar";
 
 type NavItem = {
   id: string;
@@ -451,7 +450,10 @@ const DashboardSidebar = () => {
   // Na conta Sandbox a seção fica vazia (só "Adicionar workspace"), para o dono ver
   // o estado de quem ainda não criou nenhum projeto. Os projetos continuam salvos.
   const contaSandbox = useContaSandbox();
-  const workspaces = contaSandbox ? [] : projetosOrdenados.slice(0, MAX_WORKSPACES);
+  const workspaces = useMemo(
+    () => (contaSandbox ? [] : projetosOrdenados.slice(0, MAX_WORKSPACES)),
+    [contaSandbox, projetosOrdenados],
+  );
   // O workspace mais recente já vem aberto, uma vez, quando a lista chega.
   const primeiroAberto = useRef(false);
   useEffect(() => {
@@ -775,37 +777,29 @@ const DashboardSidebar = () => {
               enquanto (24/11/2026): vai para outro lugar. /dashboard/comunidade segue no ar. */}
         </nav>
 
-      {/* Bloco inferior: segue a navegação no mesmo fluxo, evitando o vão
-          artificial entre os links e o card de upgrade. */}
-      <div style={styles.footer}>
-        {showUpgradeCard && !recolhida && (
-          <section aria-label={trialTimeLeft ? "Tempo restante do trial" : "Upgrade para Premium"} style={styles.upgradeCard}>
-            <span style={styles.upgradeIcon} aria-hidden="true">
-              <Trophy size={20} strokeWidth={2} />
-            </span>
-            <p style={styles.upgradeTitle}>{trialTimeLeft ? "Trial ativo" : "Upgrade para o Premium!"}</p>
-            <p style={styles.upgradeCopy}>
-              {trialTimeLeft ? (
-                <>
-                  Termina em
-                  <br />
-                  {trialTimeLeft}
-                </>
-              ) : (
-                <>
-                  Publique sem limites
-                  <br />
-                  Personalize sua marca
-                </>
-              )}
-            </p>
-            <PremiumActionButton type="button" onClick={() => upgradeModal.open()} style={styles.upgradeButton}>
-              Fazer upgrade
-            </PremiumActionButton>
-          </section>
-        )}
+      {/* Bloco inferior: só ocupa o resto da área rolável. */}
+      <div style={styles.footer} />
       </div>
-      </div>
+
+      {/* Pé da sidebar (25/11/2026): cards em carrossel no modelo da referência
+          "Integrations". O card do plano (teste ou upgrade) virou o primeiro deles. */}
+      {recolhida ? null : (
+        <div style={{ flexShrink: 0, paddingTop: 12 }}>
+          <CardsDaSidebar
+            cardDoPlano={
+              showUpgradeCard
+                ? {
+                    titulo: trialTimeLeft ? "Teste ativo" : "Escolha seu plano",
+                    texto: trialTimeLeft
+                      ? `Seu teste termina em ${trialTimeLeft}. Assine para continuar publicando.`
+                      : "Publique sem limites e personalize sua marca.",
+                    acao: () => upgradeModal.open(),
+                  }
+                : null
+            }
+          />
+        </div>
+      )}
     </aside>
   );
 };
