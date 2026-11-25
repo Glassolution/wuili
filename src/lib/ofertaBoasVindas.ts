@@ -17,8 +17,17 @@ export const OFERTA_BOAS_VINDAS = {
   planos: ["base", "pro", "business"] as VeloPaidPlanId[],
 } as const;
 
-/** Fim da janela da oferta (ms), contado da criação da conta. */
-export const fimDaOferta = (contaCriadaEm?: string | null) => {
+/*
+  Prévia na conta Sandbox: o dono vê o banner e o anual com desconto mesmo com a
+  oferta desligada. A compra no Sandbox é ativada sem cobrança, então não há risco
+  de anunciar um preço que o checkout não cobra. A contagem de 48h começa quando
+  a página carrega (a conta Sandbox é antiga e já teria passado da janela).
+*/
+const INICIO_DA_PREVIA = Date.now();
+
+/** Fim da janela da oferta (ms), contado da criação da conta (ou do carregamento, na prévia). */
+export const fimDaOferta = (contaCriadaEm?: string | null, previa = false) => {
+  if (previa) return INICIO_DA_PREVIA + OFERTA_BOAS_VINDAS.janelaHoras * 60 * 60 * 1000;
   if (!contaCriadaEm) return null;
   const inicio = new Date(contaCriadaEm).getTime();
   if (Number.isNaN(inicio)) return null;
@@ -33,11 +42,15 @@ export const ofertaValendo = ({
   contaCriadaEm,
   jaPagou,
   agora = Date.now(),
+  previa = false,
 }: {
   contaCriadaEm?: string | null;
   jaPagou: boolean;
   agora?: number;
+  /** Conta Sandbox: mostra a oferta para teste, mesmo desligada. */
+  previa?: boolean;
 }) => {
+  if (previa) return agora < (fimDaOferta(null, true) ?? 0);
   if (!OFERTA_BOAS_VINDAS.ativa || jaPagou) return false;
   const fim = fimDaOferta(contaCriadaEm);
   return fim !== null && agora < fim;

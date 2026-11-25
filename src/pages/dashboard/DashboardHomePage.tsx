@@ -5,6 +5,7 @@ import { ArrowUpRight, ChevronDown, PlayCircle, X } from "lucide-react";
 import { useProfile } from "@/lib/profileContext";
 import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
 import { OFERTA_BOAS_VINDAS, fimDaOferta, ofertaValendo } from "@/lib/ofertaBoasVindas";
+import { useContaSandbox } from "@/lib/contaSandbox";
 import { usePlan } from "@/hooks/usePlan";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useQuery } from "@tanstack/react-query";
@@ -299,12 +300,15 @@ const DashboardHomePage = () => {
   const fimDoTeste = useFimDoTeste();
   const { plan: planoAtual } = usePlan();
   const [agora, setAgora] = useState(() => Date.now());
+  // Na conta Sandbox a oferta aparece em prévia, para o dono ver como fica.
+  const previaDaOferta = useContaSandbox();
   const comOferta = ofertaValendo({
     contaCriadaEm: user?.created_at,
     jaPagou: planoAtual !== "gratis" && !fimDoTeste,
     agora,
+    previa: previaDaOferta,
   });
-  const fimDoBanner = comOferta ? fimDaOferta(user?.created_at) : fimDoTeste ? new Date(fimDoTeste).getTime() : null;
+  const fimDoBanner = comOferta ? fimDaOferta(user?.created_at, previaDaOferta) : fimDoTeste ? new Date(fimDoTeste).getTime() : null;
   const restanteDoBanner = fimDoBanner ? fimDoBanner - agora : 0;
   const mostrarBanner = restanteDoBanner > 0;
   useEffect(() => {

@@ -587,9 +587,9 @@ const MobilePlansSheet = ({
                     <span className="text-sm text-muted-foreground"><s>{originalPrice}</s> · {cycle === "annual" ? `${OFERTA_BOAS_VINDAS.percentOff}% de boas-vindas` : "Com desconto"}</span>
                   ) : null}
                   <span className="text-[36px] font-semibold leading-none tracking-[-0.05em] text-[#111111]">
-                    {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
+                    {sandboxPurchaseEnabled && cycle !== "annual" ? "R$ 0" : priceParts.main}
                     <span className="text-[24px] font-semibold tracking-[-0.04em]">
-                      {sandboxPurchaseEnabled ? ",00" : priceParts.cents}
+                      {sandboxPurchaseEnabled && cycle !== "annual" ? ",00" : priceParts.cents}
                     </span>
                   </span>
                   <span className="text-[15px] text-[#9AA0A8]">{unidadeDoCiclo(cycle)}</span>
@@ -659,9 +659,13 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, defaultCycle, trackingC
   // Oferta de boas-vindas (30% no anual): só a vitrine; quem confere é o checkout.
   const { plan: planoAtual } = usePlan();
   const fimDoTeste = useFimDoTeste();
+  const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
+  const sandboxPurchaseEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(session?.user?.email));
+  // Na conta Sandbox a oferta aparece em prévia (a compra lá é sem cobrança).
   const ofertaAnual = ofertaValendo({
     contaCriadaEm: session?.user?.created_at,
     jaPagou: planoAtual !== "gratis" && !fimDoTeste,
+    previa: sandboxPurchaseEnabled,
   });
   const opcoesDeCiclo: { id: BillingCycle; label: string }[] = [
     { id: "monthly", label: "Mensal" },
@@ -672,8 +676,6 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, defaultCycle, trackingC
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(defaultPlan ?? "base");
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [checkingOutPlanId, setCheckingOutPlanId] = useState<PlanId | null>(null);
-  const [sandboxEnabled] = useSandboxMode(session?.user?.id ?? session?.user?.email ?? null);
-  const sandboxPurchaseEnabled = sandboxEnabled && (role === "admin" || isAdminEmail(session?.user?.email));
   const openedAt = useRef(Date.now());
   const [upgrade, setUpgrade] = useState<UpgradeQuote | null>(null);
   const [upgradeBusy, setUpgradeBusy] = useState(false);
@@ -926,11 +928,12 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, defaultCycle, trackingC
 
                 <div className="mt-6">
                   {cardCycle === "lifetime" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].compareAt)}</s> · Com desconto</p>}
-                  {cardCycle === "annual" && !sandboxPurchaseEnabled && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].annual)}</s> · {OFERTA_BOAS_VINDAS.percentOff}% de boas-vindas</p>}
+                  {cardCycle === "annual" && <p className="mb-2 text-sm text-muted-foreground"><s>{formatBRL(VELO_PLAN_PRICES[plan.id].annual)}</s> · {OFERTA_BOAS_VINDAS.percentOff}% de boas-vindas</p>}
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-['Manrope','Inter',ui-sans-serif,system-ui]">
                     <span className="text-[26px] font-bold leading-none tracking-[-0.02em] text-black">
-                      {sandboxPurchaseEnabled ? "R$ 0" : priceParts.main}
-                      <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled ? ",00" : priceParts.cents}</span>
+                      {/* No anual (prévia da oferta) o Sandbox mostra o preço real, para conferir o desconto. */}
+                      {sandboxPurchaseEnabled && cardCycle !== "annual" ? "R$ 0" : priceParts.main}
+                      <span className="text-[#9CA3AF]">{sandboxPurchaseEnabled && cardCycle !== "annual" ? ",00" : priceParts.cents}</span>
                     </span>
                     <span className="text-[16px] font-medium tracking-[-0.01em] text-[#6B7280]">{unidadeDoCiclo(cardCycle)}</span>
                   </div>
@@ -956,7 +959,7 @@ const PlansUpgradeModal = ({ open, onClose, defaultPlan, defaultCycle, trackingC
                 </PremiumActionButton>
 
                 {!sandboxPurchaseEnabled && <MonthlyRenewalNotice cycle={cardCycle} />}
-                {!sandboxPurchaseEnabled && cardCycle === "annual" && <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{avisoAnual(plan, formatBRL)}</p>}
+                {cardCycle === "annual" && <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{avisoAnual(plan, formatBRL)}</p>}
                 <p className="mb-3 mt-6 border-t border-black/[0.08] pt-5 text-[14px] font-semibold text-black">O que está incluído:</p>
                 <ul className="space-y-2.5">
                   {plan.features.map((feature) => {
