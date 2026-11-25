@@ -1018,8 +1018,8 @@ const DashboardLayoutInner = () => {
             arredondada que acompanha a sidebar (estilo da referência do Shopify). */}
         <div
           // Todas as páginas, a Início inclusive (24/11/2026), ficam na moldura.
-          // Borda de 48px em cima (barra do topo) e 12px à direita e embaixo.
-          className="relative mb-3 mr-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-black/[0.07] bg-white"
+          // Borda de 48px em cima (barra do topo) e embaixo (igual à de cima) e 12px à direita.
+          className="relative mb-12 mr-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-black/[0.07] bg-white"
           style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)" }}
         >
           {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
