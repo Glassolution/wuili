@@ -24,10 +24,10 @@ import agenteFolha from "@/assets/agentes/folha.png";
 
 /*
   Cards no pé da sidebar (25/11/2026), no modelo clean da referência "Convide seu
-  time": em cima uma grade de linhas finas com uma coluna hachurada e três
-  quadradinhos de ícone (o do meio em azul da Velo), um filete, e embaixo título
-  e texto. Atrás do card aparece a aba do próximo (efeito de pilha); clicar nela
-  passa o card. Passa sozinho a cada 7 s (para no hover e com "reduzir
+  time", em azul da Velo: em cima uma grade de linhas finas com uma coluna
+  hachurada e três quadradinhos de ícone, um filete, e embaixo título e texto.
+  Todos têm o mesmo tamanho (texto com altura fixa). Atrás, dois cards em fila
+  mostram que há mais de um; clicar neles passa o card. Passa sozinho a cada 7 s (para no hover e com "reduzir
   movimento"). O "x" esconde os cards só nesta visita. Cada card leva a uma
   função real da Velo.
 */
@@ -46,6 +46,8 @@ export type CardDaSidebar = {
 const CELULA = 38;
 const ALTURA_DESENHO = CELULA * 3;
 const DURACAO_MS = 7000;
+// Título (20) + espaço (4) + 3 linhas de texto (57) + respiros (12 em cima, 14 embaixo) + filete.
+const ALTURA_TEXTO = 108;
 
 // Centro de cada quadradinho, em células a partir do centro da grade.
 const POSICOES = [
@@ -58,31 +60,39 @@ const CSS = `
 @keyframes velo-card-flutua { 0%, 100% { transform: translate(-50%, -50%); } 50% { transform: translate(-50%, calc(-50% - 2px)); } }
 .velo-card-icone { animation: velo-card-flutua 4.4s ease-in-out infinite; }
 .velo-card-pausado .velo-card-icone { animation-play-state: paused; }
-.velo-card-corpo { transition: background-color 150ms ease-out; }
-.velo-card-corpo:hover { background-color: #FCFCFD !important; }
 .velo-card-corpo .velo-card-seta { transition: color 150ms ease-out, transform 150ms ease-out; }
-.velo-card-corpo:hover .velo-card-seta { color: #2563EB; transform: translate(1px, -1px); }
-.velo-card-fechar, .velo-card-aba { transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-card-fechar:hover { background-color: #F4F4F5 !important; color: #18181B !important; }
-.velo-card-aba:hover { color: #3F3F46 !important; background-color: #F4F4F5 !important; }
-.velo-card-corpo:focus-visible, .velo-card-fechar:focus-visible, .velo-card-aba:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.4) !important; }
+.velo-card-corpo:hover .velo-card-seta { color: #FFFFFF; transform: translate(1px, -1px); }
+.velo-card-corpo .velo-card-brilho { transition: opacity 200ms ease-out; }
+.velo-card-corpo:hover .velo-card-brilho { opacity: 1; }
+.velo-card-fechar { transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-card-fechar:hover { background-color: rgba(255,255,255,0.16) !important; color: #FFFFFF !important; }
+.velo-card-fila .velo-card-camada { transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease-out; }
+.velo-card-fila:hover .velo-card-camada-1 { transform: translateY(-2px); }
+.velo-card-fila:hover .velo-card-camada-2 { transform: translateY(-3px); }
+.velo-card-corpo:focus-visible, .velo-card-fechar:focus-visible, .velo-card-fila:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
 @media (prefers-reduced-motion: reduce) {
   .velo-card-icone { animation: none; }
 }
 `;
 
 const Quadradinho = ({ icone, tamanho, destaque }: { icone: Icone; tamanho: number; destaque: boolean }) => {
-  const estilo: CSSProperties = destaque
-    ? {
-        background: "linear-gradient(180deg, #3B82F6 0%, #2563EB 100%)",
-        color: "#FFFFFF",
-        boxShadow: "0 6px 14px -4px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.25)",
-      }
-    : {
-        background: "#FFFFFF",
-        color: "#3F3F46",
-        boxShadow: "0 1px 2px rgba(16,24,40,0.06), 0 0 0 1px #E4E4E7",
-      };
+  // Sobre o azul: o do meio é branco com o ícone azul; os outros são de "vidro"
+  // com o ícone branco. Logos (Velo, Mercado Livre, agentes) sempre em fundo branco.
+  const estilo: CSSProperties =
+    destaque || icone.tipo === "imagem"
+      ? {
+          background: "#FFFFFF",
+          color: "#2563EB",
+          boxShadow: destaque
+            ? "0 10px 22px -6px rgba(15,23,42,0.45), 0 0 0 4px rgba(255,255,255,0.14)"
+            : "0 6px 14px -4px rgba(15,23,42,0.35)",
+        }
+      : {
+          background: "linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.1))",
+          color: "#FFFFFF",
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.28), 0 6px 14px -6px rgba(15,23,42,0.35)",
+          backdropFilter: "blur(6px)",
+        };
   return (
     <span className="grid h-full w-full place-items-center overflow-hidden" style={{ ...estilo, borderRadius: Math.round(tamanho * 0.3) }}>
       {icone.tipo === "imagem" ? (
@@ -196,59 +206,67 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
     <section
       aria-roledescription="carrossel"
       aria-label="Novidades da Velo"
-      className={`relative pt-[22px] ${parado ? "velo-card-pausado" : ""}`}
+      className={`relative pt-[18px] ${parado ? "velo-card-pausado" : ""}`}
       onMouseEnter={() => setMouseEmCima(true)}
       onMouseLeave={() => setMouseEmCima(false)}
     >
       <style>{CSS}</style>
 
-      {/* Aba do próximo card, atrás (efeito de pilha). Clicar passa o card. */}
+      {/* Fila: dois cards atrás, mostrando que há mais de um. Clicar passa para o próximo. */}
       <button
         type="button"
         onClick={() => setAtual((n) => (n + 1) % total)}
-        aria-label={`Próximo: ${proximo.titulo}`}
-        className="velo-card-aba absolute inset-x-3 top-0 flex h-[34px] items-start justify-center rounded-t-[12px] border border-b-0 border-[#E4E4E7] pt-[5px] text-[12px] font-medium text-[#71717A]"
-        style={{ background: "#FAFAFA", boxShadow: "none" }}
+        aria-label={`Próximo card: ${proximo.titulo}`}
+        title={`Próximo: ${proximo.titulo}`}
+        className="velo-card-fila absolute inset-x-0 top-0 h-[44px] rounded-t-[14px]"
+        style={{ background: "transparent", boxShadow: "none" }}
       >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.span
-            key={proximo.id}
-            className="max-w-full truncate px-3"
-            initial={reduzir ? false : { opacity: 0, y: 3 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduzir ? { opacity: 0 } : { opacity: 0, y: -3 }}
-            transition={{ duration: reduzir ? 0 : 0.2 }}
-          >
-            {proximo.titulo}
-          </motion.span>
-        </AnimatePresence>
+        <span
+          aria-hidden="true"
+          className="velo-card-camada velo-card-camada-2 absolute inset-x-[22px] top-0 h-[40px] rounded-[14px]"
+          style={{ background: "#DBEAFE", boxShadow: "inset 0 0 0 1px rgba(37,99,235,0.14)" }}
+        />
+        <span
+          aria-hidden="true"
+          className="velo-card-camada velo-card-camada-1 absolute inset-x-[11px] top-[9px] h-[40px] rounded-[14px]"
+          style={{ background: "#93C5FD", boxShadow: "inset 0 0 0 1px rgba(37,99,235,0.18), 0 -2px 8px -4px rgba(30,58,138,0.25)" }}
+        />
       </button>
 
-      <div
-        className="relative overflow-hidden rounded-[14px] border border-[#E4E4E7] bg-white"
-        style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 10px 24px -12px rgba(16,24,40,0.12)" }}
-      >
-        <button
-          type="button"
-          onClick={card.acao}
-          className="velo-card-corpo block w-full p-0 text-left"
-          style={{ background: "transparent", boxShadow: "none" }}
-        >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={card.id}
-              className="block"
-              initial={reduzir ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: reduzir ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+      {/* Todos os cards ocupam a mesma célula da grade: o que sai e o que entra se cruzam. */}
+      <div className="relative grid">
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={card.id}
+            className="relative col-start-1 row-start-1 overflow-hidden rounded-[14px]"
+            style={{
+              background: "linear-gradient(165deg, #3B82F6 0%, #2563EB 42%, #1D4ED8 75%, #1E3A8A 100%)",
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.22), 0 12px 26px -12px rgba(30,58,138,0.55)",
+            }}
+            initial={reduzir ? false : { opacity: 0, y: -12, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1, zIndex: 1 }}
+            exit={reduzir ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: 14, scale: 0.98, zIndex: 2 }}
+            transition={{ duration: reduzir ? 0 : 0.38, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <button
+              type="button"
+              onClick={card.acao}
+              className="velo-card-corpo relative block w-full p-0 text-left"
+              style={{ background: "transparent", boxShadow: "none" }}
             >
+              {/* Luz suave no hover. */}
+              <span
+                aria-hidden="true"
+                className="velo-card-brilho pointer-events-none absolute inset-0 opacity-0"
+                style={{ background: "radial-gradient(80% 60% at 50% 0%, rgba(255,255,255,0.14), transparent 70%)" }}
+              />
               {/* Desenho: grade de linhas finas, uma coluna hachurada e os três quadradinhos. */}
               <span aria-hidden="true" className="relative block overflow-hidden" style={{ height: ALTURA_DESENHO }}>
                 <span
                   className="absolute inset-0"
                   style={{
-                    backgroundImage: "linear-gradient(#EEEEF0 1px, transparent 1px), linear-gradient(90deg, #EEEEF0 1px, transparent 1px)",
+                    backgroundImage:
+                      "linear-gradient(rgba(255,255,255,0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.11) 1px, transparent 1px)",
                     backgroundSize: `${CELULA}px ${CELULA}px`,
                     backgroundPosition: "50% 0px",
                     maskImage: "radial-gradient(120% 100% at 50% 50%, #000 55%, transparent 100%)",
@@ -262,7 +280,7 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
                     top: CELULA + 1,
                     width: CELULA - 1,
                     height: CELULA * 2 - 1,
-                    backgroundImage: "repeating-linear-gradient(135deg, #E6E6EA 0 1px, transparent 1px 6px)",
+                    backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 6px)",
                   }}
                 />
                 {card.icones.map((icone, i) => {
@@ -286,22 +304,23 @@ const CardsDaSidebar = ({ cardDoPlano }: Props) => {
                 })}
               </span>
 
-              <span className="block border-t border-[#EFEFF1] px-3.5 pb-3.5 pt-3">
+              {/* Texto com altura fixa (título em 1 linha, texto em até 3): todos os cards ficam do mesmo tamanho. */}
+              <span className="block border-t border-white/[0.14] px-3.5 pb-3.5 pt-3" style={{ height: ALTURA_TEXTO }}>
                 <span className="flex items-center justify-between gap-2">
-                  <span className="text-[14px] font-semibold leading-5 tracking-[-0.01em] text-[#18181B]">{card.titulo}</span>
-                  <ArrowUpRight aria-hidden="true" className="velo-card-seta h-4 w-4 shrink-0 text-[#A1A1AA]" strokeWidth={2} />
+                  <span className="truncate text-[14px] font-semibold leading-5 tracking-[-0.01em] text-white">{card.titulo}</span>
+                  <ArrowUpRight aria-hidden="true" className="velo-card-seta h-4 w-4 shrink-0 text-white/60" strokeWidth={2} />
                 </span>
-                <span className="mt-1 block text-[13px] leading-[19px] text-[#71717A]">{card.texto}</span>
+                <span className="mt-1 line-clamp-3 text-[13px] leading-[19px] text-white/[0.78]">{card.texto}</span>
               </span>
-            </motion.span>
-          </AnimatePresence>
-        </button>
+            </button>
+          </motion.div>
+        </AnimatePresence>
 
         <button
           type="button"
           onClick={() => setFechado(true)}
           aria-label="Esconder os cards"
-          className="velo-card-fechar absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full text-[#A1A1AA]"
+          className="velo-card-fechar absolute right-2 top-2 z-[3] grid h-6 w-6 place-items-center rounded-full text-white/60"
           style={{ background: "transparent", boxShadow: "none" }}
         >
           <X className="h-3.5 w-3.5" strokeWidth={2} />
