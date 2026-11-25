@@ -259,6 +259,8 @@ const normalizeAtlasActions = (value: unknown): AtlasAction[] => {
   return value.filter(isAtlasAction).slice(0, 12);
 };
 
+const MOSTRAR_VER_TUTORIAL = false;
+
 const DashboardHomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -622,18 +624,21 @@ const DashboardHomePage = () => {
     >
       <style>{HOME_CSS}</style>
 
-      <motion.div {...revealProps(INTRO.promoDelay, -6)} className="absolute right-5 top-4 z-40">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setTutorialOpen(true)}
-          aria-label="Ver tutorial de início"
-          className="h-9 gap-2 rounded-[8px] border-[#E4E4E7] bg-white px-3 text-[13px] font-medium text-[#18181B] shadow-none hover:bg-[#F4F4F5]"
-        >
-          <PlayCircle aria-hidden="true" className="h-4 w-4" />
-          Ver tutorial
-        </Button>
-      </motion.div>
+      {/* "Ver tutorial" escondido por enquanto (25/11/2026, a pedido do dono); o tutorial continua no código. */}
+      {MOSTRAR_VER_TUTORIAL ? (
+        <motion.div {...revealProps(INTRO.promoDelay, -6)} className="absolute right-5 top-4 z-40">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setTutorialOpen(true)}
+            aria-label="Ver tutorial de início"
+            className="h-9 gap-2 rounded-[8px] border-[#E4E4E7] bg-white px-3 text-[13px] font-medium text-[#18181B] shadow-none hover:bg-[#F4F4F5]"
+          >
+            <PlayCircle aria-hidden="true" className="h-4 w-4" />
+            Ver tutorial
+          </Button>
+        </motion.div>
+      ) : null}
 
       {/* Banner do topo (medidas da referência: 780 × 62, a 35px do topo): a oferta
           de boas-vindas ou o prazo real do teste. Sem nenhum dos dois, não aparece. */}
