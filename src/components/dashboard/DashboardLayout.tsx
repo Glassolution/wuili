@@ -7,6 +7,7 @@ import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
 import { mensagemDeErroDaConexaoMl } from "@/lib/mlConexao";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import BarraDoTopo from "@/components/dashboard/BarraDoTopo";
 import StartModeBanner from "@/components/dashboard/StartModeBanner";
 import FreePlanBanner from "@/components/dashboard/FreePlanBanner";
 import StartModeModal from "@/components/dashboard/StartModeModal";
@@ -1007,11 +1008,18 @@ const DashboardLayoutInner = () => {
           <DashboardSidebar />
         </motion.div>
 
+        {/* Coluna da direita: barra do topo (busca, criar, notificações, ajuda e
+            perfil) na borda cinza e, embaixo, a moldura branca com o conteúdo. */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <motion.div className="shrink-0" {...molduraAnimada(ENTRADA_POS_ONBOARDING.banner, { y: -8 })}>
+          <BarraDoTopo />
+        </motion.div>
         {/* Área principal com header e conteúdo, dentro de uma moldura branca
             arredondada que acompanha a sidebar (estilo da referência do Shopify). */}
         <div
           // Todas as páginas, a Início inclusive (24/11/2026), ficam na moldura.
-          className="relative my-3.5 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-black/[0.07] bg-white"
+          // Borda de 56px em cima (barra do topo) e 16px à direita e embaixo.
+          className="relative mb-4 mr-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-black/[0.07] bg-white"
           style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)" }}
         >
           {/* Aviso de plano gratuito — só acima da coluna de conteúdo, à direita
@@ -1046,6 +1054,7 @@ const DashboardLayoutInner = () => {
 
             <AtlasDockPanel />
           </div>
+        </div>
         </div>
       </div>
       <AnimatePresence>

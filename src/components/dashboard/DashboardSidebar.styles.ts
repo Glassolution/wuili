@@ -15,7 +15,7 @@ export const styles = {
     padding: "0 12px 16px",
     borderRadius: 0,
     border: 0,
-    borderRight: "1px solid #EBEBED",
+    // Sem filete à direita (24/11/2026): a sidebar se separa da moldura só pela folga.
     // Fundo cinza bem claro, como na referência ("Mova"); a pílula ativa é branca.
     background: "#F7F7F8",
     transition: "width 220ms ease-out",

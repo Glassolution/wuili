@@ -1,6 +1,5 @@
 import type { ElementType } from "react";
 import { useLocation } from "react-router-dom";
-import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
 import {
   ArrowLeftRight,
   ScanFace,
@@ -97,9 +96,7 @@ const DashboardHeader = () => {
         </span>
       </div>
 
-      <div className="shrink-0 [&_svg]:!h-[18px] [&_svg]:!w-[18px]">
-        <NotificacoesPopover />
-      </div>
+      {/* O sino foi para a barra do topo do painel (BarraDoTopo). */}
     </header>
   );
 };

@@ -1,26 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementType, type ReactNode } from "react";
-import { flushSync } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CreditCard, LogOut, Settings2, ShieldCheck, Sparkles, Trophy, UserRound } from "lucide-react";
+import { Trophy } from "lucide-react";
 // Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
-import { ArrowUp01Icon, ChartIncreaseIcon, File01Icon, Folder01Icon, Home01Icon, MoreVerticalIcon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
+import { ArrowUp01Icon, ChartIncreaseIcon, File01Icon, Folder01Icon, Home01Icon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProfile } from "@/lib/profileContext";
 import { isSupabaseEnabled, supabase } from "@/integrations/supabase/client";
 import { isAdminEmail } from "@/lib/adminAccess";
 import { AFFILIATE_APPLICATION_EVENT } from "@/pages/dashboard/AffiliateQuizPage";
 import SearchPalette from "@/components/dashboard/SearchPalette";
 import { PremiumActionButton } from "@/components/PremiumActionButton";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
-import { nomeDeExibicao } from "@/lib/nomeDeExibicao";
 import { styles } from "@/components/dashboard/DashboardSidebar.styles";
 import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
-import { useSandboxMode } from "@/lib/sandboxMode";
 import { bestAccessSubscription, resolveAccessPlan } from "@/lib/subscriptionAccess";
 import { definirFimDoTeste } from "@/lib/prazoDoTeste";
+import { definirContaNoPainel } from "@/lib/contaNoPainel";
 
 type NavItem = {
   id: string;
@@ -420,15 +417,8 @@ const DashboardSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const upgradeModal = useUpgradeModal();
-  const { user, signOut, role } = useAuth();
-  const { nome, foto } = useProfile();
-  const [sandboxEnabled] = useSandboxMode(user?.id ?? user?.email ?? null);
+  const { user, role } = useAuth();
   const reduce = !!useReducedMotion();
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  // Evita ícone quebrado/circulo vazio quando a foto do perfil não existe ou
-  // falha ao carregar (ex.: URL de storage inválida). Nesses casos cai para o
-  // ícone genérico de usuário em vez de depender de um asset externo.
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const [plan, setPlan] = useState("gratis");
   const [subscription, setSubscription] = useState<SidebarSubscription | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -436,22 +426,10 @@ const DashboardSidebar = () => {
   // "Afiliados" só aparece depois que o usuário envia a solicitação.
   const [hasAffiliateApplication, setHasAffiliateApplication] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const profileMenuRef = useRef<HTMLDivElement>(null);
-  // Exibição usa só os dois primeiros nomes; o valor completo continua salvo.
-  const profileName = nomeDeExibicao(
-    nome || (user?.user_metadata?.full_name as string | undefined),
-    user?.email,
-  );
-  const profileEmail = user?.email || "conta@velo.app";
   const metadataRole =
     (user?.app_metadata?.role as string | undefined) ??
     (user?.user_metadata?.role as string | undefined) ??
     null;
-  const sandboxIdentityEnabled =
-    sandboxEnabled && (role === "admin" || metadataRole === "admin" || isAdminEmail(user?.email));
-  const visibleProfileName = sandboxIdentityEnabled ? "Conta Sandbox" : profileName;
-  const visibleProfileEmail = sandboxIdentityEnabled ? "sandbox@velo.test" : profileEmail;
-
   const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
   const [recolhida, setRecolhida] = useState(lerRecolhida);
   const [espacoAberto, setEspacoAberto] = useState(true);
@@ -490,10 +468,6 @@ const DashboardSidebar = () => {
   const abrirProjeto = (projeto: UserProject) =>
     navigate(`/minha-loja/editor/${projeto.id}`, { state: { projectId: projeto.id, sourceId: projeto.source_id } });
 
-  useEffect(() => {
-    setProfileMenuOpen(false);
-  }, [location.pathname, location.search]);
-
   const visibleNavItems = useMemo(() => {
     const items = [...mainNavItems];
     if (isAdmin || hasAffiliateApplication) {
@@ -523,10 +497,6 @@ const DashboardSidebar = () => {
       else next.delete(id);
       return next;
     });
-
-  useEffect(() => {
-    setProfileMenuOpen(false);
-  }, [location.pathname]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -577,6 +547,11 @@ const DashboardSidebar = () => {
   useEffect(() => {
     definirFimDoTeste(getTrialEndsAt(subscription));
   }, [subscription]);
+
+  // A barra do topo (perfil) lê o plano e o admin daqui, sem consulta nova.
+  useEffect(() => {
+    definirContaNoPainel({ plano: plan, ehAdmin: isAdmin });
+  }, [plan, isAdmin]);
 
   useEffect(() => {
     const trialEndsAt = getTrialEndsAt(subscription);
@@ -662,54 +637,9 @@ const DashboardSidebar = () => {
     };
   }, [user?.id]);
 
-  useEffect(() => {
-    if (!profileMenuOpen) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
-        setProfileMenuOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setProfileMenuOpen(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [profileMenuOpen]);
-
-  useEffect(() => {
-    setProfileMenuOpen(false);
-  }, [location.pathname, location.search]);
-
-  const planLabel = plan === "business" ? "BUSINESS" : plan === "pro" || plan === "plus" ? "PRO" : plan === "base" ? "BASE" : plan === "go" ? "GO" : "GRATIS";
-  const profileMenuPlanLabel = sandboxIdentityEnabled ? "SANDBOX" : planLabel;
-  const profileMenuPlanStyle =
-    sandboxIdentityEnabled ? styles.profilePanelSandboxBadge : plan === "gratis" ? styles.profilePanelMutedBadge : styles.profilePanelBadge;
   const normalizedPlan = plan === "plus" ? "pro" : plan;
   const trialTimeLeft = formatTrialTimeLeft(getTrialEndsAt(subscription), now);
   const showUpgradeCard = Boolean(trialTimeLeft) || !["base", "pro", "business"].includes(normalizedPlan);
-
-  const closeProfileMenuNow = () => {
-    flushSync(() => setProfileMenuOpen(false));
-  };
-
-  const handlePanelNavigate = (to: string) => {
-    closeProfileMenuNow();
-    navigate(to);
-  };
-
-  const handleSignOut = async () => {
-    closeProfileMenuNow();
-    await signOut();
-    navigate("/login", { replace: true });
-  };
 
   return (
     <aside
@@ -871,151 +801,6 @@ const DashboardSidebar = () => {
           </section>
         )}
       </div>
-      </div>
-
-      {/* Daqui para baixo nada rola: é o rodapé âncora da sidebar (conta). */}
-      <div style={styles.fixedBottom}>
-        <div style={styles.footerBottom}>
-          <div ref={profileMenuRef} style={styles.profileWrap}>
-          <button
-            type="button"
-            aria-label="Abrir configurações da conta"
-            aria-haspopup="menu"
-            aria-expanded={profileMenuOpen}
-            onClick={() => setProfileMenuOpen((current) => !current)}
-            className="velo-side-card"
-            title={recolhida ? visibleProfileName : undefined}
-            style={{ ...styles.profileCard, ...(recolhida ? { justifyContent: "center", padding: 8, minHeight: 48 } : null) }}
-          >
-            <span style={styles.avatar}>
-              {foto && !avatarFailed && !sandboxIdentityEnabled ? (
-                <img
-                  src={foto}
-                  alt=""
-                  onError={() => setAvatarFailed(true)}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                sandboxIdentityEnabled ? (
-                  <ShieldCheck size={17} strokeWidth={1.9} color="#2563EB" />
-                ) : (
-                  <UserRound size={17} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
-                )
-              )}
-            </span>
-            {recolhida ? null : (
-              <>
-                <span style={styles.profileText}>
-                  <span style={styles.profileName}>{visibleProfileName}</span>
-                  <span style={styles.profileEmail}>{visibleProfileEmail}</span>
-                </span>
-                <span aria-hidden="true" style={styles.profileChevrons}>
-                  <MoreVerticalIcon size={16} strokeWidth={1.5} color="#A1A1AA" />
-                </span>
-              </>
-            )}
-          </button>
-
-        <AnimatePresence>
-          {profileMenuOpen ? (
-            <motion.div
-              key="profile-side-panel"
-              style={{ ...styles.profileSidePanel, left: recolhida ? 82 : styles.profileSidePanel.left }}
-              role="menu"
-              aria-label="Opções da conta"
-              initial={reduce ? false : { opacity: 0, x: -8, scale: 0.985 }}
-              animate={reduce ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, x: -6, scale: 0.99 }}
-              transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div style={styles.profileMenuIdentity} aria-hidden="true">
-                <span style={{ ...styles.profileMenuAvatar, ...(sandboxIdentityEnabled ? styles.profileMenuSandboxAvatar : null) }}>
-                  {sandboxIdentityEnabled ? (
-                    <ShieldCheck size={15} strokeWidth={2.1} color="#FFFFFF" />
-                  ) : foto && !avatarFailed ? (
-                    <img
-                      src={foto}
-                      alt=""
-                      onError={() => setAvatarFailed(true)}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <UserRound size={15} strokeWidth={1.9} color="rgba(10,10,10,0.55)" />
-                  )}
-                </span>
-                <span style={styles.profileMenuIdentityText}>
-                  <span style={styles.profileMenuIdentityName}>{visibleProfileName}</span>
-                  <span style={styles.profileMenuIdentityEmail}>{visibleProfileEmail}</span>
-                </span>
-              </div>
-
-              <div style={styles.profileMenuDivider} />
-
-              <button
-                className="velo-profile-menu-row"
-                type="button"
-                role="menuitem"
-                onClick={() => handlePanelNavigate("/dashboard/configuracoes")}
-                style={styles.profileMenuRow}
-              >
-                <span style={styles.profileMenuRowLeft}>
-                  <Settings2 size={15} strokeWidth={2} style={styles.profileMenuIcon} />
-                  <span style={styles.profileMenuLabel}>Configurações</span>
-                </span>
-              </button>
-
-              <button
-                className="velo-profile-menu-row"
-                type="button"
-                role="menuitem"
-                onClick={() => handlePanelNavigate("/dashboard/configuracoes?tab=Plano")}
-                style={styles.profileMenuRow}
-              >
-                <span style={styles.profileMenuRowLeft}>
-                  <CreditCard size={15} strokeWidth={1.9} style={styles.profileMenuIcon} />
-                  <span style={styles.profileMenuLabel}>Assinatura</span>
-                </span>
-                <span style={profileMenuPlanStyle}>
-                  {sandboxIdentityEnabled || plan !== "gratis" ? <Sparkles size={10} strokeWidth={2.2} /> : null}
-                  {profileMenuPlanLabel}
-                </span>
-              </button>
-
-
-              {isAdmin ? (
-                <button
-                  className="velo-profile-menu-row"
-                  type="button"
-                  role="menuitem"
-                  onClick={() => handlePanelNavigate("/admin/painel")}
-                  style={styles.profileMenuRow}
-                >
-                  <span style={styles.profileMenuRowLeft}>
-                    <ShieldCheck size={15} strokeWidth={2} style={styles.profileMenuIcon} />
-                    <span style={styles.profileMenuLabel}>Painel Admin</span>
-                  </span>
-                </button>
-              ) : null}
-
-              <div style={styles.profileMenuDivider} />
-
-              <button
-                className="velo-profile-menu-row"
-                type="button"
-                role="menuitem"
-                onClick={() => void handleSignOut()}
-                style={styles.profileMenuRow}
-              >
-                <span style={styles.profileMenuRowLeft}>
-                  <LogOut size={15} strokeWidth={2} style={{ ...styles.profileMenuIcon, color: "#DC2626" }} />
-                  <span style={{ ...styles.profileMenuLabel, color: "#DC2626" }}>Sair</span>
-                </span>
-              </button>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-          </div>
-        </div>
       </div>
     </aside>
   );
