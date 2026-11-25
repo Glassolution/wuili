@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
-import { CircleHelp, CreditCard, LogOut, Plus, Search, Settings2, ShieldCheck } from "lucide-react";
+import { CircleDotDashed, CreditCard, Inbox, Link, LogOut, Plus, Search, Settings2, ShieldCheck } from "lucide-react";
 import NotificacoesPopover from "@/components/dashboard/NotificacoesPopover";
+import InviteFriendModal from "@/components/dashboard/InviteFriendModal";
+import AtlasAvatarIcon from "@/components/dashboard/AtlasAvatarIcon";
 import { useUpgradeModal } from "@/components/PlansUpgradeModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAtlasChat } from "@/contexts/AtlasChatContext";
@@ -16,38 +18,45 @@ import { useContaNoPainel } from "@/lib/contaNoPainel";
 import { formatarContagem, useFimDoTeste } from "@/lib/prazoDoTeste";
 
 /*
-  Barra do topo do painel (desktop), na borda cinza acima da moldura branca, no
-  estilo da referência: botões quadrados arredondados e o perfil na ponta, com o
-  menu da conta (identidade, cartão da assinatura e opções). Tudo aqui é real:
-  busca, criar projeto, notificações, central de ajuda e conta.
+  Barra do topo do painel (desktop), na borda cinza acima da moldura branca, com
+  os mesmos ícones da referência, sem moldura em volta (só um fundo leve no
+  hover), e o perfil na ponta com o menu da conta. Cada ícone é uma função real:
+  busca, novo projeto, Comunidade e Ajuda, notificações (caixa de entrada),
+  Indique e ganhe (link), Atlas (o quadrado colorido) e a conta.
 */
 
 const BARRA_CSS = `
-.velo-topo-botao { transition: background-color 150ms ease-out, border-color 150ms ease-out; }
-.velo-topo-botao:hover { background: #F4F4F5 !important; }
-.velo-topo-botao:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(37,99,235,0.45) !important; }
+.velo-topo-botao { transition: background-color 150ms ease-out, color 150ms ease-out; }
+.velo-topo-botao:hover { background: rgba(24,24,27,0.06) !important; color: #18181B !important; }
+.velo-topo-botao:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.45) !important; }
+.velo-topo-sino { position: relative; }
 .velo-topo-sino > div > button:first-child {
-  width: 38px; height: 38px; border-radius: 12px; background: #FFFFFF; color: #3F3F46;
-  border: 1px solid #E4E4E7; box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+  width: 36px; height: 36px; border-radius: 10px; background: transparent; color: #3F3F46;
   transition: background-color 150ms ease-out;
 }
-.velo-topo-sino > div > button:first-child:hover { background: #F4F4F5; }
-.velo-topo-sino > div > button:first-child svg { width: 18px; height: 18px; stroke-width: 1.6; }
-.velo-topo-sino > div > button:first-child > span { right: 8px; top: 8px; width: 8px; height: 8px; --tw-ring-color: #FFFFFF; }
+.velo-topo-sino > div > button:first-child:hover { background: rgba(24,24,27,0.06); }
+.velo-topo-sino > div > button:first-child > svg { opacity: 0; }
+.velo-topo-sino > div > button:first-child > span { right: 7px; top: 7px; width: 8px; height: 8px; --tw-ring-color: #F7F7F8; }
+.velo-topo-atlas { transition: transform 150ms ease-out, box-shadow 150ms ease-out; }
+.velo-topo-atlas:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(17,17,20,0.10) !important; }
+.velo-topo-avatar { transition: box-shadow 150ms ease-out; }
+.velo-topo-avatar:hover, .velo-topo-avatar[aria-expanded="true"] { box-shadow: 0 0 0 3px rgba(24,24,27,0.08) !important; }
 .velo-topo-item { transition: background-color 120ms ease-out; }
 .velo-topo-item:hover, .velo-topo-item:focus-visible { background: #F4F4F5; outline: none; }
 .velo-topo-cta { transition: filter 150ms ease-out; }
 .velo-topo-cta:hover { filter: brightness(0.94); }
 `;
 
+// Só o ícone: sem borda nem fundo (o fundo aparece no hover). 36px de área de
+// clique, ícone de 20px e 12px entre um e outro, na proporção da referência.
 const ESTILO_BOTAO = {
-  width: 38,
-  height: 38,
-  borderRadius: 12,
-  border: "1px solid #E4E4E7",
-  background: "#FFFFFF",
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  border: 0,
+  background: "transparent",
   color: "#3F3F46",
-  boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+  boxShadow: "none",
 } as const;
 
 const BotaoDoTopo = ({ rotulo, onClick, children }: { rotulo: string; onClick: () => void; children: ReactNode }) => (
@@ -79,12 +88,13 @@ const BarraDoTopo = () => {
   const upgradeModal = useUpgradeModal();
   const { user, signOut, role } = useAuth();
   const { nome, foto } = useProfile();
-  const { quota } = useAtlasChat();
+  const { quota, abrir: abrirAtlas } = useAtlasChat();
   const { plano, ehAdmin } = useContaNoPainel();
   const fimDoTeste = useFimDoTeste();
   const [sandboxLigado] = useSandboxMode(user?.id ?? user?.email ?? null);
   const [aberto, setAberto] = useState(false);
   const [fotoFalhou, setFotoFalhou] = useState(false);
+  const [convidarAberto, setConvidarAberto] = useState(false);
   const [agora, setAgora] = useState(() => Date.now());
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -175,24 +185,49 @@ const BarraDoTopo = () => {
   ];
 
   return (
-    <div className="velo-fonte-inter flex h-14 shrink-0 items-center justify-end gap-2.5 pr-4">
+    <div className="velo-fonte-inter flex h-12 shrink-0 items-center justify-end gap-3 pr-3">
       <style>{BARRA_CSS}</style>
 
       <BotaoDoTopo rotulo="Buscar (atalho /)" onClick={() => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT))}>
-        <Search size={18} strokeWidth={1.6} />
+        <Search size={20} strokeWidth={1.6} />
       </BotaoDoTopo>
       <BotaoDoTopo
         rotulo="Novo projeto"
         onClick={() => navigate("/dashboard/minha-loja", { state: { abrirCriacao: true } })}
       >
-        <Plus size={19} strokeWidth={1.6} />
+        <Plus size={20} strokeWidth={1.6} />
       </BotaoDoTopo>
-      <div className="velo-topo-sino shrink-0">
+      <BotaoDoTopo rotulo="Comunidade e Ajuda" onClick={() => navigate("/dashboard/comunidade")}>
+        <CircleDotDashed size={20} strokeWidth={1.6} />
+      </BotaoDoTopo>
+      {/* Notificações: o popover é o de sempre; o sino dele fica invisível e a
+          caixa de entrada da referência é desenhada por cima (o pontinho continua). */}
+      <div className="velo-topo-sino shrink-0" title="Notificações">
         <NotificacoesPopover variante="redondo" />
+        <Inbox
+          aria-hidden="true"
+          size={20}
+          strokeWidth={1.6}
+          className="pointer-events-none absolute left-[8px] top-[8px] text-[#3F3F46]"
+        />
       </div>
-      <BotaoDoTopo rotulo="Central de ajuda" onClick={() => navigate("/dashboard/ajuda")}>
-        <CircleHelp size={18} strokeWidth={1.6} />
+      <BotaoDoTopo rotulo="Indique e ganhe" onClick={() => setConvidarAberto(true)}>
+        <Link size={19} strokeWidth={1.6} />
       </BotaoDoTopo>
+      {/* O quadrado colorido da referência é o Atlas. */}
+      <button
+        type="button"
+        aria-label="Abrir o Atlas"
+        title="Atlas"
+        onClick={abrirAtlas}
+        className="velo-topo-atlas grid h-9 w-9 shrink-0 place-items-center rounded-[10px]"
+        style={{
+          background: "linear-gradient(135deg, #DCFCE7 0%, #DBEAFE 45%, #FCE7F3 100%)",
+          boxShadow: "0 0 0 1px rgba(17,17,20,0.06)",
+        }}
+      >
+        <AtlasAvatarIcon size={22} animated={false} />
+      </button>
 
       <div ref={menuRef} className="relative shrink-0">
         <button
@@ -201,10 +236,10 @@ const BarraDoTopo = () => {
           aria-haspopup="menu"
           aria-expanded={aberto}
           onClick={() => setAberto((atual) => !atual)}
-          className="velo-topo-botao grid place-items-center"
-          style={{ ...ESTILO_BOTAO, padding: 3 }}
+          className="velo-topo-avatar grid h-9 w-9 place-items-center rounded-full"
+          style={{ padding: 0, border: 0, background: "transparent", boxShadow: "none" }}
         >
-          {avatar(30, 9)}
+          {avatar(36, 18)}
         </button>
 
         <AnimatePresence>
@@ -213,7 +248,7 @@ const BarraDoTopo = () => {
               key="menu-da-conta"
               role="menu"
               aria-label="Opções da conta"
-              className="absolute right-0 top-[46px] z-50 w-[300px] p-2"
+              className="absolute right-0 top-[44px] z-50 w-[300px] p-2"
               style={{
                 borderRadius: 16,
                 border: "1px solid #E4E4E7",
@@ -309,6 +344,9 @@ const BarraDoTopo = () => {
           ) : null}
         </AnimatePresence>
       </div>
+
+      {/* No body: dentro da barra (que anima com transform) o modal fixo ficaria preso. */}
+      {createPortal(<InviteFriendModal open={convidarAberto} onClose={() => setConvidarAberto(false)} />, document.body)}
     </div>
   );
 };
