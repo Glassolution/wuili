@@ -1,79 +1,57 @@
-import { useEffect, useState, type ElementType, type ReactNode } from "react";
+import { useMemo, useState, type ElementType } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { Archive, ArrowRight, BadgePercent, Check, ExternalLink, FileText, Info, LayoutTemplate, Link2, MoreHorizontal, PenLine, Plus, Search, Settings2, ShoppingBag, Sparkles, UserRound, Wand2 } from "lucide-react";
+import { ArrowRight, BadgePercent, ChevronRight, ChevronsUpDown, ExternalLink, LayoutTemplate, PenLine, Plus, Wand2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
-import { veloToast } from "@/components/ui/velo-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { startMercadoLivreOAuth } from "@/lib/mercadoLivreOAuth";
-import cardTemasImg from "@/assets/home-card-temas.webp";
-import bannerResultados from "@/assets/home-banner-resultados.webp";
+import MascoteVelo from "@/components/MascoteVelo";
 import agenteLua from "@/assets/agentes/lua.png";
 import agenteCubo from "@/assets/agentes/cubo.png";
 import agenteFolha from "@/assets/agentes/folha.png";
 import agenteSino from "@/assets/agentes/sino.png";
-import { ABRIR_BUSCA_EVENT } from "@/lib/abrirBusca";
-import { useProfile } from "@/lib/profileContext";
-import VideoTutorialModal from "@/components/dashboard/VideoTutorialModal";
 
-type OnboardingStatus = {
-  mlConnected: boolean;
-  hasPublication: boolean;
-};
+/*
+  Projetos (`/dashboard/projetos`), no modelo da referência "Dashboards" (25/11/2026):
+  breadcrumb e abas no topo, título com a contagem real de projetos, três cartões de
+  atalho (criar projeto, personalizar o visual, página de vendas com IA) e a lista
+  dos projetos numa tabela: projeto, último trabalho dos agentes, status, data e
+  ações (ver o site publicado e editar no editor). Tudo vem do RPC
+  `get_user_projects` (mesma leitura da sidebar e da Minha loja, sem consulta nova).
 
-const TUTORIAL_INICIO = {
-  src: "https://player.vimeo.com/video/1226153949?badge=0&autopause=0&player_id=0&app_id=58479",
-  aspectPadding: "62.5%",
-  title: "Tutorial de início",
-  description: "Veja como dar os primeiros passos na Velo.",
-} as const;
+  O banco ainda não guarda agentes nem qual agente fez cada mudança: a foto do
+  agente segue o tipo do trabalho (lua = rascunho, cubo = edição, folha =
+  publicação) e não há nome de agente. Criar agentes depende disso existir.
+*/
 
-// Curva das entradas: desaceleração suave, sem a cauda longa do ease-out exponencial.
-const INTRO = {
-  revealEase: [0.22, 1, 0.36, 1] as const,
-  revealDuration: 0.7,
-};
-
-const CARD_SHADOW = "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px rgba(16,24,40,0.04)";
-
-// Estados de hover/foco dos botões e cards desta tela (tokens do redesign).
-const HOME_CSS = `
-.velo-home-card { background: #FFFFFF; border: 1px solid #ECEEF2; border-radius: 20px; box-shadow: ${CARD_SHADOW}; }
-.velo-home-dark { background: #0B0D12; transition: background-color 150ms ease-out, transform 150ms ease-out; }
-.velo-home-dark:hover { background: #1F232B; }
-.velo-home-accent { background: #2F5BEA; transition: background-color 150ms ease-out, opacity 150ms ease-out; }
-.velo-home-accent:hover:not(:disabled) { background: #2449C7; }
-/* "+" do header: sem brilho difuso; volume só com gradiente curto, filete de luz no topo e sombra rente. */
-.velo-home-plus {
-  background: linear-gradient(180deg, #3A64EE 0%, #2A51DA 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), inset 0 0 0 1px rgba(11,13,18,0.06), 0 1px 2px rgba(16,24,40,0.10);
-  transition: filter 150ms ease-out, transform 150ms ease-out;
-}
-.velo-home-plus:hover { filter: brightness(0.94); }
-.velo-home-plus:active { transform: scale(0.97); }
-.velo-home-plus:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45); }
-.velo-home-secondary { background: #FFFFFF; border: 1px solid #ECEEF2; transition: background-color 150ms ease-out, border-color 150ms ease-out; }
-.velo-home-secondary:hover:not(:disabled) { background: #F7F8FA; border-color: #DCE0E7; }
-.velo-home-ghost { background: transparent; transition: background-color 150ms ease-out, color 150ms ease-out; }
-.velo-home-ghost:hover { background: #F1F3F6; color: #0B0D12; }
-/* A exceção velo-fonte-inter liga números tabulares, que abrem o hífen de "Bem-vindo". */
-.dashboard-inter .velo-fonte-inter.velo-home-root, .dashboard-inter .velo-fonte-inter.velo-home-root * { font-feature-settings: normal !important; }
-/* O painel força Hanken Grotesk com !important; o título do destaque usa a serifa da referência. */
-.dashboard-inter .velo-fonte-inter .velo-home-serif, .velo-fonte-inter .velo-home-serif {
-  font-family: "Instrument Serif", ui-serif, Georgia, serif !important; font-weight: 400 !important; letter-spacing: -0.01em !important;
-  font-feature-settings: normal !important;
-}
-.dashboard-inter .velo-fonte-inter h1, .dashboard-inter .velo-fonte-inter h3 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; letter-spacing: -0.02em; }
-.velo-home-row { transition: background-color 150ms ease-out; }
-.velo-home-row:hover { background: #F7F8FA; }
-.velo-home-search { transition: background-color 150ms ease-out; }
-.velo-home-search:hover { background: #EEF0F3; }
-.velo-home-dark:focus-visible, .velo-home-accent:focus-visible, .velo-home-secondary:focus-visible, .velo-home-ghost:focus-visible, .velo-home-search:focus-visible {
-  outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(47,91,234,0.45);
-}
+const PAGINA_CSS = `
+.velo-proj-root, .velo-proj-root * { font-feature-settings: normal !important; }
+.velo-proj-root h1, .velo-proj-root h2 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; }
+.velo-proj-aba { transition: color 150ms ease-out; }
+.velo-proj-aba:hover { color: #18181B !important; }
+.velo-proj-atalho { transition: border-color 150ms ease-out, box-shadow 200ms ease-out, transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-proj-atalho:hover { border-color: #C7D2FE !important; box-shadow: 0 10px 24px -14px rgba(37,99,235,0.35) !important; transform: translateY(-1px); }
+.velo-proj-atalho:hover .velo-proj-atalho-img { transform: translateY(-2px) scale(1.04); }
+.velo-proj-atalho-img { transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-proj-linha { transition: background-color 120ms ease-out; }
+.velo-proj-linha:hover { background: #FAFAFB; }
+.velo-proj-icone { transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
+.velo-proj-icone:hover { background: #F4F4F5 !important; border-color: #D4D4D8 !important; color: #18181B !important; }
+.velo-proj-novo { transition: background-color 150ms ease-out, transform 120ms ease-out; }
+.velo-proj-novo:hover { background: #1D4ED8 !important; }
+.velo-proj-novo:active { transform: scale(0.98); }
+.velo-proj-ordenar { transition: color 120ms ease-out; }
+.velo-proj-ordenar:hover { color: #18181B !important; }
+.velo-proj-root button:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(37,99,235,0.45) !important; }
 `;
+
+// "24 nov", ou "21 jul 2025" quando é de outro ano.
+const dataCurta = (iso: string) => {
+  const data = new Date(iso);
+  const mes = data.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  const ano = data.getFullYear() === new Date().getFullYear() ? "" : ` ${data.getFullYear()}`;
+  return `${data.getDate()} ${mes}${ano}`;
+};
 
 // "há 5 min", "há 3 h", "há 2 d" — e a data curta para o que passou de uma semana.
 const tempoRelativo = (iso: string, agora = Date.now()) => {
@@ -85,424 +63,178 @@ const tempoRelativo = (iso: string, agora = Date.now()) => {
   if (horas < 24) return `há ${horas} h`;
   const dias = Math.floor(horas / 24);
   if (dias < 7) return `há ${dias} d`;
-  return new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+  return dataCurta(iso);
 };
 
-type EventoDoSite = {
-  id: string;
-  projeto: UserProject;
-  acao: string;
-  quando: string;
-  /** Foto do agente responsável por esse tipo de trabalho no site. */
-  agente: string;
+const metaDoProjeto = (projeto: UserProject) => {
+  const meta = projeto.metadata;
+  return meta && typeof meta === "object" && !Array.isArray(meta) ? (meta as Record<string, unknown>) : null;
+};
+const slugDoProjeto = (projeto: UserProject) => {
+  const slug = metaDoProjeto(projeto)?.slug;
+  return typeof slug === "string" && slug.trim() ? slug.trim() : null;
+};
+const logoDoProjeto = (projeto: UserProject) => {
+  const logo = metaDoProjeto(projeto)?.logoImage;
+  return typeof logo === "string" && logo.trim() ? logo : null;
 };
 
-// Cada agente representa um tipo de trabalho no site. O banco ainda não grava
-// qual agente fez cada mudança, então a foto segue o tipo da mudança.
-// (Também há estrela.png e concha.png em src/assets/agentes para os próximos.)
-const AGENTE_POR_ACAO = {
-  criado: agenteLua,
-  editado: agenteCubo,
-  publicado: agenteFolha,
-} as const;
+const CORES_INICIAL = ["#2563EB", "#7C3AED", "#0E9F6E", "#F08A24", "#F0507A", "#0F5132"];
+const corDoProjeto = (id: string) => {
+  let soma = 0;
+  for (const letra of id) soma = (soma + letra.charCodeAt(0)) % 9973;
+  return CORES_INICIAL[soma % CORES_INICIAL.length];
+};
 
-/**
- * Atividade do site da loja, montada só com o que o banco registra de cada
- * projeto (criação, última edição e publicação). Ainda não existe registro de
- * qual agente fez cada mudança: a foto vem do tipo de trabalho e nenhuma linha
- * leva nome de agente.
- */
-const eventosDoSite = (projetos: UserProject[]): EventoDoSite[] => {
-  const eventos: EventoDoSite[] = [];
+const TIPO = { loja_completa: "Loja completa", pagina_venda: "Página de venda" } as const;
+
+type Trabalho = { acao: string; quando: string; agente: string };
+
+// Último trabalho no site, com o que o banco registra (criação, edição e publicação).
+const ultimoTrabalho = (projeto: UserProject): Trabalho => {
+  const opcoes: Trabalho[] = [{ acao: "Criou o rascunho", quando: projeto.created_at, agente: agenteLua }];
+  const criado = new Date(projeto.created_at).getTime();
+  if (projeto.last_edited_at && new Date(projeto.last_edited_at).getTime() - criado > 60_000) {
+    opcoes.push({ acao: "Atualizou o site", quando: projeto.last_edited_at, agente: agenteCubo });
+  }
+  if (projeto.published_at) opcoes.push({ acao: "Publicou o site", quando: projeto.published_at, agente: agenteFolha });
+  return opcoes.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime())[0];
+};
+
+type Evento = Trabalho & { id: string; projeto: UserProject };
+const eventosDoSite = (projetos: UserProject[], limite: number): Evento[] => {
+  const eventos: Evento[] = [];
   for (const projeto of projetos) {
     const criado = new Date(projeto.created_at).getTime();
-    eventos.push({ id: `${projeto.id}-criado`, projeto, acao: "Criou o rascunho do site", quando: projeto.created_at, agente: AGENTE_POR_ACAO.criado });
-    const editado = projeto.last_edited_at ? new Date(projeto.last_edited_at).getTime() : 0;
-    if (editado - criado > 60_000) {
-      eventos.push({ id: `${projeto.id}-editado`, projeto, acao: "Atualizou o site", quando: projeto.last_edited_at, agente: AGENTE_POR_ACAO.editado });
+    eventos.push({ id: `${projeto.id}-criado`, projeto, acao: "Criou o rascunho do site", quando: projeto.created_at, agente: agenteLua });
+    if (projeto.last_edited_at && new Date(projeto.last_edited_at).getTime() - criado > 60_000) {
+      eventos.push({ id: `${projeto.id}-editado`, projeto, acao: "Atualizou o site", quando: projeto.last_edited_at, agente: agenteCubo });
     }
     if (projeto.published_at) {
-      eventos.push({ id: `${projeto.id}-publicado`, projeto, acao: "Publicou o site", quando: projeto.published_at, agente: AGENTE_POR_ACAO.publicado });
+      eventos.push({ id: `${projeto.id}-publicado`, projeto, acao: "Publicou o site", quando: projeto.published_at, agente: agenteFolha });
     }
   }
-  return eventos.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime()).slice(0, 5);
+  return eventos.sort((a, b) => new Date(b.quando).getTime() - new Date(a.quando).getTime()).slice(0, limite);
 };
 
-const slugDoProjeto = (projeto: UserProject) => {
-  const meta = projeto.metadata as Record<string, unknown> | null;
-  return meta && typeof meta.slug === "string" && meta.slug.trim() ? meta.slug.trim() : null;
-};
+const quandoMexeu = (projeto: UserProject) => projeto.last_edited_at ?? projeto.published_at ?? projeto.created_at;
+
+const ABAS = [
+  { id: "visao-geral", label: "Visão geral" },
+  { id: "atividade", label: "Atividade" },
+  { id: "ferramentas", label: "Ferramentas" },
+] as const;
+type Aba = (typeof ABAS)[number]["id"];
 
 const ProjetosPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { foto } = useProfile();
-  const reduceMotion = useReducedMotion();
-  const [avatarFalhou, setAvatarFalhou] = useState(false);
-  const [menuMaisAberto, setMenuMaisAberto] = useState(false);
-  const [aba, setAba] = useState<"visao-geral" | "primeiros-passos" | "ferramentas" | "atividade">("visao-geral");
-  // Mesma leitura da tela "Minha loja" (RPC get_user_projects), sem consulta nova.
+  const reduzir = !!useReducedMotion();
+  const [aba, setAba] = useState<Aba>("visao-geral");
+  const [maisRecentesPrimeiro, setMaisRecentesPrimeiro] = useState(true);
+
+  // Mesma leitura da sidebar e da tela "Minha loja" (RPC get_user_projects), sem consulta nova.
   const projetosDaLoja = useQuery({
     queryKey: ["home-projetos-da-loja", user?.id],
     enabled: Boolean(user?.id),
     staleTime: 60_000,
     queryFn: fetchUserProjects,
   });
-  // A animação de primeira entrada é da Início; aqui a página abre já parada.
-  const introState = "done" as "pending" | "waiting" | "play" | "done";
-  const [tutorialOpen, setTutorialOpen] = useState(false);
 
-  const [conectandoMl, setConectandoMl] = useState(false);
-  
-  const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
-  // Inicia o OAuth do Mercado Livre. O helper só
-  // redireciona para auth.mercadolivre.com, então uma resposta adulterada da
-  // função não consegue mandar o usuário para outro domínio.
-  const conectarMercadoLivre = async () => {
-    if (conectandoMl) return;
-    setConectandoMl(true);
-    try {
-      // Nova aba: a Velo continua aberta enquanto o usuário conecta.
-      await startMercadoLivreOAuth({ novaAba: true });
-      setConectandoMl(false);
-    } catch (erro) {
-      setConectandoMl(false);
-      veloToast.error(erro instanceof Error ? erro.message : "Não foi possível abrir a conexão com o Mercado Livre");
-    }
-  };
+  const projetos = useMemo(() => {
+    const lista = [...(projetosDaLoja.data ?? [])];
+    lista.sort((a, b) => {
+      const diff = new Date(quandoMexeu(b)).getTime() - new Date(quandoMexeu(a)).getTime();
+      return maisRecentesPrimeiro ? diff : -diff;
+    });
+    return lista;
+  }, [projetosDaLoja.data, maisRecentesPrimeiro]);
+  const publicados = projetos.filter((p) => p.status === "publicado").length;
 
-  useEffect(() => {
-    if (!menuMaisAberto) return;
-    const fecharComEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuMaisAberto(false);
-    };
-    window.addEventListener("keydown", fecharComEsc);
-    return () => window.removeEventListener("keydown", fecharComEsc);
-  }, [menuMaisAberto]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setOnboardingStatus(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadOnboardingStatus = async () => {
-      const [integrationResult, publicationsResult] = await Promise.all([
-        supabase
-          .from("user_integrations")
-          .select("id,access_token")
-          .eq("user_id", user.id)
-          .eq("platform", "mercadolivre")
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("user_publications")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id),
-      ]);
-
-      if (cancelled) return;
-
-      if (integrationResult.error || publicationsResult.error) {
-        setOnboardingStatus(null);
-        return;
-      }
-
-      setOnboardingStatus({
-        mlConnected: Boolean(integrationResult.data?.access_token),
-        hasPublication: (publicationsResult.count ?? 0) > 0,
-      });
-    };
-
-    void loadOnboardingStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  const playIntro = introState === "play";
-  // O blur de saída suaviza o fade: sem ele a opacidade sozinha lê como um "liga/desliga".
-  const revealProps = (delay: number, distance = 12) => playIntro
-    ? {
-        initial: { opacity: 0, y: distance, filter: "blur(4px)" },
-        animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-        transition: { delay, duration: INTRO.revealDuration, ease: INTRO.revealEase },
-      }
-    : {
-        // Sem introdução não há blur a desfazer — evita criar camada de composição à toa.
-        initial: false as const,
-        animate: { opacity: 1, y: 0 },
-      };
-
-  const go = (path: string) => () => navigate(path);
-  const onboardingProgress = onboardingStatus
-    ? Math.round(
-        ([onboardingStatus.mlConnected, onboardingStatus.hasPublication].filter(Boolean).length / 2) * 100,
-      )
-    : null;
-  const nextStepCopy = !onboardingStatus
-    ? "Consulte suas integrações e continue a configuração da sua conta."
-    : !onboardingStatus.mlConnected
-      ? "Conecte o Mercado Livre para publicar produtos e receber seus pedidos na Velo."
-      : !onboardingStatus.hasPublication
-        ? "Sua conta está conectada. Agora escolha um produto e faça a primeira publicação."
-        : "Tudo pronto: acompanhe seus anúncios publicados e continue expandindo o catálogo.";
-  const nextStepLabel = !onboardingStatus
-    ? "Ver integrações"
-    : !onboardingStatus.mlConnected
-      ? "Conectar agora"
-      : !onboardingStatus.hasPublication
-        ? "Escolher produto"
-        : "Ver publicações";
-  const handleNextStep = () => {
-    if (!onboardingStatus) {
-      // Este passo é sobre o Mercado Livre, que mora nas configurações —
-      // /dashboard/integracoes é a tela de lojas Shopify.
-      navigate("/dashboard/configuracoes?tab=Integrações");
-      return;
-    }
-    if (!onboardingStatus.mlConnected) {
-      void conectarMercadoLivre();
-      return;
-    }
-    navigate(onboardingStatus.hasPublication ? "/dashboard/publicacoes" : "/dashboard/catalogo");
-  };
-  if (introState === "pending" || introState === "waiting") {
-    return (
-      <main
-        aria-hidden="true"
-        className="shrink-0 bg-white -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
-      />
-    );
-  }
-
-  const mlConectado = Boolean(onboardingStatus?.mlConnected);
-  const temPublicacao = Boolean(onboardingStatus?.hasPublication);
-  const abrirBusca = () => window.dispatchEvent(new Event(ABRIR_BUSCA_EVENT));
-  const acaoMercadoLivre = mlConectado ? go("/dashboard/configuracoes?tab=Integrações") : conectarMercadoLivre;
-
-  // Linhas no estilo "Recent activity" da referência: miniatura, título,
-  // descrição, uma linha de apoio e ações em botões-ícone à direita.
-  type Linha = {
-    id: string;
-    thumb: ReactNode;
-    title: string;
-    description: string;
-    meta: string;
-    actions: { label: string; icon: ElementType; onClick: () => void; busy?: boolean }[];
-  };
-  const thumbIcone = (Icone: ElementType, cor: string, fundo: string) => (
-    <span className="flex h-full w-full items-center justify-center" style={{ background: fundo, color: cor }}>
-      <Icone size={18} strokeWidth={1.5} />
-    </span>
-  );
-  const thumbImagem = (src: string, extra = "object-cover") => (
-    <img src={src} alt="" className={`h-full w-full ${extra}`} draggable={false} />
-  );
-
-  const linhaProximoPasso: Linha = {
-    id: "proximo-passo",
-    thumb: thumbIcone(Sparkles, "#2F5BEA", "#EEF2FE"),
-    title: "Próximo passo",
-    description: nextStepCopy,
-    meta: onboardingProgress === null ? "Progresso indisponível" : `${onboardingProgress}% concluído`,
-    actions: [{ label: conectandoMl ? "Abrindo…" : nextStepLabel, icon: ArrowRight, onClick: handleNextStep, busy: conectandoMl }],
-  };
-  const linhaMercadoLivre: Linha = {
-    id: "mercado-livre",
-    thumb: (
-      <span className="flex h-full w-full items-center justify-center bg-[#FFF8CC]">
-        <img src="/brand/mercado-livre.png" alt="" width={200} height={200} className="h-6 w-6 object-contain" />
-      </span>
-    ),
-    title: "Venda no Mercado Livre",
-    description: "Conecte sua conta, publique anúncios e acompanhe os pedidos.",
-    meta: mlConectado ? "Conta conectada" : "Pronta para conectar",
-    actions: [{
-      label: conectandoMl ? "Conectando…" : mlConectado ? "Gerenciar conta" : "Conectar conta",
-      icon: mlConectado ? Settings2 : Link2,
-      onClick: acaoMercadoLivre,
-      busy: conectandoMl,
-    }],
-  };
-  const linhaPublicacao: Linha = {
-    id: "publicacao",
-    thumb: thumbIcone(temPublicacao ? Check : Archive, temPublicacao ? "#16A34A" : "#4B5563", temPublicacao ? "#E9F7EF" : "#F1F3F6"),
-    title: temPublicacao ? "Primeira publicação feita" : "Fazer a primeira publicação",
-    description: temPublicacao ? "Acompanhe seus anúncios publicados." : "Escolha um produto do catálogo e publique no Mercado Livre.",
-    meta: temPublicacao ? "Concluído" : "Pendente",
-    actions: [{
-      label: temPublicacao ? "Ver publicações" : "Escolher produto",
-      icon: temPublicacao ? FileText : ShoppingBag,
-      onClick: go(temPublicacao ? "/dashboard/publicacoes" : "/dashboard/catalogo"),
-    }],
-  };
-  const linhaTemas: Linha = {
-    id: "temas",
-    thumb: thumbImagem(cardTemasImg),
-    title: "Escolha o visual da sua loja",
-    description: "Selecione um template profissional e personalize para refletir a sua marca.",
-    meta: "Templates",
-    actions: [{ label: "Ver temas", icon: LayoutTemplate, onClick: go("/dashboard/modelos") }],
-  };
-  const linhaAfiliados: Linha = {
-    id: "afiliados",
-    thumb: thumbIcone(BadgePercent, "#6D28D9", "#F3EEFF"),
-    title: "Programa de afiliados",
-    description: "Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.",
-    meta: "30% de comissão · por novo cliente",
-    actions: [{ label: "Quero ser afiliado", icon: ArrowRight, onClick: go("/dashboard/comissoes") }],
-  };
-  const linhaPaginaIa: Linha = {
-    id: "pagina-ia",
-    thumb: thumbIcone(Wand2, "#0F766E", "#E6F6F3"),
-    title: "Página de vendas com IA",
-    description: "Crie uma página profissional para apresentar e vender seu produto.",
-    meta: "Velo IA · pronta para publicar",
-    actions: [{ label: "Criar página", icon: Plus, onClick: go("/dashboard/paginas-com-ia/criar") }],
-  };
-
-  const ABAS = [
-    { id: "visao-geral", label: "Visão geral" },
-    { id: "primeiros-passos", label: "Primeiros passos" },
-    { id: "ferramentas", label: "Ferramentas" },
-    { id: "atividade", label: "Atividade" },
-  ] as const;
-  const mostrarDestaque = aba === "visao-geral" || aba === "primeiros-passos";
-  const mostrarAtividade = aba === "visao-geral" || aba === "atividade";
-  const eventos = eventosDoSite(projetosDaLoja.data ?? []);
+  const criarProjeto = () => navigate("/dashboard/minha-loja", { state: { abrirCriacao: true } });
   const abrirEditor = (projeto: UserProject) =>
     navigate(`/minha-loja/editor/${projeto.id}`, { state: { projectId: projeto.id, sourceId: projeto.source_id } });
-  const listas: { titulo: string; linhas: Linha[] }[] =
-    aba === "visao-geral"
-      ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
-      : aba === "primeiros-passos"
-        ? [{ titulo: "Primeiros passos", linhas: [linhaProximoPasso, linhaTemas, linhaMercadoLivre, linhaPublicacao] }]
-        : aba === "ferramentas"
-          ? [{ titulo: "Ferramentas", linhas: [linhaTemas, linhaPaginaIa, linhaAfiliados] }]
-          : [];
+
+  const entrada = (atraso: number, distancia = 8) =>
+    reduzir
+      ? { initial: false as const }
+      : {
+          initial: { opacity: 0, y: distancia },
+          animate: { opacity: 1, y: 0 },
+          transition: { delay: atraso, duration: 0.4, ease: [0.22, 1, 0.36, 1] as const },
+        };
+
+  const atalhos: { titulo: string; texto: string; imagem: string; fundo: string; acao: () => void }[] = [
+    {
+      titulo: "Crie um novo projeto",
+      texto: "Comece o site de uma loja ou uma página de venda.",
+      imagem: agenteLua,
+      fundo: "linear-gradient(180deg, #EEF2FF 0%, #C7D2FE 100%)",
+      acao: criarProjeto,
+    },
+    {
+      titulo: "Personalize o visual",
+      texto: "Escolha um modelo da Velo e deixe com a cara da sua marca.",
+      imagem: agenteCubo,
+      fundo: "linear-gradient(180deg, #FFF7ED 0%, #FED7AA 100%)",
+      acao: () => navigate("/dashboard/modelos"),
+    },
+    {
+      titulo: "Página com IA",
+      texto: "Os agentes montam uma página pronta para vender um produto.",
+      imagem: agenteFolha,
+      fundo: "linear-gradient(180deg, #F0FDF4 0%, #BBF7D0 100%)",
+      acao: () => navigate("/dashboard/paginas-com-ia/criar"),
+    },
+  ];
+
+  const ferramentas: { titulo: string; texto: string; Icone: ElementType; cor: string; fundo: string; botao: string; acao: () => void }[] = [
+    {
+      titulo: "Modelos da Velo",
+      texto: "Templates profissionais para o site da sua loja.",
+      Icone: LayoutTemplate,
+      cor: "#2563EB",
+      fundo: "#EFF6FF",
+      botao: "Ver modelos",
+      acao: () => navigate("/dashboard/modelos"),
+    },
+    {
+      titulo: "Página de vendas com IA",
+      texto: "Crie uma página profissional para apresentar e vender seu produto.",
+      Icone: Wand2,
+      cor: "#0F766E",
+      fundo: "#E6F6F3",
+      botao: "Criar página",
+      acao: () => navigate("/dashboard/paginas-com-ia/criar"),
+    },
+    {
+      titulo: "Programa de afiliados",
+      texto: "Indique a Velo e ganhe 30% na primeira venda de cada novo cliente.",
+      Icone: BadgePercent,
+      cor: "#6D28D9",
+      fundo: "#F3EEFF",
+      botao: "Quero ser afiliado",
+      acao: () => navigate("/dashboard/comissoes"),
+    },
+  ];
+
+  const eventos = eventosDoSite(projetos, aba === "atividade" ? 20 : 5);
 
   return (
-    <main
-      className="velo-fonte-inter velo-home-root shrink-0 overflow-auto bg-white text-[#0B0D12] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]"
-    >
-      <style>{HOME_CSS}</style>
+    <main className="velo-proj-root velo-fonte-inter shrink-0 overflow-auto bg-white text-[#18181B] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
+      <style>{PAGINA_CSS}</style>
 
-      {/* Header: busca à esquerda, "+" azul e avatar à direita (como na referência). */}
-      <motion.header {...revealProps(0, -6)} className="mx-auto flex h-[72px] w-full max-w-[1120px] items-center justify-between gap-4 px-4 md:px-10">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <button
-            type="button"
-            onClick={abrirBusca}
-            aria-label="Buscar produtos, lojas e telas"
-            className="velo-home-search flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-[#F5F6F8] px-4 text-left text-[14px] text-[#8A93A3]"
-          >
-            <Search size={16} strokeWidth={1.5} aria-hidden="true" />
-            <span className="flex-1 truncate">Buscar produtos, lojas...</span>
+      {/* Topo da referência: breadcrumb e abas de ponta a ponta, com filete embaixo. */}
+      <div className="border-b border-[#EDEDF0] px-8">
+        <nav aria-label="Caminho" className="flex h-14 items-center gap-2 text-[14px]">
+          <img src="/logo.png" alt="" className="h-5 w-5 object-contain" draggable={false} />
+          <button type="button" onClick={() => navigate("/dashboard")} className="font-medium text-[#52525B] hover:text-[#18181B]" style={{ background: "transparent", boxShadow: "none" }}>
+            Velo
           </button>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <button
-            type="button"
-            onClick={go("/dashboard/catalogo")}
-            aria-label="Adicionar produto"
-            title="Adicionar produto"
-            className="velo-home-plus flex h-10 w-10 items-center justify-center rounded-full text-white"
-          >
-            <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={go("/dashboard/configuracoes")}
-            aria-label="Configurações da conta"
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#F1F3F6] text-[#8A93A3]"
-          >
-            {foto && !avatarFalhou ? (
-              <img src={foto} alt="" onError={() => setAvatarFalhou(true)} className="h-full w-full object-cover" />
-            ) : (
-              <UserRound size={18} strokeWidth={1.5} aria-hidden="true" />
-            )}
-          </button>
-        </div>
-      </motion.header>
-
-      <div className="mx-auto w-full max-w-[1120px] px-4 pb-14 md:px-10">
-        {/* Topo no desenho da referência: breadcrumb, título com ações à direita,
-            subtítulo e abas logo abaixo. */}
-        <motion.div {...revealProps(0.05, 10)} className="pt-4">
-          <p className="m-0 text-[13px] text-[#8A93A3]">Início / Projetos</p>
-          <div className="mt-3 flex items-center justify-between gap-6">
-            <h1 className="m-0 min-w-0 truncate text-[32px] font-semibold leading-tight tracking-[-0.02em]">
-              Seus projetos
-            </h1>
-            <div className="relative flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setTutorialOpen(true)}
-                aria-label="Ver tutorial de início"
-                className="velo-home-ghost flex h-9 items-center rounded-full px-3.5 text-[14px] font-medium text-[#0B0D12]"
-              >
-                Ver tutorial
-              </button>
-              <button
-                type="button"
-                onClick={() => setMenuMaisAberto((aberto) => !aberto)}
-                aria-label="Mais opções"
-                aria-haspopup="menu"
-                aria-expanded={menuMaisAberto}
-                className="velo-home-ghost flex h-9 w-9 items-center justify-center rounded-full text-[#4B5563]"
-              >
-                <MoreHorizontal size={18} strokeWidth={1.5} aria-hidden="true" />
-              </button>
-              {menuMaisAberto && (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Fechar menu"
-                    tabIndex={-1}
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setMenuMaisAberto(false)}
-                  />
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-11 z-50 w-56 rounded-[14px] border border-[#ECEEF2] bg-white p-1.5"
-                    style={{ boxShadow: CARD_SHADOW }}
-                  >
-                    {[
-                      { label: "Configurações", icon: Settings2, to: "/dashboard/configuracoes" },
-                      { label: "Integrações", icon: Link2, to: "/dashboard/configuracoes?tab=Integrações" },
-                      { label: "Comunidade e Ajuda", icon: Info, to: "/dashboard/comunidade" },
-                    ].map((item) => {
-                      const Icone = item.icon;
-                      return (
-                        <button
-                          key={item.to}
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuMaisAberto(false);
-                            navigate(item.to);
-                          }}
-                          className="velo-home-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[13px] font-medium text-[#4B5563]"
-                        >
-                          <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          <p className="m-0 mt-1.5 text-[15px] text-[#8A93A3]">Os sites das suas lojas e o que os agentes estão fazendo neles.</p>
-        </motion.div>
-
-        {/* Abas */}
-        <motion.div {...revealProps(0.1, 8)} role="tablist" aria-label="Seções da Início" className="mt-7 flex gap-10">
+          <ChevronRight aria-hidden="true" className="h-4 w-4 text-[#A1A1AA]" />
+          <span className="font-medium text-[#18181B]">Projetos</span>
+        </nav>
+        <div role="tablist" aria-label="Seções de Projetos" className="flex gap-8">
           {ABAS.map((item) => {
             const ativa = aba === item.id;
             return (
@@ -512,182 +244,295 @@ const ProjetosPage = () => {
                 role="tab"
                 aria-selected={ativa}
                 onClick={() => setAba(item.id)}
-                className="relative h-10 text-[14px] font-medium transition-colors duration-150 hover:text-[#4B5563]"
-                style={ativa ? { color: "#2F5BEA" } : { color: "#8A93A3" }}
+                className="velo-proj-aba relative h-11 text-[14.5px]"
+                style={{ background: "transparent", boxShadow: "none", color: ativa ? "#18181B" : "#71717A", fontWeight: ativa ? 500 : 400 }}
               >
                 {item.label}
-                {ativa && (
+                {ativa ? (
                   <motion.span
                     layoutId="projetos-aba-ativa"
                     aria-hidden="true"
-                    className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#2F5BEA]"
-                    transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                    className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-[#18181B]"
+                    transition={reduzir ? { duration: 0 } : { duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
                   />
-                )}
+                ) : null}
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-[1040px] px-8 pb-16 pt-10">
+        {/* Título com a contagem real e o botão de novo projeto. */}
+        <motion.div {...entrada(0)} className="flex items-end justify-between gap-6">
+          <div className="min-w-0">
+            <h1 className="m-0 text-[30px] font-semibold leading-9 tracking-[-0.02em]">Projetos</h1>
+            <p className="m-0 mt-1.5 text-[15px] text-[#71717A]">
+              {projetosDaLoja.isLoading ? (
+                "Carregando seus projetos…"
+              ) : (
+                <>
+                  Você tem <strong className="font-semibold text-[#18181B]">{projetos.length}</strong>{" "}
+                  {projetos.length === 1 ? "projeto" : "projetos"}
+                  {projetos.length > 0 ? (
+                    <>
+                      {" "}· <strong className="font-semibold text-[#18181B]">{publicados}</strong>{" "}
+                      {publicados === 1 ? "publicado" : "publicados"}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={criarProjeto}
+            className="velo-proj-novo flex h-10 shrink-0 items-center gap-2 rounded-[10px] px-4 text-[14px] font-medium text-white"
+            style={{ background: "#2563EB", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(16,24,40,0.12)" }}
+          >
+            <Plus aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+            Novo projeto
+          </button>
         </motion.div>
 
-        <div className="relative">
-          <div>
-            {/* Banner "Loja, Agentes, Resultados": imagem inteira (sem corte) numa faixa de 280px; o fundo da faixa tem a cor do fundo dela. */}
-            {mostrarDestaque && (
-              <motion.section
-                {...revealProps(0.3, 12)}
-                                aria-label="Destaque da Velo"
-                className="mt-6 overflow-hidden rounded-[20px] bg-[#F7F3ED]"
-              >
-                <img
-                  src={bannerResultados}
-                  alt="Loja, Agentes, Resultados. Você cria a loja. Os agentes cuidam dela."
-                  width={1672}
-                  height={941}
-                  className="mx-auto block h-[280px] w-auto select-none object-contain"
-                  draggable={false}
-                />
-              </motion.section>
-            )}
-
-            {/* Atividade recente: o trabalho dos agentes no site da loja, no desenho
-                "Recent activity" da referência. */}
-            {mostrarAtividade && (
-              <motion.section {...revealProps(0.38, 12)} aria-labelledby="home-atividade" className="mt-8">
-                <div className="flex items-baseline justify-between gap-4">
-                  <h3 id="home-atividade" className="m-0 text-[15px] font-semibold tracking-[-0.02em]">Atividade recente</h3>
-                  <span className="text-[13px] text-[#8A93A3]">Site da sua loja</span>
-                </div>
-                {projetosDaLoja.isLoading ? (
-                  <ul className="m-0 mt-2 list-none p-0" aria-label="Carregando atividade">
-                    {[0, 1, 2].map((i) => (
-                      <li key={i} className="flex min-h-16 items-center gap-3.5 px-2 py-2.5">
-                        <span className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[#F1F3F6]" />
-                        <span className="flex-1 space-y-2">
-                          <span className="block h-3 w-40 animate-pulse rounded-full bg-[#F1F3F6]" />
-                          <span className="block h-3 w-64 animate-pulse rounded-full bg-[#F5F6F8]" />
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : projetosDaLoja.isError ? (
-                  <p className="m-0 mt-3 px-2 text-[13px] text-[#8A93A3]">Não foi possível carregar a atividade da loja agora.</p>
-                ) : eventos.length === 0 ? (
-                  <div className="mt-2 flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                    <img src={agenteSino} alt="" aria-hidden="true" width={44} height={44} className="h-11 w-11 shrink-0 select-none object-contain" draggable={false} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[14px] font-medium text-[#0B0D12]">Nenhuma atividade no site ainda</span>
-                      <span className="block text-[13px] text-[#8A93A3]">Crie o site da sua loja e acompanhe aqui cada mudança.</span>
+        {aba === "visao-geral" ? (
+          <>
+            {/* Cartões de atalho, como "Set up your first Workflow" da referência. */}
+            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+              {atalhos.map((atalho, i) => (
+                <motion.button
+                  key={atalho.titulo}
+                  type="button"
+                  onClick={atalho.acao}
+                  {...entrada(0.05 + i * 0.05)}
+                  className="velo-proj-atalho flex min-h-[104px] overflow-hidden rounded-[16px] border border-[#E4E4E7] bg-white text-left"
+                  style={{ boxShadow: "0 1px 2px rgba(16,24,40,0.04)" }}
+                >
+                  <span className="grid w-[100px] shrink-0 place-items-center border-r border-[#EDEDF0] bg-[#FAFAFB]">
+                    <span className="relative grid h-[68px] w-[68px] place-items-center overflow-hidden rounded-full" style={{ background: atalho.fundo, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.7), 0 4px 10px -4px rgba(16,24,40,0.15)" }}>
+                      <img src={atalho.imagem} alt="" draggable={false} className="velo-proj-atalho-img h-11 w-11 select-none object-contain" />
                     </span>
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col justify-center px-4 py-3">
+                    <span className="text-[15px] font-semibold leading-5 tracking-[-0.01em] text-[#18181B]">{atalho.titulo}</span>
+                    <span className="mt-1 text-[13px] leading-[19px] text-[#71717A]">{atalho.texto}</span>
+                  </span>
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Lista dos projetos numa tabela, como "Lists" da referência. */}
+            <motion.section {...entrada(0.2)} aria-labelledby="projetos-lista" className="mt-10">
+              <h2 id="projetos-lista" className="m-0 flex items-baseline gap-2.5 text-[20px] font-semibold tracking-[-0.015em]">
+                Seus projetos
+                {projetos.length > 0 ? (
+                  <span className="flex items-baseline gap-2.5 text-[15px] font-medium text-[#52525B]">
+                    <span aria-hidden="true" className="text-[#A1A1AA]">•</span>
+                    {projetos.length === 1 ? "1 site" : `${projetos.length} sites`}
+                  </span>
+                ) : null}
+              </h2>
+
+              <div className="mt-4 overflow-hidden rounded-[16px] border border-[#E4E4E7] bg-white">
+                <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_120px_130px_96px] items-center gap-4 border-b border-[#EDEDF0] bg-[#FAFAFB] px-5 py-3 text-[13px] font-medium text-[#3F3F46]">
+                  <span>Projeto</span>
+                  <span>Último trabalho</span>
+                  <span>Status</span>
+                  <button
+                    type="button"
+                    onClick={() => setMaisRecentesPrimeiro((v) => !v)}
+                    aria-label={maisRecentesPrimeiro ? "Ordenar dos mais antigos para os mais recentes" : "Ordenar dos mais recentes para os mais antigos"}
+                    className="velo-proj-ordenar flex items-center gap-1 text-left text-[13px] font-medium text-[#3F3F46]"
+                    style={{ background: "transparent", boxShadow: "none", padding: 0 }}
+                  >
+                    Atualizado
+                    <ChevronsUpDown aria-hidden="true" className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="sr-only">Ações</span>
+                </div>
+
+                {projetosDaLoja.isLoading ? (
+                  [0, 1, 2].map((i) => (
+                    <div key={i} className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_120px_130px_96px] items-center gap-4 border-b border-[#F0F0F2] px-5 py-4 last:border-b-0">
+                      <span className="flex items-center gap-3">
+                        <span className="h-9 w-9 animate-pulse rounded-[10px] bg-[#F1F3F6]" />
+                        <span className="h-3 w-40 animate-pulse rounded-full bg-[#F1F3F6]" />
+                      </span>
+                      <span className="h-3 w-32 animate-pulse rounded-full bg-[#F5F6F8]" />
+                      <span className="h-5 w-20 animate-pulse rounded-full bg-[#F5F6F8]" />
+                      <span className="h-3 w-24 animate-pulse rounded-full bg-[#F5F6F8]" />
+                      <span />
+                    </div>
+                  ))
+                ) : projetosDaLoja.isError ? (
+                  <p className="m-0 px-5 py-6 text-[14px] text-[#71717A]">Não foi possível carregar seus projetos agora.</p>
+                ) : projetos.length === 0 ? (
+                  <div className="flex flex-col items-center px-6 py-10 text-center">
+                    <MascoteVelo pose="acenando" altura={84} />
+                    <p className="m-0 mt-3 text-[15px] font-semibold text-[#18181B]">Nenhum projeto ainda</p>
+                    <p className="m-0 mt-1 max-w-sm text-[13.5px] text-[#71717A]">Crie o site da sua loja e os agentes cuidam do resto.</p>
                     <button
                       type="button"
-                      onClick={go("/dashboard/minha-loja")}
-                      className="velo-home-secondary flex h-9 shrink-0 items-center gap-2 rounded-[10px] px-3 text-[13px] font-medium text-[#0B0D12]"
+                      onClick={criarProjeto}
+                      className="velo-proj-novo mt-4 flex h-9 items-center gap-2 rounded-[10px] px-4 text-[13.5px] font-medium text-white"
+                      style={{ background: "#2563EB", boxShadow: "none" }}
                     >
-                      Criar minha loja
-                      <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
+                      <Plus aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+                      Criar primeiro projeto
                     </button>
                   </div>
                 ) : (
-                  <ul className="m-0 mt-2 list-none p-0">
-                    {eventos.map((evento) => {
-                      const slug = evento.projeto.status === "publicado" ? slugDoProjeto(evento.projeto) : null;
-                      return (
-                        <li key={evento.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                          {/* PNG do agente solto, sem moldura: fundo transparente como na referência. */}
-                          <img src={evento.agente} alt="" aria-hidden="true" width={44} height={44} className="h-11 w-11 shrink-0 select-none object-contain" draggable={false} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{evento.projeto.nome}</span>
-                            <span className="block truncate text-[13px] text-[#8A93A3]">
-                              {evento.acao} · {evento.projeto.tipo_projeto === "loja_completa" ? "Loja completa" : "Página de venda"}
+                  projetos.map((projeto, i) => {
+                    const trabalho = ultimoTrabalho(projeto);
+                    const slug = projeto.status === "publicado" ? slugDoProjeto(projeto) : null;
+                    const logo = logoDoProjeto(projeto);
+                    const publicado = projeto.status === "publicado";
+                    return (
+                      <motion.div
+                        key={projeto.id}
+                        {...entrada(0.24 + Math.min(i, 8) * 0.03, 4)}
+                        className="velo-proj-linha grid cursor-pointer grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_120px_130px_96px] items-center gap-4 border-b border-[#F0F0F2] px-5 py-3.5 last:border-b-0"
+                        onClick={() => abrirEditor(projeto)}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span
+                            className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[10px] text-[14px] font-semibold text-white"
+                            style={{ background: logo ? "#FFFFFF" : corDoProjeto(projeto.id), boxShadow: logo ? "inset 0 0 0 1px #E4E4E7" : "none" }}
+                          >
+                            {logo ? <img src={logo} alt="" className="h-full w-full object-contain p-1" /> : (projeto.nome || "P").trim().charAt(0).toUpperCase()}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-[14.5px] font-semibold text-[#18181B]">{projeto.nome}</span>
+                            <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-[#71717A]">
+                              <span className="shrink-0">{TIPO[projeto.tipo_projeto] ?? "Projeto"}</span>
+                              {slug ? (
+                                <>
+                                  <span aria-hidden="true" className="text-[#D4D4D8]">•</span>
+                                  <span className="truncate">/loja/{slug}</span>
+                                </>
+                              ) : null}
                             </span>
-                            <span className="block text-[12px] text-[#B4BBC6]">{tempoRelativo(evento.quando)}</span>
                           </span>
-                          <span className="flex shrink-0 items-center gap-2">
-                            {slug && (
-                              <button
-                                type="button"
-                                onClick={go(`/loja/${slug}`)}
-                                aria-label="Ver site publicado"
-                                title="Ver site publicado"
-                                className="velo-home-secondary flex h-9 w-9 items-center justify-center rounded-[10px] text-[#4B5563]"
-                              >
-                                <ExternalLink size={16} strokeWidth={1.5} aria-hidden="true" />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => abrirEditor(evento.projeto)}
-                              aria-label="Abrir no editor"
-                              title="Abrir no editor"
-                              className="velo-home-secondary flex h-9 w-9 items-center justify-center rounded-[10px] text-[#4B5563]"
-                            >
-                              <PenLine size={16} strokeWidth={1.5} aria-hidden="true" />
-                            </button>
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </motion.section>
-            )}
+                        </span>
 
-            {/* Listas no estilo "Recent activity" */}
-            {listas.map((lista, indiceLista) => (
-              <motion.section
-                key={`${aba}-${lista.titulo}`}
-                {...revealProps(0.46 + indiceLista * 0.08, 12)}
-                aria-label={lista.titulo}
-                className="mt-8"
-              >
-                <h3 className="m-0 text-[15px] font-semibold tracking-[-0.02em]">{lista.titulo}</h3>
-                <ul className="m-0 mt-2 list-none p-0">
-                  {lista.linhas.map((linha) => (
-                    <li key={linha.id} className="velo-home-row flex min-h-16 items-center gap-3.5 rounded-[14px] px-2 py-2.5">
-                      <span aria-hidden="true" className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[#ECEEF2]">
-                        {linha.thumb}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-medium text-[#0B0D12]">{linha.title}</span>
-                        <span className="block truncate text-[13px] text-[#8A93A3]">{linha.description}</span>
-                        <span className="block truncate text-[12px] text-[#B4BBC6]">{linha.meta}</span>
-                      </span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        {linha.actions.map((acao) => {
-                          const Icone = acao.icon;
-                          return (
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <img src={trabalho.agente} alt="" aria-hidden="true" draggable={false} className="h-8 w-8 shrink-0 select-none object-contain" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-[14px] text-[#27272A]">{trabalho.acao}</span>
+                            <span className="block text-[12px] text-[#A1A1AA]">{tempoRelativo(trabalho.quando)}</span>
+                          </span>
+                        </span>
+
+                        <span>
+                          <span
+                            className="inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium"
+                            style={publicado ? { background: "#ECFDF5", color: "#047857" } : { background: "#F4F4F5", color: "#52525B" }}
+                          >
+                            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: publicado ? "#10B981" : "#A1A1AA" }} />
+                            {publicado ? "Publicado" : "Rascunho"}
+                          </span>
+                        </span>
+
+                        <span className="whitespace-nowrap text-[14px] text-[#3F3F46]" title={new Date(quandoMexeu(projeto)).toLocaleString("pt-BR")}>{dataCurta(quandoMexeu(projeto))}</span>
+
+                        <span className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {slug ? (
                             <button
-                              key={acao.label}
                               type="button"
-                              onClick={acao.onClick}
-                              disabled={acao.busy}
-                              aria-label={acao.label}
-                              title={acao.label}
-                              className="velo-home-secondary group flex h-9 items-center gap-2 rounded-[10px] px-2.5 text-[13px] font-medium text-[#4B5563] disabled:cursor-wait disabled:opacity-70"
+                              onClick={() => navigate(`/loja/${slug}`)}
+                              aria-label={`Ver o site publicado de ${projeto.nome}`}
+                              title="Ver site publicado"
+                              className="velo-proj-icone grid h-9 w-9 place-items-center rounded-[10px] border border-[#E4E4E7] text-[#52525B]"
+                              style={{ background: "#FFFFFF", boxShadow: "none" }}
                             >
-                              <span className="velo-home-row-label hidden sm:inline">{acao.label}</span>
-                              <Icone size={16} strokeWidth={1.5} aria-hidden="true" />
+                              <ExternalLink aria-hidden="true" className="h-4 w-4" strokeWidth={1.7} />
                             </button>
-                          );
-                        })}
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => abrirEditor(projeto)}
+                            aria-label={`Editar e personalizar ${projeto.nome}`}
+                            title="Editar e personalizar"
+                            className="velo-proj-icone grid h-9 w-9 place-items-center rounded-[10px] border border-[#E4E4E7] text-[#52525B]"
+                            style={{ background: "#FFFFFF", boxShadow: "none" }}
+                          >
+                            <PenLine aria-hidden="true" className="h-4 w-4" strokeWidth={1.7} />
+                          </button>
+                        </span>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
+            </motion.section>
+          </>
+        ) : null}
+
+        {/* Atividade: o trabalho dos agentes no site, do mais recente para o mais antigo. */}
+        {aba === "atividade" ? (
+          <motion.section {...entrada(0.05)} aria-label="Atividade dos agentes" className="mt-8">
+            {projetosDaLoja.isLoading ? (
+              <p className="m-0 text-[14px] text-[#71717A]">Carregando a atividade…</p>
+            ) : eventos.length === 0 ? (
+              <div className="flex items-center gap-3.5 rounded-[14px] border border-[#E4E4E7] px-4 py-4">
+                <img src={agenteSino} alt="" aria-hidden="true" className="h-11 w-11 shrink-0 object-contain" draggable={false} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-medium">Nenhuma atividade no site ainda</span>
+                  <span className="block text-[13px] text-[#71717A]">Crie o site da sua loja e acompanhe aqui cada mudança.</span>
+                </span>
+              </div>
+            ) : (
+              <ol className="m-0 list-none overflow-hidden rounded-[16px] border border-[#E4E4E7] p-0">
+                {eventos.map((evento, i) => (
+                  <motion.li
+                    key={evento.id}
+                    {...entrada(0.06 + Math.min(i, 10) * 0.025, 4)}
+                    className="velo-proj-linha flex cursor-pointer items-center gap-3.5 border-b border-[#F0F0F2] px-5 py-3 last:border-b-0"
+                    onClick={() => abrirEditor(evento.projeto)}
+                  >
+                    <img src={evento.agente} alt="" aria-hidden="true" className="h-10 w-10 shrink-0 select-none object-contain" draggable={false} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-medium">{evento.projeto.nome}</span>
+                      <span className="block truncate text-[13px] text-[#71717A]">
+                        {evento.acao} · {TIPO[evento.projeto.tipo_projeto] ?? "Projeto"}
                       </span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.section>
+                    </span>
+                    <span className="shrink-0 text-[12.5px] text-[#A1A1AA]">{tempoRelativo(evento.quando)}</span>
+                  </motion.li>
+                ))}
+              </ol>
+            )}
+          </motion.section>
+        ) : null}
+
+        {/* Ferramentas para o site da loja. */}
+        {aba === "ferramentas" ? (
+          <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            {ferramentas.map((f, i) => (
+              <motion.div
+                key={f.titulo}
+                {...entrada(0.05 + i * 0.05)}
+                className="flex flex-col rounded-[16px] border border-[#E4E4E7] bg-white p-5"
+              >
+                <span className="grid h-10 w-10 place-items-center rounded-[12px]" style={{ background: f.fundo, color: f.cor }}>
+                  <f.Icone aria-hidden="true" className="h-5 w-5" strokeWidth={1.7} />
+                </span>
+                <span className="mt-4 text-[15px] font-semibold">{f.titulo}</span>
+                <span className="mt-1 flex-1 text-[13.5px] leading-5 text-[#71717A]">{f.texto}</span>
+                <button
+                  type="button"
+                  onClick={f.acao}
+                  className="velo-proj-icone mt-4 flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-[#E4E4E7] text-[13.5px] font-medium text-[#27272A]"
+                  style={{ background: "#FFFFFF", boxShadow: "none" }}
+                >
+                  {f.botao}
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
+                </button>
+              </motion.div>
             ))}
           </div>
-
-        </div>
+        ) : null}
       </div>
-      <VideoTutorialModal
-        open={tutorialOpen}
-        onClose={() => setTutorialOpen(false)}
-        title={TUTORIAL_INICIO.title}
-        description={TUTORIAL_INICIO.description}
-        src={TUTORIAL_INICIO.src}
-        aspectPadding={TUTORIAL_INICIO.aspectPadding}
-      />
     </main>
   );
 };
