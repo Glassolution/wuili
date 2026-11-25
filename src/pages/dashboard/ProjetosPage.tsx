@@ -29,6 +29,7 @@ const PAGINA_CSS = `
 .velo-proj-root h1, .velo-proj-root h2 { font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important; }
 .velo-proj-linha { transition: background-color 120ms ease-out; }
 .velo-proj-linha:hover { background: #FAFAFB !important; }
+.velo-proj-root li:last-child > .velo-proj-linha { border-bottom-left-radius: 13px; border-bottom-right-radius: 13px; }
 .velo-proj-link { transition: color 120ms ease-out; }
 .velo-proj-link:hover { color: #18181B !important; }
 .velo-proj-contorno { transition: background-color 120ms ease-out, border-color 120ms ease-out; }
@@ -133,17 +134,19 @@ const Painel = ({
   contagem,
   acao,
   entrada,
+  className = "",
   children,
 }: {
+  className?: string;
   titulo: string;
   contagem?: number;
   acao?: { rotulo: string; onClick: () => void };
   entrada: Entrada;
   children: ReactNode;
 }) => (
-  <motion.section {...entrada} aria-label={titulo} className="rounded-[14px] border border-[#E7E7EA] bg-white" style={SOMBRA}>
-    <header className="flex items-center justify-between gap-3 px-4 pb-1.5 pt-3.5">
-      <h2 className="m-0 flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.005em] text-[#18181B]">
+  <motion.section {...entrada} aria-label={titulo} className={`flex flex-col rounded-[14px] border border-[#E7E7EA] bg-white ${className}`} style={SOMBRA}>
+    <header className="flex items-center justify-between gap-3 px-4 pb-2 pt-4">
+      <h2 className="m-0 flex items-center gap-2 text-[14px] font-semibold tracking-[-0.005em] text-[#18181B]">
         {titulo}
         {contagem !== undefined ? (
           <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#F0F0F2] px-1.5 text-[11px] font-medium text-[#52525B]">{contagem}</span>
@@ -166,22 +169,22 @@ const Painel = ({
 
 // Cartão de número ("Time saved this week").
 const Numero = ({ Icone, rotulo, valor, legenda, entrada }: { Icone: ElementType; rotulo: string; valor: string; legenda: string; entrada: Entrada }) => (
-  <motion.div {...entrada} className="rounded-[14px] border border-[#E7E7EA] bg-white p-4" style={SOMBRA}>
-    <div className="flex items-center gap-2.5">
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] border border-[#E4E4E7] text-[#52525B]">
-        <Icone aria-hidden="true" className="h-[13px] w-[13px]" strokeWidth={1.9} />
+  <motion.div {...entrada} className="rounded-[14px] border border-[#E7E7EA] bg-white px-5 pb-5 pt-4" style={SOMBRA}>
+    <div className="flex items-center gap-3">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] bg-[#F1F1F3] text-[#3F3F46]">
+        <Icone aria-hidden="true" className="h-4 w-4" strokeWidth={1.9} />
       </span>
-      <span className="truncate text-[12px] text-[#52525B]">{rotulo}</span>
+      <span className="truncate text-[12.5px] text-[#52525B]">{rotulo}</span>
     </div>
-    <p className="m-0 mt-4 text-[24px] font-semibold leading-7 tracking-[-0.02em] text-[#18181B]">{valor}</p>
-    <p className="m-0 mt-3 truncate text-[11px] text-[#8A8A93]">{legenda}</p>
+    <p className="m-0 mt-4 text-[26px] font-semibold leading-8 tracking-[-0.02em] text-[#18181B]">{valor}</p>
+    <p className="m-0 mt-2.5 truncate text-[11.5px] text-[#8A8A93]">{legenda}</p>
   </motion.div>
 );
 
 const Carregando = ({ quantas = 3 }: { quantas?: number }) => (
-  <div aria-hidden="true" className="px-4 pb-2">
+  <div aria-hidden="true" className="pb-1">
     {Array.from({ length: quantas }, (_, i) => (
-      <div key={i} className="flex items-center gap-3 border-t border-[#F0F0F2] py-3 first:border-t-0">
+      <div key={i} className="flex items-center gap-3 border-t border-[#F0F0F2] px-4 py-3 first:border-t-0">
         <span className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-[#F1F3F6]" />
         <span className="flex-1 space-y-1.5">
           <span className="block h-2.5 w-36 animate-pulse rounded-full bg-[#F1F3F6]" />
@@ -264,22 +267,22 @@ const ProjetosPage = () => {
         }`;
 
   return (
-    <main className="velo-proj-root velo-fonte-inter shrink-0 overflow-auto bg-[#F6F6F7] text-[#18181B] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
+    <main className="velo-proj-root velo-fonte-inter flex shrink-0 flex-col overflow-auto bg-[#F6F6F7] text-[#18181B] -m-5 min-h-[calc(100%+2.5rem)] sm:-m-6 sm:min-h-[calc(100%+3rem)] lg:-m-7 lg:min-h-[calc(100%+3.5rem)]">
       <style>{PAGINA_CSS}</style>
 
-      <div className="mx-auto w-full max-w-[1080px] px-6 pb-10 pt-6">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col px-6 pb-6 pt-6">
         {/* Data, saudação e resumo. */}
         <motion.div {...entrada(0)}>
-          <p className="m-0 text-[11.5px] text-[#8A8A93]">{hojePorExtenso()}</p>
-          <h1 className="m-0 mt-1 text-[22px] font-semibold leading-7 tracking-[-0.02em]">
+          <p className="m-0 text-[12px] text-[#71717A]">{hojePorExtenso()}</p>
+          <h1 className="m-0 mt-1.5 text-[26px] font-semibold leading-8 tracking-[-0.025em]">
             {saudacao()}
             {primeiroNome ? `, ${primeiroNome}` : ""}
           </h1>
-          <p className="m-0 mt-1 text-[12.5px] text-[#71717A]">{resumo}</p>
+          <p className="m-0 mt-1.5 text-[13px] text-[#71717A]">{resumo}</p>
         </motion.div>
 
         {/* Quatro números. */}
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Numero
             entrada={entrada(0.04)}
             Icone={FolderOpen}
@@ -310,8 +313,8 @@ const ProjetosPage = () => {
           />
         </div>
 
-        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <div className="flex min-w-0 flex-col gap-3">
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-4">
             {/* "Needs your approval": rascunhos esperando publicação. */}
             <Painel
               titulo="Precisa de você"
@@ -326,15 +329,15 @@ const ProjetosPage = () => {
                   {projetos.length === 0 ? "Nada por aqui ainda. Crie um projeto para começar." : "Nada esperando você: todos os sites estão no ar."}
                 </p>
               ) : (
-                <ul className="m-0 list-none px-4 pb-1.5">
+                <ul className="m-0 list-none p-0 pb-1">
                   {(verTodosPendentes ? rascunhos : rascunhos.slice(0, 3)).map((projeto) => {
                     const { agente, falta } = etapaDoSite(projeto);
                     const ehLoja = projeto.tipo_projeto === "loja_completa";
                     return (
-                      <li key={projeto.id} className="flex items-center gap-3 border-t border-[#F0F0F2] py-2.5 first:border-t-0">
+                      <li key={projeto.id} className="flex items-center gap-3 border-t border-[#F0F0F2] px-4 py-3 first:border-t-0">
                         <IconeCheio Icone={FileText} cor={ehLoja ? "#2563EB" : "#EC4899"} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-medium text-[#18181B]">
+                          <span className="block truncate text-[13.5px] font-medium text-[#18181B]">
                             Publicar {ehLoja ? "a loja" : "a página"} {projeto.nome}
                           </span>
                           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-[#8A8A93]">
@@ -373,6 +376,7 @@ const ProjetosPage = () => {
               contagem={carregando ? undefined : projetos.length}
               acao={{ rotulo: "Ver projetos", onClick: () => navigate("/dashboard/minha-loja") }}
               entrada={entrada(0.2)}
+              className="flex-1"
             >
               {carregando ? (
                 <Carregando />
@@ -391,7 +395,7 @@ const ProjetosPage = () => {
                   </button>
                 </div>
               ) : (
-                <ul className="m-0 list-none px-4 pb-1.5">
+                <ul className="m-0 list-none p-0 pb-1">
                   {projetos.map((projeto) => {
                     const { etapa, agente, falta } = etapaDoSite(projeto);
                     const slug = etapa === 3 ? slugDoProjeto(projeto) : null;
@@ -400,12 +404,12 @@ const ProjetosPage = () => {
                         <button
                           type="button"
                           onClick={() => abrirEditor(projeto)}
-                          className="velo-proj-linha -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-[8px] px-2 py-2.5 text-left"
+                          className="velo-proj-linha flex w-full items-center gap-3 px-4 py-3 text-left"
                           style={{ background: "transparent", boxShadow: "none" }}
                         >
                           <img src={agente} alt="" aria-hidden="true" draggable={false} className="h-[22px] w-[22px] shrink-0 select-none object-contain" />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] font-medium text-[#18181B]">{projeto.nome}</span>
+                            <span className="block truncate text-[13.5px] font-medium text-[#18181B]">{projeto.nome}</span>
                             <span className="mt-0.5 block truncate text-[11px] text-[#8A8A93]">
                               {TIPO[projeto.tipo_projeto] ?? "Projeto"} · Etapa {etapa} de 3{slug ? ` · /loja/${slug}` : ""}
                             </span>
@@ -437,7 +441,7 @@ const ProjetosPage = () => {
             </Painel>
           </div>
 
-          <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-4">
             {/* "Recent files": o trabalho mais recente nos sites. */}
             <Painel
               titulo="Atividade recente"
@@ -449,7 +453,7 @@ const ProjetosPage = () => {
               ) : eventos.length === 0 ? (
                 <p className="m-0 px-4 pb-4 pt-1 text-[12.5px] text-[#71717A]">Nenhuma atividade no site ainda.</p>
               ) : (
-                <ul className="m-0 list-none px-4 pb-1.5">
+                <ul className="m-0 list-none p-0 pb-1">
                   {eventos.slice(0, verTodaAtividade ? 20 : 4).map((evento) => {
                     const icone = ICONE_DO_EVENTO[evento.tipo];
                     return (
@@ -457,12 +461,12 @@ const ProjetosPage = () => {
                         <button
                           type="button"
                           onClick={() => abrirEditor(evento.projeto)}
-                          className="velo-proj-linha -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-[8px] px-2 py-2.5 text-left"
+                          className="velo-proj-linha flex w-full items-center gap-3 px-4 py-3 text-left"
                           style={{ background: "transparent", boxShadow: "none" }}
                         >
                           <IconeCheio Icone={icone.Icone} cor={icone.cor} />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] font-medium text-[#18181B]">{evento.projeto.nome}</span>
+                            <span className="block truncate text-[13.5px] font-medium text-[#18181B]">{evento.projeto.nome}</span>
                             <span className="mt-0.5 block truncate text-[11px] text-[#8A8A93]">
                               {evento.acao} · {tempoRelativo(evento.quando)}
                             </span>
@@ -477,7 +481,7 @@ const ProjetosPage = () => {
             </Painel>
 
             {/* "Your agents": atalhos com os agentes. */}
-            <Painel titulo="Atalhos" contagem={atalhos.length} entrada={entrada(0.22)}>
+            <Painel titulo="Atalhos" contagem={atalhos.length} entrada={entrada(0.22)} className="flex-1">
               <div className="grid grid-cols-3 gap-2 px-3 pb-3 pt-1.5">
                 {atalhos.map((atalho) => (
                   <button
