@@ -1,7 +1,7 @@
-import { useMemo, useState, type ElementType } from "react";
+import { useMemo, useState, type CSSProperties, type ElementType, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, BadgePercent, ChevronRight, ChevronsUpDown, ExternalLink, LayoutTemplate, PenLine, Plus, Wand2 } from "lucide-react";
+import { ArrowRight, BadgePercent, ChevronRight, ExternalLink, LayoutTemplate, PenLine, Plus, Wand2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
@@ -33,15 +33,17 @@ const PAGINA_CSS = `
 .velo-proj-atalho:hover { border-color: #C7D2FE !important; box-shadow: 0 10px 24px -14px rgba(37,99,235,0.35) !important; transform: translateY(-1px); }
 .velo-proj-atalho:hover .velo-proj-atalho-img { transform: translateY(-2px) scale(1.04); }
 .velo-proj-atalho-img { transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1); }
-.velo-proj-linha { transition: background-color 120ms ease-out; }
-.velo-proj-linha:hover { background: #FAFAFB; }
+.velo-proj-linha { transition: background-color 150ms ease-out; }
+.velo-proj-linha:hover { background: #F7F7F8; }
+.velo-proj-linha:hover .velo-proj-agente { transform: translateY(-1px) rotate(-3deg); }
+.velo-proj-agente { transition: transform 250ms cubic-bezier(0.22, 1, 0.36, 1); }
+.velo-proj-redondo { transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
+.velo-proj-redondo:hover { background: #FFFFFF !important; border-color: #D4D4D8 !important; color: #18181B !important; }
 .velo-proj-icone { transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out; }
 .velo-proj-icone:hover { background: #F4F4F5 !important; border-color: #D4D4D8 !important; color: #18181B !important; }
 .velo-proj-novo { transition: background-color 150ms ease-out, transform 120ms ease-out; }
 .velo-proj-novo:hover { background: #1D4ED8 !important; }
 .velo-proj-novo:active { transform: scale(0.98); }
-.velo-proj-ordenar { transition: color 120ms ease-out; }
-.velo-proj-ordenar:hover { color: #18181B !important; }
 .velo-proj-root button:focus-visible { outline: none; box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px rgba(37,99,235,0.45) !important; }
 `;
 
@@ -74,18 +76,6 @@ const slugDoProjeto = (projeto: UserProject) => {
   const slug = metaDoProjeto(projeto)?.slug;
   return typeof slug === "string" && slug.trim() ? slug.trim() : null;
 };
-const logoDoProjeto = (projeto: UserProject) => {
-  const logo = metaDoProjeto(projeto)?.logoImage;
-  return typeof logo === "string" && logo.trim() ? logo : null;
-};
-
-const CORES_INICIAL = ["#2563EB", "#7C3AED", "#0E9F6E", "#F08A24", "#F0507A", "#0F5132"];
-const corDoProjeto = (id: string) => {
-  let soma = 0;
-  for (const letra of id) soma = (soma + letra.charCodeAt(0)) % 9973;
-  return CORES_INICIAL[soma % CORES_INICIAL.length];
-};
-
 const TIPO = { loja_completa: "Loja completa", pagina_venda: "Página de venda" } as const;
 
 type Trabalho = { acao: string; quando: string; agente: string };
@@ -119,6 +109,84 @@ const eventosDoSite = (projetos: UserProject[], limite: number): Evento[] => {
 
 const quandoMexeu = (projeto: UserProject) => projeto.last_edited_at ?? projeto.published_at ?? projeto.created_at;
 
+const ESTILO_CARTAO: CSSProperties = { boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 12px 32px -20px rgba(16,24,40,0.18)" };
+
+type Entrada = Record<string, unknown>;
+
+// Botão redondo e claro do lado direito da linha (como os da referência "Recent activity").
+const BotaoRedondo = ({ rotulo, dica, onClick, children }: { rotulo: string; dica: string; onClick: () => void; children: ReactNode }) => (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick();
+    }}
+    aria-label={rotulo}
+    title={dica}
+    className="velo-proj-redondo grid h-9 w-9 place-items-center rounded-full border border-[#EDEDF0] text-[#71717A]"
+    style={{ background: "#FAFAFB", boxShadow: "none" }}
+  >
+    {children}
+  </button>
+);
+
+// Uma linha: agente à esquerda, nome em negrito, o que foi feito em cinza e quando, mais claro.
+const LinhaDeAtividade = ({
+  entrada,
+  agente,
+  titulo,
+  publicado,
+  texto,
+  quando,
+  onAbrir,
+  acoes,
+}: {
+  entrada: Entrada;
+  agente: string;
+  titulo: string;
+  publicado?: boolean;
+  texto: string;
+  quando: string;
+  onAbrir: () => void;
+  acoes: ReactNode;
+}) => (
+  <motion.li {...entrada} className="velo-proj-linha flex cursor-pointer items-center gap-3.5 rounded-[14px] px-3 py-2.5" onClick={onAbrir}>
+    <span className="grid h-12 w-12 shrink-0 place-items-center">
+      <img src={agente} alt="" aria-hidden="true" draggable={false} className="velo-proj-agente h-11 w-11 select-none object-contain" />
+    </span>
+    <span className="min-w-0 flex-1">
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate text-[14.5px] font-semibold leading-5 text-[#18181B]">{titulo}</span>
+        {publicado !== undefined ? (
+          <span className="inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium" style={{ color: publicado ? "#059669" : "#A1A1AA" }}>
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: publicado ? "#10B981" : "#D4D4D8" }} />
+            {publicado ? "No ar" : "Rascunho"}
+          </span>
+        ) : null}
+      </span>
+      <span className="block truncate text-[13px] leading-[18px] text-[#71717A]">{texto}</span>
+      <span className="block text-[11.5px] leading-4 text-[#A1A1AA]" title={new Date(quando).toLocaleString("pt-BR")}>
+        {tempoRelativo(quando)}
+      </span>
+    </span>
+    <span className="flex shrink-0 items-center gap-1.5">{acoes}</span>
+  </motion.li>
+);
+
+const EsqueletoDaLista = () => (
+  <div aria-hidden="true">
+    {[0, 1, 2].map((i) => (
+      <div key={i} className="flex items-center gap-3.5 px-3 py-3">
+        <span className="h-11 w-11 shrink-0 animate-pulse rounded-full bg-[#F1F3F6]" />
+        <span className="flex-1 space-y-2">
+          <span className="block h-3 w-40 animate-pulse rounded-full bg-[#F1F3F6]" />
+          <span className="block h-2.5 w-56 animate-pulse rounded-full bg-[#F5F6F8]" />
+        </span>
+      </div>
+    ))}
+  </div>
+);
+
 const ABAS = [
   { id: "visao-geral", label: "Visão geral" },
   { id: "atividade", label: "Atividade" },
@@ -131,7 +199,6 @@ const ProjetosPage = () => {
   const { user } = useAuth();
   const reduzir = !!useReducedMotion();
   const [aba, setAba] = useState<Aba>("visao-geral");
-  const [maisRecentesPrimeiro, setMaisRecentesPrimeiro] = useState(true);
 
   // Mesma leitura da sidebar e da tela "Minha loja" (RPC get_user_projects), sem consulta nova.
   const projetosDaLoja = useQuery({
@@ -143,12 +210,9 @@ const ProjetosPage = () => {
 
   const projetos = useMemo(() => {
     const lista = [...(projetosDaLoja.data ?? [])];
-    lista.sort((a, b) => {
-      const diff = new Date(quandoMexeu(b)).getTime() - new Date(quandoMexeu(a)).getTime();
-      return maisRecentesPrimeiro ? diff : -diff;
-    });
+    lista.sort((a, b) => new Date(quandoMexeu(b)).getTime() - new Date(quandoMexeu(a)).getTime());
     return lista;
-  }, [projetosDaLoja.data, maisRecentesPrimeiro]);
+  }, [projetosDaLoja.data]);
   const publicados = projetos.filter((p) => p.status === "publicado").length;
 
   const criarProjeto = () => navigate("/dashboard/minha-loja", { state: { abrirCriacao: true } });
@@ -321,160 +385,84 @@ const ProjetosPage = () => {
               ))}
             </div>
 
-            {/* Lista dos projetos numa tabela, como "Lists" da referência. */}
-            <motion.section {...entrada(0.2)} aria-labelledby="projetos-lista" className="mt-10">
-              <h2 id="projetos-lista" className="m-0 flex items-baseline gap-2.5 text-[20px] font-semibold tracking-[-0.015em]">
-                Seus projetos
+            {/* Seus projetos, no cartão de "Recent activity" da referência: agente, nome, o que foi feito e quando. */}
+            <motion.section {...entrada(0.2)} aria-labelledby="projetos-lista" className="mt-10 rounded-[20px] border border-[#EDEDF0] bg-white p-2" style={ESTILO_CARTAO}>
+              <div className="flex items-baseline justify-between gap-4 px-4 pb-2 pt-3">
+                <h2 id="projetos-lista" className="m-0 text-[15px] font-semibold tracking-[-0.01em]">
+                  Seus projetos
+                </h2>
                 {projetos.length > 0 ? (
-                  <span className="flex items-baseline gap-2.5 text-[15px] font-medium text-[#52525B]">
-                    <span aria-hidden="true" className="text-[#A1A1AA]">•</span>
-                    {projetos.length === 1 ? "1 site" : `${projetos.length} sites`}
+                  <span className="text-[12.5px] text-[#A1A1AA]">
+                    {projetos.length === 1 ? "1 site" : `${projetos.length} sites`} · {publicados} no ar
                   </span>
                 ) : null}
-              </h2>
+              </div>
 
-              <div className="mt-4 overflow-hidden rounded-[16px] border border-[#E4E4E7] bg-white">
-                <div className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_120px_130px_96px] items-center gap-4 border-b border-[#EDEDF0] bg-[#FAFAFB] px-5 py-3 text-[13px] font-medium text-[#3F3F46]">
-                  <span>Projeto</span>
-                  <span>Último trabalho</span>
-                  <span>Status</span>
+              {projetosDaLoja.isLoading ? (
+                <EsqueletoDaLista />
+              ) : projetosDaLoja.isError ? (
+                <p className="m-0 px-4 pb-4 pt-1 text-[14px] text-[#71717A]">Não foi possível carregar seus projetos agora.</p>
+              ) : projetos.length === 0 ? (
+                <div className="flex flex-col items-center px-6 pb-8 pt-4 text-center">
+                  <MascoteVelo pose="acenando" altura={84} />
+                  <p className="m-0 mt-3 text-[15px] font-semibold text-[#18181B]">Nenhum projeto ainda</p>
+                  <p className="m-0 mt-1 max-w-sm text-[13.5px] text-[#71717A]">Crie o site da sua loja e os agentes cuidam do resto.</p>
                   <button
                     type="button"
-                    onClick={() => setMaisRecentesPrimeiro((v) => !v)}
-                    aria-label={maisRecentesPrimeiro ? "Ordenar dos mais antigos para os mais recentes" : "Ordenar dos mais recentes para os mais antigos"}
-                    className="velo-proj-ordenar flex items-center gap-1 text-left text-[13px] font-medium text-[#3F3F46]"
-                    style={{ background: "transparent", boxShadow: "none", padding: 0 }}
+                    onClick={criarProjeto}
+                    className="velo-proj-novo mt-4 flex h-9 items-center gap-2 rounded-[10px] px-4 text-[13.5px] font-medium text-white"
+                    style={{ background: "#2563EB", boxShadow: "none" }}
                   >
-                    Atualizado
-                    <ChevronsUpDown aria-hidden="true" className="h-3.5 w-3.5" />
+                    <Plus aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+                    Criar primeiro projeto
                   </button>
-                  <span className="sr-only">Ações</span>
                 </div>
-
-                {projetosDaLoja.isLoading ? (
-                  [0, 1, 2].map((i) => (
-                    <div key={i} className="grid grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_120px_130px_96px] items-center gap-4 border-b border-[#F0F0F2] px-5 py-4 last:border-b-0">
-                      <span className="flex items-center gap-3">
-                        <span className="h-9 w-9 animate-pulse rounded-[10px] bg-[#F1F3F6]" />
-                        <span className="h-3 w-40 animate-pulse rounded-full bg-[#F1F3F6]" />
-                      </span>
-                      <span className="h-3 w-32 animate-pulse rounded-full bg-[#F5F6F8]" />
-                      <span className="h-5 w-20 animate-pulse rounded-full bg-[#F5F6F8]" />
-                      <span className="h-3 w-24 animate-pulse rounded-full bg-[#F5F6F8]" />
-                      <span />
-                    </div>
-                  ))
-                ) : projetosDaLoja.isError ? (
-                  <p className="m-0 px-5 py-6 text-[14px] text-[#71717A]">Não foi possível carregar seus projetos agora.</p>
-                ) : projetos.length === 0 ? (
-                  <div className="flex flex-col items-center px-6 py-10 text-center">
-                    <MascoteVelo pose="acenando" altura={84} />
-                    <p className="m-0 mt-3 text-[15px] font-semibold text-[#18181B]">Nenhum projeto ainda</p>
-                    <p className="m-0 mt-1 max-w-sm text-[13.5px] text-[#71717A]">Crie o site da sua loja e os agentes cuidam do resto.</p>
-                    <button
-                      type="button"
-                      onClick={criarProjeto}
-                      className="velo-proj-novo mt-4 flex h-9 items-center gap-2 rounded-[10px] px-4 text-[13.5px] font-medium text-white"
-                      style={{ background: "#2563EB", boxShadow: "none" }}
-                    >
-                      <Plus aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
-                      Criar primeiro projeto
-                    </button>
-                  </div>
-                ) : (
-                  projetos.map((projeto, i) => {
+              ) : (
+                <ul className="m-0 list-none p-0">
+                  {projetos.map((projeto, i) => {
                     const trabalho = ultimoTrabalho(projeto);
                     const slug = projeto.status === "publicado" ? slugDoProjeto(projeto) : null;
-                    const logo = logoDoProjeto(projeto);
-                    const publicado = projeto.status === "publicado";
                     return (
-                      <motion.div
+                      <LinhaDeAtividade
                         key={projeto.id}
-                        {...entrada(0.24 + Math.min(i, 8) * 0.03, 4)}
-                        className="velo-proj-linha grid cursor-pointer grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_120px_130px_96px] items-center gap-4 border-b border-[#F0F0F2] px-5 py-3.5 last:border-b-0"
-                        onClick={() => abrirEditor(projeto)}
-                      >
-                        <span className="flex min-w-0 items-center gap-3">
-                          <span
-                            className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-[10px] text-[14px] font-semibold text-white"
-                            style={{ background: logo ? "#FFFFFF" : corDoProjeto(projeto.id), boxShadow: logo ? "inset 0 0 0 1px #E4E4E7" : "none" }}
-                          >
-                            {logo ? <img src={logo} alt="" className="h-full w-full object-contain p-1" /> : (projeto.nome || "P").trim().charAt(0).toUpperCase()}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate text-[14.5px] font-semibold text-[#18181B]">{projeto.nome}</span>
-                            <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-[#71717A]">
-                              <span className="shrink-0">{TIPO[projeto.tipo_projeto] ?? "Projeto"}</span>
-                              {slug ? (
-                                <>
-                                  <span aria-hidden="true" className="text-[#D4D4D8]">•</span>
-                                  <span className="truncate">/loja/{slug}</span>
-                                </>
-                              ) : null}
-                            </span>
-                          </span>
-                        </span>
-
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <img src={trabalho.agente} alt="" aria-hidden="true" draggable={false} className="h-8 w-8 shrink-0 select-none object-contain" />
-                          <span className="min-w-0">
-                            <span className="block truncate text-[14px] text-[#27272A]">{trabalho.acao}</span>
-                            <span className="block text-[12px] text-[#A1A1AA]">{tempoRelativo(trabalho.quando)}</span>
-                          </span>
-                        </span>
-
-                        <span>
-                          <span
-                            className="inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-medium"
-                            style={publicado ? { background: "#ECFDF5", color: "#047857" } : { background: "#F4F4F5", color: "#52525B" }}
-                          >
-                            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full" style={{ background: publicado ? "#10B981" : "#A1A1AA" }} />
-                            {publicado ? "Publicado" : "Rascunho"}
-                          </span>
-                        </span>
-
-                        <span className="whitespace-nowrap text-[14px] text-[#3F3F46]" title={new Date(quandoMexeu(projeto)).toLocaleString("pt-BR")}>{dataCurta(quandoMexeu(projeto))}</span>
-
-                        <span className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                          {slug ? (
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/loja/${slug}`)}
-                              aria-label={`Ver o site publicado de ${projeto.nome}`}
-                              title="Ver site publicado"
-                              className="velo-proj-icone grid h-9 w-9 place-items-center rounded-[10px] border border-[#E4E4E7] text-[#52525B]"
-                              style={{ background: "#FFFFFF", boxShadow: "none" }}
-                            >
-                              <ExternalLink aria-hidden="true" className="h-4 w-4" strokeWidth={1.7} />
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() => abrirEditor(projeto)}
-                            aria-label={`Editar e personalizar ${projeto.nome}`}
-                            title="Editar e personalizar"
-                            className="velo-proj-icone grid h-9 w-9 place-items-center rounded-[10px] border border-[#E4E4E7] text-[#52525B]"
-                            style={{ background: "#FFFFFF", boxShadow: "none" }}
-                          >
-                            <PenLine aria-hidden="true" className="h-4 w-4" strokeWidth={1.7} />
-                          </button>
-                        </span>
-                      </motion.div>
+                        entrada={entrada(0.24 + Math.min(i, 8) * 0.035, 4)}
+                        agente={trabalho.agente}
+                        titulo={projeto.nome}
+                        publicado={projeto.status === "publicado"}
+                        texto={`${trabalho.acao} · ${TIPO[projeto.tipo_projeto] ?? "Projeto"}`}
+                        quando={trabalho.quando}
+                        onAbrir={() => abrirEditor(projeto)}
+                        acoes={
+                          <>
+                            {slug ? (
+                              <BotaoRedondo rotulo={`Ver o site publicado de ${projeto.nome}`} dica="Ver site publicado" onClick={() => navigate(`/loja/${slug}`)}>
+                                <ExternalLink aria-hidden="true" className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                              </BotaoRedondo>
+                            ) : null}
+                            <BotaoRedondo rotulo={`Editar e personalizar ${projeto.nome}`} dica="Editar e personalizar" onClick={() => abrirEditor(projeto)}>
+                              <PenLine aria-hidden="true" className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                            </BotaoRedondo>
+                          </>
+                        }
+                      />
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </ul>
+              )}
             </motion.section>
           </>
         ) : null}
 
         {/* Atividade: o trabalho dos agentes no site, do mais recente para o mais antigo. */}
         {aba === "atividade" ? (
-          <motion.section {...entrada(0.05)} aria-label="Atividade dos agentes" className="mt-8">
+          <motion.section {...entrada(0.05)} aria-labelledby="projetos-atividade" className="mt-8 rounded-[20px] border border-[#EDEDF0] bg-white p-2" style={ESTILO_CARTAO}>
+            <h2 id="projetos-atividade" className="m-0 px-4 pb-2 pt-3 text-[15px] font-semibold tracking-[-0.01em]">
+              Atividade recente
+            </h2>
             {projetosDaLoja.isLoading ? (
-              <p className="m-0 text-[14px] text-[#71717A]">Carregando a atividade…</p>
+              <EsqueletoDaLista />
             ) : eventos.length === 0 ? (
-              <div className="flex items-center gap-3.5 rounded-[14px] border border-[#E4E4E7] px-4 py-4">
+              <div className="flex items-center gap-3.5 px-4 pb-4 pt-1">
                 <img src={agenteSino} alt="" aria-hidden="true" className="h-11 w-11 shrink-0 object-contain" draggable={false} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-medium">Nenhuma atividade no site ainda</span>
@@ -482,25 +470,24 @@ const ProjetosPage = () => {
                 </span>
               </div>
             ) : (
-              <ol className="m-0 list-none overflow-hidden rounded-[16px] border border-[#E4E4E7] p-0">
+              <ul className="m-0 list-none p-0">
                 {eventos.map((evento, i) => (
-                  <motion.li
+                  <LinhaDeAtividade
                     key={evento.id}
-                    {...entrada(0.06 + Math.min(i, 10) * 0.025, 4)}
-                    className="velo-proj-linha flex cursor-pointer items-center gap-3.5 border-b border-[#F0F0F2] px-5 py-3 last:border-b-0"
-                    onClick={() => abrirEditor(evento.projeto)}
-                  >
-                    <img src={evento.agente} alt="" aria-hidden="true" className="h-10 w-10 shrink-0 select-none object-contain" draggable={false} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-medium">{evento.projeto.nome}</span>
-                      <span className="block truncate text-[13px] text-[#71717A]">
-                        {evento.acao} · {TIPO[evento.projeto.tipo_projeto] ?? "Projeto"}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-[12.5px] text-[#A1A1AA]">{tempoRelativo(evento.quando)}</span>
-                  </motion.li>
+                    entrada={entrada(0.06 + Math.min(i, 10) * 0.03, 4)}
+                    agente={evento.agente}
+                    titulo={evento.projeto.nome}
+                    texto={`${evento.acao} · ${TIPO[evento.projeto.tipo_projeto] ?? "Projeto"}`}
+                    quando={evento.quando}
+                    onAbrir={() => abrirEditor(evento.projeto)}
+                    acoes={
+                      <BotaoRedondo rotulo={`Editar e personalizar ${evento.projeto.nome}`} dica="Editar e personalizar" onClick={() => abrirEditor(evento.projeto)}>
+                        <PenLine aria-hidden="true" className="h-[15px] w-[15px]" strokeWidth={1.8} />
+                      </BotaoRedondo>
+                    }
+                  />
                 ))}
-              </ol>
+              </ul>
             )}
           </motion.section>
         ) : null}
