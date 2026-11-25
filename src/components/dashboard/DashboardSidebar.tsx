@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ElementT
 import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 // Hugeicons Stroke Rounded (traço 1.5), os mesmos ícones da referência "Mova".
-import { ArrowUp01Icon, ChartIncreaseIcon, File01Icon, Folder01Icon, Home01Icon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
+import { ArrowUp01Icon, ChartIncreaseIcon, DashboardSquare01Icon, File01Icon, Folder01Icon, Home01Icon, PlusSignIcon, ShoppingBag01Icon, SidebarLeftIcon, Store01Icon, TaskDone01Icon, UserGroupIcon } from "hugeicons-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUserProjects, type UserProject } from "@/lib/userProjects";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,11 +31,13 @@ type NavItem = {
 
 // Seção "Principal": telas do dia a dia, sem agrupamento (como "Main" da referência).
 const mainNavItems: NavItem[] = [
+  // Ordem pedida pelo dono (25/11/2026): Início, Projetos (a página dos agentes),
+  // Catálogo, Pedidos, Publicações e Produtos em alta.
   { id: "inicio", label: "Início", icon: Home01Icon, to: "/dashboard", end: true },
+  { id: "projetos", label: "Projetos", icon: DashboardSquare01Icon, to: "/dashboard/projetos" },
+  { id: "catalogo", label: "Catálogo", icon: ShoppingBag01Icon, to: "/dashboard/catalogo" },
   { id: "pedidos", label: "Pedidos", icon: TaskDone01Icon, to: "/dashboard/pedidos" },
   { id: "publicacoes", label: "Publicações", icon: File01Icon, to: "/dashboard/publicacoes" },
-  // Catálogo e Produtos em alta vieram do antigo "Espaço de trabalho" (24/11/2026).
-  { id: "catalogo", label: "Catálogo", icon: ShoppingBag01Icon, to: "/dashboard/catalogo" },
   { id: "produtos-em-alta", label: "Produtos em alta", icon: ChartIncreaseIcon, to: "/dashboard/produtos-em-alta" },
   // Imagens com IA e Avatares saíram do menu (24/11/2026, a pedido do dono); as
   // rotas /dashboard/imagens-ia e /dashboard/avatares continuam funcionando.
@@ -477,10 +479,10 @@ const DashboardSidebar = () => {
   const visibleNavItems = useMemo(() => {
     const items = [...mainNavItems];
     if (isAdmin || hasAffiliateApplication) {
-      // Ancorado pelo vizinho, e não por índice fixo: reordenar a lista não
-      // deve arrastar "Afiliados" para outro ponto sem querer.
-      const afterPedidos = items.findIndex((item) => item.id === "pedidos") + 1;
-      items.splice(afterPedidos || items.length, 0, affiliatesNavItem);
+      // Depois de "Produtos em alta", para não quebrar a sequência pedida pelo dono.
+      // Ancorado pelo vizinho, e não por índice fixo.
+      const depoisDeEmAlta = items.findIndex((item) => item.id === "produtos-em-alta") + 1;
+      items.splice(depoisDeEmAlta || items.length, 0, affiliatesNavItem);
     }
     if (isAdmin) {
       items.push(storesNavItem);
