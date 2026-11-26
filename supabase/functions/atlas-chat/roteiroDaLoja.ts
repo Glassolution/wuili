@@ -160,9 +160,20 @@ export function lerBriefing(v: unknown): BriefingDaLoja | null {
   };
 }
 
-/** Pedido de criar loja/site (sem ser pergunta sobre loja do Mercado Livre). */
-export const pedeLoja = (t: string) =>
-  /\b(criar|montar|abrir|fazer|quero|ter)\b[^.?!]{0,30}\b(loja|site|e-?commerce)\b/i.test(t) && !/mercado ?livre|shopee|\bml\b/i.test(t);
+/**
+ * Pedido de criar loja/site NOVO. Frases sobre a loja que a pessoa já tem
+ * ("mudar o banner da minha loja", "ver meu site") seguem a conversa normal.
+ */
+const LOJA_EXISTENTE = /\b(minha|meu|minhas|meus|da minha|do meu|na minha|no meu)\s+(loja|site)\b/i;
+const VERBO_DE_EDICAO = /\b(mudar|muda|editar|edita|ver|veja|trocar|troca|colocar|coloca|adicionar|adiciona|publicar|publica|alterar|tirar|remover|atualizar|acessar|abrir a)\b/i;
+export const pedeLoja = (t: string) => {
+  if (/mercado ?livre|shopee|\bml\b/i.test(t)) return false;
+  if (LOJA_EXISTENTE.test(t) && VERBO_DE_EDICAO.test(t)) return false;
+  return (
+    /\b(criar|montar|abrir|fazer|ter)\b[^.?!]{0,30}\b(loja|site|e-?commerce)\b/i.test(t) ||
+    /\bquero\s+(uma|um)\s+(loja|site|e-?commerce)\b/i.test(t)
+  );
+};
 
 const perguntarMarca = (b: BriefingDaLoja, a = ""): RespostaDaLoja => ({
   message: `${a}Antes do visual: **você já tem uma marca ou uma loja?** Se já tiver logo, cores e fonte, eu uso as suas na loja. Se ainda não tiver, a gente cria juntos agora.`,
@@ -226,7 +237,7 @@ export function resumo(b: BriefingDaLoja, abertura = "Fechado!"): RespostaDaLoja
         `- **Tipo:** ${ROTULO_DO_TIPO[b.tipo]}`,
         `- **Marca:** ${b.marca?.tem ? `a sua (logo, cores${b.marca.fonte ? ` e fonte ${b.marca.fonte}` : ""})` : "criada agora"}`,
         b.publico ? `- **Pra quem:** ${b.publico}` : "",
-        `- **Personalidade:** ${b.estilo}${p ? ` (${p.descricao})` : ""}`,
+        `- **Personalidade:** ${b.estilo}${p && !/\(/.test(b.estilo ?? "") ? ` (${p.descricao})` : ""}`,
         `- **Cores:** ${b.cores}`,
         b.diferencial ? `- **Diferencial:** ${b.diferencial}` : "",
         `- **Produtos:** ${descreverProdutos(b)}`,
@@ -326,7 +337,7 @@ export async function continuarLoja(texto0: string, b: BriefingDaLoja, contar: C
     const p = personalidadeDe(texto);
     if (!p) return { ...perguntarEstilo(b), message: `Entendi. Pra eu acertar o tom: **qual dessas chega mais perto da sua marca?**\n\n${listaPersonalidades()}` };
     const estilo = PERSONALIDADES.some((x) => x.rotulo === texto) ? p.rotulo : `${p.rotulo} (${texto.slice(0, 60)})`;
-    return depoisDe({ ...b, estilo }, `Boa: uma marca **${p.rotulo.toLowerCase()}**, que ${p.descricao}.\n\n`);
+    return depoisDe({ ...b, estilo }, `Boa: uma marca **${p.rotulo.toLowerCase()}**: ${p.descricao}.\n\n`);
   }
   if (b.etapa === "diferencial") {
     const diferencial = /^(pular|n[ãa]o sei|n[ãa]o tenho|nenhum)/i.test(texto) ? null : fraseDoDiferencial(texto);

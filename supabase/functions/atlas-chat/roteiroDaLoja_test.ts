@@ -56,3 +56,18 @@ Deno.test("resumo + assunto fora do roteiro volta para o modelo; pedido de loja 
   assert(pedeLoja("quero criar uma loja"));
   assert(!pedeLoja("quero criar minha loja no mercado livre"));
 });
+
+Deno.test("pedeLoja só abre o roteiro para loja ou site novo", () => {
+  for (const f of ["quero mudar o banner da minha loja", "quero ver minha loja", "quero colocar produtos na minha loja", "quero editar meu site", "quero publicar no meu site"])
+    assert(!pedeLoja(f), f);
+  for (const f of ["quero criar uma loja de roupas", "quero montar uma loja de velas", "quero abrir uma loja de doces", "quero ter uma loja", "quero um site para meu consultório"])
+    assert(pedeLoja(f), f);
+});
+
+Deno.test("personalidade usa dois-pontos e resumo não repete descrição de texto livre", async () => {
+  const base = { ...comecarLoja("loja de velas").briefing!, marca: { tem: false }, publico: null, etapa: "estilo" as const };
+  const r = await passo(base, "Elegante");
+  assert(r.message.startsWith("Boa: uma marca **elegante**: discreta, sofisticada, poucas palavras."));
+  const fim = await passo({ ...base, estilo: "Elegante (bem sofisticada, discreta)", cores: "Azul", diferencial: null, etapa: "produtos" }, "Meus próprios produtos");
+  assert(fim.message.includes("**Personalidade:** Elegante (bem sofisticada, discreta)\n"));
+});
