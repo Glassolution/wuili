@@ -19,6 +19,7 @@ import { resolveAtlasFaq } from "../_shared/atlas-faq.ts";
 import { checarQuotaAtlas, mensagemDeQuotaEsgotada, ATLAS_ETAPA_RESUMO } from "../_shared/atlas-quota.ts";
 import { montarJanelaDeContexto, MODELO_RESUMO, LIMITE_PARA_RESUMIR } from "../_shared/atlas-context.ts";
 import { escolherModeloDoAtlas } from "../_shared/atlas-router.ts";
+import { comecarLoja, continuarLoja, lerBriefing, lojaNova, pedeLoja, PERGUNTA_LOJA_NOVA, NICHO_GERAL, type BriefingDaLoja } from "./roteiroDaLoja.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,8 @@ type ChatMessage = {
   content: string;
   product_data?: {
     actions?: AtlasAction[];
+    /** Roteiro de criar loja (ver roteiroDaLoja.ts). */
+    briefing?: unknown;
   } | null;
 };
 
@@ -1845,6 +1848,29 @@ serve(async (req) => {
     if (isUnsafeRequest(lastUserMessage)) {
       registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: "recusa" });
       return responder(refusalResponse());
+    }
+
+    // Roteiro de criar loja: resolvido em código, uma pergunta por vez (espelha src/lib/atlasDemo.ts).
+    const ultimaDoAtlas = getLastAssistantMessage(normalizedMessages);
+    const briefingAtual = lerBriefing(ultimaDoAtlas?.product_data?.briefing);
+    const contarNoCatalogo = async (b: BriefingDaLoja) => {
+      if (!serviceClient) return -1;
+      const termos = b.termos.map((t) => t.replace(/[^a-z0-9à-ÿ]/gi, "")).filter((t) => t.length >= 3);
+      if (b.nicho !== NICHO_GERAL && termos.length === 0) return 0;
+      let consulta = serviceClient.from("catalog_products").select("id").eq("is_active", true).eq("is_blocked", false).gt("stock_quantity", 0);
+      if (b.nicho !== NICHO_GERAL) consulta = consulta.or(termos.map((t) => `category.ilike.%${t}%,title.ilike.${t}%`).join(","));
+      const { data, error } = await consulta.limit(8);
+      if (error) return -1;
+      return data?.length ?? 0;
+    };
+    let respostaDaLoja = null;
+    if (briefingAtual) respostaDaLoja = await continuarLoja(lastUserMessage, briefingAtual, contarNoCatalogo);
+    else if ((ultimaDoAtlas?.content ?? "").includes(PERGUNTA_LOJA_NOVA)) respostaDaLoja = comecarLoja(lastUserMessage);
+    else if (pedeLoja(lastUserMessage))
+      respostaDaLoja = /\b(?:de|da|do|das|dos|para|pra)\s+\S{3,}/i.test(lastUserMessage) ? comecarLoja(lastUserMessage) : lojaNova();
+    if (respostaDaLoja) {
+      registrarUso({ userId: authenticatedUserId, origem: "codigo", etapa: `loja_${respostaDaLoja.briefing?.etapa ?? "inicio"}` });
+      return responder({ message: respostaDaLoja.message, actions: respostaDaLoja.actions, briefing: respostaDaLoja.briefing });
     }
 
     // Conversa livre ("oi, tudo bem?", "como você está?") vai para o modelo.
