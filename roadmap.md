@@ -1,6 +1,8 @@
 # Roadmap
 
 ## Capas Atlas — 26/11
+- [x] Ajustar somente o espaço negativo do promptTelaCheia e reduzir Gemini 3 Pro de 4K para 2K; publicar somente generate-store-banner; cinco testes Deno e check passaram
+- [x] Uma geração com a cena de três modelos à esquerda: HTTP 200 em 31,41 s, PNG 2752×1536, 4.982.114 bytes, upload público; imagem inteira e contínua, sem painel/divisão
 - [x] Modelo aprovado: google/gemini-3-pro-image, image_config aspect_ratio 16:9 e image_size 4K; LOVABLE_API_KEY existente
 - [x] Usar assets/{user_id}/capas/{uuid}, service role e fallback base64; sem bucket, migration ou policies novas (instrução atualizada)
 - [x] Login obrigatório e logs de dimensão/tempo; ambos os prompts idênticos ao commit informado, frontend intacto

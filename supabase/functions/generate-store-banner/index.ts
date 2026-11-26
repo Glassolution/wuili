@@ -55,9 +55,9 @@ serve(async (req) => {
 
 Scene:
 - Store: ${salesAngle || "modern clothing store"}. Audience: ${persona || "confident young adults"}.
-- ONE continuous background across the whole image (open sky, a seamless studio backdrop or a single plain wall). The left side is simply more of that same background.
+- ONE continuous background across the whole image (open sky, a seamless studio backdrop or a single plain wall). The side away from the people is simply more of that same background.
 ${cena
-  ? `- Composition: ${cena}\n- People: ${pessoas || "models"} wearing the store's kind of clothing.\n- Keep calm negative space where the headline will go (the left side, or around the center when the model is centered).`
+  ? `- Composition: ${cena}\n- People: ${pessoas || "models"} wearing the store's kind of clothing.\n- Keep calm negative space on the side away from the people, as described in the composition.`
   : `- One or two ${pessoas || "models"} wearing the store's kind of clothing, standing in the RIGHT half of the frame, cropped naturally from about the knees or thighs up, slight low camera angle, confident editorial pose, looking toward or past the camera.\n- The LEFT 45% is calm negative space of the same background (no objects), where the store's headline will be placed later.`}
 
 Color:
@@ -95,7 +95,7 @@ Strict constraints:
         const options = { maxRetries: 0 };
         const data = model === "google/gemini-3-pro-image"
           ? await generateChatCompletion({ model: "google/gemini-3-pro-image", messages, modalities: ["image", "text"],
-              ...(config ? { image_config: { aspect_ratio: "16:9", image_size: "4K" } as const } : {}) }, options)
+              ...(config ? { image_config: { aspect_ratio: "16:9", image_size: "2K" } as const } : {}) }, options)
           : await generateChatCompletion({ model: "google/gemini-2.5-flash-image", messages, modalities: ["image", "text"],
               ...(config ? { image_config: { aspect_ratio: "16:9" } as const } : {}) }, options);
         return { ok: true as const, status: 200, data };
@@ -110,7 +110,7 @@ Strict constraints:
     };
     const tentativas: [string, Record<string, string> | null][] = telaCheia
       ? [
-          ["google/gemini-3-pro-image", { aspect_ratio: "16:9", image_size: "4K" }],
+          ["google/gemini-3-pro-image", { aspect_ratio: "16:9", image_size: "2K" }],
           ["google/gemini-3-pro-image", null],
           ["google/gemini-2.5-flash-image", { aspect_ratio: "16:9" }],
           ["google/gemini-2.5-flash-image", null],
