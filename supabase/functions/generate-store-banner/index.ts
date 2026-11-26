@@ -4,6 +4,7 @@ import { GatewayError, generateChatCompletion } from "npm:@lovable.dev/ai-gatewa
 import type {} from "../_shared/gateway-models.d.ts";
 import { z } from "npm:zod@3";
 import { bannerDimensions, bearerToken, decodeBanner } from "./banner-image.ts";
+import { type ConfigDaImagem, gerarNoGemini, MODELO_RAPIDO, MODELOS_PRO } from "./gemini-imagem.ts";
 
 const BodySchema = z.object({
   brandName: z.string().max(255).optional(),
@@ -96,6 +97,32 @@ Color: palette built around ${paleta}, soft and natural, never neon or an all-ov
 Strict constraints: NO text, letters, logos, brand marks, watermarks or UI anywhere (including on clothes, shoes and bags). NO borders, frames, margins, split screen, panels or collage. No empty area reserved for a headline. Ultra sharp, magazine quality.`;
     const prompt = detalhe ? promptDetalhe : telaCheia ? promptTelaCheia : promptPadrao;
 
+    let imageUrl: string | undefined;
+    let usedModel = "";
+    let usedConfig = false;
+    // Com GEMINI_API_KEY a imagem sai direto do Google e não gasta crédito da
+    // Lovable. O gateway da Lovable fica de reserva: sem a chave, ou se o Gemini
+    // falhar (cota, cobrança desligada, modelo fora do ar), para a loja não ficar sem imagem.
+    const chaveGemini = Deno.env.get("GEMINI_API_KEY");
+    if (chaveGemini) {
+      const pro = (config: ConfigDaImagem): [string, ConfigDaImagem | null][] => MODELOS_PRO.map((m) => [m, config]);
+      const tentativasGemini: [string, ConfigDaImagem | null][] = detalhe
+        ? [...pro({ aspectRatio: "4:3", imageSize: "1K" }), [MODELO_RAPIDO, { aspectRatio: "4:3" }]]
+        : telaCheia
+        ? [...pro({ aspectRatio: "16:9", imageSize: "2K" }), [MODELO_RAPIDO, { aspectRatio: "16:9" }]]
+        : [[MODELO_RAPIDO, null]];
+      for (const [model, config] of tentativasGemini) {
+        const resultado = await gerarNoGemini(chaveGemini, model, prompt, config);
+        usedModel = model;
+        usedConfig = Boolean(config);
+        if (resultado.ok) { imageUrl = resultado.imageUrl; break; }
+        console.warn("generate-store-banner: gemini", JSON.stringify({ model, status: resultado.status, motivo: resultado.motivo }));
+        // Cota ou chave sem acesso valem para todos os modelos: vai direto para a reserva.
+        if ([401, 403, 429].includes(resultado.status)) break;
+      }
+      if (!imageUrl) console.warn("generate-store-banner: gemini_falhou_usando_lovable");
+    }
+
     // Capa em tela cheia: tenta o modelo de imagem mais forte (mais resolução,
     // segue melhor as cores e a proporção) e cai para o atual se o gateway não
     // tiver o modelo ou recusar a configuração de proporção/tamanho.
@@ -132,9 +159,8 @@ Strict constraints: NO text, letters, logos, brand marks, watermarks or UI anywh
           ["google/gemini-2.5-flash-image", null],
         ]
       : [["google/gemini-2.5-flash-image", null]];
+    if (!imageUrl) {
     let response: Awaited<ReturnType<typeof pedir>> | undefined;
-    let usedModel = "";
-    let usedConfig = false;
     for (const [model, config] of tentativas) {
       response = await pedir(model, config);
       usedModel = model;
@@ -151,8 +177,8 @@ Strict constraints: NO text, letters, logos, brand marks, watermarks or UI anywh
       throw new Error(`Gateway error: ${response.status} ${text}`);
     }
 
-    const data = response.data;
-    let imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    imageUrl = response.data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    }
     if (!imageUrl) throw new Error("Nenhuma imagem retornada pela IA");
 
     let dimensions: { width: number; height: number } | null = null;
@@ -174,10 +200,11 @@ Strict constraints: NO text, letters, logos, brand marks, watermarks or UI anywh
       // Keep the original data URL so storage failure cannot break store creation.
       console.warn("generate-store-banner: storage_fallback");
     }
-    console.log("generate-store-banner: generated", JSON.stringify({ formato: formato ?? "capa", model: usedModel, image_config: usedConfig,
+    console.log("generate-store-banner: generated", JSON.stringify({ provedor: usedModel.startsWith("google/") ? "lovable" : "gemini", formato: formato ?? "capa", model: usedModel, image_config: usedConfig,
       width: dimensions?.width ?? null, height: dimensions?.height ?? null, elapsed_ms: Math.round(performance.now() - started), stored }));
 
-    return new Response(JSON.stringify({ imageUrl }), {
+    // `provedor` diz de onde veio a imagem ("gemini" = chave própria, "lovable" = reserva).
+    return new Response(JSON.stringify({ imageUrl, provedor: usedModel.startsWith("google/") ? "lovable" : "gemini" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

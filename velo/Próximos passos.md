@@ -13,7 +13,8 @@ atualizado: 2026-11-26
 - [ ] Vitrine editorial virar template de verdade ("loja-3"): editor `GeneratedStoreEditorPage`, loja pública, página de produto e conta; e a loja criada pelo Atlas gravar com ele
 - [ ] Chat de baixo do `AtlasEditorAoVivo` pedir mudanças na loja (hoje o enviar fica desligado)
 - [x] **Lovable (26/11/2026, feito em c70f3782):** `atlas-chat` segue o roteiro de criar loja (marca, fonte, público, personalidade, cores, diferencial, produtos, resumo + `create_store`), em `supabase/functions/atlas-chat/roteiroDaLoja.ts`.
-- [ ] Lovable: no `roteiroDaLoja.ts`, o `pedeLoja` só pode abrir o roteiro com pedido de criar loja nova ("quero mudar o banner da minha loja" hoje vira "loja de: mudar o banner…"); e copiar do `atlasDemo.ts` as correções de 26/11 ("uma marca **elegante**: discreta…" e o resumo sem repetir a descrição quando a personalidade veio em texto livre) — prompt colado no chat do Claude.
+- [x] **Lovable (26/11/2026, feito em f1f633b9):** no `roteiroDaLoja.ts`, o `pedeLoja` só pode abrir o roteiro com pedido de criar loja nova ("quero mudar o banner da minha loja" hoje vira "loja de: mudar o banner…"); e copiar do `atlasDemo.ts` as correções de 26/11 ("uma marca **elegante**: discreta…" e o resumo sem repetir a descrição quando a personalidade veio em texto livre) — prompt colado no chat do Claude.
+- [ ] Lovable: publicar a `generate-store-banner` com o Gemini direto (`GEMINI_API_KEY`, gateway de reserva) e confirmar que a chave tem cobrança ativada para imagem; conferir `provedor: "gemini"` numa imagem de teste — prompt colado no chat do Claude.
 - [ ] Loja por tipo de verdade: entrega digital (infoproduto), área do aluno (curso), campos de nick/ID no checkout (jogo), agendamento (serviço) — hoje o editor só tem os modelos de loja física
 - [ ] Banco de fotos com licença (Pexels/Unsplash) como alternativa à imagem gerada por IA
 
