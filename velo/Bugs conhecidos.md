@@ -1,11 +1,12 @@
 ---
-atualizado: 2026-11-23
+atualizado: 2026-11-26
 ---
 # Bugs conhecidos
 
 Formato: **problema** — onde — origem/data. Ao corrigir, mova para "Resolvidos" com a data.
 
 ## Abertos (confirmados)
+- Recuperação de 26/11: 24 solicitações continuam pendentes (11 restrições de publicação do ML, 4 sem fotos conformes suficientes, 8 análise visual inconclusiva/formato inválido ou espera, 1 HTTP 400). Avisos diretos foram suprimidos, mas a sincronização gerou 16 avisos de pausa/ativação nos anúncios recuperados; silêncio total não foi cumprido. Nenhum aviso apagado, nenhuma foto aprovada por dúvida.
 - ValidaPay: 34 linhas da auditoria ficaram inalteradas por PAID recente (15) ou estado não confirmado (22, com sobreposição de três); revisão individual necessária. A correção de acesso e auditoria horária tem 52 testes aprovados, mas ainda não foi publicada — 2026-11-23.
 - **`README.md` é a spec antiga "Wuili"** com dados mock (contradiz "sem dados mock"). Não usar como referência. — nov/2026.
 - **Check Deno do `ml-publish` com erros preexistentes.** — roadmap, nov/2026.
@@ -28,6 +29,7 @@ Fonte: `00_maestro_relatorio.md` (18–19/08/2026). Verificar no código antes d
 - Muito código morto (páginas `*Old`, `DashboardRedesignPage`, ~37 componentes, ~34 pacotes).
 
 ## Resolvidos
+- Reserva de fotos confundia veredito `structured-pt-v3-*` incompatível com análise em andamento: leitura compartilhada com CAS e lease real, preservando reprovações válidas e reanalisando ambiguidades somente por Gemini. UUID/código do catálogo unificados na fila. Migration 0073 e `ml-publish`/`auto-publish-pending` publicadas; 45 testes Deno e 15 Vitest passaram. 160 pedidos reprocessados (159 + Raquete), 136 resolvidos; tentativas preservadas. Fila total 796 → 660, imagens 233 → 98; os 24 restantes estão listados em Abertos — 2026-11-26.
 - Configurações não rolava no celular quando aberta a partir do painel: o React reaproveita a `<div>` do layout mobile e ela mantinha o `position: fixed` com a altura da tela, colocado à mão pela trava do Atlas (iOS). A limpeza do efeito em `DashboardLayout.tsx` agora remove esses estilos — 2026-11-23.
 - Status ValidaPay ativos com período vencido: 620 confirmados EXPIRED e 222 DEFAULT corrigidos em 23/11/2026, com backup reversível e exclusão de PAID recente/vitalícios/incertos. Nenhum período ou provedor legado alterado. Código de acesso compartilhado pronto, aguardando publicação.
 - Publicação com fotos sem veredito quebrava antes da IA (Fire Stick, 16/11): reserva gravava "sem veredito" em coluna que não aceitava vazio; depois, evidência sem data de análise e chave repetida em nova tentativa; a fila automática travava após qualquer análise bem-sucedida (trava lia estado vazio como "bloqueado") e o aviso de 24h usava tipo de chamado inválido, derrubando toda rodada. Reserva da foto (45 s) podia expirar durante a reserva do Google e o resultado pago era descartado sem aviso. Corrigido com migrations 0061–0064; erros internos agora ficam em `ml_publish_errors` como `IMAGE_REVIEW_INTERNAL_ERROR` — 2026-11-17.

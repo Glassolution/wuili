@@ -1,9 +1,12 @@
 # Roadmap
 
 ## Conflito de vereditos antigos — 26/11
-- [ ] Alinhar leitura e reserva por CAS, preservar rejeições válidas e separar diagnósticos de fotos
-- [ ] Unificar identidade de produto e reconhecer pendência já atendida, inclusive anúncio encerrado posterior
-- [ ] Validar testes, publicar funções e reprocessar as 159 pendências sem tentativas/avisos; comparar fila e registrar motivos restantes
+- [x] Alinhar leitura e reserva por CAS, preservar rejeições válidas e separar diagnósticos de fotos; migration 0073 e duas funções publicadas
+- [x] Unificar identidade de produto e reconhecer pendência já atendida, inclusive anúncio encerrado posterior; Raquete reconhecida sem novo anúncio
+- [x] 45 testes Deno e 15 Vitest passaram; 160 pedidos (159 afetados + Raquete) processados, 136 resolvidos e 24 pendentes; nenhuma tentativa incrementada. Fila total 796 → 660; fila de imagens 233 → 98 (contagens ao vivo)
+- [x] Ler tickets 5e9215ba/17470cb3 e entregar resposta ao dono antes de retomar; Climatizador, Caneta 3D e Teclado publicados; nenhuma mensagem enviada ao ticket
+- [ ] Resolver 24 pedidos: 11 recusas seller.unable_to_list do Mercado Livre, 4 sem fotos conformes suficientes, 8 com resposta visual inválida/espera de nova análise e 1 HTTP 400 do ML; dependem de evidência conclusiva/fotos ou liberação externa, não receberam aprovação automática
+- [ ] Recuperação suprimiu avisos diretos, mas sincronização de status gerou 8 avisos product_paused e 8 product_activated ligados aos anúncios recuperados; não apagados. Requisito de silêncio total não foi cumprido; conferir supressão pontual antes de outra recuperação
 
 ## Publicação da regra de acesso — 24/11
 - [x] Topo e Planos usam readAccessPlan sem fallback; syncPaidProfile após CAS; 72 testes e Deno check das 16 funções passaram
