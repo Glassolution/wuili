@@ -6,7 +6,7 @@
 - [x] Login obrigatório e logs de dimensão/tempo; ambos os prompts idênticos ao commit informado, frontend intacto
 - [x] Somente generate-store-banner publicada; OPTIONS 200 e login ausente/inválido 401 confirmados; cinco testes Deno e check passaram
 - [x] Primeiros quatro testes atingiram limite de memória, sem upload (3,916536 créditos); corrigidas cópias JSON/base64 e testado arquivo de 12 MiB; correção publicada
-- [ ] Repetir quatro cenas, confirmar resolução/qualidade e URLs/CORS: aguarda autorização para mais ~4 créditos; não repetir chamadas já cobradas sem autorização
+- [x] Quatro novas chamadas autorizadas às 06:10 UTC: todas HTTP 200, google/gemini-3-pro-image com image_config, PNG 5504×3072 nativo (proporção próxima, não exatamente 16:9); tempos 40,652/47,983/42,709/39,377 s. Quatro uploads públicos em assets, cache 31536000, CORS * e leitura de canvas confirmados no Chromium; sem moldura/faixas/texto/logo visíveis, azul suave. Rodada 3,911448 créditos; total 7,827984 com falhas iniciais. Sem novas tentativas ou mudanças de bucket/policy/frontend.
 
 ## Conflito de vereditos antigos — 26/11
 - [x] Alinhar leitura e reserva por CAS, preservar rejeições válidas e separar diagnósticos de fotos; migration 0073 e duas funções publicadas
