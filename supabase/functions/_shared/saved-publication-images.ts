@@ -24,7 +24,8 @@ export function savedPublicationRoles(rows: SavedImageRow[], urls: string[]): Sa
     const denial = latest.find(row => row.verdict === 'reprovada');
     const combined = latest.find(row => row.verdict === 'aprovada' && PUBLICATION_IMAGE_MODELS.every(model => row.model.split('+').includes(model)));
     const geminiApproval = latest.find(row => row.verdict === 'aprovada' && row.model.split('+').some(model => ['google/gemini-3.8-flash', 'google/gemini-3.6-flash'].includes(model)));
-    const decision = denial ?? combined ?? geminiApproval;
+    const validatedLegacy = latest.find(row => row.criterion_version === 'two-level-legacy-validated' && row.model === 'historical-unknown' && row.verdict === 'aprovada' && row.reason_code === 'OK');
+    const decision = denial ?? combined ?? geminiApproval ?? validatedLegacy;
     if (!decision) continue;
     const roles = result.get(decision.image_url) ?? {};
     const role = decision.image_role === 'primary' ? 'primary' : 'secondary';

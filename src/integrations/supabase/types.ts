@@ -5421,6 +5421,17 @@ export type Database = {
           retry_after: string
         }[]
       }
+      claim_publication_image_analysis_v2: {
+        Args: { p_observed_reason?: string; p_owner: string; p_url: string }
+        Returns: {
+          claim_status: string
+          claimed: boolean
+          clean: boolean
+          inconclusive_attempts: number
+          reason: string
+          retry_after: string
+        }[]
+      }
       claim_publication_worker: { Args: { p_owner: string }; Returns: boolean }
       close_stale_support_tickets: { Args: never; Returns: number }
       complete_pending_publication: {

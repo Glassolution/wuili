@@ -1,5 +1,10 @@
 # Roadmap
 
+## Conflito de vereditos antigos — 26/11
+- [ ] Alinhar leitura e reserva por CAS, preservar rejeições válidas e separar diagnósticos de fotos
+- [ ] Unificar identidade de produto e reconhecer pendência já atendida, inclusive anúncio encerrado posterior
+- [ ] Validar testes, publicar funções e reprocessar as 159 pendências sem tentativas/avisos; comparar fila e registrar motivos restantes
+
 ## Publicação da regra de acesso — 24/11
 - [x] Topo e Planos usam readAccessPlan sem fallback; syncPaidProfile após CAS; 72 testes e Deno check das 16 funções passaram
 - [x] Site Lovable e 16 funções publicados; Vercel HTTP 200 serve regra por subscriptions sem fallback
