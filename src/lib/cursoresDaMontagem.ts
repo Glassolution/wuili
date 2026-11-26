@@ -13,7 +13,7 @@
 
 import type { Montagem } from "@/lib/montagemDaVitrine";
 import type { DadosDoPalco } from "@/lib/palcoDoSite";
-import { categoriaDoProduto, categoriasDosItens } from "@/lib/variacoesDaVitrine";
+import { categoriasDosItens, fotoDaCategoria, fotoDoAtalho } from "@/lib/variacoesDaVitrine";
 
 export type AgenteDaMontagem = "atlas" | "texto" | "estilo" | "imagens";
 
@@ -82,10 +82,12 @@ export function acoesDosCursores(m: Montagem, dados: DadosDoPalco): AcaoDoCursor
     else if (grupo === "produto") add("imagens", `produto-${i}`, "imagem", "Adicionando produto", itens[i]?.imagem ?? null);
     else if (grupo === "preco") add("texto", `preco-${i}`, "digitar", "Colocando o preço");
     else if (grupo === "categoria") {
-      const foto = itens.find((x) => (x.categoria || categoriaDoProduto(x.titulo)) === categorias[i] && x.imagem)?.imagem ?? null;
+      const foto = categorias[i] ? fotoDaCategoria({ ...dados, itens }, categorias[i]).src : null;
       add("imagens", `categoria-${i}`, foto ? "imagem" : "clique", "Criando as categorias", foto);
     } else if (grupo === "destaque") {
-      const foto = [dados.capa, itens[0]?.imagem ?? (moda ? null : dados.capa), itens[1]?.imagem ?? null, null][i] ?? null;
+      const foto = moda
+        ? i < 3 ? fotoDoAtalho({ ...dados, itens }, i).src : null
+        : [dados.capa, itens[0]?.imagem ?? dados.capa, itens[1]?.imagem ?? null, null][i] ?? null;
       add("imagens", `destaque-${i}`, foto ? "imagem" : "clique", moda ? "Montando os atalhos" : "Montando os destaques", foto);
     } else if (campo === "avaliacoes") add("texto", "avaliacoes", "clique", "Preparando as avaliações");
     // Os demais textos: o alvo é o próprio campo ("chamada.titulo" → data-alvo="chamada-titulo").

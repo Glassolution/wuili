@@ -12,6 +12,7 @@
 */
 
 import type { DadosDoPalco } from "@/lib/palcoDoSite";
+import { dadosDaPersonalidade } from "@/lib/personalidadeDaMarca";
 import { categoriasDosItens, dadosDaCapa, escolher, variacoesDaVitrine } from "@/lib/variacoesDaVitrine";
 
 /** A folha do editor leva ~0,7 s para cobrir a tela; a montagem começa depois. */
@@ -154,7 +155,10 @@ export function textosDaVitrineModa(dados: DadosDoPalco) {
   const ano = new Date().getFullYear();
   const etq = dados.etiqueta.toLowerCase();
   const categorias = categoriasDosItens(dados.itens, 6);
-  const [linha1, linha2] = escolher(TITULOS_DA_CAPA, s, 0x11);
+  // Personalidade da marca: a voz dela troca os textos que mais aparecem (capa, botões, chamada, frase).
+  const voz = dados.personalidade ? dadosDaPersonalidade(dados.personalidade).voz : null;
+  const comNome = (t: string) => t.replace(/\{nome\}/g, nome);
+  const [linha1, linha2] = escolher(voz?.titulosDaCapa ?? TITULOS_DA_CAPA, s, 0x11);
   const [novidades, novidadesSub] = escolher(
     [
       ["Novidades", "Chegou na loja"],
@@ -173,15 +177,25 @@ export function textosDaVitrineModa(dados: DadosDoPalco) {
     s,
     0x33,
   );
-  const [chamadaTitulo, chamadaTexto] = escolher(
-    [
-      [`Conheça a ${nome}`, `Veja as peças da ${nome} e monte o seu look.`],
-      [`O estilo da ${nome}`, "Escolha as suas peças favoritas e combine do seu jeito."],
-      ["Monte o seu look", `Na ${nome} você encontra peças para combinar do seu jeito.`],
-    ],
-    s,
-    0x44,
-  );
+  /*
+    Faixa escura da chamada: título curto com energia, frase concreta e botão de
+    uma palavra, como as lojas de moda fazem ("Garanta seu desconto! / Quero!").
+    Sem oferta inventada (desconto, parcela, frete, prazo): a frase concreta vem
+    das categorias reais da loja.
+  */
+  const chamadaTitulo = comNome(escolher(voz?.chamadaTitulos ?? ["Monte o seu look!", "Escolha o seu favorito!", "Vista {nome}!", "Ache o seu estilo!"], s, 0x44));
+  const listaDeCategorias = (() => {
+    const c = categorias.slice(0, 3).map((x, i) => (i === 0 ? x : x.toLowerCase()));
+    return c.length < 2 ? null : `${c.slice(0, -1).join(", ")} e ${c[c.length - 1]}`;
+  })();
+  const chamadaTexto = listaDeCategorias
+    ? `${listaDeCategorias} em um só lugar. ${escolher(["Escolha as suas peças e combine do seu jeito.", "Monte o look do seu jeito.", "Combine como quiser."], s, 0x45)}`
+    : escolher(
+        [`Veja as peças da ${nome} e monte o seu look.`, "Escolha as suas peças favoritas e combine do seu jeito.", `Na ${nome} você encontra peças para combinar do seu jeito.`],
+        s,
+        0x45,
+      );
+  const chamadaBotao = escolher(voz?.chamadaBotoes ?? ["Quero!", "Eu quero!", "Quero ver!", "Ver agora"], s, 0x46);
   return {
     variacoes: v,
     aviso: escolher([`Bem-vindo à ${nome}`, `${nome} · ${dados.etiqueta}`, `Conheça as novidades da ${nome}`], s, 0x55),
@@ -190,28 +204,35 @@ export function textosDaVitrineModa(dados: DadosDoPalco) {
     capaLinhas: [linha1, linha2] as const,
     /** A frase da pessoa (ou a do nicho) fica como texto de apoio. */
     capaTexto: dados.subtitulo,
-    botao: escolher(BOTOES, s, 0x77),
+    botao: escolher(voz?.botoes ?? BOTOES, s, 0x77),
     botao2: escolher(BOTOES_SECUNDARIOS, s, 0x88),
     categorias,
     chamadaTitulo,
     chamadaTexto,
+    chamadaBotao,
     novidades,
     novidadesSub,
     essenciais,
     essenciaisSub,
+    // Com 3+ categorias os atalhos são categorias (todos levam às peças); sem elas, o último é o contato.
     atalhos: (categorias.length >= 3 ? categorias.slice(0, 3) : ["Novidades", dados.tituloDaSecao, "Contato"]).map((titulo, i) => ({
       titulo,
-      legenda: ["Ver tudo", "Ver peças", "Fale com a gente"][i],
+      legenda: (categorias.length >= 3 ? ["Ver tudo", "Ver peças", "Ver peças"] : ["Ver tudo", "Ver peças", "Fale com a gente"])[i],
     })),
-    frase: escolher(
-      [
-        `Feita para quem gosta de ${etq}. Qual é o seu estilo?`,
-        "Estilo não é regra: é o jeito de cada um. Qual é o seu?",
-        `Roupa boa é a que combina com você. Encontre a sua na ${nome}.`,
-      ],
-      s,
-      0x99,
-    ),
+    // O diferencial que a pessoa contou vira a frase da marca, com as palavras dela.
+    frase:
+      dados.diferencial ??
+      comNome(
+        escolher(
+          voz?.frases ?? [
+            `Feita para quem gosta de ${etq}. Qual é o seu estilo?`,
+            "Estilo não é regra: é o jeito de cada um. Qual é o seu?",
+            "Roupa boa é a que combina com você. Encontre a sua na {nome}.",
+          ],
+          s,
+          0x99,
+        ),
+      ),
     newsletter: `Receba as novidades da ${nome}`,
     rodape: `© ${ano} ${nome}. Todos os direitos reservados.`,
   };
@@ -248,6 +269,8 @@ function montarModa(dados: DadosDoPalco): Montagem {
     dados.menu.forEach((item, i) => digitar(`menu.${i}`, item, 40, dados.menu.length > 5 ? 300 : 380));
   });
   etapa("Aplicando as suas cores", "topo", () => troca("cores", 1200));
+  // Quem já tem marca: os títulos passam para a fonte dela.
+  if (dados.fonteDaMarca) etapa(`Aplicando a fonte da marca (${dados.fonteDaMarca})`, "capa", () => troca("fonte", 1000));
   etapa(dados.capa ? "Colocando a imagem de capa" : "Preparando a capa", "capa", () => troca("capa.imagem", 1500));
   etapa("Escrevendo a chamada da capa", "capa", () => {
     const capa = dadosDaCapa(textos.variacoes.capa);
@@ -262,7 +285,7 @@ function montarModa(dados: DadosDoPalco): Montagem {
   etapa("Escrevendo a chamada da loja", "chamada", () => {
     digitar("chamada.titulo", textos.chamadaTitulo, 45, 900);
     digitar("chamada.texto", textos.chamadaTexto, 30, 1200);
-    digitar("chamada.botao", dados.botao, 60, 600);
+    digitar("chamada.botao", textos.chamadaBotao, 60, 600);
   });
 
   // Novidades: os 4 primeiros itens; Essenciais: os próximos 4. Foto e preço entram juntos.

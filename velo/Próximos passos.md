@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-25
+atualizado: 2026-11-26
 ---
 # Próximos passos
 
@@ -12,7 +12,7 @@ atualizado: 2026-11-25
 - [ ] Capa da loja a partir de foto de banco com licença comercial (Pexels/Unsplash) + IA só ajustando cores/proporção → [[Imagem do tema gerada por IA]]; precisa de chave da API (secret)
 - [ ] Vitrine editorial virar template de verdade ("loja-3"): editor `GeneratedStoreEditorPage`, loja pública, página de produto e conta; e a loja criada pelo Atlas gravar com ele
 - [ ] Chat de baixo do `AtlasEditorAoVivo` pedir mudanças na loja (hoje o enviar fica desligado)
-- [ ] Lovable: `atlas-chat` seguir o roteiro de `src/lib/briefingDaLoja.ts` e devolver `briefing` + ação `create_store` (prompt colado no chat em 25/11); na etapa das cores, aceitar a resposta do seletor no formato "Minhas cores: verde (#2F7D46) e creme (#F5F0E6)" e guardar o texto como veio em `briefing.cores`
+- [ ] Lovable: `atlas-chat` seguir o roteiro de `src/lib/briefingDaLoja.ts` e devolver `briefing` + ação `create_store` (prompt colado no chat em 25/11); desde 26/11/2026 o roteiro começa perguntando se a pessoa já tem marca (etapas `marca` e `fonte`, `briefing.marca`) e, depois, pergunta pra quem é a loja, a personalidade da marca e o diferencial (etapas `publico`, `estilo`, `diferencial`; `briefing.publico`, `briefing.estilo` = rótulo da personalidade, `briefing.diferencial`) — prompt novo colado no chat do Claude; na etapa das cores, aceitar a resposta do seletor no formato "Minhas cores: verde (#2F7D46) e creme (#F5F0E6)" e guardar o texto como veio em `briefing.cores`
 - [ ] Loja por tipo de verdade: entrega digital (infoproduto), área do aluno (curso), campos de nick/ID no checkout (jogo), agendamento (serviço) — hoje o editor só tem os modelos de loja física
 - [ ] Banco de fotos com licença (Pexels/Unsplash) como alternativa à imagem gerada por IA
 
@@ -71,3 +71,5 @@ atualizado: 2026-11-25
 - [x] Corrigir §1–2 do `CLAUDE.md` (Vite, não Next.js) — feito em 2026-11-08
 - [ ] Completar notas com o que surgir: crons exatos (`cron.job`), policies RLS das tabelas centrais
 - Reexecutar `admin-close-aliexpress-listings` (execute, `retry_failed: true`) para os 32 anúncios AliExpress de vendedores com conexão ML expirada quando reconectarem, e para os 49 em análise caso o ML os reative.
+- [x] **Lovable (26/11/2026, feito no commit 75f572fc):** em `generate-store-banner`, tirar do `promptTelaCheia` as frases que fixam o título à esquerda ("The left side is simply more of that same background" e "(the left side, or around the center…)") para valer o lado que vem na `scene`; e trocar 4K por 2K. Com a pessoa à esquerda, o texto fixo às vezes faz a IA dividir a imagem.
+- [x] **Lovable (26/11/2026, feito em f3746a49):** `generate-store-banner` aceitar `formato: "detalhe"` (imagens dos cards e atalhos no estilo criativo da loja): prompt próprio (foto de detalhe da mesma campanha, sem espaço para título), 4:3 em 1K no Pro com queda para o Flash. Até lá o campo é descartado pelo zod e o detalhe sai como capa 16:9 (prompt colado no chat do Claude; a Lovable fez só a parte do lado esquerdo e do 2K em 75f572fc — reenviar só este pedido).

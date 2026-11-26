@@ -1,8 +1,12 @@
 /*
   Briefing da loja montado na conversa com o Atlas.
 
-  O Atlas pergunta, uma coisa por vez: que loja e do quê → estilo → cores →
-  produtos próprios ou do catálogo da Velo. O briefing vai junto da mensagem
+  O Atlas pergunta, uma coisa por vez: que loja e do quê → já tem marca? →
+  (com marca: cores da marca → fonte da marca) → pra quem é → personalidade
+  da marca → (sem marca: cores) → diferencial → produtos próprios ou do
+  catálogo da Velo. A personalidade (src/lib/personalidadeDaMarca.ts) muda a
+  voz dos textos, o jeito dos títulos e o clima das fotos. Quem já tem marca não
+  recebe paleta pronta: a loja usa as cores, a fonte e a logo dela. O briefing vai junto da mensagem
   do Atlas (`product_data.briefing`), então a conversa sabe em que etapa está
   só olhando a última resposta. Com tudo respondido, a resposta traz a ação
   `create_store` ("Criar meu site"), que abre o modal e depois a construção
@@ -12,17 +16,28 @@
 import { supabase, withFreshSupabaseSession } from "@/integrations/supabase/client";
 import { proxyImageList } from "@/lib/imageProxy";
 import { nomeDaCor } from "@/lib/nomeDaCor";
+import { PERSONALIDADES } from "@/lib/personalidadeDaMarca";
 
 export type TipoDeLoja = "fisico" | "infoproduto" | "curso" | "jogo" | "servico";
 export type OrigemDosProdutos = "proprios" | "catalogo" | "ambos";
-export type EtapaDoBriefing = "estilo" | "cores" | "produtos" | "resumo" | "mudar";
+export type EtapaDoBriefing = "marca" | "publico" | "estilo" | "cores" | "fonte" | "diferencial" | "produtos" | "resumo" | "mudar";
+
+/** Marca que a pessoa já tem. `fonte` null = não sabe (a loja escolhe pelo estilo). */
+export type MarcaDaPessoa = { tem: boolean; fonte?: string | null };
 
 export type BriefingDaLoja = {
   tipo: TipoDeLoja;
   ideia: string;
   nicho: string;
   termos: string[];
+  /** Respondido na etapa "marca"; sem isso, a pergunta ainda não foi feita. */
+  marca?: MarcaDaPessoa;
+  /** Pra quem é a loja, nas palavras da pessoa; null = não sabe. */
+  publico?: string | null;
+  /** Personalidade da marca (rótulo de PERSONALIDADES ou texto livre). */
   estilo?: string;
+  /** Por que comprariam dela, nas palavras da pessoa; null = pulou. */
+  diferencial?: string | null;
   cores?: string;
   produtos?: OrigemDosProdutos;
   /** Quantos produtos do nicho o catálogo tem (null = não consultado). */
@@ -109,21 +124,22 @@ export function novoBriefing(ideia: string): BriefingDaLoja {
     ideia: ideia.slice(0, 500),
     nicho,
     termos: nicho === NICHO_GERAL ? [] : termosDoNicho(nicho),
-    etapa: "estilo",
+    etapa: "marca",
   };
 }
 
 /* ----- Visual ----- */
 
-export const ESTILOS = ["Moderno e minimalista", "Elegante e sofisticado", "Colorido e divertido", "Natural e rústico"];
+/** Personalidades da marca (a pergunta do "estilo"); ver src/lib/personalidadeDaMarca.ts. */
+export const ESTILOS = PERSONALIDADES.map((p) => p.rotulo);
 export const PALETAS = ["Azul e branco", "Verde e bege", "Preto e dourado", "Rosa e lilás", "Laranja e creme"];
 
 export const ESTILO_PADRAO: Record<TipoDeLoja, { estilo: string; cores: string }> = {
-  fisico: { estilo: "Moderno e minimalista", cores: "Azul e branco" },
-  infoproduto: { estilo: "Moderno e minimalista", cores: "Verde e bege" },
-  curso: { estilo: "Moderno e minimalista", cores: "Azul e branco" },
-  jogo: { estilo: "Colorido e divertido", cores: "Roxo e preto" },
-  servico: { estilo: "Elegante e sofisticado", cores: "Preto e dourado" },
+  fisico: { estilo: "Minimalista", cores: "Azul e branco" },
+  infoproduto: { estilo: "Minimalista", cores: "Verde e bege" },
+  curso: { estilo: "Acolhedora", cores: "Azul e branco" },
+  jogo: { estilo: "Cheia de energia", cores: "Roxo e preto" },
+  servico: { estilo: "Elegante", cores: "Preto e dourado" },
 };
 
 const CORES: [RegExp, string, string][] = [
@@ -162,10 +178,38 @@ export function corDeApoio(cores = ""): string | null {
   return null;
 }
 
+/* ----- Marca que a pessoa já tem ----- */
+
+/** "Já tenho" / "sim, a Botui" → true; "ainda não" / "vamos criar" → false; outra coisa → null. */
+export function temMarca(texto: string): boolean | null {
+  if (/\b(n[ãa]o|ainda|nenhuma|criar|cria|come[çc]ando|sem marca)\b/i.test(texto)) return false;
+  if (/\b(sim|j[áa]|tenho|temos|possuo|claro|minha marca|uma marca)\b/i.test(texto)) return true;
+  return null;
+}
+
+/**
+ * Nome da fonte da marca ("montserrat" → "Montserrat"). Só letras, números e
+ * espaço (vai na URL do Google Fonts). Não sabe → null.
+ */
+export function nomeDaFonte(texto: string): string | null {
+  if (/n[ãa]o sei|escolhe|tanto faz|qualquer|n[ãa]o tenho|nenhuma/i.test(texto)) return null;
+  const limpo = texto
+    .replace(/^(?:a\s+)?(?:fonte|letra)(?:\s+(?:[ée]|da marca [ée]|que uso [ée]))?\s*:?\s*/i, "")
+    .replace(/[^a-z0-9à-ÿ\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
+  if (limpo.length < 2) return null;
+  return limpo.replace(/\b([a-zà-ÿ])/g, (l) => l.toUpperCase());
+}
+
+/** Fonte da loja: a da marca, se a pessoa tiver; senão, a do estilo. */
+export const fonteDaLoja = (b: Pick<BriefingDaLoja, "marca" | "estilo">) => b.marca?.fonte || fonteDoEstilo(b.estilo);
+
 export function fonteDoEstilo(estilo = ""): string {
   if (/elegan|sofistic|cl[áa]ssic|luxo/i.test(estilo)) return "Georgia";
-  if (/colorid|divertid|alegre|jovem/i.test(estilo)) return "Plus Jakarta Sans";
-  if (/natural|r[úu]stic|org[âa]nic/i.test(estilo)) return "Helvetica Neue";
+  if (/colorid|divertid|alegre|jovem|energ/i.test(estilo)) return "Plus Jakarta Sans";
+  if (/natural|r[úu]stic|org[âa]nic|acolhed/i.test(estilo)) return "Helvetica Neue";
   return "Geist";
 }
 

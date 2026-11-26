@@ -143,6 +143,7 @@ const AtlasCriarLojaModal = ({ briefing, onFechar, onCriar }: Props) => {
                   `Loja de ${briefing.nicho}`,
                   ROTULO_DO_TIPO[briefing.tipo],
                   briefing.estilo,
+                  briefing.marca?.fonte ? `Fonte ${briefing.marca.fonte}` : null,
                 ]
                   .filter(Boolean)
                   .map((item) => (
@@ -160,8 +161,8 @@ const AtlasCriarLojaModal = ({ briefing, onFechar, onCriar }: Props) => {
 
               <div className="space-y-5 px-6 pb-2 pt-5">
                 <div>
-                  <span className="text-[13px] font-medium text-[#1F1F1F]">Logo da marca</span>
-                  <span className="ml-1.5 text-[12px] text-[#9A9A9A]">opcional</span>
+                  <span className="text-[13px] font-medium text-[#1F1F1F]">{briefing.marca?.tem ? "Logo da sua marca" : "Logo da marca"}</span>
+                  <span className="ml-1.5 text-[12px] text-[#9A9A9A]">{briefing.marca?.tem ? "a loja usa a sua" : "opcional"}</span>
                   <div className="mt-2 flex items-center gap-3">
                     <button
                       type="button"

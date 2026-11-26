@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { etapaAtual, montarMontagem, progressoDaTroca, textoDaTroca } from "@/lib/montagemDaVitrine";
+import { etapaAtual, montarMontagem, progressoDaTroca, textoDaTroca, textosDaVitrineModa } from "@/lib/montagemDaVitrine";
 import type { DadosDoPalco } from "@/lib/palcoDoSite";
 
 const dados: DadosDoPalco = {
@@ -41,5 +41,68 @@ describe("montagem da vitrine", () => {
     expect(m.trocas["produto.0"]).toBeUndefined();
     expect(m.trocas["preco.0"]).toBeUndefined();
     expect(m.trocas["destaque.3"]).toBeDefined();
+  });
+});
+
+describe("faixa da chamada (Vitrine moda)", () => {
+  const OFERTA = /desconto|off\b|%|parcel|juros|pix|frete|gr[aá]tis|prazo|entrega/i;
+  const lojas = ["Botui", "Nobre", "Unson", "Arco", "Lume", "Vesta", "Oca", "Brisa"];
+
+  it("frase concreta com as categorias reais da loja e botão curto", () => {
+    const t = textosDaVitrineModa({ ...dados, moda: true });
+    expect(t.chamadaTexto).toMatch(/^(Calças, camisetas|Camisetas, calças|Calças e camisetas|Camisetas e calças)/);
+    expect(t.chamadaTexto).toContain("em um só lugar.");
+    expect(t.chamadaBotao.length).toBeLessThanOrEqual(10);
+    expect(montarMontagem({ ...dados, moda: true }).trocas["chamada.botao"]).toBeDefined();
+  });
+
+  it("nunca inventa oferta, em nenhuma loja", () => {
+    for (const nome of lojas)
+      for (const itens of [dados.itens, []]) {
+        const t = textosDaVitrineModa({ ...dados, nome, itens, moda: true });
+        for (const texto of [t.chamadaTitulo, t.chamadaTexto, t.chamadaBotao]) expect(texto).not.toMatch(OFERTA);
+      }
+  });
+
+  it("sem categorias, a frase continua sem lista vazia", () => {
+    const t = textosDaVitrineModa({ ...dados, itens: [], moda: true });
+    expect(t.chamadaTexto).not.toContain("em um só lugar");
+    expect(t.chamadaTexto.length).toBeGreaterThan(10);
+  });
+});
+
+
+describe("fonte da marca (Vitrine moda)", () => {
+  it("só quem tem marca ganha a etapa da fonte", () => {
+    expect(montarMontagem({ ...dados, moda: true }).trocas["fonte"]).toBeUndefined();
+    const m = montarMontagem({ ...dados, moda: true, fonteDaMarca: "Montserrat" });
+    expect(m.trocas["fonte"]).toBeDefined();
+    expect(m.etapas.some((e) => e.rotulo.includes("Montserrat"))).toBe(true);
+  });
+});
+
+describe("personalidade da marca na vitrine", () => {
+  const PERS = ["ousada", "elegante", "acolhedora", "energia", "minimalista"] as const;
+
+  it("lojas do mesmo nicho com personalidades diferentes não saem com os mesmos textos", () => {
+    const vozes = PERS.map((personalidade) => {
+      const t = textosDaVitrineModa({ ...dados, moda: true, personalidade });
+      return [t.capaTitulo, t.botao, t.chamadaTitulo, t.chamadaBotao, t.frase].join(" | ");
+    });
+    expect(new Set(vozes).size).toBe(PERS.length);
+  });
+
+  it("nenhuma voz inventa oferta, e o nome entra no lugar de {nome}", () => {
+    const OFERTA = /desconto|off\b|%|parcel|juros|pix|frete|gr[aá]tis|prazo|entrega|\{nome\}/i;
+    for (const personalidade of PERS)
+      for (const nome of ["Botui", "Nobre", "Arco", "Lume", "Vesta", "Oca"]) {
+        const t = textosDaVitrineModa({ ...dados, nome, moda: true, personalidade });
+        for (const texto of [t.capaTitulo, t.botao, t.chamadaTitulo, t.chamadaBotao, t.frase]) expect(texto).not.toMatch(OFERTA);
+      }
+  });
+
+  it("o diferencial da pessoa vira a frase da marca", () => {
+    const t = textosDaVitrineModa({ ...dados, moda: true, personalidade: "minimalista", diferencial: "Zero transparência nas leggings." });
+    expect(t.frase).toBe("Zero transparência nas leggings.");
   });
 });

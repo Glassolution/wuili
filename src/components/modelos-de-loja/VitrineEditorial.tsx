@@ -3,6 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, Heart, ImageIcon, Search, Shopp
 
 import { progressoDaTroca, textoDaTroca, type Montagem, type SecaoDaVitrine } from "@/lib/montagemDaVitrine";
 import type { DadosDoPalco } from "@/lib/palcoDoSite";
+import { carregarFonteDoGoogle, pilhaDaFonte } from "@/lib/fonteDoGoogle";
 
 /**
  * Modelo "Vitrine editorial" (catálogo em src/lib/modelosDeLoja.ts).
@@ -118,7 +119,12 @@ const VitrineEditorial = ({
 
   // Personalização de fonte e cor só fora da moda.
   const moda = !!dados.moda;
-  const fonteDosTitulos = !moda && p("fonte") > 0.5 ? FONTES[dados.fonte] ?? SANS : SANS;
+  useEffect(() => {
+    if (dados.fonteDaMarca) carregarFonteDoGoogle(dados.fonteDaMarca);
+  }, [dados.fonteDaMarca]);
+  // Quem já tem marca: a fonte dela (Google Fonts), com a do modelo de reserva.
+  const fonteEscolhida = dados.fonteDaMarca ? pilhaDaFonte(dados.fonteDaMarca, SANS) : FONTES[dados.fonte] ?? SANS;
+  const fonteDosTitulos = !moda && p("fonte") > 0.5 ? fonteEscolhida : SANS;
   const coresAplicadas = !moda && p("cores") > 0.5;
   const corDoPreco = coresAplicadas ? dados.destaque : "#7A7A7A";
   const corDoMosaico = coresAplicadas ? dados.destaque : AZUL_DO_MOSAICO;

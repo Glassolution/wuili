@@ -11,11 +11,13 @@
   catálogo, para avisar quando o nicho não tem produto.
 
   Roteiro (o mesmo que o `atlas-chat` de verdade deve seguir, ver
-  src/lib/briefingDaLoja.ts): que loja e do quê → estilo → cores → produtos
-  próprios ou do catálogo → resumo com o botão "Criar meu site".
+  src/lib/briefingDaLoja.ts): que loja e do quê → já tem marca? → (com marca:
+  cores → fonte) → pra quem é → personalidade → (sem marca: cores) →
+  diferencial → produtos próprios ou do catálogo → resumo com "Criar meu site".
 */
 
 import type { AtlasAction } from "@/contexts/AtlasChatContext";
+import { PERSONALIDADES, dadosDaPersonalidade, fraseDoDiferencial, personalidadeDe } from "@/lib/personalidadeDaMarca";
 import {
   ESTILOS,
   ESTILO_PADRAO,
@@ -24,7 +26,9 @@ import {
   ROTULO_DO_TIPO,
   produtosParaALoja,
   descreverProdutos,
+  nomeDaFonte,
   novoBriefing,
+  temMarca,
   tipoUsaCatalogo,
   type BriefingDaLoja,
   type TipoDeLoja,
@@ -69,21 +73,71 @@ const escolheuPorMim = (texto: string) => /escolhe|tanto faz|voc[êe] decide|pod
 
 /* ----- Perguntas ----- */
 
+const perguntarMarca = (b: BriefingDaLoja, abertura = ""): RespostaDemo => ({
+  message:
+    `${abertura}Antes do visual: **você já tem uma marca ou uma loja?** ` +
+    "Se já tiver logo, cores e fonte, eu uso as suas na loja. Se ainda não tiver, a gente cria juntos agora.",
+  actions: respostas(["Já tenho uma marca", "Ainda não tenho"]),
+  briefing: { ...b, etapa: "marca" },
+});
+
+const perguntarPublico = (b: BriefingDaLoja, abertura = ""): RespostaDemo => ({
+  message:
+    `${abertura}**Pra quem é a sua loja?** Me descreve quem compra de você em uma frase: idade, rotina, o que valoriza. ` +
+    "Quanto mais específico, mais a loja fala com essa pessoa (e menos parece com todas as outras).\n\n" +
+    'Ex.: "mulheres de 25 a 40 que treinam cedo e querem conforto sem perder o estilo".',
+  actions: respostas(["Ainda não sei"]),
+  briefing: { ...b, etapa: "publico" },
+});
+
+/** A pergunta do "estilo" virou a personalidade da marca: é ela que faz a loja não sair igual às outras. */
 const perguntarEstilo = (b: BriefingDaLoja, abertura = ""): RespostaDemo => ({
-  message: `${abertura}Agora o visual: **qual estilo combina com a sua marca?** Pode escolher um abaixo ou descrever do seu jeito.`,
+  message:
+    `${abertura}Agora a parte que faz a sua loja não ser igual às outras de ${b.nicho}: ` +
+    `**se a sua marca fosse uma pessoa, como ela seria?**\n\n` +
+    PERSONALIDADES.map((p) => `- **${p.rotulo}:** ${p.descricao}`).join("\n") +
+    "\n\nIsso muda o jeito de escrever da loja, as letras dos títulos e o clima das fotos.",
   actions: respostas([...ESTILOS, "Escolhe por mim"]),
   briefing: { ...b, etapa: "estilo" },
 });
 
-const perguntarCores = (b: BriefingDaLoja): RespostaDemo => ({
-  message: `Boa escolha: **${b.estilo}**.\n\nE as **cores**? Escolha uma combinação ou escreva as suas (ex.: "verde-escuro e creme").`,
-  actions: respostas([...PALETAS, "Escolhe por mim"]),
-  briefing: { ...b, etapa: "cores" },
+const perguntarDiferencial = (b: BriefingDaLoja, abertura = ""): RespostaDemo => ({
+  message:
+    `${abertura}Última sobre a marca, e a mais importante: **por que alguém compraria de você e não de outra loja de ${b.nicho}?** ` +
+    "Pode ser a modelagem, o tecido, o preço, o atendimento, a história… Eu coloco na loja com as suas palavras.",
+  actions: respostas(["Pular"]),
+  briefing: { ...b, etapa: "diferencial" },
 });
 
-const perguntarProdutos = (b: BriefingDaLoja): RespostaDemo => ({
+const perguntarCores = (b: BriefingDaLoja, abertura = ""): RespostaDemo =>
+  b.marca?.tem
+    ? {
+        message:
+          `${abertura}**Quais são as cores da sua marca?** Em "Escolher minha cor" você coloca o código exato (ex.: #1E3A8A), ` +
+          'ou escreva do seu jeito (ex.: "azul-marinho e creme").',
+        actions: respostas(["Não sei as cores", "Escolhe por mim"]),
+        briefing: { ...b, etapa: "cores" },
+      }
+    : {
+        message: `${abertura}E as **cores** de uma marca ${(() => {
+          const id = personalidadeDe(b.estilo);
+          return id ? dadosDaPersonalidade(id).rotulo.toLowerCase() : "como a sua";
+        })()}? Escolha uma combinação ou escreva as suas (ex.: "verde-escuro e creme").`,
+        actions: respostas([...PALETAS, "Escolhe por mim"]),
+        briefing: { ...b, etapa: "cores" },
+      };
+
+const perguntarFonte = (b: BriefingDaLoja, abertura = ""): RespostaDemo => ({
   message:
-    `Anotado: **${b.cores}**.\n\nÚltima pergunta: **você vai vender produtos seus ou quer usar o catálogo da Velo?** ` +
+    `${abertura}E a **fonte da marca**? Escreva o nome (ex.: Montserrat, Poppins, Playfair Display). ` +
+    "Se não souber, eu escolho uma que combine com o estilo.",
+  actions: respostas(["Não sei a fonte"]),
+  briefing: { ...b, etapa: "fonte" },
+});
+
+const perguntarProdutos = (b: BriefingDaLoja, abertura = ""): RespostaDemo => ({
+  message:
+    `${abertura}Última pergunta: **você vai vender produtos seus ou quer usar o catálogo da Velo?** ` +
     "No catálogo, os produtos vêm de fornecedores brasileiros e você não precisa ter estoque.",
   actions: respostas(["Meus próprios produtos", "Usar o catálogo da Velo", "Os dois"]),
   briefing: { ...b, etapa: "produtos" },
@@ -98,12 +152,22 @@ const resumo = (b: BriefingDaLoja, abertura = "Fechado!"): RespostaDemo => {
       [
         `- **Loja de:** ${b.nicho}`,
         `- **Tipo:** ${ROTULO_DO_TIPO[b.tipo]}`,
-        `- **Estilo:** ${b.estilo}`,
+        `- **Marca:** ${b.marca?.tem ? `a sua (logo, cores${b.marca.fonte ? ` e fonte ${b.marca.fonte}` : ""})` : "criada agora"}`,
+        b.publico ? `- **Pra quem:** ${b.publico}` : "",
+        `- **Personalidade:** ${b.estilo}${(() => {
+          const p = personalidadeDe(b.estilo);
+          return p ? ` (${dadosDaPersonalidade(p).descricao})` : "";
+        })()}`,
         `- **Cores:** ${b.cores}`,
+        b.diferencial ? `- **Diferencial:** ${b.diferencial}` : "",
         `- **Produtos:** ${descreverProdutos(b)}`,
-      ].join("\n"),
+      ]
+        .filter(Boolean)
+        .join("\n"),
       aviso ? `> ${aviso}` : "",
-      "Quando quiser, clique em **Criar meu site**: eu peço o nome e a logo e monto tudo aqui, passo a passo.",
+      b.marca?.tem
+        ? "Quando quiser, clique em **Criar meu site**: eu peço o nome e **a logo da sua marca** e monto tudo aqui, passo a passo."
+        : "Quando quiser, clique em **Criar meu site**: eu peço o nome e a logo e monto tudo aqui, passo a passo.",
     ]
       .filter(Boolean)
       .join("\n\n"),
@@ -115,15 +179,25 @@ const resumo = (b: BriefingDaLoja, abertura = "Fechado!"): RespostaDemo => {
   };
 };
 
-/** Depois de responder uma etapa: segue para a próxima, ou volta ao resumo se estava revisando. */
-const depoisDe = async (b: BriefingDaLoja, etapa: "estilo" | "cores" | "produtos"): Promise<RespostaDemo> => {
+/**
+ * Depois de cada resposta: a próxima pergunta que falta (ou o resumo, se
+ * estava revisando). Marca → (com marca: cores → fonte) → pra quem →
+ * personalidade → (sem marca: cores) → diferencial → produtos.
+ */
+const depoisDe = async (b: BriefingDaLoja, abertura = ""): Promise<RespostaDemo> => {
   if (b.revisando) return resumo(b, "Mudei.");
-  if (etapa === "estilo") return perguntarCores(b);
-  if (etapa === "cores") {
-    if (tipoUsaCatalogo(b.tipo)) return perguntarProdutos(b);
+  if (!b.marca) return perguntarMarca(b, abertura);
+  if (b.marca.tem && !b.cores) return perguntarCores(b, abertura);
+  if (b.marca.tem && b.marca.fonte === undefined) return perguntarFonte(b, abertura);
+  if (b.publico === undefined) return perguntarPublico(b, abertura);
+  if (!b.estilo) return perguntarEstilo(b, abertura);
+  if (!b.cores) return perguntarCores(b, abertura);
+  if (b.diferencial === undefined) return perguntarDiferencial(b, abertura);
+  if (!b.produtos) {
+    if (tipoUsaCatalogo(b.tipo)) return perguntarProdutos(b, abertura);
     return resumo(
       { ...b, produtos: "proprios" },
-      `Anotado: **${b.cores}**. Como é uma loja de ${ROTULO_DO_TIPO[b.tipo]}, o que você vende é seu: o catálogo da Velo tem só produtos físicos.\n\nFechado!`,
+      `${abertura}Como é uma loja de ${ROTULO_DO_TIPO[b.tipo]}, o que você vende é seu: o catálogo da Velo tem só produtos físicos.\n\nFechado!`,
     );
   }
   return resumo(b);
@@ -160,21 +234,29 @@ async function responder(mensagem: string, historico: Historico): Promise<Respos
   if (!b) {
     const novo = novoBriefing(texto);
     const pronto = PRONTO_NO_TIPO[novo.tipo].map((i) => `- ${i}`).join("\n");
-    return perguntarEstilo(
+    return perguntarMarca(
       novo,
       `Boa! Vou montar uma loja de **${ROTULO_DO_TIPO[novo.tipo]}**: ${novo.nicho}. Ela já vem com:\n\n${pronto}\n\n`,
     );
   }
 
   if (/^quero mudar algo/i.test(texto) || b.etapa === "mudar") {
-    if (/estilo/i.test(texto)) return perguntarEstilo({ ...b, revisando: true }, "Tudo bem. ");
-    if (/cor/i.test(texto)) return { ...perguntarCores({ ...b, revisando: true }), message: "Tudo bem. Quais **cores** você quer?" };
+    if (/marca/i.test(texto)) return perguntarMarca({ ...b, marca: undefined, cores: undefined, estilo: undefined }, "Tudo bem. ");
+    if (/estilo|personalidade/i.test(texto)) return perguntarEstilo({ ...b, revisando: true }, "Tudo bem. ");
+    if (/p[úu]blico|cliente|pra quem/i.test(texto)) return perguntarPublico({ ...b, revisando: true }, "Tudo bem. ");
+    if (/diferencial/i.test(texto)) return perguntarDiferencial({ ...b, revisando: true }, "Tudo bem. ");
+    if (/fonte/i.test(texto) && b.marca?.tem) return perguntarFonte({ ...b, revisando: true }, "Tudo bem. ");
+    if (/cor/i.test(texto)) return perguntarCores({ ...b, revisando: true }, "Tudo bem. ");
     if (/produto/i.test(texto) && tipoUsaCatalogo(b.tipo)) return perguntarProdutos({ ...b, revisando: true });
     return {
       message: "O que você quer mudar?",
       actions: respostas([
-        "Mudar o estilo",
+        "Mudar a marca",
+        "Mudar a personalidade",
+        "Mudar o público",
         "Mudar as cores",
+        "Mudar o diferencial",
+        ...(b.marca?.tem ? ["Mudar a fonte"] : []),
         ...(tipoUsaCatalogo(b.tipo) ? ["Mudar os produtos"] : []),
         "Começar outra loja",
       ]),
@@ -182,22 +264,59 @@ async function responder(mensagem: string, historico: Historico): Promise<Respos
     };
   }
 
+  if (b.etapa === "marca") {
+    const tem = temMarca(texto);
+    if (tem === null)
+      return { ...perguntarMarca(b), message: "Só para eu acertar o visual: **você já tem uma marca** (logo, cores, fonte) **ou vamos criar uma agora?**" };
+    // Recomeça o visual: as perguntas mudam conforme a resposta.
+    const base: BriefingDaLoja = { ...b, marca: { tem }, cores: undefined, revisando: false };
+    return depoisDe(base, tem ? "Ótimo, então a loja vai ter a **cara da sua marca**.\n\n" : "Sem problema: a gente cria a sua marca agora.\n\n");
+  }
+
+  if (b.etapa === "publico") {
+    const publico = /n[ãa]o sei|pular|tanto faz|qualquer|todo mundo/i.test(texto) ? null : texto.replace(/\s+/g, " ").slice(0, 160);
+    return depoisDe(
+      { ...b, publico },
+      publico ? "Anotado. Vou escrever a loja pensando nessa pessoa.\n\n" : "Sem problema: a loja fala com quem gosta de " + b.nicho + ".\n\n",
+    );
+  }
+
   if (b.etapa === "estilo") {
-    const estilo = escolheuPorMim(texto) ? ESTILO_PADRAO[b.tipo].estilo : texto.slice(0, 80);
-    return depoisDe({ ...b, estilo }, "estilo");
+    if (escolheuPorMim(texto)) {
+      const estilo = ESTILO_PADRAO[b.tipo].estilo;
+      return depoisDe({ ...b, estilo }, `Escolhi **${estilo}** para você.\n\n`);
+    }
+    const id = personalidadeDe(texto);
+    // Texto livre sem pista: pergunta qual chega mais perto, para a loja não sair genérica.
+    if (!id) return { ...perguntarEstilo(b), message: `Entendi. Pra eu acertar o tom: **qual dessas chega mais perto da sua marca?**\n\n${PERSONALIDADES.map((p) => `- **${p.rotulo}:** ${p.descricao}`).join("\n")}` };
+    const p = dadosDaPersonalidade(id);
+    const estilo = PERSONALIDADES.some((x) => x.rotulo === texto.trim()) ? p.rotulo : `${p.rotulo} (${texto.slice(0, 60)})`;
+    return depoisDe({ ...b, estilo }, `Boa: uma marca **${p.rotulo.toLowerCase()}**, que ${p.descricao}.\n\n`);
+  }
+
+  if (b.etapa === "diferencial") {
+    const diferencial = /^(pular|n[ãa]o sei|n[ãa]o tenho|nenhum)/i.test(texto) ? null : fraseDoDiferencial(texto);
+    return depoisDe({ ...b, diferencial }, diferencial ? "Isso vai para a loja do jeito que você falou.\n\n" : "");
+  }
+
+  if (b.etapa === "fonte") {
+    const fonte = nomeDaFonte(texto);
+    return depoisDe(
+      { ...b, marca: { tem: true, fonte } },
+      fonte ? `Anotado: fonte **${fonte}**.\n\n` : "Sem problema: escolho uma fonte que combine com o estilo.\n\n",
+    );
   }
 
   if (b.etapa === "cores") {
     // Do seletor de cor vem "Minhas cores: azul-marinho (#1E3A8A) e creme (#F5F0E6)".
-    const cores = escolheuPorMim(texto)
-      ? ESTILO_PADRAO[b.tipo].cores
-      : texto.replace(/^minhas cores:\s*/i, "").slice(0, 120);
-    return depoisDe({ ...b, cores }, "cores");
+    const naoSabe = escolheuPorMim(texto) || /n[ãa]o sei/i.test(texto);
+    const cores = naoSabe ? ESTILO_PADRAO[b.tipo].cores : texto.replace(/^minhas cores:\s*/i, "").slice(0, 120);
+    return depoisDe({ ...b, cores }, `Anotado: **${cores}**.\n\n`);
   }
 
   if (b.etapa === "produtos") {
     const querCatalogo = /cat[áa]logo|velo|os dois|ambos|tamb[ée]m/i.test(texto);
-    if (!querCatalogo) return depoisDe({ ...b, produtos: "proprios", noCatalogo: null }, "produtos");
+    if (!querCatalogo) return depoisDe({ ...b, produtos: "proprios", noCatalogo: null });
 
     let achados = 0;
     try {

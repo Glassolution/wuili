@@ -3,7 +3,9 @@ import { ChevronLeft, ChevronRight, Heart, ImageIcon, Search, ShoppingBag, Star,
 
 import { progressoDaTroca, textoDaTroca, textosDaVitrineModa, type Montagem } from "@/lib/montagemDaVitrine";
 import type { DadosDoPalco } from "@/lib/palcoDoSite";
-import { categoriaDoProduto, variacoesDaVitrine } from "@/lib/variacoesDaVitrine";
+import { fotoDaCategoria, fotoDoAtalho, variacoesDaVitrine } from "@/lib/variacoesDaVitrine";
+import { carregarFonteDoGoogle, pilhaDaFonte } from "@/lib/fonteDoGoogle";
+import type { Personalidade } from "@/lib/personalidadeDaMarca";
 
 /**
  * Modelo "Vitrine moda" (catálogo em src/lib/modelosDeLoja.ts), para loja de
@@ -22,11 +24,11 @@ import { categoriaDoProduto, variacoesDaVitrine } from "@/lib/variacoesDaVitrine
  */
 
 const SANS = 'Archivo, "Helvetica Neue", Arial, sans-serif';
-const CONDENSADA = '"Roboto Condensed", "Arial Narrow", Arial, sans-serif';
-/* Fontes das capas: cada variação tem a sua. */
-const GEOMETRICA = 'Outfit, "Helvetica Neue", Arial, sans-serif';
-const SERIFA = '"Playfair Display", Georgia, serif';
-const SERIFA_FINA = '"Cormorant Garamond", Georgia, serif';
+const CONDENSADA_DO_MODELO = '"Roboto Condensed", "Arial Narrow", Arial, sans-serif';
+/* Fontes das capas: cada variação tem a sua. Quem já tem marca usa a fonte dela nos títulos (ver o componente). */
+const GEOMETRICA_DO_MODELO = 'Outfit, "Helvetica Neue", Arial, sans-serif';
+const SERIFA_DO_MODELO = '"Playfair Display", Georgia, serif';
+const SERIFA_FINA_DO_MODELO = '"Cormorant Garamond", Georgia, serif';
 const CINZA = "#F4F4F4";
 const CINZA_DA_FOTO = "#ECECEC";
 const ESCURO_DO_MODELO = "#212121";
@@ -67,8 +69,8 @@ const Foto = ({ src, mostrar, className = "", style }: { src: string | null; mos
   </>
 );
 
-const Pilula = ({ children, alvo, fundo, cor, className = "" }: { children: ReactNode; alvo?: string; fundo: string; cor: string; className?: string }) => (
-  <span data-alvo={alvo} className={`inline-flex items-center justify-center rounded-full font-semibold transition-colors duration-500 ${className}`} style={{ background: fundo, color: cor }}>
+const Pilula = ({ children, alvo, fundo, cor, className = "", style }: { children: ReactNode; alvo?: string; fundo: string; cor: string; className?: string; style?: CSSProperties }) => (
+  <span data-alvo={alvo} className={`inline-flex items-center justify-center rounded-full font-semibold transition-colors duration-500 ${className}`} style={{ background: fundo, color: cor, ...style }}>
     {children}
   </span>
 );
@@ -88,6 +90,25 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
   const textos = textosDaVitrineModa(dados);
   const variacoes = variacoesDaVitrine(dados);
   const p = (campo: string) => progressoDaTroca(m, campo, t);
+  // Marca da pessoa: a fonte dela entra nos títulos quando o cursor Estilo troca a fonte.
+  useEffect(() => {
+    if (dados.fonteDaMarca) carregarFonteDoGoogle(dados.fonteDaMarca);
+  }, [dados.fonteDaMarca]);
+  const fonteDaMarca = dados.fonteDaMarca && p("fonte") > 0.5 ? dados.fonteDaMarca : null;
+  const naFonteDaMarca = (doModelo: string) => (fonteDaMarca ? pilhaDaFonte(fonteDaMarca, doModelo) : doModelo);
+  const CONDENSADA = naFonteDaMarca(CONDENSADA_DO_MODELO);
+  const GEOMETRICA = naFonteDaMarca(GEOMETRICA_DO_MODELO);
+  const SERIFA = naFonteDaMarca(SERIFA_DO_MODELO);
+  const SERIFA_FINA = naFonteDaMarca(SERIFA_FINA_DO_MODELO);
+  // Personalidade da marca: o jeito dos títulos (seções, chamada, newsletter). Sem ela, a letra condensada do modelo.
+  const TITULOS: Record<Personalidade, CSSProperties> = {
+    ousada: { fontFamily: CONDENSADA, textTransform: "uppercase", fontWeight: 700 },
+    elegante: { fontFamily: SERIFA, fontStyle: "italic", textTransform: "none", fontWeight: 400, letterSpacing: "0" },
+    acolhedora: { fontFamily: GEOMETRICA, textTransform: "none", fontWeight: 600, letterSpacing: "-0.01em" },
+    energia: { fontFamily: CONDENSADA, fontStyle: "italic", textTransform: "uppercase", fontWeight: 700 },
+    minimalista: { fontFamily: naFonteDaMarca(SANS), textTransform: "uppercase", fontWeight: 500, letterSpacing: "0.12em" },
+  };
+  const estiloDoTitulo: CSSProperties = dados.personalidade ? TITULOS[dados.personalidade] : { fontFamily: CONDENSADA };
   const comecou = (campo: string) => p(campo) > 0;
   const txt = (campo: string, doModelo: string, final: string): ReactNode => {
     const { texto, digitando } = textoDaTroca(m, campo, t, doModelo, final);
@@ -110,7 +131,7 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
   // Funções (não componentes): o modelo redesenha a cada quadro e não pode remontar as fotos.
   const titulo = ({ campo, doModelo, final, sub, subFinal }: { campo: string; doModelo: string; final: string; sub: string; subFinal: string }) => (
     <div className="text-center">
-      <h2 data-alvo={campo.replace(".", "-")} className="text-[34px] font-semibold uppercase leading-none tracking-[0.01em] text-[#1A1A1A]" style={{ fontFamily: CONDENSADA }}>
+      <h2 data-alvo={campo.replace(".", "-")} className="text-[34px] font-semibold uppercase leading-none tracking-[0.01em] text-[#1A1A1A]" style={estiloDoTitulo}>
         {txt(campo, doModelo, final)}
       </h2>
       <p className="mt-2 text-[14.5px] text-[#4A4A4A]">{comecou(campo) ? subFinal : sub}</p>
@@ -272,7 +293,15 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
     ) : (
       <div className="absolute inset-0 transition-colors duration-500" style={{ background: escuro, opacity: capa }} />
     );
-  const alvoDaFoto = <div data-alvo="capa-foto" className="absolute inset-y-0 right-0 w-1/2" />;
+  // A pessoa da foto fica de um lado (ou no centro) e o título do outro (variacoesDaVitrine → lado).
+  const fotoAEsquerda = textos.variacoes.lado === "esquerda";
+  /** Enquadramento da foto, espelhado quando a pessoa está à esquerda. */
+  const enquadrar = (x: number, y: number) => `${fotoAEsquerda ? 100 - x : x}% ${y}%`;
+  /** Posição do bloco do título: do lado oposto ao da pessoa. */
+  const ladoDoTexto = (distancia: number): CSSProperties => (fotoAEsquerda ? { right: distancia } : { left: distancia });
+  /** Degradê que escurece/clareia o lado do título. */
+  const degrade = fotoAEsquerda ? "bg-gradient-to-l" : "bg-gradient-to-r";
+  const alvoDaFoto = <div data-alvo="capa-foto" className={`absolute inset-y-0 w-1/2 ${fotoAEsquerda ? "left-0" : "right-0"}`} />;
   const etiquetaDaCapa = (className: string, style?: CSSProperties) => (
     <p data-alvo="capa-etiqueta" className={className} style={style}>
       {txt("capa.etiqueta", "Coleção", textos.capaEtiqueta)}
@@ -308,9 +337,9 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
         return (
           <section data-secao="capa" className="relative overflow-hidden" style={{ ...base, height: alturaDaCapa, background: "#EEECE7" }}>
             {alvoDaFoto}
-            {foto("72% 30%")}
-            <div className="absolute inset-y-0 left-0 w-[62%] bg-gradient-to-r from-[#EEECE7] via-[#EEECE7]/85 to-transparent" />
-            <div className="absolute top-1/2 -translate-y-1/2 text-[#141414]" style={{ left: margem, maxWidth: Math.min(620, L * 0.46) }}>
+            {foto(enquadrar(72, 30))}
+            <div className={`absolute inset-y-0 w-[62%] ${fotoAEsquerda ? "right-0" : "left-0"} ${degrade} from-[#EEECE7] via-[#EEECE7]/85 to-transparent`} />
+            <div className="absolute top-1/2 -translate-y-1/2 text-[#141414]" style={{ ...ladoDoTexto(margem), maxWidth: Math.min(620, L * 0.46) }}>
               {etiquetaDaCapa("text-[12px] font-medium uppercase tracking-[0.22em] text-[#555]")}
               <h1 data-alvo="capa-titulo" className="mt-4 uppercase" style={{ fontFamily: SERIFA }}>
                 {tituloEmLinhas("text-[58px] font-normal leading-[1.02]", "text-[66px] font-bold leading-[1.02]")}
@@ -333,9 +362,9 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
           <section data-secao="capa" className="bg-white p-5" style={base}>
             <div className="relative overflow-hidden rounded-[22px]" style={{ height: alturaDaCapa - 40, background: "#CFC6BA" }}>
               {alvoDaFoto}
-              {foto("60% 30%")}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/10 to-transparent" style={{ opacity: Math.max(capa, 0.3) }} />
-              <div className="absolute top-1/2 -translate-y-1/2 text-white" style={{ left: margem, maxWidth: Math.min(520, L * 0.4) }}>
+              {foto(enquadrar(60, 30))}
+              <div className={`absolute inset-0 ${degrade} from-black/50 via-black/10 to-transparent`} style={{ opacity: Math.max(capa, 0.3) }} />
+              <div className="absolute top-1/2 -translate-y-1/2 text-white" style={{ ...ladoDoTexto(margem), maxWidth: Math.min(520, L * 0.4) }}>
                 {etiquetaDaCapa("text-[11.5px] font-medium uppercase tracking-[0.2em] text-white/80")}
                 <h1 data-alvo="capa-titulo" className="mt-5 text-[76px] font-medium leading-[0.98]" style={{ fontFamily: SERIFA_FINA }}>
                   {txt("capa.titulo", "Título da coleção", textos.capaTitulo)}
@@ -348,7 +377,7 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
               {/* Pílula escura: o marcador fica legível sobre foto clara ou escura. */}
               <div
                 className="absolute top-1/2 flex -translate-y-1/2 flex-col items-center gap-3 rounded-full bg-black/30 px-2.5 py-4 text-[12px] text-white/70 backdrop-blur-sm"
-                style={{ right: margem * 0.6 }}
+                style={fotoAEsquerda ? { left: margem * 0.6 } : { right: margem * 0.6 }}
               >
                 <span className="font-semibold text-white">01</span>
                 <span className="h-10 w-px bg-white/60" />
@@ -392,9 +421,9 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
         return (
           <section data-secao="capa" className="relative overflow-hidden" style={{ ...base, height: alturaDaCapa, background: "#CBD3DC" }}>
             {alvoDaFoto}
-            {foto("66% 30%")}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/5 to-transparent" style={{ opacity: Math.max(capa, 0.3) }} />
-            <div className="absolute top-1/2 -translate-y-1/2 text-white" style={{ left: margem + 40, maxWidth: Math.min(600, L * 0.42) }}>
+            {foto(enquadrar(66, 30))}
+            <div className={`absolute inset-0 ${degrade} from-black/40 via-black/5 to-transparent`} style={{ opacity: Math.max(capa, 0.3) }} />
+            <div className="absolute top-1/2 -translate-y-1/2 text-white" style={{ ...ladoDoTexto(margem + 40), maxWidth: Math.min(600, L * 0.42) }}>
               {etiquetaDaCapa("text-[13px] font-medium uppercase tracking-[0.03em] text-white/90", { fontFamily: GEOMETRICA })}
               <h1 data-alvo="capa-titulo" className="mt-4 text-[64px] font-semibold leading-[1.06] tracking-[-0.01em]" style={{ fontFamily: GEOMETRICA }}>
                 {txt("capa.titulo", "Título da coleção", textos.capaTitulo)}
@@ -414,8 +443,7 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
   };
 
   const categoriasProntas = p("chamada.titulo") > 0;
-  const fotoDaCategoria = (c: string) => itens.find((i) => (i.categoria || categoriaDoProduto(i.titulo)) === c && i.imagem)?.imagem ?? null;
-  const fotosDosAtalhos = [dados.capa, itens[0]?.imagem ?? null, itens[1]?.imagem ?? null];
+  const colunasDasCategorias = categoriasProntas ? Math.min(6, Math.max(3, textos.categorias.length)) : 6;
   const notas = [0, 1, 2, 3];
 
   return (
@@ -436,16 +464,28 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
             <Vaga texto="Crie as categorias da loja no editor" />
           </div>
         ) : (
-          <div className="grid grid-cols-6 gap-4">
-            {Array.from({ length: 6 }, (_, i) => {
+          // Com as categorias definidas, a grade tem uma coluna por categoria (3 a 6), sem buraco no fim da linha.
+          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${colunasDasCategorias}, minmax(0, 1fr))` }}>
+            {Array.from({ length: colunasDasCategorias }, (_, i) => {
               const nome = textos.categorias[i];
               if (categoriasProntas && !nome) return <div key={i} />;
               const pronto = nome ? p(`categoria.${i}`) : 0;
-              const foto = nome ? fotoDaCategoria(nome) : null;
+              const foto = nome ? fotoDaCategoria({ ...dados, itens }, nome) : { src: null, gerada: false };
+              // Foto gerada no estilo da loja: cheia, com o nome por cima. Foto de produto: recortada no cinza.
+              if (foto.gerada)
+                return (
+                  <div key={i} data-alvo={`categoria-${i}`} className="relative flex aspect-[1.05] flex-col items-center justify-end overflow-hidden pb-4" style={{ background: CINZA }}>
+                    <Foto src={foto.src} mostrar={pronto} className="inset-0 h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" style={{ opacity: pronto }} />
+                    <span className="relative text-[12px] font-medium uppercase tracking-[0.12em] text-white" style={{ opacity: pronto > 0.3 ? 1 : 0 }}>
+                      {nome}
+                    </span>
+                  </div>
+                );
               return (
                 <div key={i} data-alvo={`categoria-${i}`} className="relative flex aspect-[1.05] flex-col items-center justify-end pb-4" style={{ background: CINZA }}>
                   <div className="absolute inset-x-0 top-0 bottom-10">
-                    <Foto src={foto} mostrar={pronto} className="inset-0 h-full w-full object-contain p-[16%] mix-blend-multiply" />
+                    <Foto src={foto.src} mostrar={pronto} className="inset-0 h-full w-full object-contain p-[16%] mix-blend-multiply" />
                   </div>
                   <span className="relative text-[11px] uppercase tracking-[0.08em] text-[#3A3A3A]">{nome && pronto > 0.3 ? nome : "Categoria"}</span>
                 </div>
@@ -456,15 +496,16 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
       </section>
 
       {/* Chamada escura */}
-      <section data-secao="chamada" className="py-[68px] text-center text-white transition-colors duration-500" style={{ opacity: apareceu("chamada"), background: escuro }}>
-        <h2 data-alvo="chamada-titulo" className="text-[40px] font-bold uppercase leading-none" style={{ fontFamily: CONDENSADA }}>
+      <section data-secao="chamada" className="py-[76px] text-center text-white transition-colors duration-500" style={{ opacity: apareceu("chamada"), background: escuro }}>
+        <h2 data-alvo="chamada-titulo" className="text-[50px] font-bold uppercase leading-none tracking-[0.01em]" style={estiloDoTitulo}>
           {txt("chamada.titulo", "Título da chamada", textos.chamadaTitulo)}
         </h2>
-        <p data-alvo="chamada-texto" className="mx-auto mt-4 max-w-[420px] text-[15px] leading-snug text-white/80">
+        {/* Frase em branco, maior e em até duas linhas; botão curto na mesma letra do título. */}
+        <p data-alvo="chamada-texto" className="mx-auto mt-5 max-w-[520px] text-[21px] leading-[1.4] text-white" style={{ textWrap: "balance" }}>
           {txt("chamada.texto", "Uma frase curta convidando para conhecer a loja.", textos.chamadaTexto)}
         </p>
-        <Pilula alvo="chamada-botao" fundo="#FFFFFF" cor={escuro} className="mt-7 h-12 px-9 text-[14px] uppercase">
-          {txt("chamada.botao", "Botão", dados.botao)}
+        <Pilula alvo="chamada-botao" fundo="#FFFFFF" cor={escuro} className="mt-8 h-[58px] px-12 text-[21px] uppercase" style={{ ...estiloDoTitulo, fontStyle: "normal", fontWeight: 400 }}>
+          {txt("chamada.botao", "Botão", textos.chamadaBotao)}
         </Pilula>
       </section>
 
@@ -476,8 +517,7 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
         <div className="grid grid-cols-3 gap-6">
           {textos.atalhos.map((atalho, i) => {
             const pronto = p(`destaque.${i}`);
-            const foto = fotosDosAtalhos[i];
-            const ehProduto = !!foto && foto !== dados.capa;
+            const { src: foto, produto: ehProduto } = fotoDoAtalho({ ...dados, itens }, i);
             return (
               <div key={i} className="bg-white p-3">
                 <div
@@ -487,7 +527,13 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
                 >
                   {/* Sem foto: fica a cor da loja (nada inventado no lugar). */}
                   {foto || pronto < 0.5 ? (
-                    <Foto src={foto} mostrar={pronto} className={`inset-0 h-full w-full ${ehProduto ? "object-contain p-6 mix-blend-multiply" : "object-cover"}`} />
+                    <Foto
+                      src={foto}
+                      mostrar={pronto}
+                      className={`inset-0 h-full w-full ${ehProduto ? "object-contain p-6 mix-blend-multiply" : "object-cover"}`}
+                      // Foto 4:3 no cartão 16:10: corta embaixo, não a cabeça.
+                      style={ehProduto ? undefined : { objectPosition: "50% 20%" }}
+                    />
                   ) : null}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                   <div className="absolute bottom-5 left-5 text-white">
@@ -505,7 +551,7 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
 
       {/* Avaliações: só as de verdade; até existirem, um aviso */}
       <section data-secao="avaliacoes" className="py-[64px]" style={{ opacity: apareceu("avaliacoes"), paddingLeft: margem, paddingRight: margem }}>
-        <h2 className="text-center text-[28px] text-[#1A1A1A]" style={{ fontFamily: CONDENSADA }}>
+        <h2 className="text-center text-[28px] text-[#1A1A1A]" style={estiloDoTitulo}>
           Avaliações dos clientes
         </h2>
         <div data-alvo="avaliacoes" className="mx-auto mt-9 max-w-[980px]">
@@ -552,7 +598,7 @@ const VitrineModa = ({ dados, montagem, t, largura }: { dados: DadosDoPalco; mon
       <section data-secao="newsletter" className="flex items-center justify-between gap-10 py-[64px]" style={{ opacity: apareceu("newsletter"), paddingLeft: margem, paddingRight: margem }}>
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777]">Newsletter</p>
-          <p data-alvo="newsletter" className="mt-2 text-[30px] font-semibold uppercase leading-tight text-[#141414]" style={{ fontFamily: CONDENSADA }}>
+          <p data-alvo="newsletter" className="mt-2 text-[30px] font-semibold uppercase leading-tight text-[#141414]" style={estiloDoTitulo}>
             {txt("newsletter", "Receba as novidades", textos.newsletter)}
           </p>
         </div>

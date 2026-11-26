@@ -14,8 +14,18 @@
   de lá tem dono e não pode ir para a loja de alguém sem licença.
 */
 
-import { categoriaDoProduto, categoriasDosItens, dadosDaCapa, menuDaLojaDeModa, modelosDaFoto, variacoesDaVitrine } from "@/lib/variacoesDaVitrine";
-import { limparCapa } from "@/lib/imagemDaCapa";
+import { dadosDaPersonalidade, personalidadeDe } from "@/lib/personalidadeDaMarca";
+import {
+  categoriaDoProduto,
+  categoriasDosItens,
+  cenaDaCapa,
+  cenaDaCategoria,
+  cenasDosAtalhos,
+  menuDaLojaDeModa,
+  modelosDaFoto,
+  variacoesDaVitrine,
+} from "@/lib/variacoesDaVitrine";
+import { arquivoParaDataUrl, prepararCapa } from "@/lib/imagemDaCapa";
 import { supabase } from "@/integrations/supabase/client";
 import { atlasEmModoDemo } from "@/lib/atlasDemo";
 import {
@@ -24,7 +34,7 @@ import {
   produtosParaALoja,
   corDeApoio,
   corPrincipal,
-  fonteDoEstilo,
+  fonteDaLoja,
   modeloDaLoja,
   tipoUsaCatalogo,
   type PedidoDeLoja,
@@ -35,6 +45,51 @@ import { montarMontagem } from "@/lib/montagemDaVitrine";
 import type { DadosDoPalco } from "@/lib/palcoDoSite";
 import { createUserProject, updateProjectMetadata } from "@/lib/userProjects";
 
+/**
+ * A capa que vai para a loja: a da IA vem em 4K (vários MB). Aqui ela perde as
+ * tarjas, vai para no máximo 2560px em WebP e é salva no bucket `assets`, na
+ * pasta da pessoa (`{user_id}/capas/`, a mesma regra de gravação do bucket).
+ * Se não der para salvar: fica a original quando já é um link e não precisou
+ * de corte; senão, a versão leve embutida.
+ */
+async function capaParaALoja(src: string, larguraMaxima?: number): Promise<string> {
+  const leve = await prepararCapa(src, larguraMaxima);
+  if (!leve) return src;
+  try {
+    const { data } = await supabase.auth.getUser();
+    const id = data.user?.id;
+    if (id) {
+      const caminho = `${id}/capas/${crypto.randomUUID()}.${leve.extensao}`;
+      const { error } = await supabase.storage.from("assets").upload(caminho, leve.arquivo, {
+        contentType: leve.arquivo.type,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+      if (!error) return supabase.storage.from("assets").getPublicUrl(caminho).data.publicUrl;
+    }
+  } catch {
+    /* segue com a alternativa abaixo */
+  }
+  if (/^https?:/i.test(src) && !leve.cortou) return src;
+  return arquivoParaDataUrl(leve.arquivo).catch(() => src);
+}
+
+/** Cards e atalhos aparecem pequenos na loja: 1280px já é nítido em tela de alta resolução. */
+const LARGURA_DOS_DETALHES = 1280;
+
+/** Roda as tarefas com no máximo `limite` ao mesmo tempo (o gateway de imagem não gosta de rajada). */
+async function emParalelo<T>(tarefas: (() => Promise<T>)[], limite: number): Promise<T[]> {
+  const saida: T[] = new Array(tarefas.length);
+  let proxima = 0;
+  const trabalhador = async () => {
+    while (proxima < tarefas.length) {
+      const i = proxima++;
+      saida[i] = await tarefas[i]();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limite, tarefas.length) }, trabalhador));
+  return saida;
+}
 
 export type StatusDoPasso = "esperando" | "fazendo" | "feito" | "aviso";
 
@@ -171,6 +226,9 @@ async function construir(id: string, pedido: PedidoDeLoja) {
   const demo = estados.get(id)?.demo ?? false;
   const r = {
     capa: null as string | null,
+    /** Imagens dos cards e atalhos, no estilo criativo da loja (moda). */
+    fotos: { categorias: {} as Record<string, string>, atalhos: [null, null, null] as (string | null)[] },
+    estiloCriativo: null as string | null,
     produtos: [] as ProdutoDoCatalogo[],
     avisoCatalogo: false,
     projetoId: null as string | null,
@@ -186,13 +244,16 @@ async function construir(id: string, pedido: PedidoDeLoja) {
   });
   mudarPasso(id, "entender", {
     status: "feito",
-    detalhe: `Loja de ${briefing.nicho} (${ROTULO_DO_TIPO[briefing.tipo]}), estilo ${briefing.estilo?.toLowerCase() ?? "moderno"}.`,
+    detalhe: `Loja de ${briefing.nicho} (${ROTULO_DO_TIPO[briefing.tipo]}), marca ${briefing.estilo?.toLowerCase() ?? "moderna"}${briefing.publico ? `, para ${briefing.publico}` : ""}.`,
   });
 
   // 2. Visual.
   const modelo = modeloDaLoja(briefing);
   const cor = corPrincipal(briefing.cores);
-  const fonte = fonteDoEstilo(briefing.estilo);
+  // Quem já tem marca: a fonte dela; senão, a que combina com o estilo.
+  const fonte = fonteDaLoja(briefing);
+  const personalidade = personalidadeDe(briefing.estilo);
+  const fonteDaMarca = briefing.marca?.tem ? (briefing.marca.fonte ?? null) : null;
   await passo(id, "visual", "Comparando os modelos da Velo", async () => {
     await abrir(id, "visual", { tipo: "modelo", nome: "modelo_vitrine_classica" });
     await abrir(id, "visual", { tipo: "modelo", nome: "modelo_marketly" });
@@ -201,55 +262,99 @@ async function construir(id: string, pedido: PedidoDeLoja) {
   });
   mudarPasso(id, "visual", {
     status: "feito",
-    detalhe: `Modelo ${modelo.nome}, destaque em ${cor.nome} e fonte ${fonte}.`,
+    detalhe: briefing.marca?.tem
+      ? `Modelo ${modelo.nome} com a sua marca: destaque em ${cor.nome} e fonte ${fonte}${fonteDaMarca ? " (a da marca)" : ""}.`
+      : `Modelo ${modelo.nome}, destaque em ${cor.nome} e fonte ${fonte}.`,
   });
 
   const lojaDeModa = briefing.tipo === "fisico" && ehModa(briefing.nicho, pedido.descricao);
-  // 3. Imagem do tema (gerada por IA; ver a nota no topo).
+  const usaCatalogo = tipoUsaCatalogo(briefing.tipo) && briefing.produtos !== "proprios";
+  // 3. Imagens (geradas por IA; ver a nota no topo). Na loja de moda o Atlas define um
+  //    estilo criativo (cenário, luz, paleta e look) e faz nele a capa e as imagens dos
+  //    cards, como fotos da mesma campanha.
+  const variacoes = lojaDeModa ? variacoesDaVitrine({ nome: pedido.nome, etiqueta: etiquetaDaLoja(briefing.nicho) }) : null;
+  const cena = variacoes ? cenaDaCapa({ capa: variacoes.capa, lado: variacoes.lado, nicho: briefing.nicho, semente: variacoes.semente }) : null;
+  // Cards de categoria só para os produtos da pessoa (os do catálogo já têm foto).
+  const categoriasParaFoto =
+    lojaDeModa && !usaCatalogo
+      ? categoriasDosItens(pedido.produtosPlanejados.map((titulo) => ({ titulo, categoria: categoriaDoProduto(titulo) })), 6)
+      : [];
+  // Personalidade da marca: o clima das fotos; o público que a pessoa descreveu vira a persona.
+  const corpoDaImagem = {
+    brandName: pedido.nome,
+    persona: briefing.publico || `pessoas interessadas em ${briefing.nicho}`,
+    salesAngle: [
+      `loja de ${briefing.nicho}`,
+      personalidade ? `brand personality: ${personalidade} — ${dadosDaPersonalidade(personalidade).clima}` : `estilo ${briefing.estilo ?? "moderno"}`,
+      `cores ${briefing.cores ?? "neutras"}`,
+    ].join("; "),
+    // De ponta a ponta, nas cores da pessoa (suaves); ver generate-store-banner.
+    palette: paletaDaCapa(briefing.cores),
+    layout: "tela-cheia",
+    ...(lojaDeModa ? { people: modelosDaFoto(briefing.nicho) } : {}),
+  };
+  /** Pede uma imagem; devolve o link da versão leve salva no `assets` (ou null). */
+  const gerarImagem = async (extra: Record<string, string>, larguraMaxima?: number): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-store-banner", { body: { ...corpoDaImagem, ...extra } });
+      const url = (data as { imageUrl?: string } | null)?.imageUrl;
+      // Sem tarjas, reduzida e comprimida antes de ir para a loja (ver capaParaALoja).
+      return !error && typeof url === "string" && url ? await capaParaALoja(url, larguraMaxima) : null;
+    } catch {
+      return null;
+    }
+  };
   await passo(
     id,
     "imagens",
-    "Montando a cena",
+    cena ? `Estilo criativo: ${cena.estilo.nome.toLowerCase()}` : "Montando a cena",
     async () => {
       await abrir(id, "imagens", { tipo: "documento", nome: `cena_${arquivo(briefing.nicho)}_${arquivo(briefing.estilo ?? "")}.txt` });
-      try {
-        const { data, error } = await supabase.functions.invoke("generate-store-banner", {
-          body: {
-            brandName: pedido.nome,
-            persona: `pessoas interessadas em ${briefing.nicho}`,
-            salesAngle: `${briefing.estilo ?? "moderno"}; cores ${briefing.cores ?? "neutras"}; loja de ${briefing.nicho}`,
-            // Capa de ponta a ponta, nas cores da pessoa (suaves); ver generate-store-banner.
-            palette: paletaDaCapa(briefing.cores),
-            layout: "tela-cheia",
-            // Moda: a cena combina com a capa que a loja sorteou (variacoesDaVitrine).
-            ...(lojaDeModa
-              ? {
-                  scene: dadosDaCapa(variacoesDaVitrine({ nome: pedido.nome, etiqueta: etiquetaDaLoja(briefing.nicho) }).capa).cena,
-                  people: modelosDaFoto(briefing.nicho),
-                }
-              : {}),
+      if (!cena) {
+        r.capa = await gerarImagem({});
+      } else {
+        r.estiloCriativo = cena.estilo.nome;
+        // Atalhos e categorias: `formato: "detalhe"` (4:3 em 1K, sem espaço para título) no mesmo estilo da capa.
+        const [produtos, contato] = cenasDosAtalhos(cena.estilo);
+        const tarefas: (() => Promise<void>)[] = [
+          async () => {
+            r.capa = await gerarImagem({ scene: cena.texto });
           },
-        });
-        const url = (data as { imageUrl?: string } | null)?.imageUrl;
-        // A IA às vezes devolve a foto com tarjas lisas em cima e embaixo: corta antes de usar.
-        if (!error && typeof url === "string" && url) r.capa = await limparCapa(url);
-      } catch {
-        /* segue sem capa */
+          async () => {
+            r.fotos.atalhos[1] = await gerarImagem({ scene: produtos, formato: "detalhe" }, LARGURA_DOS_DETALHES);
+          },
+          async () => {
+            r.fotos.atalhos[2] = await gerarImagem({ scene: contato, formato: "detalhe" }, LARGURA_DOS_DETALHES);
+          },
+          ...categoriasParaFoto.map((categoria) => async () => {
+            const foto = await gerarImagem({ scene: cenaDaCategoria(cena.estilo, categoria), formato: "detalhe" }, LARGURA_DOS_DETALHES);
+            if (foto) r.fotos.categorias[categoria] = foto;
+          }),
+        ];
+        await emParalelo(tarefas, 4);
       }
       if (r.capa) await abrir(id, "imagens", { tipo: "imagem", nome: "capa_da_loja.png", imagem: r.capa }, 300);
+      const primeiraCategoria = Object.entries(r.fotos.categorias)[0];
+      if (primeiraCategoria)
+        await abrir(id, "imagens", { tipo: "imagem", nome: `categoria_${arquivo(primeiraCategoria[0])}.png`, imagem: primeiraCategoria[1] }, 300);
     },
     1600,
   );
+  const extras = Object.keys(r.fotos.categorias).length + r.fotos.atalhos.filter(Boolean).length;
   mudarPasso(
     id,
     "imagens",
     r.capa
-      ? { status: "feito", detalhe: `Fiz uma imagem de capa no clima de ${briefing.nicho}.` }
+      ? {
+          status: "feito",
+          detalhe: r.estiloCriativo
+            ? `Defini o estilo criativo da loja (${r.estiloCriativo.toLowerCase()}) e fiz nele a capa${extras > 0 ? ` e mais ${extras} imagens para os cards` : ""}.`
+            : `Fiz uma imagem de capa no clima de ${briefing.nicho}.`,
+        }
       : { status: "aviso", detalhe: "Não consegui criar a imagem agora. Você gera depois no editor, em Banner." },
   );
 
   // 4. Produtos.
-  const usaCatalogo = tipoUsaCatalogo(briefing.tipo) && briefing.produtos !== "proprios";
   await passo(id, "produtos", usaCatalogo ? "Consultando o catálogo" : "Lendo a sua lista", async () => {
     if (usaCatalogo) {
       await abrir(id, "produtos", { tipo: "catalogo", nome: `catalogo_velo?busca=${briefing.termos.join("+") || "geral"}` });
@@ -273,7 +378,13 @@ async function construir(id: string, pedido: PedidoDeLoja) {
   mudarPasso(id, "produtos", { status: r.avisoCatalogo ? "aviso" : "feito", detalhe: partes.join(" ") });
 
   // 5. Monta a loja na tela do editor (AtlasEditorAoVivo + montagemDaVitrine) enquanto grava o rascunho.
-  const dados = dadosDoPalco(pedido, { capa: r.capa, produtos: r.produtos, destaque: cor.hex, fonte });
+  const dados = {
+    ...dadosDoPalco(pedido, { capa: r.capa, produtos: r.produtos, destaque: cor.hex, fonte }),
+    ...(fonteDaMarca ? { fonteDaMarca } : {}),
+    ...(personalidade ? { personalidade } : {}),
+    ...(briefing.diferencial ? { diferencial: briefing.diferencial } : {}),
+    ...(r.estiloCriativo ? { fotos: r.fotos, estiloCriativo: r.estiloCriativo } : {}),
+  };
   const duracao = montarMontagem(dados).duracao;
   atualizar(id, (e) => ({ ...e, palco: { dados, comecouEm: Date.now(), duracao } }));
   await passo(id, "criar", "Montando o site", async () => {
@@ -292,6 +403,7 @@ async function construir(id: string, pedido: PedidoDeLoja) {
         accent: cor.hex,
         font: fonte,
         ...(r.capa ? { heroImage: r.capa } : {}),
+        ...(r.estiloCriativo ? { estiloCriativo: r.estiloCriativo, imagensDaLoja: r.fotos } : {}),
         tipoDeLoja: briefing.tipo,
         briefingDoAtlas: briefing,
         produtosPlanejados: pedido.produtosPlanejados,

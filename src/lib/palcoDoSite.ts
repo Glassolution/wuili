@@ -11,6 +11,8 @@
   Coordenadas no "papel" de PAPEL.largura × PAPEL.altura; o componente escala.
 */
 
+import type { Personalidade } from "@/lib/personalidadeDaMarca";
+
 export const PAPEL = { largura: 1040, altura: 660 } as const;
 
 export type AgenteDoPalco = "atlas" | "texto" | "estilo" | "imagens";
@@ -43,6 +45,19 @@ export type DadosDoPalco = {
   itens: ItemDoPalco[];
   /** Loja de roupa/moda: o modelo fica igual ao original; muda só imagem, texto e produtos. */
   moda?: boolean;
+  /**
+   * Fotos geradas no estilo criativo da loja (Vitrine moda), além da capa:
+   * cards de categoria (pelo nome da categoria) e atalhos (posição 1 e 2; a 0 é a capa).
+   */
+  fotos?: { categorias?: Record<string, string>; atalhos?: (string | null)[] };
+  /** Nome do estilo criativo que o Atlas definiu para a loja ("Terraço na hora dourada"). */
+  estiloCriativo?: string;
+  /** Fonte da marca que a pessoa já tem (Google Fonts); vale nos títulos da loja. */
+  fonteDaMarca?: string | null;
+  /** Personalidade da marca: voz dos textos e jeito dos títulos (src/lib/personalidadeDaMarca.ts). */
+  personalidade?: Personalidade | null;
+  /** Diferencial nas palavras da pessoa; vira a frase da marca na vitrine. */
+  diferencial?: string | null;
 };
 
 /* ----- Onde cada coisa fica no papel ----- */
