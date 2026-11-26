@@ -1113,7 +1113,7 @@ Deno.serve(async (req) => {
       if (!refreshRes.ok || !refreshData.access_token) {
         console.error('Token refresh failed:', JSON.stringify(refreshData))
         if (isDeadRefreshError(refreshRes.status, refreshData)) {
-          await markRefreshTokenDead(user_id, `ml-publish refresh ${refreshRes.status}`)
+          await markRefreshTokenDead(user_id, `ml-publish refresh ${refreshRes.status}`, !(isInternalRepair && body.suppress_notifications === true))
         }
         return json({ error: 'Sessão do Mercado Livre expirada. Reconecte sua conta em Integrações.' }, 401)
       }
@@ -2417,7 +2417,7 @@ Deno.serve(async (req) => {
         console.error('[ml-publish] Falha ao registrar erro de publicação:', logErr)
       }
 
-      await notifyUser(supabase, {
+      if (!(isInternalRepair && body.suppress_notifications === true)) await notifyUser(supabase, {
         user_id,
         type: 'publication_error',
         title: 'Erro de publicacao',
@@ -2661,7 +2661,7 @@ Deno.serve(async (req) => {
         }
         console.error('Erro ao salvar publicação:', insertRes.error)
       } else {
-        await notifyUser(supabase, {
+        if (!(isInternalRepair && body.suppress_notifications === true)) await notifyUser(supabase, {
           user_id,
           type: 'product_published',
           title: 'Produto publicado',

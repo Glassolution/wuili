@@ -1,5 +1,20 @@
 # Roadmap
 
+## Conflito de vereditos antigos — 26/11
+- [x] Alinhar leitura e reserva por CAS, preservar rejeições válidas e separar diagnósticos de fotos; migration 0073 e duas funções publicadas
+- [x] Unificar identidade de produto e reconhecer pendência já atendida, inclusive anúncio encerrado posterior; Raquete reconhecida sem novo anúncio
+- [x] 45 testes Deno e 15 Vitest passaram; 160 pedidos (159 afetados + Raquete) processados, 136 resolvidos e 24 pendentes; nenhuma tentativa incrementada. Fila total 796 → 660; fila de imagens 233 → 98 (contagens ao vivo)
+- [x] Ler tickets 5e9215ba/17470cb3 e entregar resposta ao dono antes de retomar; Climatizador, Caneta 3D e Teclado publicados; nenhuma mensagem enviada ao ticket
+- [ ] Resolver 24 pedidos: 11 recusas seller.unable_to_list do Mercado Livre, 4 sem fotos conformes suficientes, 8 com resposta visual inválida/espera de nova análise e 1 HTTP 400 do ML; dependem de evidência conclusiva/fotos ou liberação externa, não receberam aprovação automática
+- [ ] Recuperação suprimiu avisos diretos, mas sincronização de status gerou 8 avisos product_paused e 8 product_activated ligados aos anúncios recuperados; não apagados. Requisito de silêncio total não foi cumprido; conferir supressão pontual antes de outra recuperação
+
+## Publicação da regra de acesso — 24/11
+- [x] Topo e Planos usam readAccessPlan sem fallback; syncPaidProfile após CAS; 72 testes e Deno check das 16 funções passaram
+- [x] Site Lovable e 16 funções publicados; Vercel HTTP 200 serve regra por subscriptions sem fallback
+- [x] Na publicação: 41 assinaturas/37 contas vencidas por data, 36 sem outro acesso; conta solicitante exibe BASE no menu autenticado
+- [x] 01:01:01 UTC: checked=36, expired=0, past_due=1, protected=12, unconfirmed=23, conflicts=0; perfil da linha alterada confirmado gratis com backup. Rodada seguinte abortou por HTTP 500 na listagem ValidaPay, sem presumir ausência de pagamento
+- [ ] Publicação autenticada ponta a ponta: conta solicitante precisa reconectar Mercado Livre; nenhum anúncio criado nem sessão de outro cliente usada
+
 ## Remoção definitiva do fallback — 23/11
 - [x] Gatilhos: proteção administrativa + updated_at, sem comunicações; confirmar 834 perfis e caminhos de ativação existentes
 - [x] Backup 2026-11-23-profile-plano; 834 perfis gratis (750 Base, 80 Pro, 4 Business), rechecagem de status/CAS; zero perfis pagos sem status de acesso restantes

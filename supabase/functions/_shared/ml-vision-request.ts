@@ -32,7 +32,20 @@ export function isCreditImageFailure(error: unknown): boolean {
   return shouldUseDirectGemini(gateway?.httpStatus ?? candidate?.httpStatus ?? candidate?.status, gateway?.remote?.type ?? candidate?.type);
 }
 
-async function requestDirectGemini(input: string, primary: boolean) {
+export function imageFailureDetails(error: unknown, runId: string, provider = 'lovable_gateway') {
+  const gateway = error instanceof GatewayError ? error : undefined;
+  const candidate = error as { provider?: string; callId?: string; status?: number; type?: string } | undefined;
+  const reason = (error instanceof Error ? error.message : String(error)).replace(/AIza[\w-]+/g, '[redacted]').slice(0, 300);
+  return {
+    code: candidate?.type ?? gateway?.remote?.type ?? gateway?.code ?? 'IMAGE_PROVIDER_FAILURE',
+    provider: candidate?.provider ?? provider,
+    call_id: candidate?.callId ?? gateway?.ids?.logId ?? gateway?.ids?.requestId ?? runId,
+    http_status: gateway?.httpStatus ?? candidate?.status ?? null,
+    reason,
+  };
+}
+
+async function requestDirectGemini(input: string, primary: boolean, callId: string) {
   const key = Deno.env.get('GEMINI_API_KEY');
   if (!key) {
     const error = new Error('Créditos Lovable esgotados e GEMINI_API_KEY não configurada') as Error & { status?: number; type?: string };
@@ -69,7 +82,11 @@ async function requestDirectGemini(input: string, primary: boolean) {
   };
   if (result.promptFeedback?.blockReason) throw new Error(`Recusa do Gemini direto: ${result.promptFeedback.blockReason}`);
   const raw = result.candidates?.[0]?.content?.parts?.map(part => part.text ?? '').join('') || null;
-  return { raw, usage: undefined, id: undefined, provider: 'gemini_direct', creditCost: 0 };
+  return { raw, usage: undefined, id: resultId(response, callId), provider: 'gemini_direct', creditCost: 0 };
+}
+
+function resultId(response: Response, fallback: string): string {
+  return response.headers.get('x-request-id') ?? fallback;
 }
 
 export async function requestImageVision(input: string, runId?: string, primary = false, model: VisionModel = IMAGE_VISION_MODEL) {
@@ -98,7 +115,15 @@ export async function requestImageVision(input: string, runId?: string, primary 
   } catch (error) {
     const gateway = error instanceof GatewayError ? error : undefined;
     if (gateway && shouldUseDirectGemini(gateway.httpStatus, gateway.remote?.type)) {
-      return requestDirectGemini(input, primary);
+      const callId = crypto.randomUUID();
+      console.warn('[image-review-provider]', JSON.stringify({ ...imageFailureDetails(gateway, runId ?? callId), action: 'fallback_google', fallback_call_id: callId }));
+      try {
+        return await requestDirectGemini(input, primary, callId);
+      } catch (cause) {
+        const failure = cause instanceof Error ? cause : new Error(String(cause));
+        Object.assign(failure, { provider: 'gemini_direct', callId });
+        throw failure;
+      }
     }
     throw error;
   }

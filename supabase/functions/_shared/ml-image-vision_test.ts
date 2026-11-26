@@ -307,7 +307,7 @@ function publicationDb(cacheRows: unknown[]) {
     },
     rpc(name: string) {
       if (name === 'publication_image_gate' || name === 'record_publication_image_usage') return Promise.resolve({ data: true, error: null });
-      if (name === 'claim_publication_image_analysis') return Promise.resolve({ data: [{ claimed: true, inconclusive_attempts: 0, retry_after: null }], error: null });
+      if (name === 'claim_publication_image_analysis_v2') return Promise.resolve({ data: [{ claimed: true, claim_status: 'claimed', inconclusive_attempts: 0, retry_after: null }], error: null });
       if (name === 'finish_publication_image_analysis') return Promise.resolve({ data: null, error: null });
       return Promise.resolve({ data: null, error: null });
     },
@@ -398,5 +398,47 @@ Deno.test('erro ao gravar evidência vira erro interno, separado de falha da IA'
     assertEquals(result.internalErrors?.length, 1);
     assertEquals(result.clean.length, 0);
     assertEquals(result.rejected.length, 0);
+  } finally { globalThis.fetch = original; }
+});
+
+Deno.test('structured-pt-v3: aprovação OK reaproveitada e reprovação válida preservada sem IA', async () => {
+  const urls = ['a', 'b', 'c', 'rejected'].map(x => `https://arquivos.c7drop.com.br/${x}.png`);
+  const ok = { veredito: 'aprovada', codigo: 'OK', localizacao: 'FUNDO_LIMPO', justificativa: 'Foto limpa' };
+  const cache = urls.map((url, i) => ({ url, clean: i < 3, checked_at: '2026-11-08', reason: '[structured-pt-v3-2026-11-08] galeria: ' + JSON.stringify(i < 3 ? ok : { ...ok, veredito: 'reprovada', codigo: 'MARCA_DAGUA' }) }));
+  const { db } = publicationDb(cache);
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (_input, init) => {
+    if (init?.method === 'POST') { calls++; return Promise.reject(new Error('Não deve analisar')); }
+    const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,1,244,0,0,1,244,8,2,0,0,0,0,0,0,0]);
+    return Promise.resolve(new Response(png, { headers: { 'Content-Type': 'image/png' } }));
+  };
+  try {
+    const result = await filterCleanImagesCached(db, urls, { publication: { title: 'Legacy' } });
+    assertEquals(result.clean, urls.slice(0, 3));
+    assertEquals(result.rejected.map(x => x.url), [urls[3]]);
+    assertEquals(calls, 0);
+  } finally { globalThis.fetch = original; }
+});
+
+Deno.test('reprovação antiga por inserção circular é reanalisada, nunca aprovada automaticamente', async () => {
+  const url = 'https://example.com/ambiguous.jpg';
+  const reason = '[structured-pt-v3-2026-11-08] galeria: ' + JSON.stringify({ veredito: 'reprovada', codigo: 'INSERCAO_CIRCULAR', localizacao: 'SOBRE_FOTO', justificativa: 'Detalhe ampliado' });
+  const { db } = publicationDb([{ url, clean: false, checked_at: '2026-11-08', reason }]);
+  const rpc = db.rpc.bind(db);
+  let observed: unknown;
+  (db as unknown as { rpc: (name: string, args?: Record<string, unknown>) => unknown }).rpc = (name, args) => {
+    if (name === 'claim_publication_image_analysis_v2') observed = args?.p_observed_reason;
+    return rpc(name);
+  };
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = () => { calls++; return Promise.resolve(new Response(JSON.stringify({ id: 'legacy-call', choices: [{ message: { content: JSON.stringify({ veredito: 'reprovada', codigo: 'BANNER_PROMOCIONAL', localizacao: 'SOBRE_FOTO', justificativa: 'Promoção' }) } }] }), { headers: { 'Content-Type': 'application/json' } })); };
+  try {
+    const result = await filterCleanImagesCached(db, [url], { publication: { title: 'Legacy' } });
+    assertEquals(observed, reason);
+    assertEquals(calls, 1);
+    assertEquals(result.clean.length, 0);
+    assertEquals(result.rejected.length, 1);
   } finally { globalThis.fetch = original; }
 });

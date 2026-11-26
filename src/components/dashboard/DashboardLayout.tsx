@@ -683,6 +683,12 @@ const DashboardLayoutInner = () => {
       viewport?.removeEventListener("scroll", apply);
       window.removeEventListener("orientationchange", apply);
       window.removeEventListener("resize", apply);
+      // O React reaproveita esta <div> ao trocar para Configurações (mesmo tipo
+      // na mesma posição) e não conhece estes estilos: sem limpar, a página
+      // herda o `position: fixed` com a altura da tela e não rola no celular.
+      for (const prop of ["position", "left", "right", "top", "width", "height", "maxHeight"] as const) {
+        el.style[prop] = "";
+      }
     };
   }, [isSettingsRoute, isMobile, loading, user]);
   // Exibição do novo onboarding em modal — gating próprio, independente do

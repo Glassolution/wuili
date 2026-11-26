@@ -28,7 +28,7 @@ export function isDeadRefreshError(status: number, body: any): boolean {
  * versões diferentes do supabase-js e o tipo SupabaseClient não é
  * intercambiável entre elas.
  */
-export async function markRefreshTokenDead(userId: string, reason: string): Promise<void> {
+export async function markRefreshTokenDead(userId: string, reason: string, notify = true): Promise<void> {
   const url = Deno.env.get("SUPABASE_URL");
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) return;
@@ -40,6 +40,8 @@ export async function markRefreshTokenDead(userId: string, reason: string): Prom
     .update({ refresh_failed_at: now, updated_at: now })
     .eq("user_id", userId)
     .eq("platform", "mercadolivre");
+
+  if (!notify) return;
 
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const { data: existing } = await supabase

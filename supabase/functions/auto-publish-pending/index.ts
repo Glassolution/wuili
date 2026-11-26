@@ -10,6 +10,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { authenticateCronRequest } from '../_shared/cron-auth.ts'
 import { attemptsAfterPublishFailure } from '../_shared/catalogVisionReview.ts'
+import { fulfilledPublication, publicationCatalogKeys } from '../_shared/publication-recovery.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,6 +76,12 @@ Deno.serve(async (req) => {
     escopoUsuario = data.user.id
   }
 
+  const input = await req.json().catch(() => ({})) as { reprocess_ids?: unknown }
+  const requestedIds = Array.isArray(input.reprocess_ids) ? input.reprocess_ids : []
+  if (requestedIds.length && (!cronOk || requestedIds.length > 5 || requestedIds.some(id => typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)))) {
+    return json({ error: 'Reprocessamento restrito à rotina interna, até cinco IDs válidos.' }, 400)
+  }
+
   const owner = crypto.randomUUID()
   const { data: locked, error: lockError } = await admin.rpc('claim_publication_worker', { p_owner: owner })
   if (lockError) return json({ error: lockError.message }, 500)
@@ -89,6 +96,7 @@ Deno.serve(async (req) => {
       .eq('status', 'pending')
     q = reason === 'image' ? q.eq('reason', 'image_compliance_unavailable') : q.neq('reason', 'image_compliance_unavailable')
     if (escopoUsuario) q = q.eq('user_id', escopoUsuario)
+    if (requestedIds.length) q = q.in('id', requestedIds)
     return q.order('seller_ready_at', { ascending: true, nullsFirst: true }).order('created_at', { ascending: true }).limit(5)
   }
   const [imagens, vendedores] = await Promise.all([lista('image'), lista('seller')])
@@ -101,13 +109,33 @@ Deno.serve(async (req) => {
   const agora = Date.now()
 
   for (const item of (pendentes ?? []) as Pendente[]) {
+    const recovery = item.payload?._image_recovery as { silent?: boolean; preserve_attempts?: boolean } | undefined
+    const silent = recovery?.silent === true
+    const complete = async (itemId: string, permalink: string | null, publishedAt?: string | null) => {
+      if (silent) {
+        const { error } = await admin.from('pending_publications').update({
+          status: 'published', published_at: publishedAt ?? new Date().toISOString(), ml_item_id: itemId,
+          permalink, last_error: null,
+          payload: { ...item.payload, _image_recovery: { ...recovery, processed_at: new Date().toISOString(), outcome: 'published' } },
+        }).eq('id', item.id).eq('status', 'pending')
+        return error
+      }
+      const { error } = await admin.rpc('complete_pending_publication', { p_id: item.id, p_item_id: itemId, p_permalink: permalink })
+      return error
+    }
+    const { data: catalog, error: catalogError } = item.product_id
+      ? await admin.from('catalog_products').select('external_id').eq('id', item.product_id).maybeSingle()
+      : { data: null, error: null }
+    if (catalogError) return json({ error: catalogError.message }, 500)
+    const keys = publicationCatalogKeys(item.product_id, catalog?.external_id ?? null)
     // A saved successful publication is idempotent progress, not another provider request.
-    const { data: existing, error: existingError } = await admin.from('user_publications')
-      .select('ml_item_id,permalink').eq('user_id',item.user_id).eq('catalog_product_id',item.product_id)
-      .in('status',['active','published']).limit(1).maybeSingle()
+    const { data: previous, error: existingError } = keys.length ? await admin.from('user_publications')
+      .select('ml_item_id,permalink,status,published_at').eq('user_id',item.user_id).in('catalog_product_id',keys)
+      .neq('status','archived_duplicate').order('published_at',{ascending:false}).limit(50) : { data: [], error: null }
     if (existingError) return json({error:existingError.message},500)
+    const existing = previous?.find(pub => fulfilledPublication(pub.status, pub.published_at, item.created_at))
     if(existing?.ml_item_id) {
-      const {error}=await admin.rpc('complete_pending_publication',{p_id:item.id,p_item_id:existing.ml_item_id,p_permalink:existing.permalink})
+      const error = await complete(existing.ml_item_id, existing.permalink, existing.published_at)
       if(error) return json({error:error.message},500)
       publicados++; continue
     }
@@ -144,7 +172,7 @@ Deno.serve(async (req) => {
         : !item.reminder_3d_at && idadeHoras >= 72
           ? 'reminder_3d_at'
           : null
-      if (lembrete) {
+      if (lembrete && !silent) {
         await admin.from('notifications').insert({
           user_id: item.user_id,
           type: 'ml_seller_pending',
@@ -168,28 +196,29 @@ Deno.serve(async (req) => {
         apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ user_id: item.user_id, product: item.payload?.product ?? item.payload }),
+      body: JSON.stringify({ user_id: item.user_id, product: { ...(item.payload?.product ?? item.payload), ...(item.product_id ? { id: item.product_id } : {}), ...(catalog?.external_id ? { catalog_product_id: catalog.external_id } : {}) }, suppress_notifications: silent }),
     })
     const corpo = await res.json().catch(() => ({}))
 
     if (res.ok && !corpo?.error && corpo?.item_id) {
       publicados += 1
-      const {error}=await admin.rpc('complete_pending_publication',{p_id:item.id,p_item_id:String(corpo.item_id),p_permalink:corpo.permalink ?? null})
+      const error = await complete(String(corpo.item_id), corpo.permalink ?? null)
       if(error) return json({error:error.message},500)
     } else {
       // Instabilidade (503/429/5xx) não consome as 25 tentativas.
       const { attempts, unavailable } = attemptsAfterPublishFailure(item.attempts, res.status, corpo?.code)
       const { error } = await admin.from('pending_publications').update({
-        attempts,
+        attempts: recovery?.preserve_attempts ? item.attempts : attempts,
         seller_ready_at: new Date().toISOString(),
         last_error: String(corpo?.error ?? `HTTP ${res.status}`).slice(0, 400),
+        ...(recovery ? { payload: { ...item.payload, _image_recovery: { ...recovery, processed_at: new Date().toISOString(), outcome: corpo?.code ?? `HTTP_${res.status}` } } } : {}),
       }).eq('id', item.id)
       if(error) return json({error:error.message},500)
       // Aviso de 24h DESLIGADO: abria um chamado de suporte em nome do cliente,
       // sem mensagem dele, um por anúncio (21 em 16/11). Só religar com
       // OVERDUE_IMAGE_TICKETS=on depois que o aviso deixar de criar ticket.
       const avisoAtrasoLigado = Deno.env.get('OVERDUE_IMAGE_TICKETS') === 'on'
-      if (avisoAtrasoLigado && item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
+      if (!silent && avisoAtrasoLigado && item.reason === 'image_compliance_unavailable' && !item.support_notified_at && agora - new Date(item.created_at).getTime() >= 864e5) {
         const { error: notifyError } = await admin.rpc('notify_overdue_image_publication', { p_id: item.id })
         if (notifyError) console.error('[auto-publish-pending] aviso de fila atrasada falhou:', item.id, notifyError.message)
       }

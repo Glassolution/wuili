@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { readAccessPlan } from "@/lib/subscriptionAccess";
 import { Check, CreditCard, QrCode, Loader2, Copy, CheckCircle2 } from "lucide-react";
 import { MP_PUBLIC_KEY } from "@/lib/mercadopago";
 import { carregarSdkMercadoPago } from "@/lib/mercadoPagoSdk";
@@ -86,31 +87,15 @@ const PlansPage = () => {
   const [cardHolder, setCardHolder] = useState("");
 
   useEffect(() => {
+    setCurrentPlan("gratis");
     if (!user) return;
     let active = true;
-    Promise.all([
-      supabase.from("profiles").select("plano").eq("user_id", user.id).maybeSingle(),
-      supabase
-        .from("subscriptions")
-        .select("plan,status")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]).then(([profileResult, subResult]) => {
+    readAccessPlan(supabase, user.id).then((plan) => {
       if (!active) return;
-      const sub = subResult.data as { plan?: string | null; status?: string | null } | null;
-      // Prefer active subscription plan over profiles.plano (fica desatualizado
-      // se o webhook do MP não sincronizar o perfil).
-      if (sub?.plan) {
-        const p = sub.plan === "plus" ? "pro" : sub.plan;
-        setCurrentPlan(String(p));
-        return;
-      }
-      if (profileResult.data?.plano) {
-        setCurrentPlan(profileResult.data.plano === "plus" ? "pro" : profileResult.data.plano);
-      }
+      setCurrentPlan(plan === "plus" ? "pro" : plan);
+    }).catch((error) => {
+      console.error("Não foi possível consultar o plano atual", error);
+      if (active) setCurrentPlan("gratis");
     });
     return () => { active = false; };
   }, [user]);

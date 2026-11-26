@@ -11,11 +11,13 @@ import { requestImageVision, IMAGE_VISION_MODELS, isCreditImageFailure } from '.
 import { imageInput } from './ml-image-input.ts';
 import { sequentialVision } from './ml-vision-policy.ts';
 import { imageFailureRetry } from './image-retry-policy.ts';
+import { imageClaimFailure } from './publication-recovery.ts';
+import { imageFailureDetails } from './ml-vision-request.ts';
 
 export type VisionFilterResult = {
   clean: string[];
   rejected: { url: string; reason: string }[];
-  inconclusive: { url: string; reason: string }[];
+  inconclusive: { url: string; reason: string; code?: string; provider?: string; call_id?: string | null }[];
   primaryRejected?: { url: string; reason: string }[];
   secondaryApproved?: string[];
   creditUnavailable?: boolean;
@@ -126,23 +128,27 @@ export async function filterCleanImagesCached(
 }
 
 type CacheEntry = { url: string; clean: boolean | null; reason: string | null; checked_at: string };
-type ClaimRow = { claimed: boolean; inconclusive_attempts: number; retry_after: string | null };
+type ClaimRow = { claimed: boolean; inconclusive_attempts: number; retry_after: string | null; reason?: string | null; claim_status?: string };
 
 function cachedEvidence(entry: CacheEntry): SavedImageRow[] {
   const reason = entry.reason ?? '';
   const match = /^\[(two-level-[^\]]+)\] roles: (.+)$/.exec(reason);
-  const single = /^\[(two-level-[^\]]+)\] (galeria|principal): (.+)$/.exec(reason);
+  const single = /^\[(two-level-[^\]]+|structured-pt-v3-[^\]]+)\] (galeria|principal): (.+)$/.exec(reason);
   if (!match && !single) return [];
   const rows: SavedImageRow[] = [];
   try {
     if (single) {
       const primary = single[2] === 'principal';
       const parsed = parseImageVerdict(single[3], primary);
-      if (parsed.clean !== null) rows.push({
+      const legacy = single[1].startsWith('structured-pt-v3-');
+      // Only explicit secondary OK approvals or still-prohibited rejections
+      // survive legacy criteria. Ambiguous old text/insertions require Gemini.
+      const reusable = parsed.clean !== null && (!legacy || !primary && (parsed.clean === false || parsed.evidence.codigo === 'OK'));
+      if (reusable) rows.push({
         image_url: entry.url, image_role: primary ? 'primary' : 'secondary', verdict: parsed.evidence.veredito,
         reason_code: parsed.evidence.codigo, evidence_location: parsed.evidence.localizacao,
-        justification: parsed.evidence.justificativa, criterion_version: single[1],
-        model: single[1].includes('gemini-3.6-flash') || single[1] === 'two-level-v4-2026-11-08' ? 'google/gemini-3.6-flash' : 'google/gemini-3.8-flash',
+        justification: parsed.evidence.justificativa, criterion_version: legacy ? 'two-level-legacy-validated' : single[1],
+        model: legacy ? 'historical-unknown' : single[1].includes('gemini-3.6-flash') || single[1] === 'two-level-v4-2026-11-08' ? 'google/gemini-3.6-flash' : 'google/gemini-3.8-flash',
         analyzed_at: entry.checked_at, run_id: 'cache-single',
       });
       return rows;
@@ -184,6 +190,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   if (cacheError) throw new Error(cacheError.message);
   for (const entry of cache ?? []) rows.push(...cachedEvidence(entry as CacheEntry));
   const roles = savedPublicationRoles(rows, candidates);
+  const observedReasons = new Map((cache ?? []).map(entry => [entry.url as string, entry.reason as string | null]));
   const rejected: VisionFilterResult['rejected'] = [];
   const inconclusive: VisionFilterResult['inconclusive'] = [];
   const primaryRejected: NonNullable<VisionFilterResult['primaryRejected']> = [];
@@ -199,11 +206,12 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
     if (halted || !await imageCallAllowed(db, opts.background === true)) { halted = true; return { clean: null, reason: 'Conferência de fotos temporariamente indisponível' }; }
 
     const owner = crypto.randomUUID();
-    const { data: claimData, error: claimError } = await db.rpc('claim_publication_image_analysis', { p_url: url, p_owner: owner });
+    let { data: claimData, error: claimError } = await db.rpc('claim_publication_image_analysis_v2', { p_url: url, p_owner: owner, p_observed_reason: observedReasons.get(url) ?? null });
     if (claimError) throw new ImageReviewInternalError(`Falha ao reservar análise: ${claimError.message}`);
-    const claim = (claimData?.[0] ?? null) as ClaimRow | null;
+    let claim = (claimData?.[0] ?? null) as ClaimRow | null;
     if (!claim?.claimed) {
-      const { data: fresh } = await db.from('ml_image_vision_cache').select('url,reason,clean,checked_at').eq('url', url).maybeSingle();
+      const { data: fresh, error: freshError } = await db.from('ml_image_vision_cache').select('url,reason,clean,checked_at').eq('url', url).maybeSingle();
+      if (freshError) throw new ImageReviewInternalError(freshError.message);
       if (fresh) {
         const freshRoles = savedPublicationRoles(cachedEvidence(fresh as CacheEntry), [url]);
         const current = freshRoles.get(url);
@@ -211,8 +219,22 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
         const decision = current?.secondary ?? (current?.primary?.verdict === 'aprovada' ? current.primary : undefined);
         if (decision) return parseImageVerdict(JSON.stringify({ veredito: decision.verdict, codigo: decision.reason_code, localizacao: decision.evidence_location, justificativa: decision.justification }), false);
       }
-      return { clean: null, reason: claim?.retry_after ? 'Duas análises inconclusivas; nova tentativa após 24h' : 'Esta foto já está sendo analisada' };
+      // A concurrent verdict changed after our read: run the same parser,
+      // then CAS once more only when it is still incompatible (no AI replay).
+      if (claim?.claim_status === 'verdict_changed') {
+        const next = await db.rpc('claim_publication_image_analysis_v2', { p_url: url, p_owner: owner, p_observed_reason: fresh?.reason ?? null });
+        if (next.error) throw new ImageReviewInternalError(next.error.message);
+        claimData = next.data;
+        claim = (claimData?.[0] ?? null) as ClaimRow | null;
+      }
+      if (!claim?.claimed) {
+        const detail = imageClaimFailure(claim?.claim_status);
+        console.warn('[image-review]', JSON.stringify({ url, product_id: opts.productId, provider: 'none', call_id: null, ...detail }));
+        return { clean: null, ...detail, provider: 'none', call_id: null };
+      }
     }
+
+    if (observedReasons.get(url)?.startsWith('[structured-pt-v3-')) console.info('[image-review]', JSON.stringify({ url, product_id: opts.productId, code: 'IMAGE_LEGACY_VERDICT_INCOMPATIBLE', provider: 'none', call_id: runId, action: 'analyze' }));
 
     let finished = false;
     let stage = 'download';
@@ -220,10 +242,11 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
       if (finished) return;
       const creditFailure = isCreditImageFailure(cause);
       const retry = imageFailureRetry(claim.inconclusive_attempts ?? 0, creditFailure);
+      const detail = imageFailureDetails(cause, runId, stage === 'ai' ? 'lovable_gateway' : 'image_download');
       const { error: finishError } = await db.rpc('finish_publication_image_analysis', {
-        p_url: url, p_owner: owner, p_provider: creditFailure ? 'unavailable' : 'gemini',
+        p_url: url, p_owner: owner, p_provider: detail.provider,
         p_attempts: retry.attempts, p_retry_after: retry.retryAfter,
-        p_error: cause instanceof Error ? cause.message : String(cause),
+        p_error: JSON.stringify(detail),
       });
       finished = true;
       if (finishError) throw new ImageReviewInternalError(`Falha ao gravar tentativa: ${finishError.message}`);
@@ -242,7 +265,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
           evidence_location: parsed.evidence.localizacao, justification: parsed.evidence.justificativa,
           criterion_version: IMAGE_CRITERION_VERSION, model: IMAGE_VISION_MODELS[0], method: 'publication_single',
           analyzed_at: new Date().toISOString(),
-          evidence: { raw: response.raw, pipeline_models: IMAGE_VISION_MODELS, provider: response.provider },
+          evidence: { raw: response.raw, pipeline_models: IMAGE_VISION_MODELS, provider: response.provider, call_id: response.id ?? runId },
         });
         if (evidenceError) throw new ImageReviewInternalError(`Falha ao guardar evidência: ${evidenceError.message}`);
       }
@@ -274,13 +297,25 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
       catch (resumeError) { console.warn('[ml-image-vision] pausa de IA não liberada:', String(resumeError)); }
       return parsed;
     } catch (cause) {
+      const detail = imageFailureDetails(cause, runId, stage === 'ai' ? 'lovable_gateway' : 'image_download');
+      console.error('[image-review]', JSON.stringify({ url, product_id: opts.productId, ...detail }));
+      if (stage === 'ai' && opts.productId && !(cause instanceof ImageReviewInternalError)) {
+        const { error: evidenceError } = await db.from('catalog_image_analysis_results').insert({
+          run_id: runId, record_key: `${runId}:${url}:failure`, product_id: opts.productId, product_title: opts.title ?? '',
+          image_url: url, image_role: 'secondary', verdict: 'inconclusiva', reason_code: 'FALHA_TECNICA',
+          evidence_location: 'DESCONHECIDA', justification: detail.reason.slice(0, 400),
+          criterion_version: IMAGE_CRITERION_VERSION, model: IMAGE_VISION_MODELS[0], method: 'publication_provider_failure',
+          analyzed_at: new Date().toISOString(), evidence: detail,
+        });
+        if (evidenceError) internalErrors.push({ url, error: evidenceError.message });
+      }
       if (cause instanceof ImageReviewInternalError) internalErrors.push({ url, error: cause.message });
       try { await fail(cause); }
       catch (failError) { internalErrors.push({ url, error: failError instanceof Error ? failError.message : String(failError) }); }
       if (isCreditImageFailure(cause)) creditUnavailable = true;
       if (isTerminalImageFailure(cause)) await recordImageFailure(db, cause);
       if (stage === 'ai') halted = true;
-      return { clean: null, reason: cause instanceof Error ? cause.message : 'Conferência indisponível' };
+      return { clean: null, ...detail };
     }
   }
 
@@ -288,7 +323,7 @@ async function filterPublicationImages(db: SupabaseClient, urls: string[], opts:
   let primaryUrl: string | undefined;
   for (const url of candidates) {
     const secondary = await check(url);
-    if (secondary.clean === null) { inconclusive.push({ url, reason: secondary.reason }); continue; }
+    if (secondary.clean === null) { inconclusive.push({ url, reason: secondary.reason, ...('code' in secondary ? { code: secondary.code, provider: secondary.provider, call_id: secondary.call_id } : {}) }); continue; }
     if (!secondary.clean) { rejected.push({ url, reason: secondary.reason }); continue; }
     approved.push(url);
     if (!primaryUrl) {
