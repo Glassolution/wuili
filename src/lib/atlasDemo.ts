@@ -156,7 +156,8 @@ const resumo = (b: BriefingDaLoja, abertura = "Fechado!"): RespostaDemo => {
         b.publico ? `- **Pra quem:** ${b.publico}` : "",
         `- **Personalidade:** ${b.estilo}${(() => {
           const p = personalidadeDe(b.estilo);
-          return p ? ` (${dadosDaPersonalidade(p).descricao})` : "";
+          // "Elegante (bem sofisticada)" já traz as palavras da pessoa: não repete a descrição.
+          return p && !b.estilo?.includes("(") ? ` (${dadosDaPersonalidade(p).descricao})` : "";
         })()}`,
         `- **Cores:** ${b.cores}`,
         b.diferencial ? `- **Diferencial:** ${b.diferencial}` : "",
@@ -291,7 +292,7 @@ async function responder(mensagem: string, historico: Historico): Promise<Respos
     if (!id) return { ...perguntarEstilo(b), message: `Entendi. Pra eu acertar o tom: **qual dessas chega mais perto da sua marca?**\n\n${PERSONALIDADES.map((p) => `- **${p.rotulo}:** ${p.descricao}`).join("\n")}` };
     const p = dadosDaPersonalidade(id);
     const estilo = PERSONALIDADES.some((x) => x.rotulo === texto.trim()) ? p.rotulo : `${p.rotulo} (${texto.slice(0, 60)})`;
-    return depoisDe({ ...b, estilo }, `Boa: uma marca **${p.rotulo.toLowerCase()}**, que ${p.descricao}.\n\n`);
+    return depoisDe({ ...b, estilo }, `Boa: uma marca **${p.rotulo.toLowerCase()}**: ${p.descricao}.\n\n`);
   }
 
   if (b.etapa === "diferencial") {

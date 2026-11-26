@@ -187,3 +187,12 @@ describe("nicho sem 'do quê'", () => {
     expect(extrairNicho("bijuterias artesanais")).toBe("bijuterias artesanais");
   });
 });
+
+describe("personalidade com texto livre", () => {
+  it("não repete a descrição no resumo nem escreve 'que discreta'", async () => {
+    const base = ["quero criar uma loja de moda masculina", "Ainda não tenho", "homens de 30 a 45", "bem sofisticada, discreta"];
+    expect((await conversar(base)).message).toMatch(/marca \*\*elegante\*\*: discreta/);
+    const fim = await conversar([...base, "Escolhe por mim", "Pular", "Meus próprios produtos"]);
+    expect(fim.message).toContain("**Personalidade:** Elegante (bem sofisticada, discreta)\n");
+  });
+});
