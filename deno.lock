@@ -7316,6 +7316,7 @@
         "npm:express@^5.2.1",
         "npm:framer-motion@^12.39.0",
         "npm:globals@^15.15.0",
+        "npm:hugeicons-react@0.4",
         "npm:input-otp@^1.4.2",
         "npm:jsdom@^20.0.3",
         "npm:jszip@^3.10.1",

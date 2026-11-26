@@ -1,7 +1,20 @@
 ---
-atualizado: 2026-11-24
+atualizado: 2026-11-25
 ---
 # Próximos passos
+
+## Loja de qualquer coisa + Atlas da landing (25/11)
+- [x] Modo demonstração do Atlas para ver a conversa (`src/lib/atlasDemo.ts`, só no dev) → [[Atlas]]
+- [ ] Testar de verdade: apagar `VITE_ATLAS_DEMO` (e o `localhost:8000` do `.env.local`) e conferir landing → login → Atlas respondendo
+- [ ] Celular: o painel do Atlas não existe lá (o Atlas é a página `/dashboard/atlas`), então a ideia da landing é consumida e se perde; levar a ideia para essa página no celular
+- [x] Criar loja pelo chat: roteiro, botão "Criar meu site", modal e construção passo a passo (front pronto; testado no modo demonstração) → [[Atlas]]
+- [ ] **Em espera (25/11/2026, pedido do dono: imagem fica para depois; não publicar na main ainda)** Publicar `generate-store-banner` com o modo `layout: "tela-cheia"` (capa de ponta a ponta nas cores da pessoa, 16:9, modelo de imagem Pro em 2K; com `scene` e `people` por variação de capa, 26/11/2026) — precisa de aprovação do dono; a função é gerida pela Lovable (o conector Supabase daqui não lê nem publica)
+- [ ] Capa da loja a partir de foto de banco com licença comercial (Pexels/Unsplash) + IA só ajustando cores/proporção → [[Imagem do tema gerada por IA]]; precisa de chave da API (secret)
+- [ ] Vitrine editorial virar template de verdade ("loja-3"): editor `GeneratedStoreEditorPage`, loja pública, página de produto e conta; e a loja criada pelo Atlas gravar com ele
+- [ ] Chat de baixo do `AtlasEditorAoVivo` pedir mudanças na loja (hoje o enviar fica desligado)
+- [ ] Lovable: `atlas-chat` seguir o roteiro de `src/lib/briefingDaLoja.ts` e devolver `briefing` + ação `create_store` (prompt colado no chat em 25/11); na etapa das cores, aceitar a resposta do seletor no formato "Minhas cores: verde (#2F7D46) e creme (#F5F0E6)" e guardar o texto como veio em `briefing.cores`
+- [ ] Loja por tipo de verdade: entrega digital (infoproduto), área do aluno (curso), campos de nick/ID no checkout (jogo), agendamento (serviço) — hoje o editor só tem os modelos de loja física
+- [ ] Banco de fotos com licença (Pexels/Unsplash) como alternativa à imagem gerada por IA
 
 ## Oferta de boas-vindas no anual (24/11)
 - [x] Frontend pronto e desligado (`OFERTA_BOAS_VINDAS.ativa = false`, `src/lib/ofertaBoasVindas.ts`) → [[Frontend]]

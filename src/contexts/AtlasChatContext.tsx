@@ -8,6 +8,9 @@ import { veloToast } from "@/components/ui/velo-toast";
 import { atlasThreadsQueryKey } from "@/lib/atlasHistory";
 import { lerRetornoMl, limparRetornoMl } from "@/lib/mlOauthRetorno";
 import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
+import { consumirIdeiaDaLanding, mensagemParaOAtlas } from "@/lib/ideiaDaLanding";
+import { atlasEmModoDemo, respostaDemoDoAtlas } from "@/lib/atlasDemo";
+import type { BriefingDaLoja, PedidoDeLoja } from "@/lib/briefingDaLoja";
 
 
 /**
@@ -19,12 +22,16 @@ import { AtlasFireworks } from "@/components/dashboard/AtlasFireworks";
  * sobrevive à troca de rota e vira um painel fixo à direita.
  */
 
+/** Tempo mínimo de "Pensando..." antes de a resposta aparecer. */
+const PENSAR_NO_MINIMO_MS = 3000;
+
 export type AtlasMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   created_at: string;
-  product_data?: { actions?: AtlasAction[] } | null;
+  /** `briefing`: em que ponto está a conversa de criar loja (src/lib/briefingDaLoja.ts). */
+  product_data?: { actions?: AtlasAction[]; briefing?: BriefingDaLoja | null } | null;
 };
 
 export type AtlasNavigationAction = {
@@ -68,6 +75,9 @@ export type AtlasPublishMlAction = {
   variant?: "primary";
 };
 
+/** "Criar meu site": abre o modal da loja com o briefing que a conversa montou. */
+export type AtlasCreateStoreAction = { type: "create_store"; label: string; briefing: BriefingDaLoja };
+
 export type AtlasAction =
   | AtlasNavigationAction
   | AtlasProductCardAction
@@ -75,7 +85,8 @@ export type AtlasAction =
   | AtlasConnectMlAction
   | AtlasWatchTutorialAction
   | AtlasPublishMlAction
-  | AtlasOpenShowcaseAction;
+  | AtlasOpenShowcaseAction
+  | AtlasCreateStoreAction;
 
 /**
  * Saldo diário de mensagens do Atlas, devolvido pela função em toda resposta.
@@ -95,6 +106,8 @@ type AtlasFunctionResponse = {
   actions?: AtlasAction[];
   quota?: AtlasQuota;
   quotaExcedida?: boolean;
+  /** Roteiro de criar loja (src/lib/briefingDaLoja.ts): etapa e respostas até aqui. */
+  briefing?: BriefingDaLoja | null;
 };
 
 const isAtlasQuota = (value: unknown): value is AtlasQuota => {
@@ -115,6 +128,10 @@ const isAtlasAction = (action: unknown): action is AtlasAction => {
   // Sem este caso, a ação de publicar era descartada aqui e o passo 5 chegava
   // ao usuário só com o atalho para o catálogo — nunca com o botão que publica.
   if (c.type === "publish_ml") return typeof c.label === "string" && typeof c.product_id === "string";
+  if (c.type === "create_store") {
+    const b = c.briefing as Record<string, unknown> | null | undefined;
+    return typeof c.label === "string" && !!b && typeof b.tipo === "string" && typeof b.nicho === "string";
+  }
   return false;
 };
 
@@ -237,6 +254,12 @@ type AtlasChatContextValue = {
   /** Navegação por link interno (#catalogo etc.) preservando a conversa. */
   navegarPorLink: (rota: string) => Promise<void>;
   aoApagarConversa: (threadId: string) => void;
+  /**
+   * Loja sendo montada no chat depois do modal "Criar meu site". `depoisDe` é
+   * quantas mensagens havia na hora: o cartão da construção entra nesse ponto.
+   */
+  construcao: { id: string; pedido: PedidoDeLoja; depoisDe: number } | null;
+  criarLoja: (pedido: PedidoDeLoja) => void;
 };
 
 const AtlasChatContext = createContext<AtlasChatContextValue | null>(null);
@@ -477,6 +500,28 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     setAberto(true);
   }, []);
 
+  const [construcao, setConstrucao] = useState<AtlasChatContextValue["construcao"]>(null);
+
+  /*
+    Modal "Criar meu site" confirmado: entra como fala da pessoa e o cartão da
+    construção (AtlasConstrucaoDaLoja) aparece logo abaixo, rodando os passos.
+    Fica só na tela: a conversa salva no banco não guarda o cartão.
+  */
+  const criarLoja = useCallback(
+    (pedido: PedidoDeLoja) => {
+      const fala: AtlasMessage = {
+        id: `local-loja-${Date.now()}`,
+        role: "user",
+        content: `Criar meu site: ${pedido.nome}`,
+        created_at: new Date().toISOString(),
+      };
+      setAberto(true);
+      setConstrucao({ id: `loja-${Date.now()}`, pedido, depoisDe: mensagens.length + 1 });
+      setMensagens((atual) => [...atual, fala]);
+    },
+    [mensagens.length],
+  );
+
   const novaConversa = useCallback(() => {
     sessaoRef.current += 1;
     setMensagens([]);
@@ -488,6 +533,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     setRotaDeAbertura(null);
     setProdutoSelecionado(null);
     setNichoDaVitrine(null);
+    setConstrucao(null);
   }, []);
 
   const enviar = useCallback(
@@ -533,7 +579,35 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setEnviando(true);
+      // O Atlas "pensa" por pelo menos 3 s: resposta instantânea parece enlatada.
+      const prontoEm = Date.now() + PENSAR_NO_MINIMO_MS;
 
+      // Modo demonstração (src/lib/atlasDemo.ts): só no `npm run dev` com
+      // VITE_ATLAS_DEMO=1. Responde localmente, sem banco e sem a função.
+      if (atlasEmModoDemo()) {
+        let demo: Awaited<ReturnType<typeof respostaDemoDoAtlas>>;
+        try {
+          demo = await respostaDemoDoAtlas(mensagem, anteriores);
+        } catch {
+          demo = { message: "Não consegui responder agora. Tente de novo.", actions: [], briefing: null };
+        }
+        const falta = prontoEm - Date.now();
+        if (falta > 0) await new Promise((resolve) => window.setTimeout(resolve, falta));
+        if (sessaoRef.current !== sessionId) return;
+        setMensagens((atual) => [
+          ...atual,
+          {
+            id: `demo-${Date.now()}`,
+            role: "assistant",
+            content: demo.message,
+            created_at: new Date().toISOString(),
+            product_data:
+              demo.actions.length > 0 || demo.briefing ? { actions: demo.actions, briefing: demo.briefing } : null,
+          },
+        ]);
+        setEnviando(false);
+        return;
+      }
 
       try {
         let idDaThread = threadId;
@@ -579,6 +653,9 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
         const texto = corpo?.message;
         const acoes = normalizeAtlasActions(corpo?.actions);
         if (!texto) throw new Error(corpo?.error || "Não consegui gerar uma resposta agora");
+        // Espera antes de gravar, para o horário da resposta (e o "Pensou por") já contar os 3 s.
+        const falta = prontoEm - Date.now();
+        if (falta > 0) await new Promise((resolve) => window.setTimeout(resolve, falta));
 
         const { data: salva, error: erroSalvar } = await supabase
           .from("atlas_messages")
@@ -587,7 +664,10 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
             user_id: user.id,
             role: "assistant",
             content: texto,
-            product_data: acoes.length > 0 ? { actions: acoes } : null,
+            product_data:
+              acoes.length > 0 || corpo?.briefing
+                ? { actions: acoes, briefing: corpo?.briefing ?? null }
+                : null,
           })
           .select("id, role, content, created_at, product_data")
           .single();
@@ -650,6 +730,7 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       setErro(null);
       setMensagens([]);
       setEnviando(false);
+      setConstrucao(null);
       setThreadId(id);
       setCarregandoConversa(true);
 
@@ -712,6 +793,19 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [carregandoConversa, enviando, enviar, perguntaPendente]);
 
+
+  /*
+    Ideia escrita no hero da landing (src/lib/ideiaDaLanding.ts): depois do
+    login, vira a primeira mensagem de uma conversa nova neste chat (o mesmo
+    painel da caixa do Início), sem passar pela URL.
+  */
+  useEffect(() => {
+    if (!user?.id || enviando || carregandoConversa) return;
+    if (!location.pathname.startsWith("/dashboard")) return;
+    const daLanding = consumirIdeiaDaLanding();
+    if (!daLanding) return;
+    void enviar(mensagemParaOAtlas(daLanding));
+  }, [user?.id, enviando, carregandoConversa, enviar, location.pathname]);
 
   const aoApagarConversa = useCallback(
     (id: string) => {
@@ -787,11 +881,14 @@ export const AtlasChatProvider = ({ children }: { children: ReactNode }) => {
       abrirConversa,
       navegarPorLink,
       aoApagarConversa,
+      construcao,
+      criarLoja,
     }),
     [
       aberto, modo, mensagens, enviando, carregandoConversa, erro, threadId, guiaAtivo, paginaAtual, quota,
       produtoSelecionado, selecionarProduto, nichoDaVitrine, mostrarVitrineNoChat,
       avisarContaDeVendedorBloqueada, abrir, abrirLateral, fechar, novaConversa, enviar, abrirConversa, navegarPorLink, aoApagarConversa,
+      construcao, criarLoja,
     ],
   );
 

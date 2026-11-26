@@ -1,9 +1,10 @@
 ---
-atualizado: 2026-11-08
+atualizado: 2026-11-25
 ---
 # Lojas públicas e páginas de venda
 
 - Loja própria do seller: editor em `/minha-loja/*`, pública em `/loja/:slug/*` (alias `/store/:slug/*`, prévia `/preview/:slug/*`). Templates em `src/components/store-templates/`, seções em `store-sections/`.
+- Loja criada pelo chat do Atlas (25/11/2026): mesmo `createUserProject` (`src/lib/userProjects.ts`), com `accent`, `font`, `heroImage` e o briefing da conversa no metadata → [[Atlas]].
 - Páginas de venda com IA: `/dashboard/paginas-com-ia` (`ai-page-create`, `generate-sales-page`, PagePilot).
 - Pixel Meta do seller: `src/lib/metaPixel.ts`.
 - Tabelas: `user_projects`, `project_members`, `store_orders`, `store_reviews` → [[Tabelas - Afiliados, lojas e outros]].
