@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { veloToast } from "@/components/ui/velo-toast";
 import { markOnboardingPending } from "@/components/onboarding/OnboardingModal";
-import { Eye, EyeOff, X } from "lucide-react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import {
   captureOrigin,
   concluirCadastroNoTikTok,
@@ -21,7 +21,13 @@ import {
 import { emailEhDescartavel, MENSAGEM_EMAIL_DESCARTAVEL } from "@/lib/emailDescartavel";
 import { EVENTOS_LANDING, medirLanding } from "@/lib/landingFunnel";
 import { metaVeloCadastroConcluido } from "@/lib/veloMetaPixel";
-import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
+import { temIdeiaDaLanding } from "@/lib/ideiaDaLanding";
+import agenteEstrela from "@/assets/agentes/grandes/estrela.webp";
+import agenteConcha from "@/assets/agentes/grandes/concha.webp";
+import agenteSino from "@/assets/agentes/grandes/sino.webp";
+import agenteLua from "@/assets/agentes/grandes/lua.webp";
+import agenteCubo from "@/assets/agentes/grandes/cubo.webp";
+import agenteFolha from "@/assets/agentes/grandes/folha.webp";
 
 /* ─── Email check ─────────────────────────────────────────────────────────── */
 async function checkEmailExists(email: string): Promise<boolean | null> {
@@ -104,6 +110,9 @@ const destinoPosLogin = () => {
     const seguro = oauthReturnPath(next);
     if (seguro !== "/") return seguro;
   }
+  // Com ideia escrita na landing: /dashboard leva ao chat do Atlas (App.tsx).
+  // Fica /dashboard (e não /dashboard/atlas) porque é o retorno já liberado no OAuth do Google.
+  if (temIdeiaDaLanding()) return "/dashboard";
   return window.matchMedia("(max-width: 767px)").matches ? "/dashboard/catalogo" : "/dashboard";
 };
 
@@ -130,20 +139,17 @@ const GoogleIcon = () => (
   </svg>
 );
 
-/* ─── Painel da direita ───────────────────────────────────────────────────── */
-// Print do dashboard salvo em public/. O nome tem espaço, por isso o %20.
-// Carrossel do painel da direita. Os nomes dos arquivos têm espaço, daí o %20.
-// "login 01/02/03.png" saíram: mostravam o ícone do TikTok no menu (o TikTok Ads
-// recusa anúncio cuja página usa a marca deles), a logo antiga e a faixa "Plano
-// Gratuito", que não existe. Só volte com prints novos, sem nada disso.
-const SHOWCASE = [
-  {
-    image: "/login%203.png",
-    title: "Veja o que cada produto está vendendo",
-    description: "Acompanhe as vendas do mês, o status de cada anúncio e publique de novo em um clique.",
-  },
+/* ─── Agentes da Velo ─────────────────────────────────────────────────────── */
+// Recortados da folha de personagens do dono (fundo removido), 300px de altura.
+// x = posição na plataforma (%), base = altura dos pés, h = altura na tela.
+const AGENTES = [
+  { nome: "Estrela", src: agenteEstrela, x: 6, base: 92, h: 118, atraso: 0, z: 2 },
+  { nome: "Concha", src: agenteConcha, x: 19, base: 128, h: 128, atraso: 0.35, z: 1 },
+  { nome: "Sino", src: agenteSino, x: 33, base: 44, h: 160, atraso: 0.7, z: 3 },
+  { nome: "Lua", src: agenteLua, x: 49, base: 140, h: 118, atraso: 0.2, z: 1 },
+  { nome: "Cubo", src: agenteCubo, x: 64, base: 122, h: 132, atraso: 0.55, z: 1 },
+  { nome: "Folha", src: agenteFolha, x: 77, base: 66, h: 146, atraso: 0.9, z: 3 },
 ];
-const SLIDE_INTERVAL = 3800;
 
 const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
   if (resetMode) {
@@ -165,8 +171,8 @@ const getCopy = (step: "initial" | "login" | "signup", resetMode: boolean) => {
     };
   }
   return {
-    title: "Crie sua conta Velo",
-    subtitle: "Digite seu e-mail para começar. Se você já tem conta, a gente te leva direto para entrar.",
+    title: "Que bom ter você aqui.",
+    subtitle: "Crie sua conta ou entre com o seu e-mail.",
   };
 };
 
@@ -210,7 +216,8 @@ const LoginPage = () => {
   const [navegadorInterno]                = useState<string | null>(() => detectInAppBrowser());
   const [linkCopiado, setLinkCopiado]     = useState(false);
   const [avisoNavegador, setAvisoNavegador] = useState(false);
-  const [slide, setSlide]                 = useState(0);
+  // "Dizer oi": os agentes dão um pulinho (a key muda e a animação recomeça).
+  const [oi, setOi]                       = useState(0);
   /*
     Todo retorno desta tela (erro, aviso, confirmação) aparece aqui dentro do card, e não
     mais como toast. Num formulário o feedback tem que nascer ao lado do campo que o
@@ -436,14 +443,6 @@ const LoginPage = () => {
 
   };
 
-  // Cadastro escolhido de propósito, sem passar pela detecção: o e-mail continua editável.
-  const irParaCadastro = () => {
-    setAviso(null);
-    setEmailLocked(false);
-    setPassword("");
-    setStep("signup");
-  };
-
   const voltarParaInicio = () => {
     setAviso(null);
     setEmailLocked(false);
@@ -452,9 +451,8 @@ const LoginPage = () => {
     setStep("initial");
   };
 
-  // Quem vem do botão principal da landing (?novo=1) já cai na criação de conta.
+  // A landing (?novo=1) também começa pelo e-mail: a checagem decide entre entrar e criar conta.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("novo") === "1") setStep("signup");
     captureOrigin();
     trackSignup("signup_view");
     if (detectInAppBrowser()) trackSignup("signup_inapp_browser", detectInAppBrowser() ?? undefined);
@@ -471,192 +469,442 @@ const LoginPage = () => {
   useEffect(() => { if (step === "login")  setTimeout(() => passwordRef.current?.focus(), 320); }, [step]);
 
 
-  // Troca de slide sozinha; clicar num ponto reinicia a contagem.
-  useEffect(() => {
-    if (SHOWCASE.length < 2) return;
-    const timer = window.setInterval(
-      () => setSlide((current) => (current + 1) % SHOWCASE.length),
-      SLIDE_INTERVAL,
-    );
-    return () => window.clearInterval(timer);
-  }, [slide]);
-
   if (!authLoading && user && !loading && !googleLoading) return <Navigate to={destinoPosLogin()} replace />;
 
   const copy = getCopy(step, resetMode);
   // Cadastro alcançado pelo link, e não pela detecção de e-mail.
   const cadastroDireto = step === "signup" && !emailLocked;
-  const mostraSocial = step === "initial" || cadastroDireto;
+  const mostraSocial = !resetMode && (step === "initial" || cadastroDireto);
   const inputCls =
     // 16px no celular: abaixo disso o Safari do iPhone dá zoom na página ao focar o campo.
-    "h-[52px] w-full rounded-[10px] border border-[#E3E7EE] bg-white px-4 max-lg:h-12 max-lg:rounded-[14px] max-lg:pl-4 max-lg:text-[16px] text-[14px] font-medium text-[#0F172A] outline-none transition placeholder:font-normal placeholder:text-[#9AA4B2] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/10";
+    "h-12 w-full rounded-[12px] border border-[#D5DCED] bg-white/80 px-4 text-[16px] text-[#20242F] outline-none transition placeholder:text-[#858FA5] focus:border-[#4F6BED] focus:ring-4 focus:ring-[#4F6BED]/10 sm:text-[15px]";
   const primaryBtnCls =
-    "inline-flex h-[52px] w-full items-center justify-center rounded-[10px] bg-[#2563EB] text-[15px] max-lg:h-12 max-lg:rounded-full max-lg:text-[15px] font-semibold text-white transition-colors hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:text-white";
+    "inline-flex h-[46px] w-full items-center justify-center gap-4 rounded-[12px] bg-[#3E63EE] text-[14px] font-semibold text-white shadow-[0_4px_12px_rgba(62,99,238,0.16)] transition-colors hover:bg-[#3557E0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#335AF0] disabled:cursor-not-allowed disabled:bg-[#C7D2E4] disabled:shadow-none";
 
   return (
     <main
-      // Desliga o relevo "Pilot" dos botões sólidos (index.css): aqui o botão é
-      // chapado. Sem isto o `hover:bg-[#1D4ED8]` casa com `button[class*="bg-[#1"]`
-      // e o brilho volta pelo CSS global.
+      // Desliga o relevo "Pilot" dos botões sólidos (index.css): aqui o botão é chapado.
       data-velo-flat-buttons
-      /* Azul chapado, o mesmo #0B1B3D do hero da landing. Sem degradê: o brilho radial
-         não dizia nada sobre a marca e podia estar em qualquer produto. */
-      className={`relative flex min-h-screen bg-[#0F0F12] text-[#0F172A] [font-kerning:normal] [font-optical-sizing:auto] lg:bg-white ${FONTE_TEXTO}`}
+      className={`relative min-h-screen overflow-hidden bg-[#F2F3F7] text-[#1B1F2A] [font-kerning:normal] ${FONTE_FORMULARIO}`}
     >
-      {/*
-        Celular: foto cheia no topo e o formulário numa folha clara que sobe do rodapé.
-        A foto é decoração — no desktop a coluna da vitrine faz esse papel.
-      */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[52vh] overflow-hidden lg:hidden">
-        <ImagemResponsiva
-          base="pessoa-02"
-          larguras={[640, 960, 1280]}
-          original="/pessoa%2002.webp"
-          sizes="200vw"
-          alt=""
-          prioritaria
-          className="h-full w-full object-cover object-[64%_40%]"
-        />
-        {/* Topo: segura a leitura do logo e do botão sobre o céu claro. */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,18,0.45)_0%,rgba(15,15,18,0)_28%)]" />
-        {/* Base: a foto se desfaz no fundo escuro atrás da folha. */}
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,15,18,0)_45%,#0F0F12_100%)]" />
-      </div>
-
-      {/* Atalho entre entrar e criar conta, como pílula no canto — só no celular. */}
-      <button
-        type="button"
-        onClick={() => {
-          if (resetMode) { setAviso(null); setResetMode(false); return; }
-          if (step === "signup") {
-            if (entradaPeloCadastro) navigate("/login");
-            else voltarParaInicio();
-          } else irParaCadastro();
+      {/* Fundo da referência: cinza-claro com um brilho azulado à esquerda e um pêssego no canto direito. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(900px 520px at 22% 62%, rgba(132,150,255,0.16), transparent 70%), radial-gradient(700px 420px at 88% 6%, rgba(255,196,160,0.22), transparent 70%), radial-gradient(600px 400px at 70% 95%, rgba(170,185,255,0.12), transparent 70%)",
         }}
-        className="absolute right-4 top-5 z-10 h-9 rounded-full bg-white/25 px-4 text-[14px] font-semibold text-white backdrop-blur-md transition active:scale-[0.97] lg:hidden"
-      >
-        {step === "signup" && !resetMode ? "Entrar" : "Criar conta"}
-      </button>
+      />
 
-      {/* ── Coluna do formulário ─────────────────────────────────────────── */}
-      <div className="relative flex w-full flex-col px-3 pb-3 pt-12 sm:px-12 lg:px-16 lg:py-12 lg:w-1/2">
-        <div className="flex flex-1 flex-col justify-end py-6 max-lg:pb-0 lg:justify-center lg:py-12">
-          {/*
-            No celular a marca faz parte do mesmo bloco do título: fora dele, o
-            `justify-center` do miolo abria um vão morto entre uma coisa e outra e a parte
-            de cima ficava com cara de conteúdo faltando. No desktop ela volta a ficar
-            ancorada no canto superior esquerdo — daí o absolute, que repete exatamente o
-            gutter da coluna (left-16 = px-16, top-12 = py-12).
-          */}
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease }}
-            className="absolute left-5 top-5 z-10 w-fit lg:left-16 lg:top-12"
+      <div className="relative mx-auto flex min-h-screen w-full max-w-[1260px] flex-col px-5 sm:px-8 lg:px-12">
+        {/* ── Topo ── */}
+        <header className="flex items-center justify-between py-6 sm:py-9">
+          <Link to="/" className="inline-flex items-center gap-2" aria-label="Voltar para a home da Velo">
+            <img src="/logo.png" alt="" className="h-8 w-8 object-contain sm:h-9 sm:w-9" />
+            <span className="text-[25px] font-bold leading-none tracking-[-0.06em] text-[#1B1F2A] sm:text-[28px]">
+              Velo<span className="text-[#2563EB]">.</span>
+            </span>
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex h-9 items-center rounded-full border border-[#1B1F2A]/[0.14] px-4 text-[11px] font-medium uppercase tracking-[0.2em] text-[#5B6170] transition hover:border-[#1B1F2A]/[0.3] hover:text-[#1B1F2A]"
           >
-            <Link to="/" className="inline-flex w-fit items-center gap-2.5" aria-label="Voltar para a home da Velo">
-              <img src="/logo.png" alt="Velo" className="h-8 w-8 rounded-[10px] lg:h-11 lg:w-11 lg:rounded-[13px]" />
-              {/* Mesma métrica do logotipo da landing. No desktop só o ícone, como sempre foi. */}
-              <span className="text-[22px] font-bold leading-none tracking-[-0.06em] text-white [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] lg:hidden">
-                Velo
-              </span>
-            </Link>
-          </motion.div>
+            Voltar ao site
+          </Link>
+        </header>
 
+        <div className="grid flex-1 items-center gap-10 py-4 lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-16 lg:px-10 lg:py-6">
+          {/* ── Coluna da esquerda: título e agentes ── */}
+          <motion.section
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease }}
+            className="min-w-0"
+          >
+            <h2 className="text-[44px] font-bold leading-[1.04] tracking-[-0.065em] text-[#20242F] sm:text-[62px]">
+              Sua loja
+              <br />
+              começa{" "}
+              <span className="font-normal italic tracking-[-0.02em] text-[#56688F] [font-family:'Instrument_Serif',Georgia,serif]">
+                aqui.
+              </span>
+            </h2>
+            <p className="mt-6 text-[16px] leading-[1.65] text-[#6B7080] sm:text-[17px]">
+              Um lugar para a sua ideia, a sua loja,
+              <br className="hidden sm:block" /> e os agentes que ajudam a vender.
+            </p>
+
+            {/* Celular: os agentes numa fileira pequena, sem o palco. */}
+            <div aria-hidden="true" className="mt-7 flex items-end justify-between px-1 sm:hidden">
+              {AGENTES.map((agente) => (
+                <img key={agente.nome} src={agente.src} alt="" draggable={false} className="h-[46px] w-auto select-none" />
+              ))}
+            </div>
+
+            {/* Palco dos agentes, nas medidas da referência: disco oval bem achatado e
+                inclinado, maior que a coluna do texto (sai 30px para a esquerda), com a
+                fileira de trás menor e mais alta e a da frente maior e mais baixa. */}
+            <div className="relative -ml-[30px] mt-10 hidden h-[320px] w-[690px] max-w-[calc(100%+30px)] sm:block">
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-[22px] h-[126px] rounded-[50%]"
+                style={{
+                  background: "radial-gradient(120% 140% at 50% 20%, #FFFFFF 0%, #F6F7FB 55%, #ECEFF8 100%)",
+                  boxShadow:
+                    "0 26px 46px -20px rgba(72,104,255,0.55), 0 5px 0 -1px rgba(160,182,255,0.55), 0 9px 14px -6px rgba(120,150,255,0.35)",
+                  transform: "rotate(-4.5deg)",
+                }}
+              />
+              {AGENTES.map((agente) => (
+                <motion.img
+                  key={`${agente.nome}-${oi}`}
+                  src={agente.src}
+                  alt=""
+                  draggable={false}
+                  className="absolute select-none drop-shadow-[0_12px_10px_rgba(40,50,90,0.16)]"
+                  style={{ left: `${agente.x}%`, bottom: agente.base, height: agente.h, zIndex: agente.z }}
+                  initial={reduceMotion ? false : oi ? { y: 0 } : { opacity: 0, y: 24 }}
+                  animate={
+                    reduceMotion
+                      ? { opacity: 1 }
+                      : oi
+                        ? { opacity: 1, y: [0, -26, 0, -8, 0] }
+                        : { opacity: 1, y: [0, -5, 0] }
+                  }
+                  transition={
+                    oi
+                      ? { duration: 0.8, delay: agente.atraso * 0.25, ease: "easeOut" }
+                      : { opacity: { duration: 0.5, delay: 0.2 + agente.atraso * 0.3 }, y: { duration: 3.4, delay: agente.atraso, repeat: Infinity, ease: "easeInOut" } }
+                  }
+                />
+              ))}
+              <button
+                type="button"
+                onClick={() => setOi((valor) => valor + 1)}
+                className="absolute bottom-0 left-[42%] z-10 inline-flex h-[34px] -translate-x-1/2 items-center gap-4 rounded-[10px] bg-white px-4 text-[12px] font-medium text-[#20242F] shadow-[0_4px_14px_rgba(30,40,80,0.10)] transition hover:shadow-[0_6px_18px_rgba(30,40,80,0.16)]"
+              >
+                Dizer oi aos agentes
+                <span aria-hidden="true" className="text-[#4469F2]">↗</span>
+              </button>
+            </div>
+            <p className="mt-7 hidden w-[690px] max-w-full -translate-x-[30px] text-center text-[12px] tracking-[0.01em] text-[#7A7F8C] sm:block">
+              Você dá a direção. A palavra final é sua.
+            </p>
+          </motion.section>
+
+          {/* ── Card do formulário ── */}
           <motion.div
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="relative mx-auto w-full max-w-[420px] max-lg:rounded-[24px] max-lg:bg-[#FCFBF8] max-lg:px-5 max-lg:pb-5 max-lg:pt-10 max-lg:shadow-[0_-20px_60px_rgba(0,0,0,0.35)]"
+            className="mx-auto w-full max-w-[450px]"
           >
-            {/* Fechar volta para a landing — só no celular, como na folha de referência. */}
-            <Link
-              to="/"
-              aria-label="Fechar"
-              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-[#141414] transition hover:bg-black/5 lg:hidden"
-            >
-              <X size={20} strokeWidth={1.6} />
-            </Link>
-            {/*
-              A dupla título+subtítulo troca junto com a etapa: `key` no copy faz o texto
-              antigo sair e o novo entrar, em vez de mudar de conteúdo no mesmo lugar.
-            */}
-            <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={copy.title}
-                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                  transition={{ duration: 0.26, ease }}
-                >
-                  <h1 className={`text-center text-[23px] leading-[1.15] text-[#141414] max-lg:!font-bold max-lg:!tracking-[-0.035em] lg:text-left lg:text-[28px] lg:text-[#0F172A] ${FONTE_TITULO}`}>
-                    {copy.title}
-                  </h1>
-                  <p className="mx-auto mt-2.5 hidden max-w-[330px] text-center text-[14px] leading-[1.55] text-white/60 lg:mx-0 lg:block lg:mt-2 lg:max-w-none lg:text-left lg:text-[#64748B]">
-                    {copy.subtitle}
-                  </p>
-
-                </motion.div>
-              </AnimatePresence>
-            </motion.div>
-
-            {/*
-              No celular o formulário vira um card branco sobre o fundo escuro — é ele que
-              dá a profundidade que faltava. A partir de lg o card some por completo: a
-              coluna já é branca e a moldura viraria caixa dentro de caixa.
-            */}
-            <motion.div
-              variants={reduceMotion ? semMovimento : cardEntrada}
-              className={`mt-5 lg:mt-0 ${FONTE_FORMULARIO}`}
-            >
-
-            {/*
-              Colapso em CSS puro, e não com AnimatePresence: este bloco vive dentro do card,
-              que é um motion com `variants`, e um filho animado ali herda o contexto de
-              variantes do container (que tem staggerChildren). Uma caixa que só abre e fecha
-              não precisa disso — a transição em CSS é independente do ciclo do framer e
-              continua valendo com JS ocupado. max-height em vez de grid-template-rows porque
-              o Safari do iPhone só interpola grid-template-rows do 17.2 em diante, e o alvo
-              aqui é justamente o celular.
-            */}
-            <div
-              className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                aviso ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
-              }`}
-            >
-              {avisoVisivel && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className={`mb-4 flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3 text-[13px] font-medium leading-[1.5] lg:mb-0 lg:mt-7 ${AVISO_ESTILO[avisoVisivel.tipo]}`}
-                >
-                  <AvisoIcone tipo={avisoVisivel.tipo} />
-                  <span>{avisoVisivel.texto}</span>
-                </div>
-              )}
-            </div>
-
-            {!resetMode && mostraSocial && (
+            <section aria-labelledby="login-card-title" className="w-full rounded-[30px] border border-white/90 bg-gradient-to-b from-white/80 to-white/55 p-6 shadow-[0_24px_60px_-32px_rgba(40,50,90,0.24)] sm:p-[38px]">
               <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
+                <span className="grid h-12 w-12 place-items-center rounded-[16px] bg-white/90 shadow-[0_4px_14px_rgba(30,40,80,0.06)]">
+                  <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+                </span>
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={copy.title}
+                    initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                    transition={{ duration: 0.26, ease }}
+                  >
+                    <h1 id="login-card-title" className="mt-7 text-[24px] font-bold leading-[1.2] tracking-[-0.045em] text-[#20242F]">{copy.title}</h1>
+                    <p className="mt-3 text-[13px] leading-[1.55] text-[#606B80]">{copy.subtitle}</p>
+                  </motion.div>
+                </AnimatePresence>
+              </motion.div>
+
+              {/* Avisos do formulário (erro, info, confirmação) — colapso em CSS puro. */}
+              <div
+                className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  aviso ? "max-h-[240px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                {avisoVisivel && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={`mt-5 flex items-start gap-2.5 rounded-[10px] border px-3.5 py-3 text-[13px] font-medium leading-[1.5] ${AVISO_ESTILO[avisoVisivel.tipo]}`}
+                  >
+                    <AvisoIcone tipo={avisoVisivel.tipo} />
+                    <span>{avisoVisivel.texto}</span>
+                  </div>
+                )}
+              </div>
+
+              <motion.div variants={reduceMotion ? semMovimento : fadeUp} className="mt-7">
+                {resetMode ? (
+                  <form onSubmit={handleReset} className="space-y-4">
+                    <label className="block">
+                      <span className="mb-2 block text-[12px] font-semibold text-[#3A4256]">Seu e-mail</span>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={aoDigitar(setEmail)}
+                        required
+                        placeholder="voce@exemplo.com"
+                        className={inputCls}
+                      />
+                    </label>
+                    <button type="submit" disabled={loading} className={primaryBtnCls}>
+                      {loading ? "Enviando..." : "Enviar link de recuperação"}
+                    </button>
+                    <p className="text-center text-[14px] text-[#5B6170]">
+                      <button
+                        type="button"
+                        onClick={() => { setAviso(null); setResetMode(false); }}
+                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                      >
+                        Voltar para o login
+                      </button>
+                    </p>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (step === "initial") void handleEmailContinue();
+                        // No cadastro direto o e-mail fica fora do <form> do cadastro:
+                        // sem isto, dar Enter no campo não faria nada.
+                        else if (cadastroDireto) void handleSignUp(e);
+                      }}
+                      className="space-y-3"
+                    >
+                      <label className="block">
+                        <span className="mb-2 block text-[12px] font-semibold text-[#3A4256]">Seu e-mail</span>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => {
+                            if (!email) trackSignup("signup_start");
+                            setEmailSugerido(null);
+                            aoDigitar(setEmail)(e);
+                          }}
+                          onBlur={() => setEmailSugerido(sugerirEmail(email))}
+                          placeholder="voce@exemplo.com"
+                          inputMode="email"
+                          autoComplete="email"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          enterKeyHint="next"
+                          readOnly={emailLocked}
+                          className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F3F8] text-[#5B6170]" : ""}`}
+                        />
+                      </label>
+
+                      {/* Erro comum de digitação: oferecemos a correção. */}
+                      {emailSugerido && !emailLocked && (
+                        <p className="-mt-1 text-[13px] leading-[1.5] text-[#5B6170]">
+                          Você quis dizer{" "}
+                          <button
+                            type="button"
+                            onClick={() => { setEmail(emailSugerido); setEmailSugerido(null); }}
+                            className="font-semibold text-[#2563EB] underline underline-offset-2"
+                          >
+                            {emailSugerido}
+                          </button>
+                          ?
+                        </p>
+                      )}
+
+                      {step === "initial" && (
+                        <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
+                          {checkingEmail ? "Verificando..." : (
+                            <>
+                              Continuar com e-mail
+                              <ArrowRight size={15} strokeWidth={2.2} aria-hidden="true" />
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </form>
+
+                    <AnimatePresence mode="wait">
+                      {step === "login" && (
+                        <motion.form
+                          key="login"
+                          {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
+                          onSubmit={handleSignIn}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-4">
+                            <div className="relative">
+                              <input
+                                ref={passwordRef}
+                                type={showPw ? "text" : "password"}
+                                value={password}
+                                onChange={aoDigitar(setPassword)}
+                                required
+                                placeholder="Sua senha"
+                                autoComplete="current-password"
+                                enterKeyHint="go"
+                                className={`${inputCls} pr-11`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPw((c) => !c)}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                                aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                              >
+                                {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                              </button>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => { setAviso(null); setResetMode(true); }}
+                              className="text-[14px] font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                            >
+                              Esqueceu a senha?
+                            </button>
+
+                            <button type="submit" disabled={loading} className={primaryBtnCls}>
+                              {loading ? "Entrando..." : "Entrar"}
+                            </button>
+                          </div>
+                        </motion.form>
+                      )}
+
+                      {step === "signup" && (
+                        <motion.form
+                          key="signup"
+                          {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
+                          onSubmit={handleSignUp}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-4">
+                            <div className="relative">
+                              <input
+                                ref={nomeRef}
+                                type={showPw ? "text" : "password"}
+                                value={password}
+                                onChange={aoDigitar(setPassword)}
+                                required
+                                placeholder="Senha (mín. 8 caracteres)"
+                                autoComplete="new-password"
+                                enterKeyHint="go"
+                                className={`${inputCls} pr-11`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPw((c) => !c)}
+                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
+                                aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+                              >
+                                {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
+                              </button>
+                            </div>
+
+                            {/* Regras conferidas antes do envio: a Velo pede 8+ caracteres. */}
+                            <div className="-mt-1 space-y-1 text-[13px]">
+                              <p className={`flex items-center gap-1.5 ${password.length >= 8 ? "text-[#16A34A]" : "text-[#5B6170]"}`}>
+                                <span aria-hidden>{password.length >= 8 ? "✓" : "○"}</span>
+                                8 caracteres ou mais
+                              </p>
+                              <p className="text-[#5B6170]">Evite senhas comuns, como 12345678 ou seu nome.</p>
+                            </div>
+
+                            {/* Aceite único; data e hora ficam gravadas no perfil ao criar a conta. */}
+                            <div className="pt-1">
+                              <LegalCheckbox
+                                checked={acceptTerms}
+                                onChange={setAcceptTerms}
+                                label={
+                                  <>
+                                    Aceito os{" "}
+                                    <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                                      Termos de Uso
+                                    </Link>{" "}
+                                    e a{" "}
+                                    <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
+                                      Política de Privacidade
+                                    </Link>
+                                    .
+                                  </>
+                                }
+                              />
+                            </div>
+
+                            <button
+                              type="submit"
+                              disabled={loading || !acceptTerms || password.length < 8}
+                              className={primaryBtnCls}
+                            >
+                              {loading ? "Criando conta..." : "Criar minha conta"}
+                            </button>
+                          </div>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
+
+                    {step === "initial" && (
+                      <p className="text-[13px] text-[#606B80]">Você não está conectado neste navegador.</p>
+                    )}
+
+                    <p className={`text-[14px] text-[#5B6170] ${step === "initial" ? "hidden" : "pt-1"}`}>
+                      {step === "login" && (
+                        <>
+                          Não é você?{" "}
+                          <button type="button" onClick={voltarParaInicio} className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]">
+                            Trocar e-mail
+                          </button>
+                        </>
+                      )}
+                      {step === "signup" && (
+                        <>
+                          Já tem uma conta?{" "}
+                          <button
+                            type="button"
+                            /* Veio de /cadastro: trocar só a etapa deixaria a pessoa numa
+                               tela de login com o endereço /cadastro na barra. */
+                            onClick={() => (entradaPeloCadastro ? navigate("/login") : voltarParaInicio())}
+                            className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
+                          >
+                            Entrar
+                          </button>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+
+              <motion.div variants={reduceMotion ? semMovimento : fadeUp} className="mt-8 flex items-center gap-4 border-t border-[#E2E7F2] pt-6 sm:mt-9">
+                <span aria-hidden="true" className="ml-0.5 h-[14px] w-[14px] shrink-0 rotate-45 rounded-[2px] border border-[#7997C6]" />
+                <p className="text-[12px] leading-[1.6] text-[#687388]">
+                  Você pode entrar assim que se cadastrar.
+                  <br />
+                  Seus projetos ficam salvos na sua conta.
+                </p>
+              </motion.div>
+            </section>
+
+            {mostraSocial && (
+              <motion.div variants={reduceMotion ? semMovimento : fadeUp} className="mt-2 flex flex-col items-center gap-2">
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={googleLoading}
-                  className="inline-flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[10px] border border-[#E3E7EE] bg-white text-[14px] font-semibold text-[#0F172A] transition hover:bg-[#F8FAFC] disabled:opacity-60 max-lg:h-12 max-lg:rounded-full max-lg:border-0 max-lg:bg-[#141414] max-lg:text-[15px] max-lg:text-white max-lg:active:scale-[0.99] max-lg:hover:bg-[#141414] lg:mt-7"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-[13px] font-medium text-[#4C586E] transition hover:bg-white/55 hover:text-[#20242F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#335AF0] disabled:opacity-60"
                 >
                   <GoogleIcon />
                   {googleLoading ? "Conectando..." : cadastroDireto ? "Cadastrar com Google" : "Continuar com Google"}
                 </button>
 
-                {/* Navegador embutido de rede social: o Google não permite o login ali.
-                    Em vez do erro do Google, explicamos o que fazer em uma frase. */}
+                {/* Navegador embutido de rede social: o Google não permite o login ali. */}
                 {avisoNavegador && (
-                  <div className="mt-3 rounded-[12px] border border-[#FDE3C0] bg-[#FFF8EE] px-3.5 py-3 text-[13px] leading-[1.55] text-[#92400E]">
-                    <p>
+                  <div className="rounded-[12px] border border-[#FDE3C0] bg-[#FFF8EE] px-3.5 py-3 text-[13px] leading-[1.55] text-[#92400E]">
+                    <p role="status">
                       O {navegadorInterno ?? "aplicativo"} abre a Velo numa janela própria, e o Google não
                       permite login por aqui. Toque nos três pontinhos e escolha
-                      <strong> “Abrir no navegador”</strong> — ou continue com seu e-mail logo abaixo.
+                      <strong> “Abrir no navegador”</strong> — ou continue com seu e-mail no formulário.
                     </p>
                     <button
                       type="button"
@@ -675,355 +923,20 @@ const LoginPage = () => {
                     </button>
                   </div>
                 )}
-
-                <div className="my-6 flex items-center gap-4 max-lg:my-4">
-                  <span className="h-px flex-1 bg-[#E9EDF3]" />
-                  <span className="text-[13px] text-[#94A3B8]">
-                    {cadastroDireto ? "ou cadastre-se com e-mail" : "ou entre com e-mail"}
-                  </span>
-                  <span className="h-px flex-1 bg-[#E9EDF3]" />
-                </div>
               </motion.div>
             )}
-
-            <motion.div variants={reduceMotion ? semMovimento : fadeUp}>
-            {resetMode ? (
-              <form onSubmit={handleReset} className="space-y-4 lg:mt-7">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={aoDigitar(setEmail)}
-                  required
-                  placeholder="Endereço de e-mail"
-                  className={inputCls}
-                />
-                <button type="submit" disabled={loading} className={primaryBtnCls}>
-                  {loading ? "Enviando..." : "Enviar link de recuperação"}
-                </button>
-                <p className="text-center text-[14px] text-[#64748B]">
-                  <button
-                    type="button"
-                    onClick={() => { setAviso(null); setResetMode(false); }}
-                    className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
-                  >
-                    Voltar para o login
-                  </button>
-                </p>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (step === "initial") void handleEmailContinue();
-                    // No cadastro direto o e-mail fica fora do <form> do cadastro:
-                    // sem isto, dar Enter no campo não faria nada.
-                    else if (cadastroDireto) void handleSignUp(e);
-                  }}
-                  className="space-y-4"
-                >
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      if (!email) trackSignup("signup_start");
-                      setEmailSugerido(null);
-                      aoDigitar(setEmail)(e);
-                    }}
-                    onBlur={() => setEmailSugerido(sugerirEmail(email))}
-                    placeholder="Seu e-mail"
-                    inputMode="email"
-                    autoComplete="email"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    enterKeyHint="next"
-                    readOnly={emailLocked}
-                    // `!bg-` porque o `bg-white` do estilo base vence pela ordem do CSS,
-                    // não pela ordem das classes na string.
-                    className={`${inputCls} ${emailLocked ? "cursor-default !bg-[#F1F5F9] text-[#64748B]" : ""}`}
-                  />
-
-                  {/* Erro comum de digitação: oferecemos a correção em vez de deixar
-                      a pessoa criar conta num e-mail que nunca vai receber nada. */}
-                  {emailSugerido && !emailLocked && (
-                    <p className="-mt-1 text-[13px] leading-[1.5] text-[#64748B]">
-                      Você quis dizer{" "}
-                      <button
-                        type="button"
-                        onClick={() => { setEmail(emailSugerido); setEmailSugerido(null); }}
-                        className="font-semibold text-[#2563EB] underline underline-offset-2"
-                      >
-                        {emailSugerido}
-                      </button>
-                      ?
-                    </p>
-                  )}
-
-                  {step === "initial" && (
-                    <button type="submit" disabled={checkingEmail} className={primaryBtnCls}>
-                      {checkingEmail ? "Verificando..." : "Continuar"}
-                    </button>
-                  )}
-                </form>
-
-                <AnimatePresence mode="wait">
-                  {step === "login" && (
-                    <motion.form
-                      key="login"
-                      {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
-                      onSubmit={handleSignIn}
-                      className="overflow-hidden"
-                    >
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <input
-                            ref={passwordRef}
-                            type={showPw ? "text" : "password"}
-                            value={password}
-                            onChange={aoDigitar(setPassword)}
-                            required
-                            placeholder="Sua senha"
-                            autoComplete="current-password"
-                            enterKeyHint="go"
-                            className={`${inputCls} pr-11`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPw((c) => !c)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
-                            aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
-                          >
-                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-                          </button>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => { setAviso(null); setResetMode(true); }}
-                          className="text-[14px] font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
-                        >
-                          Esqueceu a senha?
-                        </button>
-
-                        <button type="submit" disabled={loading} className={primaryBtnCls}>
-                          {loading ? "Entrando..." : "Entrar"}
-                        </button>
-                      </div>
-                    </motion.form>
-                  )}
-
-                  {step === "signup" && (
-                    <motion.form
-                      key="signup"
-                      {...(reduceMotion ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } } : slideDown)}
-                      onSubmit={handleSignUp}
-                      className="overflow-hidden"
-                    >
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <input
-                            ref={nomeRef}
-                            type={showPw ? "text" : "password"}
-                            value={password}
-                            onChange={aoDigitar(setPassword)}
-                            required
-                            placeholder="Senha (mín. 8 caracteres)"
-                            autoComplete="new-password"
-                            enterKeyHint="go"
-                            className={`${inputCls} pr-11`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPw((c) => !c)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] transition hover:text-[#0F172A]"
-                            aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
-                          >
-                            {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
-                          </button>
-                        </div>
-
-                        {/* Regras conferidas antes do envio. O Auth exige 6+ caracteres e
-                            bloqueia senhas vazadas; a Velo pede 8+. Não há exigência de
-                            letras, números ou símbolos. */}
-                        <div className="-mt-1 space-y-1 text-[13px]">
-                          <p className={`flex items-center gap-1.5 ${password.length >= 8 ? "text-[#16A34A]" : "text-[#64748B]"}`}>
-                            <span aria-hidden>{password.length >= 8 ? "✓" : "○"}</span>
-                            8 caracteres ou mais
-                          </p>
-                          <p className="text-[#64748B]">Evite senhas comuns, como 12345678 ou seu nome.</p>
-                        </div>
-
-
-                        {/* Aceite único, numa linha só. A data e a hora ficam gravadas
-                            no perfil no momento em que a conta é criada. */}
-                        <div className="pt-1">
-                          <LegalCheckbox
-                            checked={acceptTerms}
-                            onChange={setAcceptTerms}
-                            label={
-                              <>
-                                Aceito os{" "}
-                                <Link to="/termos-de-servico" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
-                                  Termos de Uso
-                                </Link>{" "}
-                                e a{" "}
-                                <Link to="/politica-de-privacidade" target="_blank" className="font-semibold text-[#2563EB] hover:text-[#1D4ED8]">
-                                  Política de Privacidade
-                                </Link>
-                                .
-                              </>
-                            }
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={loading || !acceptTerms || password.length < 8}
-                          className={primaryBtnCls}
-                        >
-                          {loading ? "Criando conta..." : "Criar minha conta"}
-                        </button>
-                      </div>
-                    </motion.form>
-                  )}
-                </AnimatePresence>
-
-                <p className="pt-2 text-center text-[14px] text-[#64748B]">
-                  {step === "initial" && (
-                    <>
-                      Ainda não tem conta?{" "}
-                      <button
-                        type="button"
-                        onClick={irParaCadastro}
-                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
-                      >
-                        Criar minha conta
-                      </button>
-                    </>
-                  )}
-
-                  {step === "login" && (
-                    <>
-                      Não é você?{" "}
-                      <button
-                        type="button"
-                        onClick={voltarParaInicio}
-                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
-                      >
-                        Trocar e-mail
-                      </button>
-                    </>
-                  )}
-
-                  {step === "signup" && (
-                    <>
-                      Já tem uma conta?{" "}
-                      <button
-                        type="button"
-                        /* Veio de /cadastro: trocar só a etapa deixaria a pessoa numa
-                           tela de login com o endereço /cadastro na barra. */
-                        onClick={() => (entradaPeloCadastro ? navigate("/login") : voltarParaInicio())}
-                        className="font-semibold text-[#2563EB] transition hover:text-[#1D4ED8]"
-                      >
-                        Entrar
-                      </button>
-                    </>
-                  )}
-                </p>
-              </div>
-            )}
-            </motion.div>
-
-            </motion.div>
           </motion.div>
         </div>
 
-        {/*
-          Saída de emergência de quem travou no login. Só no celular: no desktop a coluna
-          da direita já ocupa esse papel de "tem mais coisa aqui".
-        */}
-        <Link
-          to="/docs"
-          className="mx-auto mb-1 mt-4 w-fit text-[13px] font-medium text-white/55 underline underline-offset-4 transition hover:text-white lg:hidden"
-        >
-          Precisa de ajuda?
-        </Link>
-
-        {/* O aceite legal vive agora numa linha única dentro do formulário de cadastro;
-            repetir aqui embaixo era a segunda vez que a pessoa lia a mesma coisa. */}
+        {/* ── Rodapé ── */}
+        <footer className="flex flex-wrap items-center justify-between gap-3 py-8 text-[12px] text-[#7A7F8C]">
+          <span>Feito para a sua próxima venda.</span>
+          <span className="flex items-center gap-5">
+            <Link to="/docs" className="transition hover:text-[#1B1F2A]">Precisa de ajuda?</Link>
+            <span>Velo · Apenas venda.</span>
+          </span>
+        </footer>
       </div>
-
-      {/* ── Coluna da vitrine ────────────────────────────────────────────── */}
-      <motion.aside
-        initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 24 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, ease, delay: 0.1 }}
-        className="hidden w-1/2 flex-col items-center overflow-hidden border-l border-black/[0.06] bg-[#F7F8FB] px-4 pb-10 pt-6 lg:flex"
-      >
-        {/* Sem moldura: os próprios prints já vêm com card e canto arredondado.
-            Altura fixa para os dois slides porque as proporções são diferentes
-            (um em pé, outro deitado) — assim a legenda não pula de lugar. */}
-        {/* -mx-4 cancela o respiro lateral do aside só nesta faixa: o print
-            aproveita a largura inteira do painel; a legenda continua recuada.
-            `flex-1` em vez de altura fixa: o print fica com todo o espaço que
-            sobra depois da legenda, em qualquer altura de tela. Centralizado
-            nos dois eixos: como as proporções são diferentes, alinhar pela base
-            ou pelo topo jogava toda a sobra para um lado só. */}
-        <div className="relative -mx-4 flex min-h-0 w-[calc(100%+32px)] flex-1 items-center justify-center">
-          {/* Sem `mode="wait"`: os dois prints coexistem durante a troca, um
-              saindo para a esquerda enquanto o outro entra pela direita. Com
-              wait, a imagem ficava meio segundo atrás da legenda. */}
-          <AnimatePresence initial={false}>
-            <motion.img
-              key={SHOWCASE[slide].image}
-              src={SHOWCASE[slide].image}
-              alt={SHOWCASE[slide].title}
-              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 70 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -70 }}
-              transition={{ duration: 0.5, ease }}
-              // `inset-0 m-auto` centraliza nos dois eixos: como as proporções
-              // são diferentes, os prints deitados sobram espaço em cima e
-              // embaixo — dividido em partes iguais, em vez de todo de um lado.
-              className="absolute inset-0 m-auto max-h-full max-w-full object-contain"
-            />
-          </AnimatePresence>
-        </div>
-
-        <div className="mt-8 shrink-0 text-center">
-          {/* Sem AnimatePresence na legenda de propósito: com `mode="wait"` ela
-              sumia por um instante entre um slide e outro. */}
-          <motion.div
-            key={SHOWCASE[slide].title}
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease }}
-            className="min-h-[92px]"
-          >
-            <h2 className={`text-[24px] leading-[1.15] text-[#0F172A] ${FONTE_TITULO}`}>
-              {SHOWCASE[slide].title}
-            </h2>
-            <p className="mx-auto mt-3 max-w-[440px] text-[14px] leading-[1.6] text-[#64748B]">
-              {SHOWCASE[slide].description}
-            </p>
-          </motion.div>
-
-          {SHOWCASE.length > 1 && <div className="mt-7 flex items-center justify-center gap-2">
-            {SHOWCASE.map((item, index) => (
-              <button
-                key={item.image}
-                type="button"
-                onClick={() => setSlide(index)}
-                aria-label={`Ver ${item.title}`}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  index === slide ? "w-7 bg-[#2563EB]" : "w-4 bg-[#D6DDE8] hover:bg-[#BCC6D6]"
-                }`}
-              />
-            ))}
-          </div>}
-        </div>
-      </motion.aside>
     </main>
   );
 };

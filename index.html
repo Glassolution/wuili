@@ -53,32 +53,6 @@
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@100..900&family=Hanken+Grotesk:wght@400;500;600;700;800;900&family=Inter:wght@200..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,400;1,500;1,600;1,700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     </noscript>
-    <script>
-      /*
-        Só na landing: manda buscar a imagem do hero antes mesmo de o JavaScript
-        do app baixar e montar a página. É o maior elemento da primeira tela —
-        quem chega do Instagram no 4G espera por ela.
-        Fica dentro do if porque o index.html é o mesmo de todas as rotas: no
-        painel essa foto não aparece e o download seria desperdício.
-      */
-      if (window.location.pathname === "/") {
-        var fotoTopo = document.createElement("link");
-        fotoTopo.rel = "preload";
-        fotoTopo.as = "image";
-        fotoTopo.type = "image/webp";
-        // Celular: foto de fundo do hero. Desktop: primeira foto do carrossel.
-        var celular = window.matchMedia("(max-width: 639px)").matches;
-        fotoTopo.href = celular ? "/landing/pessoa-03-640.webp" : "/landing/pessoa-01-640.webp";
-        fotoTopo.setAttribute(
-          "imagesrcset",
-          celular
-            ? "/landing/pessoa-03-640.webp 640w, /landing/pessoa-03-960.webp 960w, /landing/pessoa-03-1280.webp 1280w"
-            : "/landing/pessoa-01-640.webp 640w, /landing/pessoa-01-960.webp 960w, /landing/pessoa-01-1280.webp 1280w, /landing/pessoa-01-1672.webp 1672w"
-        );
-        fotoTopo.setAttribute("imagesizes", "100vw");
-        document.head.appendChild(fotoTopo);
-      }
-    </script>
     
     
     

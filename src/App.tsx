@@ -35,6 +35,7 @@ import {
 import ActivityTracker from "@/components/ActivityTracker";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { UpgradeModalProvider } from "@/components/PlansUpgradeModal";
+import { temIdeiaDaLanding } from "@/lib/ideiaDaLanding";
 
 /*
   TourLab e AtlasChatProvider entram por lazy(): os dois só existem dentro do
@@ -215,6 +216,9 @@ const DashboardShell = () => (
 
 // Logo após entrar, no celular, o painel inicial abre direto o catálogo.
 const DashboardIndexPosLogin = () => {
+  // Veio da landing com uma ideia escrita: fica no Início, onde o chat do Atlas
+  // abre centralizado já com ela (AtlasChatProvider, src/lib/ideiaDaLanding.ts).
+  if (temIdeiaDaLanding()) return <DashboardHomePage />;
   let posLogin = false;
   try {
     posLogin = window.sessionStorage.getItem("velo_pos_login") === "1";

@@ -34,6 +34,12 @@ gerar "pessoa 01.png" pessoa-01 "$QUALIDADE_FOTO" 640 960 1280 1672
 gerar "pessoa 02.png" pessoa-02 "$QUALIDADE_FOTO" 640 960 1280 1672
 gerar "pessoa 03.png" pessoa-03 "$QUALIDADE_FOTO" 640 960 1280 1672
 
+# Fotos da fileira da chamada final (cartões de ~200px; 640 cobre tela retina).
+# pessoa 04 = mulher de blusa azul; pessoa 05 = casal conversando.
+echo "→ fotos da chamada final"
+gerar "pessoa 04.webp" pessoa-04 "$QUALIDADE_FOTO" 640
+gerar "pessoa 05.webp" pessoa-05 "$QUALIDADE_FOTO" 640
+
 echo "→ prints do produto"
 gerar "prova-catalogo.png" prova-catalogo "$QUALIDADE_PRINT" 640 960 1440
 gerar "prova-atlas.png" prova-atlas "$QUALIDADE_PRINT" 640 960 1360
@@ -50,9 +56,9 @@ gerar "barra 02.png" barra-02 "$QUALIDADE_PRINT" 640 960 1280
 
 # O logo aparece a 36x36 no cabeçalho e no rodapé. O PNG original tem 146 KB
 # para ser desenhado num quadrado de 36px — 96 é o dobro do necessário e cobre
-# tela retina.
+# tela retina. A de 320 é para os quadrados da logo nas faixas de cartões (até ~150px).
 echo "→ logo"
-gerar "logo.png" logo "$QUALIDADE_PRINT" 96
+gerar "logo.png" logo "$QUALIDADE_PRINT" 96 320
 
 echo
 echo "total: $(du -sh "$SAIDA" | cut -f1)"

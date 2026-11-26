@@ -61,6 +61,7 @@ import {
   NavOrdersIcon,
   type MobileNavIconProps,
 } from "@/components/dashboard/MobileNavIcons";
+import { temIdeiaDaLanding } from "@/lib/ideiaDaLanding";
 
 /**
  * Conteúdo das páginas do dashboard.
@@ -700,6 +701,9 @@ const DashboardLayoutInner = () => {
       setShowOnboarding(false);
       return;
     }
+    // Quem veio da landing com uma ideia vai direto ao chat do Atlas: o quiz de
+    // boas-vindas fica para a próxima visita, em vez de cobrir a conversa.
+    if (temIdeiaDaLanding()) markOnboardingDeferred(user.id);
     const mostrar = shouldShowOnboarding(user);
     setShowOnboarding(mostrar);
     if (mostrar) setEntrada("waiting");

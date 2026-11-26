@@ -1,478 +1,434 @@
-import { CSSProperties, FormEvent, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { ImagemResponsiva } from "@/components/landing/ImagemResponsiva";
-import { LandingMobile } from "@/components/landing/LandingMobile";
+import { LogoVelo, VitrineChamada, VitrineExemplos } from "@/components/landing/VitrineExemplos";
+import { guardarIdeiaDaLanding } from "@/lib/ideiaDaLanding";
 import { tiktokCliqueCadastro } from "@/lib/tiktokPixel";
 import { metaVeloCliqueCadastro } from "@/lib/veloMetaPixel";
-
+import mascoteSentado from "@/assets/mascote/sentado.webp";
 
 /*
-  Cada item aponta para uma seção que existe nesta página. Não há "Preços" aqui: a landing
-  não tem seção nem rota de planos, então o item viraria uma âncora morta.
+  Landing da Velo (rota "/"), no modelo da base44.com (nov/2026).
 
-  `panel` abre o menu suspenso no hover. Os itens descrevem recursos que existem de fato no
-  produto (conferidos no código do dashboard) — nada de funcionalidade anunciada antes de
-  existir. Enquanto não houver página própria para cada recurso, clicar leva para a seção
-  correspondente da landing.
+  Mensagem: qualquer pessoa pode vender online com a Velo — criando a própria loja
+  ou publicando no Mercado Livre (onde estão os lojistas atuais). Uma página só,
+  responsiva: a mesma estrutura serve celular e desktop.
+
+  Regras que continuam valendo (CLAUDE.md §11):
+  - nada de número, depoimento ou resultado inventado;
+  - nenhuma promessa de ganho;
+  - nada de "grátis" nos botões (não existe plano gratuito);
+  - nada de dado pessoal na URL: o Pixel da Meta manda a URL inteira. Por isso a
+    ideia digitada no hero vai para o cadastro por estado de navegação e
+    sessionStorage, nunca por query string.
 */
-const navItems = [
-  { label: "Como funciona", target: "como-funciona" },
-  {
-    label: "Recursos",
-    target: "recursos",
-    panel: [
-      { title: "Catálogo Velo", text: "Produtos de fornecedores brasileiros, com custo e margem à vista." },
-      { title: "Atlas", text: "A IA da Velo ajuda a avaliar produto, preço e próximo passo." },
-      { title: "Produtos em alta", text: "Acompanhe o que está vendendo antes de investir no anúncio." },
-      { title: "Páginas com IA", text: "Gere a página do produto a partir do item do catálogo." },
-      { title: "Imagens com IA", text: "Crie variações de imagem para testar criativos." },
-      { title: "Publicações e pedidos", text: "Veja o que foi publicado em cada canal e acompanhe os pedidos." },
-    ],
-  },
-  /*
-    "Integrações" saiu junto com a faixa de logos: o item apontava para a seção
-    #integracoes, que não existe mais. Sem a seção, o clique não levaria a lugar
-    nenhum. O conteúdo das integrações segue descrito no FAQ.
-  */
-  { label: "Perguntas frequentes", target: "perguntas-frequentes" },
-];
 
-const supportItems = [
-  {
-    icon: "support",
-    title: "Começo guiado",
-    text: "Uma experiência pensada para quem está estruturando a primeira operação online.",
-  },
-  {
-    icon: "apps",
-    title: "Produtos e canais",
-    text: "Organize oportunidades, fornecedores e marketplaces em um fluxo único.",
-  },
-  {
-    icon: "tools",
-    title: "Dados acionáveis",
-    text: "Veja sinais úteis para decidir o que testar, publicar e acompanhar.",
-  },
-  {
-    icon: "team",
-    title: "Operação escalável",
-    text: "Comece simples e evolua sua rotina conforme suas vendas ganham consistência.",
-  },
-];
-
-const faqItems = [
-  {
-    question: "Preciso ter estoque para usar a Velo?",
-    answer: "Não. A Velo foi pensada para operações de dropshipping, ajudando você a descobrir produtos e organizar a venda sem comprar estoque antes.",
-  },
-  {
-    question: "A Velo publica produtos automaticamente?",
-    answer: "A plataforma ajuda a estruturar o catálogo e conectar canais. As ações disponíveis dependem das integrações e permissões da sua conta.",
-  },
-  {
-    question: "Consigo vender no Mercado Livre?",
-    answer: "Sim. O Mercado Livre é o canal onde a Velo publica hoje: você conecta sua conta e o anúncio sai da plataforma com título, descrição e fotos já montados.",
-  },
-  {
-    question: "A plataforma é para iniciantes?",
-    answer: "Sim. A experiência prioriza clareza, próximos passos e decisões simples para quem está começando no ecommerce.",
-  },
-  {
-    question: "Quais dados a Velo usa para sugerir produtos?",
-    answer: "A Velo organiza sinais como categoria, preço, margem, fornecedor e contexto de mercado para ajudar você a avaliar oportunidades.",
-  },
-];
+const FONTE_TITULO = "[font-family:'Inter_Tight','Inter',ui-sans-serif,system-ui,sans-serif]";
+const TITULO = `${FONTE_TITULO} font-semibold tracking-[-0.042em] sm:tracking-[-0.055em] text-[#16181D]`;
 
 /*
-  Prova social do hero. Números informados pela operação em 17/11/2026:
-  - lojistas: piso para o selo e a faixa. Se o banco (rpc_landing_stats) passar
-    disso, vale o número do banco, arredondado para baixo em 50.
+  Números informados pela operação em 17/11/2026 (mesmos da landing anterior):
+  - lojistas: piso. Se o banco (rpc_landing_stats) passar disso, vale o banco,
+    arredondado para baixo em 50.
   - vendas: soma do que os lojistas da Velo vendem por mês. Não é promessa de
     ganho para quem entra; atualize aqui quando o número mudar.
 */
 const LOJISTAS_ATIVOS_PISO = 1250;
 const VENDAS_MES_LOJISTAS = "R$ 300 mil+";
 
-const PASSOS_COMO_FUNCIONA = [
-  {
-    titulo: "Escolha o produto",
-    texto: "Navegue pelo catálogo de fornecedores brasileiros e veja a margem de cada produto.",
-  },
-  {
-    titulo: "Publique no seu Mercado Livre",
-    texto: "Conecte sua conta e publique o anúncio direto pela Velo.",
-  },
-  {
-    titulo: "Venda e lucre",
-    texto: "Quando sair uma venda, você confirma o pedido com o fornecedor pelo painel, e ele faz o envio.",
-  },
+type Canal = "loja" | "mercado-livre" | "pagina" | "imagens" | "catalogo";
+
+const CANAIS: { id: Canal; rotulo: string; inicio: string }[] = [
+  { id: "loja", rotulo: "Loja online", inicio: "Quero criar minha loja online para vender " },
+  { id: "mercado-livre", rotulo: "Mercado Livre", inicio: "Quero vender no Mercado Livre " },
+  { id: "pagina", rotulo: "Página de vendas", inicio: "Quero uma página de vendas para " },
+  { id: "imagens", rotulo: "Imagens com IA", inicio: "Quero criar imagens com IA para " },
+  { id: "catalogo", rotulo: "Sem estoque", inicio: "Quero achar um produto sem estoque no nicho de " },
+];
+
+// Exemplos que o campo do hero vai "digitando" enquanto a pessoa não escreve nada.
+const EXEMPLOS_DIGITADOS = [
+  "Quero criar uma loja online de moda fitness",
+  "Quero vender acessórios para pet no Mercado Livre",
+  "Quero uma página de vendas para um fone bluetooth",
+  "Quero vender produtos de beleza sem ter estoque",
 ];
 
 /*
-  Bump este número sempre que as fotos forem substituídas mantendo o mesmo nome de arquivo.
-  Sem isso o navegador (e qualquer CDN na frente) continua servindo a versão antiga do cache,
-  porque a URL não mudou.
+  Menu do topo no modelo da Base44: itens com seta abrem um painel ao passar o
+  mouse (ou ao clicar, no toque/teclado), itens sem seta rolam até a seção, e um
+  destaque em azul entre quadradinhos (lá é "Superagents", aqui é o Atlas).
+  Todos os destinos existem nesta página ou no app: nada de âncora morta.
 */
-const HERO_ASSET_VERSION = 2;
+type ItemPainel = { titulo: string; texto: string; alvo?: string; href?: string };
+type ItemMenu = { rotulo: string; alvo?: string; painel?: ItemPainel[] };
 
-/*
-  Larguras geradas por scripts/otimizar-imagens-landing.sh. A foto do topo
-  ocupa a largura toda da tela, então precisa da maior; as demais aparecem em
-  molduras de no máximo ~600px no desktop.
-*/
-const LARGURAS_FOTO = [640, 960, 1280, 1672];
-
-const HERO_SLIDES = [
-  /*
-    focus: ponto focal do recorte, no formato de object-position ("50% 50%" = centro).
-    O padrão é o centro e serve para qualquer enquadramento — só vale ajustar se alguma
-    foto específica tiver o sujeito muito fora do meio e ficar cortada no celular, onde
-    cabe bem menos da largura original.
-  */
-  { src: "/pessoa%2001.webp", base: "pessoa-01", focus: "50% 50%", headline: "sem estoque, sem risco." },
-  { src: "/pessoa%2002.webp", base: "pessoa-02", focus: "50% 50%", headline: "com o produto certo." },
-  { src: "/pessoa%2003.webp", base: "pessoa-03", focus: "50% 50%", headline: "em poucos minutos." },
-];
-
-/*
-  PLACEHOLDER TEMPORÁRIO — some sozinho assim que qualquer foto de HERO_SLIDES carregar.
-  É um mockup com avatar gerado por IA, não um vendedor real usando a Velo.
-*/
-const HERO_PLACEHOLDER = "/hero-pasted-image-2.webp";
-
-// Fonte explícita: a regra global de h1–h6 em index.css força Hanken Grotesk.
-const FONTE_INTER = "[font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]";
-
-/*
-  Larguras geradas por scripts/otimizar-imagens-landing.sh para as barras da
-  seção de prova visual (no desktop cada uma ocupa metade de ~1200px).
-*/
-const LARGURAS_BARRA = [640, 960, 1280];
-
-/*
-  Seção de prova visual, logo abaixo do hero.
-
-  Os nomes dos arquivos têm espaço, então o caminho vai com %20 — sem isso o
-  Vite serve o index.html de fallback no lugar do PNG e a imagem quebra.
-
-  Como na referência, as duas imagens ocupam exatamente o mesmo tamanho e ficam
-  alinhadas pelo topo. Os arquivos não têm a mesma proporção (1409x1117 = 1,261
-  e 1448x1086 = 1,333), então a moldura impõe uma proporção comum e o object-cover
-  acerta o resto. O valor abaixo é a média das duas: assim o corte se divide entre
-  elas (~3% na altura da primeira, ~2,5% na largura da segunda) em vez de recair
-  todo sobre uma. Trocar por 1/1 ou 16/9 cortaria conteúdo de verdade.
-*/
-const PROPORCAO_PROVA = "1.297";
-
-/*
-  Tipografia das headlines de seção, igual à referência: Inter em peso leve,
-  tamanho grande e tracking negativo. Peso 300 (não 200) porque estas seções são
-  sobre fundo claro — fino demais no branco fica lavado. Sobre o fundo azul do
-  Atlas o mesmo 300 aparenta um pouco mais grosso, o que é o efeito esperado.
-
-  Está num só lugar para as seções não divergirem entre si com o tempo.
-*/
-const HEADLINE = "font-light leading-[1.12] tracking-[-0.03em] antialiased [font-family:Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal]";
-const HEADLINE_TAMANHO = "text-[clamp(1.75rem,3.2vw,3rem)]";
-
-const PROVA_VISUAL = [
+const MENU: ItemMenu[] = [
   {
-    src: "/barra%2001.webp",
-    base: "barra-01",
-    alt: "Conversa com a IA da Velo recomendando produtos com preço e loja",
+    rotulo: "Produto",
+    painel: [
+      { titulo: "Loja online", texto: "Sua loja com seu nome e seu link, a partir de modelos prontos.", alvo: "formas-de-vender" },
+      { titulo: "Mercado Livre", texto: "Publique anúncios com título, descrição e fotos já montados.", alvo: "formas-de-vender" },
+      { titulo: "Catálogo Velo", texto: "Produtos de fornecedores brasileiros, sem estoque.", alvo: "recursos" },
+      { titulo: "Páginas e imagens com IA", texto: "Gere a página de vendas e variações de imagem do produto.", alvo: "recursos" },
+    ],
   },
   {
-    src: "/barra%2002.webp",
-    base: "barra-02",
-    alt: "Loja da Velo com produtos selecionados e marketplaces conectados",
+    rotulo: "Para quem",
+    painel: [
+      { titulo: "Quem está começando", texto: "Da ideia à primeira venda, passo a passo.", alvo: "como-funciona" },
+      { titulo: "Quem já vende no Mercado Livre", texto: "Catálogo, anúncios e pedidos no mesmo painel.", alvo: "formas-de-vender" },
+      { titulo: "Quem quer a própria loja", texto: "Um canal seu, para divulgar onde quiser.", alvo: "formas-de-vender" },
+    ],
+  },
+  {
+    rotulo: "Ajuda",
+    painel: [
+      { titulo: "Central de Ajuda", texto: "Tutoriais e respostas sobre a plataforma.", href: "/ajuda" },
+      { titulo: "Perguntas frequentes", texto: "Estoque, loja própria, Mercado Livre e mais.", alvo: "perguntas-frequentes" },
+    ],
+  },
+  { rotulo: "Como funciona", alvo: "como-funciona" },
+  { rotulo: "Recursos", alvo: "recursos" },
+];
+
+// Menu do celular: lista simples, sem painéis.
+const MENU_CELULAR = [
+  { rotulo: "Loja online", alvo: "formas-de-vender" },
+  { rotulo: "Mercado Livre", alvo: "formas-de-vender" },
+  { rotulo: "Como funciona", alvo: "como-funciona" },
+  { rotulo: "Atlas IA", alvo: "atlas" },
+  { rotulo: "Recursos", alvo: "recursos" },
+  { rotulo: "Perguntas", alvo: "perguntas-frequentes" },
+];
+
+/* Linhas da seção "formas de vender": cada uma abre um texto curto. Só recursos que existem no produto. */
+const FORMAS = [
+  {
+    titulo: "Sua loja, com seu nome e seu link",
+    texto: "Escolha um modelo pronto, coloque os produtos do catálogo e ajuste textos, cores e fotos no editor, sem código. Depois é só divulgar no Instagram, WhatsApp, TikTok ou em anúncios.",
+  },
+  {
+    titulo: "Anúncios prontos no Mercado Livre",
+    texto: "Conecte sua conta do Mercado Livre e publique direto da Velo. O anúncio sai com título, descrição e fotos já montados, e você revisa antes de publicar.",
+  },
+  {
+    titulo: "Fornecedores brasileiros, sem estoque",
+    texto: "O catálogo Velo mostra o custo no fornecedor, o preço sugerido e a margem de cada produto. Você só paga o fornecedor quando sai uma venda.",
+  },
+  {
+    titulo: "Páginas e imagens criadas com IA",
+    texto: "Gere a página de vendas a partir do produto do catálogo e crie variações de imagem para testar seus anúncios e criativos.",
+  },
+  {
+    titulo: "Pedidos e envios num só painel",
+    texto: "Quando sai uma venda, você confirma o pedido com o fornecedor pelo painel e ele faz o envio. Tudo o que foi publicado e vendido fica no mesmo lugar.",
+  },
+  {
+    titulo: "O Atlas te ajuda a decidir",
+    texto: "Não sabe o que vender? O Atlas, a IA da Velo, sugere um produto do catálogo com o motivo e diz qual é o próximo passo.",
   },
 ];
 
-const HERO_SLIDE_INTERVAL = 6000;
+/* Itens do bloco do Atlas. Só o que o Atlas faz hoje (conferido no painel). */
+const ATLAS_ITENS = [
+  {
+    titulo: "Sugestão de produto",
+    texto: "Diga o nicho e o Atlas indica um produto específico do catálogo, com o motivo da escolha.",
+  },
+  {
+    titulo: "Preço e margem",
+    texto: "Ele mostra o custo no fornecedor e ajuda a definir o preço de venda antes de você publicar.",
+  },
+  {
+    titulo: "Próximo passo",
+    texto: "Depois da sugestão, o Atlas diz o que fazer em seguida e leva você direto ao catálogo.",
+  },
+  {
+    titulo: "Dúvidas no caminho",
+    texto: "Pergunte sobre a sua loja, o Mercado Livre ou o painel, do jeito que você falaria com alguém.",
+  },
+];
 
-const TYPE_DELETE_MS = 26;
-const TYPE_WRITE_MS = 52;
+const PASSOS = [
+  {
+    numero: "01",
+    titulo: "Sua ideia",
+    texto: "Escreva do seu jeito o que quer vender: o nicho, o produto ou só a ideia. Se ainda não sabe, o Atlas, a IA da Velo, sugere por onde começar.",
+    botao: "Escrever minha ideia",
+  },
+  {
+    numero: "02",
+    titulo: "Seu produto",
+    texto: "Escolha no catálogo de fornecedores brasileiros, com custo e margem à vista. A Velo monta a loja, a página ou o anúncio com título, descrição e fotos.",
+    botao: "Ver os recursos",
+  },
+  {
+    numero: "03",
+    titulo: "Sua venda",
+    texto: "Publique na sua loja, no Mercado Livre ou nos dois. Quando sair uma venda, você confirma o pedido pelo painel e o fornecedor faz o envio.",
+    botao: "Começar agora",
+  },
+];
 
-/*
-  Máquina de escrever: apaga a frase atual caractere a caractere e digita a nova. Não tem
-  timer próprio — reage à mudança de `target`, que vem do mesmo índice do carrossel, então
-  o ciclo começa exatamente quando a imagem de fundo troca.
-*/
-function useTypewriter(target: string) {
-  const [display, setDisplay] = useState(target);
-  const [mode, setMode] = useState<"idle" | "deleting" | "typing">("idle");
-  const mounted = useRef(false);
+const RECURSOS = [
+  { titulo: "Catálogo Velo", texto: "Produtos de fornecedores brasileiros, com custo, preço sugerido e margem.", icone: "catalogo" },
+  { titulo: "Loja própria", texto: "Sua loja com seu nome e seu link, a partir de modelos prontos para editar.", icone: "loja" },
+  { titulo: "Atlas", texto: "A IA da Velo ajuda a escolher produto, preço e o próximo passo.", icone: "atlas" },
+  { titulo: "Páginas com IA", texto: "Gere a página de vendas a partir do produto do catálogo.", icone: "pagina" },
+  { titulo: "Imagens com IA", texto: "Crie variações de imagem para testar anúncios e criativos.", icone: "imagem" },
+  { titulo: "Pedidos num só painel", texto: "Veja o que foi publicado em cada canal e acompanhe cada pedido.", icone: "pedidos" },
+];
 
-  useEffect(() => {
-    // Na primeira renderização a frase já aparece pronta: nada para apagar ainda.
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+const FAQ = [
+  {
+    pergunta: "Preciso ter estoque para vender com a Velo?",
+    resposta: "Não. Os produtos vêm de fornecedores brasileiros do catálogo Velo. Quando sai uma venda, você confirma o pedido com o fornecedor pelo painel e ele faz o envio.",
+  },
+  {
+    pergunta: "Consigo criar minha própria loja sem saber programar?",
+    resposta: "Sim. Você escolhe um modelo e os produtos, a Velo monta a loja e você ajusta textos, cores e fotos no editor. Não precisa escrever código.",
+  },
+  {
+    pergunta: "Já vendo no Mercado Livre. A Velo continua servindo para mim?",
+    resposta: "Sim. O Mercado Livre continua sendo um canal da Velo: você conecta sua conta e publica o anúncio direto da plataforma, com título, descrição e fotos já montados. Se quiser, também pode ter sua loja própria.",
+  },
+  {
+    pergunta: "Posso vender na minha loja e no Mercado Livre ao mesmo tempo?",
+    resposta: "Pode. O mesmo produto do catálogo pode ir para a sua loja e para o seu Mercado Livre, e os pedidos ficam no mesmo painel.",
+  },
+  {
+    pergunta: "A Velo é para quem está começando?",
+    resposta: "Sim. A experiência foi pensada para quem está montando a primeira operação online: passos claros, decisões simples e o Atlas para tirar dúvidas no caminho.",
+  },
+];
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setDisplay(target);
-      setMode("idle");
-      return;
-    }
-
-    setMode("deleting");
-  }, [target]);
-
-  useEffect(() => {
-    if (mode === "idle") return;
-
-    const timer = window.setTimeout(
-      () => {
-        setDisplay((current) => (mode === "deleting" ? current.slice(0, -1) : target.slice(0, current.length + 1)));
-      },
-      mode === "deleting" ? TYPE_DELETE_MS : TYPE_WRITE_MS
-    );
-
-    return () => window.clearTimeout(timer);
-  }, [mode, display, target]);
-
-  useEffect(() => {
-    if (mode === "deleting" && display.length === 0) setMode("typing");
-    else if (mode === "typing" && display === target) setMode("idle");
-  }, [mode, display, target]);
-
-  return { display, isAnimating: mode !== "idle" };
-}
-
-/*
-  Um único índice governa foto e segunda linha da headline: as duas trocam no mesmo tick e
-  com o mesmo crossfade, sem timer separado.
-*/
-function useHeroCarousel() {
-  const [failed, setFailed] = useState<Record<string, boolean>>({});
-  const [index, setIndex] = useState(0);
-  // As fotos seguintes só entram no DOM depois que a primeira pinta, para não competir com o LCP.
-  const [preloadRest, setPreloadRest] = useState(false);
-
-  const slides = HERO_SLIDES.filter((slide) => !failed[slide.src]);
-
-  useEffect(() => {
-    if (!preloadRest) return;
-    if (slides.length < 2) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const timer = window.setInterval(() => setIndex((current) => current + 1), HERO_SLIDE_INTERVAL);
-
-    return () => window.clearInterval(timer);
-  }, [preloadRest, slides.length]);
-
-  return {
-    slides,
-    // Sem nenhuma foto disponível o carrossel para, mas a headline ainda precisa de uma frase.
-    phrases: slides.length > 0 ? slides : HERO_SLIDES.slice(0, 1),
-    visibleSlides: preloadRest ? slides : slides.slice(0, 1),
-    active: slides.length > 0 ? index % slides.length : 0,
-    onFirstLoad: () => setPreloadRest(true),
-    onSlideError: (src: string) => setFailed((current) => ({ ...current, [src]: true })),
-  };
-}
-
-type HeroCarousel = ReturnType<typeof useHeroCarousel>;
-
-function HeroBackdrop({ slides, visibleSlides, active, onFirstLoad, onSlideError }: HeroCarousel) {
+function VeloLogo() {
   return (
-    <>
-      {slides.length === 0 && (
-        <img
-          src={HERO_PLACEHOLDER}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 h-full w-full object-cover object-[68%_center] lg:object-[75%_center]"
-        />
-      )}
-
-      {visibleSlides.map((slide, slideIndex) => (
-        /*
-          A foto do topo cobre a tela inteira, por isso sizes="100vw": o
-          navegador pega a de 640px num celular comum e a de 1672px num monitor
-          grande, em vez do PNG de ~1,9 MB que vinha antes para todo mundo.
-
-          A primeira é prioritária — é o maior elemento da primeira tela e o
-          index.html já manda buscá-la antes do JavaScript montar a página.
-          As seguintes só entram no DOM depois que ela pinta (ver preloadRest).
-        */
-        <ImagemResponsiva
-          key={slide.src}
-          base={slide.base}
-          larguras={LARGURAS_FOTO}
-          original={`${slide.src}?v=${HERO_ASSET_VERSION}`}
-          sizes="100vw"
-          alt=""
-          aria-hidden
-          prioritaria={slideIndex === 0}
-          style={{ "--hero-focus": slide.focus } as CSSProperties}
-          onLoad={slideIndex === 0 ? onFirstLoad : undefined}
-          onError={() => onSlideError(slide.src)}
-          className={`absolute inset-0 -z-10 h-full w-full object-cover object-[var(--hero-focus)] transition-opacity duration-1000 ease-in-out ${
-            slideIndex === active ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      ))}
-    </>
-  );
-}
-
-
-/*
-  Mesma estrutura da referência: headline de duas linhas em dois tons, seguida de
-  uma grade assimétrica de imagens sem legenda.
-
-  A referência é sobre fundo escuro; aqui é branco. Isso não é só trocar a cor:
-  peso fino sobre fundo claro parece mais fino do que sobre escuro (o fundo
-  "invade" a letra no escuro e engorda o traço). Por isso o peso sobe de 200 para
-  300 — no branco, 200 ficaria lavado e quebradiço no tamanho grande.
-*/
-function SecaoProvaVisual() {
-  return (
-    <section id="como-funciona" className="scroll-mt-20 bg-white px-6 py-16 sm:px-10 sm:py-28 lg:px-12 lg:py-40">
-      <div className="mx-auto w-full max-w-[1200px]">
-        <motion.h2
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          // Logo abaixo do topo: esperar 30% do título deixava uma faixa branca sob as fotos.
-          viewport={{ once: true, amount: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          /*
-            Cada frase precisa caber em UMA linha, como na referência. Com o
-            Mercado Livre sozinho, a linha 1 passou a ser a mais longa (~23x o
-            tamanho da fonte): a 3rem ela pede ~1107px e o container dá 1200px.
-            Mexer no tamanho sem refazer essa conta faz a frase quebrar em duas.
-          */
-          className={`${HEADLINE_TAMANHO} ${HEADLINE} leading-[1.18]`}
-        >
-          <span className="block">
-            <span className="text-[#0B1B3D]">Do produto ao anúncio pronto.</span>{" "}
-            <span className="text-[#0B1B3D]/40">Sem digitar uma linha.</span>
-          </span>
-          <span className="block">
-            <span className="text-[#0B1B3D]">Publicado no Mercado Livre.</span>{" "}
-            <span className="text-[#0B1B3D]/40">Em poucos minutos.</span>
-          </span>
-        </motion.h2>
-
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 sm:items-start lg:mt-20 lg:gap-7">
-          {PROVA_VISUAL.map((item, indice) => (
-            <motion.figure
-              key={item.src}
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: indice * 0.1 }}
-            >
-              <div
-                className="overflow-hidden rounded-[20px] border border-[#E9EEF8] bg-[#FBFCFF]"
-                style={{ aspectRatio: PROPORCAO_PROVA }}
-              >
-                {/*
-                  Até 640px a barra ocupa a largura da tela menos os 24px de
-                  respiro de cada lado; a partir daí a grade vira duas colunas
-                  e cada uma fica com metade, limitada pelos 1200px do container.
-                */}
-                <ImagemResponsiva
-                  base={item.base}
-                  larguras={LARGURAS_BARRA}
-                  original={item.src}
-                  sizes="(min-width: 1200px) 600px, (min-width: 640px) 50vw, calc(100vw - 48px)"
-                  alt={item.alt}
-                  className="block h-full w-full object-cover"
-                />
-              </div>
-            </motion.figure>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function VeloLogo({ tone = "dark" }: { tone?: "dark" | "light" }) {
-  return (
-    <div className={`flex items-center gap-2.5 transition-colors duration-200 ${tone === "light" ? "text-white" : "text-[#0B1B3D]"}`}>
-      {/* 36x36 na tela: o PNG de 146 KB era desperdício puro. O WebP de 96px
-          cobre retina com 2 KB. */}
+    <span className="flex items-center gap-2">
       <ImagemResponsiva
         base="logo"
         larguras={[96]}
         original="/logo.png"
-        sizes="36px"
-        alt="Velo"
+        sizes="30px"
+        alt=""
         prioritaria
-        width={36}
-        height={36}
-        className="block h-9 w-9 shrink-0 object-contain"
+        width={30}
+        height={30}
+        className="block h-[30px] w-[30px] shrink-0 object-contain"
       />
-      <span className="text-[26px] font-bold leading-none tracking-[-0.06em]">Velo</span>
-    </div>
+      <span className={`${FONTE_TITULO} text-[23px] font-semibold leading-none tracking-[-0.06em] text-[#16181D]`}>Velo</span>
+    </span>
   );
 }
 
-function SimpleIcon({ name }: { name: string }) {
-  const common = "h-6 w-6";
-
-  if (name === "apps") {
-    return (
-      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <rect x="4" y="4" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="2.2" />
-        <rect x="4" y="19" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="2.2" />
-        <rect x="19" y="19" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="2.2" />
-        <path d="M23.5 4v10M18.5 9h10" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
-      </svg>
-    );
+/*
+  Ícones dos atalhos do campo do hero: todos cheios e na mesma cor, como os da
+  Base44 (App, Dashboard, Website…).
+*/
+function IconeAtalho({ canal }: { canal: Canal }) {
+  const props = { className: "h-[15px] w-[15px] shrink-0 text-[#4F6BED]", viewBox: "0 0 16 16", fill: "currentColor", "aria-hidden": true };
+  switch (canal) {
+    case "loja":
+      return (
+        <svg {...props}>
+          <path d="M2 2.5h12l1 3.2a2.1 2.1 0 0 1-3.9 1.2 2.1 2.1 0 0 1-3.6 0 2.1 2.1 0 0 1-3.6 0A2.1 2.1 0 0 1 1 5.7L2 2.5Z" />
+          <path d="M2.5 9.2c.9.3 1.9.2 2.7-.3.7.4 1.4.6 2.2.6h1.2c.8 0 1.5-.2 2.2-.6.8.5 1.8.6 2.7.3V14H9.6v-3.2H6.4V14H2.5V9.2Z" />
+        </svg>
+      );
+    case "mercado-livre":
+      return (
+        <svg {...props}>
+          <path d="M8.6 1.5H14a.5.5 0 0 1 .5.5v5.4a1 1 0 0 1-.3.7l-6.1 6.1a1 1 0 0 1-1.4 0L2 9.5a1 1 0 0 1 0-1.4l6.1-6.1a1 1 0 0 1 .5-.5Zm2.9 4.3a1.3 1.3 0 1 0 0-2.6 1.3 1.3 0 0 0 0 2.6Z" />
+        </svg>
+      );
+    case "pagina":
+      return (
+        <svg {...props}>
+          <path d="M3.5 1.5h6l3 3v9a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1Zm1.5 6v1.3h6V7.5H5Zm0 2.8v1.3h4v-1.3H5Z" />
+        </svg>
+      );
+    case "imagens":
+      return (
+        <svg {...props}>
+          <path d="M2.5 2h11A1.5 1.5 0 0 1 15 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 12.5v-9A1.5 1.5 0 0 1 2.5 2Zm3 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm-2.5 5h10l-3.2-4.3-2.6 3.1-1.6-1.6L3 12Z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...props}>
+          <rect x="1.5" y="1.5" width="5.6" height="5.6" rx="1" />
+          <rect x="8.9" y="1.5" width="5.6" height="5.6" rx="1" />
+          <rect x="1.5" y="8.9" width="5.6" height="5.6" rx="1" />
+          <rect x="8.9" y="8.9" width="5.6" height="5.6" rx="1" />
+        </svg>
+      );
   }
+}
 
-  if (name === "tools") {
-    return (
-      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <path d="M12 20 5 27M21 5l6 6-5 5-6-6 5-5ZM18 13 9 4 5 8l9 9" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" />
-      </svg>
-    );
+function IconeRecurso({ nome }: { nome: string }) {
+  const props = { className: "h-5 w-5", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  switch (nome) {
+    case "catalogo":
+      return <svg {...props}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
+    case "loja":
+      return <svg {...props}><path d="M4 10v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9" /><path d="M3 6.5 4.5 4h15L21 6.5V8a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V6.5Z" /><path d="M10 20v-5h4v5" /></svg>;
+    case "atlas":
+      return <svg {...props}><path d="M12 3a7 7 0 0 1 7 7c0 3.9-3.1 7-7 7H6l-2 3V10a7 7 0 0 1 8-7Z" /><path d="M9 10h.01M15 10h.01" strokeWidth="2.4" /></svg>;
+    case "pagina":
+      return <svg {...props}><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>;
+    case "imagem":
+      return <svg {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 16-5-5-9 9" /></svg>;
+    default:
+      return <svg {...props}><path d="M3 7h18M3 12h18M3 17h12" /></svg>;
   }
+}
 
-  if (name === "team") {
-    return (
-      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-        <circle cx="12" cy="11" r="4" stroke="currentColor" strokeWidth="2.2" />
-        <circle cx="22" cy="13" r="3" stroke="currentColor" strokeWidth="2.2" />
-        <path d="M5 27c.7-4.6 3.2-7 7-7s6.3 2.4 7 7M18 22c1-.9 2.3-1.4 4-1.4 3.1 0 5 2 5.5 5.4" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
-      </svg>
-    );
-  }
-
+function Secao({ id, children, className = "" }: { id?: string; children: ReactNode; className?: string }) {
   return (
-    <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <path d="M8 19v-3a8 8 0 0 1 16 0v3" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
-      <path d="M8 18H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v-7ZM24 18h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2v-7ZM22 26c-1.2 1.4-3.1 2-6 2" stroke="currentColor" strokeLinecap="round" strokeWidth="2.2" />
-    </svg>
+    <section id={id} className={`scroll-mt-20 px-4 sm:px-8 ${className}`}>
+      <div className="mx-auto max-w-[1200px]">{children}</div>
+    </section>
   );
+}
+
+/* Digita e apaga os exemplos no placeholder do campo do hero. Parado se a pessoa já escreveu algo. */
+function usePlaceholderDigitado(ativo: boolean) {
+  const [texto, setTexto] = useState("");
+  useEffect(() => {
+    if (!ativo) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTexto(EXEMPLOS_DIGITADOS[0]);
+      return;
+    }
+    let indice = 0;
+    let letras = 0;
+    let apagando = false;
+    let timer: number;
+    const passo = () => {
+      const alvo = EXEMPLOS_DIGITADOS[indice];
+      if (!apagando) {
+        letras += 1;
+        setTexto(alvo.slice(0, letras));
+        if (letras >= alvo.length) {
+          apagando = true;
+          timer = window.setTimeout(passo, 1800);
+          return;
+        }
+        timer = window.setTimeout(passo, 42);
+        return;
+      }
+      letras -= 2;
+      setTexto(alvo.slice(0, Math.max(letras, 0)));
+      if (letras <= 0) {
+        apagando = false;
+        letras = 0;
+        indice = (indice + 1) % EXEMPLOS_DIGITADOS.length;
+        timer = window.setTimeout(passo, 350);
+        return;
+      }
+      timer = window.setTimeout(passo, 18);
+    };
+    timer = window.setTimeout(passo, 600);
+    return () => window.clearTimeout(timer);
+  }, [ativo]);
+  return texto;
+}
+
+/*
+  Microfone do campo do hero: ditado por voz em português com a Web Speech API do
+  próprio navegador (Chrome, Edge, Safari). Nada sai para servidor da Velo. Onde o
+  navegador não tem a API (Firefox), o botão simplesmente não aparece.
+*/
+type Reconhecimento = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type ConstrutorReconhecimento = new () => Reconhecimento;
+
+function useDitado(aoOuvir: (texto: string) => void) {
+  const [disponivel, setDisponivel] = useState(false);
+  const [ouvindo, setOuvindo] = useState(false);
+  const reconhecimento = useRef<Reconhecimento | null>(null);
+  const callback = useRef(aoOuvir);
+  callback.current = aoOuvir;
+
+  useEffect(() => {
+    const janela = window as unknown as { SpeechRecognition?: ConstrutorReconhecimento; webkitSpeechRecognition?: ConstrutorReconhecimento };
+    setDisponivel(Boolean(janela.SpeechRecognition || janela.webkitSpeechRecognition));
+    return () => reconhecimento.current?.stop();
+  }, []);
+
+  const alternar = () => {
+    if (ouvindo) {
+      reconhecimento.current?.stop();
+      return;
+    }
+    const janela = window as unknown as { SpeechRecognition?: ConstrutorReconhecimento; webkitSpeechRecognition?: ConstrutorReconhecimento };
+    const Construtor = janela.SpeechRecognition || janela.webkitSpeechRecognition;
+    if (!Construtor) return;
+    const rec = new Construtor();
+    rec.lang = "pt-BR";
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.onresult = (event) => {
+      const texto = Array.from(event.results, (resultado) => resultado[0]?.transcript ?? "").join(" ").trim();
+      if (texto) callback.current(texto);
+    };
+    rec.onend = () => setOuvindo(false);
+    rec.onerror = () => setOuvindo(false);
+    reconhecimento.current = rec;
+    try {
+      rec.start();
+      setOuvindo(true);
+    } catch {
+      setOuvindo(false);
+    }
+  };
+
+  return { disponivel, ouvindo, alternar };
 }
 
 export default function Index() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [email, setEmail] = useState("");
-  const [openFaq, setOpenFaq] = useState(0);
-  const [headerSolid, setHeaderSolid] = useState(false);
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [showMobileStickyCta, setShowMobileStickyCta] = useState(false);
-  const closeMenuTimer = useRef<number>();
-  const mobileHeroCtaRef = useRef<HTMLButtonElement>(null);
-  const reduceMotion = useReducedMotion();
-  /*
-    Funil da landing (só leitura de números agregados, nada de dado pessoal): visita,
-    clique no botão principal, clique em "Como funciona" e clique em "Já tenho conta".
-  */
+  const [ideia, setIdeia] = useState("");
+  const [canal, setCanal] = useState<Canal>("loja");
+  const [menuCanalAberto, setMenuCanalAberto] = useState(false);
+  const [menuIdeiasAberto, setMenuIdeiasAberto] = useState(false);
+  const menuIdeiasRef = useRef<HTMLDivElement>(null);
+  const { disponivel: ditadoDisponivel, ouvindo, alternar: alternarDitado } = useDitado((texto) =>
+    setIdeia((atual) => (atual.trim() ? `${atual.trimEnd()} ${texto}` : texto)),
+  );
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [headerSolido, setHeaderSolido] = useState(false);
+  const [faqAberta, setFaqAberta] = useState(0);
+  const [formaAberta, setFormaAberta] = useState<number | null>(null);
   const [assinantesAtivos, setAssinantesAtivos] = useState<number | null>(null);
+  const campoRef = useRef<HTMLTextAreaElement>(null);
+  const menuCanalRef = useRef<HTMLDivElement>(null);
+  const [painelAberto, setPainelAberto] = useState<string | null>(null);
+  const timerPainel = useRef<number>();
+  const placeholder = usePlaceholderDigitado(ideia.length === 0);
 
+  const logado = !authLoading && Boolean(user);
+  const authTarget = logado ? "/dashboard" : "/login";
+  const signupTarget = logado ? "/dashboard" : "/login?novo=1";
+  const canalAtual = CANAIS.find((item) => item.id === canal) ?? CANAIS[0];
+
+  /*
+    Funil da landing (só números agregados, nada de dado pessoal). Os nomes dos
+    eventos são os mesmos da landing anterior, para o painel do funil continuar
+    comparando com o histórico.
+  */
   const registrarEvento = async (evento: string) => {
     try {
       let visitor = window.localStorage.getItem("velo_visitor_id");
@@ -503,73 +459,7 @@ export default function Index() {
     }
   };
 
-  useEffect(() => {
-    void registrarEvento("landing_view");
-
-    supabase
-      .rpc("rpc_landing_stats")
-      .then(({ data }) => {
-        const total = (data as { assinantes_ativos?: number } | null)?.assinantes_ativos;
-        if (typeof total === "number") setAssinantesAtivos(total);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const activePanel = navItems.find((item) => item.label === openMenu && item.panel);
-  // Com a aba aberta o header precisa virar sólido: a faixa branca embaixo dele não pode
-  // nascer de uma barra transparente sobre a foto.
-  const headerOpaque = headerSolid || Boolean(activePanel) || mobileNavOpen;
-  const heroCarousel = useHeroCarousel();
-  const { phrases, active } = heroCarousel;
-  const currentPhrase = phrases[active]?.headline ?? "";
-  const { display: typedPhrase } = useTypewriter(currentPhrase);
-  // Reserva a altura da maior frase para a digitação não empurrar o conteúdo abaixo.
-  const longestPhrase = phrases.reduce((longest, slide) => (slide.headline.length > longest.length ? slide.headline : longest), "");
-
-  useEffect(() => {
-    const handleScroll = () => setHeaderSolid(window.scrollY > 40);
-
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const button = mobileHeroCtaRef.current;
-    if (!button || window.innerWidth >= 640) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowMobileStickyCta(!entry.isIntersecting && entry.boundingClientRect.bottom < 0),
-      { threshold: 0 },
-    );
-    observer.observe(button);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        });
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
-    );
-
-    elements.forEach((element, index) => {
-      element.style.setProperty("--reveal-delay", `${Math.min((index % 6) * 70, 280)}ms`);
-      observer.observe(element);
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  // Logado, o botão só leva ao dashboard: contar como clique de cadastro inflaria o funil.
+  // Logado, o botão só leva ao painel: contar como clique de cadastro inflaria o funil.
   const registrarCliqueCadastro = (evento: string) => {
     if (user) return;
     void registrarEvento(evento);
@@ -577,743 +467,875 @@ export default function Index() {
     metaVeloCliqueCadastro(evento);
   };
 
-  const authTarget = !authLoading && user ? "/dashboard" : "/login";
-  // Botão principal do celular: quem ainda não tem conta cai direto no passo de cadastro.
-  const signupTarget = !authLoading && user ? "/dashboard" : "/login?novo=1";
-  const ctaLabel = !authLoading && user ? "Entrar no dashboard" : "Começar agora";
-  const logado = !authLoading && Boolean(user);
-  const lojistasAtivos = Math.max(
-    LOJISTAS_ATIVOS_PISO,
-    assinantesAtivos !== null ? Math.floor(assinantesAtivos / 50) * 50 : 0,
-  );
-  const lojistasTexto = lojistasAtivos.toLocaleString("pt-BR");
-  const provaHero = [
-    { numero: `${lojistasTexto}+`, rotulo: "lojistas assinantes" },
-    { numero: VENDAS_MES_LOJISTAS, rotulo: "vendidos por mês" },
-    { numero: "100%", rotulo: "fornecedores nacionais" },
-  ];
-
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!authLoading && user) {
-      navigate("/dashboard");
-      return;
-    }
-
-    registrarCliqueCadastro("cta_final_signup_click");
-    const cleanEmail = email.trim();
-    if (cleanEmail) window.localStorage.setItem("velo_auth_email", cleanEmail);
-    navigate(cleanEmail ? `/auth?email=${encodeURIComponent(cleanEmail)}` : "/auth", {
-      state: cleanEmail ? { email: cleanEmail } : undefined,
+  useEffect(() => {
+    void registrarEvento("landing_view");
+    supabase.rpc("rpc_landing_stats").then(({ data }) => {
+      const total = (data as { assinantes_ativos?: number } | null)?.assinantes_ativos;
+      if (typeof total === "number") setAssinantesAtivos(total);
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const aoRolar = () => setHeaderSolido(window.scrollY > 12);
+    aoRolar();
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => window.removeEventListener("scroll", aoRolar);
+  }, []);
 
   /*
-    index.css força `scroll-behavior: auto` no html, e isso anula o `behavior: "smooth"`
-    passado por JS — medido: com a opção o scroll não sai do lugar; via propriedade CSS ele
-    anima. Por isso a landing liga a propriedade enquanto está montada e restaura ao sair.
+    index.css força `scroll-behavior: auto` no html, o que anula o "smooth" pedido
+    por JS. A landing liga a propriedade enquanto está montada e restaura ao sair.
   */
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
     const root = document.documentElement;
-    const previous = root.style.scrollBehavior;
+    const anterior = root.style.scrollBehavior;
     root.style.scrollBehavior = "smooth";
-
     return () => {
-      root.style.scrollBehavior = previous;
+      root.style.scrollBehavior = anterior;
     };
   }, []);
 
-  const scrollToSection = (id: string) => {
-    // No celular a página é a LandingMobile: as seções dela têm o sufixo "-mobile".
-    const versaoMobile = document.getElementById(`${id}-mobile`);
-    const alvo = versaoMobile && versaoMobile.offsetParent !== null ? versaoMobile : document.getElementById(id);
-    alvo?.scrollIntoView({ block: "start" });
-  };
-
-  /*
-    Pequeno atraso ao fechar: sem ele o menu some no vão entre o item e o painel, e o
-    usuário nunca consegue levar o mouse até lá.
-  */
-  const openPanel = (label: string) => {
-    window.clearTimeout(closeMenuTimer.current);
-    setOpenMenu(label);
-  };
-
-  const schedulePanelClose = () => {
-    window.clearTimeout(closeMenuTimer.current);
-    closeMenuTimer.current = window.setTimeout(() => setOpenMenu(null), 160);
-  };
-
+  // Fecha os menus do campo (canal e ideias) ao clicar fora ou apertar Esc.
   useEffect(() => {
-    if (!openMenu) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenMenu(null);
+    if (!menuCanalAberto && !menuIdeiasAberto) return;
+    const aoClicar = (event: MouseEvent) => {
+      const alvo = event.target as Node;
+      if (!menuCanalRef.current?.contains(alvo)) setMenuCanalAberto(false);
+      if (!menuIdeiasRef.current?.contains(alvo)) setMenuIdeiasAberto(false);
     };
+    const aoTeclar = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuCanalAberto(false);
+      setMenuIdeiasAberto(false);
+    };
+    document.addEventListener("mousedown", aoClicar);
+    window.addEventListener("keydown", aoTeclar);
+    return () => {
+      document.removeEventListener("mousedown", aoClicar);
+      window.removeEventListener("keydown", aoTeclar);
+    };
+  }, [menuCanalAberto, menuIdeiasAberto]);
 
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openMenu]);
-
-  /*
-    Com o painel mobile aberto a página atrás não pode rolar: no iOS o toque "vaza" para o
-    body e o menu desliza junto enquanto o dedo arrasta.
-  */
+  // Menu do celular aberto: a página atrás não rola.
   useEffect(() => {
-    if (!mobileNavOpen) return;
-
+    if (!menuAberto) return;
     document.body.style.overflow = "hidden";
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileNavOpen(false);
+    const aoTeclar = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuAberto(false);
     };
-
-    window.addEventListener("keydown", onKeyDown);
-
+    window.addEventListener("keydown", aoTeclar);
     return () => {
       document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", aoTeclar);
     };
-  }, [mobileNavOpen]);
+  }, [menuAberto]);
 
-  const goToSectionFromMobileNav = (id: string) => {
-    setMobileNavOpen(false);
-    /*
-      Destrava o body aqui em vez de esperar a limpeza do efeito: ela roda no flush de
-      efeitos passivos, depois do paint, e qualquer scroll agendado antes disso acontece
-      com overflow:hidden ainda de pé — ou seja, não acontece. Medido: sem esta linha o
-      clique fechava o menu e a página não saía do topo.
-    */
-    document.body.style.overflow = "";
-    window.setTimeout(() => scrollToSection(id), 0);
+  /*
+    Atraso curto ao fechar o painel do menu: sem ele o painel some no vão entre o
+    item e o cartão, e o mouse nunca chega lá.
+  */
+  const abrirPainel = (rotulo: string) => {
+    window.clearTimeout(timerPainel.current);
+    setPainelAberto(rotulo);
+  };
+  const fecharPainelDepois = () => {
+    window.clearTimeout(timerPainel.current);
+    timerPainel.current = window.setTimeout(() => setPainelAberto(null), 160);
   };
 
-  useEffect(() => () => window.clearTimeout(closeMenuTimer.current), []);
+  useEffect(() => {
+    if (!painelAberto) return;
+    const aoTeclar = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPainelAberto(null);
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [painelAberto]);
+
+  useEffect(() => () => window.clearTimeout(timerPainel.current), []);
+
+  const irPara = (id: string) => {
+    setMenuAberto(false);
+    setPainelAberto(null);
+    document.body.style.overflow = "";
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 0);
+  };
+
+  const escolherCanal = (novo: Canal) => {
+    setCanal(novo);
+    setMenuCanalAberto(false);
+    const inicio = CANAIS.find((item) => item.id === novo)?.inicio ?? "";
+    // Só preenche se o campo está vazio ou ainda é o começo de outro chip.
+    if (!ideia.trim() || CANAIS.some((item) => item.inicio === ideia)) setIdeia(inicio);
+    window.requestAnimationFrame(() => {
+      const campo = campoRef.current;
+      if (!campo) return;
+      campo.focus();
+      campo.setSelectionRange(campo.value.length, campo.value.length);
+    });
+  };
+
+  const comecar = (evento: string) => {
+    if (logado) {
+      navigate("/dashboard");
+      return;
+    }
+    registrarCliqueCadastro(evento);
+    navigate(signupTarget);
+  };
+
+  /*
+    A ideia do campo vai direto para o chat do Atlas, que a envia sozinho e já
+    começa a montar ou a procurar produto (src/lib/ideiaDaLanding.ts). Quem não
+    está logado passa antes pelo login/cadastro; a ideia espera no sessionStorage
+    da aba, nunca na URL.
+  */
+  const enviarIdeia = (event?: FormEvent) => {
+    event?.preventDefault();
+    const texto = ideia.trim();
+    if (texto) guardarIdeiaDaLanding(texto, canal);
+    if (logado) {
+      navigate("/dashboard");
+      return;
+    }
+    registrarCliqueCadastro("cta_hero_signup_click");
+    navigate(signupTarget, { state: texto ? { ideia: texto, canal } : undefined });
+  };
+
+  // Botão "Escrever minha ideia": volta ao topo e põe o cursor no campo do hero.
+  const escreverIdeia = () => {
+    window.scrollTo({ top: 0 });
+    window.setTimeout(() => campoRef.current?.focus({ preventScroll: true }), 450);
+  };
+
+  const usarIdeiaPronta = (texto: string) => {
+    setIdeia(texto);
+    setMenuIdeiasAberto(false);
+    window.requestAnimationFrame(() => {
+      const campo = campoRef.current;
+      if (!campo) return;
+      campo.focus();
+      campo.setSelectionRange(campo.value.length, campo.value.length);
+    });
+  };
+
+  const aoTeclarNoCampo = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      enviarIdeia();
+    }
+  };
+
+  const lojistasAtivos = Math.max(LOJISTAS_ATIVOS_PISO, assinantesAtivos !== null ? Math.floor(assinantesAtivos / 50) * 50 : 0);
+  const NUMEROS = [
+    { numero: `${lojistasAtivos.toLocaleString("pt-BR")}+`, rotulo: "lojistas assinantes da Velo" },
+    { numero: VENDAS_MES_LOJISTAS, rotulo: "vendidos por mês pelos lojistas" },
+    { numero: "100%", rotulo: "fornecedores nacionais" },
+  ];
 
   return (
-    <main className="min-h-screen overflow-hidden bg-white max-sm:bg-black font-sans text-[#0B1B3D] [font-family:'Helvetica_Neue',Helvetica,-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text',Arial,sans-serif] [font-kerning:normal] [font-optical-sizing:auto]">
+    // data-velo-flat-buttons: botões chapados, como na referência (sem o relevo global do index.css).
+    <main data-velo-flat-buttons className="relative min-h-screen overflow-x-hidden bg-[#F0EEEC] font-sans text-[#16181D] [font-family:'Inter',ui-sans-serif,system-ui,sans-serif]">
+      {/*
+        Textura de tela (trama de linho) do fundo, no padrão da base44.com: pontinhos
+        escuros nos cruzamentos dos fios, cor média #F0EEEC. Gerada por script, não é
+        a imagem deles. O arquivo tem 476px e aparece a 238px, nítido em tela retina;
+        são ~35 KB baixados pelo CSS, sem travar a primeira tela.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ backgroundImage: "url(/landing/textura-fundo.webp?v=2)", backgroundSize: "238px 238px" }}
+      />
+
+      {/* ───────── Header (modelo Base44: largura toda, itens com seta e painel) ───────── */}
       <header
-        data-velo-flat-buttons
-        onMouseLeave={schedulePanelClose}
-        className={`fixed inset-x-0 top-0 z-50 [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 ${
-          headerOpaque
-            ? /*
-                Com o painel mobile aberto o branco é sólido: a 95% a foto escura do hero
-                atravessava a barra e ela ficava cinza ao lado do painel, que é branco puro.
-              */
-              `border-b border-[#EDF1F9] backdrop-blur-md ${mobileNavOpen ? "bg-white" : "bg-white/95"}`
-            : "border-b border-transparent bg-transparent"
-        } ${
-          mobileNavOpen
-            ? ""
-            : headerSolid
-              ? "max-sm:border-white/10 max-sm:bg-black/90"
-              : "max-sm:border-transparent max-sm:bg-transparent max-sm:backdrop-blur-none"
+        onMouseLeave={fecharPainelDepois}
+        style={headerSolido || menuAberto || painelAberto ? { backgroundImage: "url(/landing/textura-fundo.webp?v=2)", backgroundSize: "238px 238px" } : undefined}
+        className={`fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-200 ${
+          headerSolido || menuAberto || painelAberto ? "bg-[#F0EEEC]/95 shadow-[0_1px_0_rgba(22,24,29,0.08)] backdrop-blur-md" : "bg-transparent"
         }`}
       >
-        {/* Gutter lateral fixo (sem max-width centralizado) — o hero usa exatamente o mesmo. */}
-        <div className="flex w-full items-center justify-between px-6 py-4 sm:px-10 lg:px-12">
-          <div className="flex items-center gap-10">
-            <button type="button" onClick={() => navigate("/")} aria-label="Velo">
-              {/* Celular: header escuro sobre a foto (claro só com o menu aberto). Desktop: hero claro. */}
-              <span className="sm:hidden">
-                <VeloLogo tone={mobileNavOpen ? "dark" : "light"} />
-              </span>
-              <span className="hidden sm:block">
-                <VeloLogo tone={headerOpaque ? "dark" : "light"} />
-              </span>
-            </button>
+        <div className="flex h-[64px] items-center px-4 sm:h-[76px] sm:px-8 lg:px-9">
+          <button type="button" onClick={() => window.scrollTo({ top: 0 })} aria-label="Velo, voltar ao topo" className="shrink-0">
+            <VeloLogo />
+          </button>
 
-            <nav className="hidden items-center gap-8 lg:flex">
-              {navItems.map((item) => {
-                const isOpen = openMenu === item.label;
-
-                return (
+          <nav className="ml-10 hidden items-center gap-1 lg:flex" aria-label="Menu principal">
+            {MENU.map((item) => {
+              const aberto = painelAberto === item.rotulo;
+              return (
+                <div key={item.rotulo} className="relative" onMouseEnter={() => (item.painel ? abrirPainel(item.rotulo) : fecharPainelDepois())}>
                   <button
-                    key={item.target}
                     type="button"
+                    aria-expanded={item.painel ? aberto : undefined}
+                    aria-haspopup={item.painel ? "true" : undefined}
                     onClick={() => {
-                      setOpenMenu(null);
-                      scrollToSection(item.target);
+                      if (item.painel) {
+                        setPainelAberto(aberto ? null : item.rotulo);
+                        return;
+                      }
+                      if (item.alvo === "como-funciona") void registrarEvento("cta_how_it_works_click");
+                      if (item.alvo) irPara(item.alvo);
                     }}
-                    onMouseEnter={() => (item.panel ? openPanel(item.label) : setOpenMenu(null))}
-                    onFocus={() => (item.panel ? openPanel(item.label) : setOpenMenu(null))}
-                    aria-haspopup={item.panel ? "true" : undefined}
-                    aria-expanded={item.panel ? isOpen : undefined}
-                    className={`flex items-center gap-1.5 text-[15px] font-medium transition-colors duration-200 ${
-                      headerOpaque ? "text-[#0B1B3D] hover:text-[#2563EB]" : "text-white hover:text-white/70"
-                    }`}
+                    className={`flex h-10 items-center gap-1.5 rounded-[8px] px-3 text-[16px] tracking-[-0.01em] transition ${aberto ? "text-[#16181D]" : "text-[#2A2D34] hover:text-[#16181D]"}`}
                   >
-                    {item.label}
-                    {item.panel && (
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        aria-hidden="true"
-                        className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                      >
-                        <path d="M4 6.5 8 10.5l4-4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+                    {item.rotulo}
+                    {item.painel && (
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true" className={`mt-px transition-transform duration-200 ${aberto ? "rotate-180" : ""}`}>
+                        <path d="m2.5 4.5 3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </button>
-                );
-              })}
-            </nav>
-          </div>
 
-          <div className="flex items-center gap-5 sm:gap-6">
-            <button
-              type="button"
-              onClick={() => {
-                void registrarEvento("cta_header_login_click");
-                navigate(authTarget);
-              }}
-              className={`hidden text-[15px] font-medium transition-colors duration-200 sm:block ${
-                headerOpaque ? "text-[#0B1B3D] hover:text-[#2563EB]" : "text-white hover:text-white/70"
-              }`}
-            >
-              Entrar
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                registrarCliqueCadastro("cta_primary_click");
-                navigate(authTarget);
-              }}
-              className={`hidden h-[42px] rounded-full px-5 text-[14px] font-semibold transition-colors sm:block sm:px-6 ${
-                headerOpaque ? "bg-[#2563EB] text-white hover:bg-[#1E3A8A]" : "bg-white text-[#0B1B3D] hover:bg-white/90"
-              }`}
-            >
-              {ctaLabel}
-            </button>
-
-            {/*
-              Abaixo de lg a navegação inteira fica escondida (a <nav> é lg:flex), então sem
-              este botão "Como funciona", "Recursos", "FAQ" e "Entrar" simplesmente não existem
-              no celular. As duas barras viram X quando o painel abre. No celular o header é
-              só logo e menu: "Entrar" mora dentro do painel.
-            */}
-            {!mobileNavOpen && (
-              <button
-                type="button"
-                onClick={() => {
-                  registrarCliqueCadastro("cta_primary_click");
-                  navigate(signupTarget);
-                }}
-                className="text-[15px] font-medium text-white underline decoration-white/70 underline-offset-[5px] sm:hidden"
-              >
-                {!authLoading && user ? "Painel" : "Criar conta"}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen((open) => !open)}
-              aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
-              aria-expanded={mobileNavOpen}
-              aria-controls="menu-mobile"
-              className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors lg:hidden ${mobileNavOpen ? "max-sm:text-[#141414]" : "max-sm:text-white"} ${
-                headerOpaque ? "text-[#0B1B3D] hover:bg-[#F4F7FE]" : "text-white hover:bg-white/10"
-              }`}
-            >
-              <span className="relative block h-[14px] w-[22px]" aria-hidden="true">
-                <span
-                  className={`absolute left-0 block h-[2px] w-full rounded-full bg-current transition-transform duration-300 ${
-                    mobileNavOpen ? "top-1/2 -translate-y-1/2 rotate-45" : "top-0"
-                  }`}
-                />
-                <span
-                  className={`absolute left-0 block h-[2px] w-full rounded-full bg-current transition-transform duration-300 ${
-                    mobileNavOpen ? "top-1/2 -translate-y-1/2 -rotate-45" : "top-full -translate-y-full"
-                  }`}
-                />
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/*
-          Aba full-width que desce do topo: a altura anima de 0 para o conteúdo inteiro, com
-          overflow escondido — é isso que dá a sensação de a faixa "descer" em vez de o painel
-          simplesmente aparecer. O conteúdo entra com um leve deslocamento próprio, um pouco
-          mais lento, para o movimento não parecer travado.
-        */}
-        <AnimatePresence initial={false}>
-          {activePanel && (
-            <motion.div
-              key="mega-menu"
-              initial={{ height: 0 }}
-              animate={{ height: "auto" }}
-              exit={{ height: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.34, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden border-t border-[#EDF1F9] bg-white"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: -12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1], delay: reduceMotion ? 0 : 0.04 }}
-                className="w-full px-6 pb-10 pt-8 sm:px-10 lg:px-12"
-              >
-                <div className="grid gap-x-10 gap-y-7 md:grid-cols-2 lg:grid-cols-3">
-                  {activePanel.panel?.map((entry) => (
-                    <button
-                      key={entry.title}
-                      type="button"
-                      onClick={() => {
-                        setOpenMenu(null);
-                        scrollToSection(activePanel.target);
-                      }}
-                      className="group -m-3 rounded-[14px] p-3 text-left transition-colors hover:bg-[#F4F7FE]"
-                    >
-                      <span className="block text-[16px] font-semibold text-[#0B1B3D] transition-colors group-hover:text-[#2563EB]">
-                        {entry.title}
-                      </span>
-                      <span className="mt-1.5 block max-w-[300px] text-[14px] leading-[1.5] text-[#5B6B8C]">{entry.text}</span>
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/*
-          Painel mobile: mesma animação de altura do mega menu do desktop, para as duas
-          navegações abrirem do mesmo jeito.
-        */}
-        <AnimatePresence initial={false}>
-          {mobileNavOpen && (
-            <motion.div
-              key="menu-mobile"
-              id="menu-mobile"
-              initial={{ height: 0 }}
-              animate={{ height: "auto" }}
-              exit={{ height: 0 }}
-              transition={{ duration: reduceMotion ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden border-t border-[#EDF1F9] bg-white lg:hidden"
-            >
-              <div className="flex flex-col px-6 pb-8 pt-4 sm:px-10">
-                {navItems.map((item) => (
-                  <button
-                    key={item.target}
-                    type="button"
-                    onClick={() => goToSectionFromMobileNav(item.target)}
-                    className="border-b border-[#EDF1F9] py-4 text-left text-[17px] font-medium text-[#0B1B3D]"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    void registrarEvento("cta_header_login_click");
-                    setMobileNavOpen(false);
-                    navigate(authTarget);
-                  }}
-                  className="py-4 text-left text-[17px] font-medium text-[#0B1B3D]"
-                >
-                  {!authLoading && user ? "Ir para o dashboard" : "Entrar"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    registrarCliqueCadastro("cta_primary_click");
-                    setMobileNavOpen(false);
-                    navigate(authTarget);
-                  }}
-                  className="mt-2 h-[52px] rounded-full bg-[#2563EB] text-[16px] font-semibold text-white transition-colors hover:bg-[#1E3A8A]"
-                >
-                  {ctaLabel}
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
-
-      <div className="sm:hidden">
-        <LandingMobile
-          lojistasTexto={lojistasTexto}
-          vendasMes={VENDAS_MES_LOJISTAS}
-          logado={logado}
-          heroCtaRef={mobileHeroCtaRef}
-          passos={PASSOS_COMO_FUNCIONA}
-          faq={faqItems}
-          onCriarConta={(evento, emailDigitado) => {
-            registrarCliqueCadastro(evento);
-            // E-mail fora da URL: o Pixel da Meta manda a URL inteira no PageView do cadastro.
-            navigate(signupTarget, emailDigitado && !logado ? { state: { email: emailDigitado } } : undefined);
-          }}
-          onEntrar={() => {
-            void registrarEvento("cta_header_login_click");
-            navigate(authTarget);
-          }}
-          onEvento={(evento) => void registrarEvento(evento)}
-        />
-      </div>
-
-      <div className="hidden sm:block">
-      {/*
-        [font-feature-settings:normal] desliga o "cv11" herdado do body (index.css): esse
-        character variant troca o "a" do Inter pela versão de andar único, que é o que dava
-        à headline a aparência de fonte arredondada/geométrica.
-      */}
-      <section
-        data-velo-flat-buttons
-        className="relative isolate flex min-h-0 flex-col justify-start overflow-hidden bg-[#0B1B3D] sm:min-h-[88vh] sm:justify-end [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif] [font-feature-settings:normal] [font-synthesis-weight:none] lg:min-h-[min(92vh,880px)]"
-      >
-        {/*
-          No celular a foto de fundo cortava o rosto e disputava com o texto. Aqui ela
-          sai do fundo e vira um cartão enquadrado mais abaixo; o fundo passa a ser o
-          gradiente da marca. No desktop nada muda: o carrossel continua como estava.
-        */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden sm:block">
-          <HeroBackdrop {...heroCarousel} />
-        </div>
-
-
-        {/*
-          Scrim direcional: escuro só no canto inferior esquerdo, onde o texto vive, e
-          praticamente ausente no resto — a foto mantém cor e detalhe. Tom quase preto
-          (8,14,28) de propósito: a função é contraste, não tingir a cena de azul.
-        */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[rgba(8,14,28,0.1)] sm:block" />
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[radial-gradient(118%_96%_at_0%_100%,rgba(8,14,28,0.92)_0%,rgba(8,14,28,0.74)_20%,rgba(8,14,28,0.42)_40%,rgba(8,14,28,0.14)_58%,transparent_74%)] sm:block" />
-        {/* Topo: só o necessário para a navbar não sumir sobre foto clara. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(8,14,28,0.6)_0%,rgba(8,14,28,0.28)_8%,transparent_20%)] sm:block" />
-        {/* Topo escurecido: mantém logo e navbar legíveis sobre qualquer imagem. */}
-        <div className="pointer-events-none absolute inset-0 -z-10 hidden bg-[linear-gradient(180deg,rgba(11,27,61,0.97)_0%,rgba(11,27,61,0.82)_8%,rgba(11,27,61,0.4)_16%,transparent_28%)] sm:block" />
-
-        {/* Mesmo gutter do header, em todas as resoluções. */}
-        <div className="relative hidden w-full px-6 pb-14 pt-32 sm:block sm:px-10 sm:pb-20 lg:px-12 lg:pb-24">
-          {/* font-family explícito: a regra global de h1–h6 em index.css força Hanken Grotesk. */}
-          {/*
-            As duas linhas usam exatamente o mesmo estilo (peso 200, branco): a diferença
-            entre elas é só estrutural — uma é fixa, a outra é digitada.
-          */}
-          <h1 className="max-w-[900px] text-[2.75rem] leading-[1.02] font-extralight tracking-[-0.035em] text-white antialiased sm:text-[clamp(2.125rem,4.35vw,4rem)] sm:leading-[1.04] [font-family:'Inter_Variable',Inter,ui-sans-serif,system-ui,sans-serif]">
-            <span className="block">Comece a vender</span>
-            {/*
-              minmax(0,1fr) é o que impede o texto de estourar a viewport: sem isso a coluna
-              implícita do grid é dimensionada por max-content e a frase vaza em vez de quebrar.
-            */}
-            <span className="grid grid-cols-[minmax(0,1fr)]">
-              <span aria-hidden="true" className="invisible col-start-1 row-start-1 [overflow-wrap:anywhere]">
-                {longestPhrase}
-              </span>
-              <span className="col-start-1 row-start-1 [overflow-wrap:anywhere]">
-                <span className="sr-only">{currentPhrase}</span>
-                <span aria-hidden="true">{typedPhrase}</span>
-                <span
-                  aria-hidden="true"
-                  className="ml-[0.06em] inline-block h-[0.72em] w-[0.05em] translate-y-[0.04em] animate-pulse bg-white align-baseline"
-                />
-              </span>
-            </span>
-          </h1>
-
-          <p className="mt-5 max-w-[420px] text-[16px] leading-[1.55] tracking-[-0.01em] text-white/70 sm:mt-6 sm:text-[18px]">
-            A Velo encontra oportunidades de produto, ajuda a montar o anúncio e a publicar no Mercado Livre.
-          </p>
-
-          <div className="mt-8 flex flex-col gap-4 sm:mt-9 sm:flex-row sm:items-center sm:gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                registrarCliqueCadastro("cta_hero_signup_click");
-                navigate(authTarget);
-              }}
-              className="h-[56px] w-full rounded-full bg-white px-8 text-[17px] font-semibold text-[#0B1B3D] transition-colors hover:bg-white/90 sm:h-[54px] sm:w-auto sm:text-[16px]"
-            >
-              {ctaLabel}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void registrarEvento("cta_how_it_works_click");
-                scrollToSection("como-funciona");
-              }}
-              className="self-center text-[16px] font-medium text-white underline decoration-white/50 underline-offset-[6px] transition hover:decoration-white max-sm:inline-flex max-sm:min-h-[44px] max-sm:items-center max-sm:justify-center sm:h-[54px] sm:self-auto sm:rounded-full sm:border sm:border-white/70 sm:px-8 sm:no-underline sm:hover:border-white sm:hover:bg-white/10"
-            >
-              Ver como funciona
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            void registrarEvento("cta_how_it_works_click");
-            scrollToSection("como-funciona");
-          }}
-          className="group absolute bottom-10 right-8 hidden items-center gap-3 text-[14px] text-white/55 transition hover:text-white lg:flex"
-        >
-          <span className="h-px w-10 bg-white/35 transition group-hover:bg-white/80" />
-          Como a Velo escolhe os produtos
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M8 2.5v11M3.5 9.5 8 14l4.5-4.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" />
-          </svg>
-        </button>
-      </section>
-
-      <SecaoProvaVisual />
-
-
-      {/*
-        Headline à esquerda e texto de apoio à direita, como na referência, com o
-        print ocupando a largura inteira logo abaixo. O print é real (a tela de
-        produto do catálogo), não um mockup ilustrativo.
-      */}
-      <section className="bg-white px-6 py-14 sm:px-10 sm:py-24 lg:px-12 lg:py-32">
-        <div className="mx-auto w-full max-w-[1200px]">
-          <div className="grid gap-8 lg:grid-cols-2 lg:items-end lg:gap-16">
-            <h2 data-reveal className={`${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
-              Você vê o lucro antes de vender
-            </h2>
-            <p data-reveal className="max-w-[520px] text-[17px] leading-[1.6] text-[#5B6B8C] sm:text-[18px]">
-              Cada produto do catálogo mostra quanto você paga ao fornecedor, por quanto pode vender e
-              quanto sobra por venda. Você decide com o número na frente, não no chute.
-            </p>
-          </div>
-
-          <div
-            data-reveal
-            className="mt-14 overflow-hidden rounded-[24px] border border-[#E9EEF8] bg-[#FBFCFF] shadow-[0_28px_70px_rgba(15,35,95,0.08)] lg:mt-20"
-          >
-            <ImagemResponsiva
-              base="prova-catalogo"
-              larguras={[640, 960, 1440]}
-              original="/prova-catalogo.webp"
-              width={2308}
-              height={1440}
-              sizes="(min-width: 1200px) 1200px, calc(100vw - 48px)"
-              alt="Tela de produto no catálogo da Velo: preço sugerido de R$ 44,00, margem de 100%, custo de R$ 22,00 ao fornecedor e lucro de R$ 22,00 por venda"
-              className="block h-auto w-full"
-            />
-          </div>
-          <button type="button" onClick={() => { registrarCliqueCadastro("cta_profit_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
-        </div>
-      </section>
-
-
-      <section id="recursos" className="scroll-mt-20 bg-white px-6 py-14 sm:px-8 sm:py-24 lg:py-32">
-        <div className="mx-auto max-w-[1200px]">
-          <div data-reveal className="max-w-[680px]">
-            <h2 className={`${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
-              A plataforma para começar no ecommerce
-            </h2>
-            <p className="mt-5 max-w-[560px] text-[17px] leading-[1.6] text-[#5B6B8C] sm:text-[18px]">
-              Uma rotina mais clara para descobrir produtos, organizar canais e acompanhar suas vendas.
-            </p>
-          </div>
-
-          <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {supportItems.map((item) => (
-              <article
-                data-reveal
-                key={item.title}
-                className="rounded-[22px] border border-[#EAEFF9] bg-[#FBFCFF] p-7 transition duration-300 hover:border-[#D9E3F8] hover:bg-white hover:shadow-[0_20px_50px_rgba(15,35,95,0.07)]"
-              >
-                <div className="grid h-11 w-11 place-items-center rounded-[13px] bg-[#EEF3FF] text-[#2563EB]">
-                  <SimpleIcon name={item.icon} />
-                </div>
-                <h3 className="mt-6 text-[19px] font-semibold leading-[1.25] tracking-[-0.02em] text-[#0B1B3D]">{item.title}</h3>
-                <p className="mt-3 text-[15px] leading-[1.6] text-[#5B6B8C]">{item.text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/*
-        Bloco colorido da referência, no azul da marca em vez do roxo. É a única
-        seção escura da página depois do hero: serve de respiro antes do FAQ e
-        destaca o Atlas, que é o diferencial do produto.
-
-        Aqui o peso 300 fica sobre fundo escuro, então a headline aparenta um
-        pouco mais grossa que nas seções brancas — é o mesmo efeito óptico que
-        levou o restante da página a usar 300 em vez de 200.
-      */}
-      <section className="bg-white px-6 py-10 sm:px-10 sm:py-16 lg:px-12 lg:py-20">
-        <div className="mx-auto w-full max-w-[1200px] overflow-hidden rounded-[32px] bg-[linear-gradient(160deg,#1E3A8A,#0B1B3D)] px-6 py-20 sm:px-12 lg:px-16 lg:py-28">
-          <h2 data-reveal className={`max-w-[900px] ${HEADLINE_TAMANHO} ${HEADLINE} text-white`}>
-            Conheça o Atlas, seu agente de vendas
-          </h2>
-          <p data-reveal className="mt-6 max-w-[620px] text-[17px] leading-[1.65] text-white/60 sm:text-[18px]">
-            Diga o nicho que você quer explorar. O Atlas indica um produto do catálogo, explica por que
-            ele faz sentido e já abre o próximo passo para colocar o anúncio no ar.
-          </p>
-
-          <div className="mt-14 grid gap-6 lg:mt-16 lg:grid-cols-12 lg:items-start lg:gap-7">
-            <div data-reveal className="lg:col-span-7">
-              <div className="overflow-hidden rounded-[20px] border border-white/10 bg-white">
-                <ImagemResponsiva
-                  base="prova-atlas"
-                  larguras={[640, 960, 1360]}
-                  original="/prova-atlas.webp"
-                  width={1712}
-                  height={1000}
-                  sizes="(min-width: 1024px) 700px, calc(100vw - 48px)"
-                  alt="Conversa com o Atlas: o usuário pede um produto do nicho de beleza e o Atlas indica um kit de pincéis, explica o motivo e oferece abrir o catálogo"
-                  className="block h-auto w-full"
-                />
-              </div>
-            </div>
-
-            <div data-reveal className="lg:col-span-5 lg:pt-4">
-              <h3 className="text-[21px] font-semibold leading-[1.25] tracking-[-0.02em] text-white">
-                Uma recomendação, não uma lista
-              </h3>
-              <p className="mt-4 text-[16px] leading-[1.65] text-white/60">
-                Em vez de devolver centenas de produtos para você filtrar, o Atlas aponta um item
-                específico e diz o motivo. Quem está começando trava justamente na primeira escolha.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => {
-                  registrarCliqueCadastro("cta_primary_click");
-                  navigate(authTarget);
-                }}
-                className="mt-8 inline-flex h-[52px] items-center rounded-full bg-white px-7 text-[15px] font-semibold text-[#0B1B3D] transition hover:bg-white/90"
-              >
-                {ctaLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="perguntas-frequentes" className="scroll-mt-20 bg-[#FBFCFF] px-6 py-14 sm:px-8 sm:py-24 lg:py-28">
-        <div className="mx-auto max-w-[900px]">
-          <h2 data-reveal className={`text-center ${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
-            Perguntas frequentes
-          </h2>
-
-          <div className="mt-12 overflow-hidden rounded-[22px] border border-[#E6ECF9] bg-white">
-            {faqItems.map((item, index) => {
-              const isOpen = openFaq === index;
-
-              return (
-                <div data-reveal key={item.question} className="border-b border-[#EDF1F9] px-6 py-6 last:border-b-0 sm:px-8">
-                  <button
-                    type="button"
-                    onClick={() => setOpenFaq(isOpen ? -1 : index)}
-                    className="flex w-full items-center justify-between gap-6 text-left"
-                  >
-                    <span className="text-[17px] font-semibold leading-[1.35] tracking-[-0.02em] text-[#0B1B3D] sm:text-[19px]">
-                      {item.question}
-                    </span>
-                    <span
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-[22px] font-normal leading-none transition ${
-                        isOpen ? "bg-[#2563EB] text-white" : "bg-[#F1F5FE] text-[#2563EB]"
-                      }`}
-                    >
-                      {isOpen ? "−" : "+"}
-                    </span>
-                  </button>
-                  {isOpen && (
-                    <p className="mt-4 max-w-[700px] text-[16px] leading-[1.65] text-[#5B6B8C]">
-                      {item.answer}
-                    </p>
+                  {item.painel && aberto && (
+                    <div className="absolute left-0 top-full pt-2" onMouseEnter={() => abrirPainel(item.rotulo)}>
+                      <ul className="w-[340px] rounded-[14px] border border-[#16181D]/10 bg-white p-2 shadow-[0_18px_48px_-16px_rgba(22,24,29,0.28)]">
+                        {item.painel.map((sub) => (
+                          <li key={sub.titulo}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPainelAberto(null);
+                                if (sub.href) navigate(sub.href);
+                                else if (sub.alvo) irPara(sub.alvo);
+                              }}
+                              className="block w-full rounded-[10px] px-3.5 py-3 text-left transition hover:bg-[#F0EEEC]"
+                            >
+                              <span className="block text-[15px] font-medium text-[#16181D]">{sub.titulo}</span>
+                              <span className="mt-0.5 block text-[13.5px] leading-[1.45] text-[#6B6F78]">{sub.texto}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               );
             })}
+
+            {/* Destaque em azul entre quadradinhos, como o "Superagents" da referência. */}
+            <button
+              type="button"
+              onMouseEnter={fecharPainelDepois}
+              onClick={() => irPara("atlas")}
+              className="ml-4 flex h-10 items-center gap-2.5 px-2 text-[16px] font-medium tracking-[-0.01em] text-[#2563EB] transition hover:text-[#1E3A8A]"
+            >
+              <span aria-hidden="true" className="h-[5px] w-[5px] bg-current" />
+              Atlas IA
+              <span aria-hidden="true" className="h-[5px] w-[5px] bg-current" />
+            </button>
+          </nav>
+
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (!logado) void registrarEvento("cta_header_login_click");
+                navigate(authTarget);
+              }}
+              className="hidden h-10 rounded-[8px] px-3 text-[16px] tracking-[-0.01em] text-[#2A2D34] transition hover:text-[#16181D] sm:block"
+            >
+              {logado ? "Painel" : "Entrar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => comecar("cta_primary_click")}
+              className="h-[38px] rounded-[8px] bg-[#2B2B2B] px-4 text-[15px] font-semibold tracking-[-0.01em] text-white transition hover:bg-[#16181D] sm:h-10"
+            >
+              {logado ? "Ir para o painel" : "Começar agora"}
+            </button>
+            <button
+              type="button"
+              aria-label={menuAberto ? "Fechar menu" : "Abrir menu"}
+              aria-expanded={menuAberto}
+              aria-controls="menu-landing"
+              onClick={() => setMenuAberto((aberto) => !aberto)}
+              className="grid h-10 w-10 place-items-center rounded-[8px] text-[#16181D] lg:hidden"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                {menuAberto ? (
+                  <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                ) : (
+                  <path d="M4 8h16M4 16h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                )}
+              </svg>
+            </button>
           </div>
+        </div>
+
+        {menuAberto && (
+          <div id="menu-landing" className="h-[calc(100dvh-64px)] overflow-y-auto border-t border-[#16181D]/10 bg-[#F0EEEC] px-4 pb-8 pt-2 lg:hidden">
+            {MENU_CELULAR.map((item) => (
+              <button
+                key={item.rotulo}
+                type="button"
+                onClick={() => irPara(item.alvo)}
+                className={`${FONTE_TITULO} flex w-full items-center justify-between border-b border-[#16181D]/10 py-4 text-left text-[22px] font-medium tracking-[-0.03em] ${item.alvo === "atlas" ? "text-[#2563EB]" : ""}`}
+              >
+                {item.rotulo}
+                <span aria-hidden="true" className="text-[#8A8F99]">→</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                if (!logado) void registrarEvento("cta_header_login_click");
+                navigate(authTarget);
+              }}
+              className="mt-6 h-[52px] w-full rounded-[12px] border border-[#16181D]/15 bg-white text-[16px] font-medium"
+            >
+              {logado ? "Ir para o painel" : "Entrar"}
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* ───────── Hero ───────── */}
+      <section id="top" className="relative px-4 pt-[112px] sm:px-8 sm:pt-[150px] lg:pt-[170px]">
+        <div className="mx-auto max-w-[1440px] text-center">
+          <h1 className={`${TITULO} mx-auto max-w-[1300px] text-[clamp(46px,9.4vw,132px)] leading-[0.94]`}>
+            Qualquer pessoa
+            <br className="hidden sm:block" /> pode vender online
+          </h1>
+          <p className="mx-auto mt-6 max-w-[760px] text-[17px] leading-[1.5] tracking-[-0.01em] text-[#33363D] sm:mt-8 sm:text-[22px]">
+            Crie sua própria loja ou venda no Mercado Livre com a Velo. Você conta o que quer vender e a gente monta o resto, sem precisar de estoque.
+          </p>
+
+          {/*
+            Campo de ideia, cópia do "I want to build…" da Base44: bandeja cinza,
+            caixa branca com "+" à esquerda e, à direita, o seletor de canal (no
+            lugar do "Build"), o microfone e a seta. Atalhos embaixo, dentro da bandeja.
+          */}
+          <div className="mx-auto mt-9 max-w-[800px] rounded-[12px] bg-[#E6E4E0] p-[4px] text-left sm:mt-12">
+            <form onSubmit={enviarIdeia} className="rounded-[9px] border border-[#DEDCD7] bg-white">
+              <label htmlFor="ideia-landing" className="sr-only">O que você quer vender?</label>
+              <textarea
+                id="ideia-landing"
+                ref={campoRef}
+                value={ideia}
+                onChange={(event) => setIdeia(event.target.value)}
+                onKeyDown={aoTeclarNoCampo}
+                rows={3}
+                maxLength={280}
+                placeholder={ouvindo ? "Pode falar, estou ouvindo…" : placeholder}
+                className="block min-h-[100px] w-full resize-none rounded-t-[9px] bg-transparent px-5 pt-5 text-[16px] leading-[1.5] text-[#16181D] outline-none placeholder:text-[#76767A] sm:min-h-[104px] sm:px-[26px] sm:pt-[24px] sm:text-[17px]"
+              />
+              <div className="flex items-center gap-1 px-3 pb-3 sm:px-[14px]">
+                <div ref={menuIdeiasRef} className="relative">
+                  <button
+                    type="button"
+                    aria-label="Ideias para começar"
+                    aria-haspopup="listbox"
+                    aria-expanded={menuIdeiasAberto}
+                    onClick={() => {
+                      setMenuCanalAberto(false);
+                      setMenuIdeiasAberto((aberto) => !aberto);
+                    }}
+                    className="grid h-9 w-9 place-items-center rounded-[8px] text-[#16181D] transition hover:bg-[#16181D]/[0.05]"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path d="M10 3.5v13M3.5 10h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  {menuIdeiasAberto && (
+                    <ul role="listbox" aria-label="Ideias para começar" className="absolute left-0 top-[calc(100%+6px)] z-20 w-[300px] max-w-[calc(100vw-48px)] rounded-[12px] border border-[#16181D]/10 bg-white p-1.5 shadow-[0_16px_40px_-12px_rgba(22,24,29,0.3)]">
+                      <li className="px-2.5 pb-1 pt-1.5 text-[12px] font-medium uppercase tracking-[0.08em] text-[#8A8F99]">Ideias para começar</li>
+                      {EXEMPLOS_DIGITADOS.map((exemplo) => (
+                        <li key={exemplo}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={false}
+                            onClick={() => usarIdeiaPronta(exemplo)}
+                            className="w-full rounded-[8px] px-2.5 py-2 text-left text-[14px] leading-[1.4] text-[#16181D] transition hover:bg-[#F0EEEC]"
+                          >
+                            {exemplo}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div ref={menuCanalRef} className="relative ml-auto">
+                  <button
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={menuCanalAberto}
+                    onClick={() => {
+                      setMenuIdeiasAberto(false);
+                      setMenuCanalAberto((aberto) => !aberto);
+                    }}
+                    className="flex h-9 items-center gap-1.5 rounded-[8px] px-2.5 text-[16px] font-medium tracking-[-0.01em] text-[#16181D] transition hover:bg-[#16181D]/[0.05] sm:text-[17px]"
+                  >
+                    {canalAtual.rotulo}
+                    <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true" className={`mt-px transition ${menuCanalAberto ? "rotate-180" : ""}`}>
+                      <path d="m2.5 4.5 3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  {menuCanalAberto && (
+                    <ul role="listbox" aria-label="Onde você quer vender" className="absolute right-0 top-[calc(100%+6px)] z-20 w-[230px] rounded-[12px] border border-[#16181D]/10 bg-white p-1.5 shadow-[0_16px_40px_-12px_rgba(22,24,29,0.3)]">
+                      {CANAIS.map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={item.id === canal}
+                            onClick={() => escolherCanal(item.id)}
+                            className={`flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[14px] transition hover:bg-[#F0EEEC] ${item.id === canal ? "bg-[#F0EEEC] font-medium" : ""}`}
+                          >
+                            <IconeAtalho canal={item.id} />
+                            {item.rotulo}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {ditadoDisponivel && (
+                  <button
+                    type="button"
+                    aria-label={ouvindo ? "Parar de ouvir" : "Falar a ideia"}
+                    aria-pressed={ouvindo}
+                    onClick={alternarDitado}
+                    className={`grid h-9 w-9 place-items-center rounded-[8px] transition ${ouvindo ? "bg-[#2563EB]/10 text-[#2563EB]" : "text-[#16181D] hover:bg-[#16181D]/[0.05]"}`}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true" className={ouvindo ? "animate-pulse" : ""}>
+                      <rect x="7" y="2.5" width="6" height="10" rx="3" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  aria-label={logado ? "Ir para o painel" : "Começar com esta ideia"}
+                  className="ml-1.5 grid h-10 w-10 place-items-center rounded-[8px] bg-[#2563EB] text-white transition hover:bg-[#1E3A8A]"
+                >
+                  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M6 14 14 6M7 6h7v7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+
+            <div className="flex gap-2 overflow-x-auto px-[8px] pb-[6px] pt-[8px] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
+              {CANAIS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => escolherCanal(item.id)}
+                  className="flex h-[34px] shrink-0 items-center gap-2 rounded-[5px] bg-white px-[11px] text-[15px] tracking-[-0.01em] text-[#16181D] transition hover:bg-[#FAFAF8]"
+                >
+                  <IconeAtalho canal={item.id} />
+                  {item.rotulo}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 pb-6 sm:mt-7 sm:pb-24">
+          <VitrineExemplos />
         </div>
       </section>
 
-      <section className="bg-white px-6 py-14 sm:px-8 sm:py-24 lg:py-28">
-        <div data-reveal className="relative mx-auto max-w-[1000px] overflow-hidden rounded-[30px] border border-[#E1E9F8] bg-[linear-gradient(180deg,#F7FAFF,#EDF3FF)] px-6 py-16 text-center sm:px-14">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_50%_0%,rgba(37,99,235,0.12),transparent_60%)]" />
+      {/* ───────── Faixa de quem já vende ───────── */}
+      <div className="relative border-y border-[#16181D]/10 bg-[#ECEBE6] px-4 py-5 sm:px-8">
+        <p className="mx-auto max-w-[1200px] text-center text-[15px] leading-[1.5] text-[#33363D] sm:text-[16px]">
+          <span className="font-semibold text-[#16181D]">Já vende no Mercado Livre com a Velo?</span> Continua tudo igual: catálogo, anúncios e pedidos. A loja própria é um canal a mais.
+        </p>
+      </div>
 
-          <div className="relative">
-            <h2 className={`mx-auto max-w-[720px] ${HEADLINE_TAMANHO} ${HEADLINE} text-[#0B1B3D]`}>
-              A plataforma é nossa, mas as oportunidades são suas.
+      {/* ───────── Duas formas de vender (modelo "The whole stack" da Base44) ───────── */}
+      <section id="formas-de-vender" className="relative scroll-mt-20 px-4 py-20 sm:px-8 sm:py-28 lg:px-[90px] lg:py-32">
+        <div className="mx-auto grid max-w-[1720px] gap-12 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] lg:gap-16">
+          <div className="flex flex-col">
+            <h2 className={`${TITULO} text-[clamp(40px,4.6vw,76px)] leading-[0.98]`}>
+              Loja ou Mercado Livre.
+              <br />
+              Você escolhe.
             </h2>
+            <p className="mt-6 max-w-[540px] text-[16px] leading-[1.55] text-[#2A2D34] sm:text-[18px]">
+              Venda com produtos de fornecedores brasileiros, sem comprar estoque e sem montar nada do zero. Loja, anúncio e página já saem prontos da Velo.
+            </p>
 
-            {/*
-              Na pílula de 58px o campo e o botão dividem a largura. Isso funciona
-              a partir de 640px, mas num celular de 375px sobram ~127px para o
-              campo: o "Digite seu e-mail" aparecia cortado como "Digite seu" e o
-              botão espremia a borda arredondada.
-
-              Abaixo de 640px os dois passam a ocupar uma linha cada, na largura
-              toda. Tudo em max-sm: — de 640px para cima a pílula continua igual.
-            */}
-            <form
-              onSubmit={handleSubmit}
-              className="mx-auto mt-9 hidden h-[58px] max-w-[480px] items-center rounded-full border border-[#E1E9F8] bg-white p-[5px] shadow-[0_12px_30px_rgba(15,35,95,0.07)] sm:flex"
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="Digite seu e-mail"
-                className="min-w-0 flex-1 bg-transparent px-5 text-[15px] text-[#0B1B3D] outline-none placeholder:text-[#9AA6BE] max-sm:h-[48px] max-sm:w-full max-sm:flex-none max-sm:px-4 max-sm:text-center"
-              />
-              <button
-                type="submit"
-                className="h-[48px] rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.24)] transition hover:bg-[#1E3A8A] max-sm:w-full max-sm:shrink-0"
+            {/* Colagem no lugar da engrenagem + foto + faixa laranja da referência. */}
+            <div className="mt-12 flex h-[180px] w-full max-w-[500px] sm:h-[236px] lg:mt-28">
+              <div
+                className="grid aspect-square h-full place-items-center"
+                style={{
+                  backgroundColor: "#C3CEFA",
+                  backgroundImage: "radial-gradient(rgba(43,84,238,0.18) 0.8px, transparent 1px)",
+                  backgroundSize: "3px 3px",
+                }}
               >
-                {!authLoading && user ? "Entrar no dashboard" : "Começar agora"}
-              </button>
-            </form>
-            <button type="button" onClick={() => { registrarCliqueCadastro("cta_final_signup_click"); navigate(signupTarget); }} className="mt-8 h-[56px] w-full rounded-full bg-[#2563EB] text-[17px] font-semibold text-white sm:hidden">Criar minha conta</button>
+                <LogoVelo tamanho="58%" sizes="140px" />
+              </div>
+              <div className="relative h-full min-w-0 flex-1 overflow-hidden">
+                <ImagemResponsiva
+                  base="pessoa-02"
+                  larguras={[640, 960]}
+                  original="/pessoa%2002.webp"
+                  alt="Mulher sorrindo olhando o celular"
+                  sizes="(min-width: 640px) 260px, 50vw"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  style={{ objectPosition: "68% 40%" }}
+                />
+              </div>
+              <div className="h-full w-[20px] bg-[#FFE600]" aria-hidden="true" />
+            </div>
+          </div>
 
-            <p className="mt-5 hidden text-[14px] tracking-[-0.01em] text-[#8A97B1] sm:block">
-              Você concorda em receber e-mails de marketing da Velo.
+          <ul className="border-b-[1.5px] border-[#16181D] lg:border-b-0">
+            {FORMAS.map((forma, indice) => {
+              const aberta = formaAberta === indice;
+              const ultima = indice === FORMAS.length - 1;
+              return (
+                <li key={forma.titulo} className={ultima ? "" : "border-b-[1.5px] border-[#16181D]"}>
+                  <button
+                    type="button"
+                    aria-expanded={aberta}
+                    onClick={() => setFormaAberta(aberta ? null : indice)}
+                    className="group flex w-full items-center justify-between gap-6 py-5 text-left sm:py-7"
+                  >
+                    <span className={`${FONTE_TITULO} text-[24px] font-medium leading-[1.1] tracking-[-0.03em] text-[#16181D] sm:text-[clamp(28px,2.6vw,44px)]`}>
+                      {forma.titulo}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border-[2.5px] border-[#16181D] text-[#16181D] transition duration-200 group-hover:bg-[#16181D] group-hover:text-white sm:h-[54px] sm:w-[54px] sm:border-[3px] ${aberta ? "rotate-90 bg-[#16181D] text-white" : ""}`}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-6 sm:w-6" fill="none">
+                        <path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </button>
+                  {aberta && (
+                    <p className="-mt-1 max-w-[640px] pb-6 pr-14 text-[16px] leading-[1.6] text-[#4A4F5A] sm:pb-8 sm:text-[18px]">{forma.texto}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+
+      {/* ───────── Como funciona (modelo "What will you build?" da Base44) ───────── */}
+      <section id="como-funciona" className="relative scroll-mt-20 py-20 sm:py-28 lg:py-32">
+        <div className="px-4 sm:px-8 lg:px-[90px]">
+          <h2 className={`${TITULO} text-[clamp(40px,4.6vw,76px)] leading-[0.98]`}>Da ideia à primeira venda.</h2>
+          <p className="mt-4 max-w-[960px] text-[17px] leading-[1.5] text-[#2A2D34] sm:mt-5 sm:text-[22px]">
+            Três passos para vender online com a Velo, na sua loja, no Mercado Livre ou nos dois.
+          </p>
+        </div>
+
+        {/* Cartões de ponta a ponta da tela, com a barra de cor no pé (laranja na referência, azul da Velo aqui).
+            No hover o cartão inteiro vira azul, como na referência; o texto passa a branco para manter o contraste. */}
+        <ol className="mt-12 grid gap-4 sm:mt-20 lg:grid-cols-3 lg:gap-5">
+          {PASSOS.map((passo, indice) => (
+            <li key={passo.titulo} className="group flex min-h-[340px] flex-col border-b-[10px] border-[#2563EB] bg-[#F8F7F4] px-5 pb-10 pt-6 transition-colors duration-300 hover:bg-[#2563EB] sm:min-h-[460px] sm:px-6 lg:min-h-[520px]">
+              <div className="flex items-start justify-between gap-4">
+                <h3 className={`${FONTE_TITULO} text-[40px] font-medium leading-[1] tracking-[-0.04em] text-[#16181D] transition-colors duration-300 group-hover:text-white sm:text-[52px]`}>{passo.titulo}</h3>
+                <span className="[font-family:ui-monospace,'SF_Mono',Menlo,monospace] mt-2 text-[13px] text-[#8A8F99] transition-colors duration-300 group-hover:text-white/70">{passo.numero}</span>
+              </div>
+              <p className="mt-auto max-w-[520px] pt-16 text-[17px] leading-[1.5] text-[#2A2D34] transition-colors duration-300 group-hover:text-white sm:text-[20px]">{passo.texto}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (indice === 0) {
+                    escreverIdeia();
+                    return;
+                  }
+                  if (indice === 1) {
+                    irPara("recursos");
+                    return;
+                  }
+                  comecar("cta_profit_signup_click");
+                }}
+                className="mt-8 h-[44px] w-fit rounded-[7px] bg-[#2B2B2B] px-5 text-[15px] font-medium text-white transition hover:bg-[#16181D]"
+              >
+                {indice === 2 && logado ? "Ir para o painel" : passo.botao}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ───────── Atlas (modelo "Beautiful by default" da Base44) ───────── */}
+      <section id="atlas" className="relative scroll-mt-16 grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1fr)]">
+        {/* Metade azul de ponta a ponta, com a trama do fundo por cima (versão transparente, mais marcada). */}
+        <div className="relative overflow-hidden bg-[#2B54EE] px-6 py-16 sm:px-12 sm:py-24 lg:px-[90px] lg:py-32">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{ backgroundImage: "url(/landing/textura-trama.png?v=2)", backgroundSize: "238px 238px" }}
+          />
+          <div className="relative lg:sticky lg:top-32">
+            <h2 className={`${FONTE_TITULO} text-[clamp(52px,6.6vw,124px)] font-semibold leading-[0.92] tracking-[-0.05em] text-[#F3F2EF]`}>
+              Não sabe
+              <br />
+              o que vender?
+              <br />
+              Pergunte.
+            </h2>
+            <p className="mt-8 max-w-[600px] text-[18px] leading-[1.45] text-[#F3F2EF]/95 sm:text-[26px]">
+              O Atlas, a IA da Velo, olha o catálogo com você e diz qual é o próximo passo, na sua loja ou no Mercado Livre.
             </p>
           </div>
         </div>
+
+        <ul className="px-6 py-6 sm:px-12 lg:px-[90px] lg:py-16">
+          {ATLAS_ITENS.map((item, indice) => (
+            <li key={item.titulo} className={indice === ATLAS_ITENS.length - 1 ? "" : "border-b-[1.5px] border-[#16181D]"}>
+              <button type="button" onClick={() => comecar("cta_profit_signup_click")} className="group block w-full py-10 text-left sm:py-14">
+                <span className="flex items-center gap-3 sm:gap-4">
+                  <span className={`${FONTE_TITULO} text-[28px] font-medium leading-[1.05] tracking-[-0.03em] text-[#16181D] sm:text-[clamp(32px,2.6vw,48px)]`}>
+                    {item.titulo}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-[2.5px] border-[#16181D] text-[#16181D] transition duration-200 group-hover:translate-x-1 group-hover:bg-[#16181D] group-hover:text-white sm:h-[52px] sm:w-[52px] sm:border-[3px]"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] sm:h-6 sm:w-6" fill="none">
+                      <path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </span>
+                <span className="mt-4 block max-w-[600px] text-[16px] leading-[1.5] text-[#2A2D34] sm:mt-5 sm:text-[21px]">{item.texto}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </section>
 
-      </div>
-
-      <AnimatePresence>
-        {showMobileStickyCta && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className={`fixed inset-x-0 bottom-0 z-[70] border-t border-white/10 bg-black/90 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md sm:hidden ${FONTE_INTER}`}>
-            <button type="button" onClick={() => { registrarCliqueCadastro("cta_sticky_signup_click"); navigate(signupTarget); }} className="mx-auto block h-[52px] w-full max-w-[360px] rounded-full bg-white text-[17px] font-medium text-black active:scale-[0.98]">{logado ? "Ir para o painel" : "Criar minha conta"}</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <footer className="hidden border-t border-[#EDF1F9] bg-white px-6 py-8 sm:block sm:px-8 sm:py-12">
-        <div className="mx-auto flex max-w-[1200px] flex-col gap-8 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-[10px] bg-[#2563EB] text-white">
-              <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-                <path d="M19.3 9.4A7.4 7.4 0 1 0 19.3 18.6" stroke="currentColor" strokeLinecap="round" strokeWidth="2.8" />
-                <path d="M16.8 16.2L20 19.3L23.2 16.2" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.45" />
-              </svg>
-            </div>
-            <span className="text-[22px] font-bold tracking-[-0.05em] text-[#0B1B3D]">Velo</span>
-          </div>
-
-          <div className="flex flex-wrap gap-x-8 gap-y-3 text-[15px] text-[#5B6B8C] max-sm:gap-y-0">
-            {/* max-sm:min-h-[44px]: no dedo, 23px de altura é alvo de errar.
-                De 640px para cima nada muda — lá o ponteiro é preciso. */}
-            {["Produto", "Integrações", "Privacidade", "Termos"].map((item) => (
-              <a
-                key={item}
-                href="#top"
-                className="transition hover:text-[#2563EB] max-sm:inline-flex max-sm:min-h-[44px] max-sm:items-center"
-              >
-                {item}
-              </a>
-            ))}
-          </div>
+      {/* ───────── Recursos (inspirado no "Built-in marketing tools" da Base44) ───────── */}
+      <section id="recursos" className="relative scroll-mt-16 pt-20 sm:pt-28 lg:pt-32">
+        <div className="px-4 sm:px-8 lg:px-[90px]">
+          <p className="text-[17px] tracking-[-0.01em] text-[#2A2D34] sm:text-[24px]">Tudo o que vem depois de publicar</p>
+          <h2 className={`${FONTE_TITULO} mt-4 max-w-[1100px] text-[30px] font-medium leading-[1.08] tracking-[-0.035em] text-[#16181D] sm:mt-5 sm:text-[clamp(36px,3vw,52px)]`}>
+            A Velo não para no anúncio. Do produto ao pedido, tudo o que você precisa para vender fica no mesmo painel.
+          </h2>
         </div>
+
+        {/*
+          Faixa de ponta a ponta com uma foto da landing bem desfocada (só a luz e as
+          cores dela) e a trama do fundo por cima, para dar o granulado da referência.
+          A foto é a menor versão (640px): desfocada, resolução não faz diferença.
+        */}
+        <div className="relative mt-12 overflow-hidden px-4 py-14 sm:mt-16 sm:px-8 sm:py-24">
+          <div aria-hidden="true" className="absolute inset-0">
+            <ImagemResponsiva
+              base="pessoa-01"
+              larguras={[640]}
+              original="/pessoa%2001.webp"
+              alt=""
+              sizes="640px"
+              className="h-full w-full scale-125 object-cover blur-[48px] saturate-[1.15]"
+              style={{ objectPosition: "60% 45%" }}
+            />
+            <div className="absolute inset-0 bg-[#F0EEEC]/15" />
+            <div
+              className="absolute inset-0 opacity-60 mix-blend-multiply"
+              style={{ backgroundImage: "url(/landing/textura-fundo.webp?v=2)", backgroundSize: "238px 238px" }}
+            />
+          </div>
+
+          <ul className="relative mx-auto grid max-w-[1400px] gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+            {RECURSOS.map((recurso) => (
+              <li key={recurso.titulo}>
+                <button
+                  type="button"
+                  onClick={() => comecar("cta_profit_signup_click")}
+                  className="group flex h-full min-h-[200px] w-full flex-col bg-[#F8F7F4] p-5 text-left transition-colors duration-200 hover:bg-white sm:min-h-[320px] sm:p-7"
+                >
+                  <span className="flex w-full items-start justify-between gap-4">
+                    <span className={`${FONTE_TITULO} max-w-[260px] text-[28px] font-medium leading-[1.08] tracking-[-0.03em] text-[#16181D] sm:text-[32px]`}>
+                      {recurso.titulo}
+                    </span>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[#EEF4FF] text-[#2563EB]">
+                      <IconeRecurso nome={recurso.icone} />
+                    </span>
+                  </span>
+                  <span className="mt-auto block max-w-[360px] pt-6 text-[16px] sm:pt-10 leading-[1.5] text-[#2A2D34] sm:text-[18px]">{recurso.texto}</span>
+                  <span
+                    aria-hidden="true"
+                    className="mt-5 grid h-[38px] w-[38px] place-items-center self-end sm:mt-8 rounded-full bg-[#16181D] text-white transition duration-200 group-hover:bg-[#2563EB]"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+                      <path d="M6 14 14 6M7 6h7v7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ───────── Números ───────── */}
+      <section className="relative px-4 py-20 sm:px-8 sm:py-32 lg:px-[90px]">
+        <div className="mx-auto grid max-w-[1720px] gap-8 border-y border-[#16181D]/10 py-10 sm:grid-cols-3 sm:gap-6 sm:py-14">
+          {NUMEROS.map((item) => (
+            <div key={item.rotulo} className="text-center sm:text-left">
+              <p className={`${TITULO} text-[44px] leading-none sm:text-[60px]`}>{item.numero}</p>
+              <p className="mt-3 text-[15px] text-[#4A4F5A]">{item.rotulo}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ───────── Perguntas (modelo "Frequently asked questions" da Base44) ───────── */}
+      <section id="perguntas-frequentes" className="relative scroll-mt-20 px-4 pb-20 sm:px-8 sm:pb-32 lg:px-[90px]">
+        <div className="mx-auto grid max-w-[1720px] gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)] lg:gap-16">
+          <div className="flex items-end justify-between gap-3 lg:flex-col lg:items-start lg:justify-start lg:gap-8">
+            <h2 className={`${FONTE_TITULO} text-[clamp(40px,4.6vw,76px)] font-medium leading-[1.02] tracking-[-0.04em] text-[#16181D]`}>
+              Perguntas
+              <br />
+              frequentes
+            </h2>
+            <img
+              src={mascoteSentado}
+              alt=""
+              width={230}
+              height={320}
+              loading="lazy"
+              className="pointer-events-none mr-2 h-auto w-14 shrink-0 select-none drop-shadow-[0_8px_8px_rgba(21,47,104,0.16)] sm:w-20 lg:ml-2 lg:w-28"
+            />
+          </div>
+          <ul className="border-t-2 border-[#16181D]">
+            {FAQ.map((item, indice) => {
+              const aberta = faqAberta === indice;
+              return (
+                <li key={item.pergunta} className="border-b-2 border-[#16181D]">
+                  <button
+                    type="button"
+                    aria-expanded={aberta}
+                    onClick={() => setFaqAberta(aberta ? -1 : indice)}
+                    className="group flex w-full items-center justify-between gap-6 py-6 text-left sm:py-9"
+                  >
+                    <span className={`${FONTE_TITULO} text-[21px] font-medium leading-[1.2] tracking-[-0.025em] text-[#16181D] sm:text-[clamp(24px,1.9vw,34px)]`}>
+                      {item.pergunta}
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-[2.5px] border-[#16181D] text-[#16181D] transition duration-200 group-hover:bg-[#16181D] group-hover:text-white sm:h-11 sm:w-11"
+                    >
+                      <svg viewBox="0 0 24 24" className={`h-[18px] w-[18px] transition-transform duration-200 sm:h-5 sm:w-5 ${aberta ? "rotate-180" : ""}`} fill="none">
+                        <path d="M12 5v13M6.5 12.5 12 18l5.5-5.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </button>
+                  {aberta && (
+                    <p className="-mt-2 max-w-[740px] pb-8 pr-12 text-[16px] leading-[1.6] text-[#16181D] sm:-mt-3 sm:pb-11 sm:text-[17px]">{item.resposta}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+
+      {/* ───────── Chamada final (modelo "Go ahead. Build it yourself." da Base44) ───────── */}
+      <section className="relative overflow-hidden bg-[#2B54EE] px-4 py-20 text-[#F3F2EF] sm:px-8 sm:py-24 lg:py-28">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: "url(/landing/textura-trama.png?v=2)", backgroundSize: "238px 238px" }}
+        />
+        <h2 className={`${FONTE_TITULO} relative mx-auto max-w-[1100px] text-center text-[clamp(44px,7vw,112px)] font-medium leading-[0.98] tracking-[-0.045em]`}>
+          Pode começar.
+          <br />
+          O resto a gente monta.
+        </h2>
+        <div className="relative mt-5 sm:mt-8">
+          <VitrineChamada />
+        </div>
+        <div className="relative mt-12 flex justify-center sm:mt-20">
+          <button
+            type="button"
+            onClick={() => comecar("cta_final_signup_click")}
+            className="group flex items-start gap-3 text-left sm:gap-5"
+          >
+            <span
+              aria-hidden="true"
+              className="mt-[0.35em] grid h-9 w-9 shrink-0 place-items-center rounded-full border-[2.5px] border-current transition duration-200 group-hover:bg-[#F3F2EF] group-hover:text-[#2B54EE] sm:h-14 sm:w-14 sm:border-[3.5px]"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5 sm:h-7 sm:w-7" fill="none">
+                <path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span
+              className={`${FONTE_TITULO} text-[clamp(44px,7vw,112px)] font-medium leading-[1.05] tracking-[-0.045em] underline decoration-[0.07em] underline-offset-[0.14em] transition group-hover:decoration-transparent`}
+            >
+              {logado ? "Ir para o painel" : "Começar agora"}
+            </span>
+          </button>
+        </div>
+      </section>
+
+      {/* ───────── Rodapé (modelo da Base44: texto à esquerda, colunas à direita) ───────── */}
+      <footer className="relative px-4 pb-10 pt-16 sm:px-8 sm:pt-24 lg:px-[90px]">
+        <div className="mx-auto grid max-w-[1720px] gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:gap-16">
+          <div>
+            <VeloLogo />
+            <p className="mt-6 max-w-[500px] text-[15px] leading-[1.6] text-[#16181D]">
+              A Velo é a plataforma para qualquer pessoa vender online: na sua própria loja, no Mercado Livre ou nos dois. Você escolhe os produtos no catálogo de fornecedores brasileiros e a Velo monta a loja, as páginas e os anúncios.
+            </p>
+          </div>
+          <nav aria-label="Rodapé" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
+            {[
+              {
+                titulo: "Produto",
+                links: [
+                  { rotulo: "Formas de vender", alvo: "formas-de-vender" },
+                  { rotulo: "Como funciona", alvo: "como-funciona" },
+                  { rotulo: "Atlas IA", alvo: "atlas" },
+                  { rotulo: "Recursos", alvo: "recursos" },
+                ],
+              },
+              {
+                titulo: "Ajuda",
+                links: [
+                  { rotulo: "Central de Ajuda", href: "/ajuda" },
+                  { rotulo: "Perguntas frequentes", alvo: "perguntas-frequentes" },
+                  { rotulo: "Reembolso", href: "/ajuda/reembolso" },
+                  { rotulo: "Entrar", href: "/login" },
+                ],
+              },
+              {
+                titulo: "Legal",
+                links: [
+                  { rotulo: "Termos de serviço", href: "/termos-de-servico" },
+                  { rotulo: "Política de privacidade", href: "/politica-de-privacidade" },
+                ],
+              },
+            ].map((coluna) => (
+              <div key={coluna.titulo}>
+                <p className="text-[15px] text-[#6B6F78]">{coluna.titulo}</p>
+                <ul className="mt-4 space-y-1">
+                  {coluna.links.map((link) => (
+                    <li key={link.rotulo}>
+                      {"href" in link ? (
+                        <a href={link.href} className="inline-flex min-h-[32px] items-center text-[15px] text-[#16181D] transition hover:text-[#2563EB]">
+                          {link.rotulo}
+                        </a>
+                      ) : (
+                        <button type="button" onClick={() => irPara(link.alvo)} className="inline-flex min-h-[32px] items-center text-left text-[15px] text-[#16181D] transition hover:text-[#2563EB]">
+                          {link.rotulo}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
+        </div>
+        <p className="mx-auto mt-16 max-w-[1720px] text-[14px] text-[#16181D] sm:mt-24">© {new Date().getFullYear()} Velo. Apenas venda.</p>
       </footer>
     </main>
   );
