@@ -1,4 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { GatewayError, generateChatCompletion } from "npm:@lovable.dev/ai-gateway@0.1.11";
+import type {} from "../_shared/gateway-models.d.ts";
+import { z } from "npm:zod@3";
+import { bannerDimensions, bearerToken, decodeBanner } from "./banner-image.ts";
+
+const BodySchema = z.object({
+  brandName: z.string().max(255).optional(),
+  persona: z.string().max(1000).optional(),
+  salesAngle: z.string().max(2000).optional(),
+  palette: z.string().max(200).optional(),
+  layout: z.string().max(80).optional(),
+  scene: z.string().max(600).optional(),
+  people: z.string().max(80).optional(),
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,10 +25,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const started = performance.now();
+    const token = bearerToken(req.headers.get("Authorization"));
+    const unauthorized = () => new Response(JSON.stringify({ error: "Entre na sua conta para gerar a imagem." }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+    if (!token) return unauthorized();
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) throw new Error("Serviço de imagens indisponível");
+    const storage = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: auth, error: authError } = await storage.auth.getUser(token);
+    if (authError || !auth.user) return unauthorized();
 
-    const { brandName, persona, salesAngle, palette, layout, scene, people } = await req.json();
+    const parsed = BodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return new Response(JSON.stringify({ error: "Dados da capa inválidos." }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+    const { brandName, persona, salesAngle, palette, layout, scene, people } = parsed.data;
 
     // Capa da Vitrine editorial (montagem do Atlas): foto de ponta a ponta, sem
     // painel/moldura, pessoa à direita e as cores escolhidas pela pessoa, suaves.
@@ -60,45 +89,77 @@ Strict constraints:
     // Capa em tela cheia: tenta o modelo de imagem mais forte (mais resolução,
     // segue melhor as cores e a proporção) e cai para o atual se o gateway não
     // tiver o modelo ou recusar a configuração de proporção/tamanho.
-    const pedir = (model: string, config: Record<string, string> | null) =>
-      fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "user", content: prompt }],
-          modalities: ["image", "text"],
-          ...(config ? { image_config: config } : {}),
-        }),
-      });
+    const pedir = async (model: string, config: Record<string, string> | null) => {
+      try {
+        const messages = [{ role: "user" as const, content: prompt }];
+        const options = { maxRetries: 0 };
+        const data = model === "google/gemini-3-pro-image"
+          ? await generateChatCompletion({ model: "google/gemini-3-pro-image", messages, modalities: ["image", "text"],
+              ...(config ? { image_config: { aspect_ratio: "16:9", image_size: "4K" } as const } : {}) }, options)
+          : await generateChatCompletion({ model: "google/gemini-2.5-flash-image", messages, modalities: ["image", "text"],
+              ...(config ? { image_config: { aspect_ratio: "16:9" } as const } : {}) }, options);
+        return { ok: true as const, status: 200, data };
+      } catch (error) {
+        if (!(error instanceof GatewayError)) throw error;
+        console.warn("generate-store-banner: gateway", JSON.stringify({ model, image_config: Boolean(config),
+          code: error.code, status: error.httpStatus, request_id: error.ids?.requestId }));
+        // Never replay an ambiguous generation, credit/rate failure or provider denial.
+        if (error.outcome === "unknown" || ["permission_denied", "authentication_error", "configuration_error"].includes(error.code)) throw error;
+        return { ok: false as const, status: error.httpStatus ?? 500, error: error.code };
+      }
+    };
     const tentativas: [string, Record<string, string> | null][] = telaCheia
       ? [
-          ["google/gemini-3-pro-image-preview", { aspect_ratio: "16:9", image_size: "2K" }],
-          ["google/gemini-3-pro-image-preview", null],
+          ["google/gemini-3-pro-image", { aspect_ratio: "16:9", image_size: "4K" }],
+          ["google/gemini-3-pro-image", null],
           ["google/gemini-2.5-flash-image", { aspect_ratio: "16:9" }],
           ["google/gemini-2.5-flash-image", null],
         ]
       : [["google/gemini-2.5-flash-image", null]];
-    let response!: Response;
+    let response: Awaited<ReturnType<typeof pedir>> | undefined;
+    let usedModel = "";
+    let usedConfig = false;
     for (const [model, config] of tentativas) {
       response = await pedir(model, config);
+      usedModel = model;
+      usedConfig = Boolean(config);
       // Limite e créditos valem para todos os modelos: não adianta tentar outro.
       if (response.ok || response.status === 429 || response.status === 402) break;
       console.warn(`generate-store-banner: ${model} ${config ? "com" : "sem"} image_config → ${response.status}`);
     }
+    if (!response) throw new Error("Nenhuma tentativa de geração disponível");
     if (!response.ok) {
-      const text = await response.text();
+      const text = response.error;
       if (response.status === 429) return new Response(JSON.stringify({ error: "Limite de uso atingido. Tente novamente em alguns instantes." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 402) return new Response(JSON.stringify({ error: "Créditos esgotados. Adicione créditos ao seu workspace." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       throw new Error(`Gateway error: ${response.status} ${text}`);
     }
 
-    const data = await response.json();
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const data = response.data;
+    let imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     if (!imageUrl) throw new Error("Nenhuma imagem retornada pela IA");
+
+    let dimensions: { width: number; height: number } | null = null;
+    let stored = false;
+    try {
+      const image = decodeBanner(imageUrl);
+      dimensions = bannerDimensions(image.bytes);
+      const path = `${auth.user.id}/capas/${crypto.randomUUID()}.${image.extension}`;
+      const { error: uploadError } = await storage.storage.from("assets").upload(path, image.bytes, {
+        contentType: image.mime, cacheControl: "31536000", upsert: false,
+      });
+      if (uploadError) {
+        console.warn("generate-store-banner: upload_failed", JSON.stringify({ code: uploadError.name }));
+      } else {
+        imageUrl = storage.storage.from("assets").getPublicUrl(path).data.publicUrl;
+        stored = true;
+      }
+    } catch {
+      // Keep the original data URL so storage failure cannot break store creation.
+      console.warn("generate-store-banner: storage_fallback");
+    }
+    console.log("generate-store-banner: generated", JSON.stringify({ model: usedModel, image_config: usedConfig,
+      width: dimensions?.width ?? null, height: dimensions?.height ?? null, elapsed_ms: Math.round(performance.now() - started), stored }));
 
     return new Response(JSON.stringify({ imageUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

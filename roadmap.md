@@ -1,5 +1,13 @@
 # Roadmap
 
+## Capas Atlas — 26/11
+- [x] Modelo aprovado: google/gemini-3-pro-image, image_config aspect_ratio 16:9 e image_size 4K; LOVABLE_API_KEY existente
+- [x] Usar assets/{user_id}/capas/{uuid}, service role e fallback base64; sem bucket, migration ou policies novas (instrução atualizada)
+- [x] Login obrigatório e logs de dimensão/tempo; ambos os prompts idênticos ao commit informado, frontend intacto
+- [x] Somente generate-store-banner publicada; OPTIONS 200 e login ausente/inválido 401 confirmados; cinco testes Deno e check passaram
+- [x] Primeiros quatro testes atingiram limite de memória, sem upload (3,916536 créditos); corrigidas cópias JSON/base64 e testado arquivo de 12 MiB; correção publicada
+- [ ] Repetir quatro cenas, confirmar resolução/qualidade e URLs/CORS: aguarda autorização para mais ~4 créditos; não repetir chamadas já cobradas sem autorização
+
 ## Conflito de vereditos antigos — 26/11
 - [x] Alinhar leitura e reserva por CAS, preservar rejeições válidas e separar diagnósticos de fotos; migration 0073 e duas funções publicadas
 - [x] Unificar identidade de produto e reconhecer pendência já atendida, inclusive anúncio encerrado posterior; Raquete reconhecida sem novo anúncio
