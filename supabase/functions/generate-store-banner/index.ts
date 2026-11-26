@@ -13,6 +13,7 @@ const BodySchema = z.object({
   layout: z.string().max(80).optional(),
   scene: z.string().max(600).optional(),
   people: z.string().max(80).optional(),
+  formato: z.enum(["capa", "detalhe"]).optional(),
 });
 
 const corsHeaders = {
@@ -42,7 +43,8 @@ serve(async (req) => {
     if (!parsed.success) return new Response(JSON.stringify({ error: "Dados da capa inválidos." }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-    const { brandName, persona, salesAngle, palette, layout, scene, people } = parsed.data;
+    const { brandName, persona, salesAngle, palette, layout, scene, people, formato } = parsed.data;
+    const detalhe = formato === "detalhe";
 
     // Capa da Vitrine editorial (montagem do Atlas): foto de ponta a ponta, sem
     // painel/moldura, pessoa à direita e as cores escolhidas pela pessoa, suaves.
@@ -84,7 +86,15 @@ Strict constraints:
 - NO text, NO typography, NO logos, NO watermarks, NO UI elements anywhere in the image.
 - NO product-focused catalog shots. This is a mood/style banner, not a product photo.
 - Ultra sharp, cohesive, aspirational — feels like a luxury brand campaign for ${brandName || "the brand"}.`;
-    const prompt = telaCheia ? promptTelaCheia : promptPadrao;
+    // Imagem dos cards de categoria e atalhos da loja (mesma campanha da capa).
+    const promptDetalhe = `Editorial fashion detail photograph for an online store's category card, same campaign as the store hero. The photo fills the entire frame.
+
+Composition: ${cena}
+
+Color: palette built around ${paleta}, soft and natural, never neon or an all-over filter.
+
+Strict constraints: NO text, letters, logos, brand marks, watermarks or UI anywhere (including on clothes, shoes and bags). NO borders, frames, margins, split screen, panels or collage. No empty area reserved for a headline. Ultra sharp, magazine quality.`;
+    const prompt = detalhe ? promptDetalhe : telaCheia ? promptTelaCheia : promptPadrao;
 
     // Capa em tela cheia: tenta o modelo de imagem mais forte (mais resolução,
     // segue melhor as cores e a proporção) e cai para o atual se o gateway não
@@ -95,9 +105,9 @@ Strict constraints:
         const options = { maxRetries: 0 };
         const data = model === "google/gemini-3-pro-image"
           ? await generateChatCompletion({ model: "google/gemini-3-pro-image", messages, modalities: ["image", "text"],
-              ...(config ? { image_config: { aspect_ratio: "16:9", image_size: "2K" } as const } : {}) }, options)
+              ...(config ? { image_config: detalhe ? { aspect_ratio: "4:3", image_size: "1K" } as const : { aspect_ratio: "16:9", image_size: "2K" } as const } : {}) }, options)
           : await generateChatCompletion({ model: "google/gemini-2.5-flash-image", messages, modalities: ["image", "text"],
-              ...(config ? { image_config: { aspect_ratio: "16:9" } as const } : {}) }, options);
+              ...(config ? { image_config: detalhe ? { aspect_ratio: "4:3" } as const : { aspect_ratio: "16:9" } as const } : {}) }, options);
         return { ok: true as const, status: 200, data };
       } catch (error) {
         if (!(error instanceof GatewayError)) throw error;
@@ -108,7 +118,13 @@ Strict constraints:
         return { ok: false as const, status: error.httpStatus ?? 500, error: error.code };
       }
     };
-    const tentativas: [string, Record<string, string> | null][] = telaCheia
+    const tentativas: [string, Record<string, string> | null][] = detalhe
+      ? [
+          ["google/gemini-3-pro-image", { aspect_ratio: "4:3", image_size: "1K" }],
+          ["google/gemini-2.5-flash-image", { aspect_ratio: "4:3" }],
+          ["google/gemini-2.5-flash-image", null],
+        ]
+      : telaCheia
       ? [
           ["google/gemini-3-pro-image", { aspect_ratio: "16:9", image_size: "2K" }],
           ["google/gemini-3-pro-image", null],
@@ -158,7 +174,7 @@ Strict constraints:
       // Keep the original data URL so storage failure cannot break store creation.
       console.warn("generate-store-banner: storage_fallback");
     }
-    console.log("generate-store-banner: generated", JSON.stringify({ model: usedModel, image_config: usedConfig,
+    console.log("generate-store-banner: generated", JSON.stringify({ formato: formato ?? "capa", model: usedModel, image_config: usedConfig,
       width: dimensions?.width ?? null, height: dimensions?.height ?? null, elapsed_ms: Math.round(performance.now() - started), stored }));
 
     return new Response(JSON.stringify({ imageUrl }), {
