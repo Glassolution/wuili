@@ -1,5 +1,13 @@
 # Roadmap
 
+## Integração Utmify — 27/11
+- [x] Ler proposta, conferir documentação oficial, schema e pontos de compra/reembolso; nenhuma variável Utmify configurada
+- [ ] Aprovar plano e SQL antes de implementar; aguarda ok do Felipe
+- [x] Felipe autorizou primeiro nome/e-mail real, sem telefone/CPF/IP, e escolheu somente compras novas
+- [ ] Definir taxa e conferir informação de compartilhamento na política antes de enviar; aguarda percentual do Felipe
+- [ ] Após aprovação, implementar aviso isolado, log protegido e backfill não executado; testar sem envios externos
+- [ ] Primeiro envio em modo teste e qualquer backfill/envio real dependem de autorização separada
+
 ## Capas Atlas — 26/11
 - [x] Ajustar somente o espaço negativo do promptTelaCheia e reduzir Gemini 3 Pro de 4K para 2K; publicar somente generate-store-banner; cinco testes Deno e check passaram
 - [x] Uma geração com a cena de três modelos à esquerda: HTTP 200 em 31,41 s, PNG 2752×1536, 4.982.114 bytes, upload público; imagem inteira e contínua, sem painel/divisão
