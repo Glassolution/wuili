@@ -1,14 +1,19 @@
 # Roadmap
 
 ## Integração Utmify — 27/11
+- [x] Liberação recebida: taxa fixa 67 centavos, parágrafo de privacidade, publicação, um teste e backfill de sete dias; renovação continua desligada
+- [x] Etapa 0: API GitHub confirmou main bf5babdc7caee621fb3c75b819007bb1648cae78 e e039ec7a ancestral, sem divergência
+- [ ] Etapas 1–2: taxa fixa com testes/commit e parágrafo de privacidade com print 393 px/commit
+- [ ] Etapas 3–5: publicar, testar exatamente um pedido com evidência paga e só então sair do modo teste; parar em falha
+- [ ] Etapas 6–8: dry-run sete dias, envio se coerente, auditoria sem mudanças financeiras e provas finais
 - [x] Ler proposta, conferir documentação oficial, schema e pontos de compra/reembolso; nenhuma variável Utmify configurada
 - [x] Plano/SQL aprovados; aplicada somente 0074_utmify_order_events, sem policies, service role com acesso e anon/authenticated sem leitura
 - [x] Felipe autorizou primeiro nome/e-mail real, sem telefone/CPF/IP, e escolheu somente compras novas
-- [ ] Definir taxa e conferir informação de compartilhamento na política antes de enviar; aguarda percentual do Felipe
+- [ ] Aplicar taxa fixa R$ 0,67 e informação de compartilhamento aprovada na política antes de enviar
 - [x] Aviso isolado após processamento atual, confirmação de estorno sem confundir PROCESSING, log sem comprador/corpo, backfill manual criado e não executado
 - [x] 23 testes Deno + 9 Vitest e quatro checks Deno passaram; tabela com zero eventos; UTMIFY_API_TOKEN salvo, demais variáveis ausentes
-- [ ] Publicar e autorizar exatamente um envio de teste; depende do Felipe, taxa e aviso na política de privacidade (não alterada)
-- [ ] Habilitar envio real/backfill: depende de autorização separada e confirmação de idempotência da Utmify (índice local não protege duas chamadas simultâneas); vitalício sem webhook precisa evidência adicional, não capturado automaticamente nesta etapa
+- [ ] Publicação e exatamente um envio de teste autorizados; executar depois da taxa e política
+- [ ] Envio real/backfill sete dias autorizados, condicionados ao teste 2xx e dry-run coerente; nunca reenviar resultado incerto; vitalício sem webhook precisa evidência adicional
 
 ## Capas Atlas — 26/11
 - [x] Ajustar somente o espaço negativo do promptTelaCheia e reduzir Gemini 3 Pro de 4K para 2K; publicar somente generate-store-banner; cinco testes Deno e check passaram

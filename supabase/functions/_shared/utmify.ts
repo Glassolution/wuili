@@ -52,10 +52,17 @@ export function safeUtm(value: unknown, personal: Array<string | null | undefine
   return text.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 500) || null;
 }
 export function buildUtmifyBody(sub: Subscription, profile: Profile, input: UtmifyInput,
-  config: { feePercent: number; isTest: boolean; now: number }) {
+  config: { feePercent: number; feeCents?: string; isTest: boolean; now: number }) {
   const total = Math.round(Number(sub.amount) * 100);
   if (!Number.isSafeInteger(total) || total <= 0) throw new Error("invalid_amount");
-  if (!Number.isFinite(config.feePercent) || config.feePercent < 0 || config.feePercent > 100) throw new Error("invalid_fee");
+  let fee: number;
+  if (config.feeCents !== undefined) {
+    if (!/^\d+$/.test(config.feeCents) || !Number.isSafeInteger(Number(config.feeCents))) throw new Error("invalid_fee");
+    fee = Math.min(Number(config.feeCents), total);
+  } else {
+    if (!Number.isFinite(config.feePercent) || config.feePercent < 0 || config.feePercent > 100) throw new Error("invalid_fee");
+    fee = Math.round(total * config.feePercent / 100);
+  }
   if (!["pix", "credit_card"].includes(sub.payment_method ?? "")) throw new Error("invalid_payment_method");
   const email = profile.email?.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("missing_customer_email");
@@ -72,7 +79,6 @@ export function buildUtmifyBody(sub: Subscription, profile: Profile, input: Utmi
   const lifetime = sub.purchase_kind === "lifetime";
   const plan = sub.plan;
   const planName = plan.charAt(0).toUpperCase() + plan.slice(1);
-  const fee = Math.round(total * config.feePercent / 100);
   return {
     orderId: input.cycleNumber && input.cycleNumber > 1 ? `${sub.id}-c${input.cycleNumber}` : sub.id,
     platform: "Velo", paymentMethod: sub.payment_method, status: input.status,
@@ -135,7 +141,8 @@ export async function sendUtmifyOrder(admin: UtmifyAdmin, input: UtmifyInput, in
     if (profileError || !profile) return await record("failed", "profile_read_failed");
     let body: ReturnType<typeof buildUtmifyBody>;
     try {
-      body = buildUtmifyBody(sub, profile, input, { feePercent: Number(deps.env("UTMIFY_GATEWAY_FEE_PERCENT") ?? 0), isTest, now });
+      body = buildUtmifyBody(sub, profile, input, { feePercent: Number(deps.env("UTMIFY_GATEWAY_FEE_PERCENT") ?? 0),
+        feeCents: deps.env("UTMIFY_GATEWAY_FEE_CENTS"), isTest, now });
     } catch (error) {
       const allowed = ["invalid_amount", "invalid_fee", "invalid_payment_method", "missing_customer_email", "invalid_date"];
       return await record("failed", error instanceof Error && allowed.includes(error.message) ? error.message : "invalid_order");

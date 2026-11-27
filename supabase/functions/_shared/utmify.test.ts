@@ -61,6 +61,37 @@ Deno.test("lifetime uses single-purchase product and 8990 cents", () => {
   assert.equal(body.products[0].planId, "base_lifetime");
   assert.equal(body.products[0].priceInCents, 8990);
 });
+Deno.test("fixed fee 67 overrides percent for Base 3990 and commission 3923", async () => {
+  const f = fixture();
+  f.env.UTMIFY_GATEWAY_FEE_CENTS = "67";
+  f.env.UTMIFY_GATEWAY_FEE_PERCENT = "3";
+  assert.equal((await sendUtmifyOrder(f.admin, input, f.deps)).result, "sent");
+  const body = JSON.parse(String(f.requests[0].body));
+  assert.deepEqual(body.commission, { totalPriceInCents: 3990, gatewayFeeInCents: 67, userCommissionInCents: 3923, currency: "BRL" });
+});
+Deno.test("absent fixed fee falls back to default percent zero", async () => {
+  const f = fixture();
+  await sendUtmifyOrder(f.admin, input, f.deps);
+  assert.deepEqual(JSON.parse(String(f.requests[0].body)).commission,
+    { totalPriceInCents: 3990, gatewayFeeInCents: 0, userCommissionInCents: 3990, currency: "BRL" });
+});
+Deno.test("invalid fixed fee records failed invalid_fee without sending", async () => {
+  for (const fee of ["-1", "67.5", "invalid", "", "Infinity", "9007199254740992"]) {
+    const f = fixture(); f.env.UTMIFY_GATEWAY_FEE_CENTS = fee;
+    assert.equal((await sendUtmifyOrder(f.admin, input, f.deps)).result, "failed");
+    assert.equal(f.tables.utmify_order_events[0].error, "invalid_fee");
+    assert.equal(f.requests.length, 0);
+  }
+});
+Deno.test("fixed fee above total is capped and commission never becomes negative", () => {
+  const body = buildUtmifyBody(sub, profile, input, { feePercent: 0, feeCents: "5000", isTest: true, now });
+  assert.deepEqual(body.commission, { totalPriceInCents: 3990, gatewayFeeInCents: 3990, userCommissionInCents: 0, currency: "BRL" });
+});
+Deno.test("zero fixed fee is valid and overrides percent", () => {
+  const body = buildUtmifyBody(sub, profile, input, { feePercent: 3, feeCents: "0", isTest: true, now });
+  assert.equal(body.commission.gatewayFeeInCents, 0);
+  assert.equal(body.commission.userCommissionInCents, 3990);
+});
 Deno.test("paid accepts exactly 7 days, rejects 7 days plus 1ms", () => {
   assert.equal(utmifyTooOld(new Date(now - 7 * day).toISOString(), "paid", now), false);
   assert.equal(utmifyTooOld(new Date(now - 7 * day - 1).toISOString(), "paid", now), true);
