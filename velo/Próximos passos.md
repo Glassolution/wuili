@@ -5,8 +5,9 @@ atualizado: 2026-11-27
 
 ## Utmify (27/11)
 - [x] Código e migration 0074 aprovados/implementados; log protegido, 32 testes simulados, token salvo; sem publicação ou envio.
-- [ ] Informar taxa ValidaPay e autorizar inclusão da Utmify na política de privacidade (primeiro nome/e-mail real já autorizados; renovações não enviadas).
-- [ ] Autorizar publicação e um teste de pedido explicitamente selecionado, com modo teste ligado; não executar backfill para simular um único teste.
+- [x] Taxa fixa R$ 0,67 aplicada (95195ea3, 26 testes Deno) e parágrafo aprovado da política incluído (98abc951, print 393 px).
+- [ ] Retomar somente após Felipe: seis funções publicadas, site agendado, mas consulta 22:50:13 UTC não mostrou política nova; parada obrigatória da etapa 3. Envio e modo teste ausentes.
+- [ ] Depois de confirmar a política publicada, executar o único teste autorizado com evidência real; não usar backfill para esse teste. Dry-run e backfill sete dias autorizados, ainda não executados.
 - [ ] Confirmar idempotência oficial antes de envio real; índice de sucesso sozinho não evita POSTs concorrentes/entrega incerta. Se necessário, pedir nova aprovação de reserva atômica.
 - [ ] Cobertura de vitalícios sem webhook exige evidência específica e nova aprovação de integração; não alterar reconciliação nesta etapa. Ver [[Avisos Utmify isolados]].
 

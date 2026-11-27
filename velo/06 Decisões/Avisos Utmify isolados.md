@@ -15,11 +15,17 @@ Medição é um aviso adicional, nunca parte da decisão financeira. Tarefas de 
 - Migration 0074: `utmify_order_events`, dois índices além da PK, RLS e nenhuma policy; só service role.
 
 ## Estado
-32 testes simulados e checks de quatro entradas passaram. Tabela vazia. Token salvo, habilitação e modo teste ausentes; nenhuma publicação/envio externo.
+Liberação de 27/11 iniciada, interrompida na etapa 3 conforme instrução de parar em resultado inesperado.
+- GitHub main confirmado em bf5babdc, com e039ec7a ancestral, sem divergência.
+- Taxa fixa R$ 0,67 configurada por UTMIFY_GATEWAY_FEE_CENTS; commit 95195ea3, 26 testes Deno passaram. Inválida falha sem envio, taxa limitada ao total; percentual só quando fixa ausente.
+- Parágrafo aprovado e data 27/11/2026 na política: 98abc951, print local conferido a 393 px.
+- Publicadas validapay-webhook, utmify-backfill, admin-refund-action, check-pending-refunds, validapay-refund-status e admin-refund-post-cancel, entre 22:49:17 e 22:50:13 UTC.
+- Site agendado; consulta às 22:50:13 UTC retornou HTTP 200 sem parágrafo/data novos. Isso não comprova falha definitiva de publicação; nenhuma nova tentativa feita.
+- UTMIFY_ENABLED, UTMIFY_TEST_MODE e UTMIFY_SEND_RENEWALS continuam ausentes. Teste, dry-run e backfill não executados. Nenhuma migration ou operação financeira nesta tarefa.
 
 ## Por que não ligar ainda
-- Felipe escolheu só compras novas e autorizou primeiro nome/e-mail real, sem telefone/CPF/IP. A política precisa mencionar a Utmify antes do envio; não alterada.
-- Taxa não informada; não tratar comissão calculada com padrão zero como lucro líquido real.
+- Felipe escolheu só compras novas e autorizou primeiro nome/e-mail real, sem telefone/CPF/IP; taxa fixa e parágrafo aprovados. A publicação da política precisa ser confirmada antes do envio.
+- Publicação, um teste e backfill de sete dias autorizados, mas retomada aguarda Felipe após a parada da etapa 3.
 - Índice parcial impede dois sucessos locais, não dois POSTs concorrentes. Entrega incerta não é reenviada; idempotência oficial ainda precisa confirmação antes de produção.
 - Vitalício sem webhook não é automaticamente capturado; pagamentos/reembolsos históricos sem primeira cobrança/data confirmadas são pulados, nunca inferidos.
 
