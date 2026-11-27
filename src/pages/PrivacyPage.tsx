@@ -1,7 +1,7 @@
 import { LegalLayout, LegalList, LegalSection } from "./legal/LegalLayout";
 
 const PrivacyPage = () => (
-  <LegalLayout title="Política de Privacidade" updatedAt="julho de 2025">
+  <LegalLayout title="Política de Privacidade" updatedAt="27/11/2026">
     <LegalSection title="Introdução">
       <p>
         Esta Política de Privacidade descreve como a Velo coleta, usa, armazena e protege os dados
@@ -83,6 +83,12 @@ const PrivacyPage = () => (
         ]}
       />
       <p className="font-medium text-white">Não vendemos dados pessoais a terceiros.</p>
+      <p>
+        Para medir o resultado das nossas vendas e anúncios, compartilhamos com a Utmify
+        (plataforma de rastreamento de vendas) os dados de cada compra de assinatura: primeiro
+        nome, e-mail, plano, valor, forma de pagamento e a origem da visita (parâmetros UTM).
+        Não compartilhamos telefone, CPF nem endereço IP.
+      </p>
     </LegalSection>
 
     <LegalSection title="6. Armazenamento e Segurança">
