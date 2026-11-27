@@ -4,18 +4,16 @@
 - [x] Liberação recebida: taxa fixa 67 centavos, parágrafo de privacidade, publicação, um teste e backfill de sete dias; renovação continua desligada
 - [x] Etapa 0: API GitHub confirmou main bf5babdc7caee621fb3c75b819007bb1648cae78 e e039ec7a ancestral, sem divergência
 - [x] Etapas 1–2: taxa fixa (95195ea3, 26 testes Deno) e política (98abc951), print conferido a 393 px
-- [ ] Etapa 3 interrompida: seis funções publicadas, site agendado; consulta às 22:50:13 UTC retornou HTTP 200 sem parágrafo Utmify/data nova. Aguardar Felipe antes de nova conferência
-- [ ] Etapas 4–5: não iniciadas; teste único e habilitação aguardam confirmação da publicação da política e retomada por Felipe
-- [ ] Etapas 6–7: não iniciadas; dry-run/envio/auditoria final aguardam teste 2xx; envio continua desligado
-- [x] Etapa 8 parcial: provas e impedimento documentados; etapas posteriores não executadas
-- [x] Ler proposta, conferir documentação oficial, schema e pontos de compra/reembolso; nenhuma variável Utmify configurada
-- [x] Plano/SQL aprovados; aplicada somente 0074_utmify_order_events, sem policies, service role com acesso e anon/authenticated sem leitura
+- [x] Etapa 3: seis funções publicadas entre 22:49:17 e 22:50:13 UTC; Felipe confirmou a política publicada com data e parágrafo novos
+- [x] Etapas 4–5: único teste 21abe785 com data de pagamento verificada; HTTP 200, sent, is_test=true às 23:48:09 UTC; modo teste depois desligado e função temporária removida
+- [x] Etapa 6: dry-run de sete dias com 37 envios previstos e 6 pulos por evidência de reembolso ausente; execução real única com 37 HTTP 200, zero falhas/incertos/401/403
+- [x] Etapas 7–8: zero alterações em campos protegidos durante a retomada; diferenças anteriores às 23:45 UTC documentadas; auditoria final entregue em Files
+- [x] Plano/SQL aprovados; aplicada somente 0074_utmify_order_events, sem policies, service role com acesso e anon/authenticated sem leitura; nenhuma migration nesta liberação
 - [x] Felipe autorizou primeiro nome/e-mail real, sem telefone/CPF/IP, e escolheu somente compras novas
-- [x] Aplicadas taxa fixa R$ 0,67 e informação de compartilhamento aprovada na política; publicação da política ainda não confirmada
-- [x] Aviso isolado após processamento atual, confirmação de estorno sem confundir PROCESSING, log sem comprador/corpo, backfill manual criado e não executado
-- [x] 23 testes Deno + 9 Vitest e quatro checks Deno passaram; tabela com zero eventos; UTMIFY_API_TOKEN salvo, demais variáveis ausentes
-- [ ] Funções publicadas; publicação do site não confirmada e teste não executado por parada obrigatória
-- [ ] Envio real/backfill sete dias autorizados, condicionados ao teste 2xx e dry-run coerente; nunca reenviar resultado incerto; vitalício sem webhook precisa evidência adicional
+- [x] Aviso isolado após processamento atual, log sem comprador/corpo e backfill manual publicado; envio de compras novas habilitado, UTMIFY_SEND_RENEWALS ausente
+- [x] 23 testes Deno + 9 Vitest e quatro checks Deno na implementação; 26 testes Deno após taxa fixa; build OK durante a liberação
+- [ ] Idempotência oficial da Utmify não recebeu nova confirmação documental; nunca reenviar entrega incerta. Não houve caso incerto nesta liberação
+- [ ] Vitalício sem webhook continua exigindo evidência adicional; os 6 reembolsos sem comprovação completa ficaram pulados, sem reenvio
 
 ## Capas Atlas — 26/11
 - [x] Ajustar somente o espaço negativo do promptTelaCheia e reduzir Gemini 3 Pro de 4K para 2K; publicar somente generate-store-banner; cinco testes Deno e check passaram

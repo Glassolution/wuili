@@ -4,12 +4,12 @@ atualizado: 2026-11-27
 # Próximos passos
 
 ## Utmify (27/11)
-- [x] Código e migration 0074 aprovados/implementados; log protegido, 32 testes simulados, token salvo; sem publicação ou envio.
-- [x] Taxa fixa R$ 0,67 aplicada (95195ea3, 26 testes Deno) e parágrafo aprovado da política incluído (98abc951, print 393 px).
-- [ ] Retomar somente após Felipe: seis funções publicadas, site agendado, mas consulta 22:50:13 UTC não mostrou política nova; parada obrigatória da etapa 3. Envio e modo teste ausentes.
-- [ ] Depois de confirmar a política publicada, executar o único teste autorizado com evidência real; não usar backfill para esse teste. Dry-run e backfill sete dias autorizados, ainda não executados.
-- [ ] Confirmar idempotência oficial antes de envio real; índice de sucesso sozinho não evita POSTs concorrentes/entrega incerta. Se necessário, pedir nova aprovação de reserva atômica.
-- [ ] Cobertura de vitalícios sem webhook exige evidência específica e nova aprovação de integração; não alterar reconciliação nesta etapa. Ver [[Avisos Utmify isolados]].
+- [x] Código e migration 0074 aprovados/implementados; log protegido, testes simulados e token salvo.
+- [x] Taxa fixa R$ 0,67 aplicada (95195ea3, 26 testes Deno) e parágrafo aprovado da política incluído (98abc951, print 393 px); publicação confirmada por Felipe.
+- [x] Único teste com evidência real: 21abe785, HTTP 200, `sent`, modo teste; função temporária removida.
+- [x] Dry-run e backfill de sete dias concluídos: 37 envios reais HTTP 200, 6 pulos por evidência de reembolso incompleta, zero falhas/incertos. Compras novas ativas; renovações desligadas.
+- [ ] Idempotência oficial segue sem nova confirmação documental; índice de sucesso sozinho não evita POSTs concorrentes/entrega incerta. Nunca reenviar incerto sem decisão de Felipe.
+- [ ] Cobertura de vitalícios sem webhook exige evidência específica e nova aprovação de integração; não alterar reconciliação. Ver [[Avisos Utmify isolados]].
 
 ## Loja de qualquer coisa + Atlas da landing (25/11)
 - [x] Modo demonstração do Atlas para ver a conversa (`src/lib/atlasDemo.ts`, só no dev) → [[Atlas]]

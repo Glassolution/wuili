@@ -29,7 +29,7 @@ Ponto de entrada. Leia isto, abra **só** a nota do assunto e, se ainda precisar
 | Fornecedor / catálogo | [[C7Drop]] |
 | IA (Gemini, Lovable AI) | [[IA e modelos]] |
 | Pixels TikTok/Meta/GA | [[Pixels e medição]] |
-| Vendas na Utmify (desligada) | [[Avisos Utmify isolados]] |
+| Vendas na Utmify (compras novas ativas) | [[Avisos Utmify isolados]] |
 | E-mail transacional | [[E-mail]] |
 | CJ, Stripe, Mercado Pago, Shopify… | [[Integrações legadas]] |
 | Bugs e dívidas conhecidas | [[Bugs conhecidos]] |
