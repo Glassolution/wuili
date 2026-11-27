@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-25
+atualizado: 2026-11-27
 ---
 # Índice do cofre Velo
 
@@ -29,6 +29,7 @@ Ponto de entrada. Leia isto, abra **só** a nota do assunto e, se ainda precisar
 | Fornecedor / catálogo | [[C7Drop]] |
 | IA (Gemini, Lovable AI) | [[IA e modelos]] |
 | Pixels TikTok/Meta/GA | [[Pixels e medição]] |
+| Vendas na Utmify (desligada) | [[Avisos Utmify isolados]] |
 | E-mail transacional | [[E-mail]] |
 | CJ, Stripe, Mercado Pago, Shopify… | [[Integrações legadas]] |
 | Bugs e dívidas conhecidas | [[Bugs conhecidos]] |

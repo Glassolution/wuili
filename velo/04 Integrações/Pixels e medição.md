@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-18
+atualizado: 2026-11-27
 fontes: [CLAUDE.md §11]
 ---
 # Pixels e medição
@@ -14,3 +14,9 @@ Detalhes completos estão no `CLAUDE.md` §11 (não duplicar aqui).
 - Eventos próprios no banco: `landing_events`, `mobile_home_events`, `user_page_views` + RPCs `rpc_admin_*_funnel`.
 
 Ver também: [[Landing e cadastro]].
+
+## Utmify — implementada, ainda desligada
+- Aviso separado de compras novas/reembolsos confirmados; não altera pixels nem pagamentos.
+- `utmify_order_events` (migration 0074), RLS sem policies; só service role. Sem dados do comprador ou corpo de resposta no log.
+- Token salvo; habilitação, modo teste e taxa ainda não configurados. Nenhum envio, backfill ou deploy nesta etapa.
+- 23 testes Deno + 9 Vitest; pendências e limites em [[Avisos Utmify isolados]] e [[Próximos passos]].

@@ -2,11 +2,13 @@
 
 ## Integração Utmify — 27/11
 - [x] Ler proposta, conferir documentação oficial, schema e pontos de compra/reembolso; nenhuma variável Utmify configurada
-- [ ] Aprovar plano e SQL antes de implementar; aguarda ok do Felipe
+- [x] Plano/SQL aprovados; aplicada somente 0074_utmify_order_events, sem policies, service role com acesso e anon/authenticated sem leitura
 - [x] Felipe autorizou primeiro nome/e-mail real, sem telefone/CPF/IP, e escolheu somente compras novas
 - [ ] Definir taxa e conferir informação de compartilhamento na política antes de enviar; aguarda percentual do Felipe
-- [ ] Após aprovação, implementar aviso isolado, log protegido e backfill não executado; testar sem envios externos
-- [ ] Primeiro envio em modo teste e qualquer backfill/envio real dependem de autorização separada
+- [x] Aviso isolado após processamento atual, confirmação de estorno sem confundir PROCESSING, log sem comprador/corpo, backfill manual criado e não executado
+- [x] 23 testes Deno + 9 Vitest e quatro checks Deno passaram; tabela com zero eventos; UTMIFY_API_TOKEN salvo, demais variáveis ausentes
+- [ ] Publicar e autorizar exatamente um envio de teste; depende do Felipe, taxa e aviso na política de privacidade (não alterada)
+- [ ] Habilitar envio real/backfill: depende de autorização separada e confirmação de idempotência da Utmify (índice local não protege duas chamadas simultâneas); vitalício sem webhook precisa evidência adicional, não capturado automaticamente nesta etapa
 
 ## Capas Atlas — 26/11
 - [x] Ajustar somente o espaço negativo do promptTelaCheia e reduzir Gemini 3 Pro de 4K para 2K; publicar somente generate-store-banner; cinco testes Deno e check passaram

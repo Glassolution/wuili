@@ -1,7 +1,14 @@
 ---
-atualizado: 2026-11-26
+atualizado: 2026-11-27
 ---
 # Próximos passos
+
+## Utmify (27/11)
+- [x] Código e migration 0074 aprovados/implementados; log protegido, 32 testes simulados, token salvo; sem publicação ou envio.
+- [ ] Informar taxa ValidaPay e autorizar inclusão da Utmify na política de privacidade (primeiro nome/e-mail real já autorizados; renovações não enviadas).
+- [ ] Autorizar publicação e um teste de pedido explicitamente selecionado, com modo teste ligado; não executar backfill para simular um único teste.
+- [ ] Confirmar idempotência oficial antes de envio real; índice de sucesso sozinho não evita POSTs concorrentes/entrega incerta. Se necessário, pedir nova aprovação de reserva atômica.
+- [ ] Cobertura de vitalícios sem webhook exige evidência específica e nova aprovação de integração; não alterar reconciliação nesta etapa. Ver [[Avisos Utmify isolados]].
 
 ## Loja de qualquer coisa + Atlas da landing (25/11)
 - [x] Modo demonstração do Atlas para ver a conversa (`src/lib/atlasDemo.ts`, só no dev) → [[Atlas]]

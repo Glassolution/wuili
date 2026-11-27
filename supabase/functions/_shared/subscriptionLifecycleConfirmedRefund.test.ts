@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const cancel = vi.hoisted(() => vi.fn());
 const sync = vi.hoisted(() => vi.fn());
+const notice = vi.hoisted(() => vi.fn());
+vi.mock("./utmify.ts", () => ({ scheduleUtmifyTask: notice, sendUtmifyConfirmedRefund: vi.fn() }));
 vi.mock("./providerCancellation.ts", () => ({ requestProviderCancellation: cancel }));
 vi.mock("./subscriptionLifecycle.ts", () => ({ syncPaidProfile: sync }));
 import { finalizeConfirmedRefund } from "./confirmedRefundLifecycle";
@@ -45,6 +47,7 @@ describe("confirmed refund contract isolation", () => {
     expect(tables.payment_incidents[0].amount).toBe(39.90);
     expect(tables.subscriptions[1]).toEqual(cardB);
     expect(sync).not.toHaveBeenCalled();
+    expect(notice).not.toHaveBeenCalled();
   });
   it("does not resolve the incident when ValidaPay has not confirmed cancellation", async () => {
     const { admin, tables } = fixture();
@@ -66,5 +69,6 @@ describe("confirmed refund contract isolation", () => {
     expect(tables.subscriptions[1].status).toBe("active");
     expect(cancel).toHaveBeenCalledOnce();
     expect(sync).toHaveBeenCalledWith(admin, userId);
+    expect(notice).toHaveBeenCalledOnce();
   });
 });

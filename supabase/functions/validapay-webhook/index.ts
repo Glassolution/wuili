@@ -23,6 +23,7 @@ import {
 } from "../_shared/referral-rewards.ts";
 import { loadTikTokUser, trackTikTokEvent } from "../_shared/tiktokEvents.ts";
 import { trackMetaPurchase } from "../_shared/metaCapi.ts";
+import { scheduleUtmifyTask, sendUtmifyOrder, utmifyWebhookInput, type UtmifyInput } from "../_shared/utmify.ts";
 import { sendSubscriptionConfirmationEmailOnce } from "../_shared/transactional-email-templates.ts";
 
 
@@ -55,6 +56,7 @@ type WebhookPayload = {
   paymentMethod?: string;
   paidAt?: string;
   currentCycle?: { paidAt?: string; amount?: number; paymentMethod?: string; cycleNumber?: number };
+  currentCycleNumber?: number;
   customer?: { email?: string; documentNumber?: string; name?: string };
   payer?: { name?: string; taxId?: string };
   metadata?: Record<string, unknown>;
@@ -466,6 +468,7 @@ Deno.serve(async (req) => {
       return json({ received: true, ignored: "lifetime_has_no_subscription_cycle" });
     }
 
+    let utmifyNotice: UtmifyInput | null = null;
     switch (event) {
       case "oneoff.payment.success":
       case "payment.success":
@@ -523,6 +526,11 @@ Deno.serve(async (req) => {
           if (emailSub) await sendSubscriptionConfirmationEmailOnce({ adminClient: admin, subscription: emailSub, resendApiKey: Deno.env.get("RESEND_API_KEY") });
         } catch (error) { console.error("subscription_confirmation_email", String(error)); }
 
+        // Prepare only; dispatch after all existing processing has finished below.
+        utmifyNotice = utmifyWebhookInput({ subscriptionId: subscription.id, wasActiveBefore,
+          cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end), event, approvedAt: verifiedPaidAt,
+          cycleNumber: payload.currentCycle?.cycleNumber ?? payload.currentCycleNumber,
+          sendRenewals: Deno.env.get("UTMIFY_SEND_RENEWALS") === "true" });
         if (!wasActiveBefore && !subscription.cancel_at_period_end) {
           const purchaseValue = Number(verifiedAmount ?? payload.amount ?? 0);
           const task = (async () => {
@@ -636,6 +644,8 @@ Deno.serve(async (req) => {
       })
       .eq("id", eventRow.id);
 
+    const notice = utmifyNotice;
+    if (notice) scheduleUtmifyTask(() => sendUtmifyOrder(admin, notice));
     return json({ received: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

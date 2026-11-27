@@ -1,6 +1,7 @@
 import { getCharge, validaPayFetch } from "./validapay.ts";
 import { requestProviderCancellation } from "./providerCancellation.ts";
 import { syncPaidProfile, type LifecycleAdmin } from "./subscriptionLifecycle.ts";
+import { scheduleUtmifyTask, sendUtmifyConfirmedRefund } from "./utmify.ts";
 
 import { courtesyConfirmationMatches, type CourtesyInput } from "./courtesyRefundPolicy.ts";
 
@@ -76,13 +77,18 @@ export async function adminCourtesyRefund(admin: LifecycleAdmin, body: CourtesyI
   if (terminateError) throw new Error(`courtesy_access_end:${terminateError.message}`);
   // Courtesy does not write cooldowns, identity blocks or Mercado Livre listings.
   await syncPaidProfile(admin, sub.user_id);
+  const notifyConfirmed = () => {
+    if (confirmed) scheduleUtmifyTask(() => sendUtmifyConfirmedRefund(admin, sub, { charge_id: body.charge_id, keep_access: false }, now));
+  };
   let cancellation: unknown;
   try {
     cancellation = await requestProviderCancellation(admin, sub, String(body.reason));
     if (!cancellation) throw new Error("provider_cancellation_unconfirmed");
+    notifyConfirmed();
     return { success: true, refund_request_id: refund.id, provider, provider_cancelled: true, cancellation };
   } catch (error) {
     // The durable cancellation job remains pending or failed for explicit review.
+    notifyConfirmed();
     return { success: false, refund_request_id: refund.id, provider, provider_cancelled: false,
       cancellation_error: error instanceof Error ? error.message : String(error), cancellation,
       requires_manual_review: true, access_ended: true };

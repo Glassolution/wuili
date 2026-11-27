@@ -1,5 +1,6 @@
 import { requestProviderCancellation } from "./providerCancellation.ts";
 import { syncPaidProfile, type LifecycleAdmin } from "./subscriptionLifecycle.ts";
+import { scheduleUtmifyTask, sendUtmifyConfirmedRefund } from "./utmify.ts";
 
 type Admin = LifecycleAdmin & {
   // deno-lint-ignore no-explicit-any -- structural server SDK RPC interface.
@@ -33,6 +34,9 @@ export async function finalizeConfirmedRefund(admin: Admin, refund: {
     }).eq("kind", "post_cancel_renewal").eq("charge_id", refund.charge_id)
       .eq("subscription_id", sub.id).eq("user_id", refund.user_id);
     if (incidentError) throw new Error(`confirmed_refund_incident:${incidentError.message}`);
+  }
+  if (refund.keep_access !== true) {
+    scheduleUtmifyTask(() => sendUtmifyConfirmedRefund(admin, sub, refund, new Date().toISOString()));
   }
   return confirmed;
 }
