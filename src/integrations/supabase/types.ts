@@ -5176,6 +5176,80 @@ export type Database = {
         }
         Relationships: []
       }
+      utmify_order_events: {
+        Row: {
+          created_at: string
+          error: string | null
+          http_status: number | null
+          id: string
+          is_test: boolean
+          ok: boolean
+          order_id: string
+          payment_method: string | null
+          result: string | null
+          sent_at: string | null
+          subscription_id: string
+          total_cents: number | null
+          trigger_source: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          utmify_status: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          is_test?: boolean
+          ok?: boolean
+          order_id: string
+          payment_method?: string | null
+          result?: string | null
+          sent_at?: string | null
+          subscription_id: string
+          total_cents?: number | null
+          trigger_source: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          utmify_status: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          id?: string
+          is_test?: boolean
+          ok?: boolean
+          order_id?: string
+          payment_method?: string | null
+          result?: string | null
+          sent_at?: string | null
+          subscription_id?: string
+          total_cents?: number | null
+          trigger_source?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          utmify_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "utmify_order_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       validapay_webhook_events: {
         Row: {
           amount: number | null
