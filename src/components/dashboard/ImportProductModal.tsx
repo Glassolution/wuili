@@ -1187,7 +1187,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
             {/* Info rows — só o essencial para decidir */}
             <div className="space-y-3">
               <DetailRow label="Custo para você" value={formatBRL(costPrice)} />
-              <DetailRow label="Seu preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2.5)}</span>} />
+              <DetailRow label="Seu preço" value={<span className="font-semibold text-[#0A0A0A]">{formatBRL(sellPrice || costPrice * 2)}</span>} />
               <DetailRow label="Sobra bruta estimada" value={<span className={profit > 0 ? "text-[#0A0A0A] font-medium" : "text-red-500"}>{formatBRL(profit)}</span>} />
               <DetailRow label="Estoque" value={`${stockQty} un`} />
             </div>

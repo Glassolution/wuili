@@ -1,4 +1,4 @@
-export const DEFAULT_SALE_MULTIPLIER = 2.5;
+export const DEFAULT_SALE_MULTIPLIER = 2;
 
 export type ProductPricingEstimate = {
   cost: number;
