@@ -41,6 +41,12 @@ import { salvarRetornoMl } from "@/lib/mlOauthRetorno";
 import { enfileirarPublicacaoPendente, tentarPublicarPendentesAgora } from "@/lib/publicacaoPendente";
 import MLConnectPrepareModal from "@/components/dashboard/MLConnectPrepareModal";
 import { lerRespostasDoQuiz } from "@/lib/perfilDoQuiz";
+import SupplierOptionsPicker, { type EscolhaDeOpcao } from "@/components/dashboard/SupplierOptionsPicker";
+import {
+  listarOpcoesDaFornecedora,
+  opcaoTemEstoque,
+  validarOpcoesEscolhidas,
+} from "../../../supabase/functions/_shared/supplierOptions";
 
 /**
  * O tipo e as regras de publicação vivem em `@/lib/publicacaoMercadoLivre`: o
@@ -175,6 +181,14 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
 
   // Restaura o rascunho do produto ou inicia um novo fluxo.
   const [lastProductId, setLastProductId] = useState<string | null>(null);
+  // Opções da fornecedora (tamanho, cor, capacidade...): o vendedor marca quais
+  // vender e o preço de cada uma.
+  const opcoesDoProduto = useMemo(
+    () => listarOpcoesDaFornecedora(product?.variants, product?.cost_price ?? 0),
+    [product?.variants, product?.cost_price],
+  );
+  const temOpcoes = opcoesDoProduto.length > 0;
+  const [escolhas, setEscolhas] = useState<Record<string, EscolhaDeOpcao>>({});
   if (product && product.id !== lastProductId) {
     setLastProductId(product.id);
     const truncated = product.title.length > MAX_TITLE_LENGTH
@@ -186,6 +200,12 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     const restoredPrice = draft?.sellPrice ?? pricing.suggestedSalePrice;
     setMultiplier(product.cost_price > 0 ? restoredPrice / product.cost_price : MULTIPLICADOR_SUGERIDO);
     setSellPrice(restoredPrice);
+    setEscolhas(Object.fromEntries(
+      listarOpcoesDaFornecedora(product.variants, product.cost_price ?? 0).map((o) => [
+        o.chave,
+        { marcada: false, preco: getProductPricingEstimate(o.custo, 0).suggestedSalePrice },
+      ]),
+    ));
     setStep(draft ? Math.min(Math.max(draft.step, 1), 4) : 1);
     setPublishResult(null);
     setPublishing(false);
@@ -200,7 +220,24 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     autoDescriptionAttempted.current = Boolean(draft?.description);
   }
 
-  const costPrice = product?.cost_price ?? 0;
+  const opcoesEscolhidas = useMemo(
+    () => opcoesDoProduto
+      .filter((o) => escolhas[o.chave]?.marcada)
+      .map((o) => ({ chave: o.chave, preco: escolhas[o.chave].preco })),
+    [escolhas, opcoesDoProduto],
+  );
+  const errosDasOpcoes = useMemo(
+    () => (temOpcoes ? validarOpcoesEscolhidas(opcoesDoProduto, opcoesEscolhidas) : []),
+    [opcoesDoProduto, opcoesEscolhidas, temOpcoes],
+  );
+  const opcaoPrincipal = temOpcoes
+    ? opcoesDoProduto.find((o) => o.chave === opcoesEscolhidas[0]?.chave) ?? null
+    : null;
+  // Com opções, o anúncio principal usa o custo e o preço da primeira marcada.
+  const costPrice = opcaoPrincipal ? opcaoPrincipal.custo : product?.cost_price ?? 0;
+  useEffect(() => {
+    if (temOpcoes && opcoesEscolhidas[0]) setSellPrice(opcoesEscolhidas[0].preco);
+  }, [opcoesEscolhidas, temOpcoes]);
   const totalCost = costPrice;
   const suggestedPricing = getProductPricingEstimate(costPrice, product?.suggested_price);
 
@@ -371,6 +408,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
     if (!title.trim()) return veloToast.error("Preencha o título"), false;
     if (title.length > MAX_TITLE_LENGTH) return veloToast.error(`Máximo ${MAX_TITLE_LENGTH} caracteres`), false;
     if (sellPrice <= 0) return veloToast.error("Defina um preço válido"), false;
+    if (temOpcoes && errosDasOpcoes.length > 0) return veloToast.error(errosDasOpcoes[0]), false;
     if (sellPrice <= totalCost) return veloToast.error("Preço deve ser maior que o custo"), false;
     if (!platforms.ml && !platforms.shopee && !platforms.tiktok) return veloToast.error("Selecione ao menos uma plataforma"), false;
     if (platforms.ml && !isConnectedToML) return veloToast.error("Conecte sua conta do Mercado Livre"), false;
@@ -430,6 +468,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
           atributos: mlAttributes,
           estoque: stockQty,
           override,
+          opcoes: temOpcoes ? opcoesEscolhidas : undefined,
         });
       } catch (erro) {
         const codigo = erro instanceof ErroDePublicacao ? erro.codigo : undefined;
@@ -468,6 +507,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
               atributos: mlAttributes,
               estoque: stockQty,
               override,
+              opcoes: temOpcoes ? opcoesEscolhidas : undefined,
             }),
           }).then((id) => {
             if (id) trackMobileHomeEvent(user.id, "pending_publication_queued", { productId: product.id });
@@ -588,7 +628,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
   if (!product) return null;
 
   const titleLength = title.length;
-  const canAdvanceDetails = hasStock && !!title.trim() && sellPrice > totalCost;
+  const canAdvanceDetails = hasStock && !!title.trim() &&
+    (temOpcoes ? errosDasOpcoes.length === 0 : sellPrice > totalCost);
   const canAdvanceConnection = isConnectedToML === true;
   const titleNeedsTranslation = /[\u3040-\u30ff\u3400-\u9fff]|\b(with|wireless|women|men|kids|portable|for|and)\b/i.test(title);
   const visibleSteps = STEPS;
@@ -754,6 +795,17 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                 <div className="space-y-3">
                   <p className="text-[12px] font-medium text-gray-600">Seu preço de venda</p>
 
+                  {temOpcoes ? (
+                    <SupplierOptionsPicker
+                      opcoes={opcoesDoProduto}
+                      escolhas={escolhas}
+                      onChange={(chave, escolha) => setEscolhas((prev) => ({ ...prev, [chave]: escolha }))}
+                      onMarcarTodas={() => setEscolhas((prev) => Object.fromEntries(
+                        opcoesDoProduto.map((o) => [o.chave, { ...(prev[o.chave] ?? { preco: 0 }), marcada: opcaoTemEstoque(o) }]),
+                      ))}
+                    />
+                  ) : (
+                  <>
                   {/*
                     A ficha do produto mostra só o custo. Aqui, na hora de publicar, a
                     pessoa vê a sugestão da Velo e quanto sobra por venda — em linguagem
@@ -807,6 +859,8 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                     </span>
                   </div>
                   <p className="text-[11px] leading-4 text-[#64748B]">Antes das taxas do Mercado Livre, frete e impostos.</p>
+                  </>
+                  )}
 
                   {/* Explicação honesta sobre taxas */}
                   <div className="rounded-xl border border-[#E3EAF5] bg-white p-4">
@@ -912,9 +966,24 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                 <div className="rounded-xl border border-[#DCE7FA] divide-y divide-[#EDF2FF]">
                   <Row label="Título" value={title} />
                   <Row label="Plataforma" value="Mercado Livre" />
-                  <Row label="Preço" value={formatBRL(sellPrice)} />
-                  <Row label="Quantidade disponível para venda" value={`${stockQty} unidades`} />
-                  <Row label="Sobra bruta estimada" value={formatBRL(profit)} strong />
+                  {temOpcoes ? (
+                    opcoesEscolhidas.map((e) => {
+                      const o = opcoesDoProduto.find((x) => x.chave === e.chave);
+                      return (
+                        <Row
+                          key={e.chave}
+                          label={o?.valor ?? e.chave}
+                          value={`${formatBRL(e.preco)} · sobra ${formatBRL(Math.round((e.preco - (o?.custo ?? 0)) * 100) / 100)}`}
+                        />
+                      );
+                    })
+                  ) : (
+                    <>
+                      <Row label="Preço" value={formatBRL(sellPrice)} />
+                      <Row label="Quantidade disponível para venda" value={`${stockQty} unidades`} />
+                      <Row label="Sobra bruta estimada" value={formatBRL(profit)} strong />
+                    </>
+                  )}
                 </div>
 
                 {/* Mercado Livre attributes */}
@@ -1045,6 +1114,7 @@ const ImportProductModal = ({ open, onClose, product, mlAccountNeedsVerification
                   onClick={() => {
                     if (!hasStock) return void (trackError("details:no_stock"), veloToast.error("Este produto está sem estoque. Escolha outro produto para publicar."));
                     if (!title.trim()) return void (trackError("details:title"), veloToast.error("Digite um título para continuar."));
+                    if (temOpcoes && errosDasOpcoes.length > 0) return void (trackError("details:options"), veloToast.error(errosDasOpcoes[0]));
                     if (sellPrice <= totalCost) return void (trackError("details:price"), veloToast.error("Escolha um preço maior que o custo do produto."));
                     advanceTo(2);
                   }}

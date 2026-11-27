@@ -31,6 +31,7 @@ import { useCatalogFavorites } from "@/hooks/useCatalogFavorites";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackMobileHomeEvent } from "@/lib/mobileHomeTracking";
 import { getProductPricingEstimate } from "@/lib/productPricing";
+import { listarOpcoesDaFornecedora, opcaoTemEstoque } from "../../../supabase/functions/_shared/supplierOptions";
 
 const FAQItem = ({ question, answer }: { question: string; answer: string }) => {
   const [open, setOpen] = useState(false);
@@ -172,6 +173,10 @@ const CatalogoProductDetailPage = () => {
   const { favoritedIds, toggleFavorite } = useCatalogFavorites();
   const [relatedIndex, setRelatedIndex] = useState(0);
   const [rawProduct, setRawProduct] = useState<CatalogProductRow | null>(null);
+  const opcoesDoProduto = useMemo(
+    () => listarOpcoesDaFornecedora(rawProduct?.variants, rawProduct?.cost_price ?? 0),
+    [rawProduct?.variants, rawProduct?.cost_price],
+  );
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showSalesPageSoon, setShowSalesPageSoon] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -694,12 +699,36 @@ const CatalogoProductDetailPage = () => {
                 </p>
                 <div className="mt-1.5 flex items-center justify-between gap-3">
                   <span className="text-[32px] font-semibold leading-none tracking-[-0.04em] text-[#111]">
-                    {formatPrice(product.price)}
+                    {opcoesDoProduto.length > 0 && (
+                      <span className="mr-2 text-[14px] font-medium tracking-normal text-[#6B6B67]">a partir de</span>
+                    )}
+                    {formatPrice(opcoesDoProduto.length > 0 ? Math.min(...opcoesDoProduto.map((o) => o.custo)) : product.price)}
                   </span>
                 </div>
                 <p className="mt-2 text-[12px] leading-5 text-[#6B6B67]">
                   Você define o seu preço de venda na hora de publicar.
                 </p>
+                {opcoesDoProduto.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-[12px] font-semibold text-[#111]">
+                      Preço por opção na fornecedora
+                    </p>
+                    <ul className="mt-2 divide-y divide-black/[0.06] rounded-[10px] border border-black/[0.08]">
+                      {opcoesDoProduto.map((o) => (
+                        <li key={o.chave} className="flex items-center justify-between gap-3 px-3 py-2 text-[13px]">
+                          <span className="text-[#333]">
+                            {o.valor}
+                            {!opcaoTemEstoque(o) && <span className="ml-1.5 text-[11.5px] text-[#9CA3AF]">sem estoque</span>}
+                          </span>
+                          <span className="font-semibold text-[#111]">{formatPrice(o.custo)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1.5 text-[11.5px] leading-5 text-[#6B6B67]">
+                      Na hora de publicar você escolhe quais opções vender e o preço de cada uma.
+                    </p>
+                  </div>
+                )}
 
               </div>
 

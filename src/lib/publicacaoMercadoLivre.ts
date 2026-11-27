@@ -307,6 +307,11 @@ export type DadosDaPublicacao = {
   /** Teto de 10 unidades por anúncio, igual ao modal do catálogo. */
   estoque: number;
   override?: { categoryId?: string; sizeGridId?: string };
+  /**
+   * Opções da fornecedora escolhidas pelo vendedor, com o preço de venda de
+   * cada uma. A `ml-publish` confere tudo de novo com o catálogo no banco.
+   */
+  opcoes?: Array<{ chave: string; preco: number }>;
 };
 
 /**
@@ -347,6 +352,7 @@ export const montarCorpoDePublicacao = (dados: DadosDaPublicacao) => {
       product_url: produto.product_url ?? null,
       override_category_id: dados.override?.categoryId,
       size_grid_id: dados.override?.sizeGridId,
+      ...(dados.opcoes && dados.opcoes.length > 0 ? { selected_options: dados.opcoes } : {}),
     },
   };
 };

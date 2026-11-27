@@ -14,6 +14,14 @@ import { queueImagePublication } from '../_shared/publication-image-state.ts'
 import { IMAGE_VALIDATION_REVISION } from '../_shared/ml-vision-request.ts'
 import { selectPublishableDimension } from '../_shared/ml-variations.ts'
 import {
+  listarOpcoesDaFornecedora,
+  precosIguais,
+  tituloComOpcao,
+  validarOpcoesEscolhidas,
+  type OpcaoDaFornecedora,
+  type OpcaoEscolhida,
+} from '../_shared/supplierOptions.ts'
+import {
   montarPesoMedidas,
   garantirMedidasNoAnuncio,
   pausarAnuncio,
@@ -1152,7 +1160,7 @@ Deno.serve(async (req) => {
     // Nunca truncar com reticências: o ML interpreta isso como título copiado
     // ou incompleto. Também removemos termos promocionais antes da publicação.
     const titleResult = sanitizeTitle(String(product.title), { maxLength: 60 })
-    const title = titleResult.title
+    let title = titleResult.title
     if (!title) {
       return json({ error: 'O título ficou vazio após a validação das diretrizes do Mercado Livre.', code: 'INVALID_TITLE' }, 400)
     }
@@ -1754,7 +1762,55 @@ Deno.serve(async (req) => {
         .maybeSingle()
       variantsSource = variantRow?.variants ?? null
     }
-    const mlVariations = buildMlVariations(
+
+    // === OPÇÕES ESCOLHIDAS PELO VENDEDOR (tamanho, cor, capacidade, qualquer uma) ===
+    // O vendedor escolhe quais opções da fornecedora publicar e o preço de
+    // cada uma. As opções e os custos vêm SEMPRE do catálogo no banco, nunca
+    // do navegador. Preços iguais → tenta um anúncio com variações; preços
+    // diferentes (ou categoria sem variação) → um anúncio por opção, com o
+    // nome da opção no título e o preço certo de cada uma.
+    type OpcaoParaPublicar = OpcaoEscolhida & { opcao: OpcaoDaFornecedora }
+    let opcoesParaPublicar: OpcaoParaPublicar[] = []
+    const escolhasBrutas = productRecord.selected_options
+    if (escolhasBrutas !== undefined && escolhasBrutas !== null) {
+      const lista = Array.isArray(escolhasBrutas) ? escolhasBrutas.slice(0, 50) : []
+      const escolhidas: OpcaoEscolhida[] = lista
+        .filter((e): e is Record<string, unknown> => Boolean(e) && typeof e === 'object')
+        .map((e) => ({ chave: cleanText(e.chave as string | undefined), preco: Number(e.preco) }))
+      let variantsDoBanco: unknown = null
+      let custoDoBanco = 0
+      if (productRecordId) {
+        const { data: linha } = await supabase
+          .from('catalog_products')
+          .select('variants, cost_price')
+          .eq('id', productRecordId)
+          .maybeSingle()
+        variantsDoBanco = linha?.variants ?? null
+        custoDoBanco = Number(linha?.cost_price) || 0
+      }
+      const opcoesDoProduto = listarOpcoesDaFornecedora(variantsDoBanco, custoDoBanco)
+      const erros = opcoesDoProduto.length === 0
+        ? ['Este produto não tem opções para escolher. Atualize a página e tente de novo.']
+        : validarOpcoesEscolhidas(opcoesDoProduto, escolhidas)
+      if (erros.length > 0 || escolhidas.length !== lista.length) {
+        return json({ error: erros[0] ?? 'Opções inválidas.', code: 'INVALID_OPTIONS', errors: erros }, 400)
+      }
+      opcoesParaPublicar = escolhidas.map((e) => ({ ...e, opcao: opcoesDoProduto.find((o) => o.chave === e.chave)! }))
+      // O anúncio principal leva o preço e o custo da primeira opção escolhida.
+      product.price = opcoesParaPublicar[0].preco
+      product.cost_price = opcoesParaPublicar[0].opcao.custo
+      // Só as opções escolhidas entram nas variações.
+      const chaves = new Set(opcoesParaPublicar.map((o) => o.chave))
+      const parsedVariants = (() => {
+        try { return typeof variantsDoBanco === 'string' ? JSON.parse(variantsDoBanco) : variantsDoBanco } catch { return [] }
+      })()
+      variantsSource = Array.isArray(parsedVariants)
+        ? parsedVariants.filter((r: Record<string, unknown>) => chaves.has(`${cleanText(r?.name as string | undefined)}: ${cleanText(r?.value as string | undefined)}`))
+        : []
+      console.log(`[ml-publish] ${opcoesParaPublicar.length} opção(ões) escolhida(s):`, JSON.stringify(opcoesParaPublicar.map((o) => [o.chave, o.preco])))
+    }
+    const juntarNumAnuncio = opcoesParaPublicar.length < 1 || (opcoesParaPublicar.length >= 2 && precosIguais(opcoesParaPublicar))
+    const mlVariationsBrutas = !juntarNumAnuncio ? [] : buildMlVariations(
       variantsSource,
       categoryAttrs as unknown as Array<Record<string, unknown>>,
       product.price,
@@ -1762,6 +1818,31 @@ Deno.serve(async (req) => {
       pictures,
       shippingAttrsVariacao,
     )
+    const mlVariations = mlVariationsBrutas
+    // Anúncio com variações tem um custo só registrado: usamos o maior das
+    // opções para nunca mostrar lucro maior que o real.
+    if (mlVariations.length > 0 && opcoesParaPublicar.length > 0) {
+      product.cost_price = Math.max(...opcoesParaPublicar.map((o) => o.opcao.custo))
+    }
+    // Um anúncio por opção: a primeira vira o anúncio principal (título com o
+    // nome da opção), as demais seguem pelo mesmo caminho dos anúncios-irmãos.
+    const opcoesSeparadas: Array<Record<string, unknown>> = []
+    if (opcoesParaPublicar.length > 0 && mlVariations.length === 0) {
+      const tituloBase = title
+      title = tituloComOpcao(tituloBase, opcoesParaPublicar[0].opcao.valor)
+      for (const o of opcoesParaPublicar.slice(1)) {
+        opcoesSeparadas.push({
+          attribute_combinations: [],
+          price: o.preco,
+          available_quantity: Math.max(1, Math.floor(o.opcao.estoque ?? Number(product.available_quantity) ?? 1)),
+          _velo_dimension: o.opcao.nome,
+          _velo_value: o.opcao.valor,
+          _velo_title: tituloComOpcao(tituloBase, o.opcao.valor),
+          _velo_cost: o.opcao.custo,
+          _velo_pictures: [],
+        })
+      }
+    }
     if (mlVariations.length > 0) {
       console.log(`[ml-publish] Publicando com ${mlVariations.length} variações:`,
         JSON.stringify(mlVariations.map((v) => (v.attribute_combinations as Array<{ value_name: string }>).map((c) => c.value_name).join('/'))))
@@ -2049,6 +2130,11 @@ Deno.serve(async (req) => {
     // Variação usada no anúncio PRINCIPAL quando caímos no modelo User Products
     // (um anúncio por variação, agrupados pelo mesmo family_name).
     let variacaoPrincipal: Record<string, unknown> | null = null
+    if (opcoesParaPublicar.length > 0 && mlVariations.length === 0) {
+      const primeira = opcoesParaPublicar[0]
+      variacaoPrincipal = { _velo_dimension: primeira.opcao.nome, _velo_value: primeira.opcao.valor }
+      variacoesIrmas = opcoesSeparadas
+    }
 
     // Rede de segurança: se o ML recusar peso/medidas DENTRO da variação
     // (categorias que não aceitam esses atributos por variação), reenviamos o
@@ -2161,6 +2247,45 @@ Deno.serve(async (req) => {
     }
 
 
+
+    // Opções escolhidas pelo vendedor que o ML não aceitou num anúncio só:
+    // publica um anúncio por opção, cada um com o próprio título e preço.
+    if (!itemResponse.ok && mlVariations.length > 0 && opcoesParaPublicar.length >= 2 && variacoesIrmas.length === 0) {
+      console.warn('[ml-publish] ML recusou o anúncio único com as opções — publicando um anúncio por opção.', causeMessages(itemData).substring(0, 300))
+      const base = effectivePayload as Record<string, unknown>
+      const { variations: _semVariacoes, ...semVariacoes } = base
+      const tituloBase = title
+      const [primeira, ...demais] = opcoesParaPublicar
+      title = tituloComOpcao(tituloBase, primeira.opcao.valor)
+      product.price = primeira.preco
+      product.cost_price = primeira.opcao.custo
+      const payloadPrincipal = {
+        ...semVariacoes,
+        title,
+        family_name: title,
+        price: primeira.preco,
+        available_quantity: Math.max(1, Math.floor(primeira.opcao.estoque ?? Number(product.available_quantity) ?? 1)),
+      }
+      variacaoPrincipal = { _velo_dimension: primeira.opcao.nome, _velo_value: primeira.opcao.valor }
+      variacoesIrmas = demais.map((o) => ({
+        attribute_combinations: [],
+        price: o.preco,
+        available_quantity: Math.max(1, Math.floor(o.opcao.estoque ?? Number(product.available_quantity) ?? 1)),
+        _velo_dimension: o.opcao.nome,
+        _velo_value: o.opcao.valor,
+        _velo_title: tituloComOpcao(tituloBase, o.opcao.valor),
+        _velo_cost: o.opcao.custo,
+        _velo_pictures: [],
+      }))
+      effectivePayload = payloadPrincipal as typeof mlPayload
+      itemResponse = await fetch('https://api.mercadolibre.com/items', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadPrincipal),
+      })
+      itemData = await itemResponse.json()
+      console.log('Item criado (1ª opção, um anúncio por opção):', JSON.stringify(itemData).substring(0, 800))
+    }
 
     // Última rede de segurança: se o ML ainda rejeitar por grade de medidas
     // (fashion_grid/SIZE_GRID_ID) mesmo depois do reencaminhamento inicial,
@@ -2480,7 +2605,7 @@ Deno.serve(async (req) => {
     // na pausa por falta de estoque do webhook de pedidos (Fase 4).
     const grupoDeVariacao = variacoesIrmas.length > 0 ? crypto.randomUUID() : null
     const familyName = String((effectivePayload as Record<string, unknown>).family_name ?? title)
-    const irmaosPublicados: Array<{ ml_item_id: string; variation_value: string | null; permalink: string | null }> = []
+    const irmaosPublicados: Array<{ ml_item_id: string; variation_value: string | null; permalink: string | null; title: string; price: number; cost: number | null }> = []
     const irmaosFalhos: Array<{ variation_value: string | null; erro: string }> = []
 
     if (variacoesIrmas.length > 0) {
@@ -2506,6 +2631,8 @@ Deno.serve(async (req) => {
           available_quantity: Math.max(1, Math.floor(Number(v.available_quantity) || 1)),
           price: Number(v.price) || (effectivePayload as Record<string, unknown>).price,
           attributes: [...attrsBase, ...combo],
+          // Um anúncio por opção: cada um com o nome da própria opção.
+          ...(typeof v._velo_title === 'string' ? { title: v._velo_title, family_name: v._velo_title } : {}),
         }
         try {
           const resIrmao = await fetch('https://api.mercadolibre.com/items', {
@@ -2523,6 +2650,9 @@ Deno.serve(async (req) => {
               ml_item_id: String(dataIrmao.id),
               variation_value: valorDaVariacao,
               permalink: (dataIrmao.permalink as string | undefined) ?? null,
+              title: typeof v._velo_title === 'string' ? v._velo_title : title,
+              price: Number(v.price) || product.price,
+              cost: typeof v._velo_cost === 'number' ? v._velo_cost : (product.cost_price || null),
             })
           } else {
             console.warn('[ml-publish] Falha ao publicar variação irmã:', JSON.stringify(dataIrmao).substring(0, 500))
@@ -2555,10 +2685,10 @@ Deno.serve(async (req) => {
         const linhas = irmaosPublicados.map((irmao) => ({
           user_id,
           ml_item_id: irmao.ml_item_id,
-          title,
+          title: irmao.title,
           thumbnail: publicImages[0] || null,
-          price: product.price,
-          cost_price: product.cost_price || null,
+          price: irmao.price,
+          cost_price: irmao.cost,
           status: okPorIrmao.get(irmao.ml_item_id) ? 'active' : 'paused',
           permalink: irmao.permalink,
           published_at: new Date().toISOString(),
