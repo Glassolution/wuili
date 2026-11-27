@@ -58,13 +58,14 @@ serve(async (req) => {
 
 Scene:
 - Store: ${salesAngle || "modern clothing store"}. Audience: ${persona || "confident young adults"}.
-- ONE continuous background across the whole image (open sky, a seamless studio backdrop or a single plain wall). The side away from the people is simply more of that same background.
+- ONE continuous setting across the whole image (never split into panels). The side away from the people is simply more of that same setting, calmer, where the store's headline will go.
 ${cena
   ? `- Composition: ${cena}\n- People: ${pessoas || "models"} wearing the store's kind of clothing.\n- Keep calm negative space on the side away from the people, as described in the composition.`
   : `- One or two ${pessoas || "models"} wearing the store's kind of clothing, standing in the RIGHT half of the frame, cropped naturally from about the knees or thighs up, slight low camera angle, confident editorial pose, looking toward or past the camera.\n- The LEFT 45% is calm negative space of the same background (no objects), where the store's headline will be placed later.`}
 
 Color:
-- Palette built around: ${paleta || "soft neutral tones"}. Use these colors gently in the background and the clothing — soft, slightly desaturated, natural daylight. Tasteful and subtle, never neon, never an all-over color filter.
+- Light, mood and color grade follow the composition above (hard sun, direct flash, night, black-and-white or golden hour): bold art direction like a real sportswear or fashion ad campaign, never a soft stock or catalogue photo.
+- Store palette: ${paleta || "neutral tones"}. Use it as an accent (the backdrop, one garment or a light), never everyone dressed in matching palette colors, never an all-over color filter, never neon. If the composition says black-and-white, keep it black-and-white.
 
 Strict constraints:
 - NO borders, NO frames, NO margins, NO letterboxing, NO split screen, NO panels, NO collage, NO inset photo, NO poster-inside-a-photo.
@@ -92,7 +93,7 @@ Strict constraints:
 
 Composition: ${cena}
 
-Color: palette built around ${paleta}, soft and natural, never neon or an all-over filter.
+Color: same light and color grade as the composition; palette (${paleta}) only as an accent, never an all-over filter or neon.
 
 Strict constraints: NO text, letters, logos, brand marks, watermarks or UI anywhere (including on clothes, shoes and bags). NO borders, frames, margins, split screen, panels or collage. No empty area reserved for a headline. Ultra sharp, magazine quality.`;
     const prompt = detalhe ? promptDetalhe : telaCheia ? promptTelaCheia : promptPadrao;
