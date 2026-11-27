@@ -13,10 +13,9 @@ export const getProductPricingEstimate = (
   storedSuggestedValue?: number | null,
 ): ProductPricingEstimate => {
   const cost = Math.max(0, Number(costValue) || 0);
-  const storedSuggested = Number(storedSuggestedValue) || 0;
-  const suggestedSalePrice = roundMoney(
-    storedSuggested > cost ? storedSuggested : cost * DEFAULT_SALE_MULTIPLIER,
-  );
+  // Regra Velo: o preço sugerido é sempre o dobro do custo, em todo produto.
+  void storedSuggestedValue;
+  const suggestedSalePrice = roundMoney(cost * DEFAULT_SALE_MULTIPLIER);
 
   return {
     cost,
