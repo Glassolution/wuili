@@ -1,11 +1,11 @@
 import { strict as assert } from "node:assert";
-import { buildUtmifyBody, safeUtm, scheduleUtmifyTask, sendUtmifyOrder, utmifyHistoricalEvidence, utmifyTooOld, utmifyWebhookInput } from "./utmify.ts";
+import { buildUtmifyBody, safeUtm, scheduleUtmifyTask, sendUtmifyOrder, utmifyHistoricalEvidence, utmifyIsMetaAds, utmifyTooOld, utmifyWebhookInput } from "./utmify.ts";
 
 const now = Date.parse("2026-11-27T22:00:00Z");
 const day = 86_400_000;
 const sub = { id: "test-subscription", user_id: "test-user", provider: "validapay", plan: "base", amount: 39.90,
   payment_method: "pix", purchase_kind: "monthly", created_at: "2026-11-27T21:00:00Z", status: "active", validapay_subscription_id: "test-contract" };
-const profile = { display_name: "Pessoa Exemplo", email: "pessoa@example.invalid", utm_source: "FB", utm_campaign: "Campanha|1234567890123456" };
+const profile = { display_name: "Pessoa Exemplo", email: "pessoa@example.invalid", utm_source: "FB", utm_medium: "paid", utm_campaign: "Campanha|1234567890123456" };
 const input = { subscriptionId: sub.id, status: "paid" as const, triggerSource: "webhook_first_purchase" as const, approvedAt: "2026-11-27T21:01:00Z" };
 
 function fixture(settings: { enabled?: boolean; test?: boolean; renewals?: boolean; response?: number; networkFail?: boolean; hang?: boolean; bodyHang?: boolean; token?: boolean } = {}) {
@@ -45,6 +45,34 @@ function fixture(settings: { enabled?: boolean; test?: boolean; renewals?: boole
   return { admin, tables, requests, deps, env, failures };
 }
 
+Deno.test("Meta Ads accepts paid Facebook and Instagram campaigns only", () => {
+  assert.equal(utmifyIsMetaAds({ utm_source: "facebook", utm_medium: "paid", utm_campaign: "Velo modelos 03" }), true);
+  assert.equal(utmifyIsMetaAds({ utm_source: "ig", utm_medium: "paid", utm_campaign: "120253368471660351" }), true);
+  for (const attribution of [{}, { utm_source: "chatgpt.com" },
+    { utm_source: "google", utm_medium: "cpc", utm_campaign: "Velo" },
+    { utm_source: "facebook", utm_medium: "organic", utm_campaign: "Velo" },
+    { utm_source: "ig", utm_medium: "paid" },
+    { utm_source: "facebook", utm_campaign: "Velo" }]) assert.equal(utmifyIsMetaAds(attribution), false);
+});
+Deno.test("non Meta purchases are skipped without outbound request or financial changes", async () => {
+  for (const source of [null, "chatgpt.com", "google", "tiktok"]) {
+    const f = fixture({ test: false });
+    f.tables.profiles[0].utm_source = source;
+    const before = JSON.stringify({ subscriptions: f.tables.subscriptions, profiles: f.tables.profiles });
+    assert.equal((await sendUtmifyOrder(f.admin, input, f.deps)).result, "skipped_non_meta_ads");
+    assert.equal(f.requests.length, 0);
+    assert.equal(JSON.stringify({ subscriptions: f.tables.subscriptions, profiles: f.tables.profiles }), before);
+  }
+});
+Deno.test("refund and manual paths cannot bypass Meta Ads attribution", async () => {
+  for (const triggerSource of ["refund", "backfill", "manual_test"] as const) {
+    const f = fixture({ test: false });
+    f.tables.profiles[0].utm_source = "chatgpt.com";
+    f.tables.subscriptions[0].status = "refunded";
+    assert.equal((await sendUtmifyOrder(f.admin, { ...input, status: "refunded", triggerSource, refundedAt: input.approvedAt }, f.deps)).result, "skipped_non_meta_ads");
+    assert.equal(f.requests.length, 0);
+  }
+});
 Deno.test("official body uses centavos, UTC, minimal customer and exact fee", () => {
   const body = buildUtmifyBody(sub, profile, { ...input, approvedAt: "2026-11-27T18:01:00-03:00" }, { feePercent: 3, isTest: true, now });
   assert.equal(body.orderId, sub.id);

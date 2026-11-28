@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { sendUtmifyOrder, utmifyHistoricalEvidence } from "../_shared/utmify.ts";
+import { sendUtmifyOrder, utmifyHistoricalEvidence, utmifyIsMetaAds } from "../_shared/utmify.ts";
 import { backfillAuthorized, parseBackfillInput } from "./policy.ts";
 
 // Manual only. No cron, automatic retry or invocation during setup.
@@ -37,7 +37,14 @@ Deno.serve(async (req) => {
         .eq("provider", "validapay").in("status", ["active", "cancel_scheduled", "refunded"])
         .gte("created_at", since).order("created_at", { ascending: true }).order("id", { ascending: true }).range(offset, offset + 99);
       if (error) throw new Error("candidate_read_failed");
+      const userIds = [...new Set((data ?? []).map(sub => sub.user_id))];
+      const { data: profiles, error: profilesError } = userIds.length
+        ? await admin.from("profiles").select("user_id,utm_source,utm_medium,utm_campaign").in("user_id", userIds)
+        : { data: [], error: null };
+      if (profilesError) throw new Error("profile_attribution_read_failed");
+      const metaUsers = new Set((profiles ?? []).filter(utmifyIsMetaAds).map(profile => profile.user_id));
       for (const sub of data ?? []) {
+        if (!metaUsers.has(sub.user_id)) { skipped.push({ order_id: sub.id, reason: "non_meta_ads" }); continue; }
         const payment = await utmifyHistoricalEvidence(admin, sub);
         if (!payment) { skipped.push({ order_id: sub.id, reason: "missing_first_payment_evidence" }); continue; }
         if (sub.status === "refunded") {

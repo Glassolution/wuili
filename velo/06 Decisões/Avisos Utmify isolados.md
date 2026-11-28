@@ -1,5 +1,5 @@
 ---
-atualizado: 2026-11-27
+atualizado: 2026-11-28
 fontes: [supabase/functions/_shared/utmify.ts, drizzle/migrations/0074_utmify_order_events.sql, roadmap.md]
 ---
 # Avisos Utmify isolados
@@ -11,7 +11,7 @@ Medição é um aviso adicional, nunca parte da decisão financeira. Tarefas de 
 - `_shared/utmify.ts`: montagem, flags, limite de sete dias para pago/45 para reembolso, sanitização das UTMs e log técnico sem comprador/token/corpo bruto.
 - `validapay-webhook/index.ts`: prepara aviso e só agenda após o trabalho existente. Meta/TikTok, ativação, comissão e e-mails intactos.
 - `confirmedRefundLifecycle.ts` e `adminCourtesyRefund.ts`: só estorno confirmado da primeira compra com evidência; `PROCESSING`, renovação com acesso mantido ou cobrança de outro ciclo não geram estorno da compra inicial.
-- `utmify-backfill`: manual, serviço interno/admin verificado; dry-run padrão, 1–7 dias, leitura paginada, sem inventar data de pagamento. Não executada.
+- `utmify-backfill`: manual, serviço interno/admin verificado; dry-run padrão, 1–7 dias, leitura paginada, sem inventar data de pagamento. Executada uma vez em 27/11; nenhum reenvio na correção de 28/11.
 - Migration 0074: `utmify_order_events`, dois índices além da PK, RLS e nenhuma policy; só service role.
 
 ## Estado
@@ -25,6 +25,9 @@ Liberação de 27/11 concluída para compras novas; renovações continuam desli
 - UTMIFY_ENABLED=true, UTMIFY_TEST_MODE=false e UTMIFY_SEND_RENEWALS ausente. Zero alterações em subscriptions/refund_requests/profiles durante a retomada; nenhuma migration ou operação financeira nesta tarefa.
 
 ## Limites que continuam
+- Correção de 28/11: Felipe restringiu a Utmify a compras novas do Meta Ads. Remetente e simulação compartilham `utmifyIsMetaAds`: origem Facebook/Instagram/Meta reconhecida + meio pago + campanha; orgânico, outra origem e atribuição incompleta não enviam. `fbclid` sozinho não comprova anúncio pago.
+- Seis funções republicadas com o filtro; 31 testes Deno e 8 Vitest passaram. Sem migration, nova venda de teste, envio/reenvio ou alteração financeira.
+- Auditoria dos 37 envios anteriores: apenas 2 possuem atribuição Meta Ads (R$ 79,80); 35 não atendem à regra (R$ 1.396,50: 33 sem origem e 2 chatgpt.com). Registros anteriores preservados; remoção externa não autorizada nem executada. O teste anterior 21abe785 também não tinha atribuição Meta Ads.
 - Felipe escolheu só compras novas e autorizou primeiro nome/e-mail real, sem telefone/CPF/IP; taxa fixa e parágrafo aprovados.
 - Índice parcial impede dois sucessos locais, não dois POSTs concorrentes. Entrega incerta nunca é reenviada sem decisão de Felipe; idempotência oficial segue sem nova confirmação documental.
 - Vitalício sem webhook não é automaticamente capturado; pagamentos/reembolsos históricos sem primeira cobrança/data confirmadas são pulados, nunca inferidos.

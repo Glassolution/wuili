@@ -51,6 +51,14 @@ export function safeUtm(value: unknown, personal: Array<string | null | undefine
   if (personal.some(v => v && v.trim().length >= 3 && text.toLowerCase().includes(v.trim().toLowerCase()))) return null;
   return text.replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 500) || null;
 }
+/** Fail closed: a social click alone does not establish a paid Meta campaign. */
+export function utmifyIsMetaAds(profile: Profile): boolean {
+  const source = safeUtm(profile.utm_source)?.toLowerCase();
+  const medium = safeUtm(profile.utm_medium)?.toLowerCase();
+  return ["fb", "facebook", "ig", "instagram", "meta", "metaads", "meta_ads"].includes(source ?? "")
+    && ["paid", "paid_social", "paidsocial", "cpc", "ppc"].includes(medium ?? "")
+    && safeUtm(profile.utm_campaign) !== null;
+}
 export function buildUtmifyBody(sub: Subscription, profile: Profile, input: UtmifyInput,
   config: { feePercent: number; feeCents?: string; isTest: boolean; now: number }) {
   const total = Math.round(Number(sub.amount) * 100);
@@ -139,6 +147,7 @@ export async function sendUtmifyOrder(admin: UtmifyAdmin, input: UtmifyInput, in
     if (!token) return await record("failed", "missing_api_token");
     const { data: profile, error: profileError } = await admin.from("profiles").select(PROFILE_FIELDS).eq("user_id", sub.user_id).maybeSingle();
     if (profileError || !profile) return await record("failed", "profile_read_failed");
+    if (!utmifyIsMetaAds(profile)) return await record("skipped_non_meta_ads");
     let body: ReturnType<typeof buildUtmifyBody>;
     try {
       body = buildUtmifyBody(sub, profile, input, { feePercent: Number(deps.env("UTMIFY_GATEWAY_FEE_PERCENT") ?? 0),

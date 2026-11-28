@@ -1,9 +1,11 @@
 ---
-atualizado: 2026-11-27
+atualizado: 2026-11-28
 ---
 # Próximos passos
 
 ## Utmify (27/11)
+- [x] Correção 28/11: somente Meta Ads com origem/meio pago/campanha, filtro compartilhado com dry-run; seis funções publicadas, 31 Deno + 8 Vitest passaram; nenhum envio ou reenvio nesta correção.
+- [ ] Registros anteriores na Utmify: 35 dos 37 envios reais sem atribuição Meta Ads (R$ 1.396,50), além do teste sem atribuição. Exclusão/correção externa depende de autorização de Felipe e confirmação de suporte do provedor; histórico local preservado.
 - [x] Código e migration 0074 aprovados/implementados; log protegido, testes simulados e token salvo.
 - [x] Taxa fixa R$ 0,67 aplicada (95195ea3, 26 testes Deno) e parágrafo aprovado da política incluído (98abc951, print 393 px); publicação confirmada por Felipe.
 - [x] Único teste com evidência real: 21abe785, HTTP 200, `sent`, modo teste; função temporária removida.

@@ -1,5 +1,10 @@
 # Roadmap
 
+## Restrição Utmify ao Meta Ads — 28/11
+- [x] Filtrar compras e reembolsos na função compartilhada e na simulação; 31 testes Deno e 8 Vitest passaram, seis funções publicadas; nenhum reenvio
+- [x] Conferir os registros anteriores: 2 Meta Ads (R$79,80), 35 sem atribuição Meta Ads (R$1.396,50); histórico preservado, nenhuma exclusão externa
+- [ ] Corrigir/remover os registros externos anteriores fora do Meta Ads: depende de autorização de Felipe e confirmação do caminho suportado pela Utmify
+
 ## Integração Utmify — 27/11
 - [x] Liberação recebida: taxa fixa 67 centavos, parágrafo de privacidade, publicação, um teste e backfill de sete dias; renovação continua desligada
 - [x] Etapa 0: API GitHub confirmou main bf5babdc7caee621fb3c75b819007bb1648cae78 e e039ec7a ancestral, sem divergência
